@@ -67,10 +67,10 @@ export default function ContactPage() {
                     Email
                   </p>
                   <a
-                    href="mailto:theconsilium@eusa.ed.ac.uk"
+                    href="mailto:theconsilium.editor@gmail.com"
                     className="text-navy/70 text-sm hover:text-gold transition-colors"
                   >
-                    theconsilium@eusa.ed.ac.uk
+                    theconsilium.editor@gmail.com
                   </a>
                 </div>
               </div>
@@ -94,7 +94,7 @@ export default function ContactPage() {
               </p>
               <div className="flex gap-3">
                 <a
-                  href="https://instagram.com"
+                  href="https://www.instagram.com/theconsilium.editor/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-9 h-9 border border-navy/20 flex items-center justify-center text-navy/50 hover:bg-navy hover:text-gold hover:border-navy transition-colors"

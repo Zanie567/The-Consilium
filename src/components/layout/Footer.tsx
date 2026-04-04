@@ -117,7 +117,7 @@ export function Footer() {
                 <LinkedInIcon />
               </a>
               <a
-                href="mailto:theconsilium@eusa.ed.ac.uk"
+                href="mailto:theconsilium.editor@gmail.com"
                 className="text-cream/45 hover:text-gold transition-colors duration-200 hover:scale-110 inline-block"
                 aria-label="Email"
               >
@@ -126,10 +126,10 @@ export function Footer() {
             </div>
             <p className="text-cream/35 text-xs mt-3">
               <a
-                href="mailto:theconsilium@eusa.ed.ac.uk"
+                href="mailto:theconsilium.editor@gmail.com"
                 className="hover:text-gold transition-colors duration-200"
               >
-                theconsilium@eusa.ed.ac.uk
+                theconsilium.editor@gmail.com
               </a>
             </p>
           </div>
