@@ -99,7 +99,7 @@ export function Footer() {
 
             <div className="flex items-center gap-3">
               <a
-                href="https://instagram.com"
+                href="https://www.instagram.com/theconsilium.editor/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-cream/45 hover:text-gold transition-colors duration-200 hover:scale-110 inline-block"
