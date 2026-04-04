@@ -104,11 +104,10 @@ export default function AboutPage() {
             <p>
               Founded by the University of Edinburgh Economics Society, we are committed to
               editorial independence, intellectual honesty, and the highest standards of
-              analytical journalism. Our writers are students and members of the society,
-              bringing fresh perspectives informed by rigorous academic training.
+              analytical journalism. Our writers are students bringing fresh perspectives to The Consilium.
             </p>
             <p>
-              The name <em>Consilium</em> is Latin for &ldquo;council&rdquo; or
+              The name <em>Consilium </em> is Latin for &ldquo;council&rdquo; or
               &ldquo;deliberation&rdquo;, and reflects our belief in the power of informed debate.
               We do not seek to impose a single viewpoint, but to illuminate the complexity of
               economic questions and foster thoughtful discourse.
