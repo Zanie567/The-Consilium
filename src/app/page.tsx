@@ -1,65 +1,294 @@
-import Image from "next/image";
+import Link from 'next/link'
+import Image from 'next/image'
+import { prisma } from '@/lib/prisma'
+import { format } from 'date-fns'
+import { NewsletterSignup } from '@/components/ui/NewsletterSignup'
+import { CategoryTabs } from '@/components/ui/CategoryTabs'
+import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 
-export default function Home() {
+async function getFeaturedArticle() {
+  try {
+    return await prisma.article.findFirst({
+      where: { status: 'PUBLISHED' },
+      orderBy: { publishedAt: 'desc' },
+      include: { author: true, category: true },
+    })
+  } catch {
+    return null
+  }
+}
+
+async function getArticles(categorySlug?: string) {
+  try {
+    return await prisma.article.findMany({
+      where: {
+        status: 'PUBLISHED',
+        ...(categorySlug ? { category: { slug: categorySlug } } : {}),
+      },
+      orderBy: { publishedAt: 'desc' },
+      take: 12,
+      include: { author: true, category: true },
+    })
+  } catch {
+    return []
+  }
+}
+
+async function getCategories() {
+  try {
+    return await prisma.category.findMany({ orderBy: { name: 'asc' } })
+  } catch {
+    return []
+  }
+}
+
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string }>
+}) {
+  const params = await searchParams
+  const categorySlug = params.category
+
+  const [featured, articles, categories] = await Promise.all([
+    getFeaturedArticle(),
+    getArticles(categorySlug),
+    getCategories(),
+  ])
+
+  const gridArticles = featured
+    ? articles.filter((a) => a.id !== featured.id)
+    : articles
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="min-h-screen bg-[var(--bg)]">
+      {/* ── Masthead Hero ──────────────────────────────────────────────────── */}
+      <section className="bg-navy text-cream py-12 px-4 text-center border-b border-gold/25 relative overflow-hidden">
+        {/* Subtle dot grid */}
+        <div
+          className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          style={{
+            backgroundImage: 'radial-gradient(circle at 1px 1px, #c9a227 1px, transparent 0)',
+            backgroundSize: '28px 28px',
+          }}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+        <div className="relative">
+          <AnimateIn variant="fade-in" duration={0.5}>
+            <p className="text-gold/60 text-[0.65rem] tracking-[0.4em] uppercase mb-4 font-semibold">
+              University of Edinburgh Economics Society
+            </p>
+          </AnimateIn>
+          <AnimateIn variant="fade-up" delay={0.08} duration={0.7}>
+            <h1
+              className="text-5xl sm:text-6xl md:text-7xl font-bold text-gold tracking-wider mb-5 leading-none"
+              style={{ fontFamily: 'var(--font-serif)' }}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              The Consilium
+            </h1>
+          </AnimateIn>
+          <AnimateIn variant="fade-in" delay={0.2} duration={0.6}>
+            <div className="w-20 h-px bg-gradient-to-r from-transparent via-gold to-transparent mx-auto mb-5 opacity-60" />
+            <p className="text-cream/60 text-sm sm:text-base tracking-wide max-w-md mx-auto leading-relaxed">
+              The voice of the University of Edinburgh Economics Society
+            </p>
+          </AnimateIn>
+        </div>
+      </section>
+
+      {/* ── Date banner ────────────────────────────────────────────────────── */}
+      <div className="bg-[var(--bg-subtle)] border-b border-[var(--border)] px-4 py-2 text-center">
+        <span className="text-[var(--fg-faint)] text-[0.65rem] tracking-widest uppercase">
+          {format(new Date(), 'EEEE, d MMMM yyyy')}
+        </span>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* ── Featured Article ─────────────────────────────────────────────── */}
+        {featured ? (
+          <AnimateIn variant="fade-up" duration={0.6} className="mb-14">
+            <div className="border border-[var(--border)] bg-[var(--bg-elevated)] overflow-hidden group card-hover shadow-[var(--shadow-card)]">
+              <div className="grid grid-cols-1 lg:grid-cols-2">
+                {/* Image */}
+                <div className="relative h-64 lg:h-auto lg:min-h-[400px] bg-navy-light overflow-hidden img-zoom">
+                  {featured.coverImage ? (
+                    <Image
+                      src={featured.coverImage}
+                      alt={featured.title}
+                      fill
+                      className="object-cover"
+                      priority
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-navy via-navy-light to-navy flex items-center justify-center">
+                      <span
+                        className="text-gold/15 text-8xl font-bold select-none"
+                        style={{ fontFamily: 'var(--font-serif)' }}
+                      >
+                        TC
+                      </span>
+                    </div>
+                  )}
+                  {featured.category && (
+                    <div className="absolute top-4 left-4 z-10">
+                      <span className="category-badge">{featured.category.name}</span>
+                    </div>
+                  )}
+                  {/* Gradient overlay bottom */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-navy/30 via-transparent to-transparent pointer-events-none" />
+                </div>
+
+                {/* Content */}
+                <div className="p-8 lg:p-12 flex flex-col justify-center bg-[var(--bg-elevated)]">
+                  <div className="text-gold/50 text-[0.65rem] tracking-[0.3em] uppercase mb-3 font-semibold">
+                    Featured
+                  </div>
+                  <Link href={`/articles/${featured.slug}`}>
+                    <h2
+                      className="text-3xl lg:text-4xl font-bold text-[var(--fg)] mb-4 leading-tight hover:text-gold transition-colors duration-200"
+                      style={{ fontFamily: 'var(--font-serif)' }}
+                    >
+                      {featured.title}
+                    </h2>
+                  </Link>
+                  {featured.excerpt && (
+                    <p className="text-[var(--fg-muted)] text-base leading-relaxed mb-6">
+                      {featured.excerpt}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-3 text-xs text-[var(--fg-faint)] mb-7">
+                    <span className="font-semibold text-[var(--fg-muted)]">
+                      {featured.author.name}
+                    </span>
+                    <span className="text-gold/40">·</span>
+                    <span>
+                      {featured.publishedAt
+                        ? format(new Date(featured.publishedAt), 'd MMMM yyyy')
+                        : ''}
+                    </span>
+                  </div>
+                  <Link
+                    href={`/articles/${featured.slug}`}
+                    className="inline-flex items-center gap-2 text-gold text-xs font-bold uppercase tracking-widest group/link hover:gap-3 transition-all duration-200"
+                  >
+                    Read Article
+                    <span className="inline-block transition-transform duration-200 group-hover/link:translate-x-1">
+                      →
+                    </span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </AnimateIn>
+        ) : (
+          <AnimateIn variant="fade-up" className="mb-14">
+            <div className="py-20 text-center border border-dashed border-[var(--border)]">
+              <p
+                className="text-4xl font-bold text-[var(--fg-faint)] mb-3"
+                style={{ fontFamily: 'var(--font-serif)' }}
+              >
+                No articles yet
+              </p>
+              <p className="text-[var(--fg-faint)] text-sm">
+                Check back soon for our latest publications.
+              </p>
+            </div>
+          </AnimateIn>
+        )}
+
+        {/* ── Category Tabs ────────────────────────────────────────────────── */}
+        <AnimateIn variant="fade-in" delay={0.1}>
+          <CategoryTabs categories={categories} currentSlug={categorySlug} />
+        </AnimateIn>
+
+        {/* ── Article Grid ─────────────────────────────────────────────────── */}
+        {gridArticles.length > 0 ? (
+          <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
+            {gridArticles.map((article) => (
+              <StaggerItem key={article.id}>
+                <article className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden group card-hover shadow-[var(--shadow-card)] h-full flex flex-col">
+                  {/* Cover Image */}
+                  <div className="relative h-48 bg-navy/10 overflow-hidden img-zoom flex-shrink-0">
+                    {article.coverImage ? (
+                      <Image
+                        src={article.coverImage}
+                        alt={article.title}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-navy to-navy-light flex items-center justify-center">
+                        <span
+                          className="text-gold/15 text-4xl font-bold select-none"
+                          style={{ fontFamily: 'var(--font-serif)' }}
+                        >
+                          TC
+                        </span>
+                      </div>
+                    )}
+                    {article.category && (
+                      <div className="absolute top-3 left-3 z-10">
+                        <span className="category-badge">{article.category.name}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-5 flex flex-col flex-1">
+                    <Link href={`/articles/${article.slug}`} className="flex-1">
+                      <h3
+                        className="text-base font-bold text-[var(--fg)] mb-2 leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2"
+                        style={{ fontFamily: 'var(--font-serif)' }}
+                      >
+                        {article.title}
+                      </h3>
+                    </Link>
+                    {article.excerpt && (
+                      <p className="text-[var(--fg-muted)] text-sm leading-relaxed mb-4 line-clamp-2">
+                        {article.excerpt}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between text-[0.7rem] text-[var(--fg-faint)] border-t border-[var(--border)] pt-3 mt-auto">
+                      <span className="font-semibold text-[var(--fg-muted)]">
+                        {article.author.name}
+                      </span>
+                      <span>
+                        {article.publishedAt
+                          ? format(new Date(article.publishedAt), 'd MMM yyyy')
+                          : ''}
+                      </span>
+                    </div>
+                  </div>
+                </article>
+              </StaggerItem>
+            ))}
+          </StaggerContainer>
+        ) : (
+          <AnimateIn variant="fade-in">
+            <div className="py-20 text-center">
+              <p className="text-[var(--fg-faint)] text-xs uppercase tracking-widest">
+                {categorySlug
+                  ? 'No articles in this category yet'
+                  : 'No articles published yet'}
+              </p>
+            </div>
+          </AnimateIn>
+        )}
+
+        {/* View all */}
+        {gridArticles.length >= 11 && (
+          <AnimateIn variant="fade-up" delay={0.1} className="mt-12 text-center">
+            <Link
+              href="/archive"
+              className="inline-block border border-[var(--fg)] text-[var(--fg)] text-xs font-bold uppercase tracking-widest px-10 py-3.5 hover:bg-navy hover:text-gold hover:border-navy dark:hover:bg-gold dark:hover:text-navy dark:hover:border-gold transition-all duration-200 btn-lift"
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+              View All Articles
+            </Link>
+          </AnimateIn>
+        )}
+      </div>
+
+      {/* ── Newsletter ───────────────────────────────────────────────────────── */}
+      <NewsletterSignup />
     </div>
-  );
+  )
 }
