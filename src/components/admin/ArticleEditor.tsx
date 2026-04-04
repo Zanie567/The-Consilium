@@ -31,6 +31,7 @@ interface ArticleEditorProps {
   categories: Category[]
   authorId: string
   canPublish: boolean
+  returnUrl?: string
 }
 
 export function ArticleEditor({
@@ -39,6 +40,7 @@ export function ArticleEditor({
   categories,
   authorId,
   canPublish,
+  returnUrl,
 }: ArticleEditorProps) {
   const router = useRouter()
   const [title, setTitle] = useState(initialData?.title ?? '')
@@ -108,7 +110,7 @@ export function ArticleEditor({
       const saved = await res.json()
       setSuccess('Article saved successfully.')
       if (!articleId) {
-        router.push(`/admin/articles/${saved.id}/edit`)
+        router.push(returnUrl ? `${returnUrl}/${saved.id}/edit` : `/admin/articles/${saved.id}/edit`)
       } else {
         if (overrideStatus) setStatus(overrideStatus)
         router.refresh()

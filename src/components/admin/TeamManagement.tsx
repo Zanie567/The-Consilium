@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { PlusCircle, Trash2, Edit, Check, X } from 'lucide-react'
+import { PlusCircle, Trash2, Edit, Check, X, Upload } from 'lucide-react'
+import Image from 'next/image'
 
 interface TeamMember {
   id: string
@@ -36,6 +37,8 @@ export function TeamManagement({ initialMembers }: TeamManagementProps) {
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyMember)
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const startEdit = (member: TeamMember) => {
     setEditId(member.id)
@@ -74,6 +77,21 @@ export function TeamManagement({ initialMembers }: TeamManagementProps) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    const data = new FormData()
+    data.append('file', file)
+    data.append('bucket', 'team-photos')
+    const res = await fetch('/api/upload', { method: 'POST', body: data })
+    if (res.ok) {
+      const { url } = await res.json()
+      setForm((f) => ({ ...f, image: url }))
+    }
+    setUploading(false)
   }
 
   const handleDelete = async (id: string) => {
@@ -145,14 +163,44 @@ export function TeamManagement({ initialMembers }: TeamManagementProps) {
             </div>
             <div>
               <label className="block text-navy text-xs font-bold uppercase tracking-widest mb-1">
-                Image URL
+                Photo
               </label>
-              <input
-                type="url"
-                value={form.image}
-                onChange={(e) => setForm({ ...form, image: e.target.value })}
-                className="w-full border border-navy/20 px-3 py-2 text-sm focus:outline-none focus:border-gold bg-cream"
-              />
+              <div className="flex items-center gap-3">
+                {form.image && (
+                  <Image
+                    src={form.image}
+                    alt="Preview"
+                    width={48}
+                    height={48}
+                    className="rounded-full object-cover ring-2 ring-gold/20 shrink-0"
+                  />
+                )}
+                <div className="flex-1 flex gap-2">
+                  <input
+                    type="url"
+                    value={form.image}
+                    onChange={(e) => setForm({ ...form, image: e.target.value })}
+                    placeholder="Paste URL or upload"
+                    className="flex-1 border border-navy/20 px-3 py-2 text-sm focus:outline-none focus:border-gold bg-cream min-w-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="shrink-0 inline-flex items-center gap-1.5 border border-navy/20 px-3 py-2 text-xs text-navy hover:bg-cream-dark transition-colors disabled:opacity-50"
+                  >
+                    <Upload size={13} />
+                    {uploading ? 'Uploading...' : 'Upload'}
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handlePhotoUpload}
+                  />
+                </div>
+              </div>
             </div>
             <div>
               <label className="block text-navy text-xs font-bold uppercase tracking-widest mb-1">

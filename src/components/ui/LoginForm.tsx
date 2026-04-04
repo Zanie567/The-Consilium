@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
-export function LoginForm() {
+export function LoginForm({ redirectTo = '/admin' }: { redirectTo?: string }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -24,7 +24,7 @@ export function LoginForm() {
       setError('Invalid email or password.')
       setLoading(false)
     } else {
-      router.push('/admin')
+      router.push(redirectTo)
     }
   }
 
