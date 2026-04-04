@@ -285,42 +285,65 @@ async function main() {
   // Create team members
   const teamData = [
     {
-      name: 'James Mackintosh',
+      name: 'Alexander Escala',
       role: 'Editor-in-Chief',
-      bio: 'Third-year Economics student at Edinburgh. Previously an intern at the Financial Times. Interested in monetary policy and financial regulation.',
+      image: '/team/alexander-escala.png',
+      bio: 'Economics student at the University of Edinburgh with a focus on development economics and structural transformation.',
       order: 1,
     },
     {
-      name: 'Eleanor Hughes',
-      role: 'Deputy Editor',
-      bio: 'Third-year Economics and Politics student. Her writing focuses on labour markets and the political economy of inequality.',
+      name: 'Annika Sarawgi',
+      role: 'Senior Editor',
+      image: '/team/annika-sarawgi.png',
+      bio: 'Senior Editor at The Consilium, coordinating editorial strategy and content development.',
       order: 2,
     },
     {
-      name: 'Ravi Chandrasekaran',
-      role: 'Head of Analysis',
-      bio: 'Fourth-year Economics student with a focus on development economics and international trade policy.',
+      name: 'Sam Hunt',
+      role: 'Junior Editor',
+      image: '/team/sam-hunt.png',
+      bio: 'Junior Editor supporting content creation and editorial processes.',
       order: 3,
     },
     {
-      name: 'Sofia Larsson',
-      role: 'Head of Opinion',
-      bio: 'Second-year PPE student. Her interests span macroeconomics, European political economy, and economic history.',
+      name: 'Zara Spendiff',
+      role: 'Writer',
+      image: '/team/zara-spendiff.png',
+      bio: 'Writer covering economics, policy, and current affairs.',
       order: 4,
+    },
+    {
+      name: 'Gurmehar Kaur',
+      role: 'Writer',
+      image: '/team/gurmehar-kaur.png',
+      bio: 'Writer contributing analysis and commentary on economic issues.',
+      order: 5,
+    },
+    {
+      name: 'Yaoqing Wang',
+      role: 'Writer',
+      bio: 'Writer exploring economic policy and international affairs.',
+      order: 6,
+    },
+    {
+      name: 'Catherine Toh',
+      role: 'Writer',
+      image: '/team/catherine-toh.png',
+      bio: 'Writer focusing on economic analysis and commentary.',
+      order: 7,
     },
   ]
 
+  // Clear existing team members first
+  await prisma.teamMember.deleteMany({})
+  console.log('Cleared existing team members')
+
+  // Create new team members
   for (const member of teamData) {
-    // Use upsert based on name+role combination - check if already exists
-    const existing = await prisma.teamMember.findFirst({
-      where: { name: member.name },
-    })
-    if (!existing) {
-      await prisma.teamMember.create({ data: member })
-    }
+    await prisma.teamMember.create({ data: member })
   }
 
-  console.log('Created team members')
+  console.log('Created team members:', teamData.map(m => m.name).join(', '))
   console.log('\nSeeding complete!')
   console.log('\nAdmin credentials:')
   console.log('  Email: admin@theconsilium.com')
