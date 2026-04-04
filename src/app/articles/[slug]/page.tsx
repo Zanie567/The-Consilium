@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
 import { ShareButtons } from '@/components/ui/ShareButtons'
+import { BookmarkButton } from '@/components/ui/BookmarkButton'
 import { ReadingProgress } from '@/components/ui/ReadingProgress'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import type { Metadata } from 'next'
@@ -209,7 +210,10 @@ export default async function ArticlePage({ params }: Props) {
                 </p>
               </div>
             </div>
-            <ShareButtons title={article.title} />
+            <div className="flex items-center gap-4">
+              <ShareButtons title={article.title} />
+              <BookmarkButton articleId={article.id} />
+            </div>
           </div>
         </AnimateIn>
 

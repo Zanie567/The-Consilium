@@ -115,11 +115,19 @@ export function Navbar() {
             <ThemeToggle />
             {session ? (
               <div className="flex items-center gap-3 pl-3 border-l border-navy-light">
+                {(session.user.role === 'ADMIN' || session.user.role === 'EDITOR' || session.user.role === 'WRITER') && (
+                  <Link
+                    href="/editorial"
+                    className="text-gold/70 text-xs font-semibold uppercase tracking-widest hover:text-gold transition-colors"
+                  >
+                    Editorial
+                  </Link>
+                )}
                 <Link
-                  href="/admin"
-                  className="text-gold text-xs font-semibold uppercase tracking-widest hover:opacity-80 transition-opacity"
+                  href="/profile"
+                  className="text-cream/70 text-xs font-semibold uppercase tracking-widest hover:text-cream transition-colors"
                 >
-                  Admin
+                  Profile
                 </Link>
                 <button
                   onClick={() => signOut()}
@@ -205,11 +213,18 @@ export function Navbar() {
                 {session ? (
                   <>
                     <Link
-                      href="/admin"
+                      href="/profile"
                       onClick={() => setMobileOpen(false)}
-                      className="text-gold text-sm font-semibold uppercase tracking-widest"
+                      className="text-cream/70 text-sm font-semibold uppercase tracking-widest hover:text-cream transition-colors"
                     >
-                      Admin
+                      Profile
+                    </Link>
+                    <Link
+                      href="/editorial"
+                      onClick={() => setMobileOpen(false)}
+                      className="text-gold/70 text-sm font-semibold uppercase tracking-widest hover:text-gold transition-colors"
+                    >
+                      Editorial
                     </Link>
                     <button
                       onClick={() => { signOut(); setMobileOpen(false) }}
