@@ -1,5 +1,28 @@
 @import "tailwindcss";
 
+/* ─── View Transitions (native browser page transitions) ──────────────────── */
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root) {
+  animation: 200ms cubic-bezier(0.4, 0, 1, 1) both fade-out;
+}
+
+::view-transition-new(root) {
+  animation: 300ms cubic-bezier(0, 0, 0.2, 1) 80ms both fade-in;
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ─── Dark-mode variant (class-based via next-themes) ─────────────────────── */
 @variant dark (&:where(.dark, .dark *));
 
@@ -181,9 +204,25 @@ body {
 .prose-consilium img {
   max-width: 100%;
   height: auto;
-  margin: 2.5rem auto;
+  margin: 2.5rem auto 0;
   display: block;
   border-radius: 2px;
+  box-shadow: 0 4px 24px rgba(26,39,68,0.10);
+}
+
+/* Paragraph immediately after an image becomes a photo caption */
+.prose-consilium img + p {
+  text-align: center;
+  font-size: 0.8125rem;
+  color: rgba(26,39,68,0.40);
+  font-style: italic;
+  margin-top: 0.65rem;
+  margin-bottom: 2.2rem;
+  line-height: 1.5;
+}
+
+.dark .prose-consilium img + p {
+  color: rgba(232,226,212,0.35);
 }
 
 .prose-consilium hr {
@@ -275,24 +314,32 @@ body {
 
 /* ─── Utility: card hover ──────────────────────────────────────────────────── */
 .card-hover {
-  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
 }
 .card-hover:hover {
-  transform: translateY(-3px);
+  transform: translateY(-4px);
   box-shadow: var(--shadow-card-hover);
+}
+.card-hover:active {
+  transform: translateY(-1px);
 }
 
 /* ─── Utility: btn-lift ────────────────────────────────────────────────────── */
 .btn-lift {
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
 }
 .btn-lift:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-button-hover);
 }
 .btn-lift:active {
-  transform: translateY(0) scale(0.98);
+  transform: translateY(0) scale(0.97);
   box-shadow: none;
+  transition-duration: 0.08s;
 }
 
 /* ─── Smooth image zoom container ─────────────────────────────────────────── */
@@ -301,11 +348,34 @@ body {
 }
 .img-zoom img,
 .img-zoom > div > img {
-  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
 }
 .img-zoom:hover img,
 .img-zoom:hover > div > img {
-  transform: scale(1.04);
+  transform: scale(1.05);
+}
+
+/* ─── Link underline reveal ────────────────────────────────────────────────── */
+.link-underline {
+  position: relative;
+  text-decoration: none;
+}
+.link-underline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.link-underline:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
 }
 
 @media (prefers-reduced-motion: reduce) {
