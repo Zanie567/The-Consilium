@@ -6,6 +6,7 @@ import { Footer } from '@/components/layout/Footer'
 import { AuthProvider } from '@/components/layout/AuthProvider'
 import { ThemeProvider } from '@/providers/ThemeProvider'
 import { ScrollIndicator } from '@/components/ui/ScrollIndicator'
+import { SignupPrompt } from '@/components/ui/SignupPrompt'
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -61,6 +62,7 @@ export default function RootLayout({
             <Navbar />
             <main className="flex-1">{children}</main>
             <Footer />
+            <SignupPrompt />
           </AuthProvider>
         </ThemeProvider>
       </body>
