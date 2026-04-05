@@ -35,7 +35,14 @@ export function BookmarkButton({ articleId }: { articleId: string }) {
     )
   }
 
-  if (!checked) return null
+  if (!checked) {
+    return (
+      <div className="inline-flex items-center gap-1.5 text-xs opacity-0 pointer-events-none">
+        <Bookmark size={16} />
+        <span className="hidden sm:inline">Save</span>
+      </div>
+    )
+  }
 
   const handleToggle = async () => {
     setLoading(true)

@@ -53,7 +53,7 @@ export default async function ArchivePage({ searchParams }: Props) {
   ])
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen bg-[var(--bg)]">
       {/* Header */}
       <section className="bg-navy py-14 px-4 border-b-2 border-gold text-center">
         <p className="text-gold/60 text-xs tracking-[0.3em] uppercase mb-3">Browse</p>
@@ -73,12 +73,12 @@ export default async function ArchivePage({ searchParams }: Props) {
             name="q"
             defaultValue={q}
             placeholder="Search articles..."
-            className="flex-1 border border-navy/20 px-4 py-2.5 text-navy text-sm focus:outline-none focus:border-gold bg-white"
+            className="flex-1 border border-[var(--border)] px-4 py-2.5 text-[var(--fg)] text-sm focus:outline-none focus:border-gold bg-[var(--bg-elevated)]"
           />
           <select
             name="category"
             defaultValue={categorySlug ?? ''}
-            className="border border-navy/20 px-4 py-2.5 text-navy text-sm focus:outline-none focus:border-gold bg-white"
+            className="border border-[var(--border)] px-4 py-2.5 text-[var(--fg)] text-sm focus:outline-none focus:border-gold bg-[var(--bg-elevated)]"
           >
             <option value="">All Categories</option>
             {categories.map((cat) => (
@@ -96,7 +96,7 @@ export default async function ArchivePage({ searchParams }: Props) {
         </form>
 
         {/* Results count */}
-        <p className="text-navy/40 text-xs uppercase tracking-widest mb-6">
+        <p className="text-[var(--fg-faint)] text-xs uppercase tracking-widest mb-6">
           {articles.length} article{articles.length !== 1 ? 's' : ''}{' '}
           {q ? `matching "${q}"` : 'published'}
         </p>
@@ -109,7 +109,7 @@ export default async function ArchivePage({ searchParams }: Props) {
                 key={article.id}
                 className="py-6 flex flex-col sm:flex-row sm:items-start gap-4 group"
               >
-                <div className="sm:w-32 shrink-0 text-xs text-navy/40 pt-1">
+                <div className="sm:w-32 shrink-0 text-xs text-[var(--fg-faint)] pt-1">
                   {article.publishedAt
                     ? format(new Date(article.publishedAt), 'd MMM yyyy')
                     : '—'}
@@ -122,25 +122,25 @@ export default async function ArchivePage({ searchParams }: Props) {
                   )}
                   <Link href={`/articles/${article.slug}`}>
                     <h3
-                      className="text-lg font-bold text-navy group-hover:text-gold transition-colors leading-snug mb-1"
+                      className="text-lg font-bold text-[var(--fg)] group-hover:text-gold transition-colors leading-snug mb-1"
                       style={{ fontFamily: 'var(--font-serif)' }}
                     >
                       {article.title}
                     </h3>
                   </Link>
                   {article.excerpt && (
-                    <p className="text-navy/55 text-sm leading-relaxed mb-2 line-clamp-2">
+                    <p className="text-[var(--fg-muted)] text-sm leading-relaxed mb-2 line-clamp-2">
                       {article.excerpt}
                     </p>
                   )}
-                  <p className="text-navy/40 text-xs">By {article.author.name}</p>
+                  <p className="text-[var(--fg-faint)] text-xs">By {article.author.name}</p>
                 </div>
               </article>
             ))}
           </div>
         ) : (
           <div className="py-20 text-center">
-            <p className="text-navy/30 text-sm uppercase tracking-widest">
+            <p className="text-[var(--fg-faint)] text-sm uppercase tracking-widest">
               No articles found
             </p>
           </div>

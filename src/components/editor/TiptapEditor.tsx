@@ -105,7 +105,7 @@ export function TiptapEditor({ content, onChange }: TiptapEditorProps) {
   return (
     <div className="border border-navy/20 rounded-sm overflow-hidden">
       {/* Toolbar */}
-      <div className="bg-cream-dark border-b border-navy/15 px-2 py-1.5 flex flex-wrap gap-0.5">
+      <div className="bg-[var(--bg-subtle)] border-b border-[var(--border)] px-2 py-1.5 flex flex-wrap gap-0.5">
         {/* Undo / Redo */}
         <ToolbarButton
           onClick={() => editor.chain().focus().undo().run()}
@@ -263,12 +263,12 @@ export function TiptapEditor({ content, onChange }: TiptapEditorProps) {
       {/* Editor area */}
       <EditorContent
         editor={editor}
-        className="tiptap-editor bg-white min-h-[450px] text-navy text-sm leading-relaxed"
+        className="tiptap-editor bg-[var(--bg-elevated)] min-h-[450px] text-[var(--fg)] text-sm leading-relaxed"
       />
 
       {/* Word count */}
-      <div className="bg-cream-dark border-t border-navy/10 px-4 py-2 text-right">
-        <span className="text-navy/30 text-xs">
+      <div className="bg-[var(--bg-subtle)] border-t border-[var(--border)] px-4 py-2 text-right">
+        <span className="text-[var(--fg-faint)] text-xs">
           {editor.storage.characterCount.words()} words &middot;{' '}
           {editor.storage.characterCount.characters()} characters
         </span>

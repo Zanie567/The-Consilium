@@ -20,24 +20,32 @@ export function ContactForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setStatus('loading')
-    // Simulate sending
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setStatus('success')
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (!res.ok) throw new Error()
+      setStatus('success')
+    } catch {
+      setStatus('error')
+    }
   }
 
   if (status === 'success') {
     return (
-      <div className="bg-white border border-gold/20 p-8 text-center">
+      <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-8 text-center">
         <div className="w-12 h-12 bg-gold/10 rounded-full flex items-center justify-center mx-auto mb-4">
           <span className="text-gold text-xl">✓</span>
         </div>
         <h3
-          className="text-navy font-bold text-xl mb-2"
+          className="text-[var(--fg)] font-bold text-xl mb-2"
           style={{ fontFamily: 'var(--font-serif)' }}
         >
           Message sent
         </h3>
-        <p className="text-navy/60 text-sm">
+        <p className="text-[var(--fg-muted)] text-sm">
           Thank you for reaching out. We&apos;ll get back to you as soon as possible.
         </p>
       </div>
@@ -47,11 +55,16 @@ export function ContactForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white border border-gold/20 p-6 sm:p-8 space-y-5"
+      className="bg-[var(--bg-elevated)] border border-[var(--border)] p-6 sm:p-8 space-y-5"
     >
+      {status === 'error' && (
+        <p className="text-sm text-red-500 bg-red-500/10 border border-red-500/20 px-4 py-3">
+          Something went wrong. Please try again or email us directly.
+        </p>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
-          <label className="block text-navy text-xs font-bold uppercase tracking-widest mb-2">
+          <label className="block text-[var(--fg)] text-xs font-bold uppercase tracking-widest mb-2">
             Name <span className="text-gold">*</span>
           </label>
           <input
@@ -60,12 +73,12 @@ export function ContactForm() {
             value={form.name}
             onChange={handleChange}
             required
-            className="w-full border border-navy/20 px-4 py-3 text-navy text-sm focus:outline-none focus:border-gold transition-colors bg-cream"
+            className="w-full border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-sm focus:outline-none focus:border-gold transition-colors bg-[var(--bg)]"
             placeholder="Your full name"
           />
         </div>
         <div>
-          <label className="block text-navy text-xs font-bold uppercase tracking-widest mb-2">
+          <label className="block text-[var(--fg)] text-xs font-bold uppercase tracking-widest mb-2">
             Email <span className="text-gold">*</span>
           </label>
           <input
@@ -74,14 +87,14 @@ export function ContactForm() {
             value={form.email}
             onChange={handleChange}
             required
-            className="w-full border border-navy/20 px-4 py-3 text-navy text-sm focus:outline-none focus:border-gold transition-colors bg-cream"
+            className="w-full border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-sm focus:outline-none focus:border-gold transition-colors bg-[var(--bg)]"
             placeholder="your@email.com"
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-navy text-xs font-bold uppercase tracking-widest mb-2">
+        <label className="block text-[var(--fg)] text-xs font-bold uppercase tracking-widest mb-2">
           Subject <span className="text-gold">*</span>
         </label>
         <select
@@ -89,7 +102,7 @@ export function ContactForm() {
           value={form.subject}
           onChange={handleChange}
           required
-          className="w-full border border-navy/20 px-4 py-3 text-navy text-sm focus:outline-none focus:border-gold transition-colors bg-cream"
+          className="w-full border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-sm focus:outline-none focus:border-gold transition-colors bg-[var(--bg)]"
         >
           <option value="">Select a subject</option>
           <option value="writing">I&apos;d like to write for The Consilium</option>
@@ -101,7 +114,7 @@ export function ContactForm() {
       </div>
 
       <div>
-        <label className="block text-navy text-xs font-bold uppercase tracking-widest mb-2">
+        <label className="block text-[var(--fg)] text-xs font-bold uppercase tracking-widest mb-2">
           Message <span className="text-gold">*</span>
         </label>
         <textarea
@@ -110,7 +123,7 @@ export function ContactForm() {
           onChange={handleChange}
           required
           rows={6}
-          className="w-full border border-navy/20 px-4 py-3 text-navy text-sm focus:outline-none focus:border-gold transition-colors bg-cream resize-none"
+          className="w-full border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-sm focus:outline-none focus:border-gold transition-colors bg-[var(--bg)] resize-none"
           placeholder="Your message..."
         />
       </div>

@@ -29,7 +29,7 @@ function LinkedInIcon() {
 
 export default function ContactPage() {
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen bg-[var(--bg)]">
       {/* Header */}
       <section className="bg-navy py-14 px-4 border-b-2 border-gold text-center">
         <p className="text-gold/60 text-xs tracking-[0.3em] uppercase mb-3">
@@ -48,12 +48,12 @@ export default function ContactPage() {
           {/* Info column */}
           <div className="lg:col-span-2">
             <h2
-              className="text-xl font-bold text-navy mb-4"
+              className="text-xl font-bold text-[var(--fg)] mb-4"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
               We&apos;d love to hear from you
             </h2>
-            <p className="text-navy/60 text-sm leading-relaxed mb-8">
+            <p className="text-[var(--fg-muted)] text-sm leading-relaxed mb-8">
               Whether you&apos;re interested in writing for us, have a story tip, or
               want to collaborate with the Edinburgh Economics Society, please
               reach out.
@@ -63,12 +63,12 @@ export default function ContactPage() {
               <div className="flex items-start gap-3">
                 <Mail size={18} className="text-gold mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-navy text-xs font-bold uppercase tracking-widest mb-1">
+                  <p className="text-[var(--fg)] text-xs font-bold uppercase tracking-widest mb-1">
                     Email
                   </p>
                   <a
                     href="mailto:theconsilium.editor@gmail.com"
-                    className="text-navy/70 text-sm hover:text-gold transition-colors"
+                    className="text-[var(--fg-muted)] text-sm hover:text-gold transition-colors"
                   >
                     theconsilium.editor@gmail.com
                   </a>
@@ -77,10 +77,10 @@ export default function ContactPage() {
               <div className="flex items-start gap-3">
                 <MapPin size={18} className="text-gold mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-navy text-xs font-bold uppercase tracking-widest mb-1">
+                  <p className="text-[var(--fg)] text-xs font-bold uppercase tracking-widest mb-1">
                     Location
                   </p>
-                  <p className="text-navy/70 text-sm">
+                  <p className="text-[var(--fg-muted)] text-sm">
                     University of Edinburgh<br />
                     Edinburgh, Scotland
                   </p>
@@ -89,7 +89,7 @@ export default function ContactPage() {
             </div>
 
             <div className="mt-8">
-              <p className="text-navy text-xs font-bold uppercase tracking-widest mb-3">
+              <p className="text-[var(--fg)] text-xs font-bold uppercase tracking-widest mb-3">
                 Follow Us
               </p>
               <div className="flex gap-3">
@@ -97,7 +97,7 @@ export default function ContactPage() {
                   href="https://www.instagram.com/theconsilium.editor/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-9 h-9 border border-navy/20 flex items-center justify-center text-navy/50 hover:bg-navy hover:text-gold hover:border-navy transition-colors"
+                  className="w-9 h-9 border border-[var(--border)] flex items-center justify-center text-[var(--fg-faint)] hover:bg-navy hover:text-gold hover:border-navy transition-colors"
                 >
                   <InstagramIcon />
                 </a>
@@ -105,7 +105,7 @@ export default function ContactPage() {
                   href="https://linkedin.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-9 h-9 border border-navy/20 flex items-center justify-center text-navy/50 hover:bg-navy hover:text-gold hover:border-navy transition-colors"
+                  className="w-9 h-9 border border-[var(--border)] flex items-center justify-center text-[var(--fg-faint)] hover:bg-navy hover:text-gold hover:border-navy transition-colors"
                 >
                   <LinkedInIcon />
                 </a>

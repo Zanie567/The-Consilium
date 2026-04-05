@@ -23,7 +23,7 @@ export default async function TeamPage() {
   const members = await getTeamMembers()
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen bg-[var(--bg)]">
       {/* Header */}
       <section className="bg-navy py-14 px-4 border-b-2 border-gold text-center">
         <p className="text-gold/60 text-xs tracking-[0.3em] uppercase mb-3">The Consilium</p>
@@ -44,7 +44,7 @@ export default async function TeamPage() {
             {members.map((member) => (
               <div
                 key={member.id}
-                className="bg-white border border-gold/15 p-6 flex flex-col items-center text-center"
+                className="bg-[var(--bg-elevated)] border border-[var(--border)] p-6 flex flex-col items-center text-center"
               >
                 {/* Avatar */}
                 <div className="relative w-24 h-24 mb-4 overflow-hidden rounded-full bg-navy">
@@ -68,7 +68,7 @@ export default async function TeamPage() {
                 </div>
 
                 <h3
-                  className="text-navy font-bold text-lg mb-1"
+                  className="text-[var(--fg)] font-bold text-lg mb-1"
                   style={{ fontFamily: 'var(--font-serif)' }}
                 >
                   {member.name}
@@ -78,7 +78,7 @@ export default async function TeamPage() {
                 </p>
 
                 {member.bio && (
-                  <p className="text-navy/60 text-sm leading-relaxed mb-4">
+                  <p className="text-[var(--fg-muted)] text-sm leading-relaxed mb-4">
                     {member.bio}
                   </p>
                 )}
@@ -86,7 +86,7 @@ export default async function TeamPage() {
                 {member.email && (
                   <a
                     href={`mailto:${member.email}`}
-                    className="inline-flex items-center gap-2 text-navy/50 hover:text-gold transition-colors text-xs"
+                    className="inline-flex items-center gap-2 text-[var(--fg-faint)] hover:text-gold transition-colors text-xs"
                   >
                     <Mail size={14} />
                     {member.email}
@@ -98,12 +98,12 @@ export default async function TeamPage() {
         ) : (
           <div className="py-24 text-center">
             <p
-              className="text-4xl font-bold text-navy/20 mb-3"
+              className="text-4xl font-bold text-[var(--fg-faint)] mb-3"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
               Team information coming soon
             </p>
-            <p className="text-navy/40 text-sm">
+            <p className="text-[var(--fg-faint)] text-sm">
               Our team profiles will be published shortly.
             </p>
           </div>
