@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { name, email, password, role, categoryIds } = await req.json()
+  const { name, email, password, role, categoryIds, bio, slug: customSlug } = await req.json()
   if (!name?.trim() || !email?.trim() || !password || !role) {
     return NextResponse.json({ error: 'Name, email, password, and role are required.' }, { status: 400 })
   }
@@ -44,14 +44,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Email already in use.' }, { status: 400 })
   }
 
-  const hashed = await bcrypt.hash(password, 10)
-  const baseSlug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-  // Ensure uniqueness by appending a counter if needed
+  // Resolve slug: use custom if provided, else derive from name
+  const baseSlug = (customSlug?.trim()
+    ? customSlug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    : name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''))
   let slug = baseSlug
   let suffix = 1
   while (await prisma.user.findUnique({ where: { slug } })) {
     slug = `${baseSlug}-${suffix++}`
   }
+
+  const hashed = await bcrypt.hash(password, 10)
   const user = await prisma.user.create({
     data: {
       name: name.trim(),
@@ -59,6 +62,7 @@ export async function POST(req: Request) {
       password: hashed,
       role,
       slug,
+      bio: bio?.trim() || null,
       ...(role === 'EDITOR' && categoryIds?.length
         ? {
             categoryAssignments: {
@@ -67,7 +71,7 @@ export async function POST(req: Request) {
           }
         : {}),
     },
-    select: { id: true, name: true, email: true, role: true },
+    select: { id: true, name: true, email: true, role: true, slug: true },
   })
 
   return NextResponse.json(user, { status: 201 })
