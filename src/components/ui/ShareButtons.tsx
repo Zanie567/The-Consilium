@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Link2, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 function TwitterIcon() {
   return (
@@ -75,17 +76,24 @@ export function ShareButtons({ title }: { title: string }) {
       <span className="text-[var(--fg-faint)] text-[0.65rem] uppercase tracking-widest mr-1 select-none">
         Share
       </span>
-      <ShareBtn onClick={() => share('twitter')} label="Share on X / Twitter">
-        <TwitterIcon />
-      </ShareBtn>
-      <ShareBtn onClick={() => share('facebook')} label="Share on Facebook">
-        <FacebookIcon />
-      </ShareBtn>
-      <ShareBtn onClick={() => share('linkedin')} label="Share on LinkedIn">
-        <LinkedInIcon />
-      </ShareBtn>
+      <Tooltip content="Share on X / Twitter">
+        <ShareBtn onClick={() => share('twitter')} label="Share on X / Twitter">
+          <TwitterIcon />
+        </ShareBtn>
+      </Tooltip>
+      <Tooltip content="Share on Facebook">
+        <ShareBtn onClick={() => share('facebook')} label="Share on Facebook">
+          <FacebookIcon />
+        </ShareBtn>
+      </Tooltip>
+      <Tooltip content="Share on LinkedIn">
+        <ShareBtn onClick={() => share('linkedin')} label="Share on LinkedIn">
+          <LinkedInIcon />
+        </ShareBtn>
+      </Tooltip>
 
       {/* Copy link with animated checkmark */}
+      <Tooltip content={copied ? 'Link copied!' : 'Copy link to clipboard'}>
       <motion.button
         onClick={copyLink}
         className="w-8 h-8 flex items-center justify-center border border-[var(--border)] text-[var(--fg-muted)] hover:bg-navy hover:text-gold hover:border-navy dark:hover:bg-gold dark:hover:text-navy dark:hover:border-gold transition-colors duration-200 overflow-hidden"
@@ -118,6 +126,7 @@ export function ShareButtons({ title }: { title: string }) {
           )}
         </AnimatePresence>
       </motion.button>
+      </Tooltip>
     </div>
   )
 }

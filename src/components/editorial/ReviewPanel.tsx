@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { format, nextFriday } from 'date-fns'
 import { ArrowLeft, Star, Pin, Clock, CheckCircle, RotateCcw, EyeOff } from 'lucide-react'
 import Link from 'next/link'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 interface Note {
   id: string
@@ -153,28 +154,32 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
         {/* Feature + Pin toggles */}
         {status === 'PUBLISHED' && (
           <div className="flex gap-2">
-            <button
-              onClick={toggleFeature}
-              title={isFeatured ? 'Remove featured' : 'Set as Featured'}
-              className={`p-2 border transition-colors ${
-                isFeatured
-                  ? 'border-gold bg-gold/10 text-gold'
-                  : 'border-[var(--border)] text-[var(--fg-faint)] hover:border-gold hover:text-gold'
-              }`}
-            >
-              <Star size={16} className={isFeatured ? 'fill-gold' : ''} />
-            </button>
-            <button
-              onClick={togglePin}
-              title={isPinned ? 'Unpin from category' : 'Pin to category page'}
-              className={`p-2 border transition-colors ${
-                isPinned
-                  ? 'border-gold bg-gold/10 text-gold'
-                  : 'border-[var(--border)] text-[var(--fg-faint)] hover:border-gold hover:text-gold'
-              }`}
-            >
-              <Pin size={16} className={isPinned ? 'fill-gold' : ''} />
-            </button>
+            <Tooltip content={isFeatured ? 'Remove from featured — stops appearing in the homepage spotlight' : 'Set as featured — this article will appear in the main featured slot on the homepage'} variant="editorial" side="bottom" maxWidth={280}>
+              <button
+                onClick={toggleFeature}
+                aria-label={isFeatured ? 'Remove featured' : 'Set as featured'}
+                className={`p-2 border transition-colors ${
+                  isFeatured
+                    ? 'border-gold bg-gold/10 text-gold'
+                    : 'border-[var(--border)] text-[var(--fg-faint)] hover:border-gold hover:text-gold'
+                }`}
+              >
+                <Star size={16} className={isFeatured ? 'fill-gold' : ''} />
+              </button>
+            </Tooltip>
+            <Tooltip content={isPinned ? 'Unpin from category page' : 'Pin to the top of this article\'s category page'} variant="editorial" side="bottom" maxWidth={260}>
+              <button
+                onClick={togglePin}
+                aria-label={isPinned ? 'Unpin from category' : 'Pin to category page'}
+                className={`p-2 border transition-colors ${
+                  isPinned
+                    ? 'border-gold bg-gold/10 text-gold'
+                    : 'border-[var(--border)] text-[var(--fg-faint)] hover:border-gold hover:text-gold'
+                }`}
+              >
+                <Pin size={16} className={isPinned ? 'fill-gold' : ''} />
+              </button>
+            </Tooltip>
           </div>
         )}
       </div>
@@ -215,14 +220,16 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
               </p>
 
               {/* Approve */}
-              <button
-                onClick={() => act('approve')}
-                disabled={loading !== null}
-                className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-emerald-700 transition-colors disabled:opacity-60"
-              >
-                <CheckCircle size={14} />
-                {loading === 'approve' ? 'Publishing…' : 'Publish Now'}
-              </button>
+              <Tooltip content="Publish this article immediately — it will appear live on the public website" variant="editorial" side="left" maxWidth={260}>
+                <button
+                  onClick={() => act('approve')}
+                  disabled={loading !== null}
+                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-emerald-700 transition-colors disabled:opacity-60"
+                >
+                  <CheckCircle size={14} />
+                  {loading === 'approve' ? 'Publishing…' : 'Publish Now'}
+                </button>
+              </Tooltip>
 
               {/* Schedule */}
               <div>
@@ -235,14 +242,16 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
                   onChange={(e) => setScheduledAt(e.target.value)}
                   className="w-full bg-[var(--bg)] border border-[var(--border)] px-3 py-2 text-[var(--fg)] text-xs focus:outline-none focus:border-gold"
                 />
-                <button
-                  onClick={() => act('schedule', { scheduledAt })}
-                  disabled={loading !== null}
-                  className="mt-2 w-full flex items-center justify-center gap-2 bg-navy text-gold py-2 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors disabled:opacity-60"
-                >
-                  <Clock size={14} />
-                  {loading === 'schedule' ? 'Scheduling…' : 'Schedule'}
-                </button>
+                <Tooltip content="Schedule this article to go live automatically at the chosen date and time" variant="editorial" side="left" maxWidth={260}>
+                  <button
+                    onClick={() => act('schedule', { scheduledAt })}
+                    disabled={loading !== null}
+                    className="mt-2 w-full flex items-center justify-center gap-2 bg-navy text-gold py-2 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors disabled:opacity-60"
+                  >
+                    <Clock size={14} />
+                    {loading === 'schedule' ? 'Scheduling…' : 'Schedule'}
+                  </button>
+                </Tooltip>
               </div>
 
               {/* Return with note */}
@@ -257,14 +266,16 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
                   placeholder="What needs to be revised?"
                   className="w-full bg-[var(--bg)] border border-[var(--border)] px-3 py-2 text-[var(--fg)] text-xs focus:outline-none focus:border-gold resize-none"
                 />
-                <button
-                  onClick={() => act('return', { note: returnNote })}
-                  disabled={loading !== null || !returnNote.trim()}
-                  className="mt-2 w-full flex items-center justify-center gap-2 border border-red-500/50 text-red-500 py-2 text-xs font-bold uppercase tracking-widest hover:bg-red-500/10 transition-colors disabled:opacity-60"
-                >
-                  <RotateCcw size={14} />
-                  {loading === 'return' ? 'Returning…' : 'Return to Writer'}
-                </button>
+                <Tooltip content="Return this article to the writer with your feedback — they will be notified and can revise and resubmit" variant="editorial" side="left" maxWidth={280}>
+                  <button
+                    onClick={() => act('return', { note: returnNote })}
+                    disabled={loading !== null || !returnNote.trim()}
+                    className="mt-2 w-full flex items-center justify-center gap-2 border border-red-500/50 text-red-500 py-2 text-xs font-bold uppercase tracking-widest hover:bg-red-500/10 transition-colors disabled:opacity-60"
+                  >
+                    <RotateCcw size={14} />
+                    {loading === 'return' ? 'Returning…' : 'Return to Writer'}
+                  </button>
+                </Tooltip>
               </div>
             </div>
           )}
@@ -278,7 +289,8 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
 
               {/* Correction toggle */}
               <div>
-                <label className="flex items-center gap-2 text-xs text-[var(--fg)] mb-2 cursor-pointer">
+                <Tooltip content="Mark this article as corrected — a correction notice will appear at the top of the article on the public website" variant="editorial" side="left" maxWidth={280}>
+                <label className="flex items-center gap-2 text-xs text-[var(--fg)] mb-2 cursor-pointer w-fit">
                   <input
                     type="checkbox"
                     checked={corrected}
@@ -287,6 +299,7 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
                   />
                   Mark as corrected
                 </label>
+                </Tooltip>
                 <input
                   type="text"
                   value={correctionNote}
@@ -303,14 +316,16 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
                 </button>
               </div>
 
-              <button
-                onClick={() => act('unpublish')}
-                disabled={loading !== null}
-                className="w-full flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] py-2 text-xs font-bold uppercase tracking-widest hover:border-red-500 hover:text-red-500 transition-colors disabled:opacity-60"
-              >
-                <EyeOff size={14} />
-                {loading === 'unpublish' ? 'Unpublishing…' : 'Unpublish'}
-              </button>
+              <Tooltip content="Remove this article from the public website — it returns to Draft status and can be re-published later" variant="editorial" side="left" maxWidth={280}>
+                <button
+                  onClick={() => act('unpublish')}
+                  disabled={loading !== null}
+                  className="w-full flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] py-2 text-xs font-bold uppercase tracking-widest hover:border-red-500 hover:text-red-500 transition-colors disabled:opacity-60"
+                >
+                  <EyeOff size={14} />
+                  {loading === 'unpublish' ? 'Unpublishing…' : 'Unpublish'}
+                </button>
+              </Tooltip>
             </div>
           )}
 

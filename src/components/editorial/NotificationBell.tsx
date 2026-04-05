@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Bell } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 interface Notification {
   id: string
@@ -48,13 +49,18 @@ export function NotificationBell() {
 
   return (
     <div ref={ref} className="relative">
+      <Tooltip
+        content={unread > 0 ? `You have ${unread} unread notification${unread > 1 ? 's' : ''} requiring your attention` : 'No new notifications'}
+        variant="editorial"
+        side="bottom"
+      >
       <button
         onClick={() => {
           setOpen((o) => !o)
           if (!open && unread > 0) markAllRead()
         }}
         className="relative p-2 text-[var(--fg-muted)] hover:text-gold transition-colors"
-        aria-label="Notifications"
+        aria-label={unread > 0 ? `${unread} unread notifications` : 'Notifications'}
       >
         <Bell size={18} />
         {unread > 0 && (
@@ -63,6 +69,7 @@ export function NotificationBell() {
           </span>
         )}
       </button>
+      </Tooltip>
 
       {open && (
         <div className="absolute right-0 top-full mt-2 w-80 bg-[var(--bg-elevated)] border border-[var(--border)] shadow-lg z-50 overflow-hidden">

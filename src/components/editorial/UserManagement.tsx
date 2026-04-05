@@ -2,7 +2,9 @@
 
 import { useState, Fragment } from 'react'
 import { format } from 'date-fns'
-import { Plus, KeyRound, PowerOff, Trash2 } from 'lucide-react'
+import { Plus, KeyRound, PowerOff, Trash2, ExternalLink } from 'lucide-react'
+import Link from 'next/link'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 interface Category {
   id: string
@@ -35,7 +37,8 @@ export function UserManagement({ initialUsers, categories }: Props) {
   const [users, setUsers] = useState<UserRecord[]>(initialUsers)
   const [showCreate, setShowCreate] = useState(false)
   const [newUser, setNewUser] = useState({
-    name: '', email: '', password: '', role: 'WRITER' as UserRecord['role'], categoryIds: [] as string[],
+    name: '', email: '', password: '', role: 'WRITER' as UserRecord['role'],
+    categoryIds: [] as string[], bio: '', slug: '',
   })
   const [resetId, setResetId] = useState<string | null>(null)
   const [newPassword, setNewPassword] = useState('')
@@ -64,7 +67,7 @@ export function UserManagement({ initialUsers, categories }: Props) {
     setLoading(null)
     if (!res.ok) { setError(data.error ?? 'Failed to create user.'); return }
     setUsers((prev) => [...prev, { ...data, createdAt: new Date().toISOString(), categoryAssignments: [] }])
-    setNewUser({ name: '', email: '', password: '', role: 'WRITER', categoryIds: [] })
+    setNewUser({ name: '', email: '', password: '', role: 'WRITER', categoryIds: [], bio: '', slug: '' })
     setShowCreate(false)
     flash(`${data.name} created successfully.`)
   }
@@ -125,13 +128,15 @@ export function UserManagement({ initialUsers, categories }: Props) {
 
       <div className="flex items-center justify-between">
         <p className="text-[var(--fg-faint)] text-sm">{users.length} editorial team members</p>
-        <button
-          onClick={() => setShowCreate((v) => !v)}
-          className="flex items-center gap-2 bg-navy text-gold px-4 py-2 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors"
-        >
-          <Plus size={14} />
-          Create Account
-        </button>
+        <Tooltip content="Create a new writer, editor, or admin account" variant="editorial" side="left">
+          <button
+            onClick={() => setShowCreate((v) => !v)}
+            className="flex items-center gap-2 bg-navy text-gold px-4 py-2 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors"
+          >
+            <Plus size={14} />
+            Create Account
+          </button>
+        </Tooltip>
       </div>
 
       {/* Create form */}
@@ -143,7 +148,7 @@ export function UserManagement({ initialUsers, categories }: Props) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[var(--fg-faint)] text-xs uppercase tracking-wider mb-1.5">
-                Full Name
+                Full Name *
               </label>
               <input
                 type="text"
@@ -155,7 +160,7 @@ export function UserManagement({ initialUsers, categories }: Props) {
             </div>
             <div>
               <label className="block text-[var(--fg-faint)] text-xs uppercase tracking-wider mb-1.5">
-                Email
+                Email *
               </label>
               <input
                 type="email"
@@ -167,7 +172,7 @@ export function UserManagement({ initialUsers, categories }: Props) {
             </div>
             <div>
               <label className="block text-[var(--fg-faint)] text-xs uppercase tracking-wider mb-1.5">
-                Temporary Password
+                Temporary Password *
               </label>
               <input
                 type="text"
@@ -179,7 +184,7 @@ export function UserManagement({ initialUsers, categories }: Props) {
             </div>
             <div>
               <label className="block text-[var(--fg-faint)] text-xs uppercase tracking-wider mb-1.5">
-                Role
+                Role *
               </label>
               <select
                 value={newUser.role}
@@ -191,6 +196,34 @@ export function UserManagement({ initialUsers, categories }: Props) {
                 <option value="ADMIN">Admin</option>
               </select>
             </div>
+            <div>
+              <label className="block text-[var(--fg-faint)] text-xs uppercase tracking-wider mb-1.5">
+                Author Page Slug
+              </label>
+              <input
+                type="text"
+                value={newUser.slug}
+                onChange={(e) => setNewUser({ ...newUser, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
+                className="w-full bg-[var(--bg)] border border-[var(--border)] px-3 py-2 text-[var(--fg)] text-sm focus:outline-none focus:border-gold"
+                placeholder="jane-smith (auto-generated if blank)"
+              />
+              <p className="text-[var(--fg-faint)] text-[10px] mt-1">
+                Public URL: /author/{newUser.slug || 'jane-smith'}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[var(--fg-faint)] text-xs uppercase tracking-wider mb-1.5">
+              Bio (optional)
+            </label>
+            <textarea
+              value={newUser.bio}
+              onChange={(e) => setNewUser({ ...newUser, bio: e.target.value })}
+              rows={2}
+              className="w-full bg-[var(--bg)] border border-[var(--border)] px-3 py-2 text-[var(--fg)] text-sm focus:outline-none focus:border-gold resize-none"
+              placeholder="Short biography shown on their author page..."
+            />
           </div>
 
           {newUser.role === 'EDITOR' && categories.length > 0 && (
@@ -266,7 +299,12 @@ export function UserManagement({ initialUsers, categories }: Props) {
               <Fragment key={u.id}>
                 <tr className={`hover:bg-[var(--bg-subtle)] transition-colors ${!u.isActive ? 'opacity-50' : ''}`}>
                   <td className="px-5 py-3">
-                    <p className="font-medium text-[var(--fg)] text-sm">{u.name ?? u.email}</p>
+                    <Link
+                      href={`/editorial/users/${u.id}`}
+                      className="font-medium text-[var(--fg)] text-sm hover:text-gold transition-colors"
+                    >
+                      {u.name ?? u.email}
+                    </Link>
                     <p className="text-[var(--fg-faint)] text-xs">{u.email}</p>
                     {u.categoryAssignments.length > 0 && (
                       <p className="text-[var(--fg-faint)] text-[10px] mt-0.5">
@@ -289,29 +327,65 @@ export function UserManagement({ initialUsers, categories }: Props) {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => { setResetId(resetId === u.id ? null : u.id); setNewPassword('') }}
-                        title="Reset password"
-                        className="p-1.5 text-[var(--fg-faint)] hover:text-gold transition-colors"
+                      <Tooltip
+                        content="View their public author page"
+                        variant="editorial"
+                        side="top"
                       >
-                        <KeyRound size={14} />
-                      </button>
-                      <button
-                        onClick={() => toggleActive(u.id, u.isActive)}
-                        disabled={loading === u.id + '-active'}
-                        title={u.isActive ? 'Deactivate' : 'Activate'}
-                        className={`p-1.5 transition-colors ${u.isActive ? 'text-[var(--fg-faint)] hover:text-amber-500' : 'text-amber-500 hover:text-emerald-600'}`}
+                        <Link
+                          href={`/author/${u.id}`}
+                          target="_blank"
+                          className="p-1.5 text-[var(--fg-faint)] hover:text-gold transition-colors"
+                          aria-label="View author page"
+                        >
+                          <ExternalLink size={14} />
+                        </Link>
+                      </Tooltip>
+                      <Tooltip
+                        content="Set a new password for this account"
+                        variant="editorial"
+                        side="top"
                       >
-                        <PowerOff size={14} />
-                      </button>
-                      <button
-                        onClick={() => deleteUser(u.id)}
-                        disabled={loading === u.id + '-delete'}
-                        title="Delete user"
-                        className="p-1.5 text-[var(--fg-faint)] hover:text-red-500 transition-colors"
+                        <button
+                          onClick={() => { setResetId(resetId === u.id ? null : u.id); setNewPassword('') }}
+                          aria-label="Reset password"
+                          className="p-1.5 text-[var(--fg-faint)] hover:text-gold transition-colors"
+                        >
+                          <KeyRound size={14} />
+                        </button>
+                      </Tooltip>
+                      <Tooltip
+                        content={u.isActive
+                          ? 'Deactivate this account — the user will be logged out immediately and will not be able to log back in'
+                          : 'Reactivate this account and restore the user\'s access to the editorial portal'}
+                        variant="editorial"
+                        side="top"
+                        maxWidth={300}
                       >
-                        <Trash2 size={14} />
-                      </button>
+                        <button
+                          onClick={() => toggleActive(u.id, u.isActive)}
+                          disabled={loading === u.id + '-active'}
+                          aria-label={u.isActive ? 'Deactivate account' : 'Activate account'}
+                          className={`p-1.5 transition-colors ${u.isActive ? 'text-[var(--fg-faint)] hover:text-amber-500' : 'text-amber-500 hover:text-emerald-600'}`}
+                        >
+                          <PowerOff size={14} />
+                        </button>
+                      </Tooltip>
+                      <Tooltip
+                        content="Permanently delete this account and all their data. This cannot be undone."
+                        variant="editorial"
+                        side="top"
+                        maxWidth={280}
+                      >
+                        <button
+                          onClick={() => deleteUser(u.id)}
+                          disabled={loading === u.id + '-delete'}
+                          aria-label="Delete user"
+                          className="p-1.5 text-[var(--fg-faint)] hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </Tooltip>
                     </div>
                   </td>
                 </tr>

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { Star, Pin, Trash2, ExternalLink } from 'lucide-react'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 interface ArticleItem {
   id: string
@@ -152,58 +153,76 @@ export function ArticlesList({ articles: initial, isEditor, isWriter }: Props) {
                     <div className="flex items-center justify-end gap-1">
                       {isEditor && article.status === 'PUBLISHED' && (
                         <>
-                          <button
-                            onClick={() => featureArticle(article.id, article.isFeatured)}
-                            title={article.isFeatured ? 'Remove featured' : 'Set as Featured'}
-                            className={`p-1.5 transition-colors ${
-                              article.isFeatured ? 'text-gold' : 'text-[var(--fg-faint)] hover:text-gold'
-                            }`}
+                          <Tooltip
+                            content={article.isFeatured ? 'Remove from featured — it will no longer appear in the featured slot on the homepage' : 'Feature this article — it will appear prominently on the homepage'}
+                            variant="editorial" side="top" maxWidth={280}
                           >
-                            <Star size={13} className={article.isFeatured ? 'fill-gold' : ''} />
-                          </button>
-                          <button
-                            onClick={() => pinArticle(article.id, article.isPinned)}
-                            title={article.isPinned ? 'Unpin' : 'Pin to category'}
-                            className={`p-1.5 transition-colors ${
-                              article.isPinned ? 'text-gold' : 'text-[var(--fg-faint)] hover:text-gold'
-                            }`}
+                            <button
+                              onClick={() => featureArticle(article.id, article.isFeatured)}
+                              aria-label={article.isFeatured ? 'Remove featured' : 'Set as featured'}
+                              className={`p-1.5 transition-colors ${
+                                article.isFeatured ? 'text-gold' : 'text-[var(--fg-faint)] hover:text-gold'
+                              }`}
+                            >
+                              <Star size={13} className={article.isFeatured ? 'fill-gold' : ''} />
+                            </button>
+                          </Tooltip>
+                          <Tooltip
+                            content={article.isPinned ? 'Unpin from category page' : 'Pin to the top of this article\'s category page'}
+                            variant="editorial" side="top" maxWidth={260}
                           >
-                            <Pin size={13} className={article.isPinned ? 'fill-gold' : ''} />
-                          </button>
+                            <button
+                              onClick={() => pinArticle(article.id, article.isPinned)}
+                              aria-label={article.isPinned ? 'Unpin' : 'Pin to category'}
+                              className={`p-1.5 transition-colors ${
+                                article.isPinned ? 'text-gold' : 'text-[var(--fg-faint)] hover:text-gold'
+                              }`}
+                            >
+                              <Pin size={13} className={article.isPinned ? 'fill-gold' : ''} />
+                            </button>
+                          </Tooltip>
                         </>
                       )}
                       {article.status === 'PUBLISHED' && (
-                        <a
-                          href={`/articles/${article.slug}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="View live"
-                          className="p-1.5 text-[var(--fg-faint)] hover:text-gold transition-colors"
-                        >
-                          <ExternalLink size={13} />
-                        </a>
+                        <Tooltip content="Open the live article on the public website" variant="editorial" side="top">
+                          <a
+                            href={`/articles/${article.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="View live article"
+                            className="p-1.5 text-[var(--fg-faint)] hover:text-gold transition-colors"
+                          >
+                            <ExternalLink size={13} />
+                          </a>
+                        </Tooltip>
                       )}
                       {isEditor && article.status === 'PENDING_REVIEW' && (
-                        <Link
-                          href={`/editorial/review/${article.id}`}
-                          className="text-amber-600 text-xs font-bold hover:underline px-1.5 py-1"
-                        >
-                          Review
-                        </Link>
+                        <Tooltip content="Open review panel to approve, schedule, or return this article" variant="editorial" side="top" maxWidth={260}>
+                          <Link
+                            href={`/editorial/review/${article.id}`}
+                            className="text-amber-600 text-xs font-bold hover:underline px-1.5 py-1"
+                          >
+                            Review
+                          </Link>
+                        </Tooltip>
                       )}
-                      <Link
-                        href={`/editorial/articles/${article.id}/edit`}
-                        className="text-gold text-xs font-bold hover:underline px-1.5 py-1"
-                      >
-                        Edit
-                      </Link>
-                      <button
-                        onClick={() => deleteArticle(article.id)}
-                        title="Delete"
-                        className="p-1.5 text-[var(--fg-faint)] hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      <Tooltip content="Open in the article editor" variant="editorial" side="top">
+                        <Link
+                          href={`/editorial/articles/${article.id}/edit`}
+                          className="text-gold text-xs font-bold hover:underline px-1.5 py-1"
+                        >
+                          Edit
+                        </Link>
+                      </Tooltip>
+                      <Tooltip content="Permanently delete this article. This cannot be undone." variant="editorial" side="top" maxWidth={240}>
+                        <button
+                          onClick={() => deleteArticle(article.id)}
+                          aria-label="Delete article"
+                          className="p-1.5 text-[var(--fg-faint)] hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </Tooltip>
                     </div>
                   </td>
                 </tr>

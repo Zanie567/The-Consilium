@@ -3,6 +3,7 @@
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState } from 'react'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 function SunIcon() {
   return (
@@ -41,6 +42,7 @@ export function ThemeToggle() {
   const isDark = theme === 'dark'
 
   return (
+    <Tooltip content={isDark ? 'Switch to light mode' : 'Switch to dark mode'} side="bottom">
     <motion.button
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       className="relative w-8 h-8 flex items-center justify-center text-cream/60 hover:text-gold transition-colors duration-200 rounded-sm"
@@ -60,5 +62,6 @@ export function ThemeToggle() {
         </motion.span>
       </AnimatePresence>
     </motion.button>
+    </Tooltip>
   )
 }
