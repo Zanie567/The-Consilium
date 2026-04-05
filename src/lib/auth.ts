@@ -52,6 +52,8 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = (user as unknown as { role: Role }).role
         token.id = user.id
+        // Track last login time
+        prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch(() => {})
       }
       return token
     },

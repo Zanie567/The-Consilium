@@ -6,6 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import type { Metadata } from 'next'
+import { ContinueReading } from '@/components/ui/ContinueReading'
 
 export const metadata: Metadata = {
   title: 'My Profile | The Consilium',
@@ -67,6 +68,9 @@ export default async function ProfilePage() {
       </section>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Continue Reading */}
+        <ContinueReading />
+
         {/* Saved articles */}
         <div className="mb-4 flex items-center justify-between">
           <h2

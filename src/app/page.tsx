@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { NewsletterSignup } from '@/components/ui/NewsletterSignup'
 import { CategoryTabs } from '@/components/ui/CategoryTabs'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
+import { ContinueReading } from '@/components/ui/ContinueReading'
 
 async function getFeaturedArticle() {
   try {
@@ -369,6 +370,11 @@ export default async function HomePage({
             </div>
           </div>
           </AnimateIn>
+        )}
+
+        {/* ── Continue Reading ──────────────────────────────────────────────── */}
+        {!categorySlug && (
+          <ContinueReading />
         )}
       </div>
 

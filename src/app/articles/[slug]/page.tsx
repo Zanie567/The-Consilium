@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
 import { ShareButtons } from '@/components/ui/ShareButtons'
 import { BookmarkButton } from '@/components/ui/BookmarkButton'
-import { ReadingProgress } from '@/components/ui/ReadingProgress'
+import { ReadingTracker } from '@/components/ui/ReadingTracker'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { ArticleCharts } from '@/components/ui/ArticleCharts'
 import { ViewCounter } from '@/components/ui/ViewCounter'
@@ -224,7 +224,7 @@ export default async function ArticlePage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
-      <ReadingProgress />
+      <ReadingTracker articleId={article.id} />
       <ViewCounter articleId={article.id} />
 
       {/* Print masthead — hidden on screen, shown when printing */}
