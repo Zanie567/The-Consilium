@@ -63,7 +63,7 @@ export default async function HomePage({
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       {/* ── Masthead Hero ──────────────────────────────────────────────────── */}
-      <section className="bg-navy text-cream py-12 px-4 text-center border-b border-gold/25 relative overflow-hidden">
+      <section className="bg-navy text-cream py-7 px-4 text-center border-b border-gold/25 relative overflow-hidden">
         {/* Subtle dot grid */}
         <div
           className="absolute inset-0 opacity-[0.04] pointer-events-none"
@@ -74,21 +74,21 @@ export default async function HomePage({
         />
         <div className="relative">
           <AnimateIn variant="fade-in" duration={0.5}>
-            <p className="text-gold/60 text-[0.65rem] tracking-[0.4em] uppercase mb-4 font-semibold">
+            <p className="text-gold/60 text-[0.65rem] tracking-[0.4em] uppercase mb-3 font-semibold">
               University of Edinburgh Economics Society
             </p>
           </AnimateIn>
           <AnimateIn variant="fade-up" delay={0.08} duration={0.7}>
             <h1
-              className="text-5xl sm:text-6xl md:text-7xl font-bold text-gold tracking-wider mb-5 leading-none"
+              className="text-4xl sm:text-5xl md:text-6xl font-bold text-gold tracking-wider mb-3 leading-none"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
               The Consilium
             </h1>
           </AnimateIn>
           <AnimateIn variant="fade-in" delay={0.2} duration={0.6}>
-            <div className="w-20 h-px bg-gradient-to-r from-transparent via-gold to-transparent mx-auto mb-5 opacity-60" />
-            <p className="text-cream/60 text-sm sm:text-base tracking-wide max-w-md mx-auto leading-relaxed">
+            <div className="w-16 h-px bg-gradient-to-r from-transparent via-gold to-transparent mx-auto mb-3 opacity-60" />
+            <p className="text-cream/60 text-sm tracking-wide whitespace-nowrap mx-auto leading-relaxed">
               The voice of the University of Edinburgh Economics Society
             </p>
           </AnimateIn>
@@ -97,7 +97,7 @@ export default async function HomePage({
 
       {/* ── Date banner ────────────────────────────────────────────────────── */}
       <div className="bg-[var(--bg-subtle)] border-b border-[var(--border)] px-4 py-2 text-center">
-        <span className="text-[var(--fg-faint)] text-[0.65rem] tracking-widest uppercase">
+        <span className="text-[var(--fg-faint)] text-[0.65rem] tracking-widest uppercase font-bold">
           {format(new Date(), 'EEEE, d MMMM yyyy')}
         </span>
       </div>
