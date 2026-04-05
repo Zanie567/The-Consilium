@@ -1,0 +1,75 @@
+import { Resend } from 'resend'
+
+const FROM = 'The Consilium <noreply@theconsilium.co.uk>'
+
+export async function sendEmail({
+  to,
+  subject,
+  html,
+}: {
+  to: string
+  subject: string
+  html: string
+}) {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[email] RESEND_API_KEY not set — email not sent to', to)
+    return
+  }
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY)
+    await resend.emails.send({ from: FROM, to, subject, html })
+  } catch (err) {
+    console.error('[email] Failed to send:', err)
+  }
+}
+
+export function articleSubmittedEmail(writerName: string, articleTitle: string, articleId: string) {
+  return {
+    subject: `New article pending review: "${articleTitle}"`,
+    html: `
+      <p>Hi,</p>
+      <p><strong>${writerName}</strong> has submitted an article for review:</p>
+      <p><strong>${articleTitle}</strong></p>
+      <p><a href="${process.env.NEXTAUTH_URL}/editorial/review/${articleId}">Review it in the editorial dashboard →</a></p>
+      <p>— The Consilium</p>
+    `,
+  }
+}
+
+export function articleReturnedEmail(articleTitle: string, editorNote: string, articleId: string) {
+  return {
+    subject: `Your article has been returned: "${articleTitle}"`,
+    html: `
+      <p>Hi,</p>
+      <p>Your article <strong>"${articleTitle}"</strong> has been returned to you with feedback:</p>
+      <blockquote style="border-left:3px solid #c9a227;padding:8px 16px;margin:16px 0;color:#555">${editorNote}</blockquote>
+      <p><a href="${process.env.NEXTAUTH_URL}/editorial/articles/${articleId}/edit">Open your article →</a></p>
+      <p>— The Consilium</p>
+    `,
+  }
+}
+
+export function articlePublishedEmail(articleTitle: string, articleSlug: string) {
+  return {
+    subject: `Your article is live: "${articleTitle}"`,
+    html: `
+      <p>Congratulations!</p>
+      <p>Your article <strong>"${articleTitle}"</strong> has been published.</p>
+      <p><a href="${process.env.NEXTAUTH_URL}/articles/${articleSlug}">Read it live →</a></p>
+      <p>— The Consilium</p>
+    `,
+  }
+}
+
+export function passwordResetEmail(resetUrl: string) {
+  return {
+    subject: 'Reset your editorial password',
+    html: `
+      <p>Hi,</p>
+      <p>A password reset was requested for your editorial account.</p>
+      <p><a href="${resetUrl}">Reset your password →</a></p>
+      <p>This link expires in 1 hour. If you did not request this, ignore this email.</p>
+      <p>— The Consilium</p>
+    `,
+  }
+}

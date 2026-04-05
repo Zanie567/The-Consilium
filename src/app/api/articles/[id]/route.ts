@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { sendEmail, articleSubmittedEmail } from '@/lib/email'
 
 export async function GET(
   _req: NextRequest,
@@ -11,7 +12,12 @@ export async function GET(
   try {
     const article = await prisma.article.findUnique({
       where: { id },
-      include: { author: true, category: true },
+      include: {
+        author: true,
+        category: true,
+        notes: { include: { author: true }, orderBy: { createdAt: 'asc' } },
+        series: true,
+      },
     })
     if (!article) return Response.json({ error: 'Not found' }, { status: 404 })
     return Response.json(article)
@@ -31,7 +37,10 @@ export async function PUT(
   const isAdminOrEditor = session.user.role === 'ADMIN' || session.user.role === 'EDITOR'
 
   try {
-    const existing = await prisma.article.findUnique({ where: { id } })
+    const existing = await prisma.article.findUnique({
+      where: { id },
+      include: { author: true, category: true },
+    })
     if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
 
     // Writers can only edit their own articles
@@ -39,19 +48,38 @@ export async function PUT(
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const body = await request.json()
-    const { title, slug, content, excerpt, coverImage, categoryId, status } = body
+    // Writers cannot edit articles that are pending/published (unless editor returned them)
+    if (
+      !isAdminOrEditor &&
+      existing.status !== 'DRAFT' &&
+      existing.status !== 'REJECTED'
+    ) {
+      return Response.json(
+        { error: 'Article cannot be edited in its current state.' },
+        { status: 400 }
+      )
+    }
 
-    // Only editors/admins can publish
+    const body = await request.json()
+    const {
+      title, slug, content, excerpt, coverImage, categoryId, status,
+      corrected, correctionNote, seriesId, seriesOrder,
+    } = body
+
+    // Writers can only set status to DRAFT or PENDING_REVIEW
     let finalStatus = existing.status
     if (isAdminOrEditor && status) {
       finalStatus = status
-    } else if (!isAdminOrEditor && status && status !== 'PUBLISHED') {
+    } else if (!isAdminOrEditor && (status === 'DRAFT' || status === 'PENDING_REVIEW')) {
       finalStatus = status
     }
 
-    const wasPublished = existing.status !== 'PUBLISHED' && finalStatus === 'PUBLISHED'
-    const wasUnpublished = existing.status === 'PUBLISHED' && finalStatus !== 'PUBLISHED'
+    const wasJustSubmitted =
+      existing.status !== 'PENDING_REVIEW' && finalStatus === 'PENDING_REVIEW'
+    const wasPublished =
+      existing.status !== 'PUBLISHED' && finalStatus === 'PUBLISHED'
+    const wasUnpublished =
+      existing.status === 'PUBLISHED' && finalStatus !== 'PUBLISHED'
 
     const updated = await prisma.article.update({
       where: { id },
@@ -62,6 +90,12 @@ export async function PUT(
         ...(excerpt !== undefined && { excerpt }),
         ...(coverImage !== undefined && { coverImage: coverImage || null }),
         ...(categoryId !== undefined && { categoryId: categoryId || null }),
+        ...(corrected !== undefined && { corrected }),
+        ...(correctionNote !== undefined && { correctionNote }),
+        ...(seriesId !== undefined && { seriesId: seriesId || null }),
+        ...(seriesOrder !== undefined && { seriesOrder }),
+        // Clear editor note when writer resubmits
+        ...(wasJustSubmitted && { editorNote: null }),
         status: finalStatus,
         publishedAt: wasPublished
           ? new Date()
@@ -70,6 +104,61 @@ export async function PUT(
           : existing.publishedAt,
       },
     })
+
+    // Notify category editors when submitted
+    if (wasJustSubmitted) {
+      let editorIds: string[] = []
+
+      if (existing.categoryId) {
+        const assignments = await prisma.categoryEditor.findMany({
+          where: { categoryId: existing.categoryId },
+          select: { userId: true, user: { select: { email: true, name: true } } },
+        })
+        editorIds = assignments.map((a) => a.userId)
+
+        // Email each assigned editor
+        for (const a of assignments) {
+          if (a.user.email) {
+            const { subject, html } = articleSubmittedEmail(
+              existing.author.name ?? 'Unknown',
+              existing.title,
+              existing.id
+            )
+            await sendEmail({ to: a.user.email, subject, html })
+          }
+        }
+      }
+
+      // If no assigned editors, notify all EDITOR + ADMIN users
+      if (editorIds.length === 0) {
+        const allEditors = await prisma.user.findMany({
+          where: { role: { in: ['ADMIN', 'EDITOR'] } },
+          select: { id: true, email: true },
+        })
+        editorIds = allEditors.map((e) => e.id)
+        for (const e of allEditors) {
+          if (e.email) {
+            const { subject, html } = articleSubmittedEmail(
+              existing.author.name ?? 'Unknown',
+              existing.title,
+              existing.id
+            )
+            await sendEmail({ to: e.email, subject, html })
+          }
+        }
+      }
+
+      // In-app notifications
+      await prisma.notification.createMany({
+        data: editorIds.map((uid) => ({
+          userId: uid,
+          type: 'article_submitted',
+          title: 'New article for review',
+          message: `"${existing.title}" by ${existing.author.name ?? 'Unknown'} is ready for review.`,
+          articleId: existing.id,
+        })),
+      })
+    }
 
     return Response.json(updated)
   } catch (error) {

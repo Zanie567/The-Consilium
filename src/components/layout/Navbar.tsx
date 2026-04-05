@@ -2,10 +2,10 @@
 
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, Search } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { useScrolled } from '@/hooks/useScrolled'
 
@@ -51,14 +51,32 @@ function NavLink({
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const { scrolled } = useScrolled(16)
   const { data: session } = useSession()
   const pathname = usePathname()
+  const router = useRouter()
   const prefersReducedMotion = useReducedMotion()
   const mobileMenuRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Close mobile menu on route change
-  useEffect(() => setMobileOpen(false), [pathname])
+  useEffect(() => { setMobileOpen(false); setSearchOpen(false) }, [pathname])
+
+  // Focus search input when opened
+  useEffect(() => {
+    if (searchOpen) setTimeout(() => searchInputRef.current?.focus(), 50)
+  }, [searchOpen])
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
+      setSearchOpen(false)
+      setSearchQuery('')
+    }
+  }
 
   // Trap focus + close on Escape
   useEffect(() => {
@@ -112,17 +130,16 @@ export function Navbar() {
 
           {/* Desktop right actions */}
           <div className="hidden md:flex items-center gap-3">
+            <button
+              onClick={() => setSearchOpen((o) => !o)}
+              aria-label="Search"
+              className="text-cream/60 hover:text-gold transition-colors duration-200 p-1"
+            >
+              <Search size={17} />
+            </button>
             <ThemeToggle />
             {session ? (
               <div className="flex items-center gap-3 pl-3 border-l border-navy-light">
-                {(session.user.role === 'ADMIN' || session.user.role === 'EDITOR' || session.user.role === 'WRITER') && (
-                  <Link
-                    href="/editorial"
-                    className="text-gold/70 text-xs font-semibold uppercase tracking-widest hover:text-gold transition-colors"
-                  >
-                    Editorial
-                  </Link>
-                )}
                 <Link
                   href="/profile"
                   className="text-cream/70 text-xs font-semibold uppercase tracking-widest hover:text-cream transition-colors"
@@ -146,8 +163,15 @@ export function Navbar() {
             )}
           </div>
 
-          {/* Mobile: theme + hamburger */}
+          {/* Mobile: search + theme + hamburger */}
           <div className="md:hidden flex items-center gap-2">
+            <button
+              onClick={() => setSearchOpen((o) => !o)}
+              aria-label="Search"
+              className="text-cream/60 hover:text-gold transition-colors p-1.5"
+            >
+              <Search size={17} />
+            </button>
             <ThemeToggle />
             <motion.button
               className="text-cream p-2 hover:text-gold transition-colors"
@@ -171,6 +195,46 @@ export function Navbar() {
           </div>
         </div>
       </header>
+
+      {/* Search overlay */}
+      <AnimatePresence>
+        {searchOpen && (
+          <motion.div
+            key="search-overlay"
+            initial={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed top-14 sm:top-16 inset-x-0 z-40 bg-navy/[0.98] backdrop-blur-md border-b border-gold/30 shadow-[0_16px_32px_rgba(0,0,0,0.4)] py-4 px-4"
+          >
+            <form onSubmit={handleSearch} className="max-w-2xl mx-auto flex items-center gap-3">
+              <Search size={16} className="text-gold/60 shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search articles, authors, topics…"
+                autoComplete="off"
+                className="flex-1 bg-transparent text-cream placeholder-cream/35 text-sm outline-none"
+              />
+              <button
+                type="submit"
+                className="text-gold text-xs font-bold uppercase tracking-widest hover:text-gold/70 transition-colors shrink-0"
+              >
+                Search
+              </button>
+              <button
+                type="button"
+                onClick={() => setSearchOpen(false)}
+                className="text-cream/40 hover:text-cream transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Mobile menu — rendered outside header so it can slide down cleanly */}
       <AnimatePresence>
@@ -218,13 +282,6 @@ export function Navbar() {
                       className="text-cream/70 text-sm font-semibold uppercase tracking-widest hover:text-cream transition-colors"
                     >
                       Profile
-                    </Link>
-                    <Link
-                      href="/editorial"
-                      onClick={() => setMobileOpen(false)}
-                      className="text-gold/70 text-sm font-semibold uppercase tracking-widest hover:text-gold transition-colors"
-                    >
-                      Editorial
                     </Link>
                     <button
                       onClick={() => { signOut(); setMobileOpen(false) }}

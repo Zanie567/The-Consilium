@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
         name: name.trim(),
         email: email.trim().toLowerCase(),
         password: hashed,
-        role: 'WRITER',
+        role: 'READER',
       },
     })
 

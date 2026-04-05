@@ -34,10 +34,6 @@ export const metadata: Metadata = {
     'economic analysis',
     'opinion',
   ],
-  icons: {
-    icon: '/icon.png',
-    apple: '/apple-icon.png',
-  },
   openGraph: {
     title: 'The Consilium',
     description: 'The voice of the University of Edinburgh Economics Society',

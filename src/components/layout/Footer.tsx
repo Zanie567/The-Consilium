@@ -33,6 +33,8 @@ const orgLinks = [
   { href: '/about', label: 'About Us' },
   { href: '/team', label: 'Our Team' },
   { href: '/contact', label: 'Contact' },
+  { href: '/corrections', label: 'Corrections Policy' },
+  { href: '/search', label: 'Search' },
 ]
 
 export function Footer() {

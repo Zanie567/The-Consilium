@@ -378,6 +378,246 @@ body {
   transform-origin: left;
 }
 
+/* ─── Pull Quote ───────────────────────────────────────────────────────────── */
+.prose-consilium aside[data-type="pull-quote"],
+.prose-consilium .pull-quote {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-style: italic;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #1a2744;
+  text-align: center;
+  border-top: 2px solid #c9a227;
+  border-bottom: 2px solid #c9a227;
+  padding: 1.5rem 2rem;
+  margin: 3rem auto;
+  max-width: 32rem;
+  letter-spacing: -0.01em;
+}
+
+.dark .prose-consilium aside[data-type="pull-quote"],
+.dark .prose-consilium .pull-quote {
+  color: #e8e2d4;
+}
+
+.tiptap-editor .ProseMirror aside[data-type="pull-quote"] {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-style: italic;
+  font-weight: 600;
+  color: var(--fg);
+  text-align: center;
+  border-top: 2px solid #c9a227;
+  border-bottom: 2px solid #c9a227;
+  padding: 1.2rem 1.5rem;
+  margin: 2rem auto;
+  max-width: 30rem;
+  background: rgba(201,162,39,0.04);
+}
+
+/* ─── Footnotes ────────────────────────────────────────────────────────────── */
+.prose-consilium sup.footnote-ref {
+  font-size: 0.7em;
+  color: #c9a227;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 700;
+  padding: 0 1px;
+}
+
+.prose-consilium .footnotes-section {
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(201,162,39,0.25);
+}
+
+.prose-consilium .footnotes-section h4 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(26,39,68,0.45);
+  margin-bottom: 1rem;
+  font-weight: 700;
+  margin-top: 0;
+}
+
+.dark .prose-consilium .footnotes-section h4 {
+  color: rgba(232,226,212,0.40);
+}
+
+.prose-consilium .footnotes-section ol {
+  font-size: 0.875rem;
+  color: rgba(26,39,68,0.60);
+  line-height: 1.6;
+}
+
+.dark .prose-consilium .footnotes-section ol {
+  color: rgba(232,226,212,0.55);
+}
+
+/* ─── Charts ───────────────────────────────────────────────────────────────── */
+.prose-consilium .article-chart {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  padding: 1.5rem;
+  margin: 2.5rem 0;
+  border-radius: 2px;
+}
+
+.article-chart-container {
+  max-height: 380px;
+  position: relative;
+}
+
+/* ─── Series navigation ────────────────────────────────────────────────────── */
+.series-nav {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 2rem;
+  border-left: 3px solid #c9a227;
+}
+
+/* ─── Correction notice ────────────────────────────────────────────────────── */
+.correction-notice {
+  background: rgba(201,162,39,0.06);
+  border: 1px solid rgba(201,162,39,0.25);
+  border-left: 3px solid #c9a227;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.85rem;
+  color: rgba(26,39,68,0.70);
+  margin-bottom: 1.5rem;
+}
+
+.dark .correction-notice {
+  color: rgba(232,226,212,0.65);
+}
+
+/* ─── Search highlight ─────────────────────────────────────────────────────── */
+.search-highlight mark,
+mark {
+  background: rgba(201,162,39,0.30);
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 1px;
+}
+
+/* ─── Print styles ─────────────────────────────────────────────────────────── */
+@media print {
+  /* Hide everything except the article */
+  header, footer, nav,
+  .no-print,
+  [data-print-hidden] {
+    display: none !important;
+  }
+
+  html, body {
+    background: #fff !important;
+    color: #1a1a1a !important;
+    font-size: 11pt;
+    line-height: 1.7;
+  }
+
+  /* Print masthead */
+  .print-masthead {
+    display: block !important;
+    text-align: center;
+    padding-bottom: 1.2rem;
+    margin-bottom: 1.8rem;
+    border-bottom: 1.5pt solid #c9a227;
+  }
+
+  .print-masthead-title {
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 22pt;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #1a2744;
+  }
+
+  .print-masthead-sub {
+    font-size: 8pt;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #666;
+    margin-top: 2pt;
+  }
+
+  /* Article wrapper */
+  .print-article-wrapper {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Prose for print */
+  .prose-consilium {
+    color: #1a1a1a !important;
+    font-size: 11pt !important;
+    line-height: 1.75 !important;
+    font-family: Georgia, "Times New Roman", serif !important;
+  }
+
+  .prose-consilium h1, .prose-consilium h2,
+  .prose-consilium h3, .prose-consilium h4 {
+    color: #1a2744 !important;
+    page-break-after: avoid;
+  }
+
+  .prose-consilium p {
+    orphans: 3;
+    widows: 3;
+  }
+
+  .prose-consilium img {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  .prose-consilium blockquote {
+    border-left: 2pt solid #c9a227 !important;
+    background: none !important;
+    color: #333 !important;
+  }
+
+  .prose-consilium a {
+    color: #1a1a1a !important;
+    text-decoration: underline;
+  }
+
+  .prose-consilium a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 8pt;
+    color: #666;
+  }
+
+  /* Don't expand internal links */
+  .prose-consilium a[href^="/"]:after,
+  .prose-consilium a[href^="#"]:after {
+    content: "";
+  }
+
+  .correction-notice {
+    border-left: 2pt solid #c9a227 !important;
+    background: none !important;
+  }
+
+  .series-nav, .footnotes-section {
+    page-break-inside: avoid;
+  }
+
+  @page {
+    margin: 2.2cm 2.5cm;
+    size: A4;
+  }
+
+  @page :first {
+    margin-top: 1.8cm;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   html, html * { transition: none !important; animation: none !important; }

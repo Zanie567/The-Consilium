@@ -1,4 +1,4 @@
-import { LoginForm } from '@/components/ui/LoginForm'
+import { EditorialLoginForm } from './EditorialLoginForm'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -17,12 +17,9 @@ export default function EditorialLoginPage() {
           >
             The Consilium
           </h1>
-          <p className="text-cream/50 text-xs tracking-widest uppercase">
-            Editorial Portal
-          </p>
+          <p className="text-cream/40 text-xs tracking-widest uppercase">Editorial Portal</p>
         </div>
-
-        <LoginForm redirectTo="/editorial" />
+        <EditorialLoginForm />
       </div>
     </div>
   )

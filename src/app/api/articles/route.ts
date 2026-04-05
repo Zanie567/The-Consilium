@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
   if (!session) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  if (!['ADMIN', 'EDITOR', 'WRITER'].includes(session.user.role)) {
+    return Response.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   try {
     const body = await request.json()

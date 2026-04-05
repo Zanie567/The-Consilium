@@ -8,6 +8,12 @@ import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/Animat
 
 async function getFeaturedArticle() {
   try {
+    // First try explicitly featured, then fall back to most recent published
+    const featured = await prisma.article.findFirst({
+      where: { status: 'PUBLISHED', isFeatured: true },
+      include: { author: true, category: true },
+    })
+    if (featured) return featured
     return await prisma.article.findFirst({
       where: { status: 'PUBLISHED' },
       orderBy: { publishedAt: 'desc' },
@@ -15,6 +21,38 @@ async function getFeaturedArticle() {
     })
   } catch {
     return null
+  }
+}
+
+async function getMostReadArticles() {
+  try {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    // Get articles with most views in the last 7 days
+    const topIds = await prisma.articleView.groupBy({
+      by: ['articleId'],
+      where: { viewedAt: { gte: weekAgo } },
+      _count: { articleId: true },
+      orderBy: { _count: { articleId: 'desc' } },
+      take: 5,
+    })
+    if (topIds.length === 0) {
+      // Fall back to all-time view count
+      return prisma.article.findMany({
+        where: { status: 'PUBLISHED' },
+        orderBy: { viewCount: 'desc' },
+        take: 5,
+        select: { id: true, title: true, slug: true, viewCount: true, author: { select: { name: true } }, category: { select: { name: true } } },
+      })
+    }
+    const ids = topIds.map((r) => r.articleId)
+    const articles = await prisma.article.findMany({
+      where: { id: { in: ids }, status: 'PUBLISHED' },
+      select: { id: true, title: true, slug: true, viewCount: true, author: { select: { name: true } }, category: { select: { name: true } } },
+    })
+    // Sort by weekly views order
+    return ids.map((id) => articles.find((a) => a.id === id)).filter(Boolean)
+  } catch {
+    return []
   }
 }
 
@@ -50,10 +88,11 @@ export default async function HomePage({
   const params = await searchParams
   const categorySlug = params.category
 
-  const [featured, articles, categories] = await Promise.all([
+  const [featured, articles, categories, mostRead] = await Promise.all([
     getFeaturedArticle(),
     getArticles(categorySlug),
     getCategories(),
+    getMostReadArticles(),
   ])
 
   const gridArticles = featured
@@ -283,6 +322,52 @@ export default async function HomePage({
             >
               View All Articles
             </Link>
+          </AnimateIn>
+        )}
+
+        {/* ── Most Read This Week ─────────────────────────────────────────────── */}
+        {mostRead.length > 0 && !categorySlug && (
+          <AnimateIn variant="fade-up" delay={0.1} className="mt-14">
+            <div className="border-t border-[var(--border)] pt-10">
+            <div className="flex items-center gap-3 mb-6">
+              <span className="text-gold/50 text-[0.65rem] font-bold tracking-[0.3em] uppercase">Most Read</span>
+              <div className="flex-1 h-px bg-[var(--border)]" />
+              <span className="text-[var(--fg-faint)] text-[0.65rem] uppercase tracking-widest">This Week</span>
+            </div>
+            <div className="space-y-0 divide-y divide-[var(--border)]">
+              {(mostRead.filter(Boolean) as { id: string; title: string; slug: string; viewCount: number; author: { name: string | null }; category: { name: string } | null }[]).map((article, i) => (
+                article && (
+                  <Link
+                    key={article.id}
+                    href={`/articles/${article.slug}`}
+                    className="flex items-center gap-5 py-4 group hover:bg-[var(--bg-subtle)] -mx-2 px-2 transition-colors"
+                  >
+                    <span
+                      className="text-3xl font-bold shrink-0 w-8 text-center"
+                      style={{
+                        fontFamily: 'var(--font-serif)',
+                        color: i === 0 ? '#c9a227' : 'rgba(26,39,68,0.18)',
+                      }}
+                    >
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className="font-semibold text-[var(--fg)] group-hover:text-gold transition-colors line-clamp-1 text-sm"
+                        style={{ fontFamily: 'var(--font-serif)' }}
+                      >
+                        {article.title}
+                      </p>
+                      <p className="text-[var(--fg-faint)] text-xs mt-0.5">
+                        {article.author.name}
+                        {article.category && ` · ${article.category.name}`}
+                      </p>
+                    </div>
+                  </Link>
+                )
+              ))}
+            </div>
+          </div>
           </AnimateIn>
         )}
       </div>
