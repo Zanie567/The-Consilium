@@ -360,7 +360,7 @@ export function UserProfileEditor({ user: initial, categories }: Props) {
             {/* Active toggle */}
             <Tooltip
               content={user.isActive
-                ? 'Deactivate this account — the user will be logged out immediately and will not be able to log back in'
+                ? 'Deactivate this account: the user will be logged out immediately and will not be able to log back in'
                 : 'Reactivate this account and restore the user\'s access to the editorial portal'}
               variant="editorial"
               side="right"

@@ -168,8 +168,30 @@ model Article {
   views           ArticleView[]
   notifications   Notification[]
   readingProgress ReadingProgress[]
+  tags            ArticleTag[]
 
   @@map("articles")
+}
+
+model Tag {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  slug      String       @unique
+  articles  ArticleTag[]
+  createdAt DateTime     @default(now())
+
+  @@map("tags")
+}
+
+model ArticleTag {
+  articleId String
+  tagId     String
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+  @@map("article_tags")
 }
 
 model ReadingProgress {

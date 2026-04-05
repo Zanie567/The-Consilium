@@ -23,6 +23,7 @@ async function getArticle(slug: string) {
       include: {
         author: true,
         category: true,
+        tags: { include: { tag: true } },
         series: {
           include: {
             articles: {
@@ -109,11 +110,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!article) return {}
   return {
     title: article.title,
-    description: article.excerpt ?? undefined,
+    description: article.excerpt ?? `An article by ${article.author.name ?? 'The Consilium'}.`,
+    authors: article.author.name ? [{ name: article.author.name }] : undefined,
     openGraph: {
       title: article.title,
       description: article.excerpt ?? undefined,
-      images: article.coverImage ? [article.coverImage] : [],
+      type: 'article',
+      publishedTime: article.publishedAt?.toISOString(),
+      authors: article.author.name ? [article.author.name] : undefined,
+      images: article.coverImage
+        ? [{ url: article.coverImage, width: 1200, height: 630, alt: article.title }]
+        : [{ url: 'https://the-consilium.vercel.app/logo.png', width: 512, height: 512, alt: 'The Consilium' }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: article.title,
+      description: article.excerpt ?? undefined,
+      images: article.coverImage ? [article.coverImage] : ['https://the-consilium.vercel.app/logo.png'],
     },
   }
 }
@@ -356,6 +369,22 @@ export default async function ArticlePage({ params }: Props) {
           />
           <ArticleCharts />
         </AnimateIn>
+
+        {/* Tags */}
+        {article.tags.length > 0 && (
+          <div className="mt-8 pt-6 border-t border-[var(--border)] flex flex-wrap gap-2 items-center">
+            <span className="text-[var(--fg-faint)] text-xs uppercase tracking-widest mr-1">Topics</span>
+            {article.tags.map(({ tag }) => (
+              <Link
+                key={tag.id}
+                href={`/tag/${tag.slug}`}
+                className="text-xs font-semibold px-3 py-1 border border-[var(--border)] text-[var(--fg-muted)] hover:border-gold hover:text-gold transition-colors duration-200"
+              >
+                {tag.name}
+              </Link>
+            ))}
+          </div>
+        )}
 
         {/* Footnotes */}
         {footnotes.length > 0 && (

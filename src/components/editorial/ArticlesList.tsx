@@ -154,7 +154,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter }: Props) {
                       {isEditor && article.status === 'PUBLISHED' && (
                         <>
                           <Tooltip
-                            content={article.isFeatured ? 'Remove from featured — it will no longer appear in the featured slot on the homepage' : 'Feature this article — it will appear prominently on the homepage'}
+                            content={article.isFeatured ? 'Remove from featured: it will no longer appear in the featured slot on the homepage' : 'Feature this article: it will appear prominently on the homepage'}
                             variant="editorial" side="top" maxWidth={280}
                           >
                             <button

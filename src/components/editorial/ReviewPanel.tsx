@@ -154,7 +154,7 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
         {/* Feature + Pin toggles */}
         {status === 'PUBLISHED' && (
           <div className="flex gap-2">
-            <Tooltip content={isFeatured ? 'Remove from featured — stops appearing in the homepage spotlight' : 'Set as featured — this article will appear in the main featured slot on the homepage'} variant="editorial" side="bottom" maxWidth={280}>
+            <Tooltip content={isFeatured ? 'Remove from featured: stops appearing in the homepage spotlight' : 'Set as featured: this article will appear in the main featured slot on the homepage'} variant="editorial" side="bottom" maxWidth={280}>
               <button
                 onClick={toggleFeature}
                 aria-label={isFeatured ? 'Remove featured' : 'Set as featured'}
@@ -220,7 +220,7 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
               </p>
 
               {/* Approve */}
-              <Tooltip content="Publish this article immediately — it will appear live on the public website" variant="editorial" side="left" maxWidth={260}>
+              <Tooltip content="Publish this article immediately: it will appear live on the public website" variant="editorial" side="left" maxWidth={260}>
                 <button
                   onClick={() => act('approve')}
                   disabled={loading !== null}
@@ -266,7 +266,7 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
                   placeholder="What needs to be revised?"
                   className="w-full bg-[var(--bg)] border border-[var(--border)] px-3 py-2 text-[var(--fg)] text-xs focus:outline-none focus:border-gold resize-none"
                 />
-                <Tooltip content="Return this article to the writer with your feedback — they will be notified and can revise and resubmit" variant="editorial" side="left" maxWidth={280}>
+                <Tooltip content="Return this article to the writer with your feedback: they will be notified and can revise and resubmit" variant="editorial" side="left" maxWidth={280}>
                   <button
                     onClick={() => act('return', { note: returnNote })}
                     disabled={loading !== null || !returnNote.trim()}
@@ -289,7 +289,7 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
 
               {/* Correction toggle */}
               <div>
-                <Tooltip content="Mark this article as corrected — a correction notice will appear at the top of the article on the public website" variant="editorial" side="left" maxWidth={280}>
+                <Tooltip content="Mark this article as corrected: a correction notice will appear at the top of the article on the public website" variant="editorial" side="left" maxWidth={280}>
                 <label className="flex items-center gap-2 text-xs text-[var(--fg)] mb-2 cursor-pointer w-fit">
                   <input
                     type="checkbox"
@@ -316,7 +316,7 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
                 </button>
               </div>
 
-              <Tooltip content="Remove this article from the public website — it returns to Draft status and can be re-published later" variant="editorial" side="left" maxWidth={280}>
+              <Tooltip content="Remove this article from the public website: it returns to Draft status and can be re-published later" variant="editorial" side="left" maxWidth={280}>
                 <button
                   onClick={() => act('unpublish')}
                   disabled={loading !== null}

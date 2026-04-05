@@ -17,6 +17,7 @@ export async function GET(
         category: true,
         notes: { include: { author: true }, orderBy: { createdAt: 'asc' } },
         series: true,
+        tags: { include: { tag: true } },
       },
     })
     if (!article) return Response.json({ error: 'Not found' }, { status: 404 })
@@ -63,7 +64,7 @@ export async function PUT(
     const body = await request.json()
     const {
       title, slug, content, excerpt, coverImage, categoryId, status,
-      corrected, correctionNote, seriesId, seriesOrder,
+      corrected, correctionNote, seriesId, seriesOrder, tags,
     } = body
 
     // Writers can only set status to DRAFT or PENDING_REVIEW
@@ -158,6 +159,28 @@ export async function PUT(
           articleId: existing.id,
         })),
       })
+    }
+
+    // Sync tags
+    if (Array.isArray(tags)) {
+      // Upsert each tag, then replace article's tag associations
+      await prisma.articleTag.deleteMany({ where: { articleId: id } })
+      if (tags.length > 0) {
+        const tagRecords = await Promise.all(
+          tags.map((name: string) => {
+            const tagSlug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+            return prisma.tag.upsert({
+              where: { slug: tagSlug },
+              update: {},
+              create: { name, slug: tagSlug },
+            })
+          })
+        )
+        await prisma.articleTag.createMany({
+          data: tagRecords.map((t) => ({ articleId: id, tagId: t.id })),
+          skipDuplicates: true,
+        })
+      }
     }
 
     return Response.json(updated)

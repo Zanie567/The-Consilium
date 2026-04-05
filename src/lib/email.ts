@@ -31,7 +31,7 @@ export function articleSubmittedEmail(writerName: string, articleTitle: string, 
       <p><strong>${writerName}</strong> has submitted an article for review:</p>
       <p><strong>${articleTitle}</strong></p>
       <p><a href="${process.env.NEXTAUTH_URL}/editorial/review/${articleId}">Review it in the editorial dashboard →</a></p>
-      <p>— The Consilium</p>
+      <p>The Consilium</p>
     `,
   }
 }
@@ -44,7 +44,7 @@ export function articleReturnedEmail(articleTitle: string, editorNote: string, a
       <p>Your article <strong>"${articleTitle}"</strong> has been returned to you with feedback:</p>
       <blockquote style="border-left:3px solid #c9a227;padding:8px 16px;margin:16px 0;color:#555">${editorNote}</blockquote>
       <p><a href="${process.env.NEXTAUTH_URL}/editorial/articles/${articleId}/edit">Open your article →</a></p>
-      <p>— The Consilium</p>
+      <p>The Consilium</p>
     `,
   }
 }
@@ -56,7 +56,7 @@ export function articlePublishedEmail(articleTitle: string, articleSlug: string)
       <p>Congratulations!</p>
       <p>Your article <strong>"${articleTitle}"</strong> has been published.</p>
       <p><a href="${process.env.NEXTAUTH_URL}/articles/${articleSlug}">Read it live →</a></p>
-      <p>— The Consilium</p>
+      <p>The Consilium</p>
     `,
   }
 }
@@ -69,7 +69,7 @@ export function passwordResetEmail(resetUrl: string) {
       <p>A password reset was requested for your editorial account.</p>
       <p><a href="${resetUrl}">Reset your password →</a></p>
       <p>This link expires in 1 hour. If you did not request this, ignore this email.</p>
-      <p>— The Consilium</p>
+      <p>The Consilium</p>
     `,
   }
 }

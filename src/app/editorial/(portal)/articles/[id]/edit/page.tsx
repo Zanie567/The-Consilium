@@ -27,6 +27,7 @@ export default async function EditorialEditArticlePage({ params }: Props) {
       id,
       ...(isEditorOrAdmin ? {} : { authorId: session.user.id }),
     },
+    include: { tags: { include: { tag: true } } },
   }).catch(() => null)
 
   if (!article) notFound()
@@ -45,6 +46,7 @@ export default async function EditorialEditArticlePage({ params }: Props) {
         categoryId: article.categoryId ?? '',
         status: article.status,
         editorNote: article.editorNote,
+        tags: article.tags.map((t) => t.tag.name),
       }}
       categories={categories}
       authorId={session.user.id}

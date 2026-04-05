@@ -81,6 +81,42 @@ async function getCategories() {
   }
 }
 
+async function getTrendingTags() {
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    // Get tags on articles published in the last 30 days, ordered by view count
+    const rows = await prisma.articleTag.findMany({
+      where: {
+        article: {
+          status: 'PUBLISHED',
+          publishedAt: { gte: thirtyDaysAgo },
+        },
+      },
+      include: {
+        tag: true,
+        article: { select: { viewCount: true } },
+      },
+    })
+    // Aggregate view counts per tag
+    const tally = new Map<string, { tag: { id: string; name: string; slug: string }; views: number; count: number }>()
+    for (const row of rows) {
+      const key = row.tagId
+      const existing = tally.get(key)
+      if (existing) {
+        existing.views += row.article.viewCount
+        existing.count += 1
+      } else {
+        tally.set(key, { tag: row.tag, views: row.article.viewCount, count: 1 })
+      }
+    }
+    return Array.from(tally.values())
+      .sort((a, b) => b.views + b.count * 2 - (a.views + a.count * 2))
+      .slice(0, 8)
+  } catch {
+    return []
+  }
+}
+
 export default async function HomePage({
   searchParams,
 }: {
@@ -89,11 +125,12 @@ export default async function HomePage({
   const params = await searchParams
   const categorySlug = params.category
 
-  const [featured, articles, categories, mostRead] = await Promise.all([
+  const [featured, articles, categories, mostRead, trendingTags] = await Promise.all([
     getFeaturedArticle(),
     getArticles(categorySlug),
     getCategories(),
     getMostReadArticles(),
+    getTrendingTags(),
   ])
 
   const gridArticles = featured
@@ -369,6 +406,30 @@ export default async function HomePage({
               ))}
             </div>
           </div>
+          </AnimateIn>
+        )}
+
+        {/* ── Trending Topics ──────────────────────────────────────────────── */}
+        {trendingTags.length > 0 && !categorySlug && (
+          <AnimateIn variant="fade-up" delay={0.1} className="mt-14">
+            <div className="border-t border-[var(--border)] pt-10">
+              <div className="flex items-center gap-3 mb-6">
+                <span className="text-gold/50 text-[0.65rem] font-bold tracking-[0.3em] uppercase">Trending Topics</span>
+                <div className="flex-1 h-px bg-[var(--border)]" />
+                <span className="text-[var(--fg-faint)] text-[0.65rem] uppercase tracking-widest">Past 30 Days</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {trendingTags.map(({ tag }) => (
+                  <Link
+                    key={tag.id}
+                    href={`/tag/${tag.slug}`}
+                    className="px-4 py-2 border border-[var(--border)] text-[var(--fg-muted)] text-xs font-semibold hover:border-gold hover:text-gold transition-colors duration-200"
+                  >
+                    {tag.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
           </AnimateIn>
         )}
 

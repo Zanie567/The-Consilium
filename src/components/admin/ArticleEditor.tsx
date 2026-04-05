@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { Save, Send, Eye, Upload } from 'lucide-react'
+import { Save, Send, Eye, Upload, X, Tag } from 'lucide-react'
 import slugify from 'slugify'
 
 const TiptapEditor = dynamic(
@@ -28,6 +28,7 @@ interface ArticleEditorProps {
     categoryId: string
     status: string
     editorNote?: string | null
+    tags?: string[]
   }
   categories: Category[]
   authorId: string
@@ -53,10 +54,13 @@ export function ArticleEditor({
   const [coverImage, setCoverImage] = useState(initialData?.coverImage ?? '')
   const [categoryId, setCategoryId] = useState(initialData?.categoryId ?? '')
   const [status, setStatus] = useState(initialData?.status ?? 'DRAFT')
+  const [tags, setTags] = useState<string[]>(initialData?.tags ?? [])
+  const [tagInput, setTagInput] = useState('')
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const tagRef = useRef<HTMLInputElement>(null)
 
   const currentStatus = initialData?.status ?? 'DRAFT'
   const canEdit = !isWriter || currentStatus === 'DRAFT' || currentStatus === 'REJECTED'
@@ -70,6 +74,23 @@ export function ArticleEditor({
   }
 
   const handleContentChange = useCallback((c: string) => setContent(c), [])
+
+  const addTag = (raw: string) => {
+    const name = raw.trim().toLowerCase().replace(/[^a-z0-9 ]/g, '').trim()
+    if (name && !tags.includes(name) && tags.length < 10) {
+      setTags((prev) => [...prev, name])
+    }
+    setTagInput('')
+  }
+
+  const handleTagKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      addTag(tagInput)
+    } else if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
+      setTags((prev) => prev.slice(0, -1))
+    }
+  }
 
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -98,6 +119,7 @@ export function ArticleEditor({
       categoryId: categoryId || null,
       authorId,
       status: overrideStatus ?? status,
+      tags,
     }
 
     try {
@@ -348,6 +370,40 @@ export function ArticleEditor({
                 onError={(e) => { ;(e.target as HTMLImageElement).style.display = 'none' }}
               />
             )}
+          </div>
+
+          {/* Tags */}
+          <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-4">
+            <h3 className="text-[var(--fg)] text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <Tag size={12} />
+              Tags
+            </h3>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {tags.map((t) => (
+                <span key={t} className="flex items-center gap-1 bg-navy/10 dark:bg-gold/10 text-[var(--fg-muted)] text-[10px] font-semibold px-2 py-1 border border-[var(--border)]">
+                  {t}
+                  {canEdit && (
+                    <button onClick={() => setTags(tags.filter((x) => x !== t))} aria-label={`Remove ${t}`} className="hover:text-gold transition-colors">
+                      <X size={9} />
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+            {canEdit && (
+              <input
+                ref={tagRef}
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                onBlur={() => tagInput && addTag(tagInput)}
+                placeholder={tags.length < 10 ? 'Type tag, press Enter…' : 'Max 10 tags'}
+                disabled={tags.length >= 10}
+                className="w-full border border-[var(--border)] px-3 py-2 text-[var(--fg)] text-xs focus:outline-none focus:border-gold bg-[var(--bg)] disabled:opacity-50"
+              />
+            )}
+            <p className="text-[var(--fg-faint)] text-[10px] mt-1.5">Separate tags with Enter or comma. Up to 10.</p>
           </div>
 
           {/* Writer status info */}

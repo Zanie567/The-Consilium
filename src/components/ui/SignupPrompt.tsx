@@ -101,7 +101,7 @@ export function SignupPrompt() {
               Make The Consilium yours.
             </h3>
             <p className="text-cream/60 text-xs leading-relaxed mb-4">
-              Create a free account to save articles, track your reading progress, and pick up exactly where you left off — on any device.
+              Create a free account to save articles, track your reading progress, and pick up exactly where you left off, on any device.
             </p>
 
             <div className="flex flex-col gap-2">

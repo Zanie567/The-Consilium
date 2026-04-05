@@ -137,11 +137,31 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-navy-light flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-cream/30 text-xs">
-            &copy; {new Date().getFullYear()} The Consilium, University of Edinburgh
-            Economics Society. All rights reserved.
+        {/* Feedback strip */}
+        <div className="mt-10 pt-8 border-t border-navy-light text-center">
+          <p className="text-cream/45 text-xs mb-2">
+            Have feedback, a suggestion, or want to get involved?
           </p>
+          <a
+            href="https://forms.gle/ufUnT7sDoKagnLqGA"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block text-gold text-xs font-bold uppercase tracking-widest border border-gold/40 px-5 py-2 hover:bg-gold hover:text-navy transition-all duration-200"
+          >
+            Share Your Feedback
+          </a>
+        </div>
+
+        <div className="mt-8 pt-6 border-t border-navy-light flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="text-center sm:text-left">
+            <p className="text-cream/30 text-xs">
+              &copy; {new Date().getFullYear()} The Consilium, University of Edinburgh
+              Economics Society. All rights reserved.
+            </p>
+            <p className="text-cream/20 text-[10px] mt-1">
+              Founded by Alex Escala, Lucas Dwyer and Satvik Singla
+            </p>
+          </div>
           <p className="text-cream/20 text-xs">Edinburgh, Scotland</p>
         </div>
       </div>

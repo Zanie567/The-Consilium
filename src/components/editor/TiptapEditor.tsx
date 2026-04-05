@@ -321,7 +321,7 @@ export function TiptapEditor({ content, onChange, editable = true }: TiptapEdito
             {editor.storage.characterCount.words()} words
           </span>
           <span className="text-[var(--fg-faint)] text-xs opacity-60">
-            Tip: Paste from Google Docs — formatting is cleaned automatically
+            Tip: Paste from Google Docs; formatting is cleaned automatically
           </span>
         </div>
       )}
