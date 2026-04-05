@@ -81,7 +81,9 @@ export function ArticleEditor({
   const [tagInput, setTagInput] = useState('')
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [uploading, setUploading] = useState(false)
+  const [coverDragOver, setCoverDragOver] = useState(false)
   const [error, setError] = useState('')
+  const [coverError, setCoverError] = useState('')
 
   const titleRef = useRef<HTMLTextAreaElement>(null)
   const excerptRef = useRef<HTMLTextAreaElement>(null)
@@ -146,19 +148,31 @@ export function ArticleEditor({
     }
   }
 
-  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const uploadCoverFile = async (file: File) => {
     setUploading(true)
+    setCoverError('')
     const form = new FormData()
     form.append('file', file)
     form.append('bucket', 'article-images')
-    const res = await fetch('/api/upload', { method: 'POST', body: form })
-    setUploading(false)
-    if (res.ok) {
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: form })
       const data = await res.json()
-      setCoverImage(data.url)
+      if (res.ok) {
+        setCoverImage(data.url)
+      } else {
+        setCoverError(data.error ?? 'Upload failed. Ensure image storage is configured in Vercel env vars.')
+      }
+    } catch {
+      setCoverError('Upload failed. Check your connection.')
+    } finally {
+      setUploading(false)
     }
+  }
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    await uploadCoverFile(file)
     e.target.value = ''
   }
 
@@ -365,8 +379,27 @@ export function ArticleEditor({
               className="hidden"
               onChange={handleCoverUpload}
             />
+
+            {coverError && (
+              <div className="mb-2 text-xs text-red-500 bg-red-500/8 border border-red-500/20 px-3 py-2">
+                {coverError}
+              </div>
+            )}
+
             {coverImage ? (
-              <div className="relative group aspect-video w-full overflow-hidden bg-[var(--bg-subtle)]">
+              <div
+                className={`relative group aspect-video w-full overflow-hidden bg-[var(--bg-subtle)] ${
+                  coverDragOver ? 'ring-2 ring-gold' : ''
+                }`}
+                onDragOver={(e) => { e.preventDefault(); setCoverDragOver(true) }}
+                onDragLeave={() => setCoverDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  setCoverDragOver(false)
+                  const file = e.dataTransfer.files?.[0]
+                  if (file) uploadCoverFile(file)
+                }}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={coverImage}
@@ -397,20 +430,32 @@ export function ArticleEditor({
               </div>
             ) : (
               canEdit && (
-                <button
-                  type="button"
+                <div
                   onClick={() => coverFileRef.current?.click()}
-                  disabled={uploading}
-                  className="w-full aspect-video border-2 border-dashed border-[var(--border)] hover:border-gold/40 hover:bg-gold/[0.02] transition-colors flex flex-col items-center justify-center gap-3 text-[var(--fg-faint)] group"
+                  onDragOver={(e) => { e.preventDefault(); setCoverDragOver(true) }}
+                  onDragLeave={() => setCoverDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    setCoverDragOver(false)
+                    const file = e.dataTransfer.files?.[0]
+                    if (file) uploadCoverFile(file)
+                  }}
+                  className={`w-full aspect-video border-2 border-dashed transition-colors flex flex-col items-center justify-center gap-3 cursor-pointer select-none ${
+                    coverDragOver
+                      ? 'border-gold bg-gold/5 text-gold'
+                      : 'border-[var(--border)] hover:border-gold/40 hover:bg-gold/[0.02] text-[var(--fg-faint)]'
+                  }`}
                 >
-                  <ImagePlus size={22} className="group-hover:text-gold/50 transition-colors" />
+                  <ImagePlus size={22} className="transition-colors" />
                   <div className="text-center">
-                    <p className="text-sm font-medium group-hover:text-[var(--fg-muted)] transition-colors">
-                      {uploading ? 'Uploading...' : 'Add a cover image'}
+                    <p className="text-sm font-medium">
+                      {uploading ? 'Uploading...' : coverDragOver ? 'Drop to upload' : 'Add a cover image'}
                     </p>
-                    <p className="text-xs opacity-60 mt-0.5">Click to upload or paste a URL in the settings panel</p>
+                    <p className="text-xs opacity-60 mt-0.5">
+                      Click to upload, drag a file here, or paste a URL in the settings panel
+                    </p>
                   </div>
-                </button>
+                </div>
               )
             )}
           </div>

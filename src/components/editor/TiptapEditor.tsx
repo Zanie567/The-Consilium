@@ -1,7 +1,7 @@
 'use client'
 
 import { useEditor, EditorContent } from '@tiptap/react'
-import { BubbleMenu } from '@tiptap/react/menus'
+import { BubbleMenu, FloatingMenu } from '@tiptap/react/menus'
 import { Node, mergeAttributes, type SingleCommands } from '@tiptap/core'
 
 declare module '@tiptap/core' {
@@ -24,8 +24,9 @@ import {
   List, ListOrdered, Quote, Link2, Link2Off, Image as ImageIcon,
   Minus, AlignLeft, AlignCenter, AlignRight, Highlighter,
   Undo, Redo, Star, Superscript, BarChart2, Upload, Strikethrough,
+  Plus, ImagePlus, Type,
 } from 'lucide-react'
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState, useEffect } from 'react'
 
 // ── Pull Quote node ─────────────────────────────────────────────────────────
 const PullQuote = Node.create({
@@ -127,7 +128,6 @@ const ChartNode = Node.create({
   },
 })
 
-
 // ── Component ────────────────────────────────────────────────────────────────
 interface TiptapEditorProps {
   content?: string
@@ -137,6 +137,10 @@ interface TiptapEditorProps {
 
 export function TiptapEditor({ content, onChange, editable = true }: TiptapEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const blockPickerRef = useRef<HTMLDivElement>(null)
+  const [blockPickerOpen, setBlockPickerOpen] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const [uploading, setUploading] = useState(false)
 
   const editor = useEditor({
     editable,
@@ -174,6 +178,24 @@ export function TiptapEditor({ content, onChange, editable = true }: TiptapEdito
     },
   })
 
+  // Close block picker on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (blockPickerRef.current && !blockPickerRef.current.contains(e.target as EventTarget & globalThis.Node)) {
+        setBlockPickerOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  // Clear upload error after 4s
+  useEffect(() => {
+    if (!uploadError) return
+    const t = setTimeout(() => setUploadError(''), 4000)
+    return () => clearTimeout(t)
+  }, [uploadError])
+
   const addLink = useCallback(() => {
     if (!editor) return
     const url = window.prompt('Enter URL')
@@ -190,13 +212,23 @@ export function TiptapEditor({ content, onChange, editable = true }: TiptapEdito
 
   const uploadImage = useCallback(async (file: File) => {
     if (!editor) return
-    const form = new FormData()
-    form.append('file', file)
-    form.append('bucket', 'article-images')
-    const res = await fetch('/api/upload', { method: 'POST', body: form })
-    if (res.ok) {
+    setUploading(true)
+    setUploadError('')
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      form.append('bucket', 'article-images')
+      const res = await fetch('/api/upload', { method: 'POST', body: form })
       const data = await res.json()
-      editor.chain().focus().setImage({ src: data.url }).run()
+      if (res.ok) {
+        editor.chain().focus().setImage({ src: data.url }).run()
+      } else {
+        setUploadError(data.error ?? 'Upload failed. Check that image storage is configured.')
+      }
+    } catch {
+      setUploadError('Upload failed. Check your connection and try again.')
+    } finally {
+      setUploading(false)
     }
   }, [editor])
 
@@ -221,6 +253,65 @@ export function TiptapEditor({ content, onChange, editable = true }: TiptapEdito
   }, [editor])
 
   if (!editor) return null
+
+  // ── Block types for the inserter ─────────────────────────────────────────
+  const BLOCK_TYPES = [
+    {
+      label: 'Paragraph',
+      icon: Type,
+      action: () => editor.chain().focus().setParagraph().run(),
+    },
+    {
+      label: 'Heading 1',
+      icon: Heading1,
+      action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
+    },
+    {
+      label: 'Heading 2',
+      icon: Heading2,
+      action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
+    },
+    {
+      label: 'Heading 3',
+      icon: Heading3,
+      action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(),
+    },
+    {
+      label: 'Bullet list',
+      icon: List,
+      action: () => editor.chain().focus().toggleBulletList().run(),
+    },
+    {
+      label: 'Numbered list',
+      icon: ListOrdered,
+      action: () => editor.chain().focus().toggleOrderedList().run(),
+    },
+    {
+      label: 'Blockquote',
+      icon: Quote,
+      action: () => editor.chain().focus().toggleBlockquote().run(),
+    },
+    {
+      label: 'Pull quote',
+      icon: Star,
+      action: () => editor.chain().focus().togglePullQuote().run(),
+    },
+    {
+      label: 'Divider',
+      icon: Minus,
+      action: () => editor.chain().focus().setHorizontalRule().run(),
+    },
+    {
+      label: 'Upload image',
+      icon: ImagePlus,
+      action: () => fileInputRef.current?.click(),
+    },
+    {
+      label: 'Image URL',
+      icon: ImageIcon,
+      action: addImageFromUrl,
+    },
+  ]
 
   // ── Sub-components ────────────────────────────────────────────────────────
   const ToolbarBtn = ({
@@ -259,7 +350,7 @@ export function TiptapEditor({ content, onChange, editable = true }: TiptapEdito
       type="button"
       onClick={onClick}
       title={title}
-      className={`p-1.5 rounded-sm transition-colors text-sm ${
+      className={`p-1.5 rounded-sm transition-colors ${
         active ? 'bg-gold/20 text-gold' : 'text-cream/75 hover:text-cream hover:bg-white/10'
       }`}
     >
@@ -273,52 +364,100 @@ export function TiptapEditor({ content, onChange, editable = true }: TiptapEdito
   const readingTime = Math.max(1, Math.round(wordCount / 200))
 
   return (
-    <div className="border border-[var(--border)] overflow-hidden">
+    <div className="border border-[var(--border)] overflow-visible">
 
-      {/* ── Bubble menu (appears on text selection) ────────────────────── */}
+      {/* ── Upload error toast ────────────────────────────────────────────── */}
+      {uploadError && (
+        <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-2.5 text-red-500 text-xs flex items-center gap-2">
+          <span className="font-semibold">Upload failed:</span>
+          {uploadError}
+        </div>
+      )}
+
+      {/* ── Bubble menu ───────────────────────────────────────────────────── */}
       {editable && (
         <BubbleMenu editor={editor}>
           <div className="flex items-center gap-0.5 bg-navy border border-gold/20 shadow-2xl px-1.5 py-1">
-            <BubbleBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold">
-              <Bold size={13} />
-            </BubbleBtn>
-            <BubbleBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Italic">
-              <Italic size={13} />
-            </BubbleBtn>
-            <BubbleBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} title="Underline">
-              <UnderlineIcon size={13} />
-            </BubbleBtn>
-            <BubbleBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} title="Strikethrough">
-              <Strikethrough size={13} />
-            </BubbleBtn>
+            <BubbleBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold"><Bold size={13} /></BubbleBtn>
+            <BubbleBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Italic"><Italic size={13} /></BubbleBtn>
+            <BubbleBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} title="Underline"><UnderlineIcon size={13} /></BubbleBtn>
+            <BubbleBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} title="Strikethrough"><Strikethrough size={13} /></BubbleBtn>
             <div className="w-px h-4 bg-gold/20 mx-0.5" />
-            <BubbleBtn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} title="Heading 2">
-              <Heading2 size={13} />
-            </BubbleBtn>
-            <BubbleBtn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })} title="Heading 3">
-              <Heading3 size={13} />
-            </BubbleBtn>
+            <BubbleBtn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} title="Heading 2"><Heading2 size={13} /></BubbleBtn>
+            <BubbleBtn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })} title="Heading 3"><Heading3 size={13} /></BubbleBtn>
             <div className="w-px h-4 bg-gold/20 mx-0.5" />
-            <BubbleBtn onClick={addLink} active={editor.isActive('link')} title="Add link">
-              <Link2 size={13} />
-            </BubbleBtn>
-            <BubbleBtn onClick={() => editor.chain().focus().toggleHighlight().run()} active={editor.isActive('highlight')} title="Highlight">
-              <Highlighter size={13} />
-            </BubbleBtn>
+            <BubbleBtn onClick={addLink} active={editor.isActive('link')} title="Add link"><Link2 size={13} /></BubbleBtn>
+            <BubbleBtn onClick={() => editor.chain().focus().toggleHighlight().run()} active={editor.isActive('highlight')} title="Highlight"><Highlighter size={13} /></BubbleBtn>
           </div>
         </BubbleMenu>
+      )}
+
+      {/* ── Floating block inserter (empty lines) ─────────────────────────── */}
+      {editable && (
+        <FloatingMenu editor={editor}>
+          <div ref={blockPickerRef} className="relative flex items-center gap-2.5 -ml-10">
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault()
+                setBlockPickerOpen((v) => !v)
+              }}
+              className={`flex items-center justify-center w-7 h-7 rounded-full border transition-all duration-150 shadow-sm ${
+                blockPickerOpen
+                  ? 'bg-gold border-gold text-navy rotate-45'
+                  : 'bg-[var(--bg)] border-[var(--border)] text-[var(--fg-faint)] hover:border-gold hover:text-gold'
+              }`}
+              title="Insert a block"
+            >
+              <Plus size={13} />
+            </button>
+
+            {blockPickerOpen && (
+              <div className="absolute left-9 top-1/2 -translate-y-1/2 z-50 bg-[var(--bg)] border border-[var(--border)] shadow-2xl p-2">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--fg-faint)] px-1 pb-2">
+                  Insert block
+                </p>
+                <div className="grid grid-cols-4 gap-0.5 w-56">
+                  {BLOCK_TYPES.map((block) => (
+                    <button
+                      key={block.label}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        block.action()
+                        setBlockPickerOpen(false)
+                        editor.commands.focus()
+                      }}
+                      className="flex flex-col items-center gap-1.5 p-2.5 text-[var(--fg-muted)] hover:bg-[var(--bg-subtle)] hover:text-[var(--fg)] transition-colors rounded-sm group"
+                      title={block.label}
+                    >
+                      <block.icon size={15} className="group-hover:text-gold transition-colors" />
+                      <span className="text-[9px] font-medium text-center leading-tight">
+                        {block.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!blockPickerOpen && (
+              <span className="text-[var(--fg-faint)] text-sm select-none pointer-events-none">
+                Type or click <kbd className="font-mono text-[10px] bg-[var(--bg-subtle)] border border-[var(--border)] px-1 py-0.5 rounded">+</kbd> to insert a block
+              </span>
+            )}
+          </div>
+        </FloatingMenu>
       )}
 
       {/* ── Main toolbar ──────────────────────────────────────────────────── */}
       {editable && (
         <div className="bg-[var(--bg-subtle)] border-b border-[var(--border)] px-2 py-1.5 flex flex-wrap gap-0.5 items-center">
-          {/* History */}
           <div className="flex items-center">
             <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} title="Undo"><Undo size={14} /></ToolbarBtn>
             <ToolbarBtn onClick={() => editor.chain().focus().redo().run()} title="Redo"><Redo size={14} /></ToolbarBtn>
           </div>
           <Sep />
-          {/* Inline formatting */}
           <div className="flex items-center">
             <ToolbarBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold"><Bold size={14} /></ToolbarBtn>
             <ToolbarBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Italic"><Italic size={14} /></ToolbarBtn>
@@ -327,44 +466,48 @@ export function TiptapEditor({ content, onChange, editable = true }: TiptapEdito
             <ToolbarBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} title="Strikethrough"><Strikethrough size={14} /></ToolbarBtn>
           </div>
           <Sep />
-          {/* Headings */}
           <div className="flex items-center">
             <ToolbarBtn onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive('heading', { level: 1 })} title="Heading 1"><Heading1 size={14} /></ToolbarBtn>
             <ToolbarBtn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} title="Heading 2"><Heading2 size={14} /></ToolbarBtn>
             <ToolbarBtn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })} title="Heading 3"><Heading3 size={14} /></ToolbarBtn>
           </div>
           <Sep />
-          {/* Lists */}
           <div className="flex items-center">
             <ToolbarBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} title="Bullet list"><List size={14} /></ToolbarBtn>
             <ToolbarBtn onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} title="Numbered list"><ListOrdered size={14} /></ToolbarBtn>
           </div>
           <Sep />
-          {/* Block elements */}
           <div className="flex items-center">
             <ToolbarBtn onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')} title="Block quote"><Quote size={14} /></ToolbarBtn>
             <ToolbarBtn onClick={() => editor.chain().focus().togglePullQuote().run()} active={editor.isActive('pullQuote')} title="Pull quote"><Star size={14} /></ToolbarBtn>
             <ToolbarBtn onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Divider"><Minus size={14} /></ToolbarBtn>
           </div>
           <Sep />
-          {/* Alignment */}
           <div className="flex items-center">
             <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="Align left"><AlignLeft size={14} /></ToolbarBtn>
             <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} title="Align centre"><AlignCenter size={14} /></ToolbarBtn>
             <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} title="Align right"><AlignRight size={14} /></ToolbarBtn>
           </div>
           <Sep />
-          {/* Links & media */}
           <div className="flex items-center">
             <ToolbarBtn onClick={addLink} active={editor.isActive('link')} title="Add link"><Link2 size={14} /></ToolbarBtn>
             {editor.isActive('link') && (
               <ToolbarBtn onClick={() => editor.chain().focus().unsetLink().run()} title="Remove link"><Link2Off size={14} /></ToolbarBtn>
             )}
+            <ToolbarBtn
+              onClick={() => fileInputRef.current?.click()}
+              title={uploading ? 'Uploading...' : 'Upload image'}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin block" />
+              ) : (
+                <Upload size={14} />
+              )}
+            </ToolbarBtn>
             <ToolbarBtn onClick={addImageFromUrl} title="Insert image URL"><ImageIcon size={14} /></ToolbarBtn>
-            <ToolbarBtn onClick={() => fileInputRef.current?.click()} title="Upload image"><Upload size={14} /></ToolbarBtn>
           </div>
           <Sep />
-          {/* Special */}
           <div className="flex items-center">
             <ToolbarBtn onClick={insertFootnote} title="Insert footnote"><Superscript size={14} /></ToolbarBtn>
             <ToolbarBtn onClick={insertChart} title="Insert chart"><BarChart2 size={14} /></ToolbarBtn>
