@@ -239,8 +239,8 @@ body {
 /* ─── Tiptap editor ────────────────────────────────────────────────────────── */
 .tiptap-editor .ProseMirror {
   outline: none;
-  min-height: 400px;
-  padding: 1rem;
+  min-height: 540px;
+  padding: 1.5rem 1.75rem 3rem;
 }
 
 .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEditor, EditorContent } from '@tiptap/react'
+import { BubbleMenu } from '@tiptap/react/menus'
 import { Node, mergeAttributes, type SingleCommands } from '@tiptap/core'
 
 declare module '@tiptap/core' {
@@ -22,7 +23,7 @@ import {
   Bold, Italic, UnderlineIcon, Heading1, Heading2, Heading3,
   List, ListOrdered, Quote, Link2, Link2Off, Image as ImageIcon,
   Minus, AlignLeft, AlignCenter, AlignRight, Highlighter,
-  Undo, Redo, Star, Superscript, BarChart2, Upload,
+  Undo, Redo, Star, Superscript, BarChart2, Upload, Strikethrough,
 } from 'lucide-react'
 import { useCallback, useRef } from 'react'
 
@@ -146,7 +147,7 @@ export function TiptapEditor({ content, onChange, editable = true }: TiptapEdito
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Image.configure({ inline: false }),
       Link.configure({ openOnClick: false }),
-      Placeholder.configure({ placeholder: 'Begin writing your article…' }),
+      Placeholder.configure({ placeholder: 'Begin writing your article...' }),
       CharacterCount,
       PullQuote,
       FootnoteRef,
@@ -159,7 +160,6 @@ export function TiptapEditor({ content, onChange, editable = true }: TiptapEdito
     immediatelyRender: false,
     editorProps: {
       transformPastedHTML(html) {
-        // Strip Google Docs / Word inline styles and span soup
         return html
           .replace(/style="[^"]*"/gi, '')
           .replace(/class="[^"]*"/gi, '')
@@ -222,7 +222,8 @@ export function TiptapEditor({ content, onChange, editable = true }: TiptapEdito
 
   if (!editor) return null
 
-  const ToolbarButton = ({
+  // ── Sub-components ────────────────────────────────────────────────────────
+  const ToolbarBtn = ({
     onClick, active, title, disabled: dis, children,
   }: {
     onClick: () => void
@@ -236,63 +237,138 @@ export function TiptapEditor({ content, onChange, editable = true }: TiptapEdito
       onClick={onClick}
       title={title}
       disabled={dis}
-      className={`p-2 rounded-sm transition-colors ${
-        active ? 'bg-navy text-gold' : 'text-[var(--fg-muted)] hover:bg-[var(--bg-subtle)] hover:text-[var(--fg)]'
-      } disabled:opacity-40`}
+      className={`p-1.5 rounded-sm transition-colors ${
+        active
+          ? 'bg-navy text-gold'
+          : 'text-[var(--fg-muted)] hover:bg-[var(--bg)] hover:text-[var(--fg)]'
+      } disabled:opacity-30`}
     >
       {children}
     </button>
   )
 
-  const Sep = () => <div className="w-px bg-[var(--border)] mx-0.5 self-stretch" />
+  const BubbleBtn = ({
+    onClick, active, title, children,
+  }: {
+    onClick: () => void
+    active?: boolean
+    title: string
+    children: React.ReactNode
+  }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`p-1.5 rounded-sm transition-colors text-sm ${
+        active ? 'bg-gold/20 text-gold' : 'text-cream/75 hover:text-cream hover:bg-white/10'
+      }`}
+    >
+      {children}
+    </button>
+  )
+
+  const Sep = () => <div className="w-px bg-[var(--border)] mx-1 self-stretch opacity-60" />
+
+  const wordCount = editor.storage.characterCount.words()
+  const readingTime = Math.max(1, Math.round(wordCount / 200))
 
   return (
     <div className="border border-[var(--border)] overflow-hidden">
+
+      {/* ── Bubble menu (appears on text selection) ────────────────────── */}
+      {editable && (
+        <BubbleMenu editor={editor}>
+          <div className="flex items-center gap-0.5 bg-navy border border-gold/20 shadow-2xl px-1.5 py-1">
+            <BubbleBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold">
+              <Bold size={13} />
+            </BubbleBtn>
+            <BubbleBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Italic">
+              <Italic size={13} />
+            </BubbleBtn>
+            <BubbleBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} title="Underline">
+              <UnderlineIcon size={13} />
+            </BubbleBtn>
+            <BubbleBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} title="Strikethrough">
+              <Strikethrough size={13} />
+            </BubbleBtn>
+            <div className="w-px h-4 bg-gold/20 mx-0.5" />
+            <BubbleBtn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} title="Heading 2">
+              <Heading2 size={13} />
+            </BubbleBtn>
+            <BubbleBtn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })} title="Heading 3">
+              <Heading3 size={13} />
+            </BubbleBtn>
+            <div className="w-px h-4 bg-gold/20 mx-0.5" />
+            <BubbleBtn onClick={addLink} active={editor.isActive('link')} title="Add link">
+              <Link2 size={13} />
+            </BubbleBtn>
+            <BubbleBtn onClick={() => editor.chain().focus().toggleHighlight().run()} active={editor.isActive('highlight')} title="Highlight">
+              <Highlighter size={13} />
+            </BubbleBtn>
+          </div>
+        </BubbleMenu>
+      )}
+
+      {/* ── Main toolbar ──────────────────────────────────────────────────── */}
       {editable && (
         <div className="bg-[var(--bg-subtle)] border-b border-[var(--border)] px-2 py-1.5 flex flex-wrap gap-0.5 items-center">
-          <ToolbarButton onClick={() => editor.chain().focus().undo().run()} title="Undo"><Undo size={14} /></ToolbarButton>
-          <ToolbarButton onClick={() => editor.chain().focus().redo().run()} title="Redo"><Redo size={14} /></ToolbarButton>
+          {/* History */}
+          <div className="flex items-center">
+            <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} title="Undo"><Undo size={14} /></ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().redo().run()} title="Redo"><Redo size={14} /></ToolbarBtn>
+          </div>
           <Sep />
-          <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold"><Bold size={14} /></ToolbarButton>
-          <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Italic"><Italic size={14} /></ToolbarButton>
-          <ToolbarButton onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} title="Underline"><UnderlineIcon size={14} /></ToolbarButton>
-          <ToolbarButton onClick={() => editor.chain().focus().toggleHighlight().run()} active={editor.isActive('highlight')} title="Highlight"><Highlighter size={14} /></ToolbarButton>
+          {/* Inline formatting */}
+          <div className="flex items-center">
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold"><Bold size={14} /></ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Italic"><Italic size={14} /></ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} title="Underline"><UnderlineIcon size={14} /></ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleHighlight().run()} active={editor.isActive('highlight')} title="Highlight"><Highlighter size={14} /></ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} title="Strikethrough"><Strikethrough size={14} /></ToolbarBtn>
+          </div>
           <Sep />
-          <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive('heading', { level: 1 })} title="H1"><Heading1 size={14} /></ToolbarButton>
-          <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} title="H2"><Heading2 size={14} /></ToolbarButton>
-          <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })} title="H3"><Heading3 size={14} /></ToolbarButton>
+          {/* Headings */}
+          <div className="flex items-center">
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive('heading', { level: 1 })} title="Heading 1"><Heading1 size={14} /></ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} title="Heading 2"><Heading2 size={14} /></ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })} title="Heading 3"><Heading3 size={14} /></ToolbarBtn>
+          </div>
           <Sep />
-          <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} title="Bullet List"><List size={14} /></ToolbarButton>
-          <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} title="Numbered List"><ListOrdered size={14} /></ToolbarButton>
+          {/* Lists */}
+          <div className="flex items-center">
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} title="Bullet list"><List size={14} /></ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} title="Numbered list"><ListOrdered size={14} /></ToolbarBtn>
+          </div>
           <Sep />
-          <ToolbarButton onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')} title="Block Quote"><Quote size={14} /></ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().togglePullQuote().run()}
-            active={editor.isActive('pullQuote')}
-            title="Pull Quote"
-          >
-            <Star size={14} />
-          </ToolbarButton>
-          <ToolbarButton onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Divider"><Minus size={14} /></ToolbarButton>
+          {/* Block elements */}
+          <div className="flex items-center">
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')} title="Block quote"><Quote size={14} /></ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().togglePullQuote().run()} active={editor.isActive('pullQuote')} title="Pull quote"><Star size={14} /></ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Divider"><Minus size={14} /></ToolbarBtn>
+          </div>
           <Sep />
-          <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="Align Left"><AlignLeft size={14} /></ToolbarButton>
-          <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} title="Align Centre"><AlignCenter size={14} /></ToolbarButton>
-          <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} title="Align Right"><AlignRight size={14} /></ToolbarButton>
+          {/* Alignment */}
+          <div className="flex items-center">
+            <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="Align left"><AlignLeft size={14} /></ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} title="Align centre"><AlignCenter size={14} /></ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} title="Align right"><AlignRight size={14} /></ToolbarBtn>
+          </div>
           <Sep />
-          <ToolbarButton onClick={addLink} active={editor.isActive('link')} title="Add Link"><Link2 size={14} /></ToolbarButton>
-          {editor.isActive('link') && (
-            <ToolbarButton onClick={() => editor.chain().focus().unsetLink().run()} title="Remove Link"><Link2Off size={14} /></ToolbarButton>
-          )}
-          <ToolbarButton onClick={addImageFromUrl} title="Insert Image URL"><ImageIcon size={14} /></ToolbarButton>
-          <ToolbarButton
-            onClick={() => fileInputRef.current?.click()}
-            title="Upload Image"
-          >
-            <Upload size={14} />
-          </ToolbarButton>
+          {/* Links & media */}
+          <div className="flex items-center">
+            <ToolbarBtn onClick={addLink} active={editor.isActive('link')} title="Add link"><Link2 size={14} /></ToolbarBtn>
+            {editor.isActive('link') && (
+              <ToolbarBtn onClick={() => editor.chain().focus().unsetLink().run()} title="Remove link"><Link2Off size={14} /></ToolbarBtn>
+            )}
+            <ToolbarBtn onClick={addImageFromUrl} title="Insert image URL"><ImageIcon size={14} /></ToolbarBtn>
+            <ToolbarBtn onClick={() => fileInputRef.current?.click()} title="Upload image"><Upload size={14} /></ToolbarBtn>
+          </div>
           <Sep />
-          <ToolbarButton onClick={insertFootnote} title="Insert Footnote"><Superscript size={14} /></ToolbarButton>
-          <ToolbarButton onClick={insertChart} title="Insert Chart"><BarChart2 size={14} /></ToolbarButton>
+          {/* Special */}
+          <div className="flex items-center">
+            <ToolbarBtn onClick={insertFootnote} title="Insert footnote"><Superscript size={14} /></ToolbarBtn>
+            <ToolbarBtn onClick={insertChart} title="Insert chart"><BarChart2 size={14} /></ToolbarBtn>
+          </div>
         </div>
       )}
 
@@ -310,7 +386,7 @@ export function TiptapEditor({ content, onChange, editable = true }: TiptapEdito
 
       <EditorContent
         editor={editor}
-        className={`tiptap-editor bg-[var(--bg-elevated)] min-h-[400px] text-[var(--fg)] text-sm leading-relaxed ${
+        className={`tiptap-editor bg-[var(--bg-elevated)] text-[var(--fg)] text-base leading-relaxed ${
           !editable ? 'opacity-70 cursor-not-allowed' : ''
         }`}
       />
@@ -318,10 +394,13 @@ export function TiptapEditor({ content, onChange, editable = true }: TiptapEdito
       {editable && (
         <div className="bg-[var(--bg-subtle)] border-t border-[var(--border)] px-4 py-2 flex items-center justify-between">
           <span className="text-[var(--fg-faint)] text-xs">
-            {editor.storage.characterCount.words()} words
+            {wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'}
+            {wordCount > 0 && (
+              <span className="ml-2 opacity-60">{readingTime} min read</span>
+            )}
           </span>
-          <span className="text-[var(--fg-faint)] text-xs opacity-60">
-            Tip: Paste from Google Docs; formatting is cleaned automatically
+          <span className="text-[var(--fg-faint)] text-xs opacity-50 hidden sm:block">
+            Select text to format
           </span>
         </div>
       )}
