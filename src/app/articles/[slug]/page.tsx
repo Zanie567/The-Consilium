@@ -5,7 +5,6 @@ import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
 import { ShareButtons } from '@/components/ui/ShareButtons'
 import { BookmarkButton } from '@/components/ui/BookmarkButton'
-import { ReadingProgress } from '@/components/ui/ReadingProgress'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import type { Metadata } from 'next'
 
@@ -132,9 +131,6 @@ export default async function ArticlePage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
-      {/* Reading progress bar */}
-      <ReadingProgress />
-
       {/* ── Cover Image ──────────────────────────────────────────────────── */}
       {article.coverImage && (
         <div className="relative h-72 sm:h-96 md:h-[520px] w-full overflow-hidden bg-navy">

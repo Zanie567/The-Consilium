@@ -5,6 +5,8 @@ import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { AuthProvider } from '@/components/layout/AuthProvider'
 import { ThemeProvider } from '@/providers/ThemeProvider'
+import { ReadingProgress } from '@/components/ui/ReadingProgress'
+import { ScrollIndicator } from '@/components/ui/ScrollIndicator'
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -55,6 +57,8 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-[var(--bg)] text-[var(--fg)]">
         <ThemeProvider>
           <AuthProvider>
+            <ReadingProgress />
+            <ScrollIndicator />
             <Navbar />
             <main className="flex-1">{children}</main>
             <Footer />
