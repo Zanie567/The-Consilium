@@ -105,14 +105,15 @@ export default async function ArchivePage({ searchParams }: Props) {
         {articles.length > 0 ? (
           <div className="divide-y divide-gold/15">
             {articles.map((article) => (
-              <article
+              <Link
                 key={article.id}
-                className="py-6 flex flex-col sm:flex-row sm:items-start gap-4 group"
+                href={`/articles/${article.slug}`}
+                className="py-6 flex flex-col sm:flex-row sm:items-start gap-4 group hover:bg-[var(--bg-subtle)] -mx-2 px-2 transition-colors"
               >
                 <div className="sm:w-32 shrink-0 text-xs text-[var(--fg-faint)] pt-1">
                   {article.publishedAt
                     ? format(new Date(article.publishedAt), 'd MMM yyyy')
-                    : '—'}
+                    : ''}
                 </div>
                 <div className="flex-1">
                   {article.category && (
@@ -120,14 +121,12 @@ export default async function ArchivePage({ searchParams }: Props) {
                       {article.category.name}
                     </span>
                   )}
-                  <Link href={`/articles/${article.slug}`}>
-                    <h3
-                      className="text-lg font-bold text-[var(--fg)] group-hover:text-gold transition-colors leading-snug mb-1"
-                      style={{ fontFamily: 'var(--font-serif)' }}
-                    >
-                      {article.title}
-                    </h3>
-                  </Link>
+                  <h3
+                    className="text-lg font-bold text-[var(--fg)] group-hover:text-gold transition-colors leading-snug mb-1"
+                    style={{ fontFamily: 'var(--font-serif)' }}
+                  >
+                    {article.title}
+                  </h3>
                   {article.excerpt && (
                     <p className="text-[var(--fg-muted)] text-sm leading-relaxed mb-2 line-clamp-2">
                       {article.excerpt}
@@ -135,7 +134,7 @@ export default async function ArchivePage({ searchParams }: Props) {
                   )}
                   <p className="text-[var(--fg-faint)] text-xs">By {article.author.name}</p>
                 </div>
-              </article>
+              </Link>
             ))}
           </div>
         ) : (
