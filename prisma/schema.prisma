@@ -32,9 +32,11 @@ model User {
   bio           String?
   password      String?
   role          Role      @default(READER)
-  isActive      Boolean   @default(true)
-  lastLoginAt   DateTime?
-  adminNotes    String?   @db.Text
+  isActive              Boolean   @default(true)
+  lastLoginAt           DateTime?
+  failedLoginAttempts   Int       @default(0)
+  lockedUntil           DateTime?
+  adminNotes            String?   @db.Text
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -282,6 +284,18 @@ model ContactMessage {
   read      Boolean  @default(false)
 
   @@map("contact_messages")
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  ipAddress String?
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([createdAt])
+  @@map("login_attempts")
 }
 
 model TeamMember {

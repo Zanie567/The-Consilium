@@ -11,6 +11,7 @@ import {
   PlusCircle,
   LogOut,
   ChevronRight,
+  Shield,
 } from 'lucide-react'
 
 interface User {
@@ -36,6 +37,9 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
           { href: '/admin/team', icon: Users, label: 'Team' },
           { href: '/admin/subscribers', icon: Mail, label: 'Subscribers' },
         ]
+      : []),
+    ...(user.role === 'ADMIN'
+      ? [{ href: '/admin/login-attempts', icon: Shield, label: 'Login Attempts' }]
       : []),
   ]
 
