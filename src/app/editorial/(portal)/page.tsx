@@ -30,7 +30,7 @@ export default async function EditorialDashboard() {
     assignedCategoryIds = assignments.map((a) => a.categoryId)
   }
 
-  const [myArticles, pendingArticles, publishedCount, draftsCount] = await Promise.all([
+  const [myArticles, pendingArticles, publishedCount, myDrafts] = await Promise.all([
     // Writer: own articles; Editor/Admin: recent across system
     prisma.article.findMany({
       where: role === 'WRITER' ? { authorId: userId } : undefined,
@@ -59,12 +59,18 @@ export default async function EditorialDashboard() {
       },
     }).catch(() => 0),
 
-    prisma.article.count({
-      where: {
-        status: 'DRAFT',
-        ...(role === 'WRITER' ? { authorId: userId } : {}),
+    // My drafts — always the current user's own work-in-progress
+    prisma.article.findMany({
+      where: { authorId: userId, status: 'DRAFT' },
+      orderBy: { updatedAt: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        title: true,
+        updatedAt: true,
+        category: { select: { name: true } },
       },
-    }).catch(() => 0),
+    }).catch(() => [] as { id: string; title: string; updatedAt: Date; category: { name: string } | null }[]),
   ])
 
   const statusColour: Record<string, string> = {
@@ -110,7 +116,7 @@ export default async function EditorialDashboard() {
 
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        <StatCard label={role === 'WRITER' ? 'My Drafts' : 'Drafts'} value={draftsCount} />
+        <StatCard label="My Drafts" value={myDrafts.length} />
         <StatCard label="Published" value={publishedCount} accent="emerald" />
         {isEditor && (
           <StatCard
@@ -201,6 +207,47 @@ export default async function EditorialDashboard() {
           </Link>
         )}
       </div>
+
+      {/* My Drafts */}
+      {myDrafts.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">
+              My Drafts
+              <span className="ml-2 text-[var(--fg-faint)] font-normal normal-case tracking-normal">
+                {myDrafts.length} saved
+              </span>
+            </h2>
+            <Link
+              href="/editorial/articles?status=DRAFT"
+              className="text-xs text-gold hover:underline"
+            >
+              View all →
+            </Link>
+          </div>
+          <div className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] divide-y divide-[var(--border)]">
+            {myDrafts.map((draft) => (
+              <Link
+                key={draft.id}
+                href={`/editorial/articles/${draft.id}/edit`}
+                className="flex items-center gap-4 px-5 py-3.5 hover:bg-[var(--bg-subtle)] transition-colors group"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[var(--fg)] group-hover:text-gold transition-colors line-clamp-1">
+                    {draft.title || <span className="italic text-[var(--fg-faint)]">Untitled</span>}
+                  </p>
+                  <p className="text-xs text-[var(--fg-faint)] mt-0.5">
+                    {draft.category?.name ?? 'No category'} · last saved {formatDistanceToNow(new Date(draft.updatedAt), { addSuffix: true })}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs font-bold text-gold opacity-0 group-hover:opacity-100 transition-opacity">
+                  Continue →
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent articles table */}
       <div className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden">
