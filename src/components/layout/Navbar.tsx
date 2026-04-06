@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
-import { Menu, X, Search } from 'lucide-react'
+import { Menu, X, Search, LayoutDashboard, PlusCircle } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { usePathname, useRouter } from 'next/navigation'
@@ -140,6 +140,28 @@ export function Navbar() {
             <ThemeToggle />
             {session ? (
               <div className="flex items-center gap-3 pl-3 border-l border-navy-light">
+                {(['ADMIN', 'EDITOR', 'WRITER'] as const).includes(
+                  (session.user as { role?: string }).role as 'ADMIN' | 'EDITOR' | 'WRITER'
+                ) && !pathname.startsWith('/editorial') && !pathname.startsWith('/admin') && (
+                  <>
+                    <Link
+                      href="/editorial"
+                      className="flex items-center gap-1 text-gold/70 text-[10px] font-semibold uppercase tracking-widest hover:text-gold transition-colors"
+                      title="Editorial dashboard"
+                    >
+                      <LayoutDashboard size={12} />
+                      <span>Dashboard</span>
+                    </Link>
+                    <Link
+                      href="/editorial/articles/new"
+                      className="flex items-center gap-1 text-gold/70 text-[10px] font-semibold uppercase tracking-widest hover:text-gold transition-colors"
+                      title="Write a new article"
+                    >
+                      <PlusCircle size={12} />
+                      <span>New Article</span>
+                    </Link>
+                  </>
+                )}
                 <Link
                   href="/profile"
                   className="text-cream/70 text-xs font-semibold uppercase tracking-widest hover:text-cream transition-colors"

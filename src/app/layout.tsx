@@ -7,7 +7,6 @@ import { AuthProvider } from '@/components/layout/AuthProvider'
 import { ThemeProvider } from '@/providers/ThemeProvider'
 import { ScrollIndicator } from '@/components/ui/ScrollIndicator'
 import { SignupPrompt } from '@/components/ui/SignupPrompt'
-import { EditorialBar } from '@/components/ui/EditorialBar'
 import { CookieConsentBanner } from '@/components/ui/CookieConsent'
 
 const playfair = Playfair_Display({
@@ -62,7 +61,6 @@ export default function RootLayout({
           <AuthProvider>
             <ScrollIndicator />
             <Navbar />
-            <EditorialBar />
             <main className="flex-1">{children}</main>
             <Footer />
             <SignupPrompt />
