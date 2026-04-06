@@ -47,6 +47,7 @@ export default async function UsersPage() {
       <UserManagement
         initialUsers={serializedUsers}
         categories={categories}
+        currentUserId={session.user.id}
       />
     </div>
   )

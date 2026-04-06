@@ -101,10 +101,17 @@ export async function DELETE(_req: Request, { params }: Props) {
   }
 
   const { id } = await params
-  if (id === session.user.id) {
-    return NextResponse.json({ error: 'Cannot delete your own account.' }, { status: 400 })
+
+  const target = await prisma.user.findUnique({ where: { id }, select: { id: true } })
+  if (!target) {
+    return NextResponse.json({ error: 'User not found.' }, { status: 404 })
   }
 
-  await prisma.user.delete({ where: { id } })
+  await prisma.$transaction(async (tx) => {
+    await tx.articleNote.deleteMany({ where: { authorId: id } })
+    await tx.article.deleteMany({ where: { authorId: id } })
+    await tx.user.delete({ where: { id } })
+  })
+
   return NextResponse.json({ ok: true })
 }

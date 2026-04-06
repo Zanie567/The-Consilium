@@ -4,6 +4,7 @@ import { useState, Fragment } from 'react'
 import { format } from 'date-fns'
 import { Plus, KeyRound, PowerOff, Trash2, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
+import { signOut } from 'next-auth/react'
 import { Tooltip } from '@/components/ui/Tooltip'
 
 interface Category {
@@ -25,6 +26,7 @@ interface UserRecord {
 interface Props {
   initialUsers: UserRecord[]
   categories: Category[]
+  currentUserId?: string
 }
 
 const ROLE_BADGE: Record<string, string> = {
@@ -33,7 +35,7 @@ const ROLE_BADGE: Record<string, string> = {
   WRITER: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
 }
 
-export function UserManagement({ initialUsers, categories }: Props) {
+export function UserManagement({ initialUsers, categories, currentUserId }: Props) {
   const [users, setUsers] = useState<UserRecord[]>(initialUsers)
   const [showCreate, setShowCreate] = useState(false)
   const [newUser, setNewUser] = useState({
@@ -103,13 +105,21 @@ export function UserManagement({ initialUsers, categories }: Props) {
   }
 
   const deleteUser = async (id: string) => {
-    if (!confirm('Delete this user? This cannot be undone.')) return
+    const isSelf = id === currentUserId
+    const msg = isSelf
+      ? 'Delete your own account? You will be signed out immediately. This cannot be undone.'
+      : 'Delete this user? This cannot be undone.'
+    if (!confirm(msg)) return
     setLoading(id + '-delete')
     const res = await fetch(`/api/editorial/users/${id}`, { method: 'DELETE' })
     setLoading(null)
     if (res.ok) {
-      setUsers((prev) => prev.filter((u) => u.id !== id))
-      flash('User deleted.')
+      if (isSelf) {
+        await signOut({ callbackUrl: '/' })
+      } else {
+        setUsers((prev) => prev.filter((u) => u.id !== id))
+        flash('User deleted.')
+      }
     }
   }
 
