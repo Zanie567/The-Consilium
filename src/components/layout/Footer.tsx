@@ -159,7 +159,7 @@ export function Footer() {
               Economics Society. All rights reserved.
             </p>
             <p className="text-cream/20 text-[10px] mt-1">
-              Founded by Alex Escala, Lucas Dwyer and Satvik Singla
+              Founded by Alex Escala, Lucas Dwyer, Satvik Singla and Julia Stepniak
             </p>
           </div>
           <p className="text-cream/20 text-xs">Edinburgh, Scotland</p>
