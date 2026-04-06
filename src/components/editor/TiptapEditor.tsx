@@ -138,7 +138,10 @@ interface TiptapEditorProps {
 export function TiptapEditor({ content, onChange, editable = true }: TiptapEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const blockPickerRef = useRef<HTMLDivElement>(null)
+  const linkInputRef = useRef<HTMLInputElement>(null)
   const [blockPickerOpen, setBlockPickerOpen] = useState(false)
+  const [linkBarOpen, setLinkBarOpen] = useState(false)
+  const [linkUrl, setLinkUrl] = useState('')
   const [uploadError, setUploadError] = useState('')
   const [uploading, setUploading] = useState(false)
 
@@ -196,12 +199,28 @@ export function TiptapEditor({ content, onChange, editable = true }: TiptapEdito
     return () => clearTimeout(t)
   }, [uploadError])
 
-  const addLink = useCallback(() => {
+  const openLinkBar = useCallback(() => {
     if (!editor) return
-    const url = window.prompt('Enter URL')
-    if (!url) return
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+    const existing = editor.getAttributes('link').href ?? ''
+    setLinkUrl(existing)
+    setLinkBarOpen(true)
+    // Focus the input after render
+    setTimeout(() => linkInputRef.current?.focus(), 50)
   }, [editor])
+
+  const commitLink = useCallback(() => {
+    if (!editor) return
+    const url = linkUrl.trim()
+    if (url) {
+      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+    } else {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run()
+    }
+    setLinkBarOpen(false)
+    setLinkUrl('')
+  }, [editor, linkUrl])
+
+  const addLink = openLinkBar
 
   const addImageFromUrl = useCallback(() => {
     if (!editor) return
@@ -364,13 +383,46 @@ export function TiptapEditor({ content, onChange, editable = true }: TiptapEdito
   const readingTime = Math.max(1, Math.round(wordCount / 200))
 
   return (
-    <div className="border border-[var(--border)] overflow-visible">
+    <div className="border border-[var(--border)] overflow-visible" style={{ isolation: 'isolate' }}>
 
       {/* ── Upload error toast ────────────────────────────────────────────── */}
       {uploadError && (
         <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-2.5 text-red-500 text-xs flex items-center gap-2">
           <span className="font-semibold">Upload failed:</span>
           {uploadError}
+        </div>
+      )}
+
+      {/* ── Link bar ─────────────────────────────────────────────────────── */}
+      {linkBarOpen && editable && (
+        <div className="bg-[var(--bg-subtle)] border-b border-[var(--border)] px-3 py-2 flex items-center gap-2">
+          <Link2 size={13} className="text-[var(--fg-faint)] shrink-0" />
+          <input
+            ref={linkInputRef}
+            type="url"
+            value={linkUrl}
+            onChange={(e) => setLinkUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); commitLink() }
+              if (e.key === 'Escape') { setLinkBarOpen(false); setLinkUrl('') }
+            }}
+            placeholder="https://..."
+            className="flex-1 bg-transparent text-sm text-[var(--fg)] placeholder:text-[var(--fg-faint)] outline-none border-b border-[var(--border)] focus:border-gold pb-0.5 transition-colors"
+          />
+          <button
+            type="button"
+            onClick={commitLink}
+            className="text-xs font-bold text-gold hover:text-gold/80 transition-colors px-2"
+          >
+            Apply
+          </button>
+          <button
+            type="button"
+            onClick={() => { setLinkBarOpen(false); setLinkUrl('') }}
+            className="text-xs text-[var(--fg-faint)] hover:text-[var(--fg)] transition-colors"
+          >
+            Cancel
+          </button>
         </div>
       )}
 
@@ -452,10 +504,15 @@ export function TiptapEditor({ content, onChange, editable = true }: TiptapEdito
 
       {/* ── Main toolbar ──────────────────────────────────────────────────── */}
       {editable && (
-        <div className="bg-[var(--bg-subtle)] border-b border-[var(--border)] px-2 py-1.5 flex flex-wrap gap-0.5 items-center">
+        <div className="bg-[var(--bg-subtle)] border-b border-[var(--border)] px-2 py-1.5 flex flex-wrap gap-0.5 items-center overflow-visible">
+          {/* Font indicator */}
+          <span className="text-[0.65rem] font-semibold text-[var(--fg-faint)] px-1.5 py-1 border border-[var(--border)] rounded-sm mr-1 select-none" title="Article body font">
+            Playfair
+          </span>
+          <Sep />
           <div className="flex items-center">
-            <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} title="Undo"><Undo size={14} /></ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().redo().run()} title="Redo"><Redo size={14} /></ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo (Ctrl+Z)"><Undo size={14} /></ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Redo (Ctrl+Y)"><Redo size={14} /></ToolbarBtn>
           </div>
           <Sep />
           <div className="flex items-center">

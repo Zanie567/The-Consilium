@@ -241,6 +241,85 @@ body {
   outline: none;
   min-height: 540px;
   padding: 1.5rem 1.75rem 3rem 3rem;
+  font-size: 1.0625rem;
+  line-height: 1.85;
+  color: var(--fg);
+}
+
+/* Typography marks — Tailwind preflight resets these, so we restore them */
+.tiptap-editor .ProseMirror strong { font-weight: 700; }
+.tiptap-editor .ProseMirror em { font-style: italic; }
+.tiptap-editor .ProseMirror u { text-decoration: underline; text-underline-offset: 3px; }
+.tiptap-editor .ProseMirror s { text-decoration: line-through; }
+.tiptap-editor .ProseMirror mark { background: rgba(201,162,39,0.25); padding: 0 2px; border-radius: 2px; }
+
+/* Headings */
+.tiptap-editor .ProseMirror h1,
+.tiptap-editor .ProseMirror h2,
+.tiptap-editor .ProseMirror h3,
+.tiptap-editor .ProseMirror h4 {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  line-height: 1.3;
+  margin-top: 2em;
+  margin-bottom: 0.75em;
+  color: var(--fg);
+}
+.tiptap-editor .ProseMirror h1 { font-size: 2rem; }
+.tiptap-editor .ProseMirror h2 { font-size: 1.6rem; }
+.tiptap-editor .ProseMirror h3 { font-size: 1.3rem; }
+.tiptap-editor .ProseMirror h4 { font-size: 1.1rem; }
+
+/* Paragraphs */
+.tiptap-editor .ProseMirror p { margin-bottom: 1.4em; }
+
+/* Lists */
+.tiptap-editor .ProseMirror ul,
+.tiptap-editor .ProseMirror ol {
+  padding-left: 1.6rem;
+  margin-bottom: 1.4em;
+}
+.tiptap-editor .ProseMirror ul { list-style-type: disc; }
+.tiptap-editor .ProseMirror ol { list-style-type: decimal; }
+.tiptap-editor .ProseMirror li { margin-bottom: 0.35em; }
+.tiptap-editor .ProseMirror li > p { margin-bottom: 0.35em; }
+
+/* Blockquote */
+.tiptap-editor .ProseMirror blockquote {
+  border-left: 3px solid #c9a227;
+  padding: 0.4rem 0 0.4rem 1.25rem;
+  margin: 2rem 0;
+  font-style: italic;
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  color: var(--fg-muted);
+  background: rgba(201,162,39,0.04);
+}
+
+/* Horizontal rule */
+.tiptap-editor .ProseMirror hr {
+  border: none;
+  border-top: 1px solid #c9a227;
+  margin: 2.5rem 0;
+  opacity: 0.35;
+}
+
+/* Links */
+.tiptap-editor .ProseMirror a {
+  color: #c9a227;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+/* Images */
+.tiptap-editor .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  margin: 2rem auto;
+  display: block;
+  border-radius: 2px;
+  box-shadow: 0 4px 20px rgba(26,39,68,0.08);
 }
 
 .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
