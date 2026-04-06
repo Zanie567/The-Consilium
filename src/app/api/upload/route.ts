@@ -10,10 +10,28 @@ export async function POST(request: NextRequest) {
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  // Prefer service role key (bypasses RLS). Fall back to anon key if configured.
+  const supabaseKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  if (!supabaseUrl || !supabaseKey) {
-    return Response.json({ error: 'Storage not configured.' }, { status: 503 })
+  if (!supabaseUrl) {
+    return Response.json(
+      { error: 'Storage not configured: NEXT_PUBLIC_SUPABASE_URL is missing.' },
+      { status: 503 }
+    )
+  }
+
+  if (!supabaseKey) {
+    return Response.json(
+      {
+        error:
+          'Storage not configured: add SUPABASE_SERVICE_ROLE_KEY to your environment variables. ' +
+          'Find it in Supabase Dashboard → Project Settings → API → service_role.',
+      },
+      { status: 503 }
+    )
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey)
@@ -21,39 +39,49 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
-    const bucket = (formData.get('bucket') as string | null) ?? 'uploads'
+    const bucket = (formData.get('bucket') as string | null) ?? 'article-images'
 
     if (!file) {
-      return Response.json({ error: 'No file provided' }, { status: 400 })
+      return Response.json({ error: 'No file provided.' }, { status: 400 })
     }
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-    if (!allowedTypes.includes(file.type)) {
-      return Response.json({ error: 'File type not allowed' }, { status: 400 })
+    // Accept any image format
+    if (!file.type.startsWith('image/')) {
+      return Response.json(
+        { error: `File must be an image. Received: ${file.type || 'unknown type'}.` },
+        { status: 400 }
+      )
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      return Response.json({ error: 'File too large (max 5MB)' }, { status: 400 })
+    if (file.size > 10 * 1024 * 1024) {
+      return Response.json({ error: 'File too large (max 10 MB).' }, { status: 400 })
     }
 
-    const ext = file.name.split('.').pop()
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+    // Sanitise the original filename and prefix with timestamp to avoid collisions
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const filename = `${Date.now()}-${safeName}`
     const buffer = await file.arrayBuffer()
 
-    const { error } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from(bucket)
       .upload(filename, buffer, { contentType: file.type, upsert: false })
 
-    if (error) {
-      console.error('Supabase upload error:', error)
-      return Response.json({ error: 'Upload failed: ' + error.message }, { status: 500 })
+    if (uploadError) {
+      console.error('[upload] Supabase error:', uploadError)
+      return Response.json(
+        { error: `Upload failed: ${uploadError.message}` },
+        { status: 500 }
+      )
     }
 
     const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filename)
 
     return Response.json({ url: urlData.publicUrl }, { status: 201 })
-  } catch (error) {
-    console.error('Upload error:', error)
-    return Response.json({ error: 'Upload failed' }, { status: 500 })
+  } catch (err) {
+    console.error('[upload] Unexpected error:', err)
+    return Response.json(
+      { error: err instanceof Error ? err.message : 'Upload failed unexpectedly.' },
+      { status: 500 }
+    )
   }
 }
