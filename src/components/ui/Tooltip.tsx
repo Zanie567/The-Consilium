@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useId } from 'react'
+import { useState, useRef, useId, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 
 interface TooltipProps {
@@ -12,13 +13,6 @@ interface TooltipProps {
   side?: 'top' | 'bottom' | 'left' | 'right'
   className?: string
   maxWidth?: number
-}
-
-const sideClass = {
-  top:    'bottom-full left-1/2 -translate-x-1/2 mb-2',
-  bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
-  left:   'right-full top-1/2 -translate-y-1/2 mr-2',
-  right:  'left-full top-1/2 -translate-y-1/2 ml-2',
 }
 
 const variantClass = {
@@ -36,10 +30,41 @@ export function Tooltip({
   maxWidth = 260,
 }: TooltipProps) {
   const [visible, setVisible] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0 })
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const triggerRef = useRef<HTMLSpanElement>(null)
   const id = useId()
 
+  const calcPos = useCallback(() => {
+    if (!triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    const scrollY = window.scrollY
+    const scrollX = window.scrollX
+    let top = 0, left = 0
+
+    switch (side) {
+      case 'top':
+        top = rect.top + scrollY - 8
+        left = rect.left + scrollX + rect.width / 2
+        break
+      case 'bottom':
+        top = rect.bottom + scrollY + 8
+        left = rect.left + scrollX + rect.width / 2
+        break
+      case 'left':
+        top = rect.top + scrollY + rect.height / 2
+        left = rect.left + scrollX - 8
+        break
+      case 'right':
+        top = rect.top + scrollY + rect.height / 2
+        left = rect.right + scrollX + 8
+        break
+    }
+    setPos({ top, left })
+  }, [side])
+
   const show = () => {
+    calcPos()
     timer.current = setTimeout(() => setVisible(true), delay)
   }
 
@@ -48,8 +73,41 @@ export function Tooltip({
     setVisible(false)
   }
 
+  // Transform based on side: tooltip appears FROM the trigger edge
+  const transform: Record<string, string> = {
+    top:    'translateX(-50%) translateY(-100%)',
+    bottom: 'translateX(-50%)',
+    left:   'translateX(-100%) translateY(-50%)',
+    right:  'translateY(-50%)',
+  }
+
+  const tooltipEl = visible ? (
+    <motion.div
+      id={id}
+      role="tooltip"
+      initial={{ opacity: 0, scale: 0.94 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.94 }}
+      transition={{ duration: 0.12, ease: 'easeOut' }}
+      style={{
+        position: 'absolute',
+        top: pos.top,
+        left: pos.left,
+        transform: transform[side],
+        maxWidth,
+        zIndex: 9999,
+        pointerEvents: 'none',
+      }}
+    >
+      <span className={`block text-xs px-3 py-2 leading-snug text-center whitespace-normal ${variantClass[variant]}`}>
+        {content}
+      </span>
+    </motion.div>
+  ) : null
+
   return (
     <span
+      ref={triggerRef}
       className={`relative inline-flex items-center ${className ?? ''}`}
       onMouseEnter={show}
       onMouseLeave={hide}
@@ -60,22 +118,9 @@ export function Tooltip({
       {children}
 
       <AnimatePresence>
-        {visible && (
-          <motion.span
-            id={id}
-            role="tooltip"
-            initial={{ opacity: 0, scale: 0.94, y: side === 'top' ? 4 : side === 'bottom' ? -4 : 0 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.94 }}
-            transition={{ duration: 0.12, ease: 'easeOut' }}
-            className={`absolute z-[300] ${sideClass[side]} pointer-events-none`}
-            style={{ maxWidth }}
-          >
-            <span className={`block text-xs px-3 py-2 leading-snug text-center ${variantClass[variant]}`}>
-              {content}
-            </span>
-          </motion.span>
-        )}
+        {visible && typeof document !== 'undefined'
+          ? createPortal(tooltipEl, document.body)
+          : null}
       </AnimatePresence>
     </span>
   )
