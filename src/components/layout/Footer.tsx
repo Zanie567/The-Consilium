@@ -140,7 +140,7 @@ export function Footer() {
         <div className="mt-10 pt-8 border-t border-navy-light">
           <div className="text-center mb-8">
             <p className="text-cream/45 text-xs mb-2">
-              Have feedback, a suggestion, or want to get involved?
+              Have feedback or a suggestion? Fill out this form to let us know.
             </p>
             <a
               href="https://forms.gle/ufUnT7sDoKagnLqGA"
