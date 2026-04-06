@@ -10,6 +10,7 @@ import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/Animat
 import { ArticleCharts } from '@/components/ui/ArticleCharts'
 import { ViewCounter } from '@/components/ui/ViewCounter'
 import { PrintButton } from '@/components/ui/PrintButton'
+import { SaveAsPdfButton } from '@/components/ui/SaveAsPdfButton'
 import type { Metadata } from 'next'
 
 interface Props {
@@ -355,6 +356,7 @@ export default async function ArticlePage({ params }: Props) {
             </div>
             <div className="flex items-center gap-3 no-print">
               <PrintButton />
+              <SaveAsPdfButton title={article.title} />
               <ShareButtons title={article.title} />
               <BookmarkButton articleId={article.id} />
             </div>
