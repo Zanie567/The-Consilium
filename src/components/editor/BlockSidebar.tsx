@@ -59,7 +59,12 @@ const BLOCKS: BlockDef[] = [
     insert: (handle) => {
       const editor = handle.getEditor()
       if (!editor) return
-      editor.chain().focus().insertChart({ label: 'Data point', value: '0', unit: '' }).run()
+      editor.chain().focus().insertChart({
+        chartType: 'bar',
+        labels: '["Metric"]',
+        datasets: '[{"label":"Value","data":[0]}]',
+        title: 'Data Callout',
+      }).run()
     },
   },
 ]
@@ -75,7 +80,8 @@ export function BlockSidebar({ editorRef }: Props) {
   const handleDragStart = (id: string) => (e: React.DragEvent) => {
     dragId.current = id
     e.dataTransfer.effectAllowed = 'copy'
-    e.dataTransfer.setData('text/plain', id)
+    // Use custom MIME type so Tiptap does not interpret this as a text drop
+    e.dataTransfer.setData('application/x-consilium-block', id)
   }
 
   const handleClick = (block: BlockDef) => {

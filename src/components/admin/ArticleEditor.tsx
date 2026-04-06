@@ -417,6 +417,9 @@ export function ArticleEditor({
 
           {/* Cover image upload zone */}
           <div className="mb-8">
+            <p className="text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
+              Article Cover Image
+            </p>
             <input
               ref={coverFileRef}
               type="file"
@@ -491,13 +494,13 @@ export function ArticleEditor({
                       : 'border-[var(--border)] hover:border-gold/40 hover:bg-gold/[0.02] text-[var(--fg-faint)]'
                   }`}
                 >
-                  <ImagePlus size={22} className="transition-colors" />
+                  <ImagePlus size={14} className="transition-colors" />
                   <div className="text-center">
-                    <p className="text-sm font-medium">
-                      {uploading ? 'Uploading...' : coverDragOver ? 'Drop to upload' : 'Add a cover image'}
+                    <p className="text-xs font-medium">
+                      {uploading ? 'Uploading...' : coverDragOver ? 'Drop to upload' : 'Add cover image'}
                     </p>
-                    <p className="text-xs opacity-60 mt-0.5">
-                      Click to upload, drag a file here, or paste a URL in the settings panel
+                    <p className="text-[10px] opacity-50 mt-0.5">
+                      Shown at the top of the published article
                     </p>
                   </div>
                 </div>
@@ -556,18 +559,57 @@ export function ArticleEditor({
             {pdfError && <span className="text-red-500 text-xs">{pdfError}</span>}
           </div>
 
-          {/* Content editor */}
-          <TiptapEditor
-            ref={editorRef}
-            content={content}
-            onChange={handleContentChange}
-            editable={canEdit}
-          />
-        </div>
-
-        {/* Block sidebar */}
-        <div className="hidden lg:flex border-l border-[var(--border)] bg-[var(--bg-subtle)] p-2">
-          <BlockSidebar editorRef={editorRef} />
+          {/* Content editor + block sidebar */}
+          <div className="flex gap-3 items-start">
+            <div
+              className="flex-1 min-w-0"
+              onDragOver={(e) => {
+                if (e.dataTransfer.types.includes('application/x-consilium-block')) {
+                  e.preventDefault()
+                  e.dataTransfer.dropEffect = 'copy'
+                }
+              }}
+              onDrop={(e) => {
+                const blockId = e.dataTransfer.getData('application/x-consilium-block')
+                if (!blockId || !editorRef.current) return
+                e.preventDefault()
+                // trigger the block insert via the sidebar's exposed insert function
+                ;(e.currentTarget as HTMLElement).dispatchEvent(
+                  new CustomEvent('consilium-block-drop', { detail: blockId, bubbles: false })
+                )
+              }}
+              ref={(el) => {
+                if (!el) return
+                const handler = (ev: Event) => {
+                  const blockId = (ev as CustomEvent<string>).detail
+                  if (!editorRef.current) return
+                  const blockMap: Record<string, () => void> = {
+                    image: () => {
+                      const input = document.createElement('input')
+                      input.type = 'file'; input.accept = 'image/*'
+                      input.onchange = () => { const f = input.files?.[0]; if (f) editorRef.current?.uploadImageFile(f) }
+                      input.click()
+                    },
+                    pullquote: () => editorRef.current?.getEditor()?.chain().focus().togglePullQuote().run(),
+                    divider: () => editorRef.current?.getEditor()?.chain().focus().setHorizontalRule().run(),
+                    chart: () => editorRef.current?.getEditor()?.chain().focus().insertChart({ chartType: 'bar', labels: '["Metric"]', datasets: '[{"label":"Value","data":[0]}]', title: 'Data Callout' }).run(),
+                  }
+                  blockMap[blockId]?.()
+                }
+                el.addEventListener('consilium-block-drop', handler)
+              }}
+            >
+              <TiptapEditor
+                ref={editorRef}
+                content={content}
+                onChange={handleContentChange}
+                editable={canEdit}
+              />
+            </div>
+            <div className="hidden lg:block flex-shrink-0">
+              <BlockSidebar editorRef={editorRef} />
+            </div>
+          </div>
         </div>
 
         {/* Settings sidebar */}
