@@ -13,6 +13,11 @@ export async function POST(request: NextRequest) {
     const name = String(body.name ?? '').trim()
     const email = String(body.email ?? '').trim().toLowerCase()
     const password = String(body.password ?? '')
+    const agreed = body.agreed === true
+
+    if (!agreed) {
+      return Response.json({ error: 'You must agree to the Privacy Policy and Terms of Service.' }, { status: 400 })
+    }
 
     if (!name || !email || !password) {
       return Response.json({ error: 'Name, email, and password are required.' }, { status: 400 })

@@ -59,9 +59,16 @@ export function NewsletterSignup() {
             Subscribe to The Consilium
           </h2>
           <div className="w-12 h-px bg-gold/40 mx-auto mb-6" />
-          <p className="text-cream/55 mb-10 text-sm leading-relaxed max-w-sm mx-auto">
+          <p className="text-cream/55 mb-6 text-sm leading-relaxed max-w-sm mx-auto">
             Receive our latest articles and analysis directly in your inbox.
             Join the conversation on economics, policy, and ideas.
+          </p>
+          <p className="text-cream/35 text-xs mb-6">
+            We respect your privacy.{' '}
+            <a href="/privacy" className="text-gold/70 hover:text-gold underline transition-colors">
+              Read our Privacy Policy
+            </a>
+            .
           </p>
         </motion.div>
 

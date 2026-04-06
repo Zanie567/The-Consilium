@@ -15,6 +15,7 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
+import { getCookieConsent } from '@/components/ui/CookieConsent'
 
 const VISIT_KEY = 'consilium_visits'
 const DISMISS_KEY = 'consilium_prompt_dismissed'
@@ -39,6 +40,9 @@ export function SignupPrompt() {
   useEffect(() => {
     if (status === 'loading') return
     if (session) return // logged in — never show
+
+    // Only set tracking cookies if the user has accepted cookie consent
+    if (getCookieConsent() !== 'accepted') return
 
     // Check if dismissed recently
     const dismissed = getCookie(DISMISS_KEY)

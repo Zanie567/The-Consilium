@@ -1,4 +1,12 @@
 import { Resend } from 'resend'
+import { createHmac } from 'crypto'
+
+export function unsubscribeUrl(email: string): string {
+  const secret = process.env.NEXTAUTH_SECRET ?? 'consilium-unsubscribe'
+  const token = createHmac('sha256', secret).update(email.toLowerCase()).digest('hex')
+  const base = process.env.NEXTAUTH_URL ?? 'https://the-consilium.vercel.app'
+  return `${base}/unsubscribe?email=${encodeURIComponent(email)}&token=${token}`
+}
 
 const FROM = 'The Consilium <noreply@theconsilium.co.uk>'
 

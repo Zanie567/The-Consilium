@@ -3,11 +3,13 @@
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 export function SignUpForm() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [agreed, setAgreed] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -20,7 +22,7 @@ export function SignUpForm() {
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, agreed }),
     })
 
     if (!res.ok) {
@@ -99,10 +101,33 @@ export function SignUpForm() {
         />
       </div>
 
+      <div>
+        <label className="flex items-start gap-3 cursor-pointer group">
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            required
+            className="mt-0.5 w-4 h-4 shrink-0 accent-navy cursor-pointer"
+          />
+          <span className="text-[var(--fg-muted)] text-xs leading-relaxed">
+            I have read and agree to the{' '}
+            <Link href="/privacy" className="text-gold hover:underline" target="_blank">
+              Privacy Policy
+            </Link>{' '}
+            and{' '}
+            <Link href="/terms" className="text-gold hover:underline" target="_blank">
+              Terms of Service
+            </Link>
+            .
+          </span>
+        </label>
+      </div>
+
       <button
         type="submit"
-        disabled={loading}
-        className="w-full bg-navy text-gold py-3 text-sm font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors disabled:opacity-60"
+        disabled={loading || !agreed}
+        className="w-full bg-navy text-gold py-3 text-sm font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {loading ? 'Creating account...' : 'Create Account'}
       </button>

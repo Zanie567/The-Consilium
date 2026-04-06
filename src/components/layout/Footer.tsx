@@ -34,6 +34,8 @@ const orgLinks = [
   { href: '/team', label: 'Our Team' },
   { href: '/contact', label: 'Contact' },
   { href: '/corrections', label: 'Corrections Policy' },
+  { href: '/privacy', label: 'Privacy Policy' },
+  { href: '/terms', label: 'Terms of Service' },
   { href: '/search', label: 'Search' },
 ]
 
