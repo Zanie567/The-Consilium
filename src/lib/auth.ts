@@ -27,7 +27,7 @@ async function notifyAdminOfLockout(lockedEmail: string, ip: string) {
     if (!admin?.email) return
     await sendEmail({
       to: admin.email,
-      subject: 'Account locked — too many failed login attempts',
+      subject: 'Account locked: too many failed login attempts',
       html: `
         <p>The account <strong>${lockedEmail}</strong> has been temporarily locked after ${MAX_FAILED_ATTEMPTS} consecutive failed login attempts.</p>
         <p><strong>IP address:</strong> <code>${ip}</code></p>

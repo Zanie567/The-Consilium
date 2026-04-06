@@ -137,7 +137,7 @@ export default function DataManagementPage() {
               <div className="bg-amber-50 border border-amber-200 p-4 rounded-sm">
                 <p className="text-amber-800 text-sm font-medium mb-1">Account found</p>
                 <p className="text-amber-700 text-xs mb-3">
-                  <strong>{email}</strong> — click below to confirm deletion. This will permanently
+                  <strong>{email}</strong>: click below to confirm deletion. This will permanently
                   remove their account, reading history, bookmarks, and any newsletter subscription.
                   This action cannot be undone.
                 </p>

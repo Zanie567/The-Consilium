@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     // Send confirmation to the deleted address
     await sendEmail({
       to: user.email,
-      subject: 'Your data has been deleted — The Consilium',
+      subject: 'Your data has been deleted: The Consilium',
       html: `
         <p>Hi${user.name ? ` ${user.name}` : ''},</p>
         <p>This is to confirm that your account and all associated personal data have been permanently deleted from The Consilium.</p>

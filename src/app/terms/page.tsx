@@ -21,7 +21,7 @@ export default function TermsPage() {
             Terms of Service
           </h1>
           <p className="text-[var(--fg-muted)] text-lg leading-relaxed">
-            By using The Consilium website, you agree to these terms. Please read them — they are
+            By using The Consilium website, you agree to these terms. Please read them; they are
             straightforward and written in plain English.
           </p>
           <p className="text-[var(--fg-faint)] text-sm mt-4">Last updated: 6 April 2026</p>

@@ -50,7 +50,7 @@ export default function PrivacyPage() {
             <h3>Newsletter subscriptions</h3>
             <p>
               When you subscribe to our newsletter, we store your email address. We use it to send
-              you new articles and updates. The legal basis is your consent — you can unsubscribe at
+              you new articles and updates. The legal basis is your consent: you can unsubscribe at
               any time using the link at the bottom of any newsletter email, and we will delete your
               email address immediately.
             </p>
@@ -125,15 +125,15 @@ export default function PrivacyPage() {
             </p>
             <ul>
               <li>
-                <strong>Vercel</strong> — hosts the website and serves pages to your browser. Vercel
+                <strong>Vercel</strong>: hosts the website and serves pages to your browser. Vercel
                 processes request data including IP addresses as part of normal web serving.
               </li>
               <li>
-                <strong>Supabase</strong> — stores the database containing your account and
+                <strong>Supabase</strong>: stores the database containing your account and
                 subscription data.
               </li>
               <li>
-                <strong>Resend</strong> — sends transactional emails such as password resets and
+                <strong>Resend</strong>: sends transactional emails such as password resets and
                 account notifications. Your email address is passed to Resend only when sending you
                 a message.
               </li>
