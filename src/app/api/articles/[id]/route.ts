@@ -64,7 +64,7 @@ export async function PUT(
     const body = await request.json()
     const {
       title, slug, content, excerpt, coverImage, categoryId, status,
-      corrected, correctionNote, seriesId, seriesOrder, tags,
+      corrected, correctionNote, seriesId, seriesOrder, tags, scheduledAt,
     } = body
 
     // Writers can only set status to DRAFT or PENDING_REVIEW
@@ -73,6 +73,14 @@ export async function PUT(
       finalStatus = status
     } else if (!isAdminOrEditor && (status === 'DRAFT' || status === 'PENDING_REVIEW')) {
       finalStatus = status
+    }
+
+    // Validate scheduledAt is in the future when scheduling
+    if (finalStatus === 'SCHEDULED' && scheduledAt) {
+      const scheduledDate = new Date(scheduledAt)
+      if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
+        return Response.json({ error: 'Scheduled date must be in the future.' }, { status: 400 })
+      }
     }
 
     const wasJustSubmitted =
@@ -98,6 +106,11 @@ export async function PUT(
         // Clear editor note when writer resubmits
         ...(wasJustSubmitted && { editorNote: null }),
         status: finalStatus,
+        scheduledAt: finalStatus === 'SCHEDULED' && scheduledAt
+          ? new Date(scheduledAt)
+          : finalStatus !== 'SCHEDULED'
+          ? null
+          : existing.scheduledAt,
         publishedAt: wasPublished
           ? new Date()
           : wasUnpublished

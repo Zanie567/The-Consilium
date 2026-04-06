@@ -77,6 +77,7 @@ export function ArticleEditor({
   const [coverImage, setCoverImage] = useState(initialData?.coverImage ?? '')
   const [categoryId, setCategoryId] = useState(initialData?.categoryId ?? '')
   const [status, setStatus] = useState(initialData?.status ?? 'DRAFT')
+  const [scheduledAt, setScheduledAt] = useState('')
   const [tags, setTags] = useState<string[]>(initialData?.tags ?? [])
   const [tagInput, setTagInput] = useState('')
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
@@ -176,14 +177,18 @@ export function ArticleEditor({
     e.target.value = ''
   }
 
-  const buildBody = (overrideStatus?: string) => ({
-    title, slug, content, excerpt,
-    coverImage: coverImage || null,
-    categoryId: categoryId || null,
-    authorId,
-    status: overrideStatus ?? status,
-    tags,
-  })
+  const buildBody = (overrideStatus?: string) => {
+    const finalStatus = overrideStatus ?? status
+    return {
+      title, slug, content, excerpt,
+      coverImage: coverImage || null,
+      categoryId: categoryId || null,
+      authorId,
+      status: finalStatus,
+      tags,
+      ...(finalStatus === 'SCHEDULED' && scheduledAt ? { scheduledAt } : {}),
+    }
+  }
 
   const silentSave = async () => {
     if (!title.trim() || !articleId) return
@@ -208,6 +213,15 @@ export function ArticleEditor({
 
   const handleSave = async (overrideStatus?: string) => {
     if (!title.trim()) { setError('A title is required.'); return }
+    const finalStatus = overrideStatus ?? status
+    if (finalStatus === 'SCHEDULED' && !scheduledAt) {
+      setError('Please pick a future date and time to schedule this article.')
+      return
+    }
+    if (finalStatus === 'SCHEDULED' && scheduledAt && new Date(scheduledAt) <= new Date()) {
+      setError('Scheduled date must be in the future.')
+      return
+    }
     setSaveStatus('saving')
     setError('')
 
@@ -521,6 +535,25 @@ export function ArticleEditor({
                 </select>
                 <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--fg-faint)] pointer-events-none" />
               </div>
+            </div>
+          )}
+
+          {/* Scheduled date picker */}
+          {!isWriter && status === 'SCHEDULED' && (
+            <div>
+              <label className="block text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
+                Publish At
+              </label>
+              <input
+                type="datetime-local"
+                value={scheduledAt}
+                min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+                onChange={(e) => setScheduledAt(e.target.value)}
+                className="w-full border border-[var(--border)] px-3 py-2.5 text-[var(--fg)] text-sm focus:outline-none focus:border-gold bg-[var(--bg-elevated)] cursor-pointer"
+              />
+              {!scheduledAt && (
+                <p className="text-amber-500 text-[10px] mt-1">Pick a future date and time to schedule this article.</p>
+              )}
             </div>
           )}
 

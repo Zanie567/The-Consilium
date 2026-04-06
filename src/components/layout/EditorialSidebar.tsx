@@ -12,6 +12,7 @@ import {
   Users,
   ClipboardList,
   BookOpen,
+  Clock,
 } from 'lucide-react'
 
 interface User {
@@ -32,6 +33,7 @@ export function EditorialSidebar({ user }: { user: User }) {
     { href: '/editorial/review', icon: ClipboardList, label: 'Review Queue', exact: false, show: isEditor },
     { href: '/editorial/articles', icon: FileText, label: user.role === 'WRITER' ? 'My Articles' : 'All Articles', show: true },
     { href: '/editorial/articles/new', icon: PlusCircle, label: 'New Article', show: true },
+    { href: '/editorial/scheduled', icon: Clock, label: 'Scheduled', show: isEditor },
     { href: '/editorial/series', icon: BookOpen, label: 'Article Series', show: isEditor },
     { href: '/editorial/users', icon: Users, label: 'Users', show: isAdmin },
   ]
