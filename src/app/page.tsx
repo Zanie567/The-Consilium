@@ -7,6 +7,8 @@ import { CategoryTabs } from '@/components/ui/CategoryTabs'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { ContinueReading } from '@/components/ui/ContinueReading'
 
+export const dynamic = 'force-dynamic'
+
 async function getFeaturedArticle() {
   try {
     // First try explicitly featured, then fall back to most recent published
