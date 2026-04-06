@@ -1,18 +1,23 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect, KeyboardEvent } from 'react'
+import React, { useState, useCallback, useRef, useEffect, KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import {
   Save, Send, Eye, X, Tag, ArrowLeft, Check, AlertCircle,
-  ImagePlus, Loader2, ChevronDown,
+  ImagePlus, Loader2, ChevronDown, FileUp,
 } from 'lucide-react'
 import slugify from 'slugify'
+import { BlockSidebar } from '@/components/editor/BlockSidebar'
+import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
 
 const TiptapEditor = dynamic(
   () => import('@/components/editor/TiptapEditor').then((m) => m.TiptapEditor),
   { ssr: false, loading: () => <div className="h-[500px] bg-[var(--bg-subtle)] animate-pulse" /> }
-)
+) as React.ForwardRefExoticComponent<
+  { content?: string; onChange: (content: string) => void; editable?: boolean } &
+  React.RefAttributes<TiptapEditorHandle>
+>
 
 interface Category {
   id: string
@@ -89,9 +94,13 @@ export function ArticleEditor({
   const titleRef = useRef<HTMLTextAreaElement>(null)
   const excerptRef = useRef<HTMLTextAreaElement>(null)
   const coverFileRef = useRef<HTMLInputElement>(null)
+  const pdfFileRef = useRef<HTMLInputElement>(null)
+  const editorRef = useRef<TiptapEditorHandle | null>(null)
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const hasMounted = useRef(false)
   const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const [pdfImporting, setPdfImporting] = useState(false)
+  const [pdfError, setPdfError] = useState('')
 
   const currentStatus = initialData?.status ?? 'DRAFT'
   const canEdit = !isWriter || currentStatus === 'DRAFT' || currentStatus === 'REJECTED'
@@ -208,6 +217,28 @@ export function ArticleEditor({
       }
     } catch {
       setSaveStatus('error')
+    }
+  }
+
+  const handlePdfImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPdfError('')
+    setPdfImporting(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/parse-pdf', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (!res.ok) { setPdfError(data.error ?? 'PDF import failed.'); return }
+      if (editorRef.current && data.text) {
+        editorRef.current.insertTextAsContent(data.text)
+      }
+    } catch {
+      setPdfError('Failed to import PDF.')
+    } finally {
+      setPdfImporting(false)
+      if (pdfFileRef.current) pdfFileRef.current.value = ''
     }
   }
 
@@ -504,12 +535,39 @@ export function ArticleEditor({
           {/* Divider */}
           <div className="my-8 border-t border-[var(--border)]" />
 
+          {/* PDF import */}
+          <input
+            ref={pdfFileRef}
+            type="file"
+            accept=".pdf"
+            className="hidden"
+            onChange={handlePdfImport}
+          />
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => pdfFileRef.current?.click()}
+              disabled={pdfImporting || !canEdit}
+              className="inline-flex items-center gap-1.5 text-[var(--fg-muted)] text-xs px-3 py-1.5 border border-[var(--border)] hover:border-gold hover:text-gold transition-colors disabled:opacity-50"
+            >
+              <FileUp size={13} />
+              {pdfImporting ? 'Importing…' : 'Import PDF'}
+            </button>
+            {pdfError && <span className="text-red-500 text-xs">{pdfError}</span>}
+          </div>
+
           {/* Content editor */}
           <TiptapEditor
+            ref={editorRef}
             content={content}
             onChange={handleContentChange}
             editable={canEdit}
           />
+        </div>
+
+        {/* Block sidebar */}
+        <div className="hidden lg:flex border-l border-[var(--border)] bg-[var(--bg-subtle)] p-2">
+          <BlockSidebar editorRef={editorRef} />
         </div>
 
         {/* Settings sidebar */}
