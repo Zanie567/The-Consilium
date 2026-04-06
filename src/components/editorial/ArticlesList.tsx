@@ -92,7 +92,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter }: Props) {
 
       <div className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden">
         {filtered.length > 0 ? (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--bg-subtle)]">
                 <th className="px-5 py-3 text-left text-xs font-semibold text-[var(--fg-faint)] uppercase tracking-wider">
@@ -228,7 +228,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter }: Props) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         ) : (
           <div className="py-16 text-center text-[var(--fg-faint)] text-sm">
             No articles match this filter.

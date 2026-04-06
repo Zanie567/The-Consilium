@@ -33,7 +33,7 @@ export default async function AdminSubscribersPage() {
 
       <div className="bg-white border border-gold/15 overflow-hidden">
         {subscribers.length > 0 ? (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gold/15 bg-cream/50">
                 <th className="text-left px-6 py-3 text-navy/50 text-xs font-bold uppercase tracking-widest">
@@ -54,7 +54,7 @@ export default async function AdminSubscribersPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         ) : (
           <div className="px-6 py-16 text-center text-navy/30 text-sm">
             No subscribers yet.

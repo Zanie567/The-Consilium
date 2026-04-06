@@ -494,7 +494,8 @@ export default async function ArticlePage({ params }: Props) {
             <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {related.map((rel) => (
                 <StaggerItem key={rel.id}>
-                  <article className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden group card-hover shadow-[var(--shadow-card)] h-full flex flex-col">
+                  <article className="relative bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden group card-hover shadow-[var(--shadow-card)] h-full flex flex-col">
+                    <Link href={`/articles/${rel.slug}`} className="absolute inset-0 z-0" aria-label={rel.title} />
                     <div className="relative h-44 bg-navy/10 overflow-hidden img-zoom flex-shrink-0">
                       {rel.coverImage ? (
                         <Image src={rel.coverImage} alt={rel.title} fill className="object-cover" />
@@ -509,15 +510,13 @@ export default async function ArticlePage({ params }: Props) {
                         </div>
                       )}
                     </div>
-                    <div className="p-5 flex flex-col flex-1">
-                      <Link href={`/articles/${rel.slug}`} className="flex-1">
-                        <h3
-                          className="font-bold text-[var(--fg)] text-base leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2 mb-2"
-                          style={{ fontFamily: 'var(--font-serif)' }}
-                        >
-                          {rel.title}
-                        </h3>
-                      </Link>
+                    <div className="relative z-10 p-5 flex flex-col flex-1">
+                      <h3
+                        className="font-bold text-[var(--fg)] text-base leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2 mb-2 flex-1"
+                        style={{ fontFamily: 'var(--font-serif)' }}
+                      >
+                        {rel.title}
+                      </h3>
                       {rel.excerpt && (
                         <p className="text-[var(--fg-muted)] text-sm leading-relaxed line-clamp-2 mb-3">
                           {rel.excerpt}
@@ -526,7 +525,7 @@ export default async function ArticlePage({ params }: Props) {
                       <div className="flex items-center justify-between text-xs text-[var(--fg-faint)] mt-auto pt-3 border-t border-[var(--border)]">
                         <Link
                           href={`/author/${rel.author.slug ?? rel.author.id}`}
-                          className="font-semibold text-[var(--fg-muted)] hover:text-gold transition-colors"
+                          className="relative z-10 font-semibold text-[var(--fg-muted)] hover:text-gold transition-colors"
                         >
                           {rel.author.name}
                         </Link>

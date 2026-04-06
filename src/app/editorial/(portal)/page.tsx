@@ -213,6 +213,7 @@ export default async function EditorialDashboard() {
           </Link>
         </div>
         {myArticles.length > 0 ? (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)]">
@@ -261,6 +262,7 @@ export default async function EditorialDashboard() {
               ))}
             </tbody>
           </table>
+          </div>
         ) : (
           <div className="px-6 py-16 text-center text-[var(--fg-faint)] text-sm">
             No articles yet.{' '}
