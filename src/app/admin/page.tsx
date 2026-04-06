@@ -3,7 +3,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { FileText, Send, Archive, Users } from 'lucide-react'
+import { FileText, Send, Archive, Users, Eye } from 'lucide-react'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Admin Dashboard' }
@@ -13,15 +13,33 @@ async function getStats(userId: string, role: string) {
     const isAdminOrEditor = role === 'ADMIN' || role === 'EDITOR'
     const whereClause = isAdminOrEditor ? {} : { authorId: userId }
 
-    const [total, published, drafts, subscribers] = await Promise.all([
+    const [total, published, drafts, subscribers, viewsAgg] = await Promise.all([
       prisma.article.count({ where: whereClause }),
       prisma.article.count({ where: { ...whereClause, status: 'PUBLISHED' } }),
       prisma.article.count({ where: { ...whereClause, status: 'DRAFT' } }),
       isAdminOrEditor ? prisma.subscriber.count() : Promise.resolve(null),
+      prisma.article.aggregate({ where: whereClause, _sum: { viewCount: true } }),
     ])
-    return { total, published, drafts, subscribers }
+    return { total, published, drafts, subscribers, totalViews: viewsAgg._sum.viewCount ?? 0 }
   } catch {
-    return { total: 0, published: 0, drafts: 0, subscribers: null }
+    return { total: 0, published: 0, drafts: 0, subscribers: null, totalViews: 0 }
+  }
+}
+
+async function getTopArticles(userId: string, role: string) {
+  try {
+    const isAdminOrEditor = role === 'ADMIN' || role === 'EDITOR'
+    const whereClause = isAdminOrEditor
+      ? { status: 'PUBLISHED' as const }
+      : { authorId: userId, status: 'PUBLISHED' as const }
+    return await prisma.article.findMany({
+      where: whereClause,
+      orderBy: { viewCount: 'desc' },
+      take: 5,
+      select: { id: true, title: true, slug: true, viewCount: true, category: { select: { name: true } } },
+    })
+  } catch {
+    return []
   }
 }
 
@@ -53,15 +71,18 @@ export default async function AdminDashboard() {
   if (!session) return null
 
   const { id: userId, role } = session.user
-  const [stats, recentArticles] = await Promise.all([
+  const isAdminOrEditor = role === 'ADMIN' || role === 'EDITOR'
+  const [stats, recentArticles, topArticles] = await Promise.all([
     getStats(userId, role),
     getRecentArticles(userId, role),
+    isAdminOrEditor ? getTopArticles(userId, role) : Promise.resolve([]),
   ])
 
   const statCards = [
     { label: 'Total Articles', value: stats.total, icon: FileText, color: 'text-navy' },
     { label: 'Published', value: stats.published, icon: Send, color: 'text-green-700' },
     { label: 'Drafts', value: stats.drafts, icon: Archive, color: 'text-amber-700' },
+    { label: 'Total Views', value: stats.totalViews.toLocaleString(), icon: Eye, color: 'text-purple-700' },
     ...(stats.subscribers !== null
       ? [{ label: 'Subscribers', value: stats.subscribers, icon: Users, color: 'text-blue-700' }]
       : []),
@@ -100,6 +121,47 @@ export default async function AdminDashboard() {
           </div>
         ))}
       </div>
+
+      {/* Top articles by views (admin/editor only) */}
+      {isAdminOrEditor && topArticles.length > 0 && (
+        <div className="bg-white border border-gold/15 rounded-sm overflow-hidden mb-6">
+          <div className="px-6 py-4 border-b border-gold/15 flex items-center justify-between">
+            <h2 className="text-navy font-bold text-base flex items-center gap-2">
+              <Eye size={16} className="text-purple-600" />
+              Top Articles by Views
+            </h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gold/10">
+                  <th className="text-left px-6 py-3 text-navy/50 text-xs font-bold uppercase tracking-widest">Title</th>
+                  <th className="text-left px-4 py-3 text-navy/50 text-xs font-bold uppercase tracking-widest hidden sm:table-cell">Category</th>
+                  <th className="text-right px-6 py-3 text-navy/50 text-xs font-bold uppercase tracking-widest">Views</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gold/10">
+                {topArticles.map((article, i) => (
+                  <tr key={article.id} className="hover:bg-cream/50 transition-colors">
+                    <td className="px-6 py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-navy/30 text-xs font-bold w-4">{i + 1}</span>
+                        <Link href={`/articles/${article.slug}`} target="_blank" className="text-navy font-medium line-clamp-1 hover:text-gold transition-colors">
+                          {article.title}
+                        </Link>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-navy/60 text-xs hidden sm:table-cell">{article.category?.name ?? '—'}</td>
+                    <td className="px-6 py-3 text-right">
+                      <span className="text-purple-700 font-bold text-sm">{article.viewCount.toLocaleString()}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Recent articles */}
       <div className="bg-white border border-gold/15 rounded-sm overflow-hidden">
