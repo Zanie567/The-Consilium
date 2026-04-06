@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -9,6 +10,7 @@ export function SignUpForm() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [agreed, setAgreed] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -90,15 +92,25 @@ export function SignUpForm() {
         <label className="block text-[var(--fg-muted)] text-xs font-bold uppercase tracking-widest mb-2">
           Password
         </label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={8}
-          className="w-full bg-[var(--bg)] border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-sm placeholder:text-[var(--fg-faint)] focus:outline-none focus:border-gold transition-colors"
-          placeholder="At least 8 characters"
-        />
+        <div className="relative">
+          <input
+            type={showPassword ? 'text' : 'password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={8}
+            className="w-full bg-[var(--bg)] border border-[var(--border)] px-4 py-3 pr-11 text-[var(--fg)] text-sm placeholder:text-[var(--fg-faint)] focus:outline-none focus:border-gold transition-colors"
+            placeholder="At least 8 characters"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((s) => !s)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--fg-faint)] hover:text-[var(--fg-muted)] transition-colors"
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
       </div>
 
       <div>

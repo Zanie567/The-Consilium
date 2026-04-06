@@ -1,12 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 export function LoginForm({ redirectTo = '/admin' }: { redirectTo?: string }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -54,17 +57,35 @@ export function LoginForm({ redirectTo = '/admin' }: { redirectTo?: string }) {
       </div>
 
       <div>
-        <label className="block text-cream/70 text-xs font-bold uppercase tracking-widest mb-2">
-          Password
-        </label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="w-full bg-white/10 border border-cream/20 px-4 py-3 text-cream text-sm placeholder:text-cream/30 focus:outline-none focus:border-gold transition-colors"
-          placeholder="••••••••"
-        />
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-cream/70 text-xs font-bold uppercase tracking-widest">
+            Password
+          </label>
+          <Link
+            href="/forgot-password"
+            className="text-gold/60 text-xs hover:text-gold transition-colors"
+          >
+            Forgot password?
+          </Link>
+        </div>
+        <div className="relative">
+          <input
+            type={showPassword ? 'text' : 'password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="w-full bg-white/10 border border-cream/20 px-4 py-3 pr-11 text-cream text-sm placeholder:text-cream/30 focus:outline-none focus:border-gold transition-colors"
+            placeholder="••••••••"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((s) => !s)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-cream/40 hover:text-cream/70 transition-colors"
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
       </div>
 
       <button
