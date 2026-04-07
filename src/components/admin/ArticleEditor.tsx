@@ -397,7 +397,18 @@ export function ArticleEditor({
             </button>
           )}
 
-          {canPublish && canEdit && (
+          {canPublish && canEdit && status === 'SCHEDULED' && (
+            <button
+              onClick={() => handleSave('SCHEDULED')}
+              disabled={saveStatus === 'saving'}
+              className="inline-flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold uppercase tracking-widest px-4 py-1.5 hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              <Send size={12} />
+              Confirm Schedule
+            </button>
+          )}
+
+          {canPublish && canEdit && status !== 'SCHEDULED' && (
             <button
               onClick={() => handleSave(status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED')}
               disabled={saveStatus === 'saving'}
