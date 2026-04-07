@@ -30,7 +30,7 @@ export default async function EditorialDashboard() {
     assignedCategoryIds = assignments.map((a) => a.categoryId)
   }
 
-  const [myArticles, pendingArticles, publishedCount, myDrafts] = await Promise.all([
+  const [myArticles, pendingArticles, publishedCount, myDrafts, totalViews, userCount] = await Promise.all([
     // Writer: own articles; Editor/Admin: recent across system
     prisma.article.findMany({
       where: role === 'WRITER' ? { authorId: userId } : undefined,
@@ -71,6 +71,18 @@ export default async function EditorialDashboard() {
         category: { select: { name: true } },
       },
     }).catch(() => [] as { id: string; title: string; updatedAt: Date; category: { name: string } | null }[]),
+
+    // Total site views (editors/admins only)
+    isEditor
+      ? prisma.article.aggregate({ _sum: { viewCount: true } })
+          .then((r) => r._sum.viewCount ?? 0)
+          .catch(() => 0)
+      : Promise.resolve(0),
+
+    // Total editorial team members (editors/admins only)
+    isEditor
+      ? prisma.user.count({ where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] } } }).catch(() => 0)
+      : Promise.resolve(0),
   ])
 
   const statusColour: Record<string, string> = {
@@ -125,9 +137,12 @@ export default async function EditorialDashboard() {
             accent={pendingArticles.length > 0 ? 'amber' : undefined}
           />
         )}
-        {isAdmin && (
+        {isEditor && (
+          <StatCard label="Total Views" value={totalViews.toLocaleString()} />
+        )}
+        {isEditor && (
           <Link href="/editorial/users">
-            <StatCard label="Manage Users" value="→" />
+            <StatCard label="Users" value={userCount} />
           </Link>
         )}
       </div>

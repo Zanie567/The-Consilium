@@ -8,6 +8,7 @@ import { ThemeProvider } from '@/providers/ThemeProvider'
 import { ScrollIndicator } from '@/components/ui/ScrollIndicator'
 import { SignupPrompt } from '@/components/ui/SignupPrompt'
 import { CookieConsentBanner } from '@/components/ui/CookieConsent'
+import { EconomicTicker } from '@/components/ui/EconomicTicker'
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -61,6 +62,7 @@ export default function RootLayout({
           <AuthProvider>
             <ScrollIndicator />
             <Navbar />
+            <EconomicTicker />
             <main className="flex-1">{children}</main>
             <Footer />
             <SignupPrompt />

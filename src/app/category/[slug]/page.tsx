@@ -1,9 +1,7 @@
 import { notFound } from 'next/navigation'
-import Image from 'next/image'
-import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
-import { format } from 'date-fns'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
+import { ArticleCard } from '@/components/ui/ArticleCard'
 import type { Metadata } from 'next'
 
 interface Props {
@@ -78,58 +76,7 @@ export default async function CategoryPage({ params }: Props) {
           <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {articles.map((article) => (
               <StaggerItem key={article.id}>
-                <Link href={`/articles/${article.slug}`} className="block h-full group">
-                  <article className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden card-hover shadow-[var(--shadow-card)] h-full flex flex-col">
-                    {/* Cover image */}
-                    <div className="relative h-48 bg-navy/10 overflow-hidden img-zoom flex-shrink-0">
-                      {article.coverImage ? (
-                        <Image
-                          src={article.coverImage}
-                          alt={article.title}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-navy to-navy-light flex items-center justify-center">
-                          <span
-                            className="text-gold/15 text-4xl font-bold select-none"
-                            style={{ fontFamily: 'var(--font-serif)' }}
-                          >
-                            TC
-                          </span>
-                        </div>
-                      )}
-                      <div className="absolute top-3 left-3 z-10">
-                        <span className="category-badge">{category.name}</span>
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-5 flex flex-col flex-1">
-                      <h3
-                        className="text-base font-bold text-[var(--fg)] mb-2 leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2 flex-1"
-                        style={{ fontFamily: 'var(--font-serif)' }}
-                      >
-                        {article.title}
-                      </h3>
-                      {article.excerpt && (
-                        <p className="text-[var(--fg-muted)] text-sm leading-relaxed mb-4 line-clamp-2">
-                          {article.excerpt}
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between text-[0.7rem] text-[var(--fg-faint)] border-t border-[var(--border)] pt-3 mt-auto">
-                        <span className="font-semibold text-[var(--fg-muted)]">
-                          {article.author.name}
-                        </span>
-                        <span>
-                          {article.publishedAt
-                            ? format(new Date(article.publishedAt), 'd MMM yyyy')
-                            : ''}
-                        </span>
-                      </div>
-                    </div>
-                  </article>
-                </Link>
+                <ArticleCard article={article} badgeLabel={category.name} />
               </StaggerItem>
             ))}
           </StaggerContainer>

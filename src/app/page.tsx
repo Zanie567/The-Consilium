@@ -2,10 +2,14 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
+import { Clock } from 'lucide-react'
 import { NewsletterSignup } from '@/components/ui/NewsletterSignup'
 import { CategoryTabs } from '@/components/ui/CategoryTabs'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { ContinueReading } from '@/components/ui/ContinueReading'
+import { ArticleCard } from '@/components/ui/ArticleCard'
+import { BlurImage } from '@/components/ui/BlurImage'
+import { readTimeLabel } from '@/lib/readTime'
 
 export const dynamic = 'force-dynamic'
 
@@ -190,12 +194,13 @@ export default async function HomePage({
                 {/* Image */}
                 <div className="relative h-64 lg:h-auto lg:min-h-[400px] bg-navy-light overflow-hidden img-zoom">
                   {featured.coverImage ? (
-                    <Image
+                    <BlurImage
                       src={featured.coverImage}
                       alt={featured.title}
                       fill
                       className="object-cover"
                       priority
+                      sizes="(max-width: 1024px) 100vw, 50vw"
                     />
                   ) : (
                     <div className="absolute inset-0 bg-gradient-to-br from-navy via-navy-light to-navy flex items-center justify-center">
@@ -207,11 +212,18 @@ export default async function HomePage({
                       </span>
                     </div>
                   )}
-                  {featured.category && (
-                    <div className="absolute top-4 left-4 z-10">
+                  {/* Top row: category badge + read time */}
+                  <div className="absolute top-4 left-4 right-4 z-10 flex items-start justify-between">
+                    {featured.category ? (
                       <span className="category-badge">{featured.category.name}</span>
-                    </div>
-                  )}
+                    ) : (
+                      <span />
+                    )}
+                    <span className="flex items-center gap-1 bg-navy/70 text-cream/90 text-[10px] font-semibold px-2 py-1 backdrop-blur-sm leading-none">
+                      <Clock size={9} className="shrink-0" />
+                      {readTimeLabel(featured.content)}
+                    </span>
+                  </div>
                   {/* Gradient overlay bottom */}
                   <div className="absolute inset-0 bg-gradient-to-t from-navy/30 via-transparent to-transparent pointer-events-none" />
                 </div>
@@ -284,60 +296,7 @@ export default async function HomePage({
           <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
             {gridArticles.map((article) => (
               <StaggerItem key={article.id}>
-                <Link href={`/articles/${article.slug}`} className="block h-full group">
-                  <article className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden card-hover shadow-[var(--shadow-card)] h-full flex flex-col">
-                    {/* Cover Image */}
-                    <div className="relative h-48 bg-navy/10 overflow-hidden img-zoom flex-shrink-0">
-                      {article.coverImage ? (
-                        <Image
-                          src={article.coverImage}
-                          alt={article.title}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-navy to-navy-light flex items-center justify-center">
-                          <span
-                            className="text-gold/15 text-4xl font-bold select-none"
-                            style={{ fontFamily: 'var(--font-serif)' }}
-                          >
-                            TC
-                          </span>
-                        </div>
-                      )}
-                      {article.category && (
-                        <div className="absolute top-3 left-3 z-10">
-                          <span className="category-badge">{article.category.name}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-5 flex flex-col flex-1">
-                      <h3
-                        className="text-base font-bold text-[var(--fg)] mb-2 leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2 flex-1"
-                        style={{ fontFamily: 'var(--font-serif)' }}
-                      >
-                        {article.title}
-                      </h3>
-                      {article.excerpt && (
-                        <p className="text-[var(--fg-muted)] text-sm leading-relaxed mb-4 line-clamp-2">
-                          {article.excerpt}
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between text-[0.7rem] text-[var(--fg-faint)] border-t border-[var(--border)] pt-3 mt-auto">
-                        <span className="font-semibold text-[var(--fg-muted)]">
-                          {article.author.name}
-                        </span>
-                        <span>
-                          {article.publishedAt
-                            ? format(new Date(article.publishedAt), 'd MMM yyyy')
-                            : ''}
-                        </span>
-                      </div>
-                    </div>
-                  </article>
-                </Link>
+                <ArticleCard article={article} />
               </StaggerItem>
             ))}
           </StaggerContainer>

@@ -132,6 +132,26 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = (user as unknown as { role: Role }).role
         token.id = user.id
+        token.roleCheckedAt = Date.now()
+      } else {
+        // Re-fetch role from DB every 30 minutes so role changes take effect without re-login
+        const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000
+        if (!token.roleCheckedAt || (token.roleCheckedAt as number) < thirtyMinutesAgo) {
+          try {
+            const dbUser = await prisma.user.findUnique({
+              where: { id: token.id as string },
+              select: { role: true, isActive: true },
+            })
+            if (dbUser) {
+              token.role = dbUser.role
+              token.roleCheckedAt = Date.now()
+              // If account deactivated, mark so session callback can reject
+              if (!dbUser.isActive) token.isActive = false
+            }
+          } catch {
+            // DB unavailable — use cached token values
+          }
+        }
       }
       return token
     },

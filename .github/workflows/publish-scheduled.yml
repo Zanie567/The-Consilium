@@ -1,0 +1,52 @@
+# publish-scheduled.yml
+#
+# Triggers scheduled article publishing every 5 minutes.
+# Used as the primary reliable trigger because Vercel Hobby plan does not
+# guarantee per-minute cron execution.
+#
+# REQUIRED GitHub Actions secrets (Settings > Secrets and variables > Actions):
+#   CRON_SECRET  — long random string matching the Vercel CRON_SECRET env var
+#   SITE_URL     — production URL, e.g. https://theconsilium.com (no trailing slash)
+#
+# REQUIRED Vercel environment variable (Dashboard > Settings > Environment Variables):
+#   CRON_SECRET  — exact same value as the GitHub Actions secret above
+
+name: Publish Scheduled Articles
+
+on:
+  # Run every 5 minutes. GitHub Actions cron runs in UTC.
+  schedule:
+    - cron: '*/5 * * * *'
+
+  # Allow manual runs from the Actions tab for immediate testing.
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Trigger publish endpoint
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Call /api/publish-scheduled
+        id: call
+        run: |
+          # Make the request, capture HTTP status code and body separately.
+          HTTP_STATUS=$(curl --silent --output /tmp/response_body.txt --write-out "%{http_code}" \
+            --max-time 30 \
+            --request POST \
+            --header "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --header "Content-Type: application/json" \
+            "${{ secrets.SITE_URL }}/api/publish-scheduled")
+
+          RESPONSE_BODY=$(cat /tmp/response_body.txt)
+
+          echo "HTTP status: $HTTP_STATUS"
+          echo "Response body: $RESPONSE_BODY"
+
+          # Fail the step (and thus the run) if the server returned anything
+          # other than 200, so failures are visible in the Actions dashboard.
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "ERROR: Endpoint returned HTTP $HTTP_STATUS"
+            exit 1
+          fi

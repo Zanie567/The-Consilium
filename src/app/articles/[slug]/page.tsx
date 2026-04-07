@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
+import { Clock } from 'lucide-react'
 import { ShareButtons } from '@/components/ui/ShareButtons'
 import { BookmarkButton } from '@/components/ui/BookmarkButton'
 import { ReadingTracker } from '@/components/ui/ReadingTracker'
@@ -10,6 +10,8 @@ import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/Animat
 import { ViewCounter } from '@/components/ui/ViewCounter'
 import { PrintButton } from '@/components/ui/PrintButton'
 import { SaveAsPdfButton } from '@/components/ui/SaveAsPdfButton'
+import { BlurImage } from '@/components/ui/BlurImage'
+import { readTimeLabel } from '@/lib/readTime'
 import type { Metadata } from 'next'
 
 interface Props {
@@ -262,14 +264,20 @@ export default async function ArticlePage({ params }: Props) {
       {/* Cover Image */}
       {article.coverImage && (
         <div className="relative h-72 sm:h-96 md:h-[520px] w-full overflow-hidden bg-navy no-print">
-          <Image
+          <BlurImage
             src={article.coverImage}
             alt={article.title}
             fill
             className="object-cover opacity-75"
             priority
+            sizes="100vw"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-navy/75 via-navy/20 to-transparent" />
+          {/* Read time badge — top right of hero */}
+          <div className="absolute top-4 right-4 z-10 flex items-center gap-1.5 bg-navy/70 text-cream/90 text-xs font-semibold px-3 py-1.5 backdrop-blur-sm no-print">
+            <Clock size={11} className="shrink-0" />
+            {readTimeLabel(article.content)}
+          </div>
         </div>
       )}
 

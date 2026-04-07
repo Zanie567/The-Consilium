@@ -4,9 +4,25 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 
+async function getVerifiedRole(userId: string): Promise<string | null> {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, isActive: true } })
+    if (!user || !user.isActive) return null
+    return user.role
+  } catch {
+    return null
+  }
+}
+
+function isEditorialStaff(role: string) {
+  return role === 'ADMIN' || role === 'EDITOR'
+}
+
 export async function GET() {
   const session = await getServerSession(authOptions)
-  if (!session || session.user.role !== 'ADMIN') {
+  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const role = await getVerifiedRole(session.user.id)
+  if (!role || !isEditorialStaff(role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -24,7 +40,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
-  if (!session || session.user.role !== 'ADMIN') {
+  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const role = await getVerifiedRole(session.user.id)
+  if (!role || !isEditorialStaff(role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -32,8 +50,14 @@ export async function POST(req: Request) {
   if (!name?.trim() || !email?.trim() || !password || !role) {
     return NextResponse.json({ error: 'Name, email, password, and role are required.' }, { status: 400 })
   }
-  if (!['EDITOR', 'WRITER', 'ADMIN'].includes(role)) {
-    return NextResponse.json({ error: 'Invalid role.' }, { status: 400 })
+
+  // Editors can create EDITOR/WRITER accounts; only admins can create ADMIN accounts
+  const allowedRoles = session.user.role === 'ADMIN'
+    ? ['EDITOR', 'WRITER', 'ADMIN']
+    : ['EDITOR', 'WRITER']
+
+  if (!allowedRoles.includes(role)) {
+    return NextResponse.json({ error: session.user.role === 'ADMIN' ? 'Invalid role.' : 'Editors cannot create Admin accounts.' }, { status: 400 })
   }
   if (password.length < 8) {
     return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })
@@ -44,7 +68,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Email already in use.' }, { status: 400 })
   }
 
-  // Resolve slug: use custom if provided, else derive from name
   const baseSlug = (customSlug?.trim()
     ? customSlug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
     : name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''))

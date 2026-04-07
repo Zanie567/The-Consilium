@@ -27,6 +27,7 @@ interface Props {
   initialUsers: UserRecord[]
   categories: Category[]
   currentUserId?: string
+  currentUserRole?: string
 }
 
 const ROLE_BADGE: Record<string, string> = {
@@ -35,7 +36,8 @@ const ROLE_BADGE: Record<string, string> = {
   WRITER: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
 }
 
-export function UserManagement({ initialUsers, categories, currentUserId }: Props) {
+export function UserManagement({ initialUsers, categories, currentUserId, currentUserRole }: Props) {
+  const isAdmin = currentUserRole === 'ADMIN'
   const [users, setUsers] = useState<UserRecord[]>(initialUsers)
   const [showCreate, setShowCreate] = useState(false)
   const [newUser, setNewUser] = useState({
@@ -203,7 +205,7 @@ export function UserManagement({ initialUsers, categories, currentUserId }: Prop
               >
                 <option value="WRITER">Writer</option>
                 <option value="EDITOR">Editor</option>
-                <option value="ADMIN">Admin</option>
+                {isAdmin && <option value="ADMIN">Admin</option>}
               </select>
             </div>
             <div>

@@ -35,7 +35,7 @@ export function EditorialSidebar({ user }: { user: User }) {
     { href: '/editorial/articles/new', icon: PlusCircle, label: 'New Article', show: true },
     { href: '/editorial/scheduled', icon: Clock, label: 'Scheduled', show: isEditor },
     { href: '/editorial/series', icon: BookOpen, label: 'Article Series', show: isEditor },
-    { href: '/editorial/users', icon: Users, label: 'Users', show: isAdmin },
+    { href: '/editorial/users', icon: Users, label: 'Users', show: isEditor },
   ]
 
   const isActive = (href: string, exact?: boolean) => {

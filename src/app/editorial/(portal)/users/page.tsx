@@ -13,7 +13,12 @@ export const metadata: Metadata = {
 export default async function UsersPage() {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/editorial/login')
-  if (session.user.role !== 'ADMIN') redirect('/editorial')
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true },
+  }).catch(() => null)
+  if (!dbUser || (dbUser.role !== 'ADMIN' && dbUser.role !== 'EDITOR')) redirect('/editorial')
 
   const [users, categories] = await Promise.all([
     prisma.user.findMany({
@@ -48,6 +53,7 @@ export default async function UsersPage() {
         initialUsers={serializedUsers}
         categories={categories}
         currentUserId={session.user.id}
+        currentUserRole={dbUser!.role}
       />
     </div>
   )

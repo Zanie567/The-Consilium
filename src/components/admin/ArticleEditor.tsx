@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import {
   Save, Send, Eye, X, Tag, ArrowLeft, Check, AlertCircle,
-  ImagePlus, Loader2, ChevronDown, FileUp,
+  ImagePlus, Loader2, ChevronDown, FileUp, Clock,
 } from 'lucide-react'
 import slugify from 'slugify'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
+import { readTimeLabel } from '@/lib/readTime'
 
 const TiptapEditor = dynamic(
   () => import('@/components/editor/TiptapEditor').then((m) => m.TiptapEditor),
@@ -34,6 +35,7 @@ interface ArticleEditorProps {
     coverImage: string
     categoryId: string
     status: string
+    scheduledAt?: string | null
     editorNote?: string | null
     tags?: string[]
   }
@@ -81,7 +83,7 @@ export function ArticleEditor({
   const [coverImage, setCoverImage] = useState(initialData?.coverImage ?? '')
   const [categoryId, setCategoryId] = useState(initialData?.categoryId ?? '')
   const [status, setStatus] = useState(initialData?.status ?? 'DRAFT')
-  const [scheduledAt, setScheduledAt] = useState('')
+  const [scheduledAt, setScheduledAt] = useState(initialData?.scheduledAt ?? '')
   const [tags, setTags] = useState<string[]>(initialData?.tags ?? [])
   const [tagInput, setTagInput] = useState('')
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
@@ -616,6 +618,14 @@ export function ArticleEditor({
 
         {/* Settings sidebar */}
         <div className="lg:w-72 xl:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-[var(--border)] bg-[var(--bg)] p-5 space-y-5">
+
+          {/* Read time estimate */}
+          <div className="flex items-center gap-2 text-[var(--fg-faint)]">
+            <Clock size={11} className="shrink-0" />
+            <span className="text-[10px] font-semibold uppercase tracking-widest">
+              {content.length > 2 ? readTimeLabel(content) : '— min read'}
+            </span>
+          </div>
 
           {/* Status (editors/admins only) */}
           {!isWriter && (

@@ -45,6 +45,7 @@ export default async function EditorialEditArticlePage({ params }: Props) {
         coverImage: article.coverImage ?? '',
         categoryId: article.categoryId ?? '',
         status: article.status,
+        scheduledAt: article.scheduledAt ? article.scheduledAt.toISOString().slice(0, 16) : null,
         editorNote: article.editorNote,
         tags: article.tags.map((t) => t.tag.name),
       }}

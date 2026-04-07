@@ -800,7 +800,46 @@ mark {
   }
 }
 
+/* ─── Skeleton shimmer ─────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #ede8e0 25%,
+    #f5f1ea 50%,
+    #ede8e0 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+.dark .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #1e2d50 25%,
+    #263566 50%,
+    #1e2d50 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* Nav underline: ensure 2 px height */
+.nav-underline { height: 2px; }
+
+/* ─── Reduced motion ───────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   html, html * { transition: none !important; animation: none !important; }
+
+  /* View transitions */
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation: none !important; }
+
+  /* Skeleton: freeze without shimmer */
+  .skeleton-shimmer { animation: none; background: #ede8e0; }
+  .dark .skeleton-shimmer { background: #1e2d50; }
 }
