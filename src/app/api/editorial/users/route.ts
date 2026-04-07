@@ -41,8 +41,8 @@ export async function GET() {
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  const role = await getVerifiedRole(session.user.id)
-  if (!role || !isEditorialStaff(role)) {
+  const callerRole = await getVerifiedRole(session.user.id)
+  if (!callerRole || !isEditorialStaff(callerRole)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -52,12 +52,12 @@ export async function POST(req: Request) {
   }
 
   // Editors can create EDITOR/WRITER accounts; only admins can create ADMIN accounts
-  const allowedRoles = session.user.role === 'ADMIN'
+  const allowedRoles = callerRole === 'ADMIN'
     ? ['EDITOR', 'WRITER', 'ADMIN']
     : ['EDITOR', 'WRITER']
 
   if (!allowedRoles.includes(role)) {
-    return NextResponse.json({ error: session.user.role === 'ADMIN' ? 'Invalid role.' : 'Editors cannot create Admin accounts.' }, { status: 400 })
+    return NextResponse.json({ error: callerRole === 'ADMIN' ? 'Invalid role.' : 'Editors cannot create Admin accounts.' }, { status: 400 })
   }
   if (password.length < 8) {
     return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })

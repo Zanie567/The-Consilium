@@ -213,22 +213,11 @@ export function EconomicTicker() {
   }
 
   // ── Animated scrolling ticker ─────────────────────────────────────────────
+  // The @keyframes consilium-ticker is defined in globals.css.
+  // translateX goes from 0 → -50% because we render items twice:
+  // when the first copy scrolls off-left the second copy takes its place seamlessly.
   return (
-    <>
-      {/*
-        Keyframe defined inline so the component is self-contained.
-        translateX goes from 0 → -50% because we render items twice:
-        when the first copy has fully scrolled off-left, the second copy
-        is in exactly the same position the first started — seamless loop.
-      */}
-      <style>{`
-        @keyframes consilium-ticker {
-          from { transform: translateX(0); }
-          to   { transform: translateX(-50%); }
-        }
-      `}</style>
-
-      <div
+    <div
         className="w-full bg-[#c9a227] overflow-hidden"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
@@ -252,6 +241,5 @@ export function EconomicTicker() {
           </div>
         </div>
       </div>
-    </>
   )
 }

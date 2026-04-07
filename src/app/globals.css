@@ -471,6 +471,13 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Economic ticker scroll — defined here rather than inline so it is available
+   before the component hydrates (avoids React 19 style-tag timing issues). */
+@keyframes consilium-ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
 
 /* ─── Utility: card hover ──────────────────────────────────────────────────── */
 .card-hover {

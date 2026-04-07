@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
 import { Clock } from 'lucide-react'

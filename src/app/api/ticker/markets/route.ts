@@ -28,12 +28,10 @@
 
 import { NextResponse } from 'next/server'
 
-// Adjust this to stay within Alpha Vantage rate limits.
-// 21600 = 6 hours (4 refreshes/day × 9 calls = 36 — slightly over free tier)
-// 43200 = 12 hours (2 refreshes/day × 9 calls = 18 — safely within free tier)
-const MARKETS_REVALIDATE_SECONDS = 21600
-
-export const revalidate = MARKETS_REVALIDATE_SECONDS
+// Next.js ISR: cache the route response for 6 hours.
+// Next.js requires a literal here — do not replace with a variable reference.
+// To reduce Alpha Vantage usage (25 req/day free tier), change to 43200 (12 h).
+export const revalidate = 21600
 
 const AV_BASE = 'https://www.alphavantage.co/query'
 const AV_KEY = process.env.ALPHA_VANTAGE_API_KEY
@@ -87,7 +85,7 @@ async function fetchGlobalQuote(symbol: string): Promise<{ price: number; change
   if (!AV_KEY) return null
   try {
     const url = `${AV_BASE}?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol)}&apikey=${AV_KEY}`
-    const res = await fetch(url, { next: { revalidate: MARKETS_REVALIDATE_SECONDS } })
+    const res = await fetch(url, { next: { revalidate: 21600 } })
     if (!res.ok) {
       console.error(`[ticker/markets] GLOBAL_QUOTE ${symbol} HTTP ${res.status}`)
       return null
@@ -113,7 +111,7 @@ async function fetchForexRate(from: string, to: string): Promise<number | null> 
   if (!AV_KEY) return null
   try {
     const url = `${AV_BASE}?function=CURRENCY_EXCHANGE_RATE&from_currency=${from}&to_currency=${to}&apikey=${AV_KEY}`
-    const res = await fetch(url, { next: { revalidate: MARKETS_REVALIDATE_SECONDS } })
+    const res = await fetch(url, { next: { revalidate: 21600 } })
     if (!res.ok) {
       console.error(`[ticker/markets] CURRENCY_EXCHANGE_RATE ${from}/${to} HTTP ${res.status}`)
       return null

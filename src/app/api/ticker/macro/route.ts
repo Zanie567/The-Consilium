@@ -22,9 +22,9 @@
 
 import { NextResponse } from 'next/server'
 
-const MACRO_REVALIDATE_SECONDS = 86400 // 24 hours
-
-export const revalidate = MACRO_REVALIDATE_SECONDS
+// Next.js ISR: cache the route response for 24 hours.
+// Next.js requires a literal here — do not replace with a variable reference.
+export const revalidate = 86400
 
 const FRED_BASE = 'https://api.stlouisfed.org/fred/series/observations'
 const FRED_KEY  = process.env.FRED_API_KEY
@@ -64,7 +64,7 @@ async function fetchFredValue(cfg: SeriesConfig): Promise<number | null> {
       ...(cfg.fredUnits ? { units: cfg.fredUnits } : {}),
     })
     const url = `${FRED_BASE}?${params}`
-    const res = await fetch(url, { next: { revalidate: MACRO_REVALIDATE_SECONDS } })
+    const res = await fetch(url, { next: { revalidate: 86400 } })
     if (!res.ok) {
       console.error(`[ticker/macro] FRED ${cfg.seriesId} HTTP ${res.status}`)
       return null
