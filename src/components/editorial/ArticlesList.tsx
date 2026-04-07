@@ -14,6 +14,7 @@ interface ArticleItem {
   isPinned: boolean
   updatedAt: string
   publishedAt: string | null
+  scheduledAt: string | null
   slug: string
   author: { id: string; name: string | null }
   category: { name: string; slug: string } | null
@@ -161,6 +162,11 @@ export function ArticlesList({ articles: initial, isEditor, isWriter }: Props) {
                     <span className={`text-xs font-bold px-2 py-0.5 ${STATUS_STYLE[article.status] ?? ''}`}>
                       {article.status.replace('_', ' ')}
                     </span>
+                    {article.status === 'SCHEDULED' && article.scheduledAt && (
+                      <p className="text-[10px] text-blue-500 mt-0.5">
+                        {format(new Date(article.scheduledAt), 'd MMM, HH:mm')}
+                      </p>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">

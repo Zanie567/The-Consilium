@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { AdminSidebar } from '@/components/layout/AdminSidebar'
 
+const ALLOWED_ROLES = ['ADMIN', 'EDITOR', 'WRITER']
+
 export default async function AdminLayout({
   children,
 }: {
@@ -11,7 +13,11 @@ export default async function AdminLayout({
   const session = await getServerSession(authOptions)
 
   if (!session) {
-    redirect('/login')
+    redirect('/editorial/login')
+  }
+
+  if (!ALLOWED_ROLES.includes(session.user.role)) {
+    redirect('/editorial/login')
   }
 
   return (

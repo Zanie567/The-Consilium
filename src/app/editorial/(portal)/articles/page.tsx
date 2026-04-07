@@ -36,7 +36,16 @@ export default async function EditorialArticlesPage() {
     },
     orderBy: { updatedAt: 'desc' },
     take: 100,
-    include: {
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      isFeatured: true,
+      isPinned: true,
+      updatedAt: true,
+      publishedAt: true,
+      scheduledAt: true,
+      slug: true,
       author: { select: { id: true, name: true } },
       category: { select: { name: true, slug: true } },
     },

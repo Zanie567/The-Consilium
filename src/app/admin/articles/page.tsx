@@ -118,6 +118,11 @@ export default async function AdminArticlesPage() {
                       >
                         {article.status.replace('_', ' ')}
                       </span>
+                      {article.status === 'SCHEDULED' && article.scheduledAt && (
+                        <p className="text-[10px] text-blue-500 mt-0.5">
+                          {format(new Date(article.scheduledAt), 'd MMM, HH:mm')}
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-navy/40 text-xs hidden lg:table-cell">
                       {format(new Date(article.updatedAt), 'd MMM yyyy')}
