@@ -8,7 +8,6 @@ import {
   ImagePlus, Loader2, ChevronDown, FileUp,
 } from 'lucide-react'
 import slugify from 'slugify'
-import { BlockSidebar } from '@/components/editor/BlockSidebar'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
 
 const TiptapEditor = dynamic(
@@ -86,6 +85,7 @@ export function ArticleEditor({
   const [tags, setTags] = useState<string[]>(initialData?.tags ?? [])
   const [tagInput, setTagInput] = useState('')
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+  const [isDirty, setIsDirty] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [coverDragOver, setCoverDragOver] = useState(false)
   const [error, setError] = useState('')
@@ -134,12 +134,34 @@ export function ArticleEditor({
   const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value
     setTitle(val)
+    setIsDirty(true)
     if (!articleId) {
       setSlug(slugify(val, { lower: true, strict: true, trim: true }))
     }
   }
 
-  const handleContentChange = useCallback((c: string) => setContent(c), [])
+  const handleContentChange = useCallback((c: string) => {
+    setContent(c)
+    setIsDirty(true)
+  }, [])
+
+  const handleBack = async () => {
+    // Save any unsaved changes before leaving so no work is lost
+    if (isDirty && articleId && title.trim()) {
+      setSaveStatus('saving')
+      try {
+        await fetch(`/api/articles/${articleId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildBody()),
+        })
+        setIsDirty(false)
+      } catch {
+        // proceed even if save fails
+      }
+    }
+    router.push(returnUrl ?? '/editorial')
+  }
 
   const addTag = (raw: string) => {
     const name = raw.trim().toLowerCase().replace(/[^a-z0-9 ]/g, '').trim()
@@ -199,6 +221,17 @@ export function ArticleEditor({
     }
   }
 
+  // Warn before closing/navigating away in the browser if there are unsaved changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!isDirty) return
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
+
   const silentSave = async () => {
     if (!title.trim() || !articleId) return
     setSaveStatus('saving')
@@ -210,6 +243,7 @@ export function ArticleEditor({
       })
       if (res.ok) {
         setSaveStatus('saved')
+        setIsDirty(false)
         clearTimeout(savedTimeoutRef.current)
         savedTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 3000)
       } else {
@@ -278,6 +312,7 @@ export function ArticleEditor({
 
       const saved = await res.json()
       setSaveStatus('saved')
+      setIsDirty(false)
       clearTimeout(savedTimeoutRef.current)
       savedTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 3000)
 
@@ -299,13 +334,13 @@ export function ArticleEditor({
       {/* ── Sticky action bar ─────────────────────────────────────────────── */}
       <div className="sticky top-0 z-30 bg-[var(--bg)] border-b border-[var(--border)] flex items-center justify-between gap-4 px-5 py-2.5">
         <div className="flex items-center gap-3 min-w-0">
-          <a
-            href={returnUrl ?? '/editorial'}
+          <button
+            onClick={handleBack}
             className="text-[var(--fg-faint)] hover:text-gold transition-colors shrink-0"
             aria-label="Back"
           >
             <ArrowLeft size={16} />
-          </a>
+          </button>
 
           {/* Status badge */}
           <span className={`hidden sm:inline-flex items-center text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 border ${STATUS_COLOURS[status] ?? STATUS_COLOURS.DRAFT}`}>
@@ -559,57 +594,13 @@ export function ArticleEditor({
             {pdfError && <span className="text-red-500 text-xs">{pdfError}</span>}
           </div>
 
-          {/* Content editor + block sidebar */}
-          <div className="flex gap-3 items-start">
-            <div
-              className="flex-1 min-w-0"
-              onDragOver={(e) => {
-                if (e.dataTransfer.types.includes('application/x-consilium-block')) {
-                  e.preventDefault()
-                  e.dataTransfer.dropEffect = 'copy'
-                }
-              }}
-              onDrop={(e) => {
-                const blockId = e.dataTransfer.getData('application/x-consilium-block')
-                if (!blockId || !editorRef.current) return
-                e.preventDefault()
-                // trigger the block insert via the sidebar's exposed insert function
-                ;(e.currentTarget as HTMLElement).dispatchEvent(
-                  new CustomEvent('consilium-block-drop', { detail: blockId, bubbles: false })
-                )
-              }}
-              ref={(el) => {
-                if (!el) return
-                const handler = (ev: Event) => {
-                  const blockId = (ev as CustomEvent<string>).detail
-                  if (!editorRef.current) return
-                  const blockMap: Record<string, () => void> = {
-                    image: () => {
-                      const input = document.createElement('input')
-                      input.type = 'file'; input.accept = 'image/*'
-                      input.onchange = () => { const f = input.files?.[0]; if (f) editorRef.current?.uploadImageFile(f) }
-                      input.click()
-                    },
-                    pullquote: () => editorRef.current?.getEditor()?.chain().focus().togglePullQuote().run(),
-                    divider: () => editorRef.current?.getEditor()?.chain().focus().setHorizontalRule().run(),
-                    chart: () => editorRef.current?.getEditor()?.chain().focus().insertChart({ chartType: 'bar', labels: '["Metric"]', datasets: '[{"label":"Value","data":[0]}]', title: 'Data Callout' }).run(),
-                  }
-                  blockMap[blockId]?.()
-                }
-                el.addEventListener('consilium-block-drop', handler)
-              }}
-            >
-              <TiptapEditor
-                ref={editorRef}
-                content={content}
-                onChange={handleContentChange}
-                editable={canEdit}
-              />
-            </div>
-            <div className="hidden lg:block flex-shrink-0">
-              <BlockSidebar editorRef={editorRef} />
-            </div>
-          </div>
+          {/* Content editor */}
+          <TiptapEditor
+            ref={editorRef}
+            content={content}
+            onChange={handleContentChange}
+            editable={canEdit}
+          />
         </div>
 
         {/* Settings sidebar */}
