@@ -204,8 +204,9 @@ body {
 }
 
 .prose-consilium blockquote {
+  position: relative;
   border-left: 3px solid #c9a227;
-  padding: 0.5rem 0 0.5rem 1.5rem;
+  padding: 0.75rem 1rem 0.75rem 3rem;
   margin: 2.2rem 0;
   font-style: italic;
   font-family: var(--font-serif);
@@ -214,6 +215,18 @@ body {
   color: #1a2744;
   background: rgba(201,162,39,0.04);
   border-radius: 0 4px 4px 0;
+}
+
+.prose-consilium blockquote::before {
+  content: '\201C';
+  position: absolute;
+  left: 0.6rem;
+  top: -0.1rem;
+  font-size: 3.5rem;
+  font-family: var(--font-serif);
+  color: #c9a227;
+  line-height: 1;
+  opacity: 0.6;
 }
 
 .dark .prose-consilium blockquote {
@@ -232,28 +245,54 @@ body {
 .prose-consilium ol  { list-style-type: decimal; }
 .prose-consilium li  { margin-bottom: 0.5em; }
 
-.prose-consilium img {
+/* Figure / image blocks */
+.prose-consilium .article-figure {
+  margin: 2.5rem auto;
+  text-align: center;
+}
+
+.prose-consilium .article-figure img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  border-radius: 2px;
+  box-shadow: 0 4px 24px rgba(26,39,68,0.10);
+}
+
+.prose-consilium .article-figure .caption {
+  margin-top: 0.65rem;
+  font-size: 0.8125rem;
+  font-style: italic;
+  color: rgba(26,39,68,0.45);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.prose-consilium .article-figure .image-credit {
+  margin-top: 0.3rem;
+  font-size: 0.7rem;
+  font-style: italic;
+  color: rgba(26,39,68,0.35);
+  text-align: center;
+}
+
+.dark .prose-consilium .article-figure .caption {
+  color: rgba(232,226,212,0.40);
+}
+
+.dark .prose-consilium .article-figure .image-credit {
+  color: rgba(232,226,212,0.30);
+}
+
+/* Legacy: bare img not inside figure */
+.prose-consilium > img {
   max-width: 100%;
   height: auto;
   margin: 2.5rem auto 0;
   display: block;
   border-radius: 2px;
   box-shadow: 0 4px 24px rgba(26,39,68,0.10);
-}
-
-/* Paragraph immediately after an image becomes a photo caption */
-.prose-consilium img + p {
-  text-align: center;
-  font-size: 0.8125rem;
-  color: rgba(26,39,68,0.40);
-  font-style: italic;
-  margin-top: 0.65rem;
-  margin-bottom: 2.2rem;
-  line-height: 1.5;
-}
-
-.dark .prose-consilium img + p {
-  color: rgba(232,226,212,0.35);
 }
 
 .prose-consilium hr {
@@ -317,14 +356,47 @@ body {
 
 /* Blockquote */
 .tiptap-editor .ProseMirror blockquote {
+  position: relative;
   border-left: 3px solid #c9a227;
-  padding: 0.4rem 0 0.4rem 1.25rem;
+  padding: 0.75rem 1rem 0.75rem 3rem;
   margin: 2rem 0;
   font-style: italic;
   font-family: var(--font-serif);
   font-size: 1.15rem;
   color: var(--fg-muted);
   background: rgba(201,162,39,0.04);
+}
+
+.tiptap-editor .ProseMirror blockquote::before {
+  content: '\201C';
+  position: absolute;
+  left: 0.6rem;
+  top: -0.1rem;
+  font-size: 3.5rem;
+  font-family: var(--font-serif);
+  color: #c9a227;
+  line-height: 1;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Figure / image in editor */
+.tiptap-editor .ProseMirror .article-figure-wrapper {
+  margin: 2rem 0;
+}
+
+.tiptap-editor .ProseMirror figure.article-figure img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  border-radius: 2px;
+  box-shadow: 0 4px 20px rgba(26,39,68,0.08);
+}
+
+.tiptap-editor .ProseMirror .figure-caption-input,
+.tiptap-editor .ProseMirror .figure-credit-input {
+  font-family: var(--font-serif);
 }
 
 /* Horizontal rule */

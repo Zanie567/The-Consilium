@@ -7,7 +7,6 @@ import { ShareButtons } from '@/components/ui/ShareButtons'
 import { BookmarkButton } from '@/components/ui/BookmarkButton'
 import { ReadingTracker } from '@/components/ui/ReadingTracker'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
-import { ArticleCharts } from '@/components/ui/ArticleCharts'
 import { ViewCounter } from '@/components/ui/ViewCounter'
 import { PrintButton } from '@/components/ui/PrintButton'
 import { SaveAsPdfButton } from '@/components/ui/SaveAsPdfButton'
@@ -175,14 +174,27 @@ function nodeToHtml(node: TiptapNode): string {
     case 'blockquote':    return `<blockquote>${node.content?.map(nodeToHtml).join('') ?? ''}</blockquote>`
     case 'horizontalRule': return `<hr />`
     case 'image':
-      return `<img src="${node.attrs?.src ?? ''}" alt="${node.attrs?.alt ?? ''}" />`
+      // Legacy plain image nodes (new content uses 'figure')
+      return `<figure class="article-figure"><img src="${node.attrs?.src ?? ''}" alt="${node.attrs?.alt ?? ''}" /></figure>`
+    case 'figure': {
+      const src = String(node.attrs?.src ?? '')
+      const alt = String(node.attrs?.alt ?? '')
+      const caption = String(node.attrs?.caption ?? '')
+      const credit = String(node.attrs?.credit ?? '')
+      let html = `<figure class="article-figure"><img src="${src}" alt="${alt}" />`
+      if (caption) html += `<figcaption class="caption">${caption}</figcaption>`
+      if (credit) html += `<p class="image-credit">${credit}</p>`
+      html += `</figure>`
+      return html
+    }
     case 'hardBreak': return `<br />`
     case 'pullQuote':
       return `<aside data-type="pull-quote" class="pull-quote">${node.content?.map(nodeToHtml).join('') ?? ''}</aside>`
     case 'footnoteRef':
       return `<sup class="footnote-ref" data-footnote="${encodeURIComponent(String(node.attrs?.content ?? ''))}" data-index="${node.attrs?.index ?? ''}" title="${node.attrs?.content ?? ''}">[${node.attrs?.index ?? ''}]</sup>`
+    // chartNode: silently drop — data callout has been removed
     case 'chartNode':
-      return `<div class="article-chart" data-chart="${encodeURIComponent(JSON.stringify({ type: node.attrs?.chartType, labels: node.attrs?.labels, datasets: node.attrs?.datasets, title: node.attrs?.title }))}"></div>`
+      return ''
     default:
       return node.content?.map(nodeToHtml).join('') ?? ''
   }
@@ -369,7 +381,6 @@ export default async function ArticlePage({ params }: Props) {
             className="prose-consilium"
             dangerouslySetInnerHTML={{ __html: htmlContent }}
           />
-          <ArticleCharts />
         </AnimateIn>
 
         {/* Tags */}

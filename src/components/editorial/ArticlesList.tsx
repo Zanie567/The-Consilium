@@ -63,7 +63,20 @@ export function ArticlesList({ articles: initial, isEditor, isWriter }: Props) {
     if (res.ok) setArticles((prev) => prev.filter((a) => a.id !== id))
   }
 
-  const statuses = ['all', ...Array.from(new Set(initial.map((a) => a.status)))]
+  const publishArticle = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED'
+    const res = await fetch(`/api/articles/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    })
+    if (res.ok) {
+      setArticles((prev) => prev.map((a) => a.id === id ? { ...a, status: newStatus } : a))
+    }
+  }
+
+  // Derive statuses from current articles state (not initial) so counts stay correct after deletes
+  const statuses = ['all', ...Array.from(new Set(articles.map((a) => a.status)))]
   const filtered = filter === 'all' ? articles : articles.filter((a) => a.status === filter)
 
   return (
@@ -214,6 +227,25 @@ export function ArticlesList({ articles: initial, isEditor, isWriter }: Props) {
                           Edit
                         </Link>
                       </Tooltip>
+                      {isEditor && (article.status === 'DRAFT' || article.status === 'PUBLISHED' || article.status === 'PENDING_REVIEW') && (
+                        <Tooltip
+                          content={article.status === 'PUBLISHED' ? 'Unpublish this article (move back to Draft)' : 'Publish this article immediately'}
+                          variant="editorial"
+                          side="top"
+                          maxWidth={240}
+                        >
+                          <button
+                            onClick={() => publishArticle(article.id, article.status)}
+                            className={`text-xs font-bold px-1.5 py-1 transition-colors ${
+                              article.status === 'PUBLISHED'
+                                ? 'text-[var(--fg-faint)] hover:text-amber-600'
+                                : 'text-emerald-600 hover:text-emerald-700'
+                            }`}
+                          >
+                            {article.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
+                          </button>
+                        </Tooltip>
+                      )}
                       <Tooltip content="Permanently delete this article. This cannot be undone." variant="editorial" side="top" maxWidth={240}>
                         <button
                           onClick={() => deleteArticle(article.id)}

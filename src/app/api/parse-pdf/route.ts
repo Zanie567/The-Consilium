@@ -26,13 +26,13 @@ export async function POST(request: NextRequest) {
 
     const buffer = Buffer.from(await file.arrayBuffer())
 
-    // Dynamic import to avoid SSR issues with pdf-parse
+    // Use the correct pdf-parse v2 API (PDFParse class with getText())
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pdfParseModule = await import('pdf-parse') as any
-    const pdfParse = pdfParseModule.default ?? pdfParseModule
-    const result = await pdfParse(buffer)
+    const { PDFParse } = await import('pdf-parse') as any
+    const parser = new PDFParse({ data: buffer })
+    const textResult = await parser.getText()
 
-    const text = result.text
+    const text = (textResult.text as string)
       .replace(/\r\n/g, '\n')
       .replace(/\r/g, '\n')
       .replace(/\n{3,}/g, '\n\n')
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'No text found in this PDF. It may be a scanned image.' }, { status: 422 })
     }
 
-    return Response.json({ text, pages: result.numpages })
+    return Response.json({ text, pages: textResult.total ?? textResult.pages?.length ?? 0 })
   } catch (err) {
     console.error('[parse-pdf] error:', err)
     return Response.json(
