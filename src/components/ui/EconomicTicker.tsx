@@ -1,35 +1,27 @@
 'use client'
 
 /**
- * EconomicTicker — continuously scrolling gold bar showing live economic data.
+ * EconomicTicker — FT-style continuously scrolling bar showing live economic data.
  *
  * Data sources (via internal API routes, cached server-side):
  *   /api/ticker/markets — Alpha Vantage: indices, forex, gold
  *   /api/ticker/macro   — FRED: CPI, unemployment, central bank rates
  *
  * Behaviour:
- *   - Falls back to hardcoded data until real data loads (never blank)
- *   - Pauses on hover
- *   - prefers-reduced-motion: shows a static bar instead of scrolling
- *   - Hidden on /editorial, /admin, /login, /signup, /privacy, /terms
+ *   - Shows fallback static data immediately; replaces with live data once fetched
+ *   - Pauses animation on hover so users can read individual data points
+ *   - prefers-reduced-motion: shows a static overflow-scrollable bar instead
  *   - Client-side refresh every 6 hours (server routes are also ISR-cached)
+ *   - Homepage only — do not render on other routes; import only from page.tsx
+ *
+ * IMPORTANT (API keys):
+ *   ALPHA_VANTAGE_API_KEY and FRED_API_KEY must be set in:
+ *     - .env.local for local development
+ *     - Vercel Dashboard > Settings > Environment Variables for production/preview
+ *   The ticker falls back to static placeholder data if keys are missing or API calls fail.
  */
 
 import { useEffect, useState } from 'react'
-import { usePathname } from 'next/navigation'
-import { useReducedMotion } from 'framer-motion'
-
-// ── Route exclusions ────────────────────────────────────────────────────────
-
-const HIDDEN_PREFIXES = [
-  '/editorial',
-  '/admin',
-  '/login',
-  '/signup',
-  '/register',
-  '/privacy',
-  '/terms',
-]
 
 // ── Data types ──────────────────────────────────────────────────────────────
 
@@ -49,7 +41,7 @@ interface MacroData {
 }
 
 // ── Fallback data ───────────────────────────────────────────────────────────
-// Shown immediately on first render and whenever both APIs are unavailable.
+// Rendered immediately on first paint and whenever both APIs are unavailable.
 
 const FALLBACK_MARKETS: MarketsData = {
   indices: [
@@ -61,8 +53,6 @@ const FALLBACK_MARKETS: MarketsData = {
   forex: [
     { pair: 'GBP/USD', rate: 1.2634 },
     { pair: 'EUR/USD', rate: 1.0821 },
-    { pair: 'USD/CNY', rate: 7.2312 },
-    { pair: 'USD/INR', rate: 83.45  },
   ],
   commodities: [
     { label: 'GOLD', price: 2342 },
@@ -71,58 +61,54 @@ const FALLBACK_MARKETS: MarketsData = {
 
 const FALLBACK_MACRO: MacroData = {
   data: [
-    { label: 'BANK OF ENGLAND', value: 5.25, unit: '%'  },
-    { label: 'FEDERAL RESERVE', value: 5.50, unit: '%'  },
-    { label: 'ECB RATE',        value: 4.00, unit: '%'  },
-    { label: 'UK CPI',          value: 3.2,  unit: 'YOY' },
+    { label: 'FED RATE',        value: 5.50, unit: '%'   },
+    { label: 'BOE RATE',        value: 5.25, unit: '%'   },
+    { label: 'ECB RATE',        value: 4.00, unit: '%'   },
     { label: 'US CPI',          value: 3.4,  unit: 'YOY' },
-    { label: 'US UNEMPLOYMENT', value: 3.9,  unit: '%'  },
-    { label: 'UK UNEMPLOYMENT', value: 4.2,  unit: '%'  },
+    { label: 'UK CPI',          value: 3.2,  unit: 'YOY' },
+    { label: 'US UNEMPLOYMENT', value: 3.9,  unit: '%'   },
+    { label: 'UK UNEMPLOYMENT', value: 4.2,  unit: '%'   },
   ],
 }
 
 // ── Display item type ───────────────────────────────────────────────────────
 
 interface DisplayItem {
-  /** e.g. "S&P 500: 5,234" or "GBP/USD: 1.2634" */
-  prefix: string
-  /** e.g. " ▲ +0.3%" — rendered in a coloured span */
+  text: string
   changeSuffix?: string
-  /** true = positive (green), false = negative (red) */
   positive?: boolean
 }
 
 function buildDisplayItems(markets: MarketsData, macro: MacroData): DisplayItem[] {
   const items: DisplayItem[] = []
 
-  // Indices with directional arrows
+  // Market indices — "S&P 500  5,234  ▲ 0.42%"
   for (const idx of markets.indices) {
     const arrow = idx.changePercent >= 0 ? '▲' : '▼'
-    const sign  = idx.changePercent >= 0 ? '+' : ''
+    const pct   = Math.abs(idx.changePercent).toFixed(2)
     items.push({
-      prefix:       `${idx.label}: ${Math.round(idx.price).toLocaleString()}`,
-      changeSuffix: ` ${arrow} ${sign}${Math.abs(idx.changePercent).toFixed(1)}%`,
+      text:         `${idx.label}  ${Math.round(idx.price).toLocaleString('en-GB')}`,
+      changeSuffix: `  ${arrow} ${pct}%`,
       positive:     idx.changePercent >= 0,
     })
   }
 
-  // Forex rates
+  // Forex rates — "GBP/USD  1.2634"
   for (const fx of markets.forex) {
-    items.push({ prefix: `${fx.pair}: ${fx.rate.toFixed(4)}` })
+    items.push({ text: `${fx.pair}  ${fx.rate.toFixed(4)}` })
   }
 
-  // Commodities (e.g. Gold)
+  // Commodities — "GOLD  2,342"
   for (const c of markets.commodities) {
-    items.push({ prefix: `${c.label}: ${Math.round(c.price).toLocaleString()}` })
+    items.push({ text: `${c.label}  ${Math.round(c.price).toLocaleString('en-GB')}` })
   }
 
-  // Macro indicators
+  // Macro indicators — "FED RATE  5.25%" or "US CPI  3.4% YOY"
   for (const m of macro.data) {
-    if (m.unit === 'YOY') {
-      items.push({ prefix: `${m.label}: ${m.value.toFixed(1)}% YOY` })
-    } else {
-      items.push({ prefix: `${m.label}: ${m.value.toFixed(2)}%` })
-    }
+    const val = m.unit === 'YOY'
+      ? `${m.value.toFixed(1)}% YOY`
+      : `${m.value.toFixed(2)}%`
+    items.push({ text: `${m.label}  ${val}` })
   }
 
   return items
@@ -132,9 +118,12 @@ function buildDisplayItems(markets: MarketsData, macro: MacroData): DisplayItem[
 
 function Separator() {
   return (
-    // Slightly darker gold for the diamond separator
-    <span className="shrink-0 select-none px-1 text-[#a07c1a] text-[10px]" aria-hidden>
-      ◆
+    <span
+      className="shrink-0 select-none px-3 text-[var(--fg-faint)]"
+      aria-hidden
+      style={{ fontSize: '10px' }}
+    >
+      ·
     </span>
   )
 }
@@ -142,13 +131,13 @@ function Separator() {
 function Item({ item }: { item: DisplayItem }) {
   return (
     <span className="flex items-center shrink-0">
-      <span className="px-3 py-[5px] text-[11px] font-bold uppercase tracking-wider whitespace-nowrap text-[#1a2744]">
-        {item.prefix}
+      <span
+        className="whitespace-nowrap text-[var(--fg)]"
+        style={{ fontSize: '12px', letterSpacing: '0.02em' }}
+      >
+        {item.text}
         {item.changeSuffix && (
-          <span
-            // Positive = dark green, negative = dark red — both readable on gold
-            className={item.positive ? 'text-[#145a32]' : 'text-[#7b1515]'}
-          >
+          <span style={{ color: item.positive ? 'var(--ticker-pos)' : 'var(--ticker-neg)' }}>
             {item.changeSuffix}
           </span>
         )}
@@ -161,24 +150,27 @@ function Item({ item }: { item: DisplayItem }) {
 // ── Main component ──────────────────────────────────────────────────────────
 
 export function EconomicTicker() {
-  const pathname          = usePathname()
-  const prefersReduced    = useReducedMotion()
-  const [markets, setMarkets] = useState<MarketsData>(FALLBACK_MARKETS)
-  const [macro,   setMacro  ] = useState<MacroData>(FALLBACK_MACRO)
-  const [paused,  setPaused ] = useState(false)
+  const [markets, setMarkets]         = useState<MarketsData>(FALLBACK_MARKETS)
+  const [macro,   setMacro  ]         = useState<MacroData>(FALLBACK_MACRO)
+  const [paused,  setPaused ]         = useState(false)
+  const [prefersReduced, setPrefersReduced] = useState(false)
 
-  const hidden = HIDDEN_PREFIXES.some((p) => pathname?.startsWith(p))
+  // Detect prefers-reduced-motion without Framer Motion
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setPrefersReduced(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setPrefersReduced(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   // Fetch live data on mount, then refresh every 6 hours
   useEffect(() => {
-    if (hidden) return
-
     async function fetchAll() {
       const [mktResult, macResult] = await Promise.allSettled([
         fetch('/api/ticker/markets'),
         fetch('/api/ticker/macro'),
       ])
-
       if (mktResult.status === 'fulfilled' && mktResult.value.ok) {
         try { setMarkets(await mktResult.value.json()) } catch { /* keep fallback */ }
       }
@@ -186,60 +178,98 @@ export function EconomicTicker() {
         try { setMacro(await macResult.value.json()) } catch { /* keep fallback */ }
       }
     }
-
     fetchAll()
     const id = setInterval(fetchAll, 6 * 60 * 60 * 1000)
     return () => clearInterval(id)
-  }, [hidden])
-
-  if (hidden) return null
+  }, [])
 
   const items = buildDisplayItems(markets, macro)
 
-  // ── Reduced-motion variant: static, no animation ──────────────────────────
+  // Shared wrapper styles — reserves height to prevent layout shift
+  const wrapperStyle: React.CSSProperties = {
+    background:  'var(--bg-subtle)',
+    height:      '28px',
+    display:     'flex',
+    alignItems:  'center',
+    width:       '100%',
+    overflow:    'hidden',
+  }
+
+  // Left-pinned "MARKETS" label
+  const label = (
+    <div
+      aria-hidden
+      style={{
+        flexShrink:    0,
+        display:       'flex',
+        alignItems:    'center',
+        padding:       '0 12px',
+        height:        '100%',
+        borderRight:   '1px solid var(--border)',
+        color:         'var(--fg-faint)',
+        fontSize:      '10px',
+        fontWeight:    700,
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        whiteSpace:    'nowrap',
+      }}
+    >
+      MARKETS
+    </div>
+  )
+
+  // ── Reduced-motion variant: static, overflow-scrollable ─────────────────
   if (prefersReduced) {
     return (
       <div
-        className="w-full bg-[#c9a227] overflow-x-auto"
-        aria-label="Economic data"
-        // Hide native scrollbar — content is readable; users can scroll if they choose
-        style={{ scrollbarWidth: 'none' }}
+        role="region"
+        aria-label="Live economic data ticker"
+        style={{ ...wrapperStyle, overflow: 'hidden' }}
       >
-        <div className="flex items-center min-w-max">
-          {items.map((item, i) => <Item key={i} item={item} />)}
+        {label}
+        <div
+          style={{ flex: 1, overflowX: 'auto', display: 'flex', alignItems: 'center', scrollbarWidth: 'none' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', minWidth: 'max-content' }}>
+            {items.map((item, i) => <Item key={i} item={item} />)}
+          </div>
         </div>
       </div>
     )
   }
 
-  // ── Animated scrolling ticker ─────────────────────────────────────────────
-  // The @keyframes consilium-ticker is defined in globals.css.
-  // translateX goes from 0 → -50% because we render items twice:
-  // when the first copy scrolls off-left the second copy takes its place seamlessly.
+  // ── Animated scrolling ticker ────────────────────────────────────────────
+  // translateX goes 0 → -50% because we render items twice; when the first
+  // copy scrolls off-left the second copy fills its place seamlessly.
   return (
     <div
-        className="w-full bg-[#c9a227] overflow-hidden"
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-        aria-label="Economic data ticker — hover to pause"
-      >
+      role="marquee"
+      aria-label="Live economic data ticker"
+      style={wrapperStyle}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      {label}
+      <div style={{ flex: 1, overflow: 'hidden', height: '100%', display: 'flex', alignItems: 'center' }}>
         <div
-          className="flex w-max"
           style={{
-            animation:          'consilium-ticker 48s linear infinite',
+            display:            'flex',
+            width:              'max-content',
+            animation:          'consilium-ticker 60s linear infinite',
             animationPlayState: paused ? 'paused' : 'running',
             willChange:         'transform',
           }}
         >
-          {/* Copy 1 — primary */}
-          <div className="flex">
+          {/* Copy 1 — primary, readable by screen readers */}
+          <div style={{ display: 'flex', alignItems: 'center' }}>
             {items.map((item, i) => <Item key={i} item={item} />)}
           </div>
-          {/* Copy 2 — seamless loop duplicate, hidden from screen readers */}
-          <div className="flex" aria-hidden>
-            {items.map((item, i) => <Item key={i} item={item} />)}
+          {/* Copy 2 — seamless loop duplicate, hidden from assistive tech */}
+          <div style={{ display: 'flex', alignItems: 'center' }} aria-hidden>
+            {items.map((item, i) => <Item key={`d${i}`} item={item} />)}
           </div>
         </div>
       </div>
+    </div>
   )
 }

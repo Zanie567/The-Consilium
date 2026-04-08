@@ -10,6 +10,7 @@ import { ContinueReading } from '@/components/ui/ContinueReading'
 import { ArticleCard } from '@/components/ui/ArticleCard'
 import { BlurImage } from '@/components/ui/BlurImage'
 import { readTimeLabel } from '@/lib/readTime'
+import { EconomicTicker } from '@/components/ui/EconomicTicker'
 
 export const dynamic = 'force-dynamic'
 
@@ -184,6 +185,9 @@ export default async function HomePage({
           {format(new Date(), 'EEEE, d MMMM yyyy')}
         </span>
       </div>
+
+      {/* ── Economic data ticker ───────────────────────────────────────────── */}
+      <EconomicTicker />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* ── Featured Article ─────────────────────────────────────────────── */}
