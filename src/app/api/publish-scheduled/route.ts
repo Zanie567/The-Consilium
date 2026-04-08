@@ -21,6 +21,11 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, articlePublishedEmail } from '@/lib/email'
 
+// Force dynamic so Next.js never pre-renders or caches this route.
+// Without this, Vercel's edge may serve a stale 404 if the route was absent
+// in an earlier (broken) deployment.
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: Request) {
   // ── Auth ───────────────────────────────────────────────────────────────────
   const secret = process.env.CRON_SECRET
