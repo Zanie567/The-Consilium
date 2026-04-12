@@ -22,9 +22,11 @@
 
 import { NextResponse } from 'next/server'
 
-// Next.js ISR: cache the route response for 24 hours.
-// Next.js requires a literal here — do not replace with a variable reference.
-export const revalidate = 86400
+// force-dynamic prevents Next.js from statically pre-rendering this route at
+// build time. A failed build-time pre-render causes Vercel to cache a 404 —
+// the same issue that affected /api/publish-scheduled. Caching is replicated
+// via Cache-Control on the response so Vercel's CDN caches it at the edge.
+export const dynamic = 'force-dynamic'
 
 const FRED_BASE = 'https://api.stlouisfed.org/fred/series/observations'
 const FRED_KEY  = process.env.FRED_API_KEY
@@ -64,7 +66,7 @@ async function fetchFredValue(cfg: SeriesConfig): Promise<number | null> {
       ...(cfg.fredUnits ? { units: cfg.fredUnits } : {}),
     })
     const url = `${FRED_BASE}?${params}`
-    const res = await fetch(url, { next: { revalidate: 86400 } })
+    const res = await fetch(url, {})
     if (!res.ok) {
       console.error(`[ticker/macro] FRED ${cfg.seriesId} HTTP ${res.status}`)
       return null
@@ -96,18 +98,25 @@ export async function GET() {
       unit:    cfg.unit,
     }))
 
-    return NextResponse.json({
-      data,
-      source:    FRED_KEY ? 'fred' : 'fallback',
-      updatedAt: new Date().toISOString(),
-    })
+    return NextResponse.json(
+      { data, source: FRED_KEY ? 'fred' : 'fallback', updatedAt: new Date().toISOString() },
+      {
+        headers: {
+          // Cache at Vercel edge for 24 hours (macro data updates monthly).
+          'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=172800',
+        },
+      },
+    )
   } catch (err) {
     // Never return an error to the frontend — fall back to hardcoded data
     console.error('[ticker/macro] Unhandled error, returning fallback:', err)
-    return NextResponse.json({
-      data: SERIES.map((cfg) => ({ label: cfg.label, value: cfg.fallback, unit: cfg.unit })),
-      source:    'fallback',
-      updatedAt: new Date().toISOString(),
-    })
+    return NextResponse.json(
+      {
+        data:      SERIES.map((cfg) => ({ label: cfg.label, value: cfg.fallback, unit: cfg.unit })),
+        source:    'fallback',
+        updatedAt: new Date().toISOString(),
+      },
+      { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } },
+    )
   }
 }

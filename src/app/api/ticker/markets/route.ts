@@ -28,10 +28,13 @@
 
 import { NextResponse } from 'next/server'
 
-// Next.js ISR: cache the route response for 6 hours.
-// Next.js requires a literal here — do not replace with a variable reference.
-// To reduce Alpha Vantage usage (25 req/day free tier), change to 43200 (12 h).
-export const revalidate = 21600
+// force-dynamic prevents Next.js from trying to statically pre-render this
+// route at build time. A failed pre-render (e.g. API key not in build env, or
+// upstream timeout) causes Vercel to cache a 404 and keep serving it — exactly
+// the same issue that hit /api/publish-scheduled. We replicate the 6-hour
+// cache via Cache-Control on the response so Vercel's CDN still caches it at
+// the edge without needing build-time pre-rendering.
+export const dynamic = 'force-dynamic'
 
 const AV_BASE = 'https://www.alphavantage.co/query'
 const AV_KEY = process.env.ALPHA_VANTAGE_API_KEY
@@ -85,7 +88,7 @@ async function fetchGlobalQuote(symbol: string): Promise<{ price: number; change
   if (!AV_KEY) return null
   try {
     const url = `${AV_BASE}?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol)}&apikey=${AV_KEY}`
-    const res = await fetch(url, { next: { revalidate: 21600 } })
+    const res = await fetch(url, {})
     if (!res.ok) {
       console.error(`[ticker/markets] GLOBAL_QUOTE ${symbol} HTTP ${res.status}`)
       return null
@@ -111,7 +114,7 @@ async function fetchForexRate(from: string, to: string): Promise<number | null> 
   if (!AV_KEY) return null
   try {
     const url = `${AV_BASE}?function=CURRENCY_EXCHANGE_RATE&from_currency=${from}&to_currency=${to}&apikey=${AV_KEY}`
-    const res = await fetch(url, { next: { revalidate: 21600 } })
+    const res = await fetch(url, {})
     if (!res.ok) {
       console.error(`[ticker/markets] CURRENCY_EXCHANGE_RATE ${from}/${to} HTTP ${res.status}`)
       return null
@@ -162,20 +165,26 @@ export async function GET() {
       price: goldRate ? Math.round(goldRate) : FALLBACK.commodities[0].price,
     }]
 
-    return NextResponse.json({
+    const body = {
       indices,
       forex,
       commodities,
       source:    AV_KEY ? 'alpha_vantage' : 'fallback',
       updatedAt: new Date().toISOString(),
+    }
+    return NextResponse.json(body, {
+      headers: {
+        // Cache at Vercel edge for 6 hours; serve stale for up to 12 h while
+        // revalidating in the background. This replaces the old ISR revalidate.
+        'Cache-Control': 'public, s-maxage=21600, stale-while-revalidate=43200',
+      },
     })
   } catch (err) {
     // Never return an error to the frontend — fall back to hardcoded data
     console.error('[ticker/markets] Unhandled error, returning fallback:', err)
-    return NextResponse.json({
-      ...FALLBACK,
-      source:    'fallback',
-      updatedAt: new Date().toISOString(),
-    })
+    return NextResponse.json(
+      { ...FALLBACK, source: 'fallback', updatedAt: new Date().toISOString() },
+      { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } },
+    )
   }
 }
