@@ -13,9 +13,9 @@ import { readTimeLabel } from '@/lib/readTime'
 
 const TiptapEditor = dynamic(
   () => import('@/components/editor/TiptapEditor').then((m) => m.TiptapEditor),
-  { ssr: false, loading: () => <div className="h-[500px] bg-[var(--bg-subtle)] animate-pulse" /> }
+  { ssr: false, loading: () => <div className="h-[640px] editor-outer animate-pulse" /> }
 ) as React.ForwardRefExoticComponent<
-  { content?: string; onChange: (content: string) => void; editable?: boolean } &
+  { content?: string; onChange: (content: string) => void; editable?: boolean; saveStatus?: 'idle' | 'saving' | 'saved' | 'error' } &
   React.RefAttributes<TiptapEditorHandle>
 >
 
@@ -461,158 +461,164 @@ export function ArticleEditor({
       <div className="flex-1 flex flex-col lg:flex-row gap-0">
 
         {/* Writing column */}
-        <div className="flex-1 min-w-0 px-6 lg:px-10 py-8 space-y-0">
+        <div className="flex-1 min-w-0 editor-outer">
 
-          {/* Cover image upload zone */}
-          <div className="mb-8">
-            <p className="text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
-              Article Cover Image
-            </p>
-            <input
-              ref={coverFileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleCoverUpload}
-            />
+          {/* Metadata area — rendered as a mini document page above the editor */}
+          <div className="py-6 px-4">
+            <div className="editor-page max-w-[816px] mx-auto px-10 py-8">
 
-            {coverError && (
-              <div className="mb-2 text-xs text-red-500 bg-red-500/8 border border-red-500/20 px-3 py-2">
-                {coverError}
-              </div>
-            )}
-
-            {coverImage ? (
-              <div
-                className={`relative group aspect-video w-full overflow-hidden bg-[var(--bg-subtle)] ${
-                  coverDragOver ? 'ring-2 ring-gold' : ''
-                }`}
-                onDragOver={(e) => { e.preventDefault(); setCoverDragOver(true) }}
-                onDragLeave={() => setCoverDragOver(false)}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  setCoverDragOver(false)
-                  const file = e.dataTransfer.files?.[0]
-                  if (file) uploadCoverFile(file)
-                }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={coverImage}
-                  alt="Cover"
-                  className="w-full h-full object-cover"
-                  onError={(e) => { ;(e.target as HTMLImageElement).style.display = 'none' }}
+              {/* Cover image upload zone */}
+              <div className="mb-6">
+                <p className="text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
+                  Cover Image
+                </p>
+                <input
+                  ref={coverFileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleCoverUpload}
                 />
-                {canEdit && (
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => coverFileRef.current?.click()}
-                      className="flex items-center gap-2 text-white text-xs font-semibold bg-black/40 border border-white/20 px-4 py-2 hover:bg-black/60 transition-colors"
-                    >
-                      <ImagePlus size={13} />
-                      {uploading ? 'Uploading...' : 'Change cover'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCoverImage('')}
-                      className="flex items-center gap-2 text-white/70 text-xs bg-black/30 border border-white/10 px-3 py-2 hover:bg-black/50 transition-colors"
-                    >
-                      <X size={13} />
-                      Remove
-                    </button>
+
+                {coverError && (
+                  <div className="mb-2 text-xs text-red-500 bg-red-500/8 border border-red-500/20 px-3 py-2">
+                    {coverError}
                   </div>
                 )}
-              </div>
-            ) : (
-              canEdit && (
-                <div
-                  onClick={() => coverFileRef.current?.click()}
-                  onDragOver={(e) => { e.preventDefault(); setCoverDragOver(true) }}
-                  onDragLeave={() => setCoverDragOver(false)}
-                  onDrop={(e) => {
-                    e.preventDefault()
-                    setCoverDragOver(false)
-                    const file = e.dataTransfer.files?.[0]
-                    if (file) uploadCoverFile(file)
-                  }}
-                  className={`w-full aspect-video border-2 border-dashed transition-colors flex flex-col items-center justify-center gap-3 cursor-pointer select-none ${
-                    coverDragOver
-                      ? 'border-gold bg-gold/5 text-gold'
-                      : 'border-[var(--border)] hover:border-gold/40 hover:bg-gold/[0.02] text-[var(--fg-faint)]'
-                  }`}
-                >
-                  <ImagePlus size={14} className="transition-colors" />
-                  <div className="text-center">
-                    <p className="text-xs font-medium">
-                      {uploading ? 'Uploading...' : coverDragOver ? 'Drop to upload' : 'Add cover image'}
-                    </p>
-                    <p className="text-[10px] opacity-50 mt-0.5">
-                      Shown at the top of the published article
-                    </p>
+
+                {coverImage ? (
+                  <div
+                    className={`relative group aspect-video w-full overflow-hidden bg-[var(--bg-subtle)] ${
+                      coverDragOver ? 'ring-2 ring-gold' : ''
+                    }`}
+                    onDragOver={(e) => { e.preventDefault(); setCoverDragOver(true) }}
+                    onDragLeave={() => setCoverDragOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      setCoverDragOver(false)
+                      const file = e.dataTransfer.files?.[0]
+                      if (file) uploadCoverFile(file)
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={coverImage}
+                      alt="Cover"
+                      className="w-full h-full object-cover"
+                      onError={(e) => { ;(e.target as HTMLImageElement).style.display = 'none' }}
+                    />
+                    {canEdit && (
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => coverFileRef.current?.click()}
+                          className="flex items-center gap-2 text-white text-xs font-semibold bg-black/40 border border-white/20 px-4 py-2 hover:bg-black/60 transition-colors"
+                        >
+                          <ImagePlus size={13} />
+                          {uploading ? 'Uploading...' : 'Change cover'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCoverImage('')}
+                          className="flex items-center gap-2 text-white/70 text-xs bg-black/30 border border-white/10 px-3 py-2 hover:bg-black/50 transition-colors"
+                        >
+                          <X size={13} />
+                          Remove
+                        </button>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )
-            )}
+                ) : (
+                  canEdit && (
+                    <div
+                      onClick={() => coverFileRef.current?.click()}
+                      onDragOver={(e) => { e.preventDefault(); setCoverDragOver(true) }}
+                      onDragLeave={() => setCoverDragOver(false)}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        setCoverDragOver(false)
+                        const file = e.dataTransfer.files?.[0]
+                        if (file) uploadCoverFile(file)
+                      }}
+                      className={`w-full aspect-video border-2 border-dashed transition-colors flex flex-col items-center justify-center gap-3 cursor-pointer select-none ${
+                        coverDragOver
+                          ? 'border-gold bg-gold/5 text-gold'
+                          : 'border-[var(--border)] hover:border-gold/40 hover:bg-gold/[0.02] text-[var(--fg-faint)]'
+                      }`}
+                    >
+                      <ImagePlus size={14} className="transition-colors" />
+                      <div className="text-center">
+                        <p className="text-xs font-medium">
+                          {uploading ? 'Uploading...' : coverDragOver ? 'Drop to upload' : 'Add cover image'}
+                        </p>
+                        <p className="text-[10px] opacity-50 mt-0.5">
+                          Shown at the top of the published article
+                        </p>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+
+              {/* Title */}
+              <textarea
+                ref={titleRef}
+                value={title}
+                onChange={handleTitleChange}
+                disabled={!canEdit}
+                placeholder="Your headline here..."
+                rows={1}
+                className="w-full bg-transparent border-none outline-none resize-none leading-tight placeholder:text-[#bbb] disabled:opacity-60 overflow-hidden"
+                style={{
+                  color: '#1a1a1a',
+                  fontFamily: 'var(--font-serif)',
+                  fontSize: 'clamp(1.75rem, 4vw, 2.75rem)',
+                  fontWeight: 700,
+                }}
+              />
+
+              {/* Excerpt */}
+              <textarea
+                ref={excerptRef}
+                value={excerpt}
+                onChange={(e) => setExcerpt(e.target.value)}
+                disabled={!canEdit}
+                placeholder="Write a brief summary that draws readers in..."
+                rows={2}
+                className="w-full mt-3 bg-transparent border-none outline-none resize-none text-lg leading-relaxed placeholder:text-[#ccc] disabled:opacity-60 overflow-hidden"
+                style={{ color: '#555' }}
+              />
+
+              {/* PDF import link */}
+              <div className="mt-4 pt-4 border-t border-black/8 flex items-center gap-2">
+                <input
+                  ref={pdfFileRef}
+                  type="file"
+                  accept=".pdf"
+                  className="hidden"
+                  onChange={handlePdfImport}
+                />
+                <button
+                  type="button"
+                  onClick={() => pdfFileRef.current?.click()}
+                  disabled={pdfImporting || !canEdit}
+                  className="inline-flex items-center gap-1.5 text-[#888] text-xs px-3 py-1.5 border border-black/15 rounded hover:border-[#1a2744] hover:text-[#1a2744] transition-colors disabled:opacity-50"
+                >
+                  <FileUp size={13} />
+                  {pdfImporting ? 'Importing…' : 'Import from PDF'}
+                </button>
+                {pdfError && <span className="text-red-500 text-xs">{pdfError}</span>}
+              </div>
+            </div>
           </div>
 
-          {/* Title */}
-          <textarea
-            ref={titleRef}
-            value={title}
-            onChange={handleTitleChange}
-            disabled={!canEdit}
-            placeholder="Your headline here..."
-            rows={1}
-            className="w-full bg-transparent border-none outline-none resize-none text-[var(--fg)] leading-tight placeholder:text-[var(--fg-faint)] disabled:opacity-60 overflow-hidden"
-            style={{
-              fontFamily: 'var(--font-serif)',
-              fontSize: 'clamp(1.75rem, 4vw, 2.75rem)',
-              fontWeight: 700,
-            }}
-          />
-
-          {/* Excerpt */}
-          <textarea
-            ref={excerptRef}
-            value={excerpt}
-            onChange={(e) => setExcerpt(e.target.value)}
-            disabled={!canEdit}
-            placeholder="Write a brief summary that draws readers in..."
-            rows={2}
-            className="w-full mt-4 bg-transparent border-none outline-none resize-none text-[var(--fg-muted)] text-lg leading-relaxed placeholder:text-[var(--fg-faint)] disabled:opacity-60 overflow-hidden"
-          />
-
-          {/* Divider */}
-          <div className="my-8 border-t border-[var(--border)]" />
-
-          {/* PDF import */}
-          <input
-            ref={pdfFileRef}
-            type="file"
-            accept=".pdf"
-            className="hidden"
-            onChange={handlePdfImport}
-          />
-          <div className="flex items-center gap-2 mb-4">
-            <button
-              type="button"
-              onClick={() => pdfFileRef.current?.click()}
-              disabled={pdfImporting || !canEdit}
-              className="inline-flex items-center gap-1.5 text-[var(--fg-muted)] text-xs px-3 py-1.5 border border-[var(--border)] hover:border-gold hover:text-gold transition-colors disabled:opacity-50"
-            >
-              <FileUp size={13} />
-              {pdfImporting ? 'Importing…' : 'Import PDF'}
-            </button>
-            {pdfError && <span className="text-red-500 text-xs">{pdfError}</span>}
-          </div>
-
-          {/* Content editor */}
+          {/* Content editor — has its own document page */}
           <TiptapEditor
             ref={editorRef}
             content={content}
             onChange={handleContentChange}
             editable={canEdit}
+            saveStatus={saveStatus}
           />
         </div>
 

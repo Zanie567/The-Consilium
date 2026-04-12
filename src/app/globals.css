@@ -313,10 +313,13 @@ body {
 /* ─── Tiptap editor ────────────────────────────────────────────────────────── */
 .tiptap-editor .ProseMirror {
   outline: none;
-  min-height: 540px;
-  padding: 1.5rem 1.75rem 3rem 3rem;
+  min-height: 640px;
+  padding: 2rem 3rem 4rem 3rem;
   font-size: 1.0625rem;
   line-height: 1.85;
+  color: #1a1a1a;
+}
+.dark .tiptap-editor .ProseMirror {
   color: var(--fg);
 }
 
@@ -814,6 +817,146 @@ mark {
 
 /* Nav underline: ensure 2 px height */
 .nav-underline { height: 2px; }
+
+/* ─── Google Docs-style editor layout ─────────────────────────────────────── */
+.editor-toolbar-bg {
+  background: #ffffff;
+}
+.dark .editor-toolbar-bg {
+  background: var(--bg-elevated);
+}
+.editor-outer {
+  background: #f0f0f0;
+}
+.dark .editor-outer {
+  background: var(--bg-subtle);
+}
+.editor-page {
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12), 0 8px 24px rgba(0,0,0,0.07);
+}
+.dark .editor-page {
+  background: var(--bg-elevated);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3);
+}
+
+/* Code block in editor */
+.tiptap-editor .ProseMirror pre {
+  background: #1a2744;
+  color: #e8e2d4;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 0.875rem;
+  padding: 1rem 1.25rem;
+  border-radius: 4px;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+}
+.tiptap-editor .ProseMirror pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+.tiptap-editor .ProseMirror code {
+  background: rgba(26,39,68,0.08);
+  color: #1a2744;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.875em;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+}
+.dark .tiptap-editor .ProseMirror code {
+  background: rgba(201,162,39,0.12);
+  color: var(--fg);
+}
+
+/* Tables in editor */
+.tiptap-editor .ProseMirror table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 1.5rem 0;
+  overflow: hidden;
+}
+.tiptap-editor .ProseMirror th,
+.tiptap-editor .ProseMirror td {
+  border: 1px solid rgba(201,162,39,0.4);
+  padding: 0.5rem 0.75rem;
+  vertical-align: top;
+  min-width: 80px;
+  position: relative;
+}
+.tiptap-editor .ProseMirror th {
+  background: rgba(201,162,39,0.08);
+  font-weight: 700;
+  text-align: left;
+}
+.tiptap-editor .ProseMirror .selectedCell::after {
+  z-index: 2;
+  position: absolute;
+  content: "";
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(201,162,39,0.15);
+  pointer-events: none;
+}
+.tiptap-editor .ProseMirror .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: rgba(201,162,39,0.6);
+  pointer-events: none;
+  cursor: col-resize;
+  z-index: 10;
+}
+.tiptap-editor .ProseMirror.resize-cursor {
+  cursor: col-resize;
+}
+
+/* Table in prose (published articles) */
+.prose-consilium table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 2rem 0;
+}
+.prose-consilium th,
+.prose-consilium td {
+  border: 1px solid rgba(201,162,39,0.35);
+  padding: 0.6rem 1rem;
+  text-align: left;
+  vertical-align: top;
+}
+.prose-consilium th {
+  background: rgba(201,162,39,0.07);
+  font-weight: 700;
+}
+.prose-consilium pre {
+  background: #1a2744;
+  color: #e8e2d4;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 0.875rem;
+  padding: 1rem 1.25rem;
+  border-radius: 4px;
+  margin: 2rem 0;
+  overflow-x: auto;
+}
+.prose-consilium pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+.prose-consilium code {
+  background: rgba(26,39,68,0.08);
+  color: #1a2744;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.875em;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+}
 
 /* ─── Reduced motion ───────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

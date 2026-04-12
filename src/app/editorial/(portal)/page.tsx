@@ -205,7 +205,7 @@ export default async function EditorialDashboard() {
         >
           All Articles
         </Link>
-        {isAdmin && (
+        {isEditor && (
           <Link
             href="/editorial/users"
             className="inline-flex items-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-colors"

@@ -187,12 +187,13 @@ export function EconomicTicker() {
 
   // Shared wrapper styles — reserves height to prevent layout shift
   const wrapperStyle: React.CSSProperties = {
-    background:  'var(--bg-subtle)',
-    height:      '28px',
-    display:     'flex',
-    alignItems:  'center',
-    width:       '100%',
-    overflow:    'hidden',
+    background:   'var(--bg-subtle)',
+    height:       '30px',
+    display:      'flex',
+    alignItems:   'center',
+    width:        '100%',
+    overflow:     'hidden',
+    borderBottom: '1px solid var(--border)',
   }
 
   // Left-pinned "MARKETS" label
