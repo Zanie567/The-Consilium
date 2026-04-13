@@ -50,6 +50,7 @@ interface AnalyticsData {
     viewsChange: number | null
   }
   trafficData: { label: string; views: number; published: number }[]
+  trafficSources: { source: string; views: number; pct: number }[]
   topArticles: {
     id: string
     title: string
@@ -565,13 +566,35 @@ export function AnalyticsDashboard() {
                   Traffic sources
                 </h2>
               </div>
-              <div className="px-6 py-10 flex flex-col items-center justify-center text-center">
-                <p className="text-[var(--fg-muted)] text-sm mb-1">
-                  Referrer tracking is not yet enabled.
-                </p>
-                <p className="text-[var(--fg-faint)] text-xs">
-                  Adding a referrer field to ArticleView will unlock source attribution here.
-                </p>
+              <div className="p-6 space-y-4">
+                {data.trafficSources.length > 0 && data.trafficSources.some((s) => s.views > 0) ? (
+                  data.trafficSources.filter((s) => s.views > 0).map((s) => (
+                    <div key={s.source}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-sm text-[var(--fg)]">{s.source}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-[var(--fg-faint)]">{s.pct}%</span>
+                          <span
+                            className="text-sm font-bold text-[var(--fg)] tabular-nums"
+                            style={{ fontFamily: 'var(--font-serif)' }}
+                          >
+                            {s.views.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="h-1.5 bg-[var(--bg-subtle)] overflow-hidden">
+                        <div
+                          className="h-full bg-gold transition-all duration-700"
+                          style={{ width: `${s.pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-[var(--fg-faint)] text-sm text-center py-6">
+                    Source data will appear here as new views come in.
+                  </p>
+                )}
               </div>
             </motion.div>
           </div>

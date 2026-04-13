@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
     recentActivity,
     rawViews,
     publishedInPeriod,
+    allViewSources,
   ] = await Promise.all([
     prisma.article
       .aggregate({ _sum: { viewCount: true } })
@@ -130,6 +131,11 @@ export async function GET(req: NextRequest) {
         select: { publishedAt: true },
       })
       .catch(() => [] as { publishedAt: Date | null }[]),
+
+    // Traffic sources: all views ever (source column may be null for pre-migration rows)
+    prisma.articleView
+      .findMany({ select: { source: true } })
+      .catch(() => [] as { source: string | null }[]),
   ])
 
   // Group views and publishes into buckets entirely in JS
@@ -189,6 +195,20 @@ export async function GET(req: NextRequest) {
       ? Math.round(((viewsInPeriod - viewsInPrevPeriod) / viewsInPrevPeriod) * 100)
       : null
 
+  // Aggregate traffic sources; rows without a source count as Direct
+  const SOURCE_ORDER = ['Direct', 'Search', 'Social', 'Email', 'Other'] as const
+  const sourceMap = new Map<string, number>()
+  for (const v of allViewSources) {
+    const s = v.source ?? 'Direct'
+    sourceMap.set(s, (sourceMap.get(s) ?? 0) + 1)
+  }
+  const totalSourceViews = allViewSources.length || 1
+  const trafficSources = SOURCE_ORDER.filter((s) => sourceMap.has(s) || s === 'Direct').map((s) => ({
+    source: s,
+    views: sourceMap.get(s) ?? 0,
+    pct: Math.round(((sourceMap.get(s) ?? 0) / totalSourceViews) * 100),
+  }))
+
   return NextResponse.json({
     summary: {
       totalViews: totalViewsResult,
@@ -199,6 +219,7 @@ export async function GET(req: NextRequest) {
       viewsChange,
     },
     trafficData,
+    trafficSources,
     topArticles,
     categoryData,
     authorData,
