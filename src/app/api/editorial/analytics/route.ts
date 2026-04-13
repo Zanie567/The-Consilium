@@ -28,7 +28,6 @@ export async function GET(req: NextRequest) {
     : period === '90d' ? subDays(now, 180)
     : subDays(now, 60)
 
-  const truncUnit = period === '24h' ? 'hour' : 'day'
   const bucketCount = period === '24h' ? 24 : period === '7d' ? 7 : period === '90d' ? 90 : 30
 
   const [
@@ -42,8 +41,8 @@ export async function GET(req: NextRequest) {
     categories,
     authors,
     recentActivity,
-    trafficByBucket,
-    publishingByBucket,
+    rawViews,
+    publishedInPeriod,
   ] = await Promise.all([
     prisma.article
       .aggregate({ _sum: { viewCount: true } })
@@ -119,40 +118,37 @@ export async function GET(req: NextRequest) {
       })
       .catch(() => []),
 
-    prisma.$queryRaw<{ bucket: Date; count: bigint }[]>`
-      SELECT DATE_TRUNC(${truncUnit}, "viewedAt") as bucket, COUNT(*) as count
-      FROM article_views
-      WHERE "viewedAt" >= ${since}
-      GROUP BY DATE_TRUNC(${truncUnit}, "viewedAt")
-      ORDER BY bucket ASC
-    `.catch(() => [] as { bucket: Date; count: bigint }[]),
+    // Fetch raw view timestamps in period and group in JS (avoids DATE_TRUNC raw SQL)
+    prisma.articleView
+      .findMany({ where: { viewedAt: { gte: since } }, select: { viewedAt: true } })
+      .catch(() => [] as { viewedAt: Date }[]),
 
-    prisma.$queryRaw<{ bucket: Date; count: bigint }[]>`
-      SELECT DATE_TRUNC(${truncUnit}, "publishedAt") as bucket, COUNT(*) as count
-      FROM articles
-      WHERE status = 'PUBLISHED' AND "publishedAt" >= ${since}
-      GROUP BY DATE_TRUNC(${truncUnit}, "publishedAt")
-      ORDER BY bucket ASC
-    `.catch(() => [] as { bucket: Date; count: bigint }[]),
+    // Published articles in period with their publishedAt timestamps
+    prisma.article
+      .findMany({
+        where: { status: 'PUBLISHED', publishedAt: { gte: since } },
+        select: { publishedAt: true },
+      })
+      .catch(() => [] as { publishedAt: Date | null }[]),
   ])
 
-  // Map bucket results
-  const trafficMap = new Map(
-    trafficByBucket.map((r) => [
-      period === '24h'
-        ? format(new Date(r.bucket), 'yyyy-MM-dd HH:00')
-        : format(new Date(r.bucket), 'yyyy-MM-dd'),
-      Number(r.count),
-    ])
-  )
-  const publishMap = new Map(
-    publishingByBucket.map((r) => [
-      period === '24h'
-        ? format(new Date(r.bucket), 'yyyy-MM-dd HH:00')
-        : format(new Date(r.bucket), 'yyyy-MM-dd'),
-      Number(r.count),
-    ])
-  )
+  // Group views and publishes into buckets entirely in JS
+  const bucketKey = (d: Date) =>
+    period === '24h' ? format(d, 'yyyy-MM-dd HH:00') : format(d, 'yyyy-MM-dd')
+
+  const trafficMap = new Map<string, number>()
+  for (const v of rawViews) {
+    const k = bucketKey(v.viewedAt)
+    trafficMap.set(k, (trafficMap.get(k) ?? 0) + 1)
+  }
+
+  const publishMap = new Map<string, number>()
+  for (const a of publishedInPeriod) {
+    if (a.publishedAt) {
+      const k = bucketKey(a.publishedAt)
+      publishMap.set(k, (publishMap.get(k) ?? 0) + 1)
+    }
+  }
 
   const trafficData = Array.from({ length: bucketCount }, (_, i) => {
     let key: string
@@ -164,7 +160,7 @@ export async function GET(req: NextRequest) {
     } else {
       const d = subDays(now, bucketCount - 1 - i)
       key = format(d, 'yyyy-MM-dd')
-      label = period === '90d' ? format(d, 'd MMM') : format(d, 'd MMM')
+      label = format(d, 'd MMM')
     }
     return { label, views: trafficMap.get(key) ?? 0, published: publishMap.get(key) ?? 0 }
   })
