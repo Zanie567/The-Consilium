@@ -13,6 +13,7 @@ import {
   ClipboardList,
   BookOpen,
   Clock,
+  BarChart2,
 } from 'lucide-react'
 
 interface User {
@@ -36,6 +37,7 @@ export function EditorialSidebar({ user }: { user: User }) {
     { href: '/editorial/scheduled', icon: Clock, label: 'Scheduled', show: isEditor },
     { href: '/editorial/series', icon: BookOpen, label: 'Article Series', show: isEditor },
     { href: '/editorial/users', icon: Users, label: 'Users', show: isEditor },
+    { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
   ]
 
   const isActive = (href: string, exact?: boolean) => {
