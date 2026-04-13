@@ -45,29 +45,29 @@ interface MacroData {
 
 const FALLBACK_MARKETS: MarketsData = {
   indices: [
-    { label: 'S&P 500',  price: 5234,  changePercent:  0.3 },
-    { label: 'FTSE 100', price: 7842,  changePercent:  0.4 },
-    { label: 'DAX',      price: 18245, changePercent:  0.2 },
-    { label: 'NIKKEI',   price: 38451, changePercent: -0.1 },
+    { label: 'S&P 500',  price: 6817,  changePercent: -0.11 },
+    { label: 'FTSE 100', price: 10583, changePercent: -0.17 },
+    { label: 'DAX',      price: 23521, changePercent: -1.19 },
+    { label: 'NIKKEI',   price: 57175, changePercent:  0.44 },
   ],
   forex: [
-    { pair: 'GBP/USD', rate: 1.2634 },
-    { pair: 'EUR/USD', rate: 1.0821 },
+    { pair: 'GBP/USD', rate: 1.3508 },
+    { pair: 'EUR/USD', rate: 1.1760 },
   ],
   commodities: [
-    { label: 'GOLD', price: 2342 },
+    { label: 'GOLD', price: 4733 },
   ],
 }
 
 const FALLBACK_MACRO: MacroData = {
   data: [
-    { label: 'FED RATE',        value: 5.50, unit: '%'   },
-    { label: 'BOE RATE',        value: 5.25, unit: '%'   },
-    { label: 'ECB RATE',        value: 4.00, unit: '%'   },
-    { label: 'US CPI',          value: 3.4,  unit: 'YOY' },
-    { label: 'UK CPI',          value: 3.2,  unit: 'YOY' },
-    { label: 'US UNEMPLOYMENT', value: 3.9,  unit: '%'   },
-    { label: 'UK UNEMPLOYMENT', value: 4.2,  unit: '%'   },
+    { label: 'FED RATE',        value: 3.75, unit: '%'   },
+    { label: 'BOE RATE',        value: 3.75, unit: '%'   },
+    { label: 'ECB RATE',        value: 2.00, unit: '%'   },
+    { label: 'US CPI',          value: 3.3,  unit: 'YOY' },
+    { label: 'UK CPI',          value: 3.0,  unit: 'YOY' },
+    { label: 'US UNEMPLOYMENT', value: 4.3,  unit: '%'   },
+    { label: 'UK UNEMPLOYMENT', value: 5.2,  unit: '%'   },
   ],
 }
 

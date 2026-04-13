@@ -43,13 +43,13 @@ interface SeriesConfig {
 }
 
 const SERIES: SeriesConfig[] = [
-  { label: 'US CPI',          seriesId: 'CPIAUCSL',         unit: 'YOY', fredUnits: 'pc1', fallback: 3.4  },
-  { label: 'UK CPI',          seriesId: 'GBRCPIALLMINMEI',  unit: 'YOY', fredUnits: 'pc1', fallback: 3.2  },
-  { label: 'US UNEMPLOYMENT', seriesId: 'UNRATE',           unit: '%',                     fallback: 3.9  },
-  { label: 'UK UNEMPLOYMENT', seriesId: 'LRHUTTTTGBM156S',  unit: '%',                     fallback: 4.2  },
-  { label: 'FEDERAL RESERVE', seriesId: 'DFF',              unit: '%',                     fallback: 5.50 },
-  { label: 'BANK OF ENGLAND', seriesId: 'BOEBR',            unit: '%',                     fallback: 5.25 },
-  { label: 'ECB RATE',        seriesId: 'ECBDFR',           unit: '%',                     fallback: 4.00 },
+  { label: 'US CPI',          seriesId: 'CPIAUCSL',         unit: 'YOY', fredUnits: 'pc1', fallback: 3.3  },
+  { label: 'UK CPI',          seriesId: 'GBRCPIALLMINMEI',  unit: 'YOY', fredUnits: 'pc1', fallback: 3.0  },
+  { label: 'US UNEMPLOYMENT', seriesId: 'UNRATE',           unit: '%',                     fallback: 4.3  },
+  { label: 'UK UNEMPLOYMENT', seriesId: 'LRHUTTTTGBM156S',  unit: '%',                     fallback: 5.2  },
+  { label: 'FEDERAL RESERVE', seriesId: 'DFF',              unit: '%',                     fallback: 3.75 },
+  { label: 'BANK OF ENGLAND', seriesId: 'BOEBR',            unit: '%',                     fallback: 3.75 },
+  { label: 'ECB RATE',        seriesId: 'ECBDFR',           unit: '%',                     fallback: 2.00 },
 ]
 
 // ── FRED helper ────────────────────────────────────────────────────────────
