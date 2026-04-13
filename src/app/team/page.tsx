@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { Mail } from 'lucide-react'
 import type { Metadata } from 'next'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'Our Team',
   description: 'Meet the team behind The Consilium, the publication of the University of Edinburgh Economics Society.',
