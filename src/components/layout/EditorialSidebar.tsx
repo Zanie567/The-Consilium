@@ -31,13 +31,13 @@ export function EditorialSidebar({ user }: { user: User }) {
 
   const navItems = [
     { href: '/editorial', icon: LayoutDashboard, label: 'Dashboard', exact: true, show: true },
+    { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
     { href: '/editorial/review', icon: ClipboardList, label: 'Review Queue', exact: false, show: isEditor },
     { href: '/editorial/articles', icon: FileText, label: user.role === 'WRITER' ? 'My Articles' : 'All Articles', show: true },
     { href: '/editorial/articles/new', icon: PlusCircle, label: 'New Article', show: true },
     { href: '/editorial/scheduled', icon: Clock, label: 'Scheduled', show: isEditor },
     { href: '/editorial/series', icon: BookOpen, label: 'Article Series', show: isEditor },
     { href: '/editorial/users', icon: Users, label: 'Users', show: isEditor },
-    { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
   ]
 
   const isActive = (href: string, exact?: boolean) => {
