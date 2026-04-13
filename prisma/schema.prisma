@@ -227,14 +227,30 @@ model ArticleNote {
 }
 
 model ArticleView {
-  id        String   @id @default(cuid())
-  articleId String
-  viewedAt  DateTime @default(now())
+  id          String   @id @default(cuid())
+  articleId   String
+  viewedAt    DateTime @default(now())
+  sessionHash String?
+  referrer    String?
 
   article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
 
   @@index([articleId, viewedAt])
+  @@index([viewedAt])
+  @@index([sessionHash])
   @@map("article_views")
+}
+
+model SiteView {
+  id          String   @id @default(cuid())
+  viewedAt    DateTime @default(now())
+  sessionHash String?
+  referrer    String?
+  pagePath    String?
+
+  @@index([viewedAt])
+  @@index([sessionHash])
+  @@map("site_views")
 }
 
 model Notification {
