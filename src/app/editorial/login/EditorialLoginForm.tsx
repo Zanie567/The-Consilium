@@ -2,10 +2,8 @@
 
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 
 export function EditorialLoginForm() {
-  const router = useRouter()
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -29,8 +27,10 @@ export function EditorialLoginForm() {
       setError('Invalid email or password.')
       return
     }
-    router.push('/editorial')
-    router.refresh()
+    // Hard navigation bypasses the Next.js router cache, ensuring the
+    // dashboard always loads fresh with the new session — not a stale
+    // cached version from a previous sign-in.
+    window.location.replace('/editorial')
   }
 
   const handleReset = async (e: React.FormEvent) => {

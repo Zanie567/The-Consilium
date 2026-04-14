@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: 'Team | Admin' }
 export default async function AdminTeamPage() {
   const session = await getServerSession(authOptions)
   if (!session || session.user.role !== 'ADMIN') {
-    redirect('/admin')
+    redirect('/editorial')
   }
 
   const members = await prisma.teamMember.findMany({ orderBy: { order: 'asc' } }).catch(() => [])

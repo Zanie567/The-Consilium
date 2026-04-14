@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { format, formatDistanceToNow } from 'date-fns'
 import { NotificationBell } from '@/components/editorial/NotificationBell'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
+import { MyDrafts } from '@/components/editorial/MyDrafts'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -30,7 +31,7 @@ export default async function EditorialDashboard() {
     assignedCategoryIds = assignments.map((a) => a.categoryId)
   }
 
-  const [myArticles, pendingArticles, publishedCount, myDrafts, totalViews, userCount] = await Promise.all([
+  const [myArticles, pendingArticles, publishedCount, draftCount, totalViews, userCount] = await Promise.all([
     prisma.article.findMany({
       where: role === 'WRITER' ? { authorId: userId } : undefined,
       orderBy: { updatedAt: 'desc' },
@@ -57,17 +58,10 @@ export default async function EditorialDashboard() {
       },
     }).catch(() => 0),
 
-    prisma.article.findMany({
+    // Draft count for stats card (current user's drafts only)
+    prisma.article.count({
       where: { authorId: userId, status: 'DRAFT' },
-      orderBy: { updatedAt: 'desc' },
-      take: 10,
-      select: {
-        id: true,
-        title: true,
-        updatedAt: true,
-        category: { select: { name: true } },
-      },
-    }).catch(() => [] as { id: string; title: string; updatedAt: Date; category: { name: string } | null }[]),
+    }).catch(() => 0),
 
     isEditor
       ? prisma.article.aggregate({ _sum: { viewCount: true } })
@@ -123,7 +117,7 @@ export default async function EditorialDashboard() {
 
       {/* Stats row */}
       <PortalSection className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        <StatCard label="My Drafts" value={myDrafts.length} />
+        <StatCard label="My Drafts" value={draftCount} />
         <StatCard label="Published" value={publishedCount} accent="emerald" />
         {isEditor && (
           <StatCard
@@ -218,46 +212,10 @@ export default async function EditorialDashboard() {
         )}
       </PortalSection>
 
-      {/* My Drafts */}
-      {myDrafts.length > 0 && (
-        <PortalSection className="mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">
-              My Drafts
-              <span className="ml-2 text-[var(--fg-faint)] font-normal normal-case tracking-normal">
-                {myDrafts.length} saved
-              </span>
-            </h2>
-            <Link
-              href="/editorial/articles?status=DRAFT"
-              className="text-xs text-gold hover:underline"
-            >
-              View all →
-            </Link>
-          </div>
-          <div className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] divide-y divide-[var(--border)]">
-            {myDrafts.map((draft) => (
-              <Link
-                key={draft.id}
-                href={`/editorial/articles/${draft.id}/edit`}
-                className="flex items-center gap-4 px-5 py-3.5 hover:bg-[var(--bg-subtle)] transition-colors group"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[var(--fg)] group-hover:text-gold transition-colors line-clamp-1">
-                    {draft.title || <span className="italic text-[var(--fg-faint)]">Untitled</span>}
-                  </p>
-                  <p className="text-xs text-[var(--fg-faint)] mt-0.5">
-                    {draft.category?.name ?? 'No category'} · last saved {formatDistanceToNow(new Date(draft.updatedAt), { addSuffix: true })}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs font-bold text-gold opacity-0 group-hover:opacity-100 transition-opacity">
-                  Continue →
-                </span>
-              </Link>
-            ))}
-          </div>
-        </PortalSection>
-      )}
+      {/* My Drafts — client component, polls every 30s */}
+      <PortalSection className="mb-8">
+        <MyDrafts />
+      </PortalSection>
 
       {/* Recent articles table */}
       <PortalSection>

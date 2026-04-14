@@ -3,16 +3,14 @@
 import { useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-export function LoginForm({ redirectTo = '/admin' }: { redirectTo?: string }) {
+export function LoginForm({ redirectTo = '/editorial' }: { redirectTo?: string }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,7 +25,9 @@ export function LoginForm({ redirectTo = '/admin' }: { redirectTo?: string }) {
       setError('Invalid email or password.')
       setLoading(false)
     } else {
-      router.push(redirectTo)
+      // Hard navigation bypasses the Next.js router cache so the dashboard
+      // always loads fresh with the new session.
+      window.location.replace(redirectTo)
     }
   }
 

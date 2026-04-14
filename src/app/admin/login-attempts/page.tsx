@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: 'Login Attempts' }
 
 export default async function LoginAttemptsPage() {
   const session = await getServerSession(authOptions)
-  if (!session || (session.user as { role: string }).role !== 'ADMIN') redirect('/admin')
+  if (!session || (session.user as { role: string }).role !== 'ADMIN') redirect('/editorial')
 
   const attempts = await prisma.loginAttempt.findMany({
     orderBy: { createdAt: 'desc' },
