@@ -111,7 +111,7 @@ export function Navbar() {
           {/* Masthead */}
           <Link
             href="/"
-            className="text-gold font-serif font-bold tracking-widest text-xl sm:text-2xl uppercase hover:opacity-85 transition-opacity duration-200"
+            className="ml-6 text-gold font-serif font-bold tracking-widest text-xl sm:text-2xl uppercase hover:opacity-85 transition-opacity duration-200"
             style={{ fontFamily: 'var(--font-serif)' }}
           >
             The Consilium
