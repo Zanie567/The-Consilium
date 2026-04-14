@@ -6,7 +6,12 @@ import dynamic from 'next/dynamic'
 import {
   Save, Send, Eye, X, Tag, ArrowLeft, Check, AlertCircle,
   ImagePlus, Loader2, ChevronDown, FileUp, Clock, Settings,
+  Bold, Italic, Underline, Strikethrough, Type, Highlighter,
+  List, ListOrdered, Quote, Code2, Link2, Upload,
+  Table, Minus, AlignLeft, AlignCenter, AlignRight,
+  Moon, Sun, Heading2,
 } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import slugify from 'slugify'
 import { mutate as globalMutate } from 'swr'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
@@ -85,6 +90,10 @@ export function ArticleEditor({
   isWriter,
 }: ArticleEditorProps) {
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
+  const [themeMounted, setThemeMounted] = useState(false)
+  useEffect(() => setThemeMounted(true), [])
+  const isDark = theme === 'dark'
 
   // ── Field state ────────────────────────────────────────────────────────────
   const [title, setTitle]           = useState(initialData?.title ?? '')
@@ -668,6 +677,17 @@ export function ArticleEditor({
           </a>
         )}
 
+        {/* Dark mode toggle */}
+        {themeMounted && (
+          <button
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="shrink-0 p-1.5 rounded hover:bg-[#f1f3f4] dark:hover:bg-[#2a2a2a] text-[#555] dark:text-[#aaa] transition-colors"
+          >
+            {isDark ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+        )}
+
         {/* Tutorial button */}
         <button
           onClick={() => setTutorialOpen(true)}
@@ -965,61 +985,67 @@ export function ArticleEditor({
 
                 {/* Formatting */}
                 <TutorialSection title="Formatting buttons">
-                  <ul className="space-y-1 mt-1">
-                    <TutorialItem label="B">Bold</TutorialItem>
-                    <TutorialItem label="I">Italic</TutorialItem>
-                    <TutorialItem label="U">Underline</TutorialItem>
-                    <TutorialItem label="S">Strikethrough</TutorialItem>
-                    <TutorialItem label="T (colour)">Text colour: select text, pick from grid</TutorialItem>
-                    <TutorialItem label="Highlight">Background colour behind selected text</TutorialItem>
+                  <ul className="space-y-2 mt-1">
+                    <TutorialItem label="Bold" icon={<Bold size={13} />}>Makes selected text bold</TutorialItem>
+                    <TutorialItem label="Italic" icon={<Italic size={13} />}>Makes selected text italic</TutorialItem>
+                    <TutorialItem label="Underline" icon={<Underline size={13} />}>Underlines selected text</TutorialItem>
+                    <TutorialItem label="Strikethrough" icon={<Strikethrough size={13} />}>Draws a line through selected text</TutorialItem>
+                    <TutorialItem label="Text colour" icon={<Type size={13} />}>Select text, then pick a colour from the grid</TutorialItem>
+                    <TutorialItem label="Highlight" icon={<Highlighter size={13} />}>Background colour behind selected text</TutorialItem>
                   </ul>
                 </TutorialSection>
 
                 {/* Structure */}
                 <TutorialSection title="Structure buttons">
-                  <ul className="space-y-1 mt-1">
-                    <TutorialItem label="Normal text / H2 / H3 / H4">Section headings. H2 is a main section, H3 a sub-section.</TutorialItem>
-                    <TutorialItem label="Bullet list">Press Tab to indent a level deeper</TutorialItem>
-                    <TutorialItem label="Numbered list" />
-                    <TutorialItem label="Blockquote">Pull quote with gold left border</TutorialItem>
-                    <TutorialItem label="Code block">Monospaced formatting</TutorialItem>
+                  <ul className="space-y-2 mt-1">
+                    <TutorialItem label="Headings (H2 / H3 / H4)" icon={<Heading2 size={13} />}>Section headings. H2 is a main section, H3 a sub-section.</TutorialItem>
+                    <TutorialItem label="Bullet list" icon={<List size={13} />}>Press Tab to indent a level deeper</TutorialItem>
+                    <TutorialItem label="Numbered list" icon={<ListOrdered size={13} />}>Ordered list with automatic numbering</TutorialItem>
+                    <TutorialItem label="Blockquote" icon={<Quote size={13} />}>Pull quote with gold left border</TutorialItem>
+                    <TutorialItem label="Code block" icon={<Code2 size={13} />}>Monospaced formatting for code or data</TutorialItem>
                   </ul>
                 </TutorialSection>
 
                 {/* Insert */}
                 <TutorialSection title="Insert buttons">
-                  <ul className="space-y-1 mt-1">
-                    <TutorialItem label="Link">Highlight text first, then click to add URL</TutorialItem>
-                    <TutorialItem label="Image">Inserts image at cursor position</TutorialItem>
-                    <TutorialItem label="Table">Hover grid to choose size, click to insert</TutorialItem>
-                    <TutorialItem label="Horizontal rule">Dividing line across the page</TutorialItem>
+                  <ul className="space-y-2 mt-1">
+                    <TutorialItem label="Link" icon={<Link2 size={13} />}>Highlight text first, then click to add a URL</TutorialItem>
+                    <TutorialItem label="Image" icon={<Upload size={13} />}>Inserts an image at the cursor position</TutorialItem>
+                    <TutorialItem label="Table" icon={<Table size={13} />}>Hover the grid to choose size, click to insert</TutorialItem>
+                    <TutorialItem label="Horizontal rule" icon={<Minus size={13} />}>Dividing line across the page</TutorialItem>
                   </ul>
                 </TutorialSection>
 
                 {/* Alignment */}
                 <TutorialSection title="Alignment">
-                  <p>Left, centre, and right alignment for the paragraph.</p>
+                  <ul className="space-y-2 mt-1">
+                    <TutorialItem label="Align left" icon={<AlignLeft size={13} />}>Left-aligns the current paragraph</TutorialItem>
+                    <TutorialItem label="Align centre" icon={<AlignCenter size={13} />}>Centres the current paragraph</TutorialItem>
+                    <TutorialItem label="Align right" icon={<AlignRight size={13} />}>Right-aligns the current paragraph</TutorialItem>
+                  </ul>
                 </TutorialSection>
 
                 {/* Right panel */}
                 <TutorialSection title="Right panel">
-                  <ul className="space-y-1 mt-1">
+                  <ul className="space-y-2 mt-1">
                     <TutorialItem label="Status">Draft while writing. Publish when ready (editors/admins) or Submit for review (writers).</TutorialItem>
                     <TutorialItem label="Category">Assign to News, Opinion, Analysis etc.</TutorialItem>
-                    <TutorialItem label="Cover image">Paste URL or upload file</TutorialItem>
-                    <TutorialItem label="Tags">Up to 10 tags, press Enter or comma after each</TutorialItem>
-                    <TutorialItem label="URL slug">Auto-generated from headline, editable</TutorialItem>
+                    <TutorialItem label="Cover image">Paste a URL or upload a file</TutorialItem>
+                    <TutorialItem label="Tags">Up to 10 tags — press Enter or comma after each</TutorialItem>
+                    <TutorialItem label="URL slug">Auto-generated from the headline, editable</TutorialItem>
                   </ul>
                 </TutorialSection>
 
                 {/* Dark mode */}
                 <TutorialSection title="Dark mode">
-                  <p>Click the moon icon to switch to dark mode. Preference is saved automatically.</p>
+                  <ul className="space-y-2 mt-1">
+                    <TutorialItem label="Moon / Sun" icon={<Moon size={13} />}>Click to toggle dark mode. Preference is saved automatically.</TutorialItem>
+                  </ul>
                 </TutorialSection>
 
                 {/* Word count */}
                 <TutorialSection title="Word count" last>
-                  <p>Updates live as you type, shown in the right panel.</p>
+                  <p>Updates live as you type — shown next to the read time in the right panel.</p>
                 </TutorialSection>
 
               </div>
@@ -1057,19 +1083,24 @@ function TutorialSection({
 
 function TutorialItem({
   label,
+  icon,
   children,
 }: {
   label: string
+  icon?: React.ReactNode
   children?: React.ReactNode
 }) {
   return (
-    <li className="flex gap-2">
-      <span className="shrink-0 inline-block font-medium text-[#555] dark:text-[#aaa] min-w-[120px]">
-        {label}
+    <li className="flex items-start gap-2.5">
+      <span className="shrink-0 w-[26px] h-[26px] flex items-center justify-center rounded border border-[#e0e0e0] dark:border-[#333] bg-[#f5f5f5] dark:bg-[#272727] text-[#444] dark:text-[#aaa]">
+        {icon ?? <span className="text-[10px] font-bold leading-none">{label.slice(0, 2)}</span>}
       </span>
-      {children && (
-        <span className="text-[#555] dark:text-[#999]">{children}</span>
-      )}
+      <span className="flex-1 pt-[3px]">
+        <span className="font-medium text-[#222] dark:text-[#ddd]">{label}</span>
+        {children && (
+          <span className="text-[#666] dark:text-[#888]"> — {children}</span>
+        )}
+      </span>
     </li>
   )
 }
