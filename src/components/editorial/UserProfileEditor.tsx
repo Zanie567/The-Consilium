@@ -481,7 +481,7 @@ export function UserProfileEditor({ user: initial, categories }: Props) {
                         {format(new Date(a.createdAt), 'd MMM yyyy')}
                       </td>
                       <td className="px-4 py-3 text-[var(--fg-faint)] text-xs hidden lg:table-cell">
-                        {a.publishedAt ? format(new Date(a.publishedAt), 'd MMM yyyy') : '—'}
+                        {a.publishedAt ? format(new Date(a.publishedAt), 'd MMM yyyy') : 'Not published'}
                       </td>
                     </tr>
                   ))}

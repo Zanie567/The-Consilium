@@ -406,7 +406,7 @@ export function ArticleEditor({
       <div className="flex items-center gap-2 pb-3 mb-1 border-b border-[#e8e8e8]">
         <Clock size={11} className="text-[#aaa] shrink-0" />
         <span className="text-[12px] text-[#aaa] uppercase tracking-wider font-medium">
-          {content.length > 2 ? readTimeLabel(content) : '— min read'}
+          {content.length > 2 ? readTimeLabel(content) : '- min read'}
         </span>
         {content.length > 2 && (
           <>
@@ -935,7 +935,7 @@ export function ArticleEditor({
 
                 {/* Getting started */}
                 <TutorialSection title="Getting started">
-                  <p>Your article auto-saves as you type — you will see &ldquo;Saving&rdquo; then &ldquo;Saved&rdquo; in the top bar. Click &ldquo;Save draft&rdquo; to save manually at any time.</p>
+                  <p>Your article auto-saves as you type. You will see &ldquo;Saving&rdquo; then &ldquo;Saved&rdquo; in the top bar. Click &ldquo;Save draft&rdquo; to save manually at any time.</p>
                 </TutorialSection>
 
                 {/* Formatting */}
@@ -986,7 +986,7 @@ export function ArticleEditor({
                     <TutorialItem label="Status">Draft while writing. Publish when ready (editors/admins) or Submit for review (writers).</TutorialItem>
                     <TutorialItem label="Category">Assign to News, Opinion, Analysis etc.</TutorialItem>
                     <TutorialItem label="Cover image">Paste a URL or upload a file</TutorialItem>
-                    <TutorialItem label="Tags">Up to 10 tags — press Enter or comma after each</TutorialItem>
+                    <TutorialItem label="Tags">Up to 10 tags. Press Enter or comma after each.</TutorialItem>
                     <TutorialItem label="URL slug">Auto-generated from the headline, editable</TutorialItem>
                   </ul>
                 </TutorialSection>
@@ -1000,7 +1000,7 @@ export function ArticleEditor({
 
                 {/* Word count */}
                 <TutorialSection title="Word count" last>
-                  <p>Updates live as you type — shown next to the read time in the right panel.</p>
+                  <p>Updates live as you type, shown next to the read time in the right panel.</p>
                 </TutorialSection>
 
               </div>
@@ -1053,7 +1053,7 @@ function TutorialItem({
       <span className="flex-1 pt-[3px]">
         <span className="font-medium text-[#222] dark:text-[#ddd]">{label}</span>
         {children && (
-          <span className="text-[#666] dark:text-[#888]"> — {children}</span>
+          <span className="text-[#666] dark:text-[#888]">: {children}</span>
         )}
       </span>
     </li>
