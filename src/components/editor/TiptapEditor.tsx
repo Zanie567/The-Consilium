@@ -788,7 +788,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         {contentOnly ? (
           <EditorContent
             editor={editor}
-            className={`tiptap-editor ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
+            className={`tiptap-editor tiptap-editor--bare ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
           />
         ) : (
           <>
