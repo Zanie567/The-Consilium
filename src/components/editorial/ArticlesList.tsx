@@ -24,6 +24,7 @@ interface Props {
   articles: ArticleItem[]
   isEditor: boolean
   isWriter: boolean
+  emptyMessage?: React.ReactNode
 }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -35,7 +36,7 @@ const STATUS_STYLE: Record<string, string> = {
   ARCHIVED: 'bg-[var(--bg-subtle)] text-[var(--fg-faint)]',
 }
 
-export function ArticlesList({ articles: initial, isEditor, isWriter }: Props) {
+export function ArticlesList({ articles: initial, isEditor, isWriter, emptyMessage }: Props) {
   const [articles, setArticles] = useState(initial)
   const [filter, setFilter] = useState<string>('all')
 
@@ -269,7 +270,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter }: Props) {
           </table></div>
         ) : (
           <div className="py-16 text-center text-[var(--fg-faint)] text-sm">
-            No articles match this filter.
+            {emptyMessage ?? 'No articles match this filter.'}
           </div>
         )}
       </div>

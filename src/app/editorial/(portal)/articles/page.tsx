@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { ArticlesList } from '@/components/editorial/ArticlesList'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
 import type { Metadata } from 'next'
@@ -97,6 +98,16 @@ export default async function EditorialArticlesPage({
           articles={articles as Parameters<typeof ArticlesList>[0]['articles']}
           isEditor={isEditor && !myDraftsMode}
           isWriter={role === 'WRITER'}
+          emptyMessage={
+            myDraftsMode ? (
+              <span>
+                You have no drafts yet.{' '}
+                <Link href="/editorial/articles/new" className="text-gold hover:underline">
+                  Start writing →
+                </Link>
+              </span>
+            ) : undefined
+          }
         />
       </PortalSection>
     </PortalPage>
