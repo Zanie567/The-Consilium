@@ -20,9 +20,9 @@ import { TextStyle, Color, FontSize as TipTapFontSize } from '@tiptap/extension-
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
 import {
   Bold, Italic, UnderlineIcon, Strikethrough, Link2, Link2Off, Upload,
-  Minus, AlignLeft, AlignCenter, AlignRight, AlignJustify,
+  Minus, AlignLeft, AlignCenter,
   Undo, Redo, ChevronDown, List, ListOrdered, Quote, Code2,
-  Star, Printer, Type, Highlighter, Table as TableIcon,
+  Type, Highlighter, Table as TableIcon,
   Indent, Outdent,
 } from 'lucide-react'
 import {
@@ -192,33 +192,44 @@ const HIGHLIGHT_COLORS = [
   '#ffffff',
 ]
 
-const FONT_SIZES = ['10','11','12','14','16','18','20','24','28','32','36','48','60','72']
-
 // ── Main component ────────────────────────────────────────────────────────────
 export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
   function TiptapEditor({ content, onChange, editable = true, saveStatus }, ref) {
     const fileInputRef      = useRef<HTMLInputElement>(null)
     const linkInputRef      = useRef<HTMLInputElement>(null)
-    const fontSizeRef       = useRef<HTMLInputElement>(null)
     const headingRef        = useRef<HTMLDivElement>(null)
     const colorPickerRef    = useRef<HTMLDivElement>(null)
     const highlightRef      = useRef<HTMLDivElement>(null)
     const tablePickerRef    = useRef<HTMLDivElement>(null)
-    const lineSpacingRef    = useRef<HTMLDivElement>(null)
 
-    const [linkBarOpen,        setLinkBarOpen]        = useState(false)
-    const [linkUrl,            setLinkUrl]            = useState('')
-    const [uploadError,        setUploadError]        = useState('')
-    const [uploading,          setUploading]          = useState(false)
-    const [headingOpen,        setHeadingOpen]        = useState(false)
-    const [colorOpen,          setColorOpen]          = useState(false)
-    const [highlightOpen,      setHighlightOpen]      = useState(false)
-    const [tableOpen,          setTableOpen]          = useState(false)
-    const [lineSpacingOpen,    setLineSpacingOpen]    = useState(false)
-    const [tableHover,         setTableHover]         = useState({ r: 0, c: 0 })
-    const [fontSizeInput,      setFontSizeInput]      = useState('16')
-    const [activeColor,        setActiveColor]        = useState<string | null>(null)
-    const [activeHighlight,    setActiveHighlight]    = useState<string | null>(null)
+    const [linkBarOpen,     setLinkBarOpen]     = useState(false)
+    const [linkUrl,         setLinkUrl]         = useState('')
+    const [uploadError,     setUploadError]     = useState('')
+    const [uploading,       setUploading]       = useState(false)
+    const [headingOpen,     setHeadingOpen]     = useState(false)
+    const [colorOpen,       setColorOpen]       = useState(false)
+    const [highlightOpen,   setHighlightOpen]   = useState(false)
+    const [tableOpen,       setTableOpen]       = useState(false)
+    const [tableHover,      setTableHover]      = useState({ r: 0, c: 0 })
+    const [activeColor,     setActiveColor]     = useState<string | null>(null)
+    const [activeHighlight, setActiveHighlight] = useState<string | null>(null)
+
+    // ── Explicit mark-state tracking so B/I/U buttons reflect cursor position
+    // without relying solely on editor.isActive() in the render cycle.
+    const [isBold,      setIsBold]      = useState(false)
+    const [isItalic,    setIsItalic]    = useState(false)
+    const [isUnderline, setIsUnderline] = useState(false)
+    const [isStrike,    setIsStrike]    = useState(false)
+
+    const syncMarkState = useCallback((ed: Editor) => {
+      setIsBold(ed.isActive('bold'))
+      setIsItalic(ed.isActive('italic'))
+      setIsUnderline(ed.isActive('underline'))
+      setIsStrike(ed.isActive('strike'))
+      const tsAttrs = ed.getAttributes('textStyle')
+      setActiveColor(tsAttrs.color ?? null)
+      setActiveHighlight(ed.getAttributes('highlight').color ?? null)
+    }, [])
 
     const editor = useEditor({
       editable,
@@ -245,15 +256,13 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
       content: content ? tryParseContent(content) : '',
       onUpdate: ({ editor: ed }) => {
         onChange(JSON.stringify(ed.getJSON()))
+        syncMarkState(ed)
       },
       onSelectionUpdate: ({ editor: ed }) => {
-        // TipTap 3: FontSize lives in textStyle.fontSize
-        const tsAttrs = ed.getAttributes('textStyle')
-        const rawSize: string = tsAttrs.fontSize ?? ''
-        const sz = rawSize ? parseInt(rawSize, 10).toString() : '16'
-        setFontSizeInput(sz)
-        setActiveColor(tsAttrs.color ?? null)
-        setActiveHighlight(ed.getAttributes('highlight').color ?? null)
+        syncMarkState(ed)
+      },
+      onTransaction: ({ editor: ed }) => {
+        syncMarkState(ed)
       },
       immediatelyRender: false,
       editorProps: {
@@ -286,7 +295,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         if (colorPickerRef.current && !colorPickerRef.current.contains(target)) setColorOpen(false)
         if (highlightRef.current  && !highlightRef.current.contains(target))  setHighlightOpen(false)
         if (tablePickerRef.current && !tablePickerRef.current.contains(target)) setTableOpen(false)
-        if (lineSpacingRef.current && !lineSpacingRef.current.contains(target)) setLineSpacingOpen(false)
       }
       document.addEventListener('mousedown', handler)
       return () => document.removeEventListener('mousedown', handler)
@@ -348,41 +356,15 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
       setLinkUrl('')
     }, [editor, linkUrl])
 
-    const applyFontSize = useCallback((size: string) => {
-      if (!editor) return
-      const n = parseInt(size, 10)
-      if (!isNaN(n) && n > 0) {
-        // TipTap 3's FontSize extension adds setFontSize to the chain
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(editor.chain().focus() as any).setFontSize(`${n}px`).run()
-        setFontSizeInput(String(n))
-      }
-    }, [editor])
-
-    const changeFontSize = useCallback((delta: number) => {
-      const cur = parseInt(fontSizeInput, 10) || 16
-      applyFontSize(String(Math.max(6, Math.min(96, cur + delta))))
-    }, [fontSizeInput, applyFontSize])
-
-    const applyLineSpacing = useCallback((spacing: string) => {
-      // Apply line height via textStyle attributes or a paragraph style
-      // TipTap doesn't have native line-spacing, we use CSS via a class
-      if (!editor) return
-      // We toggle a class on selected paragraphs via the DOM extension approach
-      // Simplest workaround: apply via paragraph attrs if supported, else noop
-      setLineSpacingOpen(false)
-    }, [editor])
-
     if (!editor) return null
 
     // Current text style for dropdown
     const getHeadingLabel = () => {
-      if (editor.isActive('heading', { level: 1 })) return 'Heading 1'
       if (editor.isActive('heading', { level: 2 })) return 'Heading 2'
       if (editor.isActive('heading', { level: 3 })) return 'Heading 3'
       if (editor.isActive('heading', { level: 4 })) return 'Heading 4'
-      if (editor.isActive('blockquote'))           return 'Block Quote'
-      if (editor.isActive('codeBlock'))            return 'Code Block'
+      if (editor.isActive('blockquote'))            return 'Block Quote'
+      if (editor.isActive('codeBlock'))             return 'Code Block'
       return 'Normal text'
     }
     const headingLabel = getHeadingLabel()
@@ -496,13 +478,10 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
             <ToolbarBtn onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Redo (Ctrl+Shift+Z)">
               <Redo size={15} />
             </ToolbarBtn>
-            <ToolbarBtn onClick={() => window.print()} title="Print">
-              <Printer size={15} />
-            </ToolbarBtn>
 
             <Sep />
 
-            {/* Group 2: Text style dropdown */}
+            {/* Group 2: Text style dropdown — Normal / H2 / H3 / H4 */}
             <div className="relative" ref={headingRef}>
               <button
                 type="button"
@@ -518,10 +497,9 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                 <div className="absolute left-0 top-full mt-1 bg-white dark:bg-[var(--bg-elevated)] border border-black/10 dark:border-white/10 shadow-xl z-50 min-w-[160px] rounded overflow-hidden">
                   {[
                     { label: 'Normal text', action: () => editor.chain().focus().setParagraph().run(), isActive: !editor.isActive('heading') && !editor.isActive('blockquote') && !editor.isActive('codeBlock'), size: '1rem' },
-                    { label: 'Heading 1', action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(), isActive: editor.isActive('heading', { level: 1 }), size: '1.6rem', weight: 700 },
-                    { label: 'Heading 2', action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(), isActive: editor.isActive('heading', { level: 2 }), size: '1.3rem', weight: 700 },
-                    { label: 'Heading 3', action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(), isActive: editor.isActive('heading', { level: 3 }), size: '1.1rem', weight: 700 },
-                    { label: 'Heading 4', action: () => editor.chain().focus().toggleHeading({ level: 4 }).run(), isActive: editor.isActive('heading', { level: 4 }), size: '1rem', weight: 700 },
+                    { label: 'Heading 2',   action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(), isActive: editor.isActive('heading', { level: 2 }), size: '1.3rem', weight: 700 },
+                    { label: 'Heading 3',   action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(), isActive: editor.isActive('heading', { level: 3 }), size: '1.1rem', weight: 700 },
+                    { label: 'Heading 4',   action: () => editor.chain().focus().toggleHeading({ level: 4 }).run(), isActive: editor.isActive('heading', { level: 4 }), size: '1rem',  weight: 700 },
                   ].map(({ label, action, isActive, size, weight }) => (
                     <button
                       key={label}
@@ -543,52 +521,23 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
             <Sep />
 
-            {/* Group 3: Font name */}
-            <div className="px-2 py-1 text-xs text-[#666] dark:text-[var(--fg-faint)] select-none h-7 flex items-center" title="Font">
-              Playfair
-            </div>
-
-            <Sep />
-
-            {/* Group 4: Font size */}
-            <ToolbarBtn onClick={() => changeFontSize(-1)} title="Decrease font size">
-              <span className="text-xs font-bold leading-none">A-</span>
-            </ToolbarBtn>
-            <input
-              ref={fontSizeRef}
-              type="number"
-              value={fontSizeInput}
-              onChange={(e) => setFontSizeInput(e.target.value)}
-              onBlur={(e) => applyFontSize(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyFontSize(fontSizeInput) } }}
-              min={6}
-              max={96}
-              className="w-10 h-7 text-center text-xs border border-black/15 dark:border-white/15 bg-transparent rounded focus:outline-none focus:border-[#1a2744] dark:focus:border-gold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              title="Font size"
-            />
-            <ToolbarBtn onClick={() => changeFontSize(1)} title="Increase font size">
-              <span className="text-xs font-bold leading-none">A+</span>
-            </ToolbarBtn>
-
-            <Sep />
-
-            {/* Group 5: Text formatting */}
-            <ToolbarBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold (Ctrl+B)">
+            {/* Group 3: Text formatting — B / I / U / S */}
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleBold().run()}      active={isBold}      title="Bold (Ctrl+B)">
               <Bold size={15} />
             </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Italic (Ctrl+I)">
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleItalic().run()}    active={isItalic}    title="Italic (Ctrl+I)">
               <Italic size={15} />
             </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} title="Underline (Ctrl+U)">
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={isUnderline} title="Underline (Ctrl+U)">
               <UnderlineIcon size={15} />
             </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} title="Strikethrough">
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleStrike().run()}    active={isStrike}    title="Strikethrough">
               <Strikethrough size={15} />
             </ToolbarBtn>
 
             <Sep />
 
-            {/* Group 6: Text color */}
+            {/* Group 4: Text colour */}
             <div className="relative" ref={colorPickerRef}>
               <button
                 type="button"
@@ -635,7 +584,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
               )}
             </div>
 
-            {/* Highlight color */}
+            {/* Highlight colour */}
             <div className="relative" ref={highlightRef}>
               <button
                 type="button"
@@ -684,7 +633,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
             <Sep />
 
-            {/* Group 7: Link */}
+            {/* Group 5: Link */}
             <ToolbarBtn onClick={openLinkBar} active={editor.isActive('link')} title="Insert / edit link">
               <Link2 size={15} />
             </ToolbarBtn>
@@ -696,8 +645,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
             <Sep />
 
-            {/* Group 8: Insert */}
-            {/* Image upload */}
+            {/* Group 6: Insert — image, table, HR */}
             <ToolbarBtn
               onClick={() => { setTimeout(() => fileInputRef.current?.click(), 0) }}
               title={uploading ? 'Uploading…' : 'Insert image'}
@@ -708,7 +656,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                 : <Upload size={15} />}
             </ToolbarBtn>
 
-            {/* Table grid picker */}
             <div className="relative" ref={tablePickerRef}>
               <ToolbarBtn
                 onClick={() => { setTableOpen((o) => !o); setColorOpen(false); setHighlightOpen(false) }}
@@ -752,14 +699,13 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
               )}
             </div>
 
-            {/* Horizontal rule */}
             <ToolbarBtn onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Horizontal rule">
               <Minus size={15} />
             </ToolbarBtn>
 
             <Sep />
 
-            {/* Group 9: Lists */}
+            {/* Group 7: Lists */}
             <ToolbarBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} title="Bullet list">
               <List size={15} />
             </ToolbarBtn>
@@ -783,59 +729,22 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
             <Sep />
 
-            {/* Group 10: Alignment */}
+            {/* Group 8: Alignment — left and centre only */}
             <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="Align left">
               <AlignLeft size={15} />
             </ToolbarBtn>
             <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} title="Align centre">
               <AlignCenter size={15} />
             </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} title="Align right">
-              <AlignRight size={15} />
-            </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('justify').run()} active={editor.isActive({ textAlign: 'justify' })} title="Justify">
-              <AlignJustify size={15} />
-            </ToolbarBtn>
 
             <Sep />
 
-            {/* Group 11: Line spacing */}
-            <div className="relative" ref={lineSpacingRef}>
-              <ToolbarBtn onClick={() => setLineSpacingOpen((o) => !o)} title="Line spacing">
-                <span className="text-xs leading-none font-bold">≡</span>
-              </ToolbarBtn>
-              {lineSpacingOpen && (
-                <div className="absolute left-0 top-full mt-1 bg-white dark:bg-[var(--bg-elevated)] border border-black/10 dark:border-white/10 shadow-xl z-50 py-1 rounded min-w-[120px]">
-                  {[
-                    { label: 'Single (1.0)', value: '1' },
-                    { label: '1.15', value: '1.15' },
-                    { label: '1.5', value: '1.5' },
-                    { label: 'Double (2.0)', value: '2' },
-                  ].map(({ label, value }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onMouseDown={(e) => { e.preventDefault(); applyLineSpacing(value) }}
-                      className="w-full text-left px-4 py-2 text-xs text-[#333] dark:text-[var(--fg)] hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <Sep />
-
-            {/* Group 12: Block formats */}
+            {/* Group 9: Block formats */}
             <ToolbarBtn onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')} title="Block quote">
               <Quote size={15} />
             </ToolbarBtn>
             <ToolbarBtn onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editor.isActive('codeBlock')} title="Code block">
               <Code2 size={15} />
-            </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().togglePullQuote().run()} active={editor.isActive('pullQuote')} title="Pull quote">
-              <Star size={15} />
             </ToolbarBtn>
 
             {/* Save status indicator */}

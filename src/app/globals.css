@@ -370,6 +370,8 @@ body {
   margin-bottom: 1.4em;
 }
 .tiptap-editor .ProseMirror ul { list-style-type: disc; }
+.tiptap-editor .ProseMirror ul ul { list-style-type: circle; }
+.tiptap-editor .ProseMirror ul ul ul { list-style-type: square; }
 .tiptap-editor .ProseMirror ol { list-style-type: decimal; }
 .tiptap-editor .ProseMirror li { margin-bottom: 0.35em; }
 .tiptap-editor .ProseMirror li > p { margin-bottom: 0.35em; }

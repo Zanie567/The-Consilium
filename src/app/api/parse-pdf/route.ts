@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import path from 'path'
+import { pathToFileURL } from 'url'
 
 // DOMMatrix polyfill — pdfjs-dist uses it even during text extraction,
 // but Node.js does not expose it as a global. This minimal implementation
@@ -139,21 +141,53 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs') as any
 
-    // Disable web worker (not available in Next.js API routes)
-    pdfjsLib.GlobalWorkerOptions.workerSrc = ''
+    // In pdfjs-dist v5, Node.js always uses the "fake worker" path (no Web Worker API).
+    // The fake worker is loaded via dynamic import() of workerSrc — it must be a non-empty,
+    // resolvable path. Use a file:// URL pointing to the bundled worker file.
+    const workerPath = path.join(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs')
+    pdfjsLib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href
 
-    const loadingTask = pdfjsLib.getDocument({
-      data,
-      useWorkerFetch: false,
-      isEvalSupported: false,
-      useSystemFonts: true,
-      disableFontFace: true,
-      verbosity: 0, // suppress console warnings
-    })
+    let loadingTask: any // eslint-disable-line @typescript-eslint/no-explicit-any
+    try {
+      loadingTask = pdfjsLib.getDocument({
+        data,
+        useWorkerFetch: false,
+        isEvalSupported: false,
+        useSystemFonts: true,
+        disableFontFace: true,
+        verbosity: 0, // suppress console warnings
+      })
+      // Reject immediately on password-protected PDFs rather than hanging
+      loadingTask.onPassword = () => {
+        loadingTask.destroy?.()
+        throw new Error('__password__')
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message === '__password__') {
+        return Response.json({ error: 'This PDF is password-protected and cannot be imported.' }, { status: 422 })
+      }
+      throw e
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pdf = await loadingTask.promise as any
+    let pdf: any
+    try {
+      pdf = await loadingTask.promise
+    } catch (e) {
+      // pdfjs throws PasswordException for encrypted PDFs
+      if (e && typeof e === 'object' && (e as any).name === 'PasswordException') {
+        return Response.json({ error: 'This PDF is password-protected and cannot be imported.' }, { status: 422 })
+      }
+      if (e && typeof e === 'object' && (e as any).name === 'InvalidPDFException') {
+        return Response.json({ error: 'The file does not appear to be a valid PDF.' }, { status: 422 })
+      }
+      throw e
+    }
     const numPages: number = pdf.numPages
+
+    if (numPages === 0) {
+      return Response.json({ error: 'This PDF has no pages.' }, { status: 422 })
+    }
 
     const pageTexts: string[] = []
     for (let pageNum = 1; pageNum <= numPages; pageNum++) {
