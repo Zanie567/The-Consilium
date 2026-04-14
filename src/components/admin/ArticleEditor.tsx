@@ -615,7 +615,7 @@ export function ArticleEditor({
     <div className="min-h-full">
 
       {/* FIXED: Top chrome (48px) */}
-      <div className="fixed top-0 left-[220px] right-0 z-50 h-12 bg-white border-b border-[#e0e0e0] flex items-center px-3 gap-2">
+      <div className="fixed top-0 left-[220px] right-0 z-50 h-12 bg-white dark:bg-[#1a1a1a] border-b border-[#e0e0e0] dark:border-[#333] flex items-center px-3 gap-2">
         <button
           onClick={handleBack}
           className="p-1.5 rounded hover:bg-[#f1f3f4] text-[#555] transition-colors shrink-0"
@@ -631,7 +631,7 @@ export function ArticleEditor({
           onChange={(e) => updateTitle(e.target.value)}
           disabled={!canEdit}
           placeholder="Untitled document"
-          className="flex-1 min-w-0 text-[15px] bg-transparent border-none outline-none placeholder:text-[#bbb] disabled:opacity-60 text-[#1a1a1a]"
+          className="flex-1 min-w-0 text-[15px] bg-transparent border-none outline-none placeholder:text-[#bbb] dark:placeholder:text-[#555] disabled:opacity-60 text-[#1a1a1a] dark:text-[#e8e8e8]"
         />
 
         {/* Status pill */}
@@ -754,7 +754,7 @@ export function ArticleEditor({
       {/* TiptapEditor's fixed toolbar renders at top-12 via toolbarFixed prop */}
 
       {/* Content (below both fixed bars = 88px) */}
-      <div className="pt-[88px] min-h-screen bg-[#f0f0f0]">
+      <div className="pt-[88px] min-h-screen bg-[#f0f0f0] dark:bg-[#111]">
 
         {/* Banners */}
         {(initialData?.editorNote || error || !canEdit) && (
@@ -784,7 +784,7 @@ export function ArticleEditor({
 
           {/* Document card */}
           <div
-            className="flex-none w-full max-w-[816px] bg-white"
+            className="flex-none w-full max-w-[816px] bg-white dark:bg-[#1e1e1e]"
             style={{
               boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)',
               minHeight: 'calc(100vh - 120px)',
@@ -910,7 +910,7 @@ export function ArticleEditor({
 
           {/* Right metadata panel (hidden below 1100px) */}
           <div className="hidden min-[1100px]:block flex-none w-[220px] sticky top-24">
-            <div className="bg-white border border-[#e0e0e0] rounded-lg p-4 overflow-hidden">
+            <div className="bg-white dark:bg-[#1a1a1a] border border-[#e0e0e0] dark:border-[#333] rounded-lg p-4 overflow-hidden">
               {renderMetadataFields()}
             </div>
           </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { Star, Pin, Trash2, ExternalLink } from 'lucide-react'
@@ -39,6 +39,11 @@ const STATUS_STYLE: Record<string, string> = {
 export function ArticlesList({ articles: initial, isEditor, isWriter, emptyMessage }: Props) {
   const [articles, setArticles] = useState(initial)
   const [filter, setFilter] = useState<string>('all')
+
+  useEffect(() => {
+    setArticles(initial)
+    setFilter('all')
+  }, [initial])
 
   const toggle = (id: string, field: 'isFeatured' | 'isPinned', value: boolean) => {
     setArticles((prev) => prev.map((a) => {

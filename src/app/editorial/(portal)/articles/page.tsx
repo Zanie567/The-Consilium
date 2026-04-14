@@ -95,6 +95,7 @@ export default async function EditorialArticlesPage({
       </PortalSection>
       <PortalSection>
         <ArticlesList
+          key={myDraftsMode ? 'my-drafts' : 'all-articles'}
           articles={articles as Parameters<typeof ArticlesList>[0]['articles']}
           isEditor={isEditor && !myDraftsMode}
           isWriter={role === 'WRITER'}

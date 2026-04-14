@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { signOut } from 'next-auth/react'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import {
   LayoutDashboard,
   FileText,
@@ -170,6 +171,7 @@ export function EditorialSidebar({ user }: { user: User }) {
               {user.role.charAt(0) + user.role.slice(1).toLowerCase()}
             </p>
           </div>
+          <ThemeToggle />
         </div>
         <button
           onClick={() => signOut({ callbackUrl: '/editorial/login' })}
