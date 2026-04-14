@@ -402,13 +402,6 @@ export default async function HomePage({
           </AnimateIn>
         )}
 
-        {/* ── Debate Panel ─────────────────────────────────────────────────── */}
-        {activeDebate && !categorySlug && (
-          <AnimateIn variant="fade-up" delay={0.1} className="mb-14">
-            <DebatePanel initialData={activeDebate} />
-          </AnimateIn>
-        )}
-
         {/* ── Category Tabs ────────────────────────────────────────────────── */}
         <AnimateIn variant="fade-in" delay={0.1}>
           <CategoryTabs categories={categories} currentSlug={categorySlug} />
@@ -444,6 +437,13 @@ export default async function HomePage({
             >
               View All Articles
             </Link>
+          </AnimateIn>
+        )}
+
+        {/* ── Debate Panel ─────────────────────────────────────────────────── */}
+        {activeDebate && !categorySlug && (
+          <AnimateIn variant="fade-up" delay={0.1} className="mt-14">
+            <DebatePanel initialData={activeDebate} />
           </AnimateIn>
         )}
 
