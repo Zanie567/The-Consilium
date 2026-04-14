@@ -108,7 +108,7 @@ export default async function AdminArticlesPage() {
                       {article.author.name}
                     </td>
                     <td className="px-4 py-3 text-navy/60 hidden md:table-cell">
-                      {article.category?.name ?? '—'}
+                      {article.category?.name ?? 'None'}
                     </td>
                     <td className="px-4 py-3">
                       <span

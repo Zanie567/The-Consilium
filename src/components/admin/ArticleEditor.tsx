@@ -629,7 +629,7 @@ export function ArticleEditor({
           <div className="flex items-center gap-2 text-[var(--fg-faint)]">
             <Clock size={11} className="shrink-0" />
             <span className="text-[10px] font-semibold uppercase tracking-widest">
-              {content.length > 2 ? readTimeLabel(content) : '— min read'}
+              {content.length > 2 ? readTimeLabel(content) : '1 min read'}
             </span>
           </div>
 

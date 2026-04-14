@@ -151,7 +151,7 @@ export default async function AdminDashboard() {
                         </Link>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-navy/60 text-xs hidden sm:table-cell">{article.category?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-navy/60 text-xs hidden sm:table-cell">{article.category?.name ?? 'None'}</td>
                     <td className="px-6 py-3 text-right">
                       <span className="text-purple-700 font-bold text-sm">{article.viewCount.toLocaleString()}</span>
                     </td>
@@ -210,7 +210,7 @@ export default async function AdminDashboard() {
                       {article.author.name}
                     </td>
                     <td className="px-4 py-3 text-navy/60 hidden md:table-cell">
-                      {article.category?.name ?? '—'}
+                      {article.category?.name ?? 'None'}
                     </td>
                     <td className="px-4 py-3">
                       <span
