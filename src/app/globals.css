@@ -93,10 +93,19 @@ html * {
 html *:where(button, a, [role="button"]) {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease,
     transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+  cursor: pointer;
+  /* Eliminates 300ms tap delay on mobile without disabling pinch-zoom */
+  touch-action: manipulation;
 }
 
 html *:where(button, [role="button"]):active, input[type="submit"]:active {
   transform: scale(0.97);
+}
+
+/* Links that act as block/inline-block buttons get a subtle press effect */
+html *:where(a):active {
+  transform: scale(0.985);
+  transition-duration: 0.06s;
 }
 
 /* ─── Global form field focus ──────────────────────────────────────────────── */
@@ -135,6 +144,10 @@ body {
   outline: 2px solid #c9a227;
   outline-offset: 3px;
   border-radius: 2px;
+  transition: outline-offset 0.15s ease;
+}
+:focus-visible:not(:focus-visible) {
+  outline: none;
 }
 
 /* ─── Prose styles for article content ────────────────────────────────────── */
@@ -498,6 +511,7 @@ body {
 }
 .card-hover:active {
   transform: translateY(-1px);
+  transition-duration: 0.08s;
 }
 
 /* ─── Utility: btn-lift ────────────────────────────────────────────────────── */
