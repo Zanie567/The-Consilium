@@ -6,11 +6,11 @@ import { ReactNode } from 'react'
 type AnimVariant = 'fade-up' | 'fade-in' | 'fade-left' | 'fade-right' | 'scale-in'
 
 const variantMap: Record<AnimVariant, Variants> = {
-  'fade-up':    { hidden: { opacity: 0, y: 28 },    visible: { opacity: 1, y: 0 } },
+  'fade-up':    { hidden: { opacity: 0, y: 20 },    visible: { opacity: 1, y: 0 } },
   'fade-in':    { hidden: { opacity: 0 },            visible: { opacity: 1 } },
-  'fade-left':  { hidden: { opacity: 0, x: -28 },   visible: { opacity: 1, x: 0 } },
-  'fade-right': { hidden: { opacity: 0, x: 28 },    visible: { opacity: 1, x: 0 } },
-  'scale-in':   { hidden: { opacity: 0, scale: 0.94 }, visible: { opacity: 1, scale: 1 } },
+  'fade-left':  { hidden: { opacity: 0, x: -20 },   visible: { opacity: 1, x: 0 } },
+  'fade-right': { hidden: { opacity: 0, x: 20 },    visible: { opacity: 1, x: 0 } },
+  'scale-in':   { hidden: { opacity: 0, scale: 0.96 }, visible: { opacity: 1, scale: 1 } },
 }
 
 const ease = [0.22, 1, 0.36, 1] as const
@@ -28,7 +28,7 @@ export function AnimateIn({
   children,
   variant = 'fade-up',
   delay = 0,
-  duration = 0.55,
+  duration = 0.5,
   className,
   once = true,
 }: AnimateInProps) {

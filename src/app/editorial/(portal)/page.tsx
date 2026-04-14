@@ -113,7 +113,7 @@ export default async function EditorialDashboard() {
             className="text-2xl font-bold text-[var(--fg)] mb-1"
             style={{ fontFamily: 'var(--font-serif)' }}
           >
-            Welcome back!
+            Welcome back.
           </h1>
           <p className="text-[var(--fg-muted)] text-sm">
             {isAdmin

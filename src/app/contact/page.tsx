@@ -1,6 +1,7 @@
 import { ContactForm } from '@/components/ui/ContactForm'
 import { Mail, MapPin } from 'lucide-react'
 import type { Metadata } from 'next'
+import { AnimateIn } from '@/components/ui/AnimateIn'
 
 export const metadata: Metadata = {
   title: 'Contact',
@@ -32,21 +33,25 @@ export default function ContactPage() {
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Header */}
       <section className="bg-navy py-14 px-4 border-b-2 border-gold text-center">
-        <p className="text-gold/60 text-xs tracking-[0.3em] uppercase mb-3">
-          Get In Touch
-        </p>
-        <h1
-          className="text-4xl sm:text-5xl font-bold text-gold"
-          style={{ fontFamily: 'var(--font-serif)' }}
-        >
-          Contact
-        </h1>
+        <AnimateIn variant="fade-in" duration={0.4}>
+          <p className="text-gold/60 text-xs tracking-[0.3em] uppercase mb-3">
+            Get In Touch
+          </p>
+        </AnimateIn>
+        <AnimateIn variant="fade-up" delay={0.08} duration={0.6}>
+          <h1
+            className="text-4xl sm:text-5xl font-bold text-gold"
+            style={{ fontFamily: 'var(--font-serif)' }}
+          >
+            Contact
+          </h1>
+        </AnimateIn>
       </section>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
           {/* Info column */}
-          <div className="lg:col-span-2">
+          <AnimateIn variant="fade-left" delay={0.1} duration={0.55} className="lg:col-span-2">
             <h2
               className="text-xl font-bold text-[var(--fg)] mb-4"
               style={{ fontFamily: 'var(--font-serif)' }}
@@ -111,12 +116,12 @@ export default function ContactPage() {
                 </a>
               </div>
             </div>
-          </div>
+          </AnimateIn>
 
           {/* Form column */}
-          <div className="lg:col-span-3">
+          <AnimateIn variant="fade-right" delay={0.18} duration={0.55} className="lg:col-span-3">
             <ContactForm />
-          </div>
+          </AnimateIn>
         </div>
       </div>
     </div>
