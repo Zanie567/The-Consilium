@@ -1,7 +1,9 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
+import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
+import { authOptions } from '@/lib/auth'
 import { format } from 'date-fns'
 import { Clock } from 'lucide-react'
 import { ShareButtons } from '@/components/ui/ShareButtons'
@@ -12,6 +14,7 @@ import { ViewCounter } from '@/components/ui/ViewCounter'
 import { PrintButton } from '@/components/ui/PrintButton'
 import { SaveAsPdfButton } from '@/components/ui/SaveAsPdfButton'
 import { BlurImage } from '@/components/ui/BlurImage'
+import { CommentSection } from '@/components/ui/CommentSection'
 import { readTimeLabel } from '@/lib/readTime'
 import type { Metadata } from 'next'
 
@@ -231,9 +234,16 @@ function renderContent(content: string): { html: string; footnotes: { index: num
 
 export default async function ArticlePage({ params }: Props) {
   const { slug } = await params
-  const article = await getArticle(slug)
+  const [article, session] = await Promise.all([
+    getArticle(slug),
+    getServerSession(authOptions),
+  ])
 
   if (!article) notFound()
+
+  const currentUser = session?.user
+    ? { id: session.user.id, name: session.user.name, role: session.user.role }
+    : null
 
   const related = await getRelatedArticles(
     article.id,
@@ -483,6 +493,11 @@ export default async function ArticlePage({ params }: Props) {
             </div>
           </AnimateIn>
         )}
+
+        {/* ── Comment Section ─────────────────────────────────────────────── */}
+        <div className="no-print">
+          <CommentSection articleId={article.id} currentUser={currentUser} />
+        </div>
 
         {/* Back link */}
         <div className="mt-12 pt-7 border-t border-[var(--border)] no-print">

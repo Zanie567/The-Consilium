@@ -18,6 +18,7 @@ async function getArticles(q?: string, categorySlug?: string) {
     return await prisma.article.findMany({
       where: {
         status: 'PUBLISHED',
+        isDebate: false,
         ...(q
           ? {
               OR: [

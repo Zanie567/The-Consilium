@@ -22,6 +22,11 @@ enum ArticleStatus {
   SCHEDULED
 }
 
+enum VoteSide {
+  FOR
+  AGAINST
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -49,6 +54,9 @@ model User {
   passwordResetTokens PasswordResetToken[]
   categoryAssignments CategoryEditor[]
   readingProgress    ReadingProgress[]
+  debateVotes        DebateVote[]
+  comments           Comment[]
+  commentUpvotes     CommentUpvote[]
 
   @@map("users")
 }
@@ -155,6 +163,7 @@ model Article {
   scheduledAt    DateTime?
   isFeatured     Boolean       @default(false)
   isPinned       Boolean       @default(false)
+  isDebate       Boolean       @default(false)
   corrected      Boolean       @default(false)
   correctionNote String?       @db.Text
   editorNote     String?       @db.Text
@@ -171,6 +180,9 @@ model Article {
   notifications   Notification[]
   readingProgress ReadingProgress[]
   tags            ArticleTag[]
+  comments        Comment[]
+  forDebates      Debate[]      @relation("ForArticle")
+  againstDebates  Debate[]      @relation("AgainstArticle")
 
   @@map("articles")
 }
@@ -227,15 +239,31 @@ model ArticleNote {
 }
 
 model ArticleView {
-  id        String   @id @default(cuid())
-  articleId String
-  viewedAt  DateTime @default(now())
-  source    String?  // "Direct" | "Search" | "Social" | "Email" | "Other"
+  id          String   @id @default(cuid())
+  articleId   String
+  viewedAt    DateTime @default(now())
+  sessionHash String?
+  referrer    String?
+  source      String?  // "Direct" | "Search" | "Social" | "Email" | "Other"
 
   article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
 
   @@index([articleId, viewedAt])
+  @@index([viewedAt])
+  @@index([sessionHash])
   @@map("article_views")
+}
+
+model SiteView {
+  id          String   @id @default(cuid())
+  viewedAt    DateTime @default(now())
+  sessionHash String?
+  referrer    String?
+  pagePath    String?
+
+  @@index([viewedAt])
+  @@index([sessionHash])
+  @@map("site_views")
 }
 
 model Notification {
@@ -310,4 +338,80 @@ model TeamMember {
   isActive Boolean @default(true)
 
   @@map("team_members")
+}
+
+// ── Debate feature ──────────────────────────────────────────────────────────
+
+model Debate {
+  id               String       @id @default(cuid())
+  title            String
+  description      String?
+  forArticleId     String
+  againstArticleId String
+  forArticle       Article      @relation("ForArticle",     fields: [forArticleId],     references: [id])
+  againstArticle   Article      @relation("AgainstArticle", fields: [againstArticleId], references: [id])
+  isActive         Boolean      @default(true)
+  closesAt         DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  votes            DebateVote[]
+
+  @@index([isActive])
+  @@map("debates")
+}
+
+model DebateVote {
+  id          String   @id @default(cuid())
+  debateId    String
+  debate      Debate   @relation(fields: [debateId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  anonymousId String?
+  side        VoteSide
+  createdAt   DateTime @default(now())
+
+  // Authenticated deduplication — one vote per user per debate
+  // Anonymous deduplication  — one vote per anonymousId per debate
+  // NULLs are distinct in Postgres unique constraints so these are safe
+  @@unique([debateId, userId])
+  @@unique([debateId, anonymousId])
+  @@index([debateId, side])
+  @@map("debate_votes")
+}
+
+// ── Comment feature ─────────────────────────────────────────────────────────
+
+model Comment {
+  id         String    @id @default(cuid())
+  articleId  String
+  article    Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body       String    @db.Text
+  isHidden   Boolean   @default(false)
+  flagReason String?
+  isReported Boolean   @default(false)
+  parentId   String?
+  parent     Comment?  @relation("Replies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies    Comment[] @relation("Replies")
+  upvotes    Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  upvotedBy  CommentUpvote[]
+
+  @@index([articleId, createdAt])
+  @@index([isReported])
+  @@map("comments")
+}
+
+model CommentUpvote {
+  id        String  @id @default(cuid())
+  commentId String
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@map("comment_upvotes")
 }

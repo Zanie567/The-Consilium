@@ -7,28 +7,27 @@
  *   /api/ticker/markets — Alpha Vantage: indices, forex, gold
  *   /api/ticker/macro   — FRED: CPI, unemployment, central bank rates
  *
+ * Directional arrows (▲/▼):
+ *   - Indices    : built-in changePercent from Alpha Vantage (day-over-day)
+ *   - Forex/Gold : localStorage comparison — direction vs previous 6-hour fetch
+ *   - Macro      : previousValue returned by FRED endpoint (month-over-month)
+ *   Every metric always shows an arrow; colour is green (up) or red (down).
+ *
  * Behaviour:
  *   - Shows fallback static data immediately; replaces with live data once fetched
  *   - Pauses animation on hover so users can read individual data points
  *   - prefers-reduced-motion: shows a static overflow-scrollable bar instead
  *   - Client-side refresh every 6 hours (server routes are also ISR-cached)
- *   - Homepage only — do not render on other routes; import only from page.tsx
- *
- * IMPORTANT (API keys):
- *   ALPHA_VANTAGE_API_KEY and FRED_API_KEY must be set in:
- *     - .env.local for local development
- *     - Vercel Dashboard > Settings > Environment Variables for production/preview
- *   The ticker falls back to static placeholder data if keys are missing or API calls fail.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 // ── Data types ──────────────────────────────────────────────────────────────
 
 interface IndexItem     { label: string; price: number; changePercent: number }
 interface ForexItem     { pair: string;  rate: number }
 interface CommodityItem { label: string; price: number }
-interface MacroItem     { label: string; value: number; unit: 'YOY' | '%' }
+interface MacroItem     { label: string; value: number; previousValue: number | null; unit: 'YOY' | '%' }
 
 interface MarketsData {
   indices:     IndexItem[]
@@ -41,74 +40,158 @@ interface MacroData {
 }
 
 // ── Fallback data ───────────────────────────────────────────────────────────
-// Rendered immediately on first paint and whenever both APIs are unavailable.
 
 const FALLBACK_MARKETS: MarketsData = {
   indices: [
-    { label: 'S&P 500',  price: 5234,  changePercent:  0.3 },
-    { label: 'FTSE 100', price: 7842,  changePercent:  0.4 },
-    { label: 'DAX',      price: 18245, changePercent:  0.2 },
-    { label: 'NIKKEI',   price: 38451, changePercent: -0.1 },
+    { label: 'S&P 500',  price: 6817,  changePercent: -0.11 },
+    { label: 'FTSE 100', price: 10583, changePercent: -0.17 },
+    { label: 'DAX',      price: 23521, changePercent: -1.19 },
+    { label: 'NIKKEI',   price: 57175, changePercent:  0.44 },
   ],
   forex: [
-    { pair: 'GBP/USD', rate: 1.2634 },
-    { pair: 'EUR/USD', rate: 1.0821 },
+    { pair: 'GBP/USD', rate: 1.3508 },
+    { pair: 'EUR/USD', rate: 1.1760 },
+    { pair: 'USD/CNY', rate: 6.8183 },
+    { pair: 'USD/INR', rate: 93.22  },
   ],
   commodities: [
-    { label: 'GOLD', price: 2342 },
+    { label: 'GOLD', price: 4733 },
   ],
 }
 
 const FALLBACK_MACRO: MacroData = {
   data: [
-    { label: 'FED RATE',        value: 5.50, unit: '%'   },
-    { label: 'BOE RATE',        value: 5.25, unit: '%'   },
-    { label: 'ECB RATE',        value: 4.00, unit: '%'   },
-    { label: 'US CPI',          value: 3.4,  unit: 'YOY' },
-    { label: 'UK CPI',          value: 3.2,  unit: 'YOY' },
-    { label: 'US UNEMPLOYMENT', value: 3.9,  unit: '%'   },
-    { label: 'UK UNEMPLOYMENT', value: 4.2,  unit: '%'   },
+    { label: 'FED RATE',        value: 3.75, previousValue: 4.00, unit: '%'   },
+    { label: 'BOE RATE',        value: 3.75, previousValue: 4.00, unit: '%'   },
+    { label: 'ECB RATE',        value: 2.00, previousValue: 2.25, unit: '%'   },
+    { label: 'US CPI',          value: 3.3,  previousValue: 3.5,  unit: 'YOY' },
+    { label: 'UK CPI',          value: 3.0,  previousValue: 3.2,  unit: 'YOY' },
+    { label: 'US UNEMPLOYMENT', value: 4.3,  previousValue: 4.1,  unit: '%'   },
+    { label: 'UK UNEMPLOYMENT', value: 5.2,  previousValue: 5.0,  unit: '%'   },
   ],
+}
+
+// ── localStorage helpers for forex/commodity direction tracking ─────────────
+
+const LS_KEY = 'consilium_ticker_prev_v2'
+
+interface StoredPrev {
+  forex: Record<string, number>
+  commodities: Record<string, number>
+  ts: number
+}
+
+function readPrev(): StoredPrev | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(LS_KEY)
+    return raw ? (JSON.parse(raw) as StoredPrev) : null
+  } catch { return null }
+}
+
+function writePrev(markets: MarketsData) {
+  if (typeof window === 'undefined') return
+  try {
+    const stored: StoredPrev = {
+      forex:       Object.fromEntries(markets.forex.map((f) => [f.pair,  f.rate])),
+      commodities: Object.fromEntries(markets.commodities.map((c) => [c.label, c.price])),
+      ts: Date.now(),
+    }
+    localStorage.setItem(LS_KEY, JSON.stringify(stored))
+  } catch { /* ignore quota errors */ }
+}
+
+// ── Direction helpers ───────────────────────────────────────────────────────
+
+type Dir = 'up' | 'down' | 'flat'
+
+function dir(current: number, previous: number | null | undefined): Dir {
+  if (previous == null) return 'flat'
+  if (current > previous) return 'up'
+  if (current < previous) return 'down'
+  return 'flat'
+}
+
+const UP_COLOR   = '#22c55e'   // Tailwind green-500
+const DOWN_COLOR = '#ef4444'   // Tailwind red-500
+const FLAT_COLOR = '#9ca3af'   // Tailwind gray-400
+
+function arrowColor(d: Dir) {
+  if (d === 'up')   return UP_COLOR
+  if (d === 'down') return DOWN_COLOR
+  return FLAT_COLOR
+}
+
+function arrowSymbol(d: Dir) {
+  if (d === 'up')   return '▲'
+  if (d === 'down') return '▼'
+  return '▶'
 }
 
 // ── Display item type ───────────────────────────────────────────────────────
 
 interface DisplayItem {
-  text: string
-  changeSuffix?: string
-  positive?: boolean
+  key:       string
+  label:     string
+  value:     string
+  direction: Dir
 }
 
-function buildDisplayItems(markets: MarketsData, macro: MacroData): DisplayItem[] {
+function buildDisplayItems(
+  markets: MarketsData,
+  macro:   MacroData,
+  prev:    StoredPrev | null,
+): DisplayItem[] {
   const items: DisplayItem[] = []
 
-  // Market indices — "S&P 500  5,234  ▲ 0.42%"
+  // Indices — direction from built-in changePercent (day-over-day)
   for (const idx of markets.indices) {
-    const arrow = idx.changePercent >= 0 ? '▲' : '▼'
-    const pct   = Math.abs(idx.changePercent).toFixed(2)
+    const d = idx.changePercent > 0 ? 'up' : idx.changePercent < 0 ? 'down' : 'flat'
+    const pct = Math.abs(idx.changePercent).toFixed(2)
     items.push({
-      text:         `${idx.label}  ${Math.round(idx.price).toLocaleString('en-GB')}`,
-      changeSuffix: `  ${arrow} ${pct}%`,
-      positive:     idx.changePercent >= 0,
+      key:       idx.label,
+      label:     idx.label,
+      value:     `${Math.round(idx.price).toLocaleString('en-GB')}  ${arrowSymbol(d as Dir)} ${pct}%`,
+      direction: d as Dir,
     })
   }
 
-  // Forex rates — "GBP/USD  1.2634"
+  // Forex — direction from localStorage comparison
   for (const fx of markets.forex) {
-    items.push({ text: `${fx.pair}  ${fx.rate.toFixed(4)}` })
+    const prevRate = prev?.forex?.[fx.pair] ?? null
+    const d = dir(fx.rate, prevRate)
+    items.push({
+      key:       fx.pair,
+      label:     fx.pair,
+      value:     `${fx.rate.toFixed(4)}  ${arrowSymbol(d)}`,
+      direction: d,
+    })
   }
 
-  // Commodities — "GOLD  2,342"
+  // Commodities — direction from localStorage comparison
   for (const c of markets.commodities) {
-    items.push({ text: `${c.label}  ${Math.round(c.price).toLocaleString('en-GB')}` })
+    const prevPrice = prev?.commodities?.[c.label] ?? null
+    const d = dir(c.price, prevPrice)
+    items.push({
+      key:       c.label,
+      label:     c.label,
+      value:     `${Math.round(c.price).toLocaleString('en-GB')}  ${arrowSymbol(d)}`,
+      direction: d,
+    })
   }
 
-  // Macro indicators — "FED RATE  5.25%" or "US CPI  3.4% YOY"
+  // Macro — direction from previousValue returned by FRED API
   for (const m of macro.data) {
-    const val = m.unit === 'YOY'
+    const d = dir(m.value, m.previousValue)
+    const formatted = m.unit === 'YOY'
       ? `${m.value.toFixed(1)}% YOY`
       : `${m.value.toFixed(2)}%`
-    items.push({ text: `${m.label}  ${val}` })
+    items.push({
+      key:       m.label,
+      label:     m.label,
+      value:     `${formatted}  ${arrowSymbol(d)}`,
+      direction: d,
+    })
   }
 
   return items
@@ -129,16 +212,22 @@ function Separator() {
 }
 
 function Item({ item }: { item: DisplayItem }) {
+  const color = arrowColor(item.direction)
+  // Split the value on the arrow symbol to colour just the arrow+suffix
+  const arrowIdx = item.value.lastIndexOf('  ')
+  const mainText = arrowIdx >= 0 ? item.value.slice(0, arrowIdx) : item.value
+  const arrowText = arrowIdx >= 0 ? item.value.slice(arrowIdx) : ''
+
   return (
     <span className="flex items-center shrink-0">
       <span
-        className="whitespace-nowrap text-[var(--fg)]"
+        className="whitespace-nowrap"
         style={{ fontSize: '12px', letterSpacing: '0.02em' }}
       >
-        {item.text}
-        {item.changeSuffix && (
-          <span style={{ color: item.positive ? 'var(--ticker-pos)' : 'var(--ticker-neg)' }}>
-            {item.changeSuffix}
+        <span className="text-[var(--fg)]">{item.label}  {mainText}</span>
+        {arrowText && (
+          <span style={{ color }} aria-hidden>
+            {arrowText}
           </span>
         )}
       </span>
@@ -150,12 +239,18 @@ function Item({ item }: { item: DisplayItem }) {
 // ── Main component ──────────────────────────────────────────────────────────
 
 export function EconomicTicker() {
-  const [markets, setMarkets]         = useState<MarketsData>(FALLBACK_MARKETS)
-  const [macro,   setMacro  ]         = useState<MacroData>(FALLBACK_MACRO)
-  const [paused,  setPaused ]         = useState(false)
+  const [markets, setMarkets] = useState<MarketsData>(FALLBACK_MARKETS)
+  const [macro,   setMacro  ] = useState<MacroData>(FALLBACK_MACRO)
+  const [prev,    setPrev   ] = useState<StoredPrev | null>(null)
+  const [paused,  setPaused ] = useState(false)
   const [prefersReduced, setPrefersReduced] = useState(false)
 
-  // Detect prefers-reduced-motion without Framer Motion
+  // Hydrate localStorage-stored previous values on mount
+  useEffect(() => {
+    setPrev(readPrev())
+  }, [])
+
+  // Detect prefers-reduced-motion
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
     setPrefersReduced(mq.matches)
@@ -171,11 +266,23 @@ export function EconomicTicker() {
         fetch('/api/ticker/markets'),
         fetch('/api/ticker/macro'),
       ])
+
+      let newMarkets: MarketsData | null = null
       if (mktResult.status === 'fulfilled' && mktResult.value.ok) {
-        try { setMarkets(await mktResult.value.json()) } catch { /* keep fallback */ }
+        try { newMarkets = await mktResult.value.json() } catch { /* keep fallback */ }
       }
       if (macResult.status === 'fulfilled' && macResult.value.ok) {
         try { setMacro(await macResult.value.json()) } catch { /* keep fallback */ }
+      }
+
+      if (newMarkets) {
+        // Store current as previous BEFORE updating state, so the direction
+        // arrows reflect "previous fetch → current fetch" correctly.
+        // On the very first fetch we read from localStorage (already in prev state).
+        writePrev(newMarkets)
+        setMarkets(newMarkets)
+        // Update the prev state for the next render cycle
+        setPrev(readPrev())
       }
     }
     fetchAll()
@@ -183,9 +290,8 @@ export function EconomicTicker() {
     return () => clearInterval(id)
   }, [])
 
-  const items = buildDisplayItems(markets, macro)
+  const items = buildDisplayItems(markets, macro, prev)
 
-  // Shared wrapper styles — reserves height to prevent layout shift
   const wrapperStyle: React.CSSProperties = {
     background:   'var(--bg-subtle)',
     height:       '30px',
@@ -196,7 +302,6 @@ export function EconomicTicker() {
     borderBottom: '1px solid var(--border)',
   }
 
-  // Left-pinned "MARKETS" label
   const label = (
     <div
       aria-hidden
@@ -219,7 +324,7 @@ export function EconomicTicker() {
     </div>
   )
 
-  // ── Reduced-motion variant: static, overflow-scrollable ─────────────────
+  // ── Reduced-motion variant ─────────────────────────────────────────────
   if (prefersReduced) {
     return (
       <div
@@ -232,16 +337,14 @@ export function EconomicTicker() {
           style={{ flex: 1, overflowX: 'auto', display: 'flex', alignItems: 'center', scrollbarWidth: 'none' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', minWidth: 'max-content' }}>
-            {items.map((item, i) => <Item key={i} item={item} />)}
+            {items.map((item) => <Item key={item.key} item={item} />)}
           </div>
         </div>
       </div>
     )
   }
 
-  // ── Animated scrolling ticker ────────────────────────────────────────────
-  // translateX goes 0 → -50% because we render items twice; when the first
-  // copy scrolls off-left the second copy fills its place seamlessly.
+  // ── Animated scrolling ticker ─────────────────────────────────────────
   return (
     <div
       role="marquee"
@@ -261,13 +364,13 @@ export function EconomicTicker() {
             willChange:         'transform',
           }}
         >
-          {/* Copy 1 — primary, readable by screen readers */}
+          {/* Copy 1 — readable by screen readers */}
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            {items.map((item, i) => <Item key={i} item={item} />)}
+            {items.map((item) => <Item key={item.key} item={item} />)}
           </div>
-          {/* Copy 2 — seamless loop duplicate, hidden from assistive tech */}
+          {/* Copy 2 — seamless loop duplicate */}
           <div style={{ display: 'flex', alignItems: 'center' }} aria-hidden>
-            {items.map((item, i) => <Item key={`d${i}`} item={item} />)}
+            {items.map((item) => <Item key={`d-${item.key}`} item={item} />)}
           </div>
         </div>
       </div>

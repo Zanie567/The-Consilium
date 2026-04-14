@@ -13,6 +13,7 @@ const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/category/news', label: 'News' },
   { href: '/category/opinion', label: 'Opinion' },
+  { href: '/opinion-debate', label: 'Debate' },
   { href: '/category/analysis', label: 'Analysis' },
   { href: '/category/interviews', label: 'Interviews' },
   { href: '/about', label: 'About' },

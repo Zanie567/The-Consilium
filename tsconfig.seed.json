@@ -5,5 +5,5 @@
     "moduleResolution": "node",
     "outDir": "./dist"
   },
-  "include": ["prisma/seed.ts"]
+  "include": ["prisma/seed.ts", "prisma/seed-debates.ts"]
 }

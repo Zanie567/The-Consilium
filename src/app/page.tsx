@@ -1,6 +1,9 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import { cookies } from 'next/headers'
+import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
+import { authOptions } from '@/lib/auth'
 import { format } from 'date-fns'
 import { Clock } from 'lucide-react'
 import { NewsletterSignup } from '@/components/ui/NewsletterSignup'
@@ -9,21 +12,24 @@ import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/Animat
 import { ContinueReading } from '@/components/ui/ContinueReading'
 import { ArticleCard } from '@/components/ui/ArticleCard'
 import { BlurImage } from '@/components/ui/BlurImage'
+import { DebatePanel, type DebateData } from '@/components/ui/DebatePanel'
 import { readTimeLabel } from '@/lib/readTime'
 import { EconomicTicker } from '@/components/ui/EconomicTicker'
+import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
 
 async function getFeaturedArticle() {
   try {
     // First try explicitly featured, then fall back to most recent published
+    // Debate articles are excluded — they live on /opinion-debate
     const featured = await prisma.article.findFirst({
-      where: { status: 'PUBLISHED', isFeatured: true },
+      where: { status: 'PUBLISHED', isFeatured: true, isDebate: false },
       include: { author: true, category: true },
     })
     if (featured) return featured
     return await prisma.article.findFirst({
-      where: { status: 'PUBLISHED' },
+      where: { status: 'PUBLISHED', isDebate: false },
       orderBy: { publishedAt: 'desc' },
       include: { author: true, category: true },
     })
@@ -35,7 +41,6 @@ async function getFeaturedArticle() {
 async function getMostReadArticles() {
   try {
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-    // Get articles with most views in the last 7 days
     const topIds = await prisma.articleView.groupBy({
       by: ['articleId'],
       where: { viewedAt: { gte: weekAgo } },
@@ -44,9 +49,8 @@ async function getMostReadArticles() {
       take: 5,
     })
     if (topIds.length === 0) {
-      // Fall back to all-time view count
       return prisma.article.findMany({
-        where: { status: 'PUBLISHED' },
+        where: { status: 'PUBLISHED', isDebate: false },
         orderBy: { viewCount: 'desc' },
         take: 5,
         select: { id: true, title: true, slug: true, viewCount: true, author: { select: { name: true } }, category: { select: { name: true } } },
@@ -54,7 +58,7 @@ async function getMostReadArticles() {
     }
     const ids = topIds.map((r) => r.articleId)
     const articles = await prisma.article.findMany({
-      where: { id: { in: ids }, status: 'PUBLISHED' },
+      where: { id: { in: ids }, status: 'PUBLISHED', isDebate: false },
       select: { id: true, title: true, slug: true, viewCount: true, author: { select: { name: true } }, category: { select: { name: true } } },
     })
     // Sort by weekly views order
@@ -69,6 +73,7 @@ async function getArticles(categorySlug?: string) {
     return await prisma.article.findMany({
       where: {
         status: 'PUBLISHED',
+        isDebate: false,
         ...(categorySlug ? { category: { slug: categorySlug } } : {}),
       },
       orderBy: { publishedAt: 'desc' },
@@ -85,6 +90,82 @@ async function getCategories() {
     return await prisma.category.findMany({ orderBy: { name: 'asc' } })
   } catch {
     return []
+  }
+}
+
+function estimateReadTime(content: string): string {
+  try {
+    const words = JSON.stringify(JSON.parse(content)).split(/\s+/).length
+    return `${Math.max(1, Math.round(words / 200))} min read`
+  } catch {
+    return `${Math.max(1, Math.round(content.split(/\s+/).length / 200))} min read`
+  }
+}
+
+async function getActiveDebate(userId?: string, anonymousId?: string): Promise<DebateData | null> {
+  try {
+    const debate = await prisma.debate.findFirst({
+      where: { isActive: true },
+      include: {
+        forArticle: { select: { id: true, title: true, slug: true, excerpt: true, content: true, author: { select: { name: true } } } },
+        againstArticle: { select: { id: true, title: true, slug: true, excerpt: true, content: true, author: { select: { name: true } } } },
+        _count: { select: { votes: true } },
+      },
+    })
+    if (!debate) return null
+
+    const isClosed = debate.closesAt ? new Date() > debate.closesAt : false
+
+    let existingVote: { side: string } | null = null
+    if (userId) {
+      existingVote = await prisma.debateVote.findFirst({ where: { debateId: debate.id, userId }, select: { side: true } })
+    } else if (anonymousId) {
+      existingVote = await prisma.debateVote.findFirst({ where: { debateId: debate.id, anonymousId }, select: { side: true } })
+    }
+
+    const hasVoted = existingVote !== null || isClosed
+    let forPct = 0, againstPct = 0, forCount = 0, againstCount = 0
+
+    if (hasVoted) {
+      const counts = await prisma.debateVote.groupBy({
+        by: ['side'], where: { debateId: debate.id }, _count: { side: true },
+      })
+      forCount = counts.find((c) => c.side === 'FOR')?._count.side ?? 0
+      againstCount = counts.find((c) => c.side === 'AGAINST')?._count.side ?? 0
+      const total = forCount + againstCount
+      forPct = total > 0 ? Math.round((forCount / total) * 100) : 0
+      againstPct = total > 0 ? 100 - forPct : 0
+    }
+
+    return {
+      id: debate.id,
+      title: debate.title,
+      description: debate.description,
+      isClosed,
+      closesAt: debate.closesAt?.toISOString() ?? null,
+      forArticle: {
+        id: debate.forArticle.id,
+        title: debate.forArticle.title,
+        slug: debate.forArticle.slug,
+        excerpt: debate.forArticle.excerpt,
+        author: debate.forArticle.author.name,
+        readTime: estimateReadTime(debate.forArticle.content),
+      },
+      againstArticle: {
+        id: debate.againstArticle.id,
+        title: debate.againstArticle.title,
+        slug: debate.againstArticle.slug,
+        excerpt: debate.againstArticle.excerpt,
+        author: debate.againstArticle.author.name,
+        readTime: estimateReadTime(debate.againstArticle.content),
+      },
+      hasVoted,
+      userSide: (existingVote?.side as 'FOR' | 'AGAINST') ?? null,
+      totalVotes: debate._count.votes,
+      ...(hasVoted && { forCount, againstCount, forPct, againstPct }),
+    }
+  } catch {
+    return null
   }
 }
 
@@ -124,6 +205,31 @@ async function getTrendingTags() {
   }
 }
 
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const debate = await prisma.debate.findFirst({ where: { isActive: true }, select: { title: true } })
+    if (debate) {
+      return {
+        title: `${debate.title} | The Consilium`,
+        description: `Read both sides and vote in our latest debate: ${debate.title}`,
+        openGraph: {
+          title: `Debate: ${debate.title}`,
+          description: `Read both sides and cast your vote on The Consilium.`,
+        },
+        twitter: {
+          card: 'summary',
+          title: `Debate: ${debate.title}`,
+          description: `Read both sides and cast your vote on The Consilium.`,
+        },
+      }
+    }
+  } catch { /* fall through */ }
+  return {
+    title: 'The Consilium | University of Edinburgh Economics Society',
+    description: 'Economics analysis, opinion, and research from the University of Edinburgh.',
+  }
+}
+
 export default async function HomePage({
   searchParams,
 }: {
@@ -132,12 +238,18 @@ export default async function HomePage({
   const params = await searchParams
   const categorySlug = params.category
 
-  const [featured, articles, categories, mostRead, trendingTags] = await Promise.all([
+  // Fetch debate server-side so it's in the HTML for SEO
+  const session = await getServerSession(authOptions)
+  const cookieStore = await cookies()
+  const anonymousId = cookieStore.get('consilium_anon_id')?.value
+
+  const [featured, articles, categories, mostRead, trendingTags, activeDebate] = await Promise.all([
     getFeaturedArticle(),
     getArticles(categorySlug),
     getCategories(),
     getMostReadArticles(),
     getTrendingTags(),
+    getActiveDebate(session?.user?.id, anonymousId),
   ])
 
   const gridArticles = featured
@@ -287,6 +399,13 @@ export default async function HomePage({
                 Check back soon for our latest publications.
               </p>
             </div>
+          </AnimateIn>
+        )}
+
+        {/* ── Debate Panel ─────────────────────────────────────────────────── */}
+        {activeDebate && !categorySlug && (
+          <AnimateIn variant="fade-up" delay={0.1} className="mb-14">
+            <DebatePanel initialData={activeDebate} />
           </AnimateIn>
         )}
 

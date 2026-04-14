@@ -50,9 +50,9 @@ const INDEX_CONFIG: IndexConfig[] = [
   { label: 'S&P 500', symbol: 'SPY', multiplier: 10 },
   // For these, ETF price (£30, $35, $65) doesn't map to the index level,
   // so we use a fixed base price and only take the live % change from the ETF.
-  { label: 'FTSE 100', symbol: 'EWU', basePrice: 7842 },
-  { label: 'DAX',      symbol: 'EWG', basePrice: 18245 },
-  { label: 'NIKKEI',   symbol: 'EWJ', basePrice: 38451 },
+  { label: 'FTSE 100', symbol: 'EWU', basePrice: 10583 },
+  { label: 'DAX',      symbol: 'EWG', basePrice: 23521 },
+  { label: 'NIKKEI',   symbol: 'EWJ', basePrice: 57175 },
 ]
 
 const FOREX_PAIRS = [
@@ -66,19 +66,19 @@ const FOREX_PAIRS = [
 
 const FALLBACK = {
   indices: [
-    { label: 'S&P 500', price: 5234,  changePercent:  0.3 },
-    { label: 'FTSE 100', price: 7842,  changePercent:  0.4 },
-    { label: 'DAX',      price: 18245, changePercent:  0.2 },
-    { label: 'NIKKEI',   price: 38451, changePercent: -0.1 },
+    { label: 'S&P 500',  price: 6817,  changePercent: -0.11 },
+    { label: 'FTSE 100', price: 10583, changePercent: -0.17 },
+    { label: 'DAX',      price: 23521, changePercent: -1.19 },
+    { label: 'NIKKEI',   price: 57175, changePercent:  0.44 },
   ],
   forex: [
-    { pair: 'GBP/USD', rate: 1.2634 },
-    { pair: 'EUR/USD', rate: 1.0821 },
-    { pair: 'USD/CNY', rate: 7.2312 },
-    { pair: 'USD/INR', rate: 83.45  },
+    { pair: 'GBP/USD', rate: 1.3508 },
+    { pair: 'EUR/USD', rate: 1.1760 },
+    { pair: 'USD/CNY', rate: 6.8183 },
+    { pair: 'USD/INR', rate: 93.22  },
   ],
   commodities: [
-    { label: 'GOLD', price: 2342 },
+    { label: 'GOLD', price: 4733 },
   ],
 } as const
 
