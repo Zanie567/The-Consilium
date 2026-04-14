@@ -54,7 +54,7 @@ export function EditorialSidebar({ user }: { user: User }) {
       label: 'CONTENT',
       items: [
         { href: '/editorial/articles', icon: FileText, label: user.role === 'WRITER' ? 'My Articles' : 'All Articles', show: true },
-        { href: '/editorial/articles/new', icon: PlusCircle, label: 'New Article', show: true },
+        { href: '/editorial/articles/new', icon: PlusCircle, label: 'New Article', exact: true, show: true },
         { href: '/editorial/series', icon: BookOpen, label: 'Article Series', show: isEditor },
         { href: '/editorial/scheduled', icon: Clock, label: 'Scheduled', show: isEditor },
       ],
@@ -78,6 +78,14 @@ export function EditorialSidebar({ user }: { user: User }) {
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) return pathname === href
+    // Articles list should match /editorial/articles and /articles/[id]/edit,
+    // but NOT /editorial/articles/new (that's its own nav item).
+    if (href === '/editorial/articles') {
+      return (
+        pathname === '/editorial/articles' ||
+        (pathname.startsWith('/editorial/articles/') && pathname !== '/editorial/articles/new')
+      )
+    }
     return pathname.startsWith(href) && href !== '/editorial'
   }
 

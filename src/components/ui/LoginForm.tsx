@@ -6,7 +6,7 @@ import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-export function LoginForm({ redirectTo = '/admin' }: { redirectTo?: string }) {
+export function LoginForm({ redirectTo = '/editorial' }: { redirectTo?: string }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
