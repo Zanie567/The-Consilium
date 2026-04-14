@@ -22,13 +22,14 @@ export const dynamic = 'force-dynamic'
 async function getFeaturedArticle() {
   try {
     // First try explicitly featured, then fall back to most recent published
+    // Debate articles are excluded — they live on /opinion-debate
     const featured = await prisma.article.findFirst({
-      where: { status: 'PUBLISHED', isFeatured: true },
+      where: { status: 'PUBLISHED', isFeatured: true, isDebate: false },
       include: { author: true, category: true },
     })
     if (featured) return featured
     return await prisma.article.findFirst({
-      where: { status: 'PUBLISHED' },
+      where: { status: 'PUBLISHED', isDebate: false },
       orderBy: { publishedAt: 'desc' },
       include: { author: true, category: true },
     })
@@ -40,7 +41,6 @@ async function getFeaturedArticle() {
 async function getMostReadArticles() {
   try {
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-    // Get articles with most views in the last 7 days
     const topIds = await prisma.articleView.groupBy({
       by: ['articleId'],
       where: { viewedAt: { gte: weekAgo } },
@@ -49,9 +49,8 @@ async function getMostReadArticles() {
       take: 5,
     })
     if (topIds.length === 0) {
-      // Fall back to all-time view count
       return prisma.article.findMany({
-        where: { status: 'PUBLISHED' },
+        where: { status: 'PUBLISHED', isDebate: false },
         orderBy: { viewCount: 'desc' },
         take: 5,
         select: { id: true, title: true, slug: true, viewCount: true, author: { select: { name: true } }, category: { select: { name: true } } },
@@ -59,7 +58,7 @@ async function getMostReadArticles() {
     }
     const ids = topIds.map((r) => r.articleId)
     const articles = await prisma.article.findMany({
-      where: { id: { in: ids }, status: 'PUBLISHED' },
+      where: { id: { in: ids }, status: 'PUBLISHED', isDebate: false },
       select: { id: true, title: true, slug: true, viewCount: true, author: { select: { name: true } }, category: { select: { name: true } } },
     })
     // Sort by weekly views order
@@ -74,6 +73,7 @@ async function getArticles(categorySlug?: string) {
     return await prisma.article.findMany({
       where: {
         status: 'PUBLISHED',
+        isDebate: false,
         ...(categorySlug ? { category: { slug: categorySlug } } : {}),
       },
       orderBy: { publishedAt: 'desc' },

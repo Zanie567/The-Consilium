@@ -132,6 +132,16 @@ const freeTradeAgainstContent = doc(
   p('The choice is not between free trade and autarky. It is between naive free trade orthodoxy and a more sophisticated approach that takes seriously the strategic, distributional, and dynamic dimensions that Ricardo\'s model ignores. Managed trade, with active industrial policy and strong domestic adjustment mechanisms, has a better real-world track record than its critics admit.'),
 )
 
+// ── Cover images (Unsplash, free to use) ────────────────────────────────────
+const IMAGES = {
+  // Workers in discussion — minimum wage / labour market
+  minWage:   'https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=1200&q=80',
+  // AI chip / neural network — AI regulation
+  aiReg:     'https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=1200&q=80',
+  // Shipping containers at port — free trade / global commerce
+  freeTrade: 'https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=1200&q=80',
+}
+
 // ── Seed function ────────────────────────────────────────────────────────────
 
 async function main() {
@@ -342,6 +352,17 @@ async function main() {
     const forCount = voteData.filter((v) => v.side === 'FOR').length
     console.log(`  ✓ Seeded ${count} votes for "${debate.title}" (${forCount} FOR, ${count - forCount} AGAINST)`)
   }
+
+  // ── Patch cover images on all debate articles (idempotent) ───────────────
+  await Promise.all([
+    prisma.article.update({ where: { id: debate1.forArticleId },      data: { coverImage: IMAGES.minWage   } }),
+    prisma.article.update({ where: { id: debate1.againstArticleId },  data: { coverImage: IMAGES.minWage   } }),
+    prisma.article.update({ where: { id: debate2.forArticleId },      data: { coverImage: IMAGES.aiReg     } }),
+    prisma.article.update({ where: { id: debate2.againstArticleId },  data: { coverImage: IMAGES.aiReg     } }),
+    prisma.article.update({ where: { id: debate3.forArticleId },      data: { coverImage: IMAGES.freeTrade } }),
+    prisma.article.update({ where: { id: debate3.againstArticleId },  data: { coverImage: IMAGES.freeTrade } }),
+  ])
+  console.log('  ✓ Cover images set on all debate articles')
 
   console.log('✅ Debate seed complete')
 }

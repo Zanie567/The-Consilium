@@ -54,7 +54,12 @@ const SERIES: SeriesConfig[] = [
 
 // ── FRED helper ────────────────────────────────────────────────────────────
 
-async function fetchFredValue(cfg: SeriesConfig): Promise<number | null> {
+interface FredResult {
+  value: number
+  previousValue: number | null
+}
+
+async function fetchFredValue(cfg: SeriesConfig): Promise<FredResult | null> {
   if (!FRED_KEY) return null
   try {
     const params = new URLSearchParams({
@@ -62,7 +67,7 @@ async function fetchFredValue(cfg: SeriesConfig): Promise<number | null> {
       api_key:    FRED_KEY,
       file_type:  'json',
       sort_order: 'desc',
-      limit:      '1',
+      limit:      '2',   // fetch two so we can compute direction
       ...(cfg.fredUnits ? { units: cfg.fredUnits } : {}),
     })
     const url = `${FRED_BASE}?${params}`
@@ -72,14 +77,19 @@ async function fetchFredValue(cfg: SeriesConfig): Promise<number | null> {
       return null
     }
     const json = await res.json()
-    const obs = json?.observations?.[0]
-    // FRED uses '.' to indicate a missing/not-yet-released observation
-    if (!obs || obs.value === '.' || obs.value === null || obs.value === undefined) {
+    const obs = json?.observations ?? []
+    const latest  = obs[0]
+    const prev    = obs[1]
+    if (!latest || latest.value === '.' || latest.value == null) {
       console.error(`[ticker/macro] FRED ${cfg.seriesId} missing observation:`, JSON.stringify(json).slice(0, 120))
       return null
     }
-    const parsed = parseFloat(obs.value)
-    return isNaN(parsed) ? null : parsed
+    const value = parseFloat(latest.value)
+    if (isNaN(value)) return null
+    const previousValue = prev && prev.value !== '.' && prev.value != null
+      ? parseFloat(prev.value)
+      : null
+    return { value, previousValue: isNaN(previousValue ?? NaN) ? null : previousValue }
   } catch (err) {
     console.error(`[ticker/macro] FRED ${cfg.seriesId} error:`, err)
     return null
@@ -92,11 +102,15 @@ export async function GET() {
   try {
     const results = await Promise.all(SERIES.map(fetchFredValue))
 
-    const data = SERIES.map((cfg, i) => ({
-      label:   cfg.label,
-      value:   results[i] ?? cfg.fallback,
-      unit:    cfg.unit,
-    }))
+    const data = SERIES.map((cfg, i) => {
+      const res = results[i]
+      return {
+        label:         cfg.label,
+        value:         res?.value         ?? cfg.fallback,
+        previousValue: res?.previousValue ?? null,
+        unit:          cfg.unit,
+      }
+    })
 
     return NextResponse.json(
       { data, source: FRED_KEY ? 'fred' : 'fallback', updatedAt: new Date().toISOString() },
@@ -112,7 +126,7 @@ export async function GET() {
     console.error('[ticker/macro] Unhandled error, returning fallback:', err)
     return NextResponse.json(
       {
-        data:      SERIES.map((cfg) => ({ label: cfg.label, value: cfg.fallback, unit: cfg.unit })),
+        data:      SERIES.map((cfg) => ({ label: cfg.label, value: cfg.fallback, previousValue: null, unit: cfg.unit })),
         source:    'fallback',
         updatedAt: new Date().toISOString(),
       },
