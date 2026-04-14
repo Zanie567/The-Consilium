@@ -11,16 +11,25 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-export default async function EditorialArticlesPage() {
+export default async function EditorialArticlesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mine?: string; status?: string }>
+}) {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/editorial/login')
+
+  const { mine: mineParam, status: statusParam } = await searchParams
 
   const role = session.user.role
   const isEditor = role === 'ADMIN' || role === 'EDITOR'
   const userId = session.user.id
 
+  // "My Drafts" mode: filter to current user's drafts regardless of role
+  const myDraftsMode = mineParam === 'true' && statusParam === 'DRAFT'
+
   let assignedCategoryIds: string[] | null = null
-  if (role === 'EDITOR') {
+  if (role === 'EDITOR' && !myDraftsMode) {
     const assignments = await prisma.categoryEditor.findMany({
       where: { userId },
       select: { categoryId: true },
@@ -30,10 +39,14 @@ export default async function EditorialArticlesPage() {
 
   const articles = await prisma.article.findMany({
     where: {
-      ...(role === 'WRITER' ? { authorId: userId } : {}),
-      ...(assignedCategoryIds && assignedCategoryIds.length > 0
-        ? { categoryId: { in: assignedCategoryIds } }
-        : {}),
+      ...(myDraftsMode
+        ? { authorId: userId, status: 'DRAFT' }
+        : {
+            ...(role === 'WRITER' ? { authorId: userId } : {}),
+            ...(assignedCategoryIds && assignedCategoryIds.length > 0
+              ? { categoryId: { in: assignedCategoryIds } }
+              : {}),
+          }),
     },
     orderBy: { updatedAt: 'desc' },
     take: 100,
@@ -52,6 +65,12 @@ export default async function EditorialArticlesPage() {
     },
   }).catch(() => [])
 
+  const pageTitle = myDraftsMode
+    ? 'My Drafts'
+    : role === 'WRITER'
+    ? 'My Articles'
+    : 'All Articles'
+
   return (
     <PortalPage className="p-6 lg:p-8 max-w-6xl">
       <PortalSection className="mb-6 flex items-center justify-between">
@@ -60,7 +79,7 @@ export default async function EditorialArticlesPage() {
             className="text-2xl font-bold text-[var(--fg)] mb-1"
             style={{ fontFamily: 'var(--font-serif)' }}
           >
-            {role === 'WRITER' ? 'My Articles' : 'All Articles'}
+            {pageTitle}
           </h1>
           <p className="text-[var(--fg-muted)] text-sm">
             {articles.length} article{articles.length !== 1 ? 's' : ''}
@@ -76,7 +95,7 @@ export default async function EditorialArticlesPage() {
       <PortalSection>
         <ArticlesList
           articles={articles as Parameters<typeof ArticlesList>[0]['articles']}
-          isEditor={isEditor}
+          isEditor={isEditor && !myDraftsMode}
           isWriter={role === 'WRITER'}
         />
       </PortalSection>

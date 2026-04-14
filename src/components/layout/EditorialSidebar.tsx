@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import {
   LayoutDashboard,
@@ -16,6 +16,7 @@ import {
   BarChart2,
   MessagesSquare,
   MessageCircle,
+  Pencil,
 } from 'lucide-react'
 
 interface User {
@@ -40,6 +41,7 @@ interface NavGroup {
 
 export function EditorialSidebar({ user }: { user: User }) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   const isEditor = user.role === 'ADMIN' || user.role === 'EDITOR'
   const isAdmin = user.role === 'ADMIN'
@@ -54,6 +56,7 @@ export function EditorialSidebar({ user }: { user: User }) {
       label: 'CONTENT',
       items: [
         { href: '/editorial/articles', icon: FileText, label: user.role === 'WRITER' ? 'My Articles' : 'All Articles', show: true },
+        { href: '/editorial/articles?mine=true&status=DRAFT', icon: Pencil, label: 'My Drafts', exact: true, show: true },
         { href: '/editorial/articles/new', icon: PlusCircle, label: 'New Article', exact: true, show: true },
         { href: '/editorial/series', icon: BookOpen, label: 'Article Series', show: isEditor },
         { href: '/editorial/scheduled', icon: Clock, label: 'Scheduled', show: isEditor },
@@ -77,16 +80,26 @@ export function EditorialSidebar({ user }: { user: User }) {
   ]
 
   const isActive = (href: string, exact?: boolean) => {
-    if (exact) return pathname === href
-    // Articles list should match /editorial/articles and /articles/[id]/edit,
-    // but NOT /editorial/articles/new (that's its own nav item).
-    if (href === '/editorial/articles') {
+    const [hrefPath, hrefQuery] = href.split('?')
+    // Links with query params: require both pathname and all specified params to match
+    if (hrefQuery) {
+      if (pathname !== hrefPath) return false
+      const hrefParams = new URLSearchParams(hrefQuery)
+      for (const [key, val] of hrefParams.entries()) {
+        if (searchParams.get(key) !== val) return false
+      }
+      return true
+    }
+    if (exact) return pathname === hrefPath
+    // Articles list: match /editorial/articles and edits, but NOT /new or query-param variants
+    if (hrefPath === '/editorial/articles') {
+      if (searchParams.get('mine') === 'true') return false // "My Drafts" is active instead
       return (
         pathname === '/editorial/articles' ||
         (pathname.startsWith('/editorial/articles/') && pathname !== '/editorial/articles/new')
       )
     }
-    return pathname.startsWith(href) && href !== '/editorial'
+    return pathname.startsWith(hrefPath) && hrefPath !== '/editorial'
   }
 
   return (
