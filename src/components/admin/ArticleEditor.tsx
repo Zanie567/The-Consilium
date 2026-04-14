@@ -4,8 +4,8 @@ import React, { useState, useCallback, useRef, useEffect, KeyboardEvent } from '
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import {
-  Save, Send, Eye, X, Tag, ArrowLeft, Check, AlertCircle,
-  ImagePlus, Loader2, ChevronDown, FileUp, Clock,
+  Eye, ArrowLeft, Check, AlertCircle,
+  Loader2, ChevronDown, FileUp, Clock, Settings,
 } from 'lucide-react'
 import slugify from 'slugify'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
@@ -13,9 +13,16 @@ import { readTimeLabel } from '@/lib/readTime'
 
 const TiptapEditor = dynamic(
   () => import('@/components/editor/TiptapEditor').then((m) => m.TiptapEditor),
-  { ssr: false, loading: () => <div className="h-[640px] editor-outer animate-pulse" /> }
+  { ssr: false, loading: () => <div className="h-[640px] animate-pulse" /> }
 ) as React.ForwardRefExoticComponent<
-  { content?: string; onChange: (content: string) => void; editable?: boolean; saveStatus?: 'idle' | 'saving' | 'saved' | 'error' } &
+  {
+    content?: string
+    onChange: (content: string) => void
+    editable?: boolean
+    saveStatus?: 'idle' | 'saving' | 'saved' | 'error'
+    toolbarPortalRef?: React.RefObject<HTMLDivElement | null>
+    noWrapper?: boolean
+  } &
   React.RefAttributes<TiptapEditorHandle>
 >
 
@@ -92,6 +99,7 @@ export function ArticleEditor({
   const [coverDragOver, setCoverDragOver] = useState(false)
   const [error, setError] = useState('')
   const [coverError, setCoverError] = useState('')
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const titleRef = useRef<HTMLTextAreaElement>(null)
   const excerptRef = useRef<HTMLTextAreaElement>(null)
@@ -101,6 +109,7 @@ export function ArticleEditor({
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const hasMounted = useRef(false)
   const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const toolbarContainerRef = useRef<HTMLDivElement | null>(null)
   const [pdfImporting, setPdfImporting] = useState(false)
   const [pdfError, setPdfError] = useState('')
 
@@ -330,460 +339,490 @@ export function ArticleEditor({
     }
   }
 
-  return (
-    <div className="flex flex-col min-h-full">
+  const panelLabelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: 10,
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    color: '#999',
+    marginBottom: 4,
+    marginTop: 12,
+  }
+  const panelInputStyle: React.CSSProperties = {
+    width: '100%',
+    height: 32,
+    fontSize: 12,
+    border: '1px solid #d0d0d0',
+    borderRadius: 4,
+    padding: '0 8px',
+    outline: 'none',
+    background: '#fff',
+    color: '#333',
+    boxSizing: 'border-box',
+  }
+  const panelSelectStyle: React.CSSProperties = {
+    ...panelInputStyle,
+    appearance: 'none',
+    paddingRight: 24,
+    cursor: 'pointer',
+  }
 
-      {/* ── Sticky action bar ─────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-30 bg-[var(--bg)] border-b border-[var(--border)] flex items-center justify-between gap-4 px-5 py-2.5">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={handleBack}
-            className="text-[var(--fg-faint)] hover:text-gold transition-colors shrink-0"
-            aria-label="Back"
-          >
-            <ArrowLeft size={16} />
-          </button>
+  // Shared panel fields used in both right panel and mobile drawer
+  const panelFields = (
+    <>
+      {/* Read time */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#999', marginBottom: 12 }}>
+        <Clock size={12} />
+        <span style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          {content.length > 2 ? readTimeLabel(content) : '1 min read'}
+        </span>
+      </div>
 
-          {/* Status badge */}
-          <span className={`hidden sm:inline-flex items-center text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 border ${STATUS_COLOURS[status] ?? STATUS_COLOURS.DRAFT}`}>
-            {STATUS_LABELS[status] ?? status}
-          </span>
+      <div style={{ height: 1, background: '#e0e0e0', marginBottom: 12 }} />
 
-          {/* Truncated title preview */}
-          <span className="text-[var(--fg-muted)] text-sm truncate min-w-0 hidden md:block">
-            {title || 'Untitled'}
+      {/* Status */}
+      {!isWriter ? (
+        <div style={{ marginBottom: 12 }}>
+          <label style={panelLabelStyle}>Status</label>
+          <div style={{ position: 'relative' }}>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} style={panelSelectStyle}>
+              <option value="DRAFT">Draft</option>
+              <option value="PENDING_REVIEW">Pending Review</option>
+              {canPublish && <option value="PUBLISHED">Published</option>}
+              {canPublish && <option value="SCHEDULED">Scheduled</option>}
+              <option value="ARCHIVED">Archived</option>
+            </select>
+            <ChevronDown size={11} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: '#999', pointerEvents: 'none' }} />
+          </div>
+        </div>
+      ) : (
+        <div style={{ marginBottom: 12 }}>
+          <label style={panelLabelStyle}>Status</label>
+          <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border ${STATUS_COLOURS[currentStatus] ?? STATUS_COLOURS.DRAFT}`}>
+            {STATUS_LABELS[currentStatus] ?? currentStatus}
           </span>
         </div>
+      )}
 
-        {/* Auto-save indicator + actions */}
-        <div className="flex items-center gap-2 shrink-0">
-          {saveStatus === 'saving' && (
-            <span className="flex items-center gap-1.5 text-[var(--fg-faint)] text-xs">
-              <Loader2 size={11} className="animate-spin" />
-              Saving
-            </span>
-          )}
-          {saveStatus === 'saved' && (
-            <span className="flex items-center gap-1.5 text-emerald-500 text-xs">
-              <Check size={11} />
-              Saved
-            </span>
-          )}
-          {saveStatus === 'error' && (
-            <span className="flex items-center gap-1.5 text-red-500 text-xs">
-              <AlertCircle size={11} />
-              Save failed
-            </span>
-          )}
+      {/* Scheduled date */}
+      {!isWriter && status === 'SCHEDULED' && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={panelLabelStyle}>Publish at</label>
+          <input
+            type="datetime-local"
+            value={scheduledAt}
+            min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+            onChange={(e) => setScheduledAt(e.target.value)}
+            style={panelInputStyle}
+          />
+        </div>
+      )}
 
-          {articleId && status === 'PUBLISHED' && (
-            <a
-              href={`/articles/${slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[var(--fg-muted)] text-xs px-3 py-1.5 border border-[var(--border)] hover:border-gold hover:text-gold transition-colors"
-            >
-              <Eye size={12} />
-              <span className="hidden sm:inline">View live</span>
-            </a>
-          )}
-
-          {canEdit && (
-            <button
-              onClick={() => handleSave()}
-              disabled={saveStatus === 'saving'}
-              className="inline-flex items-center gap-1.5 text-[var(--fg-muted)] text-xs px-3 py-1.5 border border-[var(--border)] hover:border-gold hover:text-gold transition-colors disabled:opacity-50"
-            >
-              <Save size={12} />
-              <span className="hidden sm:inline">Save draft</span>
-            </button>
-          )}
-
-          {canPublish && canEdit && status === 'SCHEDULED' && (
-            <button
-              onClick={() => handleSave('SCHEDULED')}
-              disabled={saveStatus === 'saving'}
-              className="inline-flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold uppercase tracking-widest px-4 py-1.5 hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-              <Send size={12} />
-              Confirm Schedule
-            </button>
-          )}
-
-          {canPublish && canEdit && status !== 'SCHEDULED' && (
-            <button
-              onClick={() => handleSave(status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED')}
-              disabled={saveStatus === 'saving'}
-              className="inline-flex items-center gap-1.5 bg-navy text-gold text-xs font-bold uppercase tracking-widest px-4 py-1.5 hover:bg-navy/80 transition-colors disabled:opacity-50"
-            >
-              <Send size={12} />
-              {status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
-            </button>
-          )}
-
-          {isWriter && (currentStatus === 'DRAFT' || currentStatus === 'REJECTED') && (
-            <button
-              onClick={() => handleSave('PENDING_REVIEW')}
-              disabled={saveStatus === 'saving'}
-              className="inline-flex items-center gap-1.5 bg-amber-600 text-white text-xs font-bold uppercase tracking-widest px-4 py-1.5 hover:bg-amber-700 transition-colors disabled:opacity-50"
-            >
-              <Send size={12} />
-              Submit
-            </button>
-          )}
+      {/* Category */}
+      <div style={{ marginBottom: 12 }}>
+        <label style={panelLabelStyle}>Category</label>
+        <div style={{ position: 'relative' }}>
+          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} disabled={!canEdit} style={panelSelectStyle}>
+            <option value="">No category</option>
+            {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+          </select>
+          <ChevronDown size={11} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: '#999', pointerEvents: 'none' }} />
         </div>
       </div>
 
-      {/* ── Banners ───────────────────────────────────────────────────────── */}
-      {initialData?.editorNote && (
-        <div className="mx-6 mt-5 bg-amber-500/8 border border-amber-500/20 px-5 py-4">
-          <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1.5">
-            Editor feedback
-          </p>
-          <p className="text-sm text-[var(--fg-muted)] leading-relaxed">{initialData.editorNote}</p>
-        </div>
-      )}
-
-      {error && (
-        <div className="mx-6 mt-5 flex items-start gap-2 bg-red-500/8 border border-red-500/20 px-4 py-3 text-red-500 text-sm">
-          <AlertCircle size={14} className="mt-0.5 shrink-0" />
-          {error}
-        </div>
-      )}
-
-      {!canEdit && (
-        <div className="mx-6 mt-5 bg-[var(--bg-subtle)] border border-[var(--border)] px-4 py-3 text-[var(--fg-muted)] text-sm">
-          This article is under review and cannot be edited until an editor responds.
-        </div>
-      )}
-
-      {/* ── Main layout ───────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-0">
-
-        {/* Writing column */}
-        <div className="flex-1 min-w-0 editor-outer">
-
-          {/* Metadata area — rendered as a mini document page above the editor */}
-          <div className="py-6 px-4">
-            <div className="editor-page max-w-[816px] mx-auto px-10 py-8">
-
-              {/* Cover image upload zone */}
-              <div className="mb-6">
-                <p className="text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
-                  Cover Image
-                </p>
-                <input
-                  ref={coverFileRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleCoverUpload}
-                />
-
-                {coverError && (
-                  <div className="mb-2 text-xs text-red-500 bg-red-500/8 border border-red-500/20 px-3 py-2">
-                    {coverError}
-                  </div>
-                )}
-
-                {coverImage ? (
-                  <div
-                    className={`relative group aspect-video w-full overflow-hidden bg-[var(--bg-subtle)] ${
-                      coverDragOver ? 'ring-2 ring-gold' : ''
-                    }`}
-                    onDragOver={(e) => { e.preventDefault(); setCoverDragOver(true) }}
-                    onDragLeave={() => setCoverDragOver(false)}
-                    onDrop={(e) => {
-                      e.preventDefault()
-                      setCoverDragOver(false)
-                      const file = e.dataTransfer.files?.[0]
-                      if (file) uploadCoverFile(file)
-                    }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={coverImage}
-                      alt="Cover"
-                      className="w-full h-full object-cover"
-                      onError={(e) => { ;(e.target as HTMLImageElement).style.display = 'none' }}
-                    />
-                    {canEdit && (
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => coverFileRef.current?.click()}
-                          className="flex items-center gap-2 text-white text-xs font-semibold bg-black/40 border border-white/20 px-4 py-2 hover:bg-black/60 transition-colors"
-                        >
-                          <ImagePlus size={13} />
-                          {uploading ? 'Uploading...' : 'Change cover'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCoverImage('')}
-                          className="flex items-center gap-2 text-white/70 text-xs bg-black/30 border border-white/10 px-3 py-2 hover:bg-black/50 transition-colors"
-                        >
-                          <X size={13} />
-                          Remove
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  canEdit && (
-                    <div
-                      onClick={() => coverFileRef.current?.click()}
-                      onDragOver={(e) => { e.preventDefault(); setCoverDragOver(true) }}
-                      onDragLeave={() => setCoverDragOver(false)}
-                      onDrop={(e) => {
-                        e.preventDefault()
-                        setCoverDragOver(false)
-                        const file = e.dataTransfer.files?.[0]
-                        if (file) uploadCoverFile(file)
-                      }}
-                      className={`w-full aspect-video border-2 border-dashed transition-colors flex flex-col items-center justify-center gap-3 cursor-pointer select-none ${
-                        coverDragOver
-                          ? 'border-gold bg-gold/5 text-gold'
-                          : 'border-[var(--border)] hover:border-gold/40 hover:bg-gold/[0.02] text-[var(--fg-faint)]'
-                      }`}
-                    >
-                      <ImagePlus size={14} className="transition-colors" />
-                      <div className="text-center">
-                        <p className="text-xs font-medium">
-                          {uploading ? 'Uploading...' : coverDragOver ? 'Drop to upload' : 'Add cover image'}
-                        </p>
-                        <p className="text-[10px] opacity-50 mt-0.5">
-                          Shown at the top of the published article
-                        </p>
-                      </div>
-                    </div>
-                  )
-                )}
-              </div>
-
-              {/* Title */}
-              <textarea
-                ref={titleRef}
-                value={title}
-                onChange={handleTitleChange}
-                disabled={!canEdit}
-                placeholder="Your headline here..."
-                rows={1}
-                className="w-full bg-transparent border-none outline-none resize-none leading-tight placeholder:text-[#bbb] disabled:opacity-60 overflow-hidden"
-                style={{
-                  color: '#1a1a1a',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: 'clamp(1.75rem, 4vw, 2.75rem)',
-                  fontWeight: 700,
-                }}
-              />
-
-              {/* Excerpt */}
-              <textarea
-                ref={excerptRef}
-                value={excerpt}
-                onChange={(e) => setExcerpt(e.target.value)}
-                disabled={!canEdit}
-                placeholder="Write a brief summary that draws readers in..."
-                rows={2}
-                className="w-full mt-3 bg-transparent border-none outline-none resize-none text-lg leading-relaxed placeholder:text-[#ccc] disabled:opacity-60 overflow-hidden"
-                style={{ color: '#555' }}
-              />
-
-              {/* PDF import link */}
-              <div className="mt-4 pt-4 border-t border-black/8 flex items-center gap-2">
-                <input
-                  ref={pdfFileRef}
-                  type="file"
-                  accept=".pdf"
-                  className="hidden"
-                  onChange={handlePdfImport}
-                />
-                <button
-                  type="button"
-                  onClick={() => pdfFileRef.current?.click()}
-                  disabled={pdfImporting || !canEdit}
-                  className="inline-flex items-center gap-1.5 text-[#888] text-xs px-3 py-1.5 border border-black/15 rounded hover:border-[#1a2744] hover:text-[#1a2744] transition-colors disabled:opacity-50"
-                >
-                  <FileUp size={13} />
-                  {pdfImporting ? 'Importing…' : 'Import from PDF'}
-                </button>
-                {pdfError && <span className="text-red-500 text-xs">{pdfError}</span>}
-              </div>
-            </div>
+      {/* Cover image */}
+      <div style={{ marginBottom: 12 }}>
+        <label style={panelLabelStyle}>Cover image</label>
+        <input
+          ref={coverFileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleCoverUpload}
+        />
+        <input
+          type="url"
+          value={coverImage}
+          onChange={(e) => setCoverImage(e.target.value)}
+          placeholder="https://..."
+          style={panelInputStyle}
+        />
+        {canEdit && !coverImage && (
+          <button
+            type="button"
+            onClick={() => coverFileRef.current?.click()}
+            style={{ marginTop: 4, fontSize: 11, color: '#888', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
+          >
+            {uploading ? 'Uploading...' : '\u2191 Upload file'}
+          </button>
+        )}
+        {coverImage && (
+          <div style={{ marginTop: 6, position: 'relative' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={coverImage}
+              alt="Cover preview"
+              style={{ width: '100%', height: 60, objectFit: 'cover', borderRadius: 4, display: 'block' }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+            {canEdit && (
+              <button type="button" onClick={() => setCoverImage('')}
+                style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: 3, color: '#fff', cursor: 'pointer', padding: '2px 4px', fontSize: 10 }}>
+                &times;
+              </button>
+            )}
           </div>
+        )}
+        {coverError && <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{coverError}</p>}
+      </div>
 
-          {/* Content editor — has its own document page */}
-          <TiptapEditor
-            ref={editorRef}
-            content={content}
-            onChange={handleContentChange}
-            editable={canEdit}
-            saveStatus={saveStatus}
+      {/* Tags */}
+      <div style={{ marginBottom: 12 }}>
+        <label style={panelLabelStyle}>Tags</label>
+        {tags.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+            {tags.map((t) => (
+              <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, color: '#555', background: '#f0f0f0', border: '1px solid #ddd', borderRadius: 3, padding: '2px 6px' }}>
+                {t}
+                {canEdit && (
+                  <button type="button" onClick={() => setTags(tags.filter((x) => x !== t))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 10, padding: 0, lineHeight: 1 }}>&times;</button>
+                )}
+              </span>
+            ))}
+          </div>
+        )}
+        {canEdit && (
+          <input
+            type="text"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={handleTagKeyDown}
+            onBlur={() => tagInput && addTag(tagInput)}
+            placeholder={tags.length < 10 ? 'Add tag, press Enter...' : 'Max 10 tags'}
+            disabled={tags.length >= 10}
+            style={panelInputStyle}
+          />
+        )}
+      </div>
+
+      {/* URL slug */}
+      {!isWriter && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={panelLabelStyle}>URL slug</label>
+          <input
+            type="text"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            placeholder="url-slug"
+            style={{ ...panelInputStyle, fontFamily: 'monospace' }}
           />
         </div>
+      )}
+    </>
+  )
 
-        {/* Settings sidebar */}
-        <div className="lg:w-72 xl:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-[var(--border)] bg-[var(--bg)] p-5 space-y-5">
+  return (
+    <>
+      {/* Top chrome bar (fixed) */}
+      <div
+        style={{
+          position: 'fixed', top: 0, left: 240, right: 0, height: 48,
+          background: '#fff', borderBottom: '1px solid #e0e0e0',
+          zIndex: 50, display: 'flex', alignItems: 'center',
+          gap: 8, padding: '0 12px',
+        }}
+      >
+        <button
+          onClick={handleBack}
+          className="text-[#666] hover:text-[#1a2744] transition-colors shrink-0 p-1.5 rounded hover:bg-[#f1f3f4]"
+          aria-label="Back"
+        >
+          <ArrowLeft size={16} />
+        </button>
 
-          {/* Read time estimate */}
-          <div className="flex items-center gap-2 text-[var(--fg-faint)]">
-            <Clock size={11} className="shrink-0" />
-            <span className="text-[10px] font-semibold uppercase tracking-widest">
-              {content.length > 2 ? readTimeLabel(content) : '1 min read'}
-            </span>
-          </div>
+        {/* Title input - same state as document title */}
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => {
+            setTitle(e.target.value)
+            setIsDirty(true)
+            if (!articleId) setSlug(slugify(e.target.value, { lower: true, strict: true, trim: true }))
+          }}
+          disabled={!canEdit}
+          placeholder="Untitled document"
+          className="flex-1 min-w-0 bg-transparent border-none outline-none text-[#1a1a1a] disabled:opacity-60"
+          style={{ fontSize: 15, fontFamily: 'var(--font-serif)' }}
+        />
 
-          {/* Status (editors/admins only) */}
-          {!isWriter && (
-            <div>
-              <label className="block text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
-                Status
-              </label>
-              <div className="relative">
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="w-full appearance-none border border-[var(--border)] px-3 py-2.5 pr-8 text-[var(--fg)] text-sm focus:outline-none focus:border-gold bg-[var(--bg-elevated)] cursor-pointer"
-                >
-                  <option value="DRAFT">Draft</option>
-                  <option value="PENDING_REVIEW">Pending Review</option>
-                  {canPublish && <option value="PUBLISHED">Published</option>}
-                  {canPublish && <option value="SCHEDULED">Scheduled</option>}
-                  <option value="ARCHIVED">Archived</option>
-                </select>
-                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--fg-faint)] pointer-events-none" />
+        {/* Status badge */}
+        <span className={`shrink-0 hidden sm:inline-flex items-center text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border ${STATUS_COLOURS[status] ?? STATUS_COLOURS.DRAFT}`}>
+          {STATUS_LABELS[status] ?? status}
+        </span>
+
+        {/* Save indicator */}
+        {saveStatus === 'saving' && (
+          <span className="hidden sm:flex items-center gap-1.5 text-[#999] text-xs shrink-0">
+            <Loader2 size={11} className="animate-spin" /> Saving
+          </span>
+        )}
+        {saveStatus === 'saved' && (
+          <span className="hidden sm:flex items-center gap-1.5 text-emerald-500 text-xs shrink-0">
+            <Check size={11} /> Saved
+          </span>
+        )}
+        {saveStatus === 'error' && (
+          <span className="hidden sm:flex items-center gap-1.5 text-red-500 text-xs shrink-0">
+            <AlertCircle size={11} /> Failed
+          </span>
+        )}
+
+        {/* View live */}
+        {articleId && status === 'PUBLISHED' && (
+          <a href={`/articles/${slug}`} target="_blank" rel="noopener noreferrer"
+            className="shrink-0 hidden md:inline-flex items-center gap-1.5 text-[#666] text-xs px-3 h-7 border border-[#d0d0d0] rounded hover:border-[#1a2744] hover:text-[#1a2744] transition-colors"
+          >
+            <Eye size={12} /> View live
+          </a>
+        )}
+
+        {/* Save draft */}
+        {canEdit && (
+          <button
+            onClick={() => handleSave()}
+            disabled={saveStatus === 'saving'}
+            className="shrink-0 text-[#444] text-xs px-3 h-7 border border-[#d0d0d0] rounded hover:border-[#1a2744] hover:text-[#1a2744] transition-colors disabled:opacity-50"
+          >
+            Save
+          </button>
+        )}
+
+        {/* Schedule confirm */}
+        {canPublish && canEdit && status === 'SCHEDULED' && (
+          <button onClick={() => handleSave('SCHEDULED')} disabled={saveStatus === 'saving'}
+            className="shrink-0 bg-blue-600 text-white text-xs font-semibold px-3 h-7 rounded hover:bg-blue-700 transition-colors disabled:opacity-50">
+            Confirm Schedule
+          </button>
+        )}
+
+        {/* Publish / Unpublish */}
+        {canPublish && canEdit && status !== 'SCHEDULED' && (
+          <button
+            onClick={() => handleSave(status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED')}
+            disabled={saveStatus === 'saving'}
+            className="shrink-0 text-[#c9a227] text-xs font-semibold px-3 h-7 rounded transition-colors disabled:opacity-50"
+            style={{ background: '#1a2744' }}
+          >
+            {status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
+          </button>
+        )}
+
+        {/* Writer submit */}
+        {isWriter && (currentStatus === 'DRAFT' || currentStatus === 'REJECTED') && (
+          <button onClick={() => handleSave('PENDING_REVIEW')} disabled={saveStatus === 'saving'}
+            className="shrink-0 bg-amber-600 text-white text-xs font-semibold px-3 h-7 rounded hover:bg-amber-700 transition-colors disabled:opacity-50">
+            Submit for review
+          </button>
+        )}
+
+        {/* Settings toggle (visible <xl) */}
+        <button
+          onClick={() => setSettingsOpen((o) => !o)}
+          className="shrink-0 xl:hidden p-1.5 rounded hover:bg-[#f1f3f4] text-[#666] hover:text-[#1a2744] transition-colors"
+          aria-label="Article settings"
+        >
+          <Settings size={16} />
+        </button>
+      </div>
+
+      {/* Toolbar bar (fixed) */}
+      <div
+        style={{
+          position: 'fixed', top: 48, left: 240, right: 0, height: 40,
+          background: '#fff', borderBottom: '1px solid #e0e0e0',
+          zIndex: 49, overflow: 'hidden',
+        }}
+      >
+        {/* TiptapEditor portals its toolbar here */}
+        <div ref={toolbarContainerRef} style={{ height: '100%', display: 'flex', alignItems: 'center' }} />
+      </div>
+
+      {/* Main content area */}
+      <div
+        style={{
+          paddingTop: 88,
+          minHeight: '100vh',
+          background: '#f0f0f0',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'center',
+            gap: 24,
+            padding: '32px 24px',
+            alignItems: 'flex-start',
+          }}
+        >
+
+          {/* Document card */}
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 816,
+              flex: 'none',
+              background: '#ffffff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)',
+              padding: 'clamp(32px, 5vw, 72px) clamp(24px, 8vw, 96px)',
+              minHeight: 'calc(100vh - 120px)',
+            }}
+          >
+            {/* Editor note banner */}
+            {initialData?.editorNote && (
+              <div className="mb-6 bg-amber-500/8 border border-amber-500/20 px-4 py-3 rounded">
+                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Editor feedback</p>
+                <p className="text-sm text-[#555] leading-relaxed">{initialData.editorNote}</p>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Scheduled date picker */}
-          {!isWriter && status === 'SCHEDULED' && (
-            <div>
-              <label className="block text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
-                Publish At
-              </label>
+            {/* Error banner */}
+            {error && (
+              <div className="mb-6 flex items-start gap-2 bg-red-500/8 border border-red-500/20 px-4 py-3 text-red-500 text-sm rounded">
+                <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                {error}
+              </div>
+            )}
+
+            {/* Not-editable notice */}
+            {!canEdit && (
+              <div className="mb-6 bg-[#f8f8f8] border border-[#e0e0e0] px-4 py-3 text-[#666] text-sm rounded">
+                This article is under review and cannot be edited until an editor responds.
+              </div>
+            )}
+
+            {/* Cover image thumbnail (small, only if set) */}
+            {coverImage && (
+              <div className="mb-5" style={{ marginLeft: 'calc(-1 * clamp(24px, 8vw, 96px))', marginRight: 'calc(-1 * clamp(24px, 8vw, 96px))' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={coverImage}
+                  alt="Cover"
+                  style={{ width: '100%', height: 80, objectFit: 'cover', display: 'block' }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                />
+              </div>
+            )}
+
+            {/* Title - large headline in document */}
+            <textarea
+              ref={titleRef}
+              value={title}
+              onChange={handleTitleChange}
+              disabled={!canEdit}
+              placeholder="Your headline here..."
+              rows={1}
+              className="w-full bg-transparent border-none outline-none resize-none leading-tight placeholder:text-[#bbb] disabled:opacity-60 overflow-hidden mb-3"
+              style={{
+                color: '#1a1a1a',
+                fontFamily: 'var(--font-serif)',
+                fontSize: 32,
+                fontWeight: 700,
+                lineHeight: 1.2,
+              }}
+            />
+
+            {/* Excerpt / summary */}
+            <textarea
+              ref={excerptRef}
+              value={excerpt}
+              onChange={(e) => { setExcerpt(e.target.value); setIsDirty(true) }}
+              disabled={!canEdit}
+              placeholder="Write a brief summary..."
+              rows={2}
+              className="w-full bg-transparent border-none outline-none resize-none leading-relaxed placeholder:text-[#ccc] disabled:opacity-60 overflow-hidden"
+              style={{ color: '#666', fontSize: 16, fontStyle: 'italic' }}
+            />
+
+            {/* Divider + PDF import */}
+            <div className="mt-4 mb-1 pt-4 border-t border-black/8 flex items-center gap-2">
               <input
-                type="datetime-local"
-                value={scheduledAt}
-                min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
-                onChange={(e) => setScheduledAt(e.target.value)}
-                className="w-full border border-[var(--border)] px-3 py-2.5 text-[var(--fg)] text-sm focus:outline-none focus:border-gold bg-[var(--bg-elevated)] cursor-pointer"
+                ref={pdfFileRef}
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={handlePdfImport}
               />
-              {!scheduledAt && (
-                <p className="text-amber-500 text-[10px] mt-1">Pick a future date and time to schedule this article.</p>
-              )}
-            </div>
-          )}
-
-          {/* Writer: status badge */}
-          {isWriter && (
-            <div>
-              <label className="block text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
-                Status
-              </label>
-              <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 border ${STATUS_COLOURS[currentStatus] ?? STATUS_COLOURS.DRAFT}`}>
-                {STATUS_LABELS[currentStatus] ?? currentStatus}
-              </span>
-            </div>
-          )}
-
-          {/* Category */}
-          <div>
-            <label className="block text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
-              Category
-            </label>
-            <div className="relative">
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                disabled={!canEdit}
-                className="w-full appearance-none border border-[var(--border)] px-3 py-2.5 pr-8 text-[var(--fg)] text-sm focus:outline-none focus:border-gold bg-[var(--bg-elevated)] disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+              <button
+                type="button"
+                onClick={() => pdfFileRef.current?.click()}
+                disabled={pdfImporting || !canEdit}
+                className="inline-flex items-center gap-1.5 text-[#888] text-xs px-3 py-1.5 border border-black/15 rounded hover:border-[#1a2744] hover:text-[#1a2744] transition-colors disabled:opacity-50"
               >
-                <option value="">No category</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-              <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--fg-faint)] pointer-events-none" />
+                <FileUp size={13} />
+                {pdfImporting ? 'Importing...' : 'Import from PDF'}
+              </button>
+              {pdfError && <span className="text-red-500 text-xs">{pdfError}</span>}
             </div>
-          </div>
 
-          {/* Cover image URL (fallback input) */}
-          <div>
-            <label className="block text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
-              Cover image URL
-            </label>
-            <input
-              type="url"
-              value={coverImage}
-              onChange={(e) => setCoverImage(e.target.value)}
-              placeholder="https://..."
-              className="w-full border border-[var(--border)] px-3 py-2.5 text-[var(--fg)] text-sm focus:outline-none focus:border-gold bg-[var(--bg-elevated)] placeholder:text-[var(--fg-faint)]"
+            {/* Tiptap body editor (no outer wrapper - document card IS the wrapper) */}
+            <TiptapEditor
+              ref={editorRef}
+              content={content}
+              onChange={handleContentChange}
+              editable={canEdit}
+              saveStatus={saveStatus}
+              toolbarPortalRef={toolbarContainerRef}
+              noWrapper
             />
           </div>
 
-          {/* Tags */}
-          <div>
-            <label className="block text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2 flex items-center gap-1.5">
-              <Tag size={10} />
-              Tags
-            </label>
-            {tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {tags.map((t) => (
-                  <span
-                    key={t}
-                    className="flex items-center gap-1 text-[var(--fg-muted)] text-[10px] font-semibold px-2 py-1 bg-[var(--bg-subtle)] border border-[var(--border)]"
-                  >
-                    {t}
-                    {canEdit && (
-                      <button
-                        type="button"
-                        onClick={() => setTags(tags.filter((x) => x !== t))}
-                        aria-label={`Remove ${t}`}
-                        className="hover:text-gold transition-colors ml-0.5"
-                      >
-                        <X size={8} />
-                      </button>
-                    )}
-                  </span>
-                ))}
-              </div>
-            )}
-            {canEdit && (
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                onBlur={() => tagInput && addTag(tagInput)}
-                placeholder={tags.length < 10 ? 'Add a tag, press Enter...' : 'Max 10 tags'}
-                disabled={tags.length >= 10}
-                className="w-full border border-[var(--border)] px-3 py-2 text-[var(--fg)] text-xs focus:outline-none focus:border-gold bg-[var(--bg-elevated)] placeholder:text-[var(--fg-faint)] disabled:opacity-50"
-              />
-            )}
-            <p className="text-[var(--fg-faint)] text-[10px] mt-1.5">
-              Separate with Enter or comma. Up to 10.
-            </p>
+          {/* Right metadata panel */}
+          <div
+            className="hidden xl:block"
+            style={{
+              width: 220,
+              flex: 'none',
+              position: 'sticky',
+              top: 96,
+              alignSelf: 'flex-start',
+              background: '#ffffff',
+              border: '1px solid #e0e0e0',
+              borderRadius: 8,
+              padding: 16,
+            }}
+          >
+            {panelFields}
           </div>
-
-          {/* URL slug (non-writers) */}
-          {!isWriter && (
-            <div>
-              <label className="block text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
-                URL slug
-              </label>
-              <input
-                type="text"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                placeholder="url-slug"
-                className="w-full border border-[var(--border)] px-3 py-2.5 text-[var(--fg)] text-xs font-mono focus:outline-none focus:border-gold bg-[var(--bg-elevated)]"
-              />
-            </div>
-          )}
         </div>
       </div>
-    </div>
+
+      {/* Mobile settings drawer */}
+      {settingsOpen && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            background: 'rgba(0,0,0,0.3)',
+          }}
+          onClick={() => setSettingsOpen(false)}
+        >
+          <div
+            style={{
+              position: 'absolute', top: 0, right: 0, bottom: 0,
+              width: 260, background: '#fff', padding: 20, overflowY: 'auto',
+              boxShadow: '-4px 0 20px rgba(0,0,0,0.15)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>Settings</span>
+              <button onClick={() => setSettingsOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', fontSize: 18 }}>&times;</button>
+            </div>
+            {panelFields}
+          </div>
+        </div>
+      )}
+    </>
   )
 }

@@ -25,10 +25,11 @@ import {
   Star, Printer, Type, Highlighter, Table as TableIcon,
   Indent, Outdent,
 } from 'lucide-react'
-import {
+import React, {
   useCallback, useRef, useState, useEffect, useImperativeHandle,
   forwardRef, type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import type { NodeViewProps } from '@tiptap/core'
 
 // ── Module augmentations ─────────────────────────────────────────────────────
@@ -177,6 +178,9 @@ interface TiptapEditorProps {
   onChange: (content: string) => void
   editable?: boolean
   saveStatus?: 'idle' | 'saving' | 'saved' | 'error'
+  toolbarPortalRef?: React.RefObject<HTMLDivElement | null>
+  onEditorReady?: (editor: Editor) => void
+  noWrapper?: boolean
 }
 
 // ── Color palettes ───────────────────────────────────────────────────────────
@@ -196,7 +200,7 @@ const FONT_SIZES = ['10','11','12','14','16','18','20','24','28','32','36','48',
 
 // ── Main component ────────────────────────────────────────────────────────────
 export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
-  function TiptapEditor({ content, onChange, editable = true, saveStatus }, ref) {
+  function TiptapEditor({ content, onChange, editable = true, saveStatus, toolbarPortalRef, onEditorReady, noWrapper }, ref) {
     const fileInputRef      = useRef<HTMLInputElement>(null)
     const linkInputRef      = useRef<HTMLInputElement>(null)
     const fontSizeRef       = useRef<HTMLInputElement>(null)
@@ -270,6 +274,11 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         },
       },
     })
+
+    // Notify parent when editor is ready
+    useEffect(() => {
+      if (editor && onEditorReady) onEditorReady(editor)
+    }, [editor]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // Clear upload error after 4s
     useEffect(() => {
@@ -486,8 +495,9 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         )}
 
         {/* ── Toolbar ────────────────────────────────────────────────────────── */}
-        {editable && (
-          <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-2 py-1 flex flex-wrap gap-0.5 items-center sticky top-0 z-30">
+        {editable && (() => {
+          const toolbarContent = (
+            <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-2 py-1 flex flex-wrap gap-0.5 items-center w-full h-full overflow-x-auto">
 
             {/* Group 1: History */}
             <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo (Ctrl+Z)">
@@ -847,7 +857,16 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
               </div>
             )}
           </div>
-        )}
+          )
+          if (toolbarPortalRef?.current) {
+            return createPortal(toolbarContent, toolbarPortalRef.current)
+          }
+          return (
+            <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 sticky top-0 z-30">
+              {toolbarContent}
+            </div>
+          )
+        })()}
 
         {/* ── Single hidden file input ─────────────────────────────────────── */}
         <input
@@ -863,15 +882,22 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
           }}
         />
 
-        {/* ── Document page area (Google Docs look) ──────────────────────── */}
-        <div className="editor-outer min-h-[600px] py-8 px-4">
-          <div className="editor-page max-w-[816px] mx-auto">
-            <EditorContent
-              editor={editor}
-              className={`tiptap-editor ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
-            />
+        {/* ── Document page area ──────────────────────────────────────── */}
+        {noWrapper ? (
+          <EditorContent
+            editor={editor}
+            className={`tiptap-editor ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
+          />
+        ) : (
+          <div className="editor-outer min-h-[600px] py-8 px-4">
+            <div className="editor-page max-w-[816px] mx-auto">
+              <EditorContent
+                editor={editor}
+                className={`tiptap-editor ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ── Status bar ──────────────────────────────────────────────────── */}
         {editable && (
