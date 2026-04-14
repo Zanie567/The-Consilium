@@ -39,13 +39,11 @@ function NavLink({
       }`}
     >
       {label}
-      {active && (
-        <motion.span
-          layoutId="nav-underline"
-          className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-gold"
-          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-        />
-      )}
+      <span
+        className={`absolute -bottom-0.5 left-0 right-0 h-0.5 bg-gold transition-opacity duration-200 ${
+          active ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
     </Link>
   )
 }
@@ -104,21 +102,21 @@ export function Navbar() {
         }`}
       >
         <div
-          className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between transition-all duration-300 ${
+          className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center transition-all duration-300 ${
             scrolled ? 'h-14' : 'h-16'
           }`}
         >
-          {/* Masthead */}
+          {/* Masthead — left column */}
           <Link
             href="/"
-            className="ml-6 text-gold font-serif font-bold tracking-widest text-xl sm:text-2xl uppercase hover:opacity-85 transition-opacity duration-200"
+            className="shrink-0 text-gold font-serif font-bold tracking-widest text-xl sm:text-2xl uppercase hover:opacity-85 transition-opacity duration-200"
             style={{ fontFamily: 'var(--font-serif)' }}
           >
             The Consilium
           </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-10" aria-label="Main navigation">
+          {/* Desktop nav — centred in remaining space */}
+          <nav className="hidden md:flex flex-1 items-center justify-center gap-10 px-8" aria-label="Main navigation">
             {navLinks.map((link) => (
               <NavLink
                 key={link.href}
@@ -130,7 +128,7 @@ export function Navbar() {
           </nav>
 
           {/* Desktop right actions */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3 shrink-0">
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search"
