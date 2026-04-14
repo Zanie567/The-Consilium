@@ -13,9 +13,9 @@ const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/category/news', label: 'News' },
   { href: '/category/opinion', label: 'Opinion' },
-  { href: '/opinion-debate', label: 'Debate' },
   { href: '/category/analysis', label: 'Analysis' },
   { href: '/category/interviews', label: 'Interviews' },
+  { href: '/opinion-debate', label: 'Debate' },
   { href: '/about', label: 'About' },
 ]
 
@@ -118,7 +118,7 @@ export function Navbar() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-7" aria-label="Main navigation">
+          <nav className="hidden md:flex items-center gap-8" aria-label="Main navigation">
             {navLinks.map((link) => (
               <NavLink
                 key={link.href}
