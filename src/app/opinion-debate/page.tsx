@@ -145,7 +145,7 @@ export default async function OpinionDebatePage() {
           <AnimateIn variant="fade-in" delay={0.18} duration={0.55}>
             <div className="w-16 h-px bg-gradient-to-r from-transparent via-gold to-transparent mx-auto mb-4 opacity-60" />
             <p className="text-cream/60 text-sm max-w-lg mx-auto leading-relaxed">
-              Two writers. One question. Read both sides of the argument — then cast your vote.
+              Two writers. One question. Read both sides of the argument, then cast your vote.
               Results are hidden until after you vote.
             </p>
           </AnimateIn>
