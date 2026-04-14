@@ -177,6 +177,12 @@ interface TiptapEditorProps {
   onChange: (content: string) => void
   editable?: boolean
   saveStatus?: 'idle' | 'saving' | 'saved' | 'error'
+  /** Fix the toolbar to the viewport (used in Google Docs layout). Requires
+   *  the consumer to provide the correct top offset via CSS. */
+  toolbarFixed?: boolean
+  /** Skip the editor-outer/editor-page wrapper and status bar — just render
+   *  EditorContent. Use when the parent provides its own document card. */
+  contentOnly?: boolean
 }
 
 // ── Color palettes ───────────────────────────────────────────────────────────
@@ -194,7 +200,7 @@ const HIGHLIGHT_COLORS = [
 
 // ── Main component ────────────────────────────────────────────────────────────
 export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
-  function TiptapEditor({ content, onChange, editable = true, saveStatus }, ref) {
+  function TiptapEditor({ content, onChange, editable = true, saveStatus, toolbarFixed = false, contentOnly = false }, ref) {
     const fileInputRef      = useRef<HTMLInputElement>(null)
     const linkInputRef      = useRef<HTMLInputElement>(null)
     const headingRef        = useRef<HTMLDivElement>(null)
@@ -388,10 +394,10 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         title={title}
         disabled={dis}
         style={style}
-        className={`p-1.5 rounded transition-all min-w-[28px] h-7 flex items-center justify-center ${
+        className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${
           active
-            ? 'bg-[#1a2744]/10 text-[#1a2744] dark:bg-gold/20 dark:text-gold'
-            : 'text-[#444] dark:text-[var(--fg-muted)] hover:bg-black/8 dark:hover:bg-white/10'
+            ? 'bg-[#e8eaed] text-[#1a1a1a]'
+            : 'text-[#444] hover:bg-[#f1f3f4]'
         } disabled:opacity-30`}
       >
         {children}
@@ -431,7 +437,10 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
         {/* Link bar */}
         {linkBarOpen && editable && (
-          <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-3 py-2 flex items-center gap-2">
+          <div className={contentOnly
+            ? 'bg-[#f8f9fa] border border-[#e0e0e0] rounded px-3 py-2 mb-3 flex items-center gap-2'
+            : 'editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-3 py-2 flex items-center gap-2'
+          }>
             <Link2 size={13} className="text-[#777] shrink-0" />
             <input
               ref={linkInputRef}
@@ -469,7 +478,10 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
         {/* ── Toolbar ────────────────────────────────────────────────────────── */}
         {editable && (
-          <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-2 py-1 flex flex-wrap gap-0.5 items-center sticky top-0 z-30">
+          <div className={toolbarFixed
+            ? 'fixed top-12 left-[220px] right-0 z-[49] bg-white border-b border-[#e0e0e0] px-2 py-1 flex flex-wrap gap-0.5 items-center h-10'
+            : 'editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-2 py-1 flex flex-wrap gap-0.5 items-center sticky top-0 z-30'
+          }>
 
             {/* Group 1: History */}
             <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo (Ctrl+Z)">
@@ -486,7 +498,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); setHeadingOpen((o) => !o) }}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-[#444] dark:text-[var(--fg-muted)] hover:bg-black/8 dark:hover:bg-white/10 transition-colors min-w-[110px] h-7"
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-[#444] hover:bg-[#f1f3f4] transition-colors min-w-[110px] h-7"
                 title="Text style"
               >
                 <span className="flex-1 text-left truncate">{headingLabel}</span>
@@ -772,27 +784,36 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
           }}
         />
 
-        {/* ── Document page area (Google Docs look) ──────────────────────── */}
-        <div className="editor-outer min-h-[600px] py-8 px-4">
-          <div className="editor-page max-w-[816px] mx-auto">
-            <EditorContent
-              editor={editor}
-              className={`tiptap-editor ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
-            />
-          </div>
-        </div>
+        {/* ── Document page area ──────────────────────────────────────────── */}
+        {contentOnly ? (
+          <EditorContent
+            editor={editor}
+            className={`tiptap-editor ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
+          />
+        ) : (
+          <>
+            <div className="editor-outer min-h-[600px] py-8 px-4">
+              <div className="editor-page max-w-[816px] mx-auto">
+                <EditorContent
+                  editor={editor}
+                  className={`tiptap-editor ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
+                />
+              </div>
+            </div>
 
-        {/* ── Status bar ──────────────────────────────────────────────────── */}
-        {editable && (
-          <div className="editor-outer border-t border-black/8 dark:border-white/8 px-4 py-1.5 flex items-center justify-between">
-            <span className="text-xs text-[#888] dark:text-[var(--fg-faint)]">
-              {wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'}
-              {wordCount > 0 && <span className="ml-2 opacity-60">{readingTime} min read</span>}
-            </span>
-            <span className="text-[10px] text-[#aaa] dark:text-[var(--fg-faint)] hidden sm:block">
-              Ctrl+B bold · Ctrl+I italic · Ctrl+U underline · Ctrl+Z undo
-            </span>
-          </div>
+            {/* ── Status bar ────────────────────────────────────────────── */}
+            {editable && (
+              <div className="editor-outer border-t border-black/8 dark:border-white/8 px-4 py-1.5 flex items-center justify-between">
+                <span className="text-xs text-[#888] dark:text-[var(--fg-faint)]">
+                  {wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'}
+                  {wordCount > 0 && <span className="ml-2 opacity-60">{readingTime} min read</span>}
+                </span>
+                <span className="text-[10px] text-[#aaa] dark:text-[var(--fg-faint)] hidden sm:block">
+                  Ctrl+B bold · Ctrl+I italic · Ctrl+U underline · Ctrl+Z undo
+                </span>
+              </div>
+            )}
+          </>
         )}
       </div>
     )

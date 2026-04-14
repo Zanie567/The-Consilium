@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import {
   Save, Send, Eye, X, Tag, ArrowLeft, Check, AlertCircle,
-  ImagePlus, Loader2, ChevronDown, FileUp, Clock,
+  ImagePlus, Loader2, ChevronDown, FileUp, Clock, Settings,
 } from 'lucide-react'
 import slugify from 'slugify'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
@@ -13,9 +13,16 @@ import { readTimeLabel } from '@/lib/readTime'
 
 const TiptapEditor = dynamic(
   () => import('@/components/editor/TiptapEditor').then((m) => m.TiptapEditor),
-  { ssr: false, loading: () => <div className="h-[640px] editor-outer animate-pulse" /> }
+  { ssr: false, loading: () => <div className="min-h-[400px]" /> }
 ) as React.ForwardRefExoticComponent<
-  { content?: string; onChange: (content: string) => void; editable?: boolean; saveStatus?: 'idle' | 'saving' | 'saved' | 'error' } &
+  {
+    content?: string
+    onChange: (content: string) => void
+    editable?: boolean
+    saveStatus?: 'idle' | 'saving' | 'saved' | 'error'
+    toolbarFixed?: boolean
+    contentOnly?: boolean
+  } &
   React.RefAttributes<TiptapEditorHandle>
 >
 
@@ -89,9 +96,9 @@ export function ArticleEditor({
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [isDirty, setIsDirty] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [coverDragOver, setCoverDragOver] = useState(false)
   const [error, setError] = useState('')
   const [coverError, setCoverError] = useState('')
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const titleRef = useRef<HTMLTextAreaElement>(null)
   const excerptRef = useRef<HTMLTextAreaElement>(null)
@@ -133,8 +140,8 @@ export function ArticleEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, content, excerpt, coverImage, categoryId, tags, slug])
 
-  const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value
+  // Shared title updater — used by both top chrome input and document textarea
+  const updateTitle = (val: string) => {
     setTitle(val)
     setIsDirty(true)
     if (!articleId) {
@@ -148,7 +155,6 @@ export function ArticleEditor({
   }, [])
 
   const handleBack = async () => {
-    // Save any unsaved changes before leaving so no work is lost
     if (isDirty && articleId && title.trim()) {
       setSaveStatus('saving')
       try {
@@ -223,7 +229,6 @@ export function ArticleEditor({
     }
   }
 
-  // Warn before closing/navigating away in the browser if there are unsaved changes
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (!isDirty) return
@@ -330,249 +335,378 @@ export function ArticleEditor({
     }
   }
 
-  return (
-    <div className="flex flex-col min-h-full">
+  // ── Metadata panel (rendered in right panel + mobile drawer) ──────────────
+  const renderMetadataFields = () => (
+    <div className="space-y-0">
 
-      {/* ── Sticky action bar ─────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-30 bg-[var(--bg)] border-b border-[var(--border)] flex items-center justify-between gap-4 px-5 py-2.5">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={handleBack}
-            className="text-[var(--fg-faint)] hover:text-gold transition-colors shrink-0"
-            aria-label="Back"
-          >
-            <ArrowLeft size={16} />
-          </button>
+      {/* Read time */}
+      <div className="flex items-center gap-1.5 pb-3 mb-1 border-b border-[#e8e8e8]">
+        <Clock size={11} className="text-[#aaa] shrink-0" />
+        <span className="text-[12px] text-[#aaa] uppercase tracking-wider font-medium">
+          {content.length > 2 ? readTimeLabel(content) : '— min read'}
+        </span>
+      </div>
 
-          {/* Status badge */}
-          <span className={`hidden sm:inline-flex items-center text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 border ${STATUS_COLOURS[status] ?? STATUS_COLOURS.DRAFT}`}>
-            {STATUS_LABELS[status] ?? status}
-          </span>
-
-          {/* Truncated title preview */}
-          <span className="text-[var(--fg-muted)] text-sm truncate min-w-0 hidden md:block">
-            {title || 'Untitled'}
+      {/* Status */}
+      {!isWriter ? (
+        <div>
+          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Status</label>
+          <div className="relative">
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full h-8 text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer"
+            >
+              <option value="DRAFT">Draft</option>
+              <option value="PENDING_REVIEW">Pending Review</option>
+              {canPublish && <option value="PUBLISHED">Published</option>}
+              {canPublish && <option value="SCHEDULED">Scheduled</option>}
+              <option value="ARCHIVED">Archived</option>
+            </select>
+            <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
+          </div>
+        </div>
+      ) : (
+        <div>
+          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Status</label>
+          <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-widest px-2 py-1 border rounded ${STATUS_COLOURS[currentStatus] ?? STATUS_COLOURS.DRAFT}`}>
+            {STATUS_LABELS[currentStatus] ?? currentStatus}
           </span>
         </div>
+      )}
 
-        {/* Auto-save indicator + actions */}
-        <div className="flex items-center gap-2 shrink-0">
-          {saveStatus === 'saving' && (
-            <span className="flex items-center gap-1.5 text-[var(--fg-faint)] text-xs">
-              <Loader2 size={11} className="animate-spin" />
-              Saving
-            </span>
+      {/* Scheduled date */}
+      {!isWriter && status === 'SCHEDULED' && (
+        <div>
+          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Publish At</label>
+          <input
+            type="datetime-local"
+            value={scheduledAt}
+            min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+            onChange={(e) => setScheduledAt(e.target.value)}
+            className="w-full h-8 text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] cursor-pointer"
+          />
+          {!scheduledAt && (
+            <p className="text-amber-500 text-[10px] mt-1">Pick a future date and time.</p>
           )}
-          {saveStatus === 'saved' && (
-            <span className="flex items-center gap-1.5 text-emerald-500 text-xs">
-              <Check size={11} />
-              Saved
-            </span>
-          )}
-          {saveStatus === 'error' && (
-            <span className="flex items-center gap-1.5 text-red-500 text-xs">
-              <AlertCircle size={11} />
-              Save failed
-            </span>
-          )}
+        </div>
+      )}
 
-          {articleId && status === 'PUBLISHED' && (
-            <a
-              href={`/articles/${slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[var(--fg-muted)] text-xs px-3 py-1.5 border border-[var(--border)] hover:border-gold hover:text-gold transition-colors"
-            >
-              <Eye size={12} />
-              <span className="hidden sm:inline">View live</span>
-            </a>
-          )}
-
-          {canEdit && (
-            <button
-              onClick={() => handleSave()}
-              disabled={saveStatus === 'saving'}
-              className="inline-flex items-center gap-1.5 text-[var(--fg-muted)] text-xs px-3 py-1.5 border border-[var(--border)] hover:border-gold hover:text-gold transition-colors disabled:opacity-50"
-            >
-              <Save size={12} />
-              <span className="hidden sm:inline">Save draft</span>
-            </button>
-          )}
-
-          {canPublish && canEdit && status === 'SCHEDULED' && (
-            <button
-              onClick={() => handleSave('SCHEDULED')}
-              disabled={saveStatus === 'saving'}
-              className="inline-flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold uppercase tracking-widest px-4 py-1.5 hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-              <Send size={12} />
-              Confirm Schedule
-            </button>
-          )}
-
-          {canPublish && canEdit && status !== 'SCHEDULED' && (
-            <button
-              onClick={() => handleSave(status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED')}
-              disabled={saveStatus === 'saving'}
-              className="inline-flex items-center gap-1.5 bg-navy text-gold text-xs font-bold uppercase tracking-widest px-4 py-1.5 hover:bg-navy/80 transition-colors disabled:opacity-50"
-            >
-              <Send size={12} />
-              {status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
-            </button>
-          )}
-
-          {isWriter && (currentStatus === 'DRAFT' || currentStatus === 'REJECTED') && (
-            <button
-              onClick={() => handleSave('PENDING_REVIEW')}
-              disabled={saveStatus === 'saving'}
-              className="inline-flex items-center gap-1.5 bg-amber-600 text-white text-xs font-bold uppercase tracking-widest px-4 py-1.5 hover:bg-amber-700 transition-colors disabled:opacity-50"
-            >
-              <Send size={12} />
-              Submit
-            </button>
-          )}
+      {/* Category */}
+      <div>
+        <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Category</label>
+        <div className="relative">
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            disabled={!canEdit}
+            className="w-full h-8 text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer disabled:opacity-60"
+          >
+            <option value="">No category</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+          <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
         </div>
       </div>
 
-      {/* ── Banners ───────────────────────────────────────────────────────── */}
-      {initialData?.editorNote && (
-        <div className="mx-6 mt-5 bg-amber-500/8 border border-amber-500/20 px-5 py-4">
-          <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1.5">
-            Editor feedback
-          </p>
-          <p className="text-sm text-[var(--fg-muted)] leading-relaxed">{initialData.editorNote}</p>
-        </div>
-      )}
+      {/* Cover image */}
+      <div>
+        <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Cover Image</label>
+        <input
+          ref={coverFileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleCoverUpload}
+        />
+        <input
+          type="url"
+          value={coverImage}
+          onChange={(e) => setCoverImage(e.target.value)}
+          placeholder="https://..."
+          className="w-full h-8 text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] placeholder:text-[#ccc]"
+        />
+        {uploading && <p className="text-[10px] text-[#999] mt-1">Uploading…</p>}
+        {coverError && <p className="text-[10px] text-red-500 mt-1">{coverError}</p>}
+        {coverImage && (
+          <div className="mt-2 relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={coverImage}
+              alt="Cover preview"
+              className="w-full object-cover rounded border border-[#e0e0e0]"
+              style={{ height: 60 }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setCoverImage('')}
+                className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+                aria-label="Remove cover image"
+              >
+                <X size={10} />
+              </button>
+            )}
+          </div>
+        )}
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => coverFileRef.current?.click()}
+            disabled={uploading}
+            className="mt-2 w-full h-7 text-[11px] border border-dashed border-[#d0d0d0] rounded text-[#aaa] hover:border-[#999] hover:text-[#666] transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
+          >
+            <ImagePlus size={11} />
+            {uploading ? 'Uploading…' : 'Upload file'}
+          </button>
+        )}
+      </div>
 
-      {error && (
-        <div className="mx-6 mt-5 flex items-start gap-2 bg-red-500/8 border border-red-500/20 px-4 py-3 text-red-500 text-sm">
-          <AlertCircle size={14} className="mt-0.5 shrink-0" />
-          {error}
-        </div>
-      )}
-
-      {!canEdit && (
-        <div className="mx-6 mt-5 bg-[var(--bg-subtle)] border border-[var(--border)] px-4 py-3 text-[var(--fg-muted)] text-sm">
-          This article is under review and cannot be edited until an editor responds.
-        </div>
-      )}
-
-      {/* ── Main layout ───────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-0">
-
-        {/* Writing column */}
-        <div className="flex-1 min-w-0 editor-outer">
-
-          {/* Metadata area — rendered as a mini document page above the editor */}
-          <div className="py-6 px-4">
-            <div className="editor-page max-w-[816px] mx-auto px-10 py-8">
-
-              {/* Cover image upload zone */}
-              <div className="mb-6">
-                <p className="text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
-                  Cover Image
-                </p>
-                <input
-                  ref={coverFileRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleCoverUpload}
-                />
-
-                {coverError && (
-                  <div className="mb-2 text-xs text-red-500 bg-red-500/8 border border-red-500/20 px-3 py-2">
-                    {coverError}
-                  </div>
-                )}
-
-                {coverImage ? (
-                  <div
-                    className={`relative group aspect-video w-full overflow-hidden bg-[var(--bg-subtle)] ${
-                      coverDragOver ? 'ring-2 ring-gold' : ''
-                    }`}
-                    onDragOver={(e) => { e.preventDefault(); setCoverDragOver(true) }}
-                    onDragLeave={() => setCoverDragOver(false)}
-                    onDrop={(e) => {
-                      e.preventDefault()
-                      setCoverDragOver(false)
-                      const file = e.dataTransfer.files?.[0]
-                      if (file) uploadCoverFile(file)
-                    }}
+      {/* Tags */}
+      <div>
+        <label className="text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3 flex items-center gap-1">
+          <Tag size={9} />
+          Tags
+        </label>
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-1.5 mt-1">
+            {tags.map((t) => (
+              <span
+                key={t}
+                className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 bg-[#f1f3f4] rounded text-[#555]"
+              >
+                {t}
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => setTags(tags.filter((x) => x !== t))}
+                    aria-label={`Remove ${t}`}
+                    className="hover:text-red-500 transition-colors ml-0.5"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={coverImage}
-                      alt="Cover"
-                      className="w-full h-full object-cover"
-                      onError={(e) => { ;(e.target as HTMLImageElement).style.display = 'none' }}
-                    />
-                    {canEdit && (
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => coverFileRef.current?.click()}
-                          className="flex items-center gap-2 text-white text-xs font-semibold bg-black/40 border border-white/20 px-4 py-2 hover:bg-black/60 transition-colors"
-                        >
-                          <ImagePlus size={13} />
-                          {uploading ? 'Uploading...' : 'Change cover'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCoverImage('')}
-                          className="flex items-center gap-2 text-white/70 text-xs bg-black/30 border border-white/10 px-3 py-2 hover:bg-black/50 transition-colors"
-                        >
-                          <X size={13} />
-                          Remove
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  canEdit && (
-                    <div
-                      onClick={() => coverFileRef.current?.click()}
-                      onDragOver={(e) => { e.preventDefault(); setCoverDragOver(true) }}
-                      onDragLeave={() => setCoverDragOver(false)}
-                      onDrop={(e) => {
-                        e.preventDefault()
-                        setCoverDragOver(false)
-                        const file = e.dataTransfer.files?.[0]
-                        if (file) uploadCoverFile(file)
-                      }}
-                      className={`w-full aspect-video border-2 border-dashed transition-colors flex flex-col items-center justify-center gap-3 cursor-pointer select-none ${
-                        coverDragOver
-                          ? 'border-gold bg-gold/5 text-gold'
-                          : 'border-[var(--border)] hover:border-gold/40 hover:bg-gold/[0.02] text-[var(--fg-faint)]'
-                      }`}
-                    >
-                      <ImagePlus size={14} className="transition-colors" />
-                      <div className="text-center">
-                        <p className="text-xs font-medium">
-                          {uploading ? 'Uploading...' : coverDragOver ? 'Drop to upload' : 'Add cover image'}
-                        </p>
-                        <p className="text-[10px] opacity-50 mt-0.5">
-                          Shown at the top of the published article
-                        </p>
-                      </div>
-                    </div>
-                  )
+                    <X size={7} />
+                  </button>
                 )}
-              </div>
+              </span>
+            ))}
+          </div>
+        )}
+        {canEdit && (
+          <input
+            type="text"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={handleTagKeyDown}
+            onBlur={() => tagInput && addTag(tagInput)}
+            placeholder={tags.length < 10 ? 'Add a tag, press Enter...' : 'Max 10 tags'}
+            disabled={tags.length >= 10}
+            className="w-full h-8 text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] placeholder:text-[#ccc] disabled:opacity-50"
+          />
+        )}
+        <p className="text-[10px] text-[#ccc] mt-1">Separate with Enter or comma. Up to 10.</p>
+      </div>
 
-              {/* Title */}
+      {/* URL slug */}
+      {!isWriter && (
+        <div>
+          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">URL Slug</label>
+          <input
+            type="text"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            placeholder="url-slug"
+            className="w-full h-8 text-[11px] font-mono border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744]"
+          />
+        </div>
+      )}
+    </div>
+  )
+
+  return (
+    <div className="min-h-full">
+
+      {/* ── FIXED: Top chrome (48px) ───────────────────────────────────────── */}
+      <div className="fixed top-0 left-[220px] right-0 z-50 h-12 bg-white border-b border-[#e0e0e0] flex items-center px-3 gap-2">
+        <button
+          onClick={handleBack}
+          className="p-1.5 rounded hover:bg-[#f1f3f4] text-[#555] transition-colors shrink-0"
+          aria-label="Back to articles"
+        >
+          <ArrowLeft size={16} />
+        </button>
+
+        {/* Inline title input */}
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => updateTitle(e.target.value)}
+          disabled={!canEdit}
+          placeholder="Untitled document"
+          className="flex-1 min-w-0 text-[15px] bg-transparent border-none outline-none placeholder:text-[#bbb] disabled:opacity-60 text-[#1a1a1a]"
+        />
+
+        {/* Status pill */}
+        <span className={`hidden sm:inline-flex shrink-0 items-center text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full border ${STATUS_COLOURS[status] ?? STATUS_COLOURS.DRAFT}`}>
+          {STATUS_LABELS[status] ?? status}
+        </span>
+
+        {/* Save indicator */}
+        <div className="shrink-0 flex items-center gap-1 text-xs min-w-[60px] justify-end">
+          {saveStatus === 'saving' && (
+            <>
+              <Loader2 size={11} className="animate-spin text-[#999]" />
+              <span className="text-[#999] hidden sm:inline text-[11px]">Saving</span>
+            </>
+          )}
+          {saveStatus === 'saved' && (
+            <>
+              <Check size={11} className="text-emerald-500" />
+              <span className="text-emerald-500 hidden sm:inline text-[11px]">Saved</span>
+            </>
+          )}
+          {saveStatus === 'error' && (
+            <>
+              <AlertCircle size={11} className="text-red-500" />
+              <span className="text-red-500 hidden sm:inline text-[11px]">Error</span>
+            </>
+          )}
+        </div>
+
+        {/* View live */}
+        {articleId && status === 'PUBLISHED' && (
+          <a
+            href={`/articles/${slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden md:inline-flex shrink-0 items-center gap-1 text-[#555] text-[12px] px-2.5 h-8 rounded border border-[#d0d0d0] hover:border-[#1a2744] hover:text-[#1a2744] transition-colors"
+          >
+            <Eye size={12} />
+            View live
+          </a>
+        )}
+
+        {/* Save draft */}
+        {canEdit && (
+          <button
+            onClick={() => handleSave()}
+            disabled={saveStatus === 'saving'}
+            className="hidden sm:inline-flex shrink-0 items-center gap-1 text-[#555] text-[12px] px-3 h-8 rounded border border-[#d0d0d0] hover:border-[#1a2744] hover:text-[#1a2744] transition-colors disabled:opacity-50"
+          >
+            <Save size={12} />
+            Save draft
+          </button>
+        )}
+
+        {/* Primary CTA */}
+        {canPublish && canEdit && status === 'SCHEDULED' && (
+          <button
+            onClick={() => handleSave('SCHEDULED')}
+            disabled={saveStatus === 'saving'}
+            className="shrink-0 inline-flex items-center gap-1 bg-blue-600 text-white text-[12px] font-semibold px-3 h-8 rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            <Send size={12} />
+            Schedule
+          </button>
+        )}
+        {canPublish && canEdit && status !== 'SCHEDULED' && (
+          <button
+            onClick={() => handleSave(status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED')}
+            disabled={saveStatus === 'saving'}
+            className="shrink-0 inline-flex items-center gap-1 bg-[#1a2744] text-[#c9a227] text-[12px] font-semibold px-3 h-8 rounded hover:bg-[#243460] transition-colors disabled:opacity-50"
+          >
+            <Send size={12} />
+            {status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
+          </button>
+        )}
+        {isWriter && (currentStatus === 'DRAFT' || currentStatus === 'REJECTED') && (
+          <button
+            onClick={() => handleSave('PENDING_REVIEW')}
+            disabled={saveStatus === 'saving'}
+            className="shrink-0 inline-flex items-center gap-1 bg-amber-600 text-white text-[12px] font-semibold px-3 h-8 rounded hover:bg-amber-700 transition-colors disabled:opacity-50"
+          >
+            <Send size={12} />
+            Submit
+          </button>
+        )}
+
+        {/* Mobile settings icon */}
+        <button
+          onClick={() => setSettingsOpen((o) => !o)}
+          className="min-[1100px]:hidden shrink-0 p-1.5 rounded hover:bg-[#f1f3f4] text-[#555] transition-colors"
+          aria-label="Document settings"
+        >
+          <Settings size={16} />
+        </button>
+      </div>
+
+      {/* TiptapEditor's fixed toolbar renders at top-12 via toolbarFixed prop */}
+
+      {/* ── Content (below both fixed bars = 88px) ─────────────────────────── */}
+      <div className="pt-[88px] min-h-screen bg-[#f0f0f0]">
+
+        {/* Banners */}
+        {(initialData?.editorNote || error || !canEdit) && (
+          <div className="max-w-[1120px] mx-auto px-6 pt-5 space-y-3">
+            {initialData?.editorNote && (
+              <div className="bg-amber-500/8 border border-amber-500/20 px-4 py-3 rounded">
+                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Editor feedback</p>
+                <p className="text-sm text-[#555] leading-relaxed">{initialData.editorNote}</p>
+              </div>
+            )}
+            {error && (
+              <div className="flex items-start gap-2 bg-red-500/8 border border-red-500/20 px-4 py-3 rounded text-red-500 text-sm">
+                <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                {error}
+              </div>
+            )}
+            {!canEdit && (
+              <div className="bg-white border border-[#e0e0e0] px-4 py-3 rounded text-[#666] text-sm">
+                This article is under review and cannot be edited until an editor responds.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Main row: document card + right panel */}
+        <div className="flex justify-center gap-6 px-6 py-8 items-start">
+
+          {/* ── Document card ─────────────────────────────────────────────── */}
+          <div
+            className="flex-none w-full max-w-[816px] bg-white"
+            style={{
+              boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)',
+              minHeight: 'calc(100vh - 120px)',
+            }}
+          >
+            <div style={{ padding: '72px 96px' }}>
+
+              {/* Cover thumbnail — only shown if URL is set, no placeholder */}
+              {coverImage && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={coverImage}
+                  alt="Cover"
+                  className="w-full object-cover mb-6"
+                  style={{ height: 80 }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                />
+              )}
+
+              {/* Headline — large, in-document */}
               <textarea
                 ref={titleRef}
                 value={title}
-                onChange={handleTitleChange}
+                onChange={(e) => updateTitle(e.target.value)}
                 disabled={!canEdit}
                 placeholder="Your headline here..."
                 rows={1}
-                className="w-full bg-transparent border-none outline-none resize-none leading-tight placeholder:text-[#bbb] disabled:opacity-60 overflow-hidden"
+                className="w-full bg-transparent border-none outline-none resize-none leading-tight placeholder:text-[#bbb] disabled:opacity-60 overflow-hidden mb-3"
                 style={{
                   color: '#1a1a1a',
                   fontFamily: 'var(--font-serif)',
-                  fontSize: 'clamp(1.75rem, 4vw, 2.75rem)',
+                  fontSize: 'clamp(1.75rem, 4vw, 2.5rem)',
                   fontWeight: 700,
                 }}
               />
@@ -581,16 +715,16 @@ export function ArticleEditor({
               <textarea
                 ref={excerptRef}
                 value={excerpt}
-                onChange={(e) => setExcerpt(e.target.value)}
+                onChange={(e) => { setExcerpt(e.target.value); setIsDirty(true) }}
                 disabled={!canEdit}
                 placeholder="Write a brief summary that draws readers in..."
                 rows={2}
-                className="w-full mt-3 bg-transparent border-none outline-none resize-none text-lg leading-relaxed placeholder:text-[#ccc] disabled:opacity-60 overflow-hidden"
-                style={{ color: '#555' }}
+                className="w-full bg-transparent border-none outline-none resize-none text-lg leading-relaxed placeholder:text-[#ccc] disabled:opacity-60 overflow-hidden"
+                style={{ color: '#666', fontStyle: 'italic' }}
               />
 
-              {/* PDF import link */}
-              <div className="mt-4 pt-4 border-t border-black/8 flex items-center gap-2">
+              {/* Divider + PDF import */}
+              <div className="mt-5 pt-4 border-t border-black/8 flex items-center gap-2">
                 <input
                   ref={pdfFileRef}
                   type="file"
@@ -609,181 +743,55 @@ export function ArticleEditor({
                 </button>
                 {pdfError && <span className="text-red-500 text-xs">{pdfError}</span>}
               </div>
-            </div>
-          </div>
 
-          {/* Content editor — has its own document page */}
-          <TiptapEditor
-            ref={editorRef}
-            content={content}
-            onChange={handleContentChange}
-            editable={canEdit}
-            saveStatus={saveStatus}
-          />
-        </div>
-
-        {/* Settings sidebar */}
-        <div className="lg:w-72 xl:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-[var(--border)] bg-[var(--bg)] p-5 space-y-5">
-
-          {/* Read time estimate */}
-          <div className="flex items-center gap-2 text-[var(--fg-faint)]">
-            <Clock size={11} className="shrink-0" />
-            <span className="text-[10px] font-semibold uppercase tracking-widest">
-              {content.length > 2 ? readTimeLabel(content) : '— min read'}
-            </span>
-          </div>
-
-          {/* Status (editors/admins only) */}
-          {!isWriter && (
-            <div>
-              <label className="block text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
-                Status
-              </label>
-              <div className="relative">
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="w-full appearance-none border border-[var(--border)] px-3 py-2.5 pr-8 text-[var(--fg)] text-sm focus:outline-none focus:border-gold bg-[var(--bg-elevated)] cursor-pointer"
-                >
-                  <option value="DRAFT">Draft</option>
-                  <option value="PENDING_REVIEW">Pending Review</option>
-                  {canPublish && <option value="PUBLISHED">Published</option>}
-                  {canPublish && <option value="SCHEDULED">Scheduled</option>}
-                  <option value="ARCHIVED">Archived</option>
-                </select>
-                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--fg-faint)] pointer-events-none" />
+              {/* Body editor — toolbar is fixed by TiptapEditor, content is bare */}
+              <div className="mt-6">
+                <TiptapEditor
+                  ref={editorRef}
+                  content={content}
+                  onChange={handleContentChange}
+                  editable={canEdit}
+                  saveStatus={saveStatus}
+                  toolbarFixed
+                  contentOnly
+                />
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Scheduled date picker */}
-          {!isWriter && status === 'SCHEDULED' && (
-            <div>
-              <label className="block text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
-                Publish At
-              </label>
-              <input
-                type="datetime-local"
-                value={scheduledAt}
-                min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
-                onChange={(e) => setScheduledAt(e.target.value)}
-                className="w-full border border-[var(--border)] px-3 py-2.5 text-[var(--fg)] text-sm focus:outline-none focus:border-gold bg-[var(--bg-elevated)] cursor-pointer"
-              />
-              {!scheduledAt && (
-                <p className="text-amber-500 text-[10px] mt-1">Pick a future date and time to schedule this article.</p>
-              )}
-            </div>
-          )}
-
-          {/* Writer: status badge */}
-          {isWriter && (
-            <div>
-              <label className="block text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
-                Status
-              </label>
-              <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 border ${STATUS_COLOURS[currentStatus] ?? STATUS_COLOURS.DRAFT}`}>
-                {STATUS_LABELS[currentStatus] ?? currentStatus}
-              </span>
-            </div>
-          )}
-
-          {/* Category */}
-          <div>
-            <label className="block text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
-              Category
-            </label>
-            <div className="relative">
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                disabled={!canEdit}
-                className="w-full appearance-none border border-[var(--border)] px-3 py-2.5 pr-8 text-[var(--fg)] text-sm focus:outline-none focus:border-gold bg-[var(--bg-elevated)] disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
-              >
-                <option value="">No category</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-              <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--fg-faint)] pointer-events-none" />
+          {/* ── Right metadata panel (hidden below 1100px) ─────────────────── */}
+          <div className="hidden min-[1100px]:block flex-none w-[220px] sticky top-24">
+            <div className="bg-white border border-[#e0e0e0] rounded-lg p-4 overflow-hidden">
+              {renderMetadataFields()}
             </div>
           </div>
 
-          {/* Cover image URL (fallback input) */}
-          <div>
-            <label className="block text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
-              Cover image URL
-            </label>
-            <input
-              type="url"
-              value={coverImage}
-              onChange={(e) => setCoverImage(e.target.value)}
-              placeholder="https://..."
-              className="w-full border border-[var(--border)] px-3 py-2.5 text-[var(--fg)] text-sm focus:outline-none focus:border-gold bg-[var(--bg-elevated)] placeholder:text-[var(--fg-faint)]"
-            />
-          </div>
-
-          {/* Tags */}
-          <div>
-            <label className="block text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2 flex items-center gap-1.5">
-              <Tag size={10} />
-              Tags
-            </label>
-            {tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {tags.map((t) => (
-                  <span
-                    key={t}
-                    className="flex items-center gap-1 text-[var(--fg-muted)] text-[10px] font-semibold px-2 py-1 bg-[var(--bg-subtle)] border border-[var(--border)]"
-                  >
-                    {t}
-                    {canEdit && (
-                      <button
-                        type="button"
-                        onClick={() => setTags(tags.filter((x) => x !== t))}
-                        aria-label={`Remove ${t}`}
-                        className="hover:text-gold transition-colors ml-0.5"
-                      >
-                        <X size={8} />
-                      </button>
-                    )}
-                  </span>
-                ))}
-              </div>
-            )}
-            {canEdit && (
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                onBlur={() => tagInput && addTag(tagInput)}
-                placeholder={tags.length < 10 ? 'Add a tag, press Enter...' : 'Max 10 tags'}
-                disabled={tags.length >= 10}
-                className="w-full border border-[var(--border)] px-3 py-2 text-[var(--fg)] text-xs focus:outline-none focus:border-gold bg-[var(--bg-elevated)] placeholder:text-[var(--fg-faint)] disabled:opacity-50"
-              />
-            )}
-            <p className="text-[var(--fg-faint)] text-[10px] mt-1.5">
-              Separate with Enter or comma. Up to 10.
-            </p>
-          </div>
-
-          {/* URL slug (non-writers) */}
-          {!isWriter && (
-            <div>
-              <label className="block text-[10px] font-bold text-[var(--fg-faint)] uppercase tracking-widest mb-2">
-                URL slug
-              </label>
-              <input
-                type="text"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                placeholder="url-slug"
-                className="w-full border border-[var(--border)] px-3 py-2.5 text-[var(--fg)] text-xs font-mono focus:outline-none focus:border-gold bg-[var(--bg-elevated)]"
-              />
-            </div>
-          )}
         </div>
       </div>
+
+      {/* ── Mobile settings drawer ─────────────────────────────────────────── */}
+      {settingsOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-[60] bg-black/20"
+            onClick={() => setSettingsOpen(false)}
+          />
+          <div className="fixed top-12 right-0 bottom-0 z-[61] w-72 bg-white border-l border-[#e0e0e0] overflow-y-auto p-4 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-semibold text-[#333]">Document settings</span>
+              <button
+                onClick={() => setSettingsOpen(false)}
+                className="text-[#999] hover:text-[#333] transition-colors p-1 rounded hover:bg-[#f1f3f4]"
+                aria-label="Close settings"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            {renderMetadataFields()}
+          </div>
+        </>
+      )}
+
     </div>
   )
 }
