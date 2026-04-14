@@ -89,6 +89,9 @@ export function Navbar() {
     return () => document.removeEventListener('keydown', handler)
   }, [mobileOpen])
 
+  // Editorial portal has its own navigation — don't render the public navbar there
+  if (pathname.startsWith('/editorial')) return null
+
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/'
     return pathname.startsWith(href)

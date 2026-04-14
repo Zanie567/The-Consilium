@@ -680,19 +680,58 @@ export function ArticleEditor({
               minHeight: 'calc(100vh - 120px)',
             }}
           >
-            <div style={{ padding: '72px 96px' }}>
-
-              {/* Cover thumbnail — only shown if URL is set, no placeholder */}
-              {coverImage && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={coverImage}
-                  alt="Cover"
-                  className="w-full object-cover mb-6"
-                  style={{ height: 80 }}
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                />
+            {/* Cover image block — full bleed above the padded content */}
+            <div
+              className="relative group w-full overflow-hidden bg-[#f5f5f5]"
+              style={{ height: coverImage ? 240 : undefined }}
+            >
+              {coverImage ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={coverImage}
+                    alt="Cover"
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                  />
+                  {canEdit && (
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => coverFileRef.current?.click()}
+                        disabled={uploading}
+                        className="flex items-center gap-2 text-white text-xs font-semibold bg-black/50 border border-white/20 px-4 py-2 rounded hover:bg-black/70 transition-colors"
+                      >
+                        <ImagePlus size={13} />
+                        {uploading ? 'Uploading…' : 'Change'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCoverImage('')}
+                        className="flex items-center gap-2 text-white/80 text-xs bg-black/40 border border-white/10 px-3 py-2 rounded hover:bg-black/60 transition-colors"
+                      >
+                        <X size={13} />
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => coverFileRef.current?.click()}
+                    disabled={uploading}
+                    className="w-full py-4 flex items-center justify-center gap-2 text-[#ccc] text-xs hover:text-[#aaa] hover:bg-[#f0f0f0] transition-colors disabled:opacity-50"
+                  >
+                    <ImagePlus size={14} />
+                    {uploading ? 'Uploading…' : 'Add cover image'}
+                  </button>
+                )
               )}
+            </div>
+
+            <div style={{ padding: '64px 128px' }}>
 
               {/* Headline — large, in-document */}
               <textarea

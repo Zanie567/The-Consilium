@@ -38,9 +38,8 @@
   --color-cream-dark: #f0ece0;
   --color-parchment:  #f5f0e8;
 
-  --font-serif: var(--font-playfair), "Playfair Display", Georgia, serif;
-  --font-sans:  var(--font-inter), "Inter", system-ui, sans-serif;
-
+  --font-serif:        var(--font-playfair), "Playfair Display", Georgia, serif;
+  --font-sans:         var(--font-inter), "Inter", system-ui, sans-serif;
   /* Layered shadows */
   --shadow-card:    0 1px 3px rgba(26,39,68,0.06), 0 4px 16px rgba(26,39,68,0.08);
   --shadow-card-hover: 0 4px 12px rgba(26,39,68,0.10), 0 16px 40px rgba(26,39,68,0.14);
@@ -328,9 +327,15 @@ body {
   outline: none;
   min-height: 640px;
   padding: 2rem 3rem 4rem 3rem;
-  font-size: 1.0625rem;
+  font-family: var(--font-eb-garamond), "EB Garamond", Georgia, serif;
+  font-size: 1.125rem;
   line-height: 1.85;
   color: #1a1a1a;
+}
+/* When TiptapEditor is embedded inside a document card (contentOnly mode),
+   the card provides its own padding — override the redundant inner padding. */
+.tiptap-editor--bare .ProseMirror {
+  padding: 0.5rem 0 4rem 0;
 }
 .dark .tiptap-editor .ProseMirror {
   color: var(--fg);
