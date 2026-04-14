@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import {
   Save, Send, Eye, X, Tag, ArrowLeft, Check, AlertCircle,
-  ImagePlus, Loader2, ChevronDown, FileUp, Clock, Settings,
+  ImagePlus, Loader2, ChevronDown, Clock, Settings,
   Bold, Italic, Underline, Strikethrough, Type, Highlighter,
   List, ListOrdered, Quote, Code2, Link2, Upload,
   Table, Minus, AlignLeft, AlignCenter, AlignRight,
@@ -114,8 +114,6 @@ export function ArticleEditor({
   const [error, setError]           = useState('')
   const [coverError, setCoverError] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [pdfImporting, setPdfImporting] = useState(false)
-  const [pdfError, setPdfError]     = useState('')
   const [tutorialOpen, setTutorialOpen] = useState(false)
 
   // ── Refs that need to be stable inside closures ────────────────────────────
@@ -153,7 +151,6 @@ export function ArticleEditor({
   const titleDomRef   = useRef<HTMLTextAreaElement>(null)
   const excerptDomRef = useRef<HTMLTextAreaElement>(null)
   const coverFileRef  = useRef<HTMLInputElement>(null)
-  const pdfFileRef    = useRef<HTMLInputElement>(null)
   const editorRef     = useRef<TiptapEditorHandle | null>(null)
   const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -399,28 +396,7 @@ export function ArticleEditor({
     e.target.value = ''
   }
 
-  // ── PDF import ─────────────────────────────────────────────────────────────
-  const handlePdfImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setPdfError('')
-    setPdfImporting(true)
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch('/api/parse-pdf', { method: 'POST', body: formData })
-      const data = await res.json()
-      if (!res.ok) { setPdfError(data.error ?? 'PDF import failed.'); return }
-      if (editorRef.current && data.text) {
-        editorRef.current.insertTextAsContent(data.text)
-      }
-    } catch {
-      setPdfError('Failed to import PDF.')
-    } finally {
-      setPdfImporting(false)
-      if (pdfFileRef.current) pdfFileRef.current.value = ''
-    }
-  }
+
 
   // ── Metadata panel (shared between right panel + mobile drawer) ────────────
   const renderMetadataFields = () => (
@@ -871,27 +847,6 @@ export function ArticleEditor({
                 className="w-full bg-transparent border-none outline-none resize-none text-lg leading-relaxed placeholder:text-[#ccc] disabled:opacity-60 overflow-hidden"
                 style={{ color: '#666', fontStyle: 'italic' }}
               />
-
-              {/* Divider + PDF import */}
-              <div className="mt-5 pt-4 border-t border-black/8 flex items-center gap-2">
-                <input
-                  ref={pdfFileRef}
-                  type="file"
-                  accept=".pdf"
-                  className="hidden"
-                  onChange={handlePdfImport}
-                />
-                <button
-                  type="button"
-                  onClick={() => pdfFileRef.current?.click()}
-                  disabled={pdfImporting || !canEdit}
-                  className="inline-flex items-center gap-1.5 text-[#888] text-xs px-3 py-1.5 border border-black/15 rounded hover:border-[#1a2744] hover:text-[#1a2744] transition-colors disabled:opacity-50"
-                >
-                  <FileUp size={13} />
-                  {pdfImporting ? 'Importing…' : 'Import from PDF'}
-                </button>
-                {pdfError && <span className="text-red-500 text-xs">{pdfError}</span>}
-              </div>
 
               {/* Body editor */}
               <div className="mt-6">
