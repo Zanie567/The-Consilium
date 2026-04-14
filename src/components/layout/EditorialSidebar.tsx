@@ -35,7 +35,7 @@ export function EditorialSidebar({ user }: { user: User }) {
     { href: '/editorial', icon: LayoutDashboard, label: 'Dashboard', exact: true, show: true },
     { href: '/editorial/review', icon: ClipboardList, label: 'Review Queue', exact: false, show: isEditor },
     { href: '/editorial/articles', icon: FileText, label: user.role === 'WRITER' ? 'My Articles' : 'All Articles', show: true },
-    { href: '/editorial/articles/new', icon: PlusCircle, label: 'New Article', show: true },
+    { href: '/editorial/articles/new', icon: PlusCircle, label: 'New Article', exact: true, show: true },
     { href: '/editorial/scheduled', icon: Clock, label: 'Scheduled', show: isEditor },
     { href: '/editorial/series', icon: BookOpen, label: 'Article Series', show: isEditor },
     { href: '/editorial/users', icon: Users, label: 'Users', show: isEditor },
@@ -46,6 +46,10 @@ export function EditorialSidebar({ user }: { user: User }) {
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) return pathname === href
+    // /editorial/articles must not match when on /editorial/articles/new
+    if (href === '/editorial/articles') {
+      return pathname.startsWith(href) && pathname !== '/editorial/articles/new'
+    }
     return pathname.startsWith(href) && href !== '/editorial'
   }
 

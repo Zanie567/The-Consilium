@@ -181,26 +181,38 @@ interface TiptapEditorProps {
   toolbarPortalRef?: React.RefObject<HTMLDivElement | null>
   onEditorReady?: (editor: Editor) => void
   noWrapper?: boolean
+  darkMode?: boolean
 }
 
-// ── Color palettes ───────────────────────────────────────────────────────────
-const TEXT_COLORS = [
-  '#000000','#434343','#666666','#999999','#b7b7b7','#d9d9d9','#ffffff',
-  '#c00000','#ff0000','#e67c00','#ffff00','#00b050','#00bcd4','#4472c4',
-  '#7030a0','#c9a227','#1a2744',
-]
-
-const HIGHLIGHT_COLORS = [
-  '#ffff00','#ffeb3b','#ffc107','#ff9800','#ff5722',
-  '#c8f7c5','#80e5ff','#a9c4ff','#e6b3ff','#ffb3ba',
-  '#ffffff',
+// Google Docs 10x10 colour palette (row-major order)
+const GOOGLE_DOCS_COLORS: string[] = [
+  // Row 1: Greyscale
+  '#000000','#434343','#666666','#999999','#b7b7b7','#cccccc','#d9d9d9','#efefef','#f3f3f3','#ffffff',
+  // Row 2: Pure saturated
+  '#ff0000','#ff9900','#ffff00','#00ff00','#00ffff','#4a86e8','#0000ff','#9900ff','#ff00ff','#ff0066',
+  // Row 3: Dark shades
+  '#980000','#c43d00','#cb8400','#2d6a0a','#00575f','#1a53a3','#0d0080','#6a0080','#9c0070','#b3003b',
+  // Row 4
+  '#cc0000','#e67300','#e6a817','#428f0a','#006b7a','#2170cb','#3333cc','#7b00b3','#b3007a','#cc0044',
+  // Row 5: Medium dark
+  '#e06666','#f6b26b','#ffd966','#93c47d','#76a5af','#6fa8dc','#6666cc','#a64d99','#cc4488','#e06688',
+  // Row 6: Medium
+  '#ea9999','#f9cb9c','#ffe599','#b6d7a8','#a2c4c9','#9fc5e8','#9999cc','#c2a0c2','#d5a6bd','#ea9999',
+  // Row 7: Light
+  '#f4cccc','#fce5cd','#fff2cc','#d9ead3','#d0e0e3','#cfe2f3','#d9d2e9','#ead1dc','#f0d9f5','#f4ccd8',
+  // Row 8: Very light
+  '#fce5e5','#fef0de','#fefce6','#eaf7e2','#e4f2f5','#e8f0fc','#ede7f6','#f5e0ec','#f8f0fe','#fce5f0',
+  // Row 9: Pale
+  '#fff0f0','#fff5e5','#fdfde8','#f3fbef','#eef8fb','#f5f9ff','#f0f0ff','#f8f0ff','#fdf0f8','#fff0f5',
+  // Row 10: Almost white
+  '#fff8f8','#fffaf5','#fefef5','#f8fbf5','#f5fcfd','#f8faff','#f8f8ff','#fbf8ff','#fdf8fb','#fff8fb',
 ]
 
 const FONT_SIZES = ['10','11','12','14','16','18','20','24','28','32','36','48','60','72']
 
 // ── Main component ────────────────────────────────────────────────────────────
 export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
-  function TiptapEditor({ content, onChange, editable = true, saveStatus, toolbarPortalRef, onEditorReady, noWrapper }, ref) {
+  function TiptapEditor({ content, onChange, editable = true, saveStatus, toolbarPortalRef, onEditorReady, noWrapper, darkMode }, ref) {
     const fileInputRef      = useRef<HTMLInputElement>(null)
     const linkInputRef      = useRef<HTMLInputElement>(null)
     const fontSizeRef       = useRef<HTMLInputElement>(null)
@@ -417,8 +429,8 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         style={style}
         className={`p-1.5 rounded transition-all min-w-[28px] h-7 flex items-center justify-center ${
           active
-            ? 'bg-[#1a2744]/10 text-[#1a2744] dark:bg-gold/20 dark:text-gold'
-            : 'text-[#444] dark:text-[var(--fg-muted)] hover:bg-black/8 dark:hover:bg-white/10'
+            ? darkMode ? 'bg-white/15 text-white' : 'bg-[#1a2744]/10 text-[#1a2744] dark:bg-gold/20 dark:text-gold'
+            : darkMode ? 'text-white/70 hover:bg-white/8' : 'text-[#444] dark:text-[var(--fg-muted)] hover:bg-black/8 dark:hover:bg-white/10'
         } disabled:opacity-30`}
       >
         {children}
@@ -479,7 +491,10 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
         {/* Bubble menu for selected text */}
         {editable && (
-          <BubbleMenu editor={editor}>
+          <BubbleMenu
+            editor={editor}
+            shouldShow={({ editor: ed }) => !ed.isActive('table')}
+          >
             <div className="flex items-center gap-0.5 bg-navy border border-gold/20 shadow-2xl px-1.5 py-1 rounded">
               <BubbleBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold"><Bold size={13} /></BubbleBtn>
               <BubbleBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Italic"><Italic size={13} /></BubbleBtn>
@@ -490,6 +505,27 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
               <BubbleBtn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })} title="Heading 3"><span className="text-xs font-bold">H3</span></BubbleBtn>
               <div className="w-px h-4 bg-gold/20 mx-0.5" />
               <BubbleBtn onClick={openLinkBar} active={editor.isActive('link')} title="Add link"><Link2 size={13} /></BubbleBtn>
+            </div>
+          </BubbleMenu>
+        )}
+
+        {editable && (
+          <BubbleMenu
+            editor={editor}
+            pluginKey="tableControls"
+            shouldShow={({ editor: ed }) => ed.isActive('table')}
+            options={{ placement: 'top-start', offset: 8 }}
+          >
+            <div className={`flex items-center gap-0.5 border shadow-xl px-1.5 py-1 rounded text-[11px] font-medium ${darkMode ? 'bg-[#242424] border-white/15 text-white/80' : 'bg-white border-black/10 text-[#444]'}`}>
+              <span className={`text-[9px] uppercase tracking-widest mr-1 ${darkMode ? 'text-white/30' : 'text-[#aaa]'}`}>Table</span>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowBefore().run() }} className={`px-1.5 py-0.5 rounded ${darkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`} title="Add row above">+row above</button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowAfter().run() }} className={`px-1.5 py-0.5 rounded ${darkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`} title="Add row below">+row below</button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnBefore().run() }} className={`px-1.5 py-0.5 rounded ${darkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`} title="Add column left">+col left</button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnAfter().run() }} className={`px-1.5 py-0.5 rounded ${darkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`} title="Add column right">+col right</button>
+              <span className="w-px h-3 bg-current opacity-20 mx-0.5" />
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteRow().run() }} className="px-1.5 py-0.5 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" title="Delete row">-row</button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteColumn().run() }} className="px-1.5 py-0.5 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" title="Delete column">-col</button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteTable().run() }} className="px-1.5 py-0.5 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" title="Delete table">del table</button>
             </div>
           </BubbleMenu>
         )}
@@ -610,12 +646,12 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                 <div className="h-1 w-4 rounded-sm" style={{ background: activeColor ?? '#000000' }} />
               </button>
               {colorOpen && (
-                <div className="absolute left-0 top-full mt-1 bg-white dark:bg-[var(--bg-elevated)] border border-black/10 dark:border-white/10 shadow-xl z-50 p-2 rounded">
-                  <p className="text-[10px] text-[#666] dark:text-[var(--fg-faint)] mb-2 uppercase tracking-wider">Text colour</p>
-                  <div className="grid grid-cols-9 gap-1 mb-1">
-                    {TEXT_COLORS.map((c) => (
+                <div className={`absolute left-0 top-full mt-1 border shadow-xl z-50 p-2 rounded ${darkMode ? 'bg-[#242424] border-white/15' : 'bg-white border-black/10'}`}>
+                  <p className={`text-[10px] mb-2 uppercase tracking-wider ${darkMode ? 'text-white/40' : 'text-[#666]'}`}>Text colour</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 16px)', gap: 2 }}>
+                    {GOOGLE_DOCS_COLORS.map((c, i) => (
                       <button
-                        key={c}
+                        key={i}
                         type="button"
                         title={c}
                         onMouseDown={(e) => {
@@ -624,10 +660,30 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                           setActiveColor(c)
                           setColorOpen(false)
                         }}
-                        className="w-5 h-5 rounded-sm border border-black/10 hover:scale-110 transition-transform"
-                        style={{ background: c }}
+                        className="rounded-full border border-black/10 hover:scale-110 transition-transform"
+                        style={{ width: 16, height: 16, background: c, flexShrink: 0 }}
                       />
                     ))}
+                  </div>
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <span className={`text-[10px] ${darkMode ? 'text-white/40' : 'text-[#888]'}`}>#</span>
+                    <input
+                      type="text"
+                      placeholder="hex"
+                      maxLength={7}
+                      className={`w-16 text-xs border rounded px-1 py-0.5 outline-none ${darkMode ? 'bg-[#333] border-white/15 text-white placeholder:text-white/30' : 'bg-white border-black/15 text-[#333]'}`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = (e.target as HTMLInputElement).value
+                          const hex = val.startsWith('#') ? val : `#${val}`
+                          if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+                            editor.chain().focus().setColor(hex).run()
+                            setActiveColor(hex)
+                            setColorOpen(false)
+                          }
+                        }
+                      }}
+                    />
                   </div>
                   <button
                     type="button"
@@ -637,9 +693,9 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                       setActiveColor(null)
                       setColorOpen(false)
                     }}
-                    className="mt-1 text-[10px] text-[#666] dark:text-[var(--fg-faint)] hover:text-[#333] transition-colors px-1"
+                    className={`mt-1 text-[10px] hover:opacity-70 transition-opacity px-1 ${darkMode ? 'text-white/50' : 'text-[#666]'}`}
                   >
-                    ✕ Remove colour
+                    Remove colour
                   </button>
                 </div>
               )}
@@ -657,12 +713,12 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                 <div className="h-1 w-4 rounded-sm" style={{ background: activeHighlight ?? '#ffff00' }} />
               </button>
               {highlightOpen && (
-                <div className="absolute left-0 top-full mt-1 bg-white dark:bg-[var(--bg-elevated)] border border-black/10 dark:border-white/10 shadow-xl z-50 p-2 rounded">
-                  <p className="text-[10px] text-[#666] dark:text-[var(--fg-faint)] mb-2 uppercase tracking-wider">Highlight</p>
-                  <div className="grid grid-cols-6 gap-1 mb-1">
-                    {HIGHLIGHT_COLORS.map((c) => (
+                <div className={`absolute left-0 top-full mt-1 border shadow-xl z-50 p-2 rounded ${darkMode ? 'bg-[#242424] border-white/15' : 'bg-white border-black/10'}`}>
+                  <p className={`text-[10px] mb-2 uppercase tracking-wider ${darkMode ? 'text-white/40' : 'text-[#666]'}`}>Highlight</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 16px)', gap: 2 }}>
+                    {GOOGLE_DOCS_COLORS.map((c, i) => (
                       <button
-                        key={c}
+                        key={i}
                         type="button"
                         title={c}
                         onMouseDown={(e) => {
@@ -671,10 +727,30 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                           setActiveHighlight(c)
                           setHighlightOpen(false)
                         }}
-                        className="w-6 h-6 rounded-sm border border-black/10 hover:scale-110 transition-transform"
-                        style={{ background: c }}
+                        className="rounded-full border border-black/10 hover:scale-110 transition-transform"
+                        style={{ width: 16, height: 16, background: c, flexShrink: 0 }}
                       />
                     ))}
+                  </div>
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <span className={`text-[10px] ${darkMode ? 'text-white/40' : 'text-[#888]'}`}>#</span>
+                    <input
+                      type="text"
+                      placeholder="hex"
+                      maxLength={7}
+                      className={`w-16 text-xs border rounded px-1 py-0.5 outline-none ${darkMode ? 'bg-[#333] border-white/15 text-white placeholder:text-white/30' : 'bg-white border-black/15 text-[#333]'}`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = (e.target as HTMLInputElement).value
+                          const hex = val.startsWith('#') ? val : `#${val}`
+                          if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+                            editor.chain().focus().toggleHighlight({ color: hex }).run()
+                            setActiveHighlight(hex)
+                            setHighlightOpen(false)
+                          }
+                        }
+                      }}
+                    />
                   </div>
                   <button
                     type="button"
@@ -684,9 +760,9 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                       setActiveHighlight(null)
                       setHighlightOpen(false)
                     }}
-                    className="mt-1 text-[10px] text-[#666] dark:text-[var(--fg-faint)] hover:text-[#333] transition-colors px-1"
+                    className={`mt-1 text-[10px] hover:opacity-70 transition-opacity px-1 ${darkMode ? 'text-white/50' : 'text-[#666]'}`}
                   >
-                    ✕ Remove highlight
+                    No highlight
                   </button>
                 </div>
               )}
@@ -729,13 +805,13 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
               </ToolbarBtn>
               {tableOpen && (
                 <div className="absolute left-0 top-full mt-1 bg-white dark:bg-[var(--bg-elevated)] border border-black/10 dark:border-white/10 shadow-xl z-50 p-2 rounded">
-                  <p className="text-[10px] text-[#666] dark:text-[var(--fg-faint)] mb-2">
-                    {tableHover.r > 0 ? `${tableHover.r} × ${tableHover.c} table` : 'Insert table'}
+                  <p className={`text-[10px] mb-2 ${darkMode ? 'text-white/40' : 'text-[#666] dark:text-[var(--fg-faint)]'}`}>
+                    {tableHover.r > 0 ? `${tableHover.c} x ${tableHover.r} table` : 'Insert table'}
                   </p>
-                  <div className="grid gap-0.5" style={{ gridTemplateColumns: 'repeat(8, 20px)' }}>
-                    {Array.from({ length: 64 }).map((_, i) => {
-                      const row = Math.floor(i / 8) + 1
-                      const col = (i % 8) + 1
+                  <div className="grid gap-0.5" style={{ gridTemplateColumns: 'repeat(10, 18px)' }}>
+                    {Array.from({ length: 80 }).map((_, i) => {
+                      const row = Math.floor(i / 10) + 1
+                      const col = (i % 10) + 1
                       const on  = row <= tableHover.r && col <= tableHover.c
                       return (
                         <button
@@ -749,7 +825,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                             setTableOpen(false)
                             setTableHover({ r: 0, c: 0 })
                           }}
-                          className={`w-5 h-5 border transition-colors rounded-sm ${
+                          className={`w-[18px] h-[18px] border transition-colors rounded-sm ${
                             on
                               ? 'bg-[#1a2744]/15 border-[#1a2744]/40 dark:bg-gold/20 dark:border-gold/40'
                               : 'border-black/15 dark:border-white/15 hover:bg-black/5'
@@ -886,14 +962,14 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         {noWrapper ? (
           <EditorContent
             editor={editor}
-            className={`tiptap-editor ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
+            className={`tiptap-editor ${noWrapper ? 'tiptap-no-wrapper' : ''} ${darkMode ? 'editor-dark-mode' : ''} ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
           />
         ) : (
           <div className="editor-outer min-h-[600px] py-8 px-4">
             <div className="editor-page max-w-[816px] mx-auto">
               <EditorContent
                 editor={editor}
-                className={`tiptap-editor ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
+                className={`tiptap-editor ${darkMode ? 'editor-dark-mode' : ''} ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
               />
             </div>
           </div>

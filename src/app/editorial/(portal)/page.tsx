@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { format, formatDistanceToNow } from 'date-fns'
 import { NotificationBell } from '@/components/editorial/NotificationBell'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
+import { DraftsSection } from '@/components/editorial/DraftsSection'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -65,9 +66,10 @@ export default async function EditorialDashboard() {
         id: true,
         title: true,
         updatedAt: true,
+        content: true,
         category: { select: { name: true } },
       },
-    }).catch(() => [] as { id: string; title: string; updatedAt: Date; category: { name: string } | null }[]),
+    }).catch(() => [] as { id: string; title: string; updatedAt: Date; content: string; category: { name: string } | null }[]),
 
     isEditor
       ? prisma.article.aggregate({ _sum: { viewCount: true } })
@@ -235,27 +237,15 @@ export default async function EditorialDashboard() {
               View all →
             </Link>
           </div>
-          <div className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] divide-y divide-[var(--border)]">
-            {myDrafts.map((draft) => (
-              <Link
-                key={draft.id}
-                href={`/editorial/articles/${draft.id}/edit`}
-                className="flex items-center gap-4 px-5 py-3.5 hover:bg-[var(--bg-subtle)] transition-colors group"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[var(--fg)] group-hover:text-gold transition-colors line-clamp-1">
-                    {draft.title || <span className="italic text-[var(--fg-faint)]">Untitled</span>}
-                  </p>
-                  <p className="text-xs text-[var(--fg-faint)] mt-0.5">
-                    {draft.category?.name ?? 'No category'} · last saved {formatDistanceToNow(new Date(draft.updatedAt), { addSuffix: true })}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs font-bold text-gold opacity-0 group-hover:opacity-100 transition-opacity">
-                  Continue →
-                </span>
-              </Link>
-            ))}
-          </div>
+          <DraftsSection
+            drafts={myDrafts.map((draft) => ({
+              id: draft.id,
+              title: draft.title,
+              updatedAt: draft.updatedAt,
+              wordCount: wordCount(draft.content),
+              category: draft.category,
+            }))}
+          />
         </PortalSection>
       )}
 

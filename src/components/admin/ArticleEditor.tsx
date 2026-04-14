@@ -1,15 +1,15 @@
 'use client'
 
-import React, { useState, useCallback, useRef, useEffect, KeyboardEvent } from 'react'
+import React, { useState, useCallback, useRef, useEffect, useMemo, KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import {
   Eye, ArrowLeft, Check, AlertCircle,
-  Loader2, ChevronDown, FileUp, Clock, Settings,
+  Loader2, ChevronDown, FileUp, Clock, Settings, Moon, Sun, FileText,
 } from 'lucide-react'
 import slugify from 'slugify'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
-import { readTimeLabel } from '@/lib/readTime'
+import { readTimeMinutes } from '@/lib/readTime'
 
 const TiptapEditor = dynamic(
   () => import('@/components/editor/TiptapEditor').then((m) => m.TiptapEditor),
@@ -22,6 +22,7 @@ const TiptapEditor = dynamic(
     saveStatus?: 'idle' | 'saving' | 'saved' | 'error'
     toolbarPortalRef?: React.RefObject<HTMLDivElement | null>
     noWrapper?: boolean
+    darkMode?: boolean
   } &
   React.RefAttributes<TiptapEditorHandle>
 >
@@ -113,6 +114,25 @@ export function ArticleEditor({
   const [pdfImporting, setPdfImporting] = useState(false)
   const [pdfError, setPdfError] = useState('')
 
+  // Editor-local dark mode (persisted in localStorage, independent of site theme)
+  const [editorDark, setEditorDark] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('editor-theme') === 'dark'
+  })
+
+  // Tracks current article ID for new articles after first autosave
+  const currentArticleIdRef = useRef<string | undefined>(articleId)
+  // Prevents double-POST when autosaving a brand-new article
+  const creatingRef = useRef(false)
+
+  const toggleEditorDark = () => {
+    setEditorDark((prev) => {
+      const next = !prev
+      try { localStorage.setItem('editor-theme', next ? 'dark' : 'light') } catch {}
+      return next
+    })
+  }
+
   const currentStatus = initialData?.status ?? 'DRAFT'
   const canEdit = !isWriter || currentStatus === 'DRAFT' || currentStatus === 'REJECTED'
 
@@ -132,10 +152,10 @@ export function ArticleEditor({
     el.style.height = el.scrollHeight + 'px'
   }, [excerpt])
 
-  // Auto-save for existing articles (debounced)
+  // Auto-save (debounced) — works for both new and existing articles
   useEffect(() => {
     if (!hasMounted.current) { hasMounted.current = true; return }
-    if (!articleId || !canEdit) return
+    if (!canEdit) return
     clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => { silentSave() }, 2500)
     return () => clearTimeout(autoSaveTimer.current)
@@ -244,21 +264,60 @@ export function ArticleEditor({
   }, [isDirty])
 
   const silentSave = async () => {
-    if (!title.trim() || !articleId) return
+    const id = currentArticleIdRef.current
     setSaveStatus('saving')
     try {
-      const res = await fetch(`/api/articles/${articleId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildBody()),
-      })
-      if (res.ok) {
-        setSaveStatus('saved')
-        setIsDirty(false)
-        clearTimeout(savedTimeoutRef.current)
-        savedTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 3000)
+      if (id) {
+        // Update existing article
+        const res = await fetch(`/api/articles/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildBody()),
+        })
+        if (res.ok) {
+          setSaveStatus('saved')
+          setIsDirty(false)
+          clearTimeout(savedTimeoutRef.current)
+          savedTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 3000)
+        } else {
+          setSaveStatus('error')
+        }
       } else {
-        setSaveStatus('error')
+        // First save of a new article — POST to create it
+        if (creatingRef.current) return
+        creatingRef.current = true
+        const effectiveTitle = title.trim() || 'Untitled'
+        const effectiveSlug = slug.trim() || `untitled-${Date.now()}`
+        try {
+          const res = await fetch('/api/articles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: effectiveTitle,
+              slug: effectiveSlug,
+              content,
+              excerpt,
+              coverImage: coverImage || null,
+              categoryId: categoryId || null,
+              authorId,
+              status: 'DRAFT',
+              tags,
+            }),
+          })
+          if (res.ok) {
+            const saved = await res.json()
+            currentArticleIdRef.current = saved.id
+            setSaveStatus('saved')
+            setIsDirty(false)
+            clearTimeout(savedTimeoutRef.current)
+            savedTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 3000)
+            router.replace(`/editorial/articles/${saved.id}/edit`)
+          } else {
+            setSaveStatus('error')
+          }
+        } finally {
+          creatingRef.current = false
+        }
       }
     } catch {
       setSaveStatus('error')
@@ -339,13 +398,24 @@ export function ArticleEditor({
     }
   }
 
+  // Dark mode style tokens
+  const dm = editorDark
+  const chromeBg   = dm ? '#1e1e1e' : '#fff'
+  const chromeBdr  = dm ? '#333'    : '#e0e0e0'
+  const pageAreaBg = dm ? '#1a1a1a' : '#f0f0f0'
+  const cardBg     = dm ? '#242424' : '#ffffff'
+  const cardText   = dm ? '#e8e8e8' : '#1a1a1a'
+  const excerptCol = dm ? '#aaa'    : '#666'
+  const panelBg    = dm ? '#242424' : '#ffffff'
+  const panelBdr   = dm ? '#333'    : '#e0e0e0'
+
   const panelLabelStyle: React.CSSProperties = {
     display: 'block',
     fontSize: 10,
     fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: '0.08em',
-    color: '#999',
+    color: dm ? '#aaa' : '#999',
     marginBottom: 4,
     marginTop: 12,
   }
@@ -353,12 +423,12 @@ export function ArticleEditor({
     width: '100%',
     height: 32,
     fontSize: 12,
-    border: '1px solid #d0d0d0',
+    border: `1px solid ${dm ? '#444' : '#d0d0d0'}`,
     borderRadius: 4,
     padding: '0 8px',
     outline: 'none',
-    background: '#fff',
-    color: '#333',
+    background: dm ? '#2e2e2e' : '#fff',
+    color: dm ? '#ccc' : '#333',
     boxSizing: 'border-box',
   }
   const panelSelectStyle: React.CSSProperties = {
@@ -368,18 +438,43 @@ export function ArticleEditor({
     cursor: 'pointer',
   }
 
+  // Word count derived from JSON content
+  const wordCount = useMemo(() => {
+    if (content.length <= 2) return 0
+    try {
+      const parsed = JSON.parse(content)
+      const extractText = (node: unknown): string => {
+        if (!node || typeof node !== 'object') return ''
+        const n = node as { text?: string; content?: unknown[] }
+        if (typeof n.text === 'string') return n.text
+        if (Array.isArray(n.content)) return n.content.map(extractText).join(' ')
+        return ''
+      }
+      return extractText(parsed).trim().split(/\s+/).filter(Boolean).length
+    } catch {
+      return content.trim().split(/\s+/).filter(Boolean).length
+    }
+  }, [content])
+
+  const readMins = wordCount > 0 ? Math.max(1, Math.round(wordCount / 200)) : 1
+
   // Shared panel fields used in both right panel and mobile drawer
   const panelFields = (
     <>
-      {/* Read time */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#999', marginBottom: 12 }}>
+      {/* Read time + word count */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: dm ? '#888' : '#999', marginBottom: 12, flexWrap: 'wrap' }}>
         <Clock size={12} />
         <span style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          {content.length > 2 ? readTimeLabel(content) : '1 min read'}
+          {readMins} min read
+        </span>
+        <span style={{ opacity: 0.4, fontSize: 12 }}>·</span>
+        <FileText size={12} />
+        <span style={{ fontSize: 12 }}>
+          {wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'}
         </span>
       </div>
 
-      <div style={{ height: 1, background: '#e0e0e0', marginBottom: 12 }} />
+      <div style={{ height: 1, background: dm ? '#333' : '#e0e0e0', marginBottom: 12 }} />
 
       {/* Status */}
       {!isWriter ? (
@@ -463,7 +558,7 @@ export function ArticleEditor({
             <img
               src={coverImage}
               alt="Cover preview"
-              style={{ width: '100%', height: 60, objectFit: 'cover', borderRadius: 4, display: 'block' }}
+              style={{ width: '100%', height: 60, objectFit: 'contain', borderRadius: 4, display: 'block', background: dm ? '#2e2e2e' : '#f0f0f0' }}
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
             />
             {canEdit && (
@@ -528,13 +623,14 @@ export function ArticleEditor({
       <div
         style={{
           position: 'fixed', top: 0, left: 240, right: 0, height: 48,
-          background: '#fff', borderBottom: '1px solid #e0e0e0',
+          background: chromeBg, borderBottom: `1px solid ${chromeBdr}`,
           zIndex: 50, display: 'flex', alignItems: 'center',
           gap: 8, padding: '0 12px',
         }}
       >
         <button
           onClick={handleBack}
+          style={{ color: dm ? '#aaa' : undefined }}
           className="text-[#666] hover:text-[#1a2744] transition-colors shrink-0 p-1.5 rounded hover:bg-[#f1f3f4]"
           aria-label="Back"
         >
@@ -552,14 +648,23 @@ export function ArticleEditor({
           }}
           disabled={!canEdit}
           placeholder="Untitled document"
-          className="flex-1 min-w-0 bg-transparent border-none outline-none text-[#1a1a1a] disabled:opacity-60"
-          style={{ fontSize: 15, fontFamily: 'var(--font-serif)' }}
+          className="flex-1 min-w-0 bg-transparent border-none outline-none disabled:opacity-60"
+          style={{ fontSize: 15, fontFamily: 'var(--font-serif)', color: cardText }}
         />
 
         {/* Status badge */}
         <span className={`shrink-0 hidden sm:inline-flex items-center text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border ${STATUS_COLOURS[status] ?? STATUS_COLOURS.DRAFT}`}>
           {STATUS_LABELS[status] ?? status}
         </span>
+
+        {/* Editor dark mode toggle */}
+        <button
+          onClick={toggleEditorDark}
+          title={editorDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          style={{ color: dm ? '#aaa' : '#666', background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: 4, display: 'flex', alignItems: 'center' }}
+        >
+          {editorDark ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
 
         {/* Save indicator */}
         {saveStatus === 'saving' && (
@@ -640,7 +745,7 @@ export function ArticleEditor({
       <div
         style={{
           position: 'fixed', top: 48, left: 240, right: 0, height: 40,
-          background: '#fff', borderBottom: '1px solid #e0e0e0',
+          background: chromeBg, borderBottom: `1px solid ${chromeBdr}`,
           zIndex: 49, overflow: 'hidden',
         }}
       >
@@ -653,7 +758,7 @@ export function ArticleEditor({
         style={{
           paddingTop: 88,
           minHeight: '100vh',
-          background: '#f0f0f0',
+          background: pageAreaBg,
         }}
       >
         <div
@@ -673,9 +778,9 @@ export function ArticleEditor({
               width: '100%',
               maxWidth: 816,
               flex: 'none',
-              background: '#ffffff',
+              background: cardBg,
               boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)',
-              padding: 'clamp(32px, 5vw, 72px) clamp(24px, 8vw, 96px)',
+              padding: 'clamp(48px, 5vw, 72px) clamp(48px, 8vw, 96px)',
               minHeight: 'calc(100vh - 120px)',
             }}
           >
@@ -709,7 +814,7 @@ export function ArticleEditor({
                 <img
                   src={coverImage}
                   alt="Cover"
-                  style={{ width: '100%', height: 80, objectFit: 'cover', display: 'block' }}
+                  style={{ width: '100%', maxHeight: 320, objectFit: 'contain', display: 'block', background: dm ? '#2a2a2a' : '#f0f0f0' }}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                 />
               </div>
@@ -725,7 +830,7 @@ export function ArticleEditor({
               rows={1}
               className="w-full bg-transparent border-none outline-none resize-none leading-tight placeholder:text-[#bbb] disabled:opacity-60 overflow-hidden mb-3"
               style={{
-                color: '#1a1a1a',
+                color: cardText,
                 fontFamily: 'var(--font-serif)',
                 fontSize: 32,
                 fontWeight: 700,
@@ -742,7 +847,7 @@ export function ArticleEditor({
               placeholder="Write a brief summary..."
               rows={2}
               className="w-full bg-transparent border-none outline-none resize-none leading-relaxed placeholder:text-[#ccc] disabled:opacity-60 overflow-hidden"
-              style={{ color: '#666', fontSize: 16, fontStyle: 'italic' }}
+              style={{ color: excerptCol, fontSize: 16, fontStyle: 'italic' }}
             />
 
             {/* Divider + PDF import */}
@@ -775,6 +880,7 @@ export function ArticleEditor({
               saveStatus={saveStatus}
               toolbarPortalRef={toolbarContainerRef}
               noWrapper
+              darkMode={editorDark}
             />
           </div>
 
@@ -787,8 +893,8 @@ export function ArticleEditor({
               position: 'sticky',
               top: 96,
               alignSelf: 'flex-start',
-              background: '#ffffff',
-              border: '1px solid #e0e0e0',
+              background: panelBg,
+              border: `1px solid ${panelBdr}`,
               borderRadius: 8,
               padding: 16,
             }}
@@ -810,14 +916,14 @@ export function ArticleEditor({
           <div
             style={{
               position: 'absolute', top: 0, right: 0, bottom: 0,
-              width: 260, background: '#fff', padding: 20, overflowY: 'auto',
+              width: 260, background: panelBg, padding: 20, overflowY: 'auto',
               boxShadow: '-4px 0 20px rgba(0,0,0,0.15)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>Settings</span>
-              <button onClick={() => setSettingsOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', fontSize: 18 }}>&times;</button>
+              <span style={{ fontSize: 13, fontWeight: 700, color: cardText }}>Settings</span>
+              <button onClick={() => setSettingsOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: dm ? '#aaa' : '#666', fontSize: 18 }}>&times;</button>
             </div>
             {panelFields}
           </div>

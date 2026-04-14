@@ -274,16 +274,15 @@ export default async function ArticlePage({ params }: Props) {
 
       {/* Cover Image */}
       {article.coverImage && (
-        <div className="relative h-72 sm:h-96 md:h-[520px] w-full overflow-hidden bg-navy no-print">
+        <div className="relative h-72 sm:h-96 md:h-[520px] w-full overflow-hidden bg-[#f5f4f0] no-print">
           <BlurImage
             src={article.coverImage}
             alt={article.title}
             fill
-            className="object-cover opacity-75"
+            className="object-contain"
             priority
             sizes="100vw"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-navy/75 via-navy/20 to-transparent" />
           {/* Read time badge — top right of hero */}
           <div className="absolute top-4 right-4 z-10 flex items-center gap-1.5 bg-navy/70 text-cream/90 text-xs font-semibold px-3 py-1.5 backdrop-blur-sm no-print">
             <Clock size={11} className="shrink-0" />
