@@ -81,3 +81,25 @@ export function passwordResetEmail(resetUrl: string) {
     `,
   }
 }
+
+export function commentFlaggedEmail(
+  articleTitle: string,
+  articleId: string,
+  commentExcerpt: string,
+  flagReason: string,
+) {
+  const base = process.env.NEXTAUTH_URL ?? 'https://the-consilium.vercel.app'
+  return {
+    subject: `Comment flagged for review on "${articleTitle}"`,
+    html: `
+      <p>Hi,</p>
+      <p>A comment was flagged by the content filter on the article <strong>"${articleTitle}"</strong>.</p>
+      <blockquote style="border-left:3px solid #c9a227;padding:8px 16px;margin:16px 0;color:#555;font-style:italic">
+        ${commentExcerpt.slice(0, 200)}${commentExcerpt.length > 200 ? '…' : ''}
+      </blockquote>
+      <p><strong>Flag reason:</strong> ${flagReason}</p>
+      <p><a href="${base}/editorial/comments">Review in the moderation dashboard →</a></p>
+      <p>The Consilium</p>
+    `,
+  }
+}

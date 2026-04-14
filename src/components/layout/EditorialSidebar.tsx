@@ -14,6 +14,8 @@ import {
   BookOpen,
   Clock,
   BarChart2,
+  MessagesSquare,
+  MessageCircle,
 } from 'lucide-react'
 
 interface User {
@@ -38,6 +40,8 @@ export function EditorialSidebar({ user }: { user: User }) {
     { href: '/editorial/series', icon: BookOpen, label: 'Article Series', show: isEditor },
     { href: '/editorial/users', icon: Users, label: 'Users', show: isEditor },
     { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
+    { href: '/editorial/debates', icon: MessagesSquare, label: 'Debates', show: isEditor },
+    { href: '/editorial/comments', icon: MessageCircle, label: 'Comments', show: isEditor },
   ]
 
   const isActive = (href: string, exact?: boolean) => {
