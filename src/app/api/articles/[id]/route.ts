@@ -203,6 +203,9 @@ export async function PUT(
   }
 }
 
+// PATCH is an alias for PUT — used by the autosave system
+export const PATCH = PUT
+
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
