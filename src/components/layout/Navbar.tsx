@@ -140,38 +140,38 @@ export function Navbar() {
             </button>
             <ThemeToggle />
             {session ? (
-              <div className="flex items-center gap-3 pl-3 border-l border-navy-light">
+              <div className="flex items-center gap-2 pl-3 border-l border-navy-light">
                 {(['ADMIN', 'EDITOR', 'WRITER'] as const).includes(
                   (session.user as { role?: string }).role as 'ADMIN' | 'EDITOR' | 'WRITER'
                 ) && !pathname.startsWith('/editorial') && !pathname.startsWith('/admin') && (
                   <>
                     <Link
                       href="/editorial"
-                      className="flex items-center gap-1 text-gold/70 text-[10px] font-semibold uppercase tracking-widest hover:text-gold transition-colors"
+                      className="text-gold/60 hover:text-gold transition-colors p-1"
                       title="Editorial dashboard"
+                      aria-label="Editorial dashboard"
                     >
-                      <LayoutDashboard size={12} />
-                      <span>Dashboard</span>
+                      <LayoutDashboard size={15} />
                     </Link>
                     <Link
                       href="/editorial/articles/new"
-                      className="flex items-center gap-1 text-gold/70 text-[10px] font-semibold uppercase tracking-widest hover:text-gold transition-colors"
+                      className="text-gold/60 hover:text-gold transition-colors p-1"
                       title="Write a new article"
+                      aria-label="Write a new article"
                     >
-                      <PlusCircle size={12} />
-                      <span>New Article</span>
+                      <PlusCircle size={15} />
                     </Link>
                   </>
                 )}
                 <Link
                   href="/profile"
-                  className="text-cream/70 text-xs font-semibold uppercase tracking-widest hover:text-cream transition-colors"
+                  className="text-cream/60 text-[10px] font-semibold uppercase tracking-widest hover:text-cream transition-colors px-1"
                 >
                   Profile
                 </Link>
                 <button
                   onClick={() => signOut()}
-                  className="text-cream/50 text-xs hover:text-cream/80 transition-colors"
+                  className="text-cream/40 text-[10px] hover:text-cream/70 transition-colors tracking-wide"
                 >
                   Sign out
                 </button>
