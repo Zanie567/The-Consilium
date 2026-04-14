@@ -107,6 +107,7 @@ export function ArticleEditor({
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [pdfImporting, setPdfImporting] = useState(false)
   const [pdfError, setPdfError]     = useState('')
+  const [tutorialOpen, setTutorialOpen] = useState(false)
 
   // ── Refs that need to be stable inside closures ────────────────────────────
   // articleIdRef holds the current article ID — set from prop on mount, then
@@ -659,6 +660,15 @@ export function ArticleEditor({
           </a>
         )}
 
+        {/* Tutorial button */}
+        <button
+          onClick={() => setTutorialOpen(true)}
+          aria-label="Open editor tutorial"
+          className="shrink-0 w-7 h-7 rounded-full border border-[#d0d0d0] bg-transparent flex items-center justify-center text-[13px] font-medium text-[#555] hover:bg-[#f1f3f4] transition-colors dark:border-[#444] dark:text-[#aaa] dark:hover:bg-[#2a2a2a]"
+        >
+          ?
+        </button>
+
         {/* Save draft button */}
         {canEdit && (
           <button
@@ -903,6 +913,155 @@ export function ArticleEditor({
         </>
       )}
 
+      {/* Tutorial modal */}
+      {tutorialOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-[70] bg-black/40"
+            onClick={() => setTutorialOpen(false)}
+          />
+          {/* Modal */}
+          <div
+            className="fixed inset-0 z-[71] flex items-center justify-center p-4 pointer-events-none"
+          >
+            <div
+              className="pointer-events-auto w-full bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-2xl flex flex-col"
+              style={{ maxWidth: 680, maxHeight: '80vh', borderRadius: 16 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[#e8e8e8] dark:border-[#333] shrink-0">
+                <h2
+                  className="text-[15px] font-semibold text-[#1a1a1a] dark:text-[#e8e8e8]"
+                  style={{ fontFamily: 'var(--font-serif)' }}
+                >
+                  How to use the article editor
+                </h2>
+                <button
+                  onClick={() => setTutorialOpen(false)}
+                  aria-label="Close tutorial"
+                  className="w-7 h-7 flex items-center justify-center rounded text-[#999] dark:text-[#666] hover:bg-[#f1f3f4] dark:hover:bg-[#2a2a2a] hover:text-[#333] dark:hover:text-[#ccc] transition-colors text-[18px] leading-none"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Modal body — scrollable */}
+              <div className="overflow-y-auto px-6 py-5 space-y-0 text-[14px] leading-[1.7] text-[#333] dark:text-[#ccc]">
+
+                {/* Getting started */}
+                <TutorialSection title="Getting started">
+                  <p>Your article auto-saves as you type — you will see &ldquo;Saving&rdquo; then &ldquo;Saved&rdquo; in the top bar. Click &ldquo;Save draft&rdquo; to save manually at any time.</p>
+                </TutorialSection>
+
+                {/* Formatting */}
+                <TutorialSection title="Formatting buttons">
+                  <ul className="space-y-1 mt-1">
+                    <TutorialItem label="B">Bold</TutorialItem>
+                    <TutorialItem label="I">Italic</TutorialItem>
+                    <TutorialItem label="U">Underline</TutorialItem>
+                    <TutorialItem label="S">Strikethrough</TutorialItem>
+                    <TutorialItem label="T (colour)">Text colour: select text, pick from grid</TutorialItem>
+                    <TutorialItem label="Highlight">Background colour behind selected text</TutorialItem>
+                  </ul>
+                </TutorialSection>
+
+                {/* Structure */}
+                <TutorialSection title="Structure buttons">
+                  <ul className="space-y-1 mt-1">
+                    <TutorialItem label="Normal text / H2 / H3 / H4">Section headings. H2 is a main section, H3 a sub-section.</TutorialItem>
+                    <TutorialItem label="Bullet list">Press Tab to indent a level deeper</TutorialItem>
+                    <TutorialItem label="Numbered list" />
+                    <TutorialItem label="Blockquote">Pull quote with gold left border</TutorialItem>
+                    <TutorialItem label="Code block">Monospaced formatting</TutorialItem>
+                  </ul>
+                </TutorialSection>
+
+                {/* Insert */}
+                <TutorialSection title="Insert buttons">
+                  <ul className="space-y-1 mt-1">
+                    <TutorialItem label="Link">Highlight text first, then click to add URL</TutorialItem>
+                    <TutorialItem label="Image">Inserts image at cursor position</TutorialItem>
+                    <TutorialItem label="Table">Hover grid to choose size, click to insert</TutorialItem>
+                    <TutorialItem label="Horizontal rule">Dividing line across the page</TutorialItem>
+                  </ul>
+                </TutorialSection>
+
+                {/* Alignment */}
+                <TutorialSection title="Alignment">
+                  <p>Left, centre, and right alignment for the paragraph.</p>
+                </TutorialSection>
+
+                {/* Right panel */}
+                <TutorialSection title="Right panel">
+                  <ul className="space-y-1 mt-1">
+                    <TutorialItem label="Status">Draft while writing. Publish when ready (editors/admins) or Submit for review (writers).</TutorialItem>
+                    <TutorialItem label="Category">Assign to News, Opinion, Analysis etc.</TutorialItem>
+                    <TutorialItem label="Cover image">Paste URL or upload file</TutorialItem>
+                    <TutorialItem label="Tags">Up to 10 tags, press Enter or comma after each</TutorialItem>
+                    <TutorialItem label="URL slug">Auto-generated from headline, editable</TutorialItem>
+                  </ul>
+                </TutorialSection>
+
+                {/* Dark mode */}
+                <TutorialSection title="Dark mode">
+                  <p>Click the moon icon to switch to dark mode. Preference is saved automatically.</p>
+                </TutorialSection>
+
+                {/* Word count */}
+                <TutorialSection title="Word count" last>
+                  <p>Updates live as you type, shown in the right panel.</p>
+                </TutorialSection>
+
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
     </div>
+  )
+}
+
+// ── Tutorial modal sub-components ─────────────────────────────────────────────
+
+function TutorialSection({
+  title,
+  children,
+  last,
+}: {
+  title: string
+  children?: React.ReactNode
+  last?: boolean
+}) {
+  return (
+    <div className={`py-4 ${last ? '' : 'border-b border-[#ebebeb] dark:border-[#2e2e2e]'}`}>
+      <p
+        className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[#999] dark:text-[#666] mb-2"
+      >
+        {title}
+      </p>
+      {children}
+    </div>
+  )
+}
+
+function TutorialItem({
+  label,
+  children,
+}: {
+  label: string
+  children?: React.ReactNode
+}) {
+  return (
+    <li className="flex gap-2">
+      <span className="shrink-0 inline-block font-medium text-[#555] dark:text-[#aaa] min-w-[120px]">
+        {label}
+      </span>
+      {children && (
+        <span className="text-[#555] dark:text-[#999]">{children}</span>
+      )}
+    </li>
   )
 }
