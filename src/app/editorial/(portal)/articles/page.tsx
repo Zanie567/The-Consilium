@@ -3,6 +3,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { ArticlesList } from '@/components/editorial/ArticlesList'
+import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -52,8 +53,8 @@ export default async function EditorialArticlesPage() {
   }).catch(() => [])
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl">
-      <div className="mb-6 flex items-center justify-between">
+    <PortalPage className="p-6 lg:p-8 max-w-6xl">
+      <PortalSection className="mb-6 flex items-center justify-between">
         <div>
           <h1
             className="text-2xl font-bold text-[var(--fg)] mb-1"
@@ -71,12 +72,14 @@ export default async function EditorialArticlesPage() {
         >
           + New Article
         </a>
-      </div>
-      <ArticlesList
-        articles={articles as Parameters<typeof ArticlesList>[0]['articles']}
-        isEditor={isEditor}
-        isWriter={role === 'WRITER'}
-      />
-    </div>
+      </PortalSection>
+      <PortalSection>
+        <ArticlesList
+          articles={articles as Parameters<typeof ArticlesList>[0]['articles']}
+          isEditor={isEditor}
+          isWriter={role === 'WRITER'}
+        />
+      </PortalSection>
+    </PortalPage>
   )
 }

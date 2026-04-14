@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { format, formatDistanceToNow } from 'date-fns'
 import { NotificationBell } from '@/components/editorial/NotificationBell'
+import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -20,7 +21,6 @@ export default async function EditorialDashboard() {
   const isAdmin = role === 'ADMIN'
   const isEditor = role === 'ADMIN' || role === 'EDITOR'
 
-  // Get category IDs this editor is assigned to
   let assignedCategoryIds: string[] | null = null
   if (role === 'EDITOR') {
     const assignments = await prisma.categoryEditor.findMany({
@@ -31,7 +31,6 @@ export default async function EditorialDashboard() {
   }
 
   const [myArticles, pendingArticles, publishedCount, myDrafts, totalViews, userCount] = await Promise.all([
-    // Writer: own articles; Editor/Admin: recent across system
     prisma.article.findMany({
       where: role === 'WRITER' ? { authorId: userId } : undefined,
       orderBy: { updatedAt: 'desc' },
@@ -39,7 +38,6 @@ export default async function EditorialDashboard() {
       include: { category: true, author: true },
     }).catch(() => []),
 
-    // Pending queue (editor/admin only)
     isEditor
       ? prisma.article.findMany({
           where: {
@@ -59,7 +57,6 @@ export default async function EditorialDashboard() {
       },
     }).catch(() => 0),
 
-    // My drafts — always the current user's own work-in-progress
     prisma.article.findMany({
       where: { authorId: userId, status: 'DRAFT' },
       orderBy: { updatedAt: 'desc' },
@@ -72,14 +69,12 @@ export default async function EditorialDashboard() {
       },
     }).catch(() => [] as { id: string; title: string; updatedAt: Date; category: { name: string } | null }[]),
 
-    // Total site views (editors/admins only)
     isEditor
       ? prisma.article.aggregate({ _sum: { viewCount: true } })
           .then((r) => r._sum.viewCount ?? 0)
           .catch(() => 0)
       : Promise.resolve(0),
 
-    // Total editorial team members (editors/admins only)
     isEditor
       ? prisma.user.count({ where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] } } }).catch(() => 0)
       : Promise.resolve(0),
@@ -105,9 +100,9 @@ export default async function EditorialDashboard() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl">
+    <PortalPage className="p-6 lg:p-8 max-w-6xl">
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <PortalSection className="flex items-start justify-between mb-8">
         <div>
           <h1
             className="text-2xl font-bold text-[var(--fg)] mb-1"
@@ -124,10 +119,10 @@ export default async function EditorialDashboard() {
           </p>
         </div>
         <NotificationBell />
-      </div>
+      </PortalSection>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      <PortalSection className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         <StatCard label="My Drafts" value={myDrafts.length} />
         <StatCard label="Published" value={publishedCount} accent="emerald" />
         {isEditor && (
@@ -145,11 +140,11 @@ export default async function EditorialDashboard() {
             <StatCard label="Users" value={userCount} />
           </Link>
         )}
-      </div>
+      </PortalSection>
 
-      {/* Pending Review queue — prominent for editors */}
+      {/* Pending Review queue */}
       {isEditor && pendingArticles.length > 0 && (
-        <div className="mb-8">
+        <PortalSection className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-bold text-[var(--fg)] uppercase tracking-widest">
               Pending Review
@@ -188,11 +183,11 @@ export default async function EditorialDashboard() {
               </div>
             ))}
           </div>
-        </div>
+        </PortalSection>
       )}
 
       {/* Quick actions */}
-      <div className="flex flex-wrap gap-3 mb-8">
+      <PortalSection className="flex flex-wrap gap-3 mb-8">
         <Link
           href="/editorial/articles/new"
           className="inline-flex items-center gap-2 bg-navy text-gold px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors"
@@ -221,11 +216,11 @@ export default async function EditorialDashboard() {
             Article Series
           </Link>
         )}
-      </div>
+      </PortalSection>
 
       {/* My Drafts */}
       {myDrafts.length > 0 && (
-        <div className="mb-8">
+        <PortalSection className="mb-8">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">
               My Drafts
@@ -261,80 +256,82 @@ export default async function EditorialDashboard() {
               </Link>
             ))}
           </div>
-        </div>
+        </PortalSection>
       )}
 
       {/* Recent articles table */}
-      <div className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden">
-        <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
-          <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">
-            {role === 'WRITER' ? 'My Articles' : 'Recent Articles'}
-          </h2>
-          <Link href="/editorial/articles" className="text-xs text-gold hover:underline">
-            View all →
-          </Link>
-        </div>
-        {myArticles.length > 0 ? (
-          <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--border)]">
-                <th className="px-6 py-2.5 text-left text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider">
-                  Article
-                </th>
-                <th className="px-4 py-2.5 text-left text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider hidden sm:table-cell">
-                  Category
-                </th>
-                <th className="px-4 py-2.5 text-left text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider hidden md:table-cell">
-                  Updated
-                </th>
-                <th className="px-4 py-2.5 text-right text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border)]">
-              {myArticles.map((article) => (
-                <tr key={article.id} className="hover:bg-[var(--bg-subtle)] transition-colors">
-                  <td className="px-6 py-3">
-                    <Link
-                      href={`/editorial/articles/${article.id}/edit`}
-                      className="font-medium text-[var(--fg)] hover:text-gold transition-colors line-clamp-1"
-                    >
-                      {article.title}
-                    </Link>
-                    {isEditor && (
-                      <p className="text-[var(--fg-faint)] text-xs mt-0.5">
-                        {article.author.name}
-                      </p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-[var(--fg-faint)] text-xs hidden sm:table-cell">
-                    {article.category?.name ?? 'Uncategorised'}
-                  </td>
-                  <td className="px-4 py-3 text-[var(--fg-faint)] text-xs hidden md:table-cell">
-                    {format(new Date(article.updatedAt), 'd MMM yyyy')}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className={`text-xs font-bold px-2 py-0.5 ${statusColour[article.status] ?? ''}`}>
-                      {article.status.replace('_', ' ')}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-        ) : (
-          <div className="px-6 py-16 text-center text-[var(--fg-faint)] text-sm">
-            No articles yet.{' '}
-            <Link href="/editorial/articles/new" className="text-gold hover:underline">
-              Write your first article.
+      <PortalSection>
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
+            <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">
+              {role === 'WRITER' ? 'My Articles' : 'Recent Articles'}
+            </h2>
+            <Link href="/editorial/articles" className="text-xs text-gold hover:underline">
+              View all →
             </Link>
           </div>
-        )}
-      </div>
-    </div>
+          {myArticles.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border)]">
+                    <th className="px-6 py-2.5 text-left text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider">
+                      Article
+                    </th>
+                    <th className="px-4 py-2.5 text-left text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider hidden sm:table-cell">
+                      Category
+                    </th>
+                    <th className="px-4 py-2.5 text-left text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider hidden md:table-cell">
+                      Updated
+                    </th>
+                    <th className="px-4 py-2.5 text-right text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)]">
+                  {myArticles.map((article) => (
+                    <tr key={article.id} className="hover:bg-[var(--bg-subtle)] transition-colors">
+                      <td className="px-6 py-3">
+                        <Link
+                          href={`/editorial/articles/${article.id}/edit`}
+                          className="font-medium text-[var(--fg)] hover:text-gold transition-colors line-clamp-1"
+                        >
+                          {article.title}
+                        </Link>
+                        {isEditor && (
+                          <p className="text-[var(--fg-faint)] text-xs mt-0.5">
+                            {article.author.name}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-[var(--fg-faint)] text-xs hidden sm:table-cell">
+                        {article.category?.name ?? 'Uncategorised'}
+                      </td>
+                      <td className="px-4 py-3 text-[var(--fg-faint)] text-xs hidden md:table-cell">
+                        {format(new Date(article.updatedAt), 'd MMM yyyy')}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={`text-xs font-bold px-2 py-0.5 ${statusColour[article.status] ?? ''}`}>
+                          {article.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="px-6 py-16 text-center text-[var(--fg-faint)] text-sm">
+              No articles yet.{' '}
+              <Link href="/editorial/articles/new" className="text-gold hover:underline">
+                Write your first article.
+              </Link>
+            </div>
+          )}
+        </div>
+      </PortalSection>
+    </PortalPage>
   )
 }
 
