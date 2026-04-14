@@ -6,6 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Search, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface SearchResult {
   id: string
@@ -27,6 +28,11 @@ function highlight(text: string, query: string): string {
   return text.replace(new RegExp(`(${pattern})`, 'gi'), '<mark>$1</mark>')
 }
 
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' as const } },
+}
+
 function SearchContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -36,6 +42,7 @@ function SearchContent() {
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [resultsKey, setResultsKey] = useState(0)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -47,6 +54,7 @@ function SearchContent() {
       const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`)
       const data = await res.json()
       setResults(Array.isArray(data) ? data : [])
+      setResultsKey((k) => k + 1)
     } catch {
       setResults([])
     } finally {
@@ -84,18 +92,37 @@ function SearchContent() {
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Search header */}
-      <div className="bg-navy border-b-2 border-gold py-14 px-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4 }}
+        className="bg-navy border-b-2 border-gold py-14 px-4"
+      >
         <div className="max-w-2xl mx-auto text-center">
-          <p className="text-gold/60 text-[0.65rem] tracking-[0.3em] uppercase font-semibold mb-3">
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.05 }}
+            className="text-gold/60 text-[0.65rem] tracking-[0.3em] uppercase font-semibold mb-3"
+          >
             The Consilium
-          </p>
-          <h1
+          </motion.p>
+          <motion.h1
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
             className="text-3xl sm:text-4xl font-bold text-cream mb-8"
             style={{ fontFamily: 'var(--font-serif)' }}
           >
             Search
-          </h1>
-          <form onSubmit={handleSubmit} className="relative">
+          </motion.h1>
+          <motion.form
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.18 }}
+            onSubmit={handleSubmit}
+            className="relative"
+          >
             <Search
               size={18}
               className="absolute left-4 top-1/2 -translate-y-1/2 text-gold/60 pointer-events-none"
@@ -105,7 +132,7 @@ function SearchContent() {
               type="search"
               value={query}
               onChange={handleChange}
-              placeholder="Search articles, authors, topics…"
+              placeholder="Search articles, authors, topics..."
               autoComplete="off"
               spellCheck="false"
               className="w-full bg-white/8 border border-gold/30 focus:border-gold text-cream placeholder-cream/35 text-base pl-12 pr-5 py-4 outline-none transition-colors duration-200"
@@ -117,44 +144,82 @@ function SearchContent() {
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-gold/60 animate-spin"
               />
             )}
-          </form>
+          </motion.form>
         </div>
-      </div>
+      </motion.div>
 
       {/* Results */}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {!searched && query.length < 2 && (
-          <p className="text-center text-[var(--fg-faint)] text-sm py-10">
-            Start typing to search across all articles.
-          </p>
-        )}
-
-        {searched && !loading && results.length === 0 && (
-          <div className="text-center py-14">
-            <p
-              className="text-2xl font-bold text-[var(--fg)] mb-3"
-              style={{ fontFamily: 'var(--font-serif)' }}
+        <AnimatePresence mode="wait">
+          {!searched && query.length < 2 && (
+            <motion.p
+              key="hint"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="text-center text-[var(--fg-faint)] text-sm py-10"
             >
-              No results found
-            </p>
-            <p className="text-[var(--fg-muted)] text-sm">
-              Try different keywords, check for spelling, or{' '}
-              <Link href="/archive" className="text-gold hover:underline">
-                browse all articles
-              </Link>
-              .
-            </p>
-          </div>
-        )}
+              Start typing to search across all articles.
+            </motion.p>
+          )}
+
+          {searched && !loading && results.length === 0 && (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.35 }}
+              className="text-center py-14"
+            >
+              <p
+                className="text-2xl font-bold text-[var(--fg)] mb-3"
+                style={{ fontFamily: 'var(--font-serif)' }}
+              >
+                No results found
+              </p>
+              <p className="text-[var(--fg-muted)] text-sm">
+                Try different keywords, check for spelling, or{' '}
+                <Link href="/archive" className="text-gold hover:underline">
+                  browse all articles
+                </Link>
+                .
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {results.length > 0 && (
-          <>
-            <p className="text-[var(--fg-faint)] text-xs uppercase tracking-widest font-semibold mb-6">
+          <motion.div
+            key={resultsKey}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+          >
+            <motion.p
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="text-[var(--fg-faint)] text-xs uppercase tracking-widest font-semibold mb-6"
+            >
               {results.length} result{results.length !== 1 ? 's' : ''} for &ldquo;{query}&rdquo;
-            </p>
-            <div className="space-y-0 divide-y divide-[var(--border)]">
+            </motion.p>
+            <motion.div
+              variants={{
+                hidden: {},
+                visible: { transition: { staggerChildren: 0.06 } },
+              }}
+              initial="hidden"
+              animate="visible"
+              className="space-y-0 divide-y divide-[var(--border)]"
+            >
               {results.map((result) => (
-                <article key={result.id} className="py-7 flex gap-5 group">
+                <motion.article
+                  key={result.id}
+                  variants={itemVariants}
+                  className="py-7 flex gap-5 group"
+                >
                   {/* Thumbnail */}
                   <Link
                     href={`/articles/${result.slug}`}
@@ -217,10 +282,10 @@ function SearchContent() {
                       )}
                     </div>
                   </div>
-                </article>
+                </motion.article>
               ))}
-            </div>
-          </>
+            </motion.div>
+          </motion.div>
         )}
       </div>
     </div>

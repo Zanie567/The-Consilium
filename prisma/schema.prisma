@@ -244,6 +244,7 @@ model ArticleView {
   viewedAt    DateTime @default(now())
   sessionHash String?
   referrer    String?
+  source      String?  // "Direct" | "Search" | "Social" | "Email" | "Other"
 
   article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
 

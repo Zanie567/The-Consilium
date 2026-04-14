@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { SeriesManager } from '@/components/editorial/SeriesManager'
+import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -33,8 +34,8 @@ export default async function SeriesPage() {
   ])
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl">
-      <div className="mb-8">
+    <PortalPage className="p-6 lg:p-8 max-w-4xl">
+      <PortalSection className="mb-8">
         <h1
           className="text-2xl font-bold text-[var(--fg)] mb-1"
           style={{ fontFamily: 'var(--font-serif)' }}
@@ -44,11 +45,13 @@ export default async function SeriesPage() {
         <p className="text-[var(--fg-muted)] text-sm">
           Group related articles into a series with navigation between parts.
         </p>
-      </div>
-      <SeriesManager
-        initialSeries={allSeries as Parameters<typeof SeriesManager>[0]['initialSeries']}
-        articles={publishedArticles}
-      />
-    </div>
+      </PortalSection>
+      <PortalSection>
+        <SeriesManager
+          initialSeries={allSeries as Parameters<typeof SeriesManager>[0]['initialSeries']}
+          articles={publishedArticles}
+        />
+      </PortalSection>
+    </PortalPage>
   )
 }
