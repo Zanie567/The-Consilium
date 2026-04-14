@@ -10,7 +10,7 @@ import {
 import slugify from 'slugify'
 import { mutate as globalMutate } from 'swr'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
-import { readTimeLabel } from '@/lib/readTime'
+import { readTimeLabel, wordCountFromContent } from '@/lib/readTime'
 import { DRAFTS_SWR_KEY } from '@/components/editorial/MyDrafts'
 
 const TiptapEditor = dynamic(
@@ -417,12 +417,20 @@ export function ArticleEditor({
   const renderMetadataFields = () => (
     <div className="space-y-0">
 
-      {/* Read time */}
-      <div className="flex items-center gap-1.5 pb-3 mb-1 border-b border-[#e8e8e8]">
+      {/* Read time + word count */}
+      <div className="flex items-center gap-2 pb-3 mb-1 border-b border-[#e8e8e8]">
         <Clock size={11} className="text-[#aaa] shrink-0" />
         <span className="text-[12px] text-[#aaa] uppercase tracking-wider font-medium">
           {content.length > 2 ? readTimeLabel(content) : '— min read'}
         </span>
+        {content.length > 2 && (
+          <>
+            <span className="text-[#ddd]">·</span>
+            <span className="text-[12px] text-[#aaa] uppercase tracking-wider font-medium">
+              {wordCountFromContent(content).toLocaleString()} words
+            </span>
+          </>
+        )}
       </div>
 
       {/* Status */}
