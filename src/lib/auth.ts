@@ -70,6 +70,12 @@ export const authOptions: NextAuthOptions = {
           where: { email: credentials.email },
         })
 
+        // Banned users cannot sign in
+        if (user?.isBanned) {
+          await logAttempt(credentials.email, ip, false)
+          return null
+        }
+
         // Account locked
         if (user?.lockedUntil && user.lockedUntil > new Date()) {
           await logAttempt(credentials.email, ip, false)
@@ -105,13 +111,14 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        // Successful login — reset lockout state
+        // Successful login — reset lockout state, track last active
         await prisma.user.update({
           where: { id: user.id },
           data: {
             failedLoginAttempts: 0,
             lockedUntil: null,
             lastLoginAt: new Date(),
+            lastActiveAt: new Date(),
           },
         })
 
@@ -133,20 +140,32 @@ export const authOptions: NextAuthOptions = {
         token.role = (user as unknown as { role: Role }).role
         token.id = user.id
         token.roleCheckedAt = Date.now()
+        token.isBanned = false
+        token.bannedCheckedAt = Date.now()
       } else {
-        // Re-fetch role from DB every 30 minutes so role changes take effect without re-login
+        // Re-check ban status every 60 seconds — critical for security
+        const oneMinuteAgo = Date.now() - 60 * 1000
         const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000
-        if (!token.roleCheckedAt || (token.roleCheckedAt as number) < thirtyMinutesAgo) {
+
+        const needsBanCheck = !token.bannedCheckedAt || (token.bannedCheckedAt as number) < oneMinuteAgo
+        const needsRoleCheck = !token.roleCheckedAt || (token.roleCheckedAt as number) < thirtyMinutesAgo
+
+        if (needsBanCheck || needsRoleCheck) {
           try {
             const dbUser = await prisma.user.findUnique({
               where: { id: token.id as string },
-              select: { role: true, isActive: true },
+              select: { role: true, isActive: true, isBanned: true },
             })
             if (dbUser) {
-              token.role = dbUser.role
-              token.roleCheckedAt = Date.now()
-              // If account deactivated, mark so session callback can reject
-              if (!dbUser.isActive) token.isActive = false
+              if (needsRoleCheck) {
+                token.role = dbUser.role
+                token.roleCheckedAt = Date.now()
+                if (!dbUser.isActive) token.isActive = false
+              }
+              if (needsBanCheck) {
+                token.isBanned = dbUser.isBanned
+                token.bannedCheckedAt = Date.now()
+              }
             }
           } catch {
             // DB unavailable — use cached token values
@@ -157,8 +176,9 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (token && session.user) {
-        ;(session.user as unknown as { role: Role; id: string }).role = token.role as Role
+        ;(session.user as unknown as { role: Role; id: string; isBanned: boolean }).role = token.role as Role
         ;(session.user as unknown as { id: string }).id = token.id as string
+        ;(session.user as unknown as { isBanned: boolean }).isBanned = (token.isBanned as boolean) ?? false
       }
       return session
     },

@@ -39,9 +39,14 @@ model User {
   role          Role      @default(READER)
   isActive              Boolean   @default(true)
   lastLoginAt           DateTime?
+  lastActiveAt          DateTime?
   failedLoginAttempts   Int       @default(0)
   lockedUntil           DateTime?
   adminNotes            String?   @db.Text
+  isBanned              Boolean   @default(false)
+  bannedAt              DateTime?
+  bannedReason          String?   @db.Text
+  bannedBy              String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -57,6 +62,8 @@ model User {
   debateVotes        DebateVote[]
   comments           Comment[]
   commentUpvotes     CommentUpvote[]
+  warnings           UserWarning[]
+  notes              AdminNote[]
 
   @@map("users")
 }
@@ -415,4 +422,48 @@ model CommentUpvote {
 
   @@unique([commentId, userId])
   @@map("comment_upvotes")
+}
+
+// ── User moderation ──────────────────────────────────────────────────────────
+
+model UserWarning {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason    String   @db.Text
+  issuedBy  String   // admin name
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("user_warnings")
+}
+
+model AdminNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note      String   @db.Text
+  authorId  String
+  authorName String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("admin_notes")
+}
+
+// ── Audit log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String
+  targetId    String
+  targetType  String   @default("user")
+  performedBy String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([targetId])
+  @@index([performedBy])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
