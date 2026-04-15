@@ -5,25 +5,25 @@
  * Upstream source: FRED (Federal Reserve Bank of St. Louis)
  *
  * Required environment variables:
- *   FRED_API_KEY — free key from https://fred.stlouisfed.org/docs/api/api_key.html
+ *   FRED_API_KEY - free key from https://fred.stlouisfed.org/docs/api/api_key.html
  *
- * Rate limits: FRED free tier allows ~1000+ requests/day — no concern here.
+ * Rate limits: FRED free tier allows ~1000+ requests/day - no concern here.
  * Cache: 24 hours (all macro series update monthly or less frequently).
  *
  * FRED series used:
- *   CPIAUCSL       — US CPI (All Urban Consumers, SA), units=pc1 → YoY %
- *   GBRCPIALLMINMEI — UK CPI (OECD), units=pc1 → YoY %
- *   UNRATE         — US Unemployment Rate (%)
- *   LRHUTTTTGBM156S — UK Unemployment Rate, 15-74, % (OECD)
- *   DFF            — US Effective Federal Funds Rate (%)
- *   BOEBR          — Bank of England Official Bank Rate (%)
- *   ECBDFR         — ECB Deposit Facility Rate (%)
+ *   CPIAUCSL        - US CPI (All Urban Consumers, SA), units=pc1 -> YoY %
+ *   GBRCPIALLMINMEI - UK CPI (OECD), units=pc1 -> YoY %
+ *   UNRATE          - US Unemployment Rate (%)
+ *   LRHUTTTTGBM156S - UK Unemployment Rate, 15-74, % (OECD)
+ *   DFF             - US Effective Federal Funds Rate (%)
+ *   BOEBR           - Bank of England Official Bank Rate (%)
+ *   ECBDFR          - ECB Deposit Facility Rate (%)
  */
 
 import { NextResponse } from 'next/server'
 
 // force-dynamic prevents Next.js from statically pre-rendering this route at
-// build time. A failed build-time pre-render causes Vercel to cache a 404 —
+// build time. A failed build-time pre-render causes Vercel to cache a 404 -
 // the same issue that affected /api/publish-scheduled. Caching is replicated
 // via Cache-Control on the response so Vercel's CDN caches it at the edge.
 export const dynamic = 'force-dynamic'
@@ -37,7 +37,7 @@ interface SeriesConfig {
   label:    string
   seriesId: string
   unit:     'YOY' | '%'
-  /** FRED units parameter — 'pc1' = percent change from year ago */
+  /** FRED units parameter - 'pc1' = percent change from year ago */
   fredUnits?: string
   fallback: number
 }
@@ -122,7 +122,7 @@ export async function GET() {
       },
     )
   } catch (err) {
-    // Never return an error to the frontend — fall back to hardcoded data
+    // Never return an error to the frontend - fall back to hardcoded data
     console.error('[ticker/macro] Unhandled error, returning fallback:', err)
     return NextResponse.json(
       {

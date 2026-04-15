@@ -20,7 +20,7 @@ export async function sendEmail({
   html: string
 }) {
   if (!process.env.RESEND_API_KEY) {
-    console.warn('[email] RESEND_API_KEY not set — email not sent to', to)
+    console.warn('[email] RESEND_API_KEY not set - email not sent to', to)
     return
   }
   try {

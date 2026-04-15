@@ -18,7 +18,7 @@ export default async function EditorialLayout({
     redirect('/editorial/login')
   }
 
-  // Always read role from the database — never trust the JWT alone.
+  // Always read role from the database - never trust the JWT alone.
   // This ensures role changes and new accounts take effect immediately.
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id },

@@ -107,7 +107,7 @@ const article1Content = doc(
   img(IMAGES.canaryWharf, 'London Canary Wharf financial district at dusk'),
   caption("London's Canary Wharf financial district. Photo: Simone Hutsch / Unsplash"),
   quote(
-    '"The stance of monetary policy remains restrictive even after today\'s decision, and the Committee will continue to assess whether further adjustments are appropriate as the economic outlook evolves." — MPC Statement, February 2025'
+    '"The stance of monetary policy remains restrictive even after today\'s decision, and the Committee will continue to assess whether further adjustments are appropriate as the economic outlook evolves." (MPC Statement, February 2025)'
   ),
   h2('Services Inflation: The Final Hurdle'),
   p(
@@ -147,7 +147,7 @@ const article2Content = doc(
   img(IMAGES.officeWorkers, 'Workers collaborating at computers in a modern open-plan office'),
   caption('Knowledge workers in a modern office environment. Photo: tommao wang / Unsplash'),
   quote(
-    '"The worry is not that machines will replace all human labour, but that the transition will be faster than institutions can adapt, leaving millions of workers stranded between the jobs that have disappeared and the jobs that have not yet been created." — Daron Acemoglu, MIT, 2024'
+    '"The worry is not that machines will replace all human labour, but that the transition will be faster than institutions can adapt, leaving millions of workers stranded between the jobs that have disappeared and the jobs that have not yet been created." (Daron Acemoglu, MIT, 2024)'
   ),
   h2('What the Evidence Actually Shows'),
   p(
@@ -227,7 +227,7 @@ const article4Content = doc(
   img(IMAGES.windTurbines, 'Offshore wind turbines at sea representing renewable energy transition'),
   caption('The transition to renewable energy is central to climate policy, but requires coordinated carbon pricing to accelerate investment at scale. Photo: Thomas Richter / Unsplash'),
   quote(
-    '"A fragmented carbon market is better than no carbon market, but it is not nearly sufficient to drive the investment in clean energy at the speed and scale that the climate challenge demands." — IEA World Energy Outlook, 2024'
+    '"A fragmented carbon market is better than no carbon market, but it is not nearly sufficient to drive the investment in clean energy at the speed and scale that the climate challenge demands." (IEA World Energy Outlook, 2024)'
   ),
   h2('The EU Carbon Border Adjustment Mechanism'),
   p(

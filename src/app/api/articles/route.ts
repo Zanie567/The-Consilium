@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { title, slug: rawSlug, content, excerpt, coverImage, categoryId, status, tags } = body
 
-    // Title is optional for autosave — untitled drafts are valid
+    // Title is optional for autosave - untitled drafts are valid
     const effectiveTitle = title ?? ''
 
     // Generate a unique slug from title, or a timestamp-based one if title is empty

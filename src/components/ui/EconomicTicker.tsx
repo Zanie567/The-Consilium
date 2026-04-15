@@ -1,15 +1,15 @@
 'use client'
 
 /**
- * EconomicTicker — FT-style continuously scrolling bar showing live economic data.
+ * EconomicTicker - FT-style continuously scrolling bar showing live economic data.
  *
  * Data sources (via internal API routes, cached server-side):
- *   /api/ticker/markets — Alpha Vantage: indices, forex, gold
- *   /api/ticker/macro   — FRED: CPI, unemployment, central bank rates
+ *   /api/ticker/markets - Alpha Vantage: indices, forex, gold
+ *   /api/ticker/macro   - FRED: CPI, unemployment, central bank rates
  *
  * Directional arrows (▲/▼):
  *   - Indices    : built-in changePercent from Alpha Vantage (day-over-day)
- *   - Forex/Gold : localStorage comparison — direction vs previous 6-hour fetch
+ *   - Forex/Gold : localStorage comparison - direction vs previous 6-hour fetch
  *   - Macro      : previousValue returned by FRED endpoint (month-over-month)
  *   Every metric always shows an arrow; colour is green (up) or red (down).
  *
@@ -144,7 +144,7 @@ function buildDisplayItems(
 ): DisplayItem[] {
   const items: DisplayItem[] = []
 
-  // Indices — direction from built-in changePercent (day-over-day)
+  // Indices - direction from built-in changePercent (day-over-day)
   for (const idx of markets.indices) {
     const d = idx.changePercent > 0 ? 'up' : idx.changePercent < 0 ? 'down' : 'flat'
     const pct = Math.abs(idx.changePercent).toFixed(2)
@@ -156,7 +156,7 @@ function buildDisplayItems(
     })
   }
 
-  // Forex — direction from localStorage comparison
+  // Forex - direction from localStorage comparison
   for (const fx of markets.forex) {
     const prevRate = prev?.forex?.[fx.pair] ?? null
     const d = dir(fx.rate, prevRate)
@@ -168,7 +168,7 @@ function buildDisplayItems(
     })
   }
 
-  // Commodities — direction from localStorage comparison
+  // Commodities - direction from localStorage comparison
   for (const c of markets.commodities) {
     const prevPrice = prev?.commodities?.[c.label] ?? null
     const d = dir(c.price, prevPrice)
@@ -180,7 +180,7 @@ function buildDisplayItems(
     })
   }
 
-  // Macro — direction from previousValue returned by FRED API
+  // Macro - direction from previousValue returned by FRED API
   for (const m of macro.data) {
     const d = dir(m.value, m.previousValue)
     const formatted = m.unit === 'YOY'
@@ -364,11 +364,11 @@ export function EconomicTicker() {
             willChange:         'transform',
           }}
         >
-          {/* Copy 1 — readable by screen readers */}
+          {/* Copy 1 - readable by screen readers */}
           <div style={{ display: 'flex', alignItems: 'center' }}>
             {items.map((item) => <Item key={item.key} item={item} />)}
           </div>
-          {/* Copy 2 — seamless loop duplicate */}
+          {/* Copy 2 - seamless loop duplicate */}
           <div style={{ display: 'flex', alignItems: 'center' }} aria-hidden>
             {items.map((item) => <Item key={`d-${item.key}`} item={item} />)}
           </div>

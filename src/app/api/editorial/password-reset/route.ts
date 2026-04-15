@@ -4,8 +4,8 @@ import { sendEmail, passwordResetEmail } from '@/lib/email'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 
-// POST /api/editorial/password-reset — request reset link
-// PATCH /api/editorial/password-reset — consume token and set new password
+// POST /api/editorial/password-reset - request reset link
+// PATCH /api/editorial/password-reset - consume token and set new password
 
 export async function POST(req: Request) {
   const { email } = await req.json()

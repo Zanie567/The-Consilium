@@ -5,13 +5,13 @@
  * Upstream source: Alpha Vantage (https://www.alphavantage.co)
  *
  * Required environment variables:
- *   ALPHA_VANTAGE_API_KEY — free key from https://www.alphavantage.co/support/#api-key
+ *   ALPHA_VANTAGE_API_KEY - free key from https://www.alphavantage.co/support/#api-key
  *
  * Rate limit notes (free tier = 25 requests/day):
  *   This route makes 9 upstream calls per refresh cycle:
  *     4 × GLOBAL_QUOTE  (index ETF proxies: SPY, EWU, EWG, EWJ)
  *     4 × CURRENCY_EXCHANGE_RATE  (GBP/USD, EUR/USD, USD/CNY, USD/INR)
- *     1 × CURRENCY_EXCHANGE_RATE  (XAU/USD — gold)
+ *     1 × CURRENCY_EXCHANGE_RATE  (XAU/USD - gold)
  *   At 6-hour refresh (4 cycles/day) = 36 calls/day, slightly over the free limit.
  *   If you hit "Thank you for using Alpha Vantage!" rate-limit responses, change
  *   MARKETS_REVALIDATE_SECONDS below to 43200 (12 hours) = 18 calls/day.
@@ -30,7 +30,7 @@ import { NextResponse } from 'next/server'
 
 // force-dynamic prevents Next.js from trying to statically pre-render this
 // route at build time. A failed pre-render (e.g. API key not in build env, or
-// upstream timeout) causes Vercel to cache a 404 and keep serving it — exactly
+// upstream timeout) causes Vercel to cache a 404 and keep serving it - exactly
 // the same issue that hit /api/publish-scheduled. We replicate the 6-hour
 // cache via Cache-Control on the response so Vercel's CDN still caches it at
 // the edge without needing build-time pre-rendering.
@@ -43,7 +43,7 @@ const AV_KEY = process.env.ALPHA_VANTAGE_API_KEY
 
 type IndexConfig =
   | { label: string; symbol: string; /** multiply ETF price by this to approximate index level */ multiplier: number }
-  | { label: string; symbol: string; /** fixed display price — only % change is live */ basePrice: number }
+  | { label: string; symbol: string; /** fixed display price - only % change is live */ basePrice: number }
 
 const INDEX_CONFIG: IndexConfig[] = [
   // SPY is designed to track 1/10 of S&P 500, so ×10 is a stable approximation.
@@ -180,7 +180,7 @@ export async function GET() {
       },
     })
   } catch (err) {
-    // Never return an error to the frontend — fall back to hardcoded data
+    // Never return an error to the frontend - fall back to hardcoded data
     console.error('[ticker/markets] Unhandled error, returning fallback:', err)
     return NextResponse.json(
       { ...FALLBACK, source: 'fallback', updatedAt: new Date().toISOString() },

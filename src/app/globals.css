@@ -244,6 +244,17 @@ body {
   line-height: 1;
   opacity: 0.6;
 }
+.prose-consilium blockquote::after {
+  content: '\201D';
+  position: absolute;
+  bottom: -0.75rem;
+  right: 1rem;
+  font-size: 3.5rem;
+  font-family: var(--font-serif);
+  color: #c9a227;
+  line-height: 1;
+  opacity: 0.6;
+}
 
 .dark .prose-consilium blockquote {
   color: #e8e2d4;
@@ -340,8 +351,51 @@ body {
 .dark .tiptap-editor .ProseMirror {
   color: var(--fg);
 }
+/* When inside a Google Docs-style document card, the card provides the horizontal padding */
+.tiptap-no-wrapper .ProseMirror {
+  padding-left: 0;
+  padding-right: 0;
+  padding-top: 1.5rem;
+}
+/* Editor-local dark mode (independent of site-wide dark mode) */
+.editor-dark-mode .ProseMirror {
+  color: #e8e8e8;
+}
+.editor-dark-mode .ProseMirror h1,
+.editor-dark-mode .ProseMirror h2,
+.editor-dark-mode .ProseMirror h3,
+.editor-dark-mode .ProseMirror h4 {
+  color: #e8e8e8;
+}
+.editor-dark-mode .ProseMirror blockquote {
+  color: #c8c4bc;
+  background: rgba(201,162,39,0.07);
+}
+.editor-dark-mode .ProseMirror a {
+  color: #c9a227;
+}
+.editor-dark-mode .ProseMirror code {
+  background: rgba(201,162,39,0.12);
+  color: #e8e8e8;
+}
+.editor-dark-mode .ProseMirror pre {
+  background: #111;
+}
+.editor-dark-mode .ProseMirror th {
+  background: rgba(201,162,39,0.12);
+}
+.editor-dark-mode .ProseMirror th,
+.editor-dark-mode .ProseMirror td {
+  border-color: #444;
+}
+.editor-dark-mode .ProseMirror tr:nth-child(even) td {
+  background: rgba(255,255,255,0.03);
+}
+.editor-dark-mode .ProseMirror p.is-editor-empty:first-child::before {
+  color: rgba(255,255,255,0.25);
+}
 
-/* Typography marks — Tailwind preflight resets these, so we restore them */
+/* Typography marks - Tailwind preflight resets these, so we restore them */
 .tiptap-editor .ProseMirror strong { font-weight: 700; }
 .tiptap-editor .ProseMirror em { font-style: italic; }
 .tiptap-editor .ProseMirror u { text-decoration: underline; text-underline-offset: 3px; }
@@ -399,6 +453,18 @@ body {
   position: absolute;
   left: 0.6rem;
   top: -0.1rem;
+  font-size: 3.5rem;
+  font-family: var(--font-serif);
+  color: #c9a227;
+  line-height: 1;
+  opacity: 0.6;
+  pointer-events: none;
+}
+.tiptap-editor .ProseMirror blockquote::after {
+  content: '\201D';
+  position: absolute;
+  bottom: -0.75rem;
+  right: 1rem;
   font-size: 3.5rem;
   font-family: var(--font-serif);
   color: #c9a227;
@@ -498,7 +564,7 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Economic ticker scroll — defined here rather than inline so it is available
+/* Economic ticker scroll - defined here rather than inline so it is available
    before the component hydrates (avoids React 19 style-tag timing issues). */
 @keyframes consilium-ticker {
   from { transform: translateX(0); }
@@ -901,16 +967,29 @@ mark {
 }
 .tiptap-editor .ProseMirror th,
 .tiptap-editor .ProseMirror td {
-  border: 1px solid rgba(201,162,39,0.4);
-  padding: 0.5rem 0.75rem;
+  border: 1px solid #d0d0d0;
+  padding: 8px 12px;
   vertical-align: top;
   min-width: 80px;
   position: relative;
 }
 .tiptap-editor .ProseMirror th {
-  background: rgba(201,162,39,0.08);
+  background: rgba(26,39,68,0.08);
   font-weight: 700;
   text-align: left;
+}
+.tiptap-editor .ProseMirror tr:nth-child(even) td {
+  background: #f9f9f9;
+}
+.dark .tiptap-editor .ProseMirror th,
+.dark .tiptap-editor .ProseMirror td {
+  border-color: #444;
+}
+.dark .tiptap-editor .ProseMirror th {
+  background: rgba(201,162,39,0.12);
+}
+.dark .tiptap-editor .ProseMirror tr:nth-child(even) td {
+  background: rgba(255,255,255,0.03);
 }
 .tiptap-editor .ProseMirror .selectedCell::after {
   z-index: 2;

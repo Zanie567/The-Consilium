@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { format, formatDistanceToNow } from 'date-fns'
 import { NotificationBell } from '@/components/editorial/NotificationBell'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
-import { MyDrafts } from '@/components/editorial/MyDrafts'
+import { DraftsSection } from '@/components/editorial/DraftsSection'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -31,7 +31,7 @@ export default async function EditorialDashboard() {
     assignedCategoryIds = assignments.map((a) => a.categoryId)
   }
 
-  const [myArticles, pendingArticles, publishedCount, draftCount, totalViews, userCount] = await Promise.all([
+  const [myArticles, pendingArticles, publishedCount, myDrafts, totalViews, userCount] = await Promise.all([
     prisma.article.findMany({
       where: role === 'WRITER' ? { authorId: userId } : undefined,
       orderBy: { updatedAt: 'desc' },
@@ -58,10 +58,18 @@ export default async function EditorialDashboard() {
       },
     }).catch(() => 0),
 
-    // Draft count for stats card (current user's drafts only)
-    prisma.article.count({
+    prisma.article.findMany({
       where: { authorId: userId, status: 'DRAFT' },
-    }).catch(() => 0),
+      orderBy: { updatedAt: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        title: true,
+        updatedAt: true,
+        content: true,
+        category: { select: { name: true } },
+      },
+    }).catch(() => [] as { id: string; title: string; updatedAt: Date; content: string; category: { name: string } | null }[]),
 
     isEditor
       ? prisma.article.aggregate({ _sum: { viewCount: true } })
@@ -117,7 +125,7 @@ export default async function EditorialDashboard() {
 
       {/* Stats row */}
       <PortalSection className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        <StatCard label="My Drafts" value={draftCount} />
+        <StatCard label="My Drafts" value={myDrafts.length} />
         <StatCard label="Published" value={publishedCount} accent="emerald" />
         {isEditor && (
           <StatCard
@@ -212,10 +220,34 @@ export default async function EditorialDashboard() {
         )}
       </PortalSection>
 
-      {/* My Drafts — client component, polls every 30s */}
-      <PortalSection className="mb-8">
-        <MyDrafts />
-      </PortalSection>
+      {/* My Drafts */}
+      {myDrafts.length > 0 && (
+        <PortalSection className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">
+              My Drafts
+              <span className="ml-2 text-[var(--fg-faint)] font-normal normal-case tracking-normal">
+                {myDrafts.length} saved
+              </span>
+            </h2>
+            <Link
+              href="/editorial/articles?status=DRAFT"
+              className="text-xs text-gold hover:underline"
+            >
+              View all →
+            </Link>
+          </div>
+          <DraftsSection
+            drafts={myDrafts.map((draft) => ({
+              id: draft.id,
+              title: draft.title,
+              updatedAt: draft.updatedAt,
+              wordCount: wordCount(draft.content),
+              category: draft.category,
+            }))}
+          />
+        </PortalSection>
+      )}
 
       {/* Recent articles table */}
       <PortalSection>

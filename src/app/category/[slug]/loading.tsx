@@ -3,7 +3,7 @@ import { ArticleCardSkeleton } from '@/components/ui/ArticleCardSkeleton'
 export default function CategoryLoading() {
   return (
     <div className="min-h-screen bg-[var(--bg)]">
-      {/* Header skeleton — mirrors the navy header */}
+      {/* Header skeleton - mirrors the navy header */}
       <section className="bg-navy py-14 px-4 border-b border-gold/25">
         <div className="max-w-7xl mx-auto space-y-3">
           <div className="h-2.5 w-14 rounded-sm bg-gold/20 skeleton-shimmer" />

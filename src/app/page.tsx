@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic'
 async function getFeaturedArticle() {
   try {
     // First try explicitly featured, then fall back to most recent published
-    // Debate articles are excluded — they live on /opinion-debate
+    // Debate articles are excluded - they live on /opinion-debate
     const featured = await prisma.article.findFirst({
       where: { status: 'PUBLISHED', isFeatured: true, isDebate: false },
       include: { author: true, category: true },
