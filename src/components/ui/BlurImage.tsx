@@ -34,7 +34,7 @@ export function BlurImage({ src, alt, fill, className = '', priority, sizes }: B
         priority={priority}
         sizes={sizes}
       />
-      {/* Frosted overlay that fades out on load — invisible to reduced-motion users */}
+      {/* Frosted overlay that fades out on load - invisible to reduced-motion users */}
       {!reduced && (
         <div
           aria-hidden

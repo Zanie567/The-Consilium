@@ -61,7 +61,7 @@ export function ContinueReading() {
         .catch(() => {})
         .finally(() => setLoaded(true))
     } else {
-      // Guests — we only have IDs in localStorage, not full article data
+      // Guests - we only have IDs in localStorage, not full article data
       // Just show a generic invite if they have any saved progress
       const guest = getGuestProgress()
       if (guest.length > 0) {

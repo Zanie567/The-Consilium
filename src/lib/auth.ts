@@ -105,7 +105,7 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        // Successful login — reset lockout state
+        // Successful login - reset lockout state
         await prisma.user.update({
           where: { id: user.id },
           data: {
@@ -149,7 +149,7 @@ export const authOptions: NextAuthOptions = {
               if (!dbUser.isActive) token.isActive = false
             }
           } catch {
-            // DB unavailable — use cached token values
+            // DB unavailable - use cached token values
           }
         }
       }

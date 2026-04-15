@@ -8,7 +8,7 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
-// PATCH — editor action on a submitted article
+// PATCH - editor action on a submitted article
 // action: 'approve' | 'reject' | 'schedule' | 'return' | 'unpublish'
 export async function PATCH(req: Request, { params }: Props) {
   const session = await getServerSession(authOptions)

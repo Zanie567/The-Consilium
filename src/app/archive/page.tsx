@@ -111,7 +111,7 @@ export default async function ArchivePage({ searchParams }: Props) {
           </p>
         </AnimateIn>
 
-        {/* Articles list — each item animates individually as it enters the viewport */}
+        {/* Articles list - each item animates individually as it enters the viewport */}
         {articles.length > 0 ? (
           <div className="divide-y divide-gold/15">
             {articles.map((article, i) => (

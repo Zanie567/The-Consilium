@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-// GET /api/reading-progress — fetch in-progress articles for the current user
+// GET /api/reading-progress - fetch in-progress articles for the current user
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json([], { status: 200 })
@@ -29,7 +29,7 @@ export async function GET() {
   return NextResponse.json(rows)
 }
 
-// POST /api/reading-progress — upsert progress for an article
+// POST /api/reading-progress - upsert progress for an article
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ ok: false }, { status: 401 })

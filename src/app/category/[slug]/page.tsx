@@ -25,7 +25,7 @@ export default async function CategoryPage({ params }: Props) {
   try {
     category = await prisma.category.findUnique({ where: { slug } })
   } catch {
-    // DB not available — fall through to notFound
+    // DB not available - fall through to notFound
   }
 
   if (!category) notFound()

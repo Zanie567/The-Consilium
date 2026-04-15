@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 
 interface Props {
   token: string
-  /** API path to call — /api/auth/forgot-password (public) or /api/editorial/password-reset (editorial) */
+  /** API path to call - /api/auth/forgot-password (public) or /api/editorial/password-reset (editorial) */
   apiPath: string
 }
 

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-// GET /api/bookmarks — returns all bookmarked article IDs for the current user
+// GET /api/bookmarks - returns all bookmarked article IDs for the current user
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) {
@@ -21,7 +21,7 @@ export async function GET() {
   }
 }
 
-// POST /api/bookmarks — toggle a bookmark (add if missing, remove if present)
+// POST /api/bookmarks - toggle a bookmark (add if missing, remove if present)
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) {

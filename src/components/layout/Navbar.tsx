@@ -13,9 +13,9 @@ const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/category/news', label: 'News' },
   { href: '/category/opinion', label: 'Opinion' },
+  { href: '/opinion-debate', label: 'Debate' },
   { href: '/category/analysis', label: 'Analysis' },
   { href: '/category/interviews', label: 'Interviews' },
-  { href: '/opinion-debate', label: 'Debate' },
   { href: '/about', label: 'About' },
 ]
 
@@ -39,13 +39,11 @@ function NavLink({
       }`}
     >
       {label}
-      {active && (
-        <motion.span
-          layoutId="nav-underline"
-          className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-gold"
-          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-        />
-      )}
+      <span
+        className={`absolute -bottom-0.5 left-0 right-0 h-0.5 bg-gold transition-opacity duration-200 ${
+          active ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
     </Link>
   )
 }
@@ -89,9 +87,6 @@ export function Navbar() {
     return () => document.removeEventListener('keydown', handler)
   }, [mobileOpen])
 
-  // Editorial portal has its own navigation — don't render the public navbar there
-  if (pathname.startsWith('/editorial')) return null
-
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/'
     return pathname.startsWith(href)
@@ -107,21 +102,21 @@ export function Navbar() {
         }`}
       >
         <div
-          className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between transition-all duration-300 ${
+          className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center transition-all duration-300 ${
             scrolled ? 'h-14' : 'h-16'
           }`}
         >
-          {/* Masthead */}
+          {/* Masthead - left column */}
           <Link
             href="/"
-            className="text-gold font-serif font-bold tracking-widest text-xl sm:text-2xl uppercase hover:opacity-85 transition-opacity duration-200 whitespace-nowrap"
+            className="shrink-0 text-gold font-serif font-bold tracking-widest text-xl sm:text-2xl uppercase hover:opacity-85 transition-opacity duration-200"
             style={{ fontFamily: 'var(--font-serif)' }}
           >
             The Consilium
           </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-8" aria-label="Main navigation">
+          {/* Desktop nav - centred in remaining space */}
+          <nav className="hidden md:flex flex-1 items-center justify-center gap-10 px-8" aria-label="Main navigation">
             {navLinks.map((link) => (
               <NavLink
                 key={link.href}
@@ -133,7 +128,7 @@ export function Navbar() {
           </nav>
 
           {/* Desktop right actions */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3 shrink-0">
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search"
@@ -143,38 +138,38 @@ export function Navbar() {
             </button>
             <ThemeToggle />
             {session ? (
-              <div className="flex items-center gap-3 pl-3 border-l border-navy-light">
+              <div className="flex items-center gap-2 pl-3 border-l border-navy-light">
                 {(['ADMIN', 'EDITOR', 'WRITER'] as const).includes(
                   (session.user as { role?: string }).role as 'ADMIN' | 'EDITOR' | 'WRITER'
                 ) && !pathname.startsWith('/editorial') && !pathname.startsWith('/admin') && (
                   <>
                     <Link
                       href="/editorial"
-                      className="flex items-center gap-1 text-gold/70 text-[10px] font-semibold uppercase tracking-widest hover:text-gold transition-colors"
+                      className="text-gold/60 hover:text-gold transition-colors p-1"
                       title="Editorial dashboard"
+                      aria-label="Editorial dashboard"
                     >
-                      <LayoutDashboard size={12} />
-                      <span>Dashboard</span>
+                      <LayoutDashboard size={15} />
                     </Link>
                     <Link
                       href="/editorial/articles/new"
-                      className="flex items-center gap-1 text-gold/70 text-[10px] font-semibold uppercase tracking-widest hover:text-gold transition-colors"
+                      className="text-gold/60 hover:text-gold transition-colors p-1"
                       title="Write a new article"
+                      aria-label="Write a new article"
                     >
-                      <PlusCircle size={12} />
-                      <span>New Article</span>
+                      <PlusCircle size={15} />
                     </Link>
                   </>
                 )}
                 <Link
                   href="/profile"
-                  className="text-cream/70 text-xs font-semibold uppercase tracking-widest hover:text-cream transition-colors"
+                  className="text-cream/60 text-[10px] font-semibold uppercase tracking-widest hover:text-cream transition-colors px-1"
                 >
                   Profile
                 </Link>
                 <button
                   onClick={() => signOut()}
-                  className="text-cream/50 text-xs hover:text-cream/80 transition-colors"
+                  className="text-cream/40 text-[10px] hover:text-cream/70 transition-colors tracking-wide"
                 >
                   Sign out
                 </button>
@@ -262,7 +257,7 @@ export function Navbar() {
         )}
       </AnimatePresence>
 
-      {/* Mobile menu — right-side drawer with backdrop */}
+      {/* Mobile menu - right-side drawer with backdrop */}
       <AnimatePresence>
         {mobileOpen && (
           <>

@@ -2,7 +2,7 @@
  * POST /api/publish-scheduled
  *
  * Finds all articles with status=SCHEDULED whose scheduledAt has passed and
- * publishes them. Called every 5 minutes by a GitHub Actions workflow — this
+ * publishes them. Called every 5 minutes by a GitHub Actions workflow - this
  * is the primary reliable publish trigger because Vercel Hobby plan does not
  * guarantee per-minute cron execution.
  *
@@ -10,11 +10,11 @@
  * The secret value must match the CRON_SECRET environment variable.
  *
  * GitHub Actions secrets required:
- *   CRON_SECRET  — long random string (min 32 chars), same value as Vercel env var
- *   SITE_URL     — production URL e.g. https://theconsilium.com (no trailing slash)
+ *   CRON_SECRET  - long random string (min 32 chars), same value as Vercel env var
+ *   SITE_URL     - production URL e.g. https://theconsilium.com (no trailing slash)
  *
  * Vercel environment variable required:
- *   CRON_SECRET  — exact same value as the GitHub Actions secret
+ *   CRON_SECRET  - exact same value as the GitHub Actions secret
  */
 
 import { NextResponse } from 'next/server'
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   // ── Auth ───────────────────────────────────────────────────────────────────
   const secret = process.env.CRON_SECRET
   if (!secret) {
-    // Misconfigured server — don't leak details, just refuse.
+    // Misconfigured server - don't leak details, just refuse.
     console.error('[publish-scheduled] CRON_SECRET env var is not set')
     return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
   }
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     : querySecret
 
   if (!provided || provided !== secret) {
-    console.warn('[publish-scheduled] Unauthorized attempt — bad or missing secret')
+    console.warn('[publish-scheduled] Unauthorized attempt - bad or missing secret')
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     })
 
     if (due.length === 0) {
-      // Normal — nothing to do right now.
+      // Normal - nothing to do right now.
       console.log('[publish-scheduled] No articles due for publishing')
       return NextResponse.json({ published: 0, articles: [] })
     }
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
     const publishedTitles: string[] = []
 
     for (const article of due) {
-      // Update status to PUBLISHED and stamp publishedAt — same fields the
+      // Update status to PUBLISHED and stamp publishedAt - same fields the
       // manual Publish button updates so behaviour is identical.
       await prisma.article.update({
         where: { id: article.id },

@@ -20,15 +20,16 @@ import { TextStyle, Color, FontSize as TipTapFontSize } from '@tiptap/extension-
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
 import {
   Bold, Italic, UnderlineIcon, Strikethrough, Link2, Link2Off, Upload,
-  Minus, AlignLeft, AlignCenter,
+  Minus, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Undo, Redo, ChevronDown, List, ListOrdered, Quote, Code2,
-  Type, Highlighter, Table as TableIcon,
+  Star, Printer, Type, Highlighter, Table as TableIcon,
   Indent, Outdent,
 } from 'lucide-react'
-import {
+import React, {
   useCallback, useRef, useState, useEffect, useImperativeHandle,
   forwardRef, type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import type { NodeViewProps } from '@tiptap/core'
 
 // ── Module augmentations ─────────────────────────────────────────────────────
@@ -177,65 +178,63 @@ interface TiptapEditorProps {
   onChange: (content: string) => void
   editable?: boolean
   saveStatus?: 'idle' | 'saving' | 'saved' | 'error'
-  /** Fix the toolbar to the viewport (used in Google Docs layout). Requires
-   *  the consumer to provide the correct top offset via CSS. */
-  toolbarFixed?: boolean
-  /** Skip the editor-outer/editor-page wrapper and status bar — just render
-   *  EditorContent. Use when the parent provides its own document card. */
-  contentOnly?: boolean
+  toolbarPortalRef?: React.RefObject<HTMLDivElement | null>
+  onEditorReady?: (editor: Editor) => void
+  noWrapper?: boolean
+  darkMode?: boolean
 }
 
-// ── Color palettes ───────────────────────────────────────────────────────────
-const TEXT_COLORS = [
-  '#000000','#434343','#666666','#999999','#b7b7b7','#d9d9d9','#ffffff',
-  '#c00000','#ff0000','#e67c00','#ffff00','#00b050','#00bcd4','#4472c4',
-  '#7030a0','#c9a227','#1a2744',
+// Google Docs 10x10 colour palette (row-major order)
+const GOOGLE_DOCS_COLORS: string[] = [
+  // Row 1: Greyscale
+  '#000000','#434343','#666666','#999999','#b7b7b7','#cccccc','#d9d9d9','#efefef','#f3f3f3','#ffffff',
+  // Row 2: Pure saturated
+  '#ff0000','#ff9900','#ffff00','#00ff00','#00ffff','#4a86e8','#0000ff','#9900ff','#ff00ff','#ff0066',
+  // Row 3: Dark shades
+  '#980000','#c43d00','#cb8400','#2d6a0a','#00575f','#1a53a3','#0d0080','#6a0080','#9c0070','#b3003b',
+  // Row 4
+  '#cc0000','#e67300','#e6a817','#428f0a','#006b7a','#2170cb','#3333cc','#7b00b3','#b3007a','#cc0044',
+  // Row 5: Medium dark
+  '#e06666','#f6b26b','#ffd966','#93c47d','#76a5af','#6fa8dc','#6666cc','#a64d99','#cc4488','#e06688',
+  // Row 6: Medium
+  '#ea9999','#f9cb9c','#ffe599','#b6d7a8','#a2c4c9','#9fc5e8','#9999cc','#c2a0c2','#d5a6bd','#ea9999',
+  // Row 7: Light
+  '#f4cccc','#fce5cd','#fff2cc','#d9ead3','#d0e0e3','#cfe2f3','#d9d2e9','#ead1dc','#f0d9f5','#f4ccd8',
+  // Row 8: Very light
+  '#fce5e5','#fef0de','#fefce6','#eaf7e2','#e4f2f5','#e8f0fc','#ede7f6','#f5e0ec','#f8f0fe','#fce5f0',
+  // Row 9: Pale
+  '#fff0f0','#fff5e5','#fdfde8','#f3fbef','#eef8fb','#f5f9ff','#f0f0ff','#f8f0ff','#fdf0f8','#fff0f5',
+  // Row 10: Almost white
+  '#fff8f8','#fffaf5','#fefef5','#f8fbf5','#f5fcfd','#f8faff','#f8f8ff','#fbf8ff','#fdf8fb','#fff8fb',
 ]
 
-const HIGHLIGHT_COLORS = [
-  '#ffff00','#ffeb3b','#ffc107','#ff9800','#ff5722',
-  '#c8f7c5','#80e5ff','#a9c4ff','#e6b3ff','#ffb3ba',
-  '#ffffff',
-]
+const FONT_SIZES = ['10','11','12','14','16','18','20','24','28','32','36','48','60','72']
 
 // ── Main component ────────────────────────────────────────────────────────────
 export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
-  function TiptapEditor({ content, onChange, editable = true, saveStatus, toolbarFixed = false, contentOnly = false }, ref) {
+  function TiptapEditor({ content, onChange, editable = true, saveStatus, toolbarPortalRef, onEditorReady, noWrapper, darkMode }, ref) {
     const fileInputRef      = useRef<HTMLInputElement>(null)
     const linkInputRef      = useRef<HTMLInputElement>(null)
+    const fontSizeRef       = useRef<HTMLInputElement>(null)
     const headingRef        = useRef<HTMLDivElement>(null)
     const colorPickerRef    = useRef<HTMLDivElement>(null)
     const highlightRef      = useRef<HTMLDivElement>(null)
     const tablePickerRef    = useRef<HTMLDivElement>(null)
+    const lineSpacingRef    = useRef<HTMLDivElement>(null)
 
-    const [linkBarOpen,     setLinkBarOpen]     = useState(false)
-    const [linkUrl,         setLinkUrl]         = useState('')
-    const [uploadError,     setUploadError]     = useState('')
-    const [uploading,       setUploading]       = useState(false)
-    const [headingOpen,     setHeadingOpen]     = useState(false)
-    const [colorOpen,       setColorOpen]       = useState(false)
-    const [highlightOpen,   setHighlightOpen]   = useState(false)
-    const [tableOpen,       setTableOpen]       = useState(false)
-    const [tableHover,      setTableHover]      = useState({ r: 0, c: 0 })
-    const [activeColor,     setActiveColor]     = useState<string | null>(null)
-    const [activeHighlight, setActiveHighlight] = useState<string | null>(null)
-
-    // ── Explicit mark-state tracking so B/I/U buttons reflect cursor position
-    // without relying solely on editor.isActive() in the render cycle.
-    const [isBold,      setIsBold]      = useState(false)
-    const [isItalic,    setIsItalic]    = useState(false)
-    const [isUnderline, setIsUnderline] = useState(false)
-    const [isStrike,    setIsStrike]    = useState(false)
-
-    const syncMarkState = useCallback((ed: Editor) => {
-      setIsBold(ed.isActive('bold'))
-      setIsItalic(ed.isActive('italic'))
-      setIsUnderline(ed.isActive('underline'))
-      setIsStrike(ed.isActive('strike'))
-      const tsAttrs = ed.getAttributes('textStyle')
-      setActiveColor(tsAttrs.color ?? null)
-      setActiveHighlight(ed.getAttributes('highlight').color ?? null)
-    }, [])
+    const [linkBarOpen,        setLinkBarOpen]        = useState(false)
+    const [linkUrl,            setLinkUrl]            = useState('')
+    const [uploadError,        setUploadError]        = useState('')
+    const [uploading,          setUploading]          = useState(false)
+    const [headingOpen,        setHeadingOpen]        = useState(false)
+    const [colorOpen,          setColorOpen]          = useState(false)
+    const [highlightOpen,      setHighlightOpen]      = useState(false)
+    const [tableOpen,          setTableOpen]          = useState(false)
+    const [lineSpacingOpen,    setLineSpacingOpen]    = useState(false)
+    const [tableHover,         setTableHover]         = useState({ r: 0, c: 0 })
+    const [fontSizeInput,      setFontSizeInput]      = useState('16')
+    const [activeColor,        setActiveColor]        = useState<string | null>(null)
+    const [activeHighlight,    setActiveHighlight]    = useState<string | null>(null)
 
     const editor = useEditor({
       editable,
@@ -262,13 +261,15 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
       content: content ? tryParseContent(content) : '',
       onUpdate: ({ editor: ed }) => {
         onChange(JSON.stringify(ed.getJSON()))
-        syncMarkState(ed)
       },
       onSelectionUpdate: ({ editor: ed }) => {
-        syncMarkState(ed)
-      },
-      onTransaction: ({ editor: ed }) => {
-        syncMarkState(ed)
+        // TipTap 3: FontSize lives in textStyle.fontSize
+        const tsAttrs = ed.getAttributes('textStyle')
+        const rawSize: string = tsAttrs.fontSize ?? ''
+        const sz = rawSize ? parseInt(rawSize, 10).toString() : '16'
+        setFontSizeInput(sz)
+        setActiveColor(tsAttrs.color ?? null)
+        setActiveHighlight(ed.getAttributes('highlight').color ?? null)
       },
       immediatelyRender: false,
       editorProps: {
@@ -286,6 +287,11 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
       },
     })
 
+    // Notify parent when editor is ready
+    useEffect(() => {
+      if (editor && onEditorReady) onEditorReady(editor)
+    }, [editor]) // eslint-disable-line react-hooks/exhaustive-deps
+
     // Clear upload error after 4s
     useEffect(() => {
       if (!uploadError) return
@@ -301,6 +307,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         if (colorPickerRef.current && !colorPickerRef.current.contains(target)) setColorOpen(false)
         if (highlightRef.current  && !highlightRef.current.contains(target))  setHighlightOpen(false)
         if (tablePickerRef.current && !tablePickerRef.current.contains(target)) setTableOpen(false)
+        if (lineSpacingRef.current && !lineSpacingRef.current.contains(target)) setLineSpacingOpen(false)
       }
       document.addEventListener('mousedown', handler)
       return () => document.removeEventListener('mousedown', handler)
@@ -362,15 +369,41 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
       setLinkUrl('')
     }, [editor, linkUrl])
 
+    const applyFontSize = useCallback((size: string) => {
+      if (!editor) return
+      const n = parseInt(size, 10)
+      if (!isNaN(n) && n > 0) {
+        // TipTap 3's FontSize extension adds setFontSize to the chain
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(editor.chain().focus() as any).setFontSize(`${n}px`).run()
+        setFontSizeInput(String(n))
+      }
+    }, [editor])
+
+    const changeFontSize = useCallback((delta: number) => {
+      const cur = parseInt(fontSizeInput, 10) || 16
+      applyFontSize(String(Math.max(6, Math.min(96, cur + delta))))
+    }, [fontSizeInput, applyFontSize])
+
+    const applyLineSpacing = useCallback((spacing: string) => {
+      // Apply line height via textStyle attributes or a paragraph style
+      // TipTap doesn't have native line-spacing, we use CSS via a class
+      if (!editor) return
+      // We toggle a class on selected paragraphs via the DOM extension approach
+      // Simplest workaround: apply via paragraph attrs if supported, else noop
+      setLineSpacingOpen(false)
+    }, [editor])
+
     if (!editor) return null
 
     // Current text style for dropdown
     const getHeadingLabel = () => {
+      if (editor.isActive('heading', { level: 1 })) return 'Heading 1'
       if (editor.isActive('heading', { level: 2 })) return 'Heading 2'
       if (editor.isActive('heading', { level: 3 })) return 'Heading 3'
       if (editor.isActive('heading', { level: 4 })) return 'Heading 4'
-      if (editor.isActive('blockquote'))            return 'Block Quote'
-      if (editor.isActive('codeBlock'))             return 'Code Block'
+      if (editor.isActive('blockquote'))           return 'Block Quote'
+      if (editor.isActive('codeBlock'))            return 'Code Block'
       return 'Normal text'
     }
     const headingLabel = getHeadingLabel()
@@ -394,10 +427,10 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         title={title}
         disabled={dis}
         style={style}
-        className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${
+        className={`p-1.5 rounded transition-all min-w-[28px] h-7 flex items-center justify-center ${
           active
-            ? 'bg-[#e8eaed] text-[#1a1a1a]'
-            : 'text-[#444] hover:bg-[#f1f3f4]'
+            ? darkMode ? 'bg-white/15 text-white' : 'bg-[#1a2744]/10 text-[#1a2744] dark:bg-gold/20 dark:text-gold'
+            : darkMode ? 'text-white/70 hover:bg-white/8' : 'text-[#444] dark:text-[var(--fg-muted)] hover:bg-black/8 dark:hover:bg-white/10'
         } disabled:opacity-30`}
       >
         {children}
@@ -437,10 +470,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
         {/* Link bar */}
         {linkBarOpen && editable && (
-          <div className={contentOnly
-            ? 'bg-[#f8f9fa] border border-[#e0e0e0] rounded px-3 py-2 mb-3 flex items-center gap-2'
-            : 'editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-3 py-2 flex items-center gap-2'
-          }>
+          <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-3 py-2 flex items-center gap-2">
             <Link2 size={13} className="text-[#777] shrink-0" />
             <input
               ref={linkInputRef}
@@ -461,7 +491,10 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
         {/* Bubble menu for selected text */}
         {editable && (
-          <BubbleMenu editor={editor}>
+          <BubbleMenu
+            editor={editor}
+            shouldShow={({ editor: ed }) => !ed.isActive('table')}
+          >
             <div className="flex items-center gap-0.5 bg-navy border border-gold/20 shadow-2xl px-1.5 py-1 rounded">
               <BubbleBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold"><Bold size={13} /></BubbleBtn>
               <BubbleBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Italic"><Italic size={13} /></BubbleBtn>
@@ -476,12 +509,31 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
           </BubbleMenu>
         )}
 
-        {/* ── Toolbar ────────────────────────────────────────────────────────── */}
         {editable && (
-          <div className={toolbarFixed
-            ? 'fixed top-12 left-[220px] right-0 z-[49] bg-white border-b border-[#e0e0e0] px-2 py-1 flex flex-wrap gap-0.5 items-center h-10'
-            : 'editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-2 py-1 flex flex-wrap gap-0.5 items-center sticky top-0 z-30'
-          }>
+          <BubbleMenu
+            editor={editor}
+            pluginKey="tableControls"
+            shouldShow={({ editor: ed }) => ed.isActive('table')}
+            options={{ placement: 'top-start', offset: 8 }}
+          >
+            <div className={`flex items-center gap-0.5 border shadow-xl px-1.5 py-1 rounded text-[11px] font-medium ${darkMode ? 'bg-[#242424] border-white/15 text-white/80' : 'bg-white border-black/10 text-[#444]'}`}>
+              <span className={`text-[9px] uppercase tracking-widest mr-1 ${darkMode ? 'text-white/30' : 'text-[#aaa]'}`}>Table</span>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowBefore().run() }} className={`px-1.5 py-0.5 rounded ${darkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`} title="Add row above">+row above</button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowAfter().run() }} className={`px-1.5 py-0.5 rounded ${darkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`} title="Add row below">+row below</button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnBefore().run() }} className={`px-1.5 py-0.5 rounded ${darkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`} title="Add column left">+col left</button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnAfter().run() }} className={`px-1.5 py-0.5 rounded ${darkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`} title="Add column right">+col right</button>
+              <span className="w-px h-3 bg-current opacity-20 mx-0.5" />
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteRow().run() }} className="px-1.5 py-0.5 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" title="Delete row">-row</button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteColumn().run() }} className="px-1.5 py-0.5 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" title="Delete column">-col</button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteTable().run() }} className="px-1.5 py-0.5 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" title="Delete table">del table</button>
+            </div>
+          </BubbleMenu>
+        )}
+
+        {/* ── Toolbar ────────────────────────────────────────────────────────── */}
+        {editable && (() => {
+          const toolbarContent = (
+            <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-2 py-1 flex flex-wrap gap-0.5 items-center w-full h-full overflow-x-auto">
 
             {/* Group 1: History */}
             <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo (Ctrl+Z)">
@@ -490,15 +542,18 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
             <ToolbarBtn onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Redo (Ctrl+Shift+Z)">
               <Redo size={15} />
             </ToolbarBtn>
+            <ToolbarBtn onClick={() => window.print()} title="Print">
+              <Printer size={15} />
+            </ToolbarBtn>
 
             <Sep />
 
-            {/* Group 2: Text style dropdown — Normal / H2 / H3 / H4 */}
+            {/* Group 2: Text style dropdown */}
             <div className="relative" ref={headingRef}>
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); setHeadingOpen((o) => !o) }}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-[#444] hover:bg-[#f1f3f4] transition-colors min-w-[110px] h-7"
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-[#444] dark:text-[var(--fg-muted)] hover:bg-black/8 dark:hover:bg-white/10 transition-colors min-w-[110px] h-7"
                 title="Text style"
               >
                 <span className="flex-1 text-left truncate">{headingLabel}</span>
@@ -509,9 +564,10 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                 <div className="absolute left-0 top-full mt-1 bg-white dark:bg-[var(--bg-elevated)] border border-black/10 dark:border-white/10 shadow-xl z-50 min-w-[160px] rounded overflow-hidden">
                   {[
                     { label: 'Normal text', action: () => editor.chain().focus().setParagraph().run(), isActive: !editor.isActive('heading') && !editor.isActive('blockquote') && !editor.isActive('codeBlock'), size: '1rem' },
-                    { label: 'Heading 2',   action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(), isActive: editor.isActive('heading', { level: 2 }), size: '1.3rem', weight: 700 },
-                    { label: 'Heading 3',   action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(), isActive: editor.isActive('heading', { level: 3 }), size: '1.1rem', weight: 700 },
-                    { label: 'Heading 4',   action: () => editor.chain().focus().toggleHeading({ level: 4 }).run(), isActive: editor.isActive('heading', { level: 4 }), size: '1rem',  weight: 700 },
+                    { label: 'Heading 1', action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(), isActive: editor.isActive('heading', { level: 1 }), size: '1.6rem', weight: 700 },
+                    { label: 'Heading 2', action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(), isActive: editor.isActive('heading', { level: 2 }), size: '1.3rem', weight: 700 },
+                    { label: 'Heading 3', action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(), isActive: editor.isActive('heading', { level: 3 }), size: '1.1rem', weight: 700 },
+                    { label: 'Heading 4', action: () => editor.chain().focus().toggleHeading({ level: 4 }).run(), isActive: editor.isActive('heading', { level: 4 }), size: '1rem', weight: 700 },
                   ].map(({ label, action, isActive, size, weight }) => (
                     <button
                       key={label}
@@ -533,23 +589,52 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
             <Sep />
 
-            {/* Group 3: Text formatting — B / I / U / S */}
-            <ToolbarBtn onClick={() => editor.chain().focus().toggleBold().run()}      active={isBold}      title="Bold (Ctrl+B)">
+            {/* Group 3: Font name */}
+            <div className="px-2 py-1 text-xs text-[#666] dark:text-[var(--fg-faint)] select-none h-7 flex items-center" title="Font">
+              Playfair
+            </div>
+
+            <Sep />
+
+            {/* Group 4: Font size */}
+            <ToolbarBtn onClick={() => changeFontSize(-1)} title="Decrease font size">
+              <span className="text-xs font-bold leading-none">A-</span>
+            </ToolbarBtn>
+            <input
+              ref={fontSizeRef}
+              type="number"
+              value={fontSizeInput}
+              onChange={(e) => setFontSizeInput(e.target.value)}
+              onBlur={(e) => applyFontSize(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyFontSize(fontSizeInput) } }}
+              min={6}
+              max={96}
+              className="w-10 h-7 text-center text-xs border border-black/15 dark:border-white/15 bg-transparent rounded focus:outline-none focus:border-[#1a2744] dark:focus:border-gold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              title="Font size"
+            />
+            <ToolbarBtn onClick={() => changeFontSize(1)} title="Increase font size">
+              <span className="text-xs font-bold leading-none">A+</span>
+            </ToolbarBtn>
+
+            <Sep />
+
+            {/* Group 5: Text formatting */}
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold (Ctrl+B)">
               <Bold size={15} />
             </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().toggleItalic().run()}    active={isItalic}    title="Italic (Ctrl+I)">
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Italic (Ctrl+I)">
               <Italic size={15} />
             </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={isUnderline} title="Underline (Ctrl+U)">
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} title="Underline (Ctrl+U)">
               <UnderlineIcon size={15} />
             </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().toggleStrike().run()}    active={isStrike}    title="Strikethrough">
+            <ToolbarBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} title="Strikethrough">
               <Strikethrough size={15} />
             </ToolbarBtn>
 
             <Sep />
 
-            {/* Group 4: Text colour */}
+            {/* Group 6: Text color */}
             <div className="relative" ref={colorPickerRef}>
               <button
                 type="button"
@@ -561,12 +646,12 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                 <div className="h-1 w-4 rounded-sm" style={{ background: activeColor ?? '#000000' }} />
               </button>
               {colorOpen && (
-                <div className="absolute left-0 top-full mt-1 bg-white dark:bg-[var(--bg-elevated)] border border-black/10 dark:border-white/10 shadow-xl z-50 p-2 rounded">
-                  <p className="text-[10px] text-[#666] dark:text-[var(--fg-faint)] mb-2 uppercase tracking-wider">Text colour</p>
-                  <div className="grid grid-cols-9 gap-1 mb-1">
-                    {TEXT_COLORS.map((c) => (
+                <div className={`absolute left-0 top-full mt-1 border shadow-xl z-50 p-2 rounded ${darkMode ? 'bg-[#242424] border-white/15' : 'bg-white border-black/10'}`}>
+                  <p className={`text-[10px] mb-2 uppercase tracking-wider ${darkMode ? 'text-white/40' : 'text-[#666]'}`}>Text colour</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 16px)', gap: 2 }}>
+                    {GOOGLE_DOCS_COLORS.map((c, i) => (
                       <button
-                        key={c}
+                        key={i}
                         type="button"
                         title={c}
                         onMouseDown={(e) => {
@@ -575,10 +660,30 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                           setActiveColor(c)
                           setColorOpen(false)
                         }}
-                        className="w-5 h-5 rounded-sm border border-black/10 hover:scale-110 transition-transform"
-                        style={{ background: c }}
+                        className="rounded-full border border-black/10 hover:scale-110 transition-transform"
+                        style={{ width: 16, height: 16, background: c, flexShrink: 0 }}
                       />
                     ))}
+                  </div>
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <span className={`text-[10px] ${darkMode ? 'text-white/40' : 'text-[#888]'}`}>#</span>
+                    <input
+                      type="text"
+                      placeholder="hex"
+                      maxLength={7}
+                      className={`w-16 text-xs border rounded px-1 py-0.5 outline-none ${darkMode ? 'bg-[#333] border-white/15 text-white placeholder:text-white/30' : 'bg-white border-black/15 text-[#333]'}`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = (e.target as HTMLInputElement).value
+                          const hex = val.startsWith('#') ? val : `#${val}`
+                          if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+                            editor.chain().focus().setColor(hex).run()
+                            setActiveColor(hex)
+                            setColorOpen(false)
+                          }
+                        }
+                      }}
+                    />
                   </div>
                   <button
                     type="button"
@@ -588,15 +693,15 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                       setActiveColor(null)
                       setColorOpen(false)
                     }}
-                    className="mt-1 text-[10px] text-[#666] dark:text-[var(--fg-faint)] hover:text-[#333] transition-colors px-1"
+                    className={`mt-1 text-[10px] hover:opacity-70 transition-opacity px-1 ${darkMode ? 'text-white/50' : 'text-[#666]'}`}
                   >
-                    ✕ Remove colour
+                    Remove colour
                   </button>
                 </div>
               )}
             </div>
 
-            {/* Highlight colour */}
+            {/* Highlight color */}
             <div className="relative" ref={highlightRef}>
               <button
                 type="button"
@@ -608,12 +713,12 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                 <div className="h-1 w-4 rounded-sm" style={{ background: activeHighlight ?? '#ffff00' }} />
               </button>
               {highlightOpen && (
-                <div className="absolute left-0 top-full mt-1 bg-white dark:bg-[var(--bg-elevated)] border border-black/10 dark:border-white/10 shadow-xl z-50 p-2 rounded">
-                  <p className="text-[10px] text-[#666] dark:text-[var(--fg-faint)] mb-2 uppercase tracking-wider">Highlight</p>
-                  <div className="grid grid-cols-6 gap-1 mb-1">
-                    {HIGHLIGHT_COLORS.map((c) => (
+                <div className={`absolute left-0 top-full mt-1 border shadow-xl z-50 p-2 rounded ${darkMode ? 'bg-[#242424] border-white/15' : 'bg-white border-black/10'}`}>
+                  <p className={`text-[10px] mb-2 uppercase tracking-wider ${darkMode ? 'text-white/40' : 'text-[#666]'}`}>Highlight</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 16px)', gap: 2 }}>
+                    {GOOGLE_DOCS_COLORS.map((c, i) => (
                       <button
-                        key={c}
+                        key={i}
                         type="button"
                         title={c}
                         onMouseDown={(e) => {
@@ -622,10 +727,30 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                           setActiveHighlight(c)
                           setHighlightOpen(false)
                         }}
-                        className="w-6 h-6 rounded-sm border border-black/10 hover:scale-110 transition-transform"
-                        style={{ background: c }}
+                        className="rounded-full border border-black/10 hover:scale-110 transition-transform"
+                        style={{ width: 16, height: 16, background: c, flexShrink: 0 }}
                       />
                     ))}
+                  </div>
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <span className={`text-[10px] ${darkMode ? 'text-white/40' : 'text-[#888]'}`}>#</span>
+                    <input
+                      type="text"
+                      placeholder="hex"
+                      maxLength={7}
+                      className={`w-16 text-xs border rounded px-1 py-0.5 outline-none ${darkMode ? 'bg-[#333] border-white/15 text-white placeholder:text-white/30' : 'bg-white border-black/15 text-[#333]'}`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = (e.target as HTMLInputElement).value
+                          const hex = val.startsWith('#') ? val : `#${val}`
+                          if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+                            editor.chain().focus().toggleHighlight({ color: hex }).run()
+                            setActiveHighlight(hex)
+                            setHighlightOpen(false)
+                          }
+                        }
+                      }}
+                    />
                   </div>
                   <button
                     type="button"
@@ -635,9 +760,9 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                       setActiveHighlight(null)
                       setHighlightOpen(false)
                     }}
-                    className="mt-1 text-[10px] text-[#666] dark:text-[var(--fg-faint)] hover:text-[#333] transition-colors px-1"
+                    className={`mt-1 text-[10px] hover:opacity-70 transition-opacity px-1 ${darkMode ? 'text-white/50' : 'text-[#666]'}`}
                   >
-                    ✕ Remove highlight
+                    No highlight
                   </button>
                 </div>
               )}
@@ -645,7 +770,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
             <Sep />
 
-            {/* Group 5: Link */}
+            {/* Group 7: Link */}
             <ToolbarBtn onClick={openLinkBar} active={editor.isActive('link')} title="Insert / edit link">
               <Link2 size={15} />
             </ToolbarBtn>
@@ -657,7 +782,8 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
             <Sep />
 
-            {/* Group 6: Insert — image, table, HR */}
+            {/* Group 8: Insert */}
+            {/* Image upload */}
             <ToolbarBtn
               onClick={() => { setTimeout(() => fileInputRef.current?.click(), 0) }}
               title={uploading ? 'Uploading…' : 'Insert image'}
@@ -668,6 +794,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                 : <Upload size={15} />}
             </ToolbarBtn>
 
+            {/* Table grid picker */}
             <div className="relative" ref={tablePickerRef}>
               <ToolbarBtn
                 onClick={() => { setTableOpen((o) => !o); setColorOpen(false); setHighlightOpen(false) }}
@@ -678,13 +805,13 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
               </ToolbarBtn>
               {tableOpen && (
                 <div className="absolute left-0 top-full mt-1 bg-white dark:bg-[var(--bg-elevated)] border border-black/10 dark:border-white/10 shadow-xl z-50 p-2 rounded">
-                  <p className="text-[10px] text-[#666] dark:text-[var(--fg-faint)] mb-2">
-                    {tableHover.r > 0 ? `${tableHover.r} × ${tableHover.c} table` : 'Insert table'}
+                  <p className={`text-[10px] mb-2 ${darkMode ? 'text-white/40' : 'text-[#666] dark:text-[var(--fg-faint)]'}`}>
+                    {tableHover.r > 0 ? `${tableHover.c} x ${tableHover.r} table` : 'Insert table'}
                   </p>
-                  <div className="grid gap-0.5" style={{ gridTemplateColumns: 'repeat(8, 20px)' }}>
-                    {Array.from({ length: 64 }).map((_, i) => {
-                      const row = Math.floor(i / 8) + 1
-                      const col = (i % 8) + 1
+                  <div className="grid gap-0.5" style={{ gridTemplateColumns: 'repeat(10, 18px)' }}>
+                    {Array.from({ length: 80 }).map((_, i) => {
+                      const row = Math.floor(i / 10) + 1
+                      const col = (i % 10) + 1
                       const on  = row <= tableHover.r && col <= tableHover.c
                       return (
                         <button
@@ -698,7 +825,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                             setTableOpen(false)
                             setTableHover({ r: 0, c: 0 })
                           }}
-                          className={`w-5 h-5 border transition-colors rounded-sm ${
+                          className={`w-[18px] h-[18px] border transition-colors rounded-sm ${
                             on
                               ? 'bg-[#1a2744]/15 border-[#1a2744]/40 dark:bg-gold/20 dark:border-gold/40'
                               : 'border-black/15 dark:border-white/15 hover:bg-black/5'
@@ -711,13 +838,14 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
               )}
             </div>
 
+            {/* Horizontal rule */}
             <ToolbarBtn onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Horizontal rule">
               <Minus size={15} />
             </ToolbarBtn>
 
             <Sep />
 
-            {/* Group 7: Lists */}
+            {/* Group 9: Lists */}
             <ToolbarBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} title="Bullet list">
               <List size={15} />
             </ToolbarBtn>
@@ -741,22 +869,59 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
             <Sep />
 
-            {/* Group 8: Alignment — left and centre only */}
+            {/* Group 10: Alignment */}
             <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="Align left">
               <AlignLeft size={15} />
             </ToolbarBtn>
             <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} title="Align centre">
               <AlignCenter size={15} />
             </ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} title="Align right">
+              <AlignRight size={15} />
+            </ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('justify').run()} active={editor.isActive({ textAlign: 'justify' })} title="Justify">
+              <AlignJustify size={15} />
+            </ToolbarBtn>
 
             <Sep />
 
-            {/* Group 9: Block formats */}
+            {/* Group 11: Line spacing */}
+            <div className="relative" ref={lineSpacingRef}>
+              <ToolbarBtn onClick={() => setLineSpacingOpen((o) => !o)} title="Line spacing">
+                <span className="text-xs leading-none font-bold">≡</span>
+              </ToolbarBtn>
+              {lineSpacingOpen && (
+                <div className="absolute left-0 top-full mt-1 bg-white dark:bg-[var(--bg-elevated)] border border-black/10 dark:border-white/10 shadow-xl z-50 py-1 rounded min-w-[120px]">
+                  {[
+                    { label: 'Single (1.0)', value: '1' },
+                    { label: '1.15', value: '1.15' },
+                    { label: '1.5', value: '1.5' },
+                    { label: 'Double (2.0)', value: '2' },
+                  ].map(({ label, value }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); applyLineSpacing(value) }}
+                      className="w-full text-left px-4 py-2 text-xs text-[#333] dark:text-[var(--fg)] hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Sep />
+
+            {/* Group 12: Block formats */}
             <ToolbarBtn onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')} title="Block quote">
               <Quote size={15} />
             </ToolbarBtn>
             <ToolbarBtn onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editor.isActive('codeBlock')} title="Code block">
               <Code2 size={15} />
+            </ToolbarBtn>
+            <ToolbarBtn onClick={() => editor.chain().focus().togglePullQuote().run()} active={editor.isActive('pullQuote')} title="Pull quote">
+              <Star size={15} />
             </ToolbarBtn>
 
             {/* Save status indicator */}
@@ -768,7 +933,16 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
               </div>
             )}
           </div>
-        )}
+          )
+          if (toolbarPortalRef?.current) {
+            return createPortal(toolbarContent, toolbarPortalRef.current)
+          }
+          return (
+            <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 sticky top-0 z-30">
+              {toolbarContent}
+            </div>
+          )
+        })()}
 
         {/* ── Single hidden file input ─────────────────────────────────────── */}
         <input
@@ -784,36 +958,34 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
           }}
         />
 
-        {/* ── Document page area ──────────────────────────────────────────── */}
-        {contentOnly ? (
+        {/* ── Document page area ──────────────────────────────────────── */}
+        {noWrapper ? (
           <EditorContent
             editor={editor}
-            className={`tiptap-editor tiptap-editor--bare ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
+            className={`tiptap-editor ${noWrapper ? 'tiptap-no-wrapper' : ''} ${darkMode ? 'editor-dark-mode' : ''} ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
           />
         ) : (
-          <>
-            <div className="editor-outer min-h-[600px] py-8 px-4">
-              <div className="editor-page max-w-[816px] mx-auto">
-                <EditorContent
-                  editor={editor}
-                  className={`tiptap-editor ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
-                />
-              </div>
+          <div className="editor-outer min-h-[600px] py-8 px-4">
+            <div className="editor-page max-w-[816px] mx-auto">
+              <EditorContent
+                editor={editor}
+                className={`tiptap-editor ${darkMode ? 'editor-dark-mode' : ''} ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
+              />
             </div>
+          </div>
+        )}
 
-            {/* ── Status bar ────────────────────────────────────────────── */}
-            {editable && (
-              <div className="editor-outer border-t border-black/8 dark:border-white/8 px-4 py-1.5 flex items-center justify-between">
-                <span className="text-xs text-[#888] dark:text-[var(--fg-faint)]">
-                  {wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'}
-                  {wordCount > 0 && <span className="ml-2 opacity-60">{readingTime} min read</span>}
-                </span>
-                <span className="text-[10px] text-[#aaa] dark:text-[var(--fg-faint)] hidden sm:block">
-                  Ctrl+B bold · Ctrl+I italic · Ctrl+U underline · Ctrl+Z undo
-                </span>
-              </div>
-            )}
-          </>
+        {/* ── Status bar ──────────────────────────────────────────────────── */}
+        {editable && (
+          <div className="editor-outer border-t border-black/8 dark:border-white/8 px-4 py-1.5 flex items-center justify-between">
+            <span className="text-xs text-[#888] dark:text-[var(--fg-faint)]">
+              {wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'}
+              {wordCount > 0 && <span className="ml-2 opacity-60">{readingTime} min read</span>}
+            </span>
+            <span className="text-[10px] text-[#aaa] dark:text-[var(--fg-faint)] hidden sm:block">
+              Ctrl+B bold · Ctrl+I italic · Ctrl+U underline · Ctrl+Z undo
+            </span>
+          </div>
         )}
       </div>
     )

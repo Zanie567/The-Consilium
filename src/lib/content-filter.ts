@@ -1,5 +1,5 @@
 /**
- * content-filter.ts — server-side only content moderation.
+ * content-filter.ts - server-side only content moderation.
  *
  * Zero-tolerance for hate speech, slurs, and targeted harassment.
  * Constructive criticism, disagreement, and profanity alone are NOT blocked.
@@ -102,7 +102,7 @@ function isAcademicContext(original: string, matchIndex: number): boolean {
 // ── Banned patterns ──────────────────────────────────────────────────────────
 //
 // Each entry is a regex applied to the NORMALISED text.
-// category is for internal logging only — never exposed to clients.
+// category is for internal logging only - never exposed to clients.
 
 interface BannedPattern {
   pattern: RegExp
@@ -182,7 +182,7 @@ const BANNED: BannedPattern[] = [
   { pattern: /\brape\s+(her|him|them|you)\b/, category: 'threat' },
 ]
 
-// These patterns require word-boundary context — "queer" can be reclaimed
+// These patterns require word-boundary context - "queer" can be reclaimed
 // or used in academic contexts so we flag but don't block.
 const FLAG_ONLY: BannedPattern[] = [
   { pattern: /\bqueer\b/, category: 'contextual_slur' },
@@ -199,12 +199,12 @@ export interface FilterResult {
 }
 
 /**
- * filterComment — run before storing any user-submitted comment.
+ * filterComment - run before storing any user-submitted comment.
  *
  * Returns:
- *   { allowed: false }               — block; do not store
- *   { allowed: true, flagForReview } — store but mark for admin review
- *   { allowed: true }                — clean; store normally
+ *   { allowed: false }               - block; do not store
+ *   { allowed: true, flagForReview } - store but mark for admin review
+ *   { allowed: true }                - clean; store normally
  */
 export function filterComment(text: string): FilterResult {
   const norm = normalise(text)
@@ -239,7 +239,7 @@ export function filterComment(text: string): FilterResult {
 }
 
 /**
- * filterContent — same detection logic but never blocks (editors are trusted).
+ * filterContent - same detection logic but never blocks (editors are trusted).
  * Used for debate article content submitted through the creator.
  */
 export function filterContent(text: string): FilterResult {
@@ -251,7 +251,7 @@ export function filterContent(text: string): FilterResult {
 }
 
 /**
- * highlightViolations — returns HTML with offending spans highlighted.
+ * highlightViolations - returns HTML with offending spans highlighted.
  * Used in the admin moderation review UI.
  */
 export function highlightViolations(text: string): string {
@@ -272,7 +272,7 @@ export function highlightViolations(text: string): string {
   return highlighted
 }
 
-/** Strip HTML tags from a string — use server-side before storing. */
+/** Strip HTML tags from a string - use server-side before storing. */
 export function stripHtml(text: string): string {
   return text
     .replace(/<[^>]+>/g, ' ')

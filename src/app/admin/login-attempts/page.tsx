@@ -68,7 +68,7 @@ export default async function LoginAttemptsPage() {
                     {attempt.email}
                   </td>
                   <td className="px-4 py-3 text-navy/60 font-mono text-xs hidden md:table-cell">
-                    {attempt.ipAddress ?? '—'}
+                    {attempt.ipAddress ?? 'Unknown'}
                   </td>
                   <td className="px-4 py-3">
                     <span

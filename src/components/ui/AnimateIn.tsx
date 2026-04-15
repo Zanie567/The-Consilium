@@ -52,7 +52,7 @@ export function AnimateIn({
   )
 }
 
-// Staggered container — children should be <StaggerItem>
+// Staggered container - children should be <StaggerItem>
 export function StaggerContainer({
   children,
   className,
