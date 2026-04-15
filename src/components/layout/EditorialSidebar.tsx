@@ -74,7 +74,7 @@ export function EditorialSidebar({ user }: { user: User }) {
     {
       label: 'MANAGE',
       items: [
-        { href: '/editorial/users', icon: Users, label: 'Users', show: isEditor },
+        { href: '/editorial/users', icon: Users, label: 'Users', show: isAdmin },
         { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
       ],
     },
