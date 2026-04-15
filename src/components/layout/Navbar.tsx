@@ -121,7 +121,7 @@ export function Navbar() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-8" aria-label="Main navigation">
+          <nav className="hidden md:flex items-center gap-10" aria-label="Main navigation">
             {navLinks.map((link) => (
               <NavLink
                 key={link.href}
@@ -133,7 +133,7 @@ export function Navbar() {
           </nav>
 
           {/* Desktop right actions */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-5">
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search"
@@ -143,7 +143,7 @@ export function Navbar() {
             </button>
             <ThemeToggle />
             {session ? (
-              <div className="flex items-center gap-3 pl-3 border-l border-navy-light">
+              <div className="flex items-center gap-5 pl-4 border-l border-navy-light">
                 {(['ADMIN', 'EDITOR', 'WRITER'] as const).includes(
                   (session.user as { role?: string }).role as 'ADMIN' | 'EDITOR' | 'WRITER'
                 ) && !pathname.startsWith('/editorial') && !pathname.startsWith('/admin') && (
