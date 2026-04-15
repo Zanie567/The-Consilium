@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * SignupPrompt — appears after the visitor's 3rd page view in the bottom right.
+ * SignupPrompt - appears after the visitor's 3rd page view in the bottom right.
  *
  * Rules:
  * - Never shown to logged-in users
@@ -39,7 +39,7 @@ export function SignupPrompt() {
 
   useEffect(() => {
     if (status === 'loading') return
-    if (session) return // logged in — never show
+    if (session) return // logged in - never show
 
     // Only set tracking cookies if the user has accepted cookie consent
     if (getCookieConsent() !== 'accepted') return

@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * ReadingTracker — replaces ReadingProgress for article pages.
+ * ReadingTracker - replaces ReadingProgress for article pages.
  *
  * For logged-in users:
  *   - Saves scroll progress to the DB (debounced, every 4s)

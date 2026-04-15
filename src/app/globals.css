@@ -390,7 +390,7 @@ body {
   color: rgba(255,255,255,0.25);
 }
 
-/* Typography marks — Tailwind preflight resets these, so we restore them */
+/* Typography marks - Tailwind preflight resets these, so we restore them */
 .tiptap-editor .ProseMirror strong { font-weight: 700; }
 .tiptap-editor .ProseMirror em { font-style: italic; }
 .tiptap-editor .ProseMirror u { text-decoration: underline; text-underline-offset: 3px; }
@@ -557,7 +557,7 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Economic ticker scroll — defined here rather than inline so it is available
+/* Economic ticker scroll - defined here rather than inline so it is available
    before the component hydrates (avoids React 19 style-tag timing issues). */
 @keyframes consilium-ticker {
   from { transform: translateX(0); }

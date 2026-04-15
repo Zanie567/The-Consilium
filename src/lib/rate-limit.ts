@@ -1,4 +1,4 @@
-// In-memory rate limiter. Per-instance only — acceptable for a low-traffic
+// In-memory rate limiter. Per-instance only - acceptable for a low-traffic
 // site on Vercel where instances are short-lived and recycled frequently.
 
 interface Entry {

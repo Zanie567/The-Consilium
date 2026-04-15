@@ -46,12 +46,12 @@ export async function POST(req: Request, { params }: Props) {
 
   try {
     if (session?.user?.id) {
-      // Authenticated vote — deduplicate by userId
+      // Authenticated vote - deduplicate by userId
       await prisma.debateVote.create({
         data: { debateId, userId: session.user.id, side: side as 'FOR' | 'AGAINST' },
       })
     } else {
-      // Anonymous vote — read or generate cookie
+      // Anonymous vote - read or generate cookie
       let anonymousId = cookieStore.get('consilium_anon_id')?.value
       if (!anonymousId) {
         anonymousId = crypto.randomUUID()

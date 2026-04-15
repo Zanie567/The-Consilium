@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
-// DOMMatrix polyfill — pdfjs-dist uses it even during text extraction,
+// DOMMatrix polyfill - pdfjs-dist uses it even during text extraction,
 // but Node.js does not expose it as a global. This minimal implementation
 // is enough for coordinate transforms during text extraction.
 function ensureDOMMatrix() {
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer())
     const data = new Uint8Array(buffer)
 
-    // Use pdfjs-dist directly — more reliable in Node.js than the pdf-parse wrapper
+    // Use pdfjs-dist directly - more reliable in Node.js than the pdf-parse wrapper
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs') as any
 

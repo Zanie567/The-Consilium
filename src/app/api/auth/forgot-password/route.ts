@@ -4,7 +4,7 @@ import { sendEmail } from '@/lib/email'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 
-// POST — request a password reset link (any user, not just editorial)
+// POST - request a password reset link (any user, not just editorial)
 export async function POST(req: NextRequest) {
   const { email } = await req.json()
   if (!email || typeof email !== 'string') {
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   return Response.json({ ok: true })
 }
 
-// PATCH — set new password using token
+// PATCH - set new password using token
 export async function PATCH(req: NextRequest) {
   const { token, password } = await req.json()
 

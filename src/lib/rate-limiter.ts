@@ -1,5 +1,5 @@
 /**
- * rate-limiter.ts — simple in-memory rate limiter.
+ * rate-limiter.ts - simple in-memory rate limiter.
  *
  * Note: this is per-function-instance. On Vercel with multiple concurrent
  * instances it won't be perfectly consistent, but it provides meaningful
@@ -25,7 +25,7 @@ setInterval(() => {
  * Returns true if the request is within the rate limit, false if it should
  * be rejected. Mutates the store on each call.
  *
- * @param key        Unique key — e.g. userId, IP, or a combination.
+ * @param key        Unique key - e.g. userId, IP, or a combination.
  * @param limit      Maximum number of requests allowed per window.
  * @param windowMs   Window duration in milliseconds.
  */

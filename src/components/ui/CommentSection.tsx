@@ -352,7 +352,7 @@ export function CommentSection({ articleId, currentUser }: Props) {
         )}
       </h2>
 
-      {/* Composer — logged-in only */}
+      {/* Composer - logged-in only */}
       {currentUser ? (
         <div className="mb-8">
           <Composer articleId={articleId} onSuccess={handleNewComment} />

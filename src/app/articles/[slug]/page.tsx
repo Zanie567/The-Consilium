@@ -82,7 +82,7 @@ async function getRelatedArticles(
     const scored = candidates.map((c) => {
       let score = 0
 
-      // Category match — highest weight
+      // Category match - highest weight
       if (categoryId && c.categoryId === categoryId) score += 10
 
       // Keyword overlap between titles and excerpts
@@ -198,7 +198,7 @@ function nodeToHtml(node: TiptapNode): string {
       return `<aside data-type="pull-quote" class="pull-quote">${node.content?.map(nodeToHtml).join('') ?? ''}</aside>`
     case 'footnoteRef':
       return `<sup class="footnote-ref" data-footnote="${encodeURIComponent(String(node.attrs?.content ?? ''))}" data-index="${node.attrs?.index ?? ''}" title="${node.attrs?.content ?? ''}">[${node.attrs?.index ?? ''}]</sup>`
-    // chartNode: silently drop — data callout has been removed
+    // chartNode: silently drop - data callout has been removed
     case 'chartNode':
       return ''
     default:
@@ -266,7 +266,7 @@ export default async function ArticlePage({ params }: Props) {
       <ReadingTracker articleId={article.id} />
       <ViewCounter articleId={article.id} />
 
-      {/* Print masthead — hidden on screen, shown when printing */}
+      {/* Print masthead - hidden on screen, shown when printing */}
       <div className="print-masthead hidden">
         <div className="print-masthead-title">The Consilium</div>
         <div className="print-masthead-sub">University of Edinburgh Economics Society</div>
@@ -283,7 +283,7 @@ export default async function ArticlePage({ params }: Props) {
             priority
             sizes="100vw"
           />
-          {/* Read time badge — top right of hero */}
+          {/* Read time badge - top right of hero */}
           <div className="absolute top-4 right-4 z-10 flex items-center gap-1.5 bg-navy/70 text-cream/90 text-xs font-semibold px-3 py-1.5 backdrop-blur-sm no-print">
             <Clock size={11} className="shrink-0" />
             {readTimeLabel(article.content)}
@@ -293,7 +293,7 @@ export default async function ArticlePage({ params }: Props) {
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 print-article-wrapper">
 
-        {/* ── Correction banner — above everything ── */}
+        {/* Correction banner - above everything */}
         {article.corrected && (
           <AnimateIn variant="fade-in" duration={0.4}>
             <div className="correction-notice mb-8 flex items-start gap-3">
@@ -431,7 +431,7 @@ export default async function ArticlePage({ params }: Props) {
           </AnimateIn>
         )}
 
-        {/* ── Correction note — at bottom of article ── */}
+        {/* Correction note - at bottom of article */}
         {article.corrected && article.correctionNote && (
           <AnimateIn variant="fade-up" delay={0.05} className="mt-10">
             <div id="correction-note" className="border border-[var(--border-strong)] bg-[var(--bg-subtle)] p-5">

@@ -106,7 +106,7 @@ export function Navbar() {
             scrolled ? 'h-14' : 'h-16'
           }`}
         >
-          {/* Masthead — left column */}
+          {/* Masthead - left column */}
           <Link
             href="/"
             className="shrink-0 text-gold font-serif font-bold tracking-widest text-xl sm:text-2xl uppercase hover:opacity-85 transition-opacity duration-200"
@@ -115,7 +115,7 @@ export function Navbar() {
             The Consilium
           </Link>
 
-          {/* Desktop nav — centred in remaining space */}
+          {/* Desktop nav - centred in remaining space */}
           <nav className="hidden md:flex flex-1 items-center justify-center gap-10 px-8" aria-label="Main navigation">
             {navLinks.map((link) => (
               <NavLink
@@ -257,7 +257,7 @@ export function Navbar() {
         )}
       </AnimatePresence>
 
-      {/* Mobile menu — right-side drawer with backdrop */}
+      {/* Mobile menu - right-side drawer with backdrop */}
       <AnimatePresence>
         {mobileOpen && (
           <>

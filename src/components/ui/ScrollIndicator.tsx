@@ -18,7 +18,7 @@ export function ScrollIndicator() {
     const docH = document.documentElement.scrollHeight
     const viewH = window.innerHeight
     const maxScroll = docH - viewH
-    // Thumb height: proportional to viewport/doc, clamped 44–40% of track
+    // Thumb height: proportional to viewport/doc, clamped 44-40% of track
     const thumbH = Math.max(44, Math.min(trackH * 0.4, (viewH / docH) * trackH))
     const maxThumbTop = trackH - thumbH
     const thumbTop = maxScroll > 0 ? (window.scrollY / maxScroll) * maxThumbTop : 0
@@ -100,7 +100,7 @@ export function ScrollIndicator() {
     >
       {/* Track background */}
       <div className="absolute inset-0 bg-gold/[0.07]" />
-      {/* Thumb — position updated directly via ref, no re-renders */}
+      {/* Thumb - position updated directly via ref, no re-renders */}
       <div
         ref={thumbRef}
         className="absolute left-[2px] right-[2px] rounded-full bg-gold/50 hover:bg-gold/80 transition-colors duration-150 cursor-grab active:cursor-grabbing"

@@ -152,7 +152,7 @@ export function ArticleEditor({
     el.style.height = el.scrollHeight + 'px'
   }, [excerpt])
 
-  // Auto-save (debounced) — works for both new and existing articles
+  // Auto-save (debounced) - works for both new and existing articles
   useEffect(() => {
     if (!hasMounted.current) { hasMounted.current = true; return }
     if (!canEdit) return
@@ -283,7 +283,7 @@ export function ArticleEditor({
           setSaveStatus('error')
         }
       } else {
-        // First save of a new article — POST to create it
+        // First save of a new article - POST to create it
         if (creatingRef.current) return
         creatingRef.current = true
         const effectiveTitle = title.trim() || 'Untitled'

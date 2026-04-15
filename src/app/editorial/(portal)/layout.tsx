@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -17,7 +18,7 @@ export default async function EditorialLayout({
     redirect('/editorial/login')
   }
 
-  // Always read role from the database — never trust the JWT alone.
+  // Always read role from the database - never trust the JWT alone.
   // This ensures role changes and new accounts take effect immediately.
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -82,7 +83,9 @@ export default async function EditorialLayout({
 
   return (
     <div className="min-h-screen bg-[var(--bg-subtle)] flex">
-      <EditorialSidebar user={verifiedUser} />
+      <Suspense fallback={<div className="w-[220px] shrink-0" style={{ background: '#0F1623' }} />}>
+        <EditorialSidebar user={verifiedUser} />
+      </Suspense>
       <main className="flex-1 min-w-0 overflow-auto">{children}</main>
     </div>
   )

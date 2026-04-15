@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server'
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 
 export function proxy(request: NextRequest) {
-  // NextAuth handles its own CSRF for /api/auth/* — skip those.
+  // NextAuth handles its own CSRF for /api/auth/* - skip those.
   if (request.nextUrl.pathname.startsWith('/api/auth/')) {
     return NextResponse.next()
   }
