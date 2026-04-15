@@ -2,14 +2,16 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { UserManagement } from '@/components/editorial/UserManagement'
+import { AdminUsersPage } from '@/components/admin/AdminUsersPage'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Users | Editorial',
+  title: 'User Management | Editorial',
   robots: { index: false, follow: false },
 }
+
+export const dynamic = 'force-dynamic'
 
 export default async function UsersPage() {
   const session = await getServerSession(authOptions)
@@ -19,26 +21,12 @@ export default async function UsersPage() {
     where: { id: session.user.id },
     select: { role: true },
   }).catch(() => null)
-  if (!dbUser || (dbUser.role !== 'ADMIN' && dbUser.role !== 'EDITOR')) redirect('/editorial')
 
-  const [users, categories] = await Promise.all([
-    prisma.user.findMany({
-      where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] } },
-      select: {
-        id: true, name: true, email: true, role: true, isActive: true, createdAt: true,
-        categoryAssignments: {
-          select: { category: { select: { id: true, name: true, slug: true } } },
-        },
-      },
-      orderBy: { createdAt: 'asc' },
-    }),
-    prisma.category.findMany({ orderBy: { name: 'asc' } }),
-  ])
-
-  const serializedUsers = JSON.parse(JSON.stringify(users))
+  // Admin only — editors can no longer access user management
+  if (!dbUser || dbUser.role !== 'ADMIN') redirect('/editorial')
 
   return (
-    <PortalPage className="p-6 lg:p-8 max-w-5xl">
+    <PortalPage className="p-6 lg:p-8">
       <PortalSection className="mb-8">
         <h1
           className="text-2xl font-bold text-[var(--fg)] mb-1"
@@ -47,16 +35,11 @@ export default async function UsersPage() {
           User Management
         </h1>
         <p className="text-[var(--fg-muted)] text-sm">
-          Create and manage editorial team accounts.
+          Full visibility and control over all registered accounts.
         </p>
       </PortalSection>
       <PortalSection>
-        <UserManagement
-          initialUsers={serializedUsers}
-          categories={categories}
-          currentUserId={session.user.id}
-          currentUserRole={dbUser!.role}
-        />
+        <AdminUsersPage currentAdminId={session.user.id} />
       </PortalSection>
     </PortalPage>
   )

@@ -39,10 +39,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
+  const completed = progress >= 90
   await prisma.readingProgress.upsert({
     where: { userId_articleId: { userId: session.user.id, articleId } },
-    create: { userId: session.user.id, articleId, progress, scrollY: scrollY ?? 0 },
-    update: { progress, scrollY: scrollY ?? 0 },
+    create: { userId: session.user.id, articleId, progress, scrollY: scrollY ?? 0, completed },
+    update: { progress, scrollY: scrollY ?? 0, ...(completed ? { completed: true } : {}) },
   }).catch(() => null)
 
   return NextResponse.json({ ok: true })

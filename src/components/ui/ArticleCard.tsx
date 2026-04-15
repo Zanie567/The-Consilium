@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import { Clock } from 'lucide-react'
 import { BlurImage } from '@/components/ui/BlurImage'
+import { BookmarkButton } from '@/components/ui/BookmarkButton'
 import { readTimeLabel } from '@/lib/readTime'
 
 interface Article {
@@ -79,11 +80,14 @@ export function ArticleCard({ article, badgeLabel }: ArticleCardProps) {
           )}
           <div className="flex items-center justify-between text-[0.7rem] text-[var(--fg-faint)] border-t border-[var(--border)] pt-3 mt-auto">
             <span className="font-semibold text-[var(--fg-muted)]">{article.author.name}</span>
-            <span>
-              {article.publishedAt
-                ? format(new Date(article.publishedAt), 'd MMM yyyy')
-                : ''}
-            </span>
+            <div className="flex items-center gap-3">
+              <span>
+                {article.publishedAt
+                  ? format(new Date(article.publishedAt), 'd MMM yyyy')
+                  : ''}
+              </span>
+              <BookmarkButton articleId={article.id} />
+            </div>
           </div>
         </div>
       </article>

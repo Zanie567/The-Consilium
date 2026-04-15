@@ -82,6 +82,72 @@ export function passwordResetEmail(resetUrl: string) {
   }
 }
 
+export function userWarningEmail(userName: string | null, reason: string) {
+  return {
+    subject: 'A note about your Consilium account',
+    html: `
+      <p>Hi${userName ? ` ${userName}` : ''},</p>
+      <p>Your account on The Consilium has received a warning from our moderation team.</p>
+      <blockquote style="border-left:3px solid #c9a227;padding:8px 16px;margin:16px 0;color:#555">${reason}</blockquote>
+      <p>Please review our community guidelines to ensure your activity remains within our standards. Repeated violations may result in account suspension.</p>
+      <p>If you believe this warning was issued in error, please contact our editorial team.</p>
+      <p>The Consilium</p>
+    `,
+  }
+}
+
+export function userBannedEmail(userName: string | null, reason: string) {
+  return {
+    subject: 'Your Consilium account has been suspended',
+    html: `
+      <p>Hi${userName ? ` ${userName}` : ''},</p>
+      <p>Your account on The Consilium has been suspended.</p>
+      <blockquote style="border-left:3px solid #e53e3e;padding:8px 16px;margin:16px 0;color:#555">${reason}</blockquote>
+      <p>If you believe this suspension was issued in error, please contact us at <a href="mailto:theconsilium.editor@gmail.com">theconsilium.editor@gmail.com</a> to appeal.</p>
+      <p>The Consilium</p>
+    `,
+  }
+}
+
+export function userUnbannedEmail(userName: string | null) {
+  return {
+    subject: 'Your Consilium account has been reinstated',
+    html: `
+      <p>Hi${userName ? ` ${userName}` : ''},</p>
+      <p>Your account on The Consilium has been reinstated. You can sign in as normal.</p>
+      <p>Thank you for your patience. Please continue to follow our community guidelines.</p>
+      <p>The Consilium</p>
+    `,
+  }
+}
+
+export function roleChangedEmail(userName: string | null, newRole: string, promoted: boolean) {
+  const roleDescriptions: Record<string, string> = {
+    WRITER: 'submit articles for editorial review and publish content on The Consilium',
+    EDITOR: 'review and publish articles, manage writers, and moderate content',
+    ADMIN: 'access the full editorial dashboard with all admin controls',
+    READER: 'read and comment on articles',
+  }
+  const description = roleDescriptions[newRole] ?? 'access The Consilium'
+  const normalised = newRole.charAt(0) + newRole.slice(1).toLowerCase()
+
+  return {
+    subject: promoted
+      ? `You have been granted ${normalised} access on The Consilium`
+      : `Your Consilium account role has been updated`,
+    html: `
+      <p>Hi${userName ? ` ${userName}` : ''},</p>
+      ${promoted
+        ? `<p>You have been granted <strong>${normalised}</strong> access on The Consilium. You can now ${description}.</p>`
+        : `<p>Your role on The Consilium has been updated to <strong>${normalised}</strong>.</p>`
+      }
+      <p>Your new permissions will take effect the next time you sign in.</p>
+      <p><a href="${process.env.NEXTAUTH_URL}/editorial">Go to the editorial dashboard →</a></p>
+      <p>The Consilium</p>
+    `,
+  }
+}
+
 export function commentFlaggedEmail(
   articleTitle: string,
   articleId: string,

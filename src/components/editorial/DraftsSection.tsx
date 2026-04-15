@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+
+export const DRAFTS_SWR_KEY = '/api/editorial/articles?mine=true&status=DRAFT'
 import { formatDistanceToNow } from 'date-fns'
 import { Trash2 } from 'lucide-react'
 

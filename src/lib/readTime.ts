@@ -23,3 +23,13 @@ export function readTimeLabel(content: string): string {
   const mins = readTimeMinutes(content)
   return `${mins} min read`
 }
+
+export function wordCountFromContent(content: string): number {
+  try {
+    const parsed = JSON.parse(content)
+    const text = extractText(parsed).trim()
+    return text.split(/\s+/).filter(Boolean).length
+  } catch {
+    return content.trim().split(/\s+/).filter(Boolean).length
+  }
+}
