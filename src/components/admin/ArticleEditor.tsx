@@ -16,7 +16,7 @@ import slugify from 'slugify'
 import { mutate as globalMutate } from 'swr'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
 import { readTimeLabel, wordCountFromContent } from '@/lib/readTime'
-import { DRAFTS_SWR_KEY } from '@/components/editorial/MyDrafts'
+import { DRAFTS_SWR_KEY } from '@/components/editorial/DraftsSection'
 
 const TiptapEditor = dynamic(
   () => import('@/components/editor/TiptapEditor').then((m) => m.TiptapEditor),
