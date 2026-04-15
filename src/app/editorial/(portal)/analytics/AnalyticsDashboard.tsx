@@ -16,7 +16,7 @@ import {
 } from 'chart.js'
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
-import { ChevronDown, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { ChevronDown, TrendingUp, TrendingDown, Minus, BarChart2, Users } from 'lucide-react'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Filler, Tooltip)
 
@@ -245,7 +245,7 @@ export function AnalyticsDashboard() {
         <div ref={dropdownRef} className="relative">
           <button
             onClick={() => setDropdownOpen((o) => !o)}
-            className="flex items-center gap-2 bg-[var(--bg-elevated)] border border-[var(--border)] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[var(--fg)] hover:border-gold transition-colors"
+            className="flex items-center gap-2 bg-[#faf9f7] border border-[#d0cdc5] rounded-lg px-4 py-2 text-[13px] font-medium text-[#1a2744] hover:border-[#1a2744]/40 transition-colors"
           >
             {PERIOD_LABELS[period]}
             <ChevronDown
@@ -260,16 +260,16 @@ export function AnalyticsDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 mt-1 w-44 bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] z-20 overflow-hidden"
+                className="absolute right-0 mt-1 w-44 bg-white border border-[#e8e4d9] shadow-lg rounded-lg z-20 overflow-hidden"
               >
                 {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
                   <button
                     key={p}
                     onClick={() => selectPeriod(p)}
-                    className={`w-full text-left px-4 py-2.5 text-xs font-medium tracking-wide transition-colors ${
+                    className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors ${
                       period === p
-                        ? 'bg-gold/10 text-gold font-bold'
-                        : 'text-[var(--fg-muted)] hover:bg-[var(--bg-subtle)] hover:text-[var(--fg)]'
+                        ? 'bg-[#f5f2eb] text-[#c9a84c] font-semibold'
+                        : 'text-[#666] hover:bg-[#f5f2eb] hover:text-[#1a2744]'
                     }`}
                   >
                     {PERIOD_LABELS[p]}
@@ -288,17 +288,17 @@ export function AnalyticsDashboard() {
             {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
-                className="bg-[var(--bg-elevated)] border border-[var(--border)] p-5 animate-pulse"
+                className="bg-white border border-[#e8e4d9] rounded-lg p-5 animate-pulse"
               >
-                <div className="h-2.5 bg-[var(--bg-subtle)] w-20 mb-3" />
-                <div className="h-8 bg-[var(--bg-subtle)] w-24" />
+                <div className="h-2.5 bg-[#f0ede6] w-20 mb-3" />
+                <div className="h-8 bg-[#f0ede6] w-24" />
               </div>
             ))}
           </div>
-          <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-6 animate-pulse h-56" />
+          <div className="bg-white border border-[#e8e4d9] rounded-lg p-6 animate-pulse h-56" />
           <div className="grid grid-cols-3 gap-6">
-            <div className="col-span-2 bg-[var(--bg-elevated)] border border-[var(--border)] p-6 animate-pulse h-72" />
-            <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-6 animate-pulse h-72" />
+            <div className="col-span-2 bg-white border border-[#e8e4d9] rounded-lg p-6 animate-pulse h-72" />
+            <div className="bg-white border border-[#e8e4d9] rounded-lg p-6 animate-pulse h-72" />
           </div>
         </div>
       )}
@@ -346,9 +346,9 @@ export function AnalyticsDashboard() {
           {/* Traffic line chart */}
           <motion.div
             variants={fadeUp}
-            className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)]"
+            className="bg-white border border-[#e8e4d9] rounded-lg shadow-sm"
           >
-            <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-[#e8e4d9] flex items-center justify-between">
               <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">
                 Views over time
               </h2>
@@ -363,9 +363,9 @@ export function AnalyticsDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <motion.div
               variants={fadeUp}
-              className="lg:col-span-2 bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden"
+              className="lg:col-span-2 bg-white border border-[#e8e4d9] rounded-lg shadow-sm overflow-hidden"
             >
-              <div className="px-6 py-4 border-b border-[var(--border)]">
+              <div className="px-6 py-4 border-b border-[#e8e4d9]">
                 <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">
                   Top content
                 </h2>
@@ -375,7 +375,7 @@ export function AnalyticsDashboard() {
                   data.topArticles.map((article, i) => (
                     <div
                       key={article.id}
-                      className="flex items-center gap-4 px-6 py-3.5 hover:bg-[var(--bg-subtle)] transition-colors"
+                      className="flex items-center gap-4 px-6 py-3.5 hover:bg-[#faf8f4] transition-colors"
                     >
                       <span className="text-[var(--fg-faint)] text-xs font-bold w-5 shrink-0 text-right">
                         {i + 1}
@@ -390,7 +390,7 @@ export function AnalyticsDashboard() {
                         <p className="text-xs text-[var(--fg-faint)] mt-0.5">
                           {article.author.name} in {article.category?.name ?? 'Uncategorised'}
                         </p>
-                        <div className="mt-1.5 h-1 bg-[var(--bg-subtle)] overflow-hidden">
+                        <div className="mt-1.5 h-1 bg-[#f0ede6] overflow-hidden rounded-full">
                           <div
                             className="h-full bg-gold/50 transition-all duration-700"
                             style={{ width: `${(article.viewCount / maxTopViews) * 100}%` }}
@@ -406,8 +406,10 @@ export function AnalyticsDashboard() {
                     </div>
                   ))
                 ) : (
-                  <div className="px-6 py-10 text-center text-[var(--fg-faint)] text-sm">
-                    No published articles yet.
+                  <div className="py-16 flex flex-col items-center gap-3">
+                    <BarChart2 size={32} className="text-[#ccc]" />
+                    <p className="text-[15px] font-semibold text-[#1a2744]">No published articles yet</p>
+                    <p className="text-[13px] text-[#888]">Articles will appear here once published.</p>
                   </div>
                 )}
               </div>
@@ -415,9 +417,9 @@ export function AnalyticsDashboard() {
 
             <motion.div
               variants={fadeUp}
-              className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)]"
+              className="bg-white border border-[#e8e4d9] rounded-lg shadow-sm"
             >
-              <div className="px-6 py-4 border-b border-[var(--border)]">
+              <div className="px-6 py-4 border-b border-[#e8e4d9]">
                 <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">
                   Views by section
                 </h2>
@@ -459,9 +461,9 @@ export function AnalyticsDashboard() {
           {/* Author leaderboard */}
           <motion.div
             variants={fadeUp}
-            className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden"
+            className="bg-white border border-[#e8e4d9] rounded-lg shadow-sm overflow-hidden"
           >
-            <div className="px-6 py-4 border-b border-[var(--border)]">
+            <div className="px-6 py-4 border-b border-[#e8e4d9]">
               <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">
                 Author leaderboard
               </h2>
@@ -471,7 +473,7 @@ export function AnalyticsDashboard() {
                 data.authorData.map((author, i) => (
                   <div
                     key={author.name}
-                    className="flex items-center gap-4 px-6 py-3.5 hover:bg-[var(--bg-subtle)] transition-colors"
+                    className="flex items-center gap-4 px-6 py-3.5 hover:bg-[#faf8f4] transition-colors"
                   >
                     <span className="text-[var(--fg-faint)] text-xs font-bold w-5 shrink-0 text-right">
                       {i + 1}
@@ -482,7 +484,7 @@ export function AnalyticsDashboard() {
                         <span className="text-xs text-[var(--fg-faint)]">
                           {author.articles} {author.articles === 1 ? 'article' : 'articles'}
                         </span>
-                        <div className="flex-1 h-1 bg-[var(--bg-subtle)] overflow-hidden max-w-32">
+                        <div className="flex-1 h-1 bg-[#f0ede6] overflow-hidden rounded-full max-w-32">
                           <div
                             className="h-full bg-navy/40 transition-all duration-700"
                             style={{ width: `${(author.views / maxAuthorViews) * 100}%` }}
@@ -504,8 +506,10 @@ export function AnalyticsDashboard() {
                   </div>
                 ))
               ) : (
-                <div className="px-6 py-10 text-center text-[var(--fg-faint)] text-sm">
-                  No author data yet.
+                <div className="py-16 flex flex-col items-center gap-3">
+                  <Users size={32} className="text-[#ccc]" />
+                  <p className="text-[15px] font-semibold text-[#1a2744]">No author data yet</p>
+                  <p className="text-[13px] text-[#888]">Author stats will appear as articles are published.</p>
                 </div>
               )}
             </div>
@@ -515,19 +519,19 @@ export function AnalyticsDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <motion.div
               variants={fadeUp}
-              className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden"
+              className="bg-white border border-[#e8e4d9] rounded-lg shadow-sm overflow-hidden"
             >
-              <div className="px-6 py-4 border-b border-[var(--border)]">
+              <div className="px-6 py-4 border-b border-[#e8e4d9]">
                 <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">
                   Recent publishes
                 </h2>
               </div>
-              <div className="divide-y divide-[var(--border)]">
+              <div className="divide-y divide-[#e8e4d9]">
                 {data.recentActivity.length > 0 ? (
                   data.recentActivity.map((article) => (
                     <div
                       key={article.id}
-                      className="flex items-start gap-3 px-6 py-3.5 hover:bg-[var(--bg-subtle)] transition-colors"
+                      className="flex items-start gap-3 px-6 py-3.5 hover:bg-[#faf8f4] transition-colors"
                     >
                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
                       <div className="flex-1 min-w-0">
@@ -559,9 +563,9 @@ export function AnalyticsDashboard() {
 
             <motion.div
               variants={fadeUp}
-              className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)]"
+              className="bg-white border border-[#e8e4d9] rounded-lg shadow-sm"
             >
-              <div className="px-6 py-4 border-b border-[var(--border)]">
+              <div className="px-6 py-4 border-b border-[#e8e4d9]">
                 <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">
                   Traffic sources
                 </h2>
@@ -582,7 +586,7 @@ export function AnalyticsDashboard() {
                           </span>
                         </div>
                       </div>
-                      <div className="h-1.5 bg-[var(--bg-subtle)] overflow-hidden">
+                      <div className="h-1.5 bg-[#f0ede6] overflow-hidden rounded-full">
                         <div
                           className="h-full bg-gold transition-all duration-700"
                           style={{ width: `${s.pct}%` }}
@@ -619,25 +623,25 @@ function StatCard({
   accent?: 'emerald' | 'amber' | 'gold'
   trend?: number | null
 }) {
-  const valueClass =
-    accent === 'emerald'
-      ? 'text-emerald-600 dark:text-emerald-400'
-      : accent === 'amber'
-      ? 'text-amber-600 dark:text-amber-400'
-      : accent === 'gold'
-      ? 'text-gold'
-      : 'text-[var(--fg)]'
+  const accentColor =
+    accent === 'emerald' ? '#16a34a'
+    : accent === 'amber' ? '#d97706'
+    : accent === 'gold' ? '#c9a84c'
+    : '#1a2744'
 
   return (
-    <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-5 shadow-[var(--shadow-card)] h-full">
-      <p className="text-[var(--fg-faint)] text-xs uppercase tracking-widest mb-2">{label}</p>
-      <p className={`text-3xl font-bold ${valueClass}`} style={{ fontFamily: 'var(--font-serif)' }}>
+    <div
+      className="bg-white rounded-lg p-5 border border-[#e8e4d9] h-full hover:bg-[#faf8f0] transition-colors duration-150"
+      style={{ borderLeft: `3px solid ${accentColor}` }}
+    >
+      <p className="text-[#999] text-[11px] font-semibold uppercase tracking-[0.07em] mb-3">{label}</p>
+      <p className="text-[36px] font-semibold text-[#1a2744] leading-none mb-2" style={{ fontVariantNumeric: 'tabular-nums' }}>
         {value}
       </p>
       {trend != null && (
         <div
           className={`flex items-center gap-1 mt-2 text-xs font-medium ${
-            trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-500' : 'text-[var(--fg-faint)]'
+            trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-500' : 'text-[#888]'
           }`}
         >
           {trend > 0 ? (

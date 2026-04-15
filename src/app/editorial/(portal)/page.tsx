@@ -6,6 +6,7 @@ import { format, formatDistanceToNow } from 'date-fns'
 import { NotificationBell } from '@/components/editorial/NotificationBell'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
 import { DraftsSection } from '@/components/editorial/DraftsSection'
+import { FileText, CheckCircle, AlertCircle, BarChart2, Users as UsersIcon } from 'lucide-react'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -83,12 +84,12 @@ export default async function EditorialDashboard() {
   ])
 
   const statusColour: Record<string, string> = {
-    DRAFT: 'bg-[var(--bg-subtle)] text-[var(--fg-faint)]',
-    PENDING_REVIEW: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-    PUBLISHED: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-    SCHEDULED: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-    REJECTED: 'bg-red-500/10 text-red-600 dark:text-red-400',
-    ARCHIVED: 'bg-[var(--bg-subtle)] text-[var(--fg-faint)]',
+    DRAFT: 'bg-[#f0ede6] text-[#888]',
+    PENDING_REVIEW: 'bg-amber-50 text-amber-600',
+    PUBLISHED: 'bg-emerald-50 text-emerald-600',
+    SCHEDULED: 'bg-blue-50 text-blue-600',
+    REJECTED: 'bg-red-50 text-red-500',
+    ARCHIVED: 'bg-[#f0ede6] text-[#888]',
   }
 
   const wordCount = (content: string) => {
@@ -125,21 +126,48 @@ export default async function EditorialDashboard() {
 
       {/* Stats row */}
       <PortalSection className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        <StatCard label="My Drafts" value={myDrafts.length} />
-        <StatCard label="Published" value={publishedCount} accent="emerald" />
+        <StatCard
+          icon={<FileText size={20} />}
+          label="My Drafts"
+          value={myDrafts.length}
+          accentColor="#1a2744"
+          context="current work in progress"
+        />
+        <StatCard
+          icon={<CheckCircle size={20} />}
+          label="Published"
+          value={publishedCount}
+          accentColor="#16a34a"
+          context="live on site"
+        />
         {isEditor && (
           <StatCard
+            icon={<AlertCircle size={20} />}
             label="Pending Review"
             value={pendingArticles.length}
-            accent={pendingArticles.length > 0 ? 'amber' : undefined}
+            accentColor={pendingArticles.length > 0 ? '#d97706' : '#1a2744'}
+            context={pendingArticles.length > 0 ? 'awaiting editorial review' : 'queue is clear'}
+            contextAmber={pendingArticles.length > 0}
           />
         )}
         {isEditor && (
-          <StatCard label="Total Views" value={totalViews.toLocaleString()} />
+          <StatCard
+            icon={<BarChart2 size={20} />}
+            label="Total Views"
+            value={totalViews.toLocaleString()}
+            accentColor="#1a2744"
+            context="across all articles"
+          />
         )}
         {isEditor && (
           <Link href="/editorial/users">
-            <StatCard label="Users" value={userCount} />
+            <StatCard
+              icon={<UsersIcon size={20} />}
+              label="Users"
+              value={userCount}
+              accentColor="#1a2744"
+              context="registered team members"
+            />
           </Link>
         )}
       </PortalSection>
@@ -251,12 +279,12 @@ export default async function EditorialDashboard() {
 
       {/* Recent articles table */}
       <PortalSection>
-        <div className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden">
-          <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
-            <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">
+        <div className="bg-white rounded-lg border border-[#e8e4d9] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#e8e4d9] flex items-center justify-between">
+            <h2 className="text-[#999] text-[11px] font-semibold uppercase tracking-[0.07em]">
               {role === 'WRITER' ? 'My Articles' : 'Recent Articles'}
             </h2>
-            <Link href="/editorial/articles" className="text-xs text-gold hover:underline">
+            <Link href="/editorial/articles" className="text-xs text-[#c9a84c] hover:underline">
               View all →
             </Link>
           </div>
@@ -264,45 +292,45 @@ export default async function EditorialDashboard() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[var(--border)]">
-                    <th className="px-6 py-2.5 text-left text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider">
+                  <tr className="border-b border-[#e8e4d9]">
+                    <th className="text-left px-6 py-3 text-[#999] text-[11px] font-semibold uppercase tracking-[0.07em]">
                       Article
                     </th>
-                    <th className="px-4 py-2.5 text-left text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider hidden sm:table-cell">
+                    <th className="text-left px-4 py-3 text-[#999] text-[11px] font-semibold uppercase tracking-[0.07em] hidden sm:table-cell">
                       Category
                     </th>
-                    <th className="px-4 py-2.5 text-left text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider hidden md:table-cell">
+                    <th className="text-left px-4 py-3 text-[#999] text-[11px] font-semibold uppercase tracking-[0.07em] hidden md:table-cell">
                       Updated
                     </th>
-                    <th className="px-4 py-2.5 text-right text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider">
+                    <th className="text-right px-4 py-3 text-[#999] text-[11px] font-semibold uppercase tracking-[0.07em]">
                       Status
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--border)]">
+                <tbody className="divide-y divide-[#e8e4d9]">
                   {myArticles.map((article) => (
-                    <tr key={article.id} className="hover:bg-[var(--bg-subtle)] transition-colors">
+                    <tr key={article.id} className="hover:bg-[#faf8f4] transition-colors duration-100 cursor-pointer" style={{ height: '56px' }}>
                       <td className="px-6 py-3">
                         <Link
                           href={`/editorial/articles/${article.id}/edit`}
-                          className="font-medium text-[var(--fg)] hover:text-gold transition-colors line-clamp-1"
+                          className="font-medium text-[#1a2744] hover:text-[#c9a84c] transition-colors line-clamp-1"
                         >
                           {article.title}
                         </Link>
                         {isEditor && (
-                          <p className="text-[var(--fg-faint)] text-xs mt-0.5">
+                          <p className="text-[#888] text-xs mt-0.5">
                             {article.author.name}
                           </p>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-[var(--fg-faint)] text-xs hidden sm:table-cell">
+                      <td className="px-4 py-3 text-[#888] text-[13px] hidden sm:table-cell">
                         {article.category?.name ?? 'Uncategorised'}
                       </td>
-                      <td className="px-4 py-3 text-[var(--fg-faint)] text-xs hidden md:table-cell">
+                      <td className="px-4 py-3 text-[#888] text-[13px] hidden md:table-cell">
                         {format(new Date(article.updatedAt), 'd MMM yyyy')}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <span className={`text-xs font-bold px-2 py-0.5 ${statusColour[article.status] ?? ''}`}>
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-[4px] ${statusColour[article.status] ?? ''}`}>
                           {article.status.replace('_', ' ')}
                         </span>
                       </td>
@@ -312,11 +340,14 @@ export default async function EditorialDashboard() {
               </table>
             </div>
           ) : (
-            <div className="px-6 py-16 text-center text-[var(--fg-faint)] text-sm">
-              No articles yet.{' '}
-              <Link href="/editorial/articles/new" className="text-gold hover:underline">
-                Write your first article.
-              </Link>
+            <div className="py-16 flex flex-col items-center gap-3">
+              <FileText size={32} className="text-[#ccc]" />
+              <p className="text-[15px] font-semibold text-[#1a2744]">No articles yet</p>
+              <p className="text-[13px] text-[#888]">
+                <Link href="/editorial/articles/new" className="text-[#c9a84c] hover:underline">
+                  Write your first article.
+                </Link>
+              </p>
             </div>
           )}
         </div>
@@ -326,26 +357,34 @@ export default async function EditorialDashboard() {
 }
 
 function StatCard({
+  icon,
   label,
   value,
-  accent,
+  accentColor,
+  context,
+  contextAmber,
 }: {
+  icon: React.ReactNode
   label: string
   value: number | string
-  accent?: 'emerald' | 'amber'
+  accentColor: string
+  context: string
+  contextAmber?: boolean
 }) {
-  const valueClass =
-    accent === 'emerald'
-      ? 'text-emerald-600 dark:text-emerald-400'
-      : accent === 'amber'
-      ? 'text-amber-600 dark:text-amber-400'
-      : 'text-[var(--fg)]'
-
   return (
-    <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-5 shadow-[var(--shadow-card)]">
-      <p className="text-[var(--fg-faint)] text-xs uppercase tracking-widest mb-2">{label}</p>
-      <p className={`text-3xl font-bold ${valueClass}`} style={{ fontFamily: 'var(--font-serif)' }}>
+    <div
+      className="bg-white rounded-lg p-5 relative overflow-hidden hover:bg-[#faf8f0] transition-colors duration-150 cursor-default border border-[#e8e4d9]"
+      style={{ borderLeft: `3px solid ${accentColor}` }}
+    >
+      <div className="absolute top-4 right-4 opacity-35" style={{ color: accentColor }}>
+        {icon}
+      </div>
+      <p className="text-[#999] text-[11px] font-semibold uppercase tracking-[0.07em] mb-3">{label}</p>
+      <p className="text-[36px] font-semibold text-[#1a2744] leading-none mb-2" style={{ fontVariantNumeric: 'tabular-nums' }}>
         {value}
+      </p>
+      <p className={`text-[12px] ${contextAmber ? 'text-amber-500 font-medium' : 'text-[#888]'}`}>
+        {context}
       </p>
     </div>
   )
