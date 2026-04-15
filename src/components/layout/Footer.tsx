@@ -163,6 +163,9 @@ export function Footer() {
             <p className="text-cream/20 text-[10px] mt-1">
               Founded by Alex Escala, Lucas Dwyer and Satvik Singla
             </p>
+            <p className="text-cream/20 text-[10px] mt-0.5">
+              Editor-in-Chief: Alex Escala
+            </p>
           </div>
           <p className="text-cream/20 text-xs">Edinburgh, Scotland</p>
           </div>
