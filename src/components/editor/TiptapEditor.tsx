@@ -427,7 +427,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         title={title}
         disabled={dis}
         style={style}
-        className={`p-1.5 rounded transition-all min-w-[28px] h-7 flex items-center justify-center ${
+        className={`p-2 rounded transition-all min-w-[30px] h-8 flex items-center justify-center ${
           active
             ? darkMode ? 'bg-white/15 text-white' : 'bg-[#1a2744]/10 text-[#1a2744] dark:bg-gold/20 dark:text-gold'
             : darkMode ? 'text-white/70 hover:bg-white/8' : 'text-[#444] dark:text-[var(--fg-muted)] hover:bg-black/8 dark:hover:bg-white/10'
@@ -455,7 +455,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
     )
 
     const Sep = () => (
-      <div className="w-px mx-1 self-stretch bg-black/10 dark:bg-white/10" />
+      <div className="w-px mx-2.5 self-stretch bg-black/10 dark:bg-white/10" />
     )
 
     return (
@@ -489,25 +489,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
           </div>
         )}
 
-        {/* Bubble menu for selected text */}
-        {editable && (
-          <BubbleMenu
-            editor={editor}
-            shouldShow={({ editor: ed }) => !ed.isActive('table')}
-          >
-            <div className="flex items-center gap-0.5 bg-navy border border-gold/20 shadow-2xl px-1.5 py-1 rounded">
-              <BubbleBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold"><Bold size={13} /></BubbleBtn>
-              <BubbleBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Italic"><Italic size={13} /></BubbleBtn>
-              <BubbleBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} title="Underline"><UnderlineIcon size={13} /></BubbleBtn>
-              <BubbleBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} title="Strikethrough"><Strikethrough size={13} /></BubbleBtn>
-              <div className="w-px h-4 bg-gold/20 mx-0.5" />
-              <BubbleBtn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} title="Heading 2"><span className="text-xs font-bold">H2</span></BubbleBtn>
-              <BubbleBtn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })} title="Heading 3"><span className="text-xs font-bold">H3</span></BubbleBtn>
-              <div className="w-px h-4 bg-gold/20 mx-0.5" />
-              <BubbleBtn onClick={openLinkBar} active={editor.isActive('link')} title="Add link"><Link2 size={13} /></BubbleBtn>
-            </div>
-          </BubbleMenu>
-        )}
+        {/* Text-selection bubble menu removed — all formatting options live in the fixed toolbar */}
 
         {editable && (
           <BubbleMenu
@@ -533,7 +515,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         {/* ── Toolbar ────────────────────────────────────────────────────────── */}
         {editable && (() => {
           const toolbarContent = (
-            <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-2 py-1 flex flex-wrap gap-0.5 items-center w-full h-full overflow-x-auto">
+            <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-4 py-1.5 flex flex-wrap gap-1 items-center w-full h-full overflow-x-auto">
 
             {/* Group 1: History */}
             <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo (Ctrl+Z)">
@@ -553,7 +535,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); setHeadingOpen((o) => !o) }}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-[#444] dark:text-[var(--fg-muted)] hover:bg-black/8 dark:hover:bg-white/10 transition-colors min-w-[110px] h-7"
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-[#444] dark:text-[var(--fg-muted)] hover:bg-black/8 dark:hover:bg-white/10 transition-colors min-w-[110px] h-8"
                 title="Text style"
               >
                 <span className="flex-1 text-left truncate">{headingLabel}</span>
@@ -589,12 +571,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
             <Sep />
 
-            {/* Group 3: Font name */}
-            <div className="px-2 py-1 text-xs text-[#666] dark:text-[var(--fg-faint)] select-none h-7 flex items-center" title="Font">
-              Playfair
-            </div>
-
-            <Sep />
+            {/* Font is fixed to EB Garamond — picker removed */}
 
             {/* Group 4: Font size */}
             <ToolbarBtn onClick={() => changeFontSize(-1)} title="Decrease font size">
@@ -609,7 +586,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyFontSize(fontSizeInput) } }}
               min={6}
               max={96}
-              className="w-10 h-7 text-center text-xs border border-black/15 dark:border-white/15 bg-transparent rounded focus:outline-none focus:border-[#1a2744] dark:focus:border-gold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="w-10 h-8 text-center text-xs border border-black/15 dark:border-white/15 bg-transparent rounded focus:outline-none focus:border-[#1a2744] dark:focus:border-gold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               title="Font size"
             />
             <ToolbarBtn onClick={() => changeFontSize(1)} title="Increase font size">

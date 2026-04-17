@@ -27,7 +27,7 @@ const TiptapEditor = dynamic(
     onChange: (content: string) => void
     editable?: boolean
     saveStatus?: 'idle' | 'saving' | 'saved' | 'error'
-    toolbarFixed?: boolean
+    toolbarPortalRef?: React.RefObject<HTMLDivElement | null>
     contentOnly?: boolean
   } &
   React.RefAttributes<TiptapEditorHandle>
@@ -153,6 +153,8 @@ export function ArticleEditor({
   const coverFileRef  = useRef<HTMLInputElement>(null)
   const editorRef     = useRef<TiptapEditorHandle | null>(null)
   const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // Portal target for the Tiptap formatting toolbar (rendered fixed below the top chrome)
+  const toolbarPortalRef = useRef<HTMLDivElement>(null)
 
   const currentStatus = initialData?.status ?? 'DRAFT'
   const canEdit = !isWriter || currentStatus === 'DRAFT' || currentStatus === 'REJECTED'
@@ -734,10 +736,14 @@ export function ArticleEditor({
         </button>
       </div>
 
-      {/* TiptapEditor's fixed toolbar renders at top-12 via toolbarFixed prop */}
+      {/* Formatting toolbar — Tiptap portals its toolbar content into this fixed container */}
+      <div
+        ref={toolbarPortalRef}
+        className="fixed top-12 left-[220px] right-0 z-40"
+      />
 
-      {/* Content (below both fixed bars = 88px) */}
-      <div className="pt-[88px] min-h-screen bg-[#f0f0f0] dark:bg-[#111]">
+      {/* Content (top chrome 48px + toolbar ~44px = 92px, pt-[96px] adds 4px breathing) */}
+      <div className="pt-[96px] min-h-screen bg-[#f0f0f0] dark:bg-[#111]">
 
         {/* Banners */}
         {(initialData?.editorNote || error || !canEdit) && (
@@ -767,7 +773,7 @@ export function ArticleEditor({
 
           {/* Document card */}
           <div
-            className="flex-none w-full max-w-[816px] bg-white dark:bg-[#1e1e1e]"
+            className="flex-none w-full max-w-[960px] bg-white dark:bg-[#1e1e1e]"
             style={{
               boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)',
               minHeight: 'calc(100vh - 120px)',
@@ -824,7 +830,7 @@ export function ArticleEditor({
               )}
             </div>
 
-            <div style={{ padding: '64px 128px' }}>
+            <div style={{ padding: '80px 160px' }}>
 
               {/* Headline */}
               <textarea
@@ -863,7 +869,7 @@ export function ArticleEditor({
                   onChange={handleContentChange}
                   editable={canEdit}
                   saveStatus={saveStatus}
-                  toolbarFixed
+                  toolbarPortalRef={toolbarPortalRef}
                   contentOnly
                 />
               </div>
