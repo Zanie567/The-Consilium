@@ -25,13 +25,26 @@ export async function PATCH(req: Request, { params }: Props) {
   })
   if (!article) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // Editors only see their assigned categories (unless ADMIN)
-  if (session.user.role === 'EDITOR' && article.categoryId) {
-    const assignment = await prisma.categoryEditor.findFirst({
-      where: { userId: session.user.id, categoryId: article.categoryId },
-    })
-    if (!assignment) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  // BUG-03: Editors only see their assigned categories (unless ADMIN).
+  // The guard must apply even when the article has no category so that
+  // category-restricted editors cannot review uncategorised articles.
+  if (session.user.role === 'EDITOR') {
+    if (article.categoryId) {
+      const assignment = await prisma.categoryEditor.findFirst({
+        where: { userId: session.user.id, categoryId: article.categoryId },
+      })
+      if (!assignment) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    } else {
+      // Uncategorised article: an editor who has category restrictions cannot
+      // review it because there is no matching assignment to grant access.
+      const anyAssignment = await prisma.categoryEditor.findFirst({
+        where: { userId: session.user.id },
+      })
+      if (anyAssignment) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
     }
   }
 
@@ -53,7 +66,13 @@ export async function PATCH(req: Request, { params }: Props) {
     }
     case 'schedule': {
       if (!scheduledAt) return NextResponse.json({ error: 'scheduledAt required' }, { status: 400 })
-      updates = { status: 'SCHEDULED', scheduledAt: new Date(scheduledAt) }
+      // BUG-04: Reject dates that are not in the future to prevent accidental
+      // immediate publication by the scheduler cron.
+      const scheduledDate = new Date(scheduledAt)
+      if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
+        return NextResponse.json({ error: 'scheduledAt must be a valid date in the future.' }, { status: 400 })
+      }
+      updates = { status: 'SCHEDULED', scheduledAt: scheduledDate }
       notifTitle = 'Article scheduled'
       notifMessage = `Your article "${article.title}" is scheduled for publication.`
       break

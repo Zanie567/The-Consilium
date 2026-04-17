@@ -20,14 +20,24 @@ export function DraftsSection({ drafts }: { drafts: Draft[] }) {
   const router = useRouter()
   const [deleting, setDeleting] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  // BUG-11: Track per-draft error messages so failures are shown to the user
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const handleDelete = async (id: string) => {
     setDeleting(id)
+    setDeleteError(null)
     try {
-      await fetch(`/api/articles/${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        // BUG-11: Revert the UI and show an error instead of silently refreshing
+        const data = await res.json().catch(() => ({}))
+        setDeleteError(data.error ?? `Could not delete draft (${res.status}). Please try again.`)
+        return
+      }
       router.refresh()
     } catch {
-      // silently ignore
+      // Network error — revert and inform the user
+      setDeleteError('Could not reach the server. Check your connection and try again.')
     } finally {
       setDeleting(null)
       setConfirmId(null)
@@ -37,6 +47,20 @@ export function DraftsSection({ drafts }: { drafts: Draft[] }) {
   if (drafts.length === 0) return null
 
   return (
+    <div>
+      {/* BUG-11: Show delete errors so the user knows the draft was not removed */}
+      {deleteError && (
+        <div className="mb-3 bg-red-500/10 border border-red-500/20 px-4 py-3 text-red-600 dark:text-red-400 text-xs flex items-center justify-between gap-3">
+          <span>{deleteError}</span>
+          <button
+            onClick={() => setDeleteError(null)}
+            className="shrink-0 text-red-400 hover:text-red-600 transition-colors"
+            aria-label="Dismiss error"
+          >
+            ×
+          </button>
+        </div>
+      )}
     <div className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] divide-y divide-[var(--border)]">
       {drafts.map((draft) => (
         <div key={draft.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-[var(--bg-subtle)] transition-colors group">
@@ -90,6 +114,7 @@ export function DraftsSection({ drafts }: { drafts: Draft[] }) {
           </div>
         </div>
       ))}
+    </div>
     </div>
   )
 }
