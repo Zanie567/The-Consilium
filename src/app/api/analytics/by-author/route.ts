@@ -8,9 +8,9 @@ async function requireAdmin(): Promise<boolean> {
   if (!session) return false
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { role: true, isActive: true },
+    select: { role: true, isActive: true, isBanned: true },
   })
-  return !!(user && user.isActive && user.role === 'ADMIN')
+  return !!(user && user.isActive && !user.isBanned && user.role === 'ADMIN')
 }
 
 export async function GET() {

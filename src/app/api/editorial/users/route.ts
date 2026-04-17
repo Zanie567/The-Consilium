@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 
@@ -20,8 +20,9 @@ function isEditorialStaff(role: string) {
 
 export async function GET() {
   const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  const role = await getVerifiedRole(session.user.id)
+  const authError = requireActiveSession(session)
+  if (authError) return authError
+  const role = await getVerifiedRole(session!.user.id)
   if (!role || !isEditorialStaff(role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -40,8 +41,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  const callerRole = await getVerifiedRole(session.user.id)
+  const authError2 = requireActiveSession(session)
+  if (authError2) return authError2
+  const callerRole = await getVerifiedRole(session!.user.id)
   if (!callerRole || !isEditorialStaff(callerRole)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 // GET /api/profile/saved-articles — full bookmark list with article data
 export async function GET() {
   const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authError = requireActiveSession(session)
+  if (authError) return authError
 
   try {
     const bookmarks = await prisma.bookmark.findMany({
-      where: { userId: session.user.id },
+      where: { userId: session!.user.id },
       orderBy: { createdAt: 'desc' },
       include: {
         article: {
@@ -37,7 +38,8 @@ export async function GET() {
 // DELETE /api/profile/saved-articles?articleId=xxx — remove a bookmark
 export async function DELETE(request: NextRequest) {
   const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authError2 = requireActiveSession(session)
+  if (authError2) return authError2
 
   const { searchParams } = new URL(request.url)
   const articleId = searchParams.get('articleId')
@@ -45,7 +47,7 @@ export async function DELETE(request: NextRequest) {
 
   try {
     await prisma.bookmark.deleteMany({
-      where: { userId: session.user.id, articleId },
+      where: { userId: session!.user.id, articleId },
     })
     return NextResponse.json({ ok: true })
   } catch {

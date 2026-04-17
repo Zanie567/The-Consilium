@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions, requireActiveSession } from '@/lib/auth'
 import path from 'path'
 import { pathToFileURL } from 'url'
 
@@ -111,9 +111,8 @@ function ensureDOMMatrix() {
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions)
-  if (!session) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authError = requireActiveSession(session)
+  if (authError) return authError
 
   try {
     const formData = await request.formData()

@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma'
 // GET /api/admin/stats — overview stats for user management page
 export async function GET() {
   const session = await getServerSession(authOptions)
-  if (!session || (session.user as { role: string }).role !== 'ADMIN') {
+  if (!session || (session.user as { role: string; isBanned?: boolean }).role !== 'ADMIN' || (session.user as { isBanned?: boolean }).isBanned) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

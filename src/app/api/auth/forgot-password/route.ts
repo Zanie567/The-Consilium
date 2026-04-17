@@ -3,10 +3,22 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
+import { checkRateLimit, getIp } from '@/lib/rate-limit'
 
 // POST - request a password reset link (any user, not just editorial)
 export async function POST(req: NextRequest) {
-  const { email } = await req.json()
+  // BUG-21: rate limit to 5 requests per IP per 15 minutes
+  const ip = getIp(req)
+  if (!checkRateLimit(`pwd-reset-public:${ip}`, 5, 15 * 60 * 1000)) {
+    return Response.json({ ok: true }) // silent — do not leak rate-limit info
+  }
+
+  let email: string | undefined
+  try {
+    ;({ email } = await req.json())
+  } catch {
+    return Response.json({ ok: true })
+  }
   if (!email || typeof email !== 'string') {
     return Response.json({ ok: true }) // silent to prevent enumeration
   }

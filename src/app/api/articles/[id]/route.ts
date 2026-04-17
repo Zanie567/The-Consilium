@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, articleSubmittedEmail } from '@/lib/email'
 
@@ -32,10 +32,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions)
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const authError = requireActiveSession(session)
+  if (authError) return authError
 
   const { id } = await params
-  const isAdminOrEditor = session.user.role === 'ADMIN' || session.user.role === 'EDITOR'
+  const isAdminOrEditor = session!.user.role === 'ADMIN' || session!.user.role === 'EDITOR'
 
   try {
     const existing = await prisma.article.findUnique({
@@ -45,7 +46,7 @@ export async function PUT(
     if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
 
     // Writers can only edit their own articles
-    if (!isAdminOrEditor && existing.authorId !== session.user.id) {
+    if (!isAdminOrEditor && existing.authorId !== session!.user.id) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -211,16 +212,17 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions)
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const authError2 = requireActiveSession(session)
+  if (authError2) return authError2
 
   const { id } = await params
-  const isAdminOrEditor = session.user.role === 'ADMIN' || session.user.role === 'EDITOR'
+  const isAdminOrEditor = session!.user.role === 'ADMIN' || session!.user.role === 'EDITOR'
 
   try {
     const existing = await prisma.article.findUnique({ where: { id } })
     if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
 
-    if (!isAdminOrEditor && existing.authorId !== session.user.id) {
+    if (!isAdminOrEditor && existing.authorId !== session!.user.id) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
 
