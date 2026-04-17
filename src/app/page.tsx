@@ -4,8 +4,8 @@ import { cookies } from 'next/headers'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/lib/auth'
-import { format } from 'date-fns'
 import { Clock } from 'lucide-react'
+import { ClientDate } from '@/components/ui/ClientDate'
 import { NewsletterSignup } from '@/components/ui/NewsletterSignup'
 import { CategoryTabs } from '@/components/ui/CategoryTabs'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
@@ -205,29 +205,19 @@ async function getTrendingTags() {
   }
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-  try {
-    const debate = await prisma.debate.findFirst({ where: { isActive: true }, select: { title: true } })
-    if (debate) {
-      return {
-        title: `${debate.title} | The Consilium`,
-        description: `Read both sides and vote in our latest debate: ${debate.title}`,
-        openGraph: {
-          title: `Debate: ${debate.title}`,
-          description: `Read both sides and cast your vote on The Consilium.`,
-        },
-        twitter: {
-          card: 'summary',
-          title: `Debate: ${debate.title}`,
-          description: `Read both sides and cast your vote on The Consilium.`,
-        },
-      }
-    }
-  } catch { /* fall through */ }
-  return {
-    title: 'The Consilium | University of Edinburgh Economics Society',
-    description: 'Economics analysis, opinion, and research from the University of Edinburgh.',
-  }
+// Title is inherited from layout's `default` ("The Consilium | University of Edinburgh Economics Society")
+// — do NOT set a title here so the template does not double-wrap it.
+export const metadata: Metadata = {
+  description: 'Economics analysis, opinion, and research from the University of Edinburgh.',
+  openGraph: {
+    title: 'The Consilium',
+    description: 'The voice of the University of Edinburgh Economics Society.',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'The Consilium',
+    description: 'The voice of the University of Edinburgh Economics Society.',
+  },
 }
 
 export default async function HomePage({
@@ -294,7 +284,7 @@ export default async function HomePage({
       {/* ── Date banner ────────────────────────────────────────────────────── */}
       <div className="bg-[var(--bg-subtle)] border-b border-[var(--border)] px-4 py-2 text-center">
         <span className="text-[var(--fg-faint)] text-[0.65rem] tracking-widest uppercase font-bold">
-          {format(new Date(), 'EEEE, d MMMM yyyy')}
+          <ClientDate />
         </span>
       </div>
 

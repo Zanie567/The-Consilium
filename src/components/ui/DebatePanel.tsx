@@ -105,14 +105,14 @@ export function DebatePanel({ initialData }: Props) {
       {/* Article cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         {/* FOR side */}
-        <div className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden">
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden card-hover group/for">
           <div className="h-1 bg-navy" />
           <div className="p-5">
             <span className="text-navy text-[0.6rem] font-bold uppercase tracking-[0.25em] mb-2 block">
               The Case For
             </span>
             <h3
-              className="font-bold text-[var(--fg)] text-base leading-snug mb-2"
+              className="font-bold text-[var(--fg)] group-hover/for:text-navy text-base leading-snug mb-2 transition-colors duration-200"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
               {data.forArticle.title}
@@ -136,14 +136,14 @@ export function DebatePanel({ initialData }: Props) {
         </div>
 
         {/* AGAINST side */}
-        <div className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden">
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden card-hover group/against">
           <div className="h-1 bg-gold" />
           <div className="p-5">
             <span className="text-gold text-[0.6rem] font-bold uppercase tracking-[0.25em] mb-2 block">
               The Case Against
             </span>
             <h3
-              className="font-bold text-[var(--fg)] text-base leading-snug mb-2"
+              className="font-bold text-[var(--fg)] group-hover/against:text-gold text-base leading-snug mb-2 transition-colors duration-200"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
               {data.againstArticle.title}
