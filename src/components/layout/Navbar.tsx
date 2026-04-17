@@ -328,7 +328,30 @@ export function Navbar() {
               </nav>
 
               {/* Auth footer */}
-              <div className="px-5 py-4 border-t border-white/10 flex items-center gap-4">
+              <div className="px-5 py-4 border-t border-white/10 flex flex-col gap-3">
+                {session && (['ADMIN', 'EDITOR', 'WRITER'] as const).includes(
+                  (session.user as { role?: string }).role as 'ADMIN' | 'EDITOR' | 'WRITER'
+                ) && (
+                  <div className="flex items-center gap-4 pb-3 border-b border-white/10">
+                    <Link
+                      href="/editorial"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-1.5 text-gold/80 text-xs font-semibold uppercase tracking-widest hover:text-gold transition-colors"
+                    >
+                      <LayoutDashboard size={13} />
+                      <span>Dashboard</span>
+                    </Link>
+                    <Link
+                      href="/editorial/articles/new"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-1.5 text-gold/80 text-xs font-semibold uppercase tracking-widest hover:text-gold transition-colors"
+                    >
+                      <PlusCircle size={13} />
+                      <span>New Article</span>
+                    </Link>
+                  </div>
+                )}
+                <div className="flex items-center gap-4">
                 {session ? (
                   <>
                     <Link
@@ -354,6 +377,7 @@ export function Navbar() {
                     Sign in
                   </Link>
                 )}
+                </div>
               </div>
             </motion.div>
           </>

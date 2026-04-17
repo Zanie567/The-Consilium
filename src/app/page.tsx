@@ -270,7 +270,7 @@ export default async function HomePage({
         />
         <div className="relative">
           <AnimateIn variant="fade-in" duration={0.5}>
-            <p className="text-gold/60 text-[0.65rem] tracking-[0.4em] uppercase mb-3 font-semibold">
+            <p className="text-gold/60 text-[0.65rem] tracking-[0.2em] sm:tracking-[0.4em] uppercase mb-3 font-semibold leading-relaxed">
               University of Edinburgh Economics Society
             </p>
           </AnimateIn>
@@ -284,7 +284,7 @@ export default async function HomePage({
           </AnimateIn>
           <AnimateIn variant="fade-in" delay={0.2} duration={0.6}>
             <div className="w-16 h-px bg-gradient-to-r from-transparent via-gold to-transparent mx-auto mb-3 opacity-60" />
-            <p className="text-cream/60 text-sm tracking-wide whitespace-nowrap mx-auto leading-relaxed">
+            <p className="text-cream/60 text-sm tracking-wide max-w-xs sm:max-w-none mx-auto leading-relaxed">
               The voice of the University of Edinburgh Economics Society
             </p>
           </AnimateIn>
