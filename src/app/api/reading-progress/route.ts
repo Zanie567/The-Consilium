@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 // GET /api/reading-progress - fetch in-progress articles for the current user
@@ -32,7 +32,8 @@ export async function GET() {
 // POST /api/reading-progress - upsert progress for an article
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ ok: false }, { status: 401 })
+  const authError = requireActiveSession(session)
+  if (authError) return authError
 
   const { articleId, progress, scrollY } = await req.json()
   if (!articleId || typeof progress !== 'number') {
@@ -41,8 +42,8 @@ export async function POST(req: Request) {
 
   const completed = progress >= 90
   await prisma.readingProgress.upsert({
-    where: { userId_articleId: { userId: session.user.id, articleId } },
-    create: { userId: session.user.id, articleId, progress, scrollY: scrollY ?? 0, completed },
+    where: { userId_articleId: { userId: session!.user.id, articleId } },
+    create: { userId: session!.user.id, articleId, progress, scrollY: scrollY ?? 0, completed },
     update: { progress, scrollY: scrollY ?? 0, ...(completed ? { completed: true } : {}) },
   }).catch(() => null)
 

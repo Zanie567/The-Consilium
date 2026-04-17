@@ -7,7 +7,7 @@ interface Ctx { params: Promise<{ userId: string; noteId: string }> }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const session = await getServerSession(authOptions)
-  if (!session || (session.user as { role: string }).role !== 'ADMIN') {
+  if (!session || (session.user as { role: string; isBanned?: boolean }).role !== 'ADMIN' || (session.user as { isBanned?: boolean }).isBanned) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

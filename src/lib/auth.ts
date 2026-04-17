@@ -6,6 +6,15 @@ import { prisma } from './prisma'
 import { sendEmail } from './email'
 import type { Role } from '@prisma/client'
 
+// Fail fast at startup if the secret is missing. Without it NextAuth silently
+// generates an ephemeral secret, invalidating all sessions on every restart
+// and breaking multi-instance deployments.
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error(
+    'NEXTAUTH_SECRET is not set. Add it to your .env.local file or Vercel environment variables.'
+  )
+}
+
 const EDITORIAL_ROLES: Role[] = ['ADMIN', 'EDITOR', 'WRITER']
 const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
@@ -42,6 +51,7 @@ async function notifyAdminOfLockout(lockedEmail: string, ip: string) {
 }
 
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET,
   adapter: PrismaAdapter(prisma) as NextAuthOptions['adapter'],
   session: {
     strategy: 'jwt',
@@ -192,4 +202,29 @@ export const authOptions: NextAuthOptions = {
 
 export function isEditorialUser(role: Role): boolean {
   return EDITORIAL_ROLES.includes(role)
+}
+
+/**
+ * Validates that a session exists and the user is not banned.
+ *
+ * Returns a 401 Response if there is no session, a 403 Response if the user
+ * is banned, or null if everything is fine and the route may proceed.
+ *
+ * Usage:
+ *   const authError = requireActiveSession(session)
+ *   if (authError) return authError
+ */
+export function requireActiveSession(
+  session: { user?: { isBanned?: boolean } | null } | null
+): Response | null {
+  if (!session?.user) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (session.user.isBanned) {
+    return Response.json(
+      { error: 'Your account has been suspended.' },
+      { status: 403 }
+    )
+  }
+  return null
 }

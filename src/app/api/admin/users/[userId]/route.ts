@@ -6,7 +6,8 @@ import { sendEmail } from '@/lib/email'
 
 function isAdmin(session: Awaited<ReturnType<typeof getServerSession>>): boolean {
   if (!session) return false
-  return (session as { user?: { role?: string } }).user?.role === 'ADMIN'
+  const user = (session as { user?: { role?: string; isBanned?: boolean } }).user
+  return user?.role === 'ADMIN' && !user?.isBanned
 }
 
 interface Ctx { params: Promise<{ userId: string }> }

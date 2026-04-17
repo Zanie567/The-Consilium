@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 // GET /api/profile/stats — aggregate reading stats for the user
 export async function GET() {
   const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authError = requireActiveSession(session)
+  if (authError) return authError
 
   try {
     const [
@@ -18,20 +19,20 @@ export async function GET() {
       progressRows,
       categoryRows,
     ] = await Promise.all([
-      prisma.readingProgress.count({ where: { userId: session.user.id, completed: true } }),
-      prisma.readingProgress.count({ where: { userId: session.user.id, completed: false, progress: { gt: 3 } } }),
-      prisma.debateVote.count({ where: { userId: session.user.id } }),
-      prisma.comment.count({ where: { userId: session.user.id, isHidden: false } }),
-      prisma.bookmark.count({ where: { userId: session.user.id } }),
+      prisma.readingProgress.count({ where: { userId: session!.user.id, completed: true } }),
+      prisma.readingProgress.count({ where: { userId: session!.user.id, completed: false, progress: { gt: 3 } } }),
+      prisma.debateVote.count({ where: { userId: session!.user.id } }),
+      prisma.comment.count({ where: { userId: session!.user.id, isHidden: false } }),
+      prisma.bookmark.count({ where: { userId: session!.user.id } }),
       // For reading streak: get dates of completed reads
       prisma.readingProgress.findMany({
-        where: { userId: session.user.id, completed: true },
+        where: { userId: session!.user.id, completed: true },
         select: { updatedAt: true },
         orderBy: { updatedAt: 'desc' },
       }),
       // For favourite category: join through articles
       prisma.readingProgress.findMany({
-        where: { userId: session.user.id, completed: true },
+        where: { userId: session!.user.id, completed: true },
         include: {
           article: {
             select: { category: { select: { name: true } } },

@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma'
 
 function isAdmin(session: Awaited<ReturnType<typeof getServerSession>>): boolean {
   if (!session) return false
-  return (session as { user?: { role?: string } }).user?.role === 'ADMIN'
+  const user = (session as { user?: { role?: string; isBanned?: boolean } }).user
+  return user?.role === 'ADMIN' && !user?.isBanned
 }
 
 // GET /api/admin/users

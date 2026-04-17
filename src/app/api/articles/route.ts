@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import slugify from 'slugify'
 
@@ -33,12 +33,13 @@ export async function GET(request: NextRequest) {
   // Drafts-for-current-user query (used by My Drafts section + autosave polling)
   if (mine) {
     const session = await getServerSession(authOptions)
-    if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    const authError = requireActiveSession(session)
+    if (authError) return authError
 
     try {
       const drafts = await prisma.article.findMany({
         where: {
-          authorId: session.user.id,
+          authorId: session!.user.id,
           status: (status?.toUpperCase() ?? 'DRAFT') as never,
         },
         orderBy: { updatedAt: 'desc' },
@@ -67,10 +68,23 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // BUG-01: Non-PUBLISHED queries must be restricted to editorial staff.
+  // Without this check any visitor could retrieve all drafts by passing ?status=DRAFT.
+  const requestedStatus = status?.toUpperCase() ?? 'PUBLISHED'
+  if (requestedStatus !== 'PUBLISHED') {
+    const session = await getServerSession(authOptions)
+    const authError = requireActiveSession(session)
+    if (authError) return authError
+    const role = (session!.user as { role?: string }).role
+    if (!role || !['ADMIN', 'EDITOR'].includes(role)) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
+  }
+
   try {
     const articles = await prisma.article.findMany({
       where: {
-        ...(status ? { status: status as never } : { status: 'PUBLISHED' }),
+        status: requestedStatus as never,
         ...(category ? { category: { slug: category } } : {}),
       },
       orderBy: { publishedAt: 'desc' },
@@ -85,8 +99,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions)
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!['ADMIN', 'EDITOR', 'WRITER'].includes(session.user.role)) {
+  const authError = requireActiveSession(session)
+  if (authError) return authError
+  if (!['ADMIN', 'EDITOR', 'WRITER'].includes(session!.user.role)) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -120,7 +135,7 @@ export async function POST(request: NextRequest) {
         excerpt:    excerpt ?? null,
         coverImage: coverImage ?? null,
         categoryId: categoryId ?? null,
-        authorId:   session.user.id,
+        authorId:   session!.user.id,
         status:     status ?? 'DRAFT',
         publishedAt: status === 'PUBLISHED' ? new Date() : null,
       },

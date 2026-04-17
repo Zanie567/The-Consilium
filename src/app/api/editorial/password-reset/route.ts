@@ -1,14 +1,26 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, passwordResetEmail } from '@/lib/email'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
+import { checkRateLimit, getIp } from '@/lib/rate-limit'
 
 // POST /api/editorial/password-reset - request reset link
 // PATCH /api/editorial/password-reset - consume token and set new password
 
-export async function POST(req: Request) {
-  const { email } = await req.json()
+export async function POST(req: NextRequest) {
+  // BUG-21: rate limit to 5 requests per IP per 15 minutes
+  const ip = getIp(req)
+  if (!checkRateLimit(`pwd-reset-editorial:${ip}`, 5, 15 * 60 * 1000)) {
+    return NextResponse.json({ ok: true }) // silent — do not leak rate-limit info
+  }
+
+  let email: string | undefined
+  try {
+    ;({ email } = await req.json())
+  } catch {
+    return NextResponse.json({ ok: true })
+  }
   if (!email) return NextResponse.json({ ok: true }) // silent
 
   const user = await prisma.user.findFirst({
@@ -38,8 +50,13 @@ export async function POST(req: Request) {
   return NextResponse.json({ ok: true })
 }
 
-export async function PATCH(req: Request) {
-  const { token, password } = await req.json()
+export async function PATCH(req: NextRequest) {
+  let token: string | undefined, password: string | undefined
+  try {
+    ;({ token, password } = await req.json())
+  } catch {
+    return NextResponse.json({ error: 'Missing fields.' }, { status: 400 })
+  }
 
   if (!token || !password) {
     return NextResponse.json({ error: 'Missing fields.' }, { status: 400 })
@@ -48,8 +65,20 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })
   }
 
+  const TOKEN_LENGTH = 64 // 32 random bytes → 64 hex chars
+
+  // BUG-22: Fetch the record from the DB, then re-verify the token in
+  // constant time so the application layer reveals nothing via timing.
+  // The dummy value keeps the timingSafeEqual call on the hot path even
+  // when no matching record exists, preventing short-circuit timing leaks.
   const record = await prisma.passwordResetToken.findUnique({ where: { token } })
-  if (!record || record.used || record.expires < new Date()) {
+  const storedToken = record?.token ?? '0'.repeat(TOKEN_LENGTH)
+  const tokensMatch = crypto.timingSafeEqual(
+    Buffer.from(token.padEnd(TOKEN_LENGTH, '\0').slice(0, TOKEN_LENGTH)),
+    Buffer.from(storedToken.padEnd(TOKEN_LENGTH, '\0').slice(0, TOKEN_LENGTH))
+  )
+
+  if (!tokensMatch || !record || record.used || record.expires < new Date()) {
     return NextResponse.json({ error: 'This link has expired or already been used.' }, { status: 400 })
   }
 
