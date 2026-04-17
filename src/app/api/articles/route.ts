@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import slugify from 'slugify'
+import { stripHtml } from '@/lib/content-filter'
 
 function computeWordCount(content: string): number {
   try {
@@ -145,11 +146,13 @@ export async function POST(request: NextRequest) {
     if (Array.isArray(tags) && tags.length > 0) {
       const tagRecords = await Promise.all(
         tags.map((name: string) => {
-          const tagSlug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+          // BUG-14: Strip HTML from tag names before storage to prevent XSS
+          const safeName = stripHtml(name).trim()
+          const tagSlug = safeName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
           return prisma.tag.upsert({
             where: { slug: tagSlug },
             update: {},
-            create: { name, slug: tagSlug },
+            create: { name: safeName, slug: tagSlug },
           })
         })
       )

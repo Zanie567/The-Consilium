@@ -31,56 +31,63 @@ export default async function EditorialDashboard() {
     assignedCategoryIds = assignments.map((a) => a.categoryId)
   }
 
-  const [myArticles, pendingArticles, publishedCount, myDrafts, totalViews, userCount] = await Promise.all([
-    prisma.article.findMany({
-      where: role === 'WRITER' ? { authorId: userId } : undefined,
-      orderBy: { updatedAt: 'desc' },
-      take: 8,
-      include: { category: true, author: true },
-    }).catch(() => []),
+  // BUG-05: Wrap all DB queries so a failure surfaces as an error banner rather
+  // than silently returning empty data that makes the dashboard look healthy.
+  let fetchError = false
+  const [myArticles, pendingArticles, publishedCount, myDrafts, totalViews, userCount] =
+    await Promise.all([
+      prisma.article.findMany({
+        where: role === 'WRITER' ? { authorId: userId } : undefined,
+        orderBy: { updatedAt: 'desc' },
+        take: 8,
+        include: { category: true, author: true },
+      }),
 
-    isEditor
-      ? prisma.article.findMany({
-          where: {
-            status: 'PENDING_REVIEW',
-            ...(assignedCategoryIds ? { categoryId: { in: assignedCategoryIds } } : {}),
-          },
-          orderBy: { updatedAt: 'asc' },
-          take: 10,
-          include: { author: true, category: true, _count: { select: { views: true } } },
-        }).catch(() => [])
-      : Promise.resolve([]),
+      isEditor
+        ? prisma.article.findMany({
+            where: {
+              status: 'PENDING_REVIEW',
+              ...(assignedCategoryIds ? { categoryId: { in: assignedCategoryIds } } : {}),
+            },
+            orderBy: { updatedAt: 'asc' },
+            take: 10,
+            include: { author: true, category: true, _count: { select: { views: true } } },
+          })
+        : Promise.resolve([]),
 
-    prisma.article.count({
-      where: {
-        status: 'PUBLISHED',
-        ...(role === 'WRITER' ? { authorId: userId } : {}),
-      },
-    }).catch(() => 0),
+      prisma.article.count({
+        where: {
+          status: 'PUBLISHED',
+          ...(role === 'WRITER' ? { authorId: userId } : {}),
+        },
+      }),
 
-    prisma.article.findMany({
-      where: { authorId: userId, status: 'DRAFT' },
-      orderBy: { updatedAt: 'desc' },
-      take: 10,
-      select: {
-        id: true,
-        title: true,
-        updatedAt: true,
-        content: true,
-        category: { select: { name: true } },
-      },
-    }).catch(() => [] as { id: string; title: string; updatedAt: Date; content: string; category: { name: string } | null }[]),
+      prisma.article.findMany({
+        where: { authorId: userId, status: 'DRAFT' },
+        orderBy: { updatedAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          title: true,
+          updatedAt: true,
+          content: true,
+          category: { select: { name: true } },
+        },
+      }) as Promise<{ id: string; title: string; updatedAt: Date; content: string; category: { name: string } | null }[]>,
 
-    isEditor
-      ? prisma.article.aggregate({ _sum: { viewCount: true } })
-          .then((r) => r._sum.viewCount ?? 0)
-          .catch(() => 0)
-      : Promise.resolve(0),
+      isEditor
+        ? prisma.article.aggregate({ _sum: { viewCount: true } })
+            .then((r) => r._sum.viewCount ?? 0)
+        : Promise.resolve(0),
 
-    isEditor
-      ? prisma.user.count({ where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] } } }).catch(() => 0)
-      : Promise.resolve(0),
-  ])
+      isEditor
+        ? prisma.user.count({ where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] } } })
+        : Promise.resolve(0),
+    ]).catch((err) => {
+      console.error('[editorial/dashboard] DB error:', err)
+      fetchError = true
+      return [[], [], 0, [], 0, 0] as const
+    })
 
   const statusColour: Record<string, string> = {
     DRAFT: 'bg-[var(--bg-subtle)] text-[var(--fg-faint)]',
@@ -103,6 +110,14 @@ export default async function EditorialDashboard() {
 
   return (
     <PortalPage className="p-6 lg:p-8 max-w-6xl">
+      {/* BUG-05: Surface DB errors rather than silently rendering empty data */}
+      {fetchError && (
+        <div className="mb-6 bg-red-500/10 border border-red-500/20 px-5 py-4 text-red-600 dark:text-red-400 text-sm">
+          Some dashboard data could not be loaded. This is usually a temporary database issue.
+          Please refresh the page.
+        </div>
+      )}
+
       {/* Header */}
       <PortalSection className="flex items-start justify-between mb-8">
         <div>

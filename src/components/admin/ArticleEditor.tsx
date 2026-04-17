@@ -219,11 +219,14 @@ export function ArticleEditor({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...body, status: 'DRAFT' }),
         })
-        isCreatingRef.current = false
+        // BUG-12: Do NOT release the lock here. If the response is not ok we
+        // keep isCreatingRef.current = true so autosave cannot fire a second
+        // POST and create a duplicate. The lock is released only on success
+        // below, or when the user clicks Save manually (handleSave resets it).
       }
 
       if (!res.ok) {
-        const data = await res.json()
+        const data = await res.json().catch(() => ({}))
         setError(data.error ?? 'Failed to save.')
         setSaveStatus('error')
         return false
@@ -234,9 +237,10 @@ export function ArticleEditor({
       setSavedVisible(true)
       isDirtyRef.current = false
 
-      // After first creation, store the ID and update the URL
+      // After first creation, store the ID, update the URL, and release the lock
       if (!currentId && saved.id) {
         articleIdRef.current = saved.id
+        isCreatingRef.current = false // BUG-12: release lock only after confirmed success
         router.replace(`/editorial/articles/${saved.id}/edit`)
       }
 
@@ -323,6 +327,9 @@ export function ArticleEditor({
     }
     clearTimeout(autoSaveTimer.current)
     setError('')
+    // BUG-12: Reset the creation lock so the user can always retry manually
+    // after a failed initial POST, even though autosave stays blocked.
+    isCreatingRef.current = false
     await performSave(overrideStatus)
 
     if (!articleIdRef.current) return

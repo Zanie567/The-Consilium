@@ -38,6 +38,8 @@ export default async function EditorialArticlesPage({
     assignedCategoryIds = assignments.map((a) => a.categoryId)
   }
 
+  // BUG-06: Surface DB errors rather than silently rendering an empty list
+  let fetchError = false
   const articles = await prisma.article.findMany({
     where: {
       ...(myDraftsMode
@@ -64,7 +66,11 @@ export default async function EditorialArticlesPage({
       author: { select: { id: true, name: true } },
       category: { select: { name: true, slug: true } },
     },
-  }).catch(() => [])
+  }).catch((err: unknown) => {
+    console.error('[editorial/articles] DB error:', err)
+    fetchError = true
+    return []
+  })
 
   const pageTitle = myDraftsMode
     ? 'My Drafts'
@@ -74,6 +80,13 @@ export default async function EditorialArticlesPage({
 
   return (
     <PortalPage className="p-6 lg:p-8 max-w-6xl">
+      {/* BUG-06: Surface DB errors rather than silently rendering an empty list */}
+      {fetchError && (
+        <div className="mb-6 bg-red-500/10 border border-red-500/20 px-5 py-4 text-red-600 dark:text-red-400 text-sm">
+          Articles could not be loaded. This is usually a temporary database issue.
+          Please refresh the page.
+        </div>
+      )}
       <PortalSection className="mb-6 flex items-center justify-between">
         <div>
           <h1

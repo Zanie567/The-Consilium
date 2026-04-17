@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
   try {
     ;({ email } = await req.json())
   } catch {
-    return NextResponse.json({ ok: true })
+    // BUG-23: Malformed body is a client error — return 400 instead of silently succeeding
+    return NextResponse.json({ error: 'Bad request.' }, { status: 400 })
   }
   if (!email) return NextResponse.json({ ok: true }) // silent
 
