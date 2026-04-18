@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { nextFriday } from 'date-fns'
+import { format, nextFriday } from 'date-fns'
 import { ArrowLeft, Star, Pin, Clock, CheckCircle, RotateCcw, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { Tooltip } from '@/components/ui/Tooltip'
