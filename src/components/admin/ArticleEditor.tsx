@@ -15,6 +15,10 @@ import { useTheme } from 'next-themes'
 import slugify from 'slugify'
 import { mutate as globalMutate } from 'swr'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
+import {
+  EDITORIAL_TIME_ZONE_LABEL,
+  getEditorialScheduleMinInput,
+} from '@/lib/editorialSchedule'
 import { readTimeLabel, wordCountFromContent } from '@/lib/readTime'
 import { DRAFTS_SWR_KEY } from '@/components/editorial/DraftsSection'
 
@@ -521,14 +525,19 @@ export function ArticleEditor({
       {/* Scheduled date */}
       {!isWriter && status === 'SCHEDULED' && (
         <div>
-          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Publish At</label>
+          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">
+            Publish At ({EDITORIAL_TIME_ZONE_LABEL})
+          </label>
           <input
             type="datetime-local"
             value={scheduledAt}
-            min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+            min={getEditorialScheduleMinInput()}
             onChange={(e) => { setScheduledAt(e.target.value); scheduledAtRef.current = e.target.value; scheduleAutosave() }}
             className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] cursor-pointer"
           />
+          <p className="text-[10px] text-[#999] mt-1">
+            Stored and displayed as UK editorial time.
+          </p>
           {!scheduledAt && (
             <p className="text-amber-500 text-[10px] mt-1">Pick a future date and time.</p>
           )}

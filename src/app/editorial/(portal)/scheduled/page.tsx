@@ -3,8 +3,11 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { format } from 'date-fns'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
+import {
+  EDITORIAL_TIME_ZONE_LABEL,
+  formatEditorialScheduleDisplay,
+} from '@/lib/editorialSchedule'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -39,6 +42,9 @@ export default async function ScheduledPage() {
             ? 'No articles are currently scheduled.'
             : `${articles.length} article${articles.length === 1 ? '' : 's'} queued for publication.`}
         </p>
+        <p className="text-[var(--fg-faint)] text-xs mt-2">
+          All schedule times are shown in {EDITORIAL_TIME_ZONE_LABEL}.
+        </p>
       </PortalSection>
 
       {articles.length > 0 && (
@@ -69,10 +75,7 @@ export default async function ScheduledPage() {
                     {due ? (
                       <>
                         <p className={`text-xs font-semibold ${overdue ? 'text-red-500' : 'text-blue-500'}`}>
-                          {overdue ? 'Overdue' : format(due, 'd MMM yyyy')}
-                        </p>
-                        <p className="text-[var(--fg-faint)] text-[10px] mt-0.5">
-                          {format(due, 'HH:mm')}
+                          {overdue ? 'Overdue' : formatEditorialScheduleDisplay(due, { includeYear: true })}
                         </p>
                       </>
                     ) : (

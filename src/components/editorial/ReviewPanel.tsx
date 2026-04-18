@@ -6,6 +6,11 @@ import { format, nextFriday } from 'date-fns'
 import { ArrowLeft, Star, Pin, Clock, CheckCircle, RotateCcw, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { Tooltip } from '@/components/ui/Tooltip'
+import {
+  EDITORIAL_TIME_ZONE_LABEL,
+  formatEditorialScheduleInput,
+  getEditorialScheduleMinInput,
+} from '@/lib/editorialSchedule'
 
 interface Note {
   id: string
@@ -45,7 +50,7 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
   const [note, setNote] = useState('')
   const [returnNote, setReturnNote] = useState(article.editorNote ?? '')
   const [scheduledAt, setScheduledAt] = useState(
-    format(nextFriday(new Date()), "yyyy-MM-dd'T'HH:mm")
+    formatEditorialScheduleInput(article.scheduledAt ?? nextFriday(new Date()))
   )
   const [corrected, setCorrected] = useState(article.corrected)
   const [correctionNote, setCorrectionNote] = useState(article.correctionNote ?? '')
@@ -234,15 +239,19 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
               {/* Schedule */}
               <div>
                 <label className="block text-[var(--fg-faint)] text-xs mb-1">
-                  Schedule for:
+                  Schedule for ({EDITORIAL_TIME_ZONE_LABEL}):
                 </label>
                 <input
                   type="datetime-local"
                   value={scheduledAt}
+                  min={getEditorialScheduleMinInput()}
                   onChange={(e) => setScheduledAt(e.target.value)}
                   className="w-full bg-[var(--bg)] border border-[var(--border)] px-3 py-2 text-[var(--fg)] text-xs focus:outline-none focus:border-gold min-h-[44px]"
                   style={{ fontSize: 16 }}
                 />
+                <p className="mt-1 text-[10px] text-[var(--fg-faint)]">
+                  The scheduler treats this as UK editorial time, not your browser&apos;s local timezone.
+                </p>
                 <Tooltip content="Schedule this article to go live automatically at the chosen date and time" variant="editorial" side="left" maxWidth={260}>
                   <button
                     onClick={() => act('schedule', { scheduledAt })}
