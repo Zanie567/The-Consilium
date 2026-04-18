@@ -23,17 +23,18 @@ import { config } from 'dotenv'
 import { resolve } from 'path'
 config({ path: resolve(__dirname, '../.env.local') })
 
-import { PrismaClient } from '@prisma/client'
+import { Prisma, PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
-// ── Prisma client ─────────────────────────────────────────────────────────────
+// ── Prisma setup ──────────────────────────────────────────────────────────────
 
 const adapter = new PrismaPg({ connectionString: process.env.DIRECT_URL! })
 const prisma = new PrismaClient({ adapter })
 
-// ── Replacement logic ─────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const EM_DASH = '\u2014'
+const REPLACEMENT = ' - '
 
 /**
  * Replace every em dash in a plain string with a spaced hyphen.
@@ -41,7 +42,7 @@ const EM_DASH = '\u2014'
  * rather than "how  -  and".
  */
 function replacePlain(value: string): string {
-  return value.replace(/\s*\u2014\s*/g, ' - ')
+  return value.replace(/\s*\u2014\s*/g, REPLACEMENT)
 }
 
 /** Minimal Tiptap node shape — only fields we touch. */
@@ -147,19 +148,42 @@ async function scanArticles() {
 
 async function applyChanges() {
   // Coalesce all field changes for the same row into a single UPDATE.
-  type RowUpdate = { table: string; id: string; updates: Record<string, string> }
+  type DebateRowUpdate = {
+    table: 'debates'
+    id: string
+    updates: Prisma.DebateUpdateInput
+  }
+  type ArticleRowUpdate = {
+    table: 'articles'
+    id: string
+    updates: Prisma.ArticleUpdateInput
+  }
+  type RowUpdate = DebateRowUpdate | ArticleRowUpdate
+
   const byRow = new Map<string, RowUpdate>()
 
   const ensureRow = (table: string, id: string): RowUpdate => {
     const key = `${table}:${id}`
-    if (!byRow.has(key)) byRow.set(key, { table, id, updates: {} })
+    if (!byRow.has(key)) {
+      if (table === 'debates') {
+        byRow.set(key, { table: 'debates', id, updates: {} })
+      } else {
+        byRow.set(key, { table: 'articles', id, updates: {} })
+      }
+    }
     return byRow.get(key)!
   }
 
   for (const c of changes) {
     const row = ensureRow(c.table, c.id)
     if (c.field === 'title' || c.field === 'description' || c.field === 'excerpt') {
-      row.updates[c.field] = c.after
+      if (c.field === 'title') {
+        row.updates.title = c.after
+      } else if (c.field === 'description' && row.table === 'debates') {
+        row.updates.description = c.after
+      } else if (c.field === 'excerpt' && row.table === 'articles') {
+        row.updates.excerpt = c.after
+      }
     }
     // content is handled below with the full raw value
   }
@@ -176,7 +200,12 @@ async function applyChanges() {
     })
     for (const row of contentRows) {
       const updated = replaceTiptapJson(row.content)
-      if (updated) ensureRow('articles', row.id).updates.content = updated
+      if (updated) {
+        const articleRow = ensureRow('articles', row.id)
+        if (articleRow.table === 'articles') {
+          articleRow.updates.content = updated
+        }
+      }
     }
   }
 
@@ -186,10 +215,7 @@ async function applyChanges() {
     if (table === 'debates') {
       await prisma.debate.update({ where: { id }, data: updates })
     } else {
-      await (prisma.article.update as (args: unknown) => Promise<unknown>)({
-        where: { id },
-        data: updates,
-      })
+      await prisma.article.update({ where: { id }, data: updates })
     }
     updatedRows++
   }
@@ -245,5 +271,8 @@ async function main() {
 }
 
 main()
-  .catch((err) => { console.error('Error:', err); process.exit(1) })
+  .catch((err) => {
+    console.error('Error:', err)
+    process.exit(1)
+  })
   .finally(() => prisma.$disconnect())
