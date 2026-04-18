@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { cookies } from 'next/headers'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
@@ -12,6 +11,7 @@ import { CategoryTabs } from '@/components/ui/CategoryTabs'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { ContinueReading } from '@/components/ui/ContinueReading'
 import { ArticleCard } from '@/components/ui/ArticleCard'
+import { BookmarkButton } from '@/components/ui/BookmarkButton'
 import { BlurImage } from '@/components/ui/BlurImage'
 import { DebatePanel, type DebateData } from '@/components/ui/DebatePanel'
 import { readTimeLabel } from '@/lib/readTime'
@@ -296,84 +296,80 @@ export default async function HomePage({
         {/* ── Featured Article ─────────────────────────────────────────────── */}
         {featured ? (
           <AnimateIn variant="fade-up" duration={0.6} className="mb-14">
-            <div className="border border-[var(--border)] bg-[var(--bg-elevated)] overflow-hidden group card-hover shadow-[var(--shadow-card)]">
-              <div className="grid grid-cols-1 lg:grid-cols-2">
-                {/* Image */}
-                <div className="relative h-64 lg:h-auto lg:min-h-[400px] bg-navy-light overflow-hidden img-zoom">
-                  {featured.coverImage ? (
-                    <BlurImage
-                      src={featured.coverImage}
-                      alt={featured.title}
-                      fill
-                      className="object-cover"
-                      priority
-                      sizes="(max-width: 1024px) 100vw, 50vw"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-navy via-navy-light to-navy flex items-center justify-center">
-                      <span
-                        className="text-gold/15 text-8xl font-bold select-none"
-                        style={{ fontFamily: 'var(--font-serif)' }}
-                      >
-                        TC
-                      </span>
-                    </div>
-                  )}
-                  {/* Top row: category badge + read time */}
-                  <div className="absolute top-4 left-4 right-4 z-10 flex items-start justify-between">
-                    {featured.category ? (
-                      <span className="category-badge">{featured.category.name}</span>
-                    ) : (
-                      <span aria-hidden="true" />
-                    )}
-                    <span className="flex items-center gap-1 bg-navy/70 text-cream/90 text-[10px] font-semibold px-2 py-1 backdrop-blur-sm leading-none">
-                      <Clock size={9} className="shrink-0" />
-                      {readTimeLabel(featured.content)}
-                    </span>
-                  </div>
-                  {/* Gradient overlay bottom */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-navy/30 via-transparent to-transparent pointer-events-none" />
-                </div>
+            <div className="relative h-[320px] md:h-[560px] w-full overflow-hidden group card-hover shadow-[var(--shadow-card)]">
+              {/* Full-bleed image or navy fallback */}
+              {featured.coverImage ? (
+                <BlurImage
+                  src={featured.coverImage}
+                  alt={featured.title}
+                  fill
+                  className="object-cover object-center"
+                  priority
+                  sizes="100vw"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-navy" />
+              )}
 
-                {/* Content */}
-                <div className="p-8 lg:p-12 flex flex-col justify-center bg-[var(--bg-elevated)]">
-                  <div className="text-gold/50 text-[0.65rem] tracking-[0.3em] uppercase mb-3 font-semibold">
+              {/* Dark gradient over bottom half for text legibility */}
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{ background: 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.75) 100%)' }}
+              />
+
+              {/* Top row: category badge (left) + FEATURED label + read time (right) */}
+              <div className="absolute top-4 left-4 right-4 z-10 flex items-start justify-between">
+                {featured.category ? (
+                  <span className="category-badge">{featured.category.name}</span>
+                ) : (
+                  <span aria-hidden="true" />
+                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-gold/80 text-[0.6rem] tracking-[0.25em] uppercase font-bold bg-navy/60 px-2 py-1 backdrop-blur-sm">
                     Featured
-                  </div>
-                  <Link href={`/articles/${featured.slug}`}>
-                    <h2
-                      className="text-3xl lg:text-4xl font-bold text-[var(--fg)] mb-4 leading-tight hover:text-gold transition-colors duration-200"
-                      style={{ fontFamily: 'var(--font-serif)' }}
-                    >
-                      {featured.title}
-                    </h2>
-                  </Link>
-                  {featured.excerpt && (
-                    <p className="text-[var(--fg-muted)] text-base leading-relaxed mb-6">
-                      {featured.excerpt}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-3 text-xs text-[var(--fg-faint)] mb-7">
-                    <span className="font-semibold text-[var(--fg-muted)]">
-                      {featured.author.name}
-                    </span>
-                    <span className="text-gold/40">·</span>
-                    <span>
-                      {featured.publishedAt
-                        ? format(new Date(featured.publishedAt), 'd MMMM yyyy')
-                        : ''}
-                    </span>
-                  </div>
-                  <Link
-                    href={`/articles/${featured.slug}`}
-                    className="inline-flex items-center gap-2 text-gold text-xs font-bold uppercase tracking-widest group/link hover:gap-3 transition-all duration-200"
-                  >
-                    Read Article
-                    <span className="inline-block transition-transform duration-200 group-hover/link:translate-x-1">
-                      →
-                    </span>
-                  </Link>
+                  </span>
+                  <span className="flex items-center gap-1 bg-navy/70 text-cream/90 text-[10px] font-semibold px-2 py-1 backdrop-blur-sm leading-none">
+                    <Clock size={9} className="shrink-0" />
+                    {readTimeLabel(featured.content)}
+                  </span>
                 </div>
+              </div>
+
+              {/* Text overlay — bottom left */}
+              <div className="absolute bottom-0 left-0 right-0 z-10 p-6 md:p-10">
+                <Link href={`/articles/${featured.slug}`}>
+                  <h2
+                    className="text-2xl md:text-4xl lg:text-5xl font-bold text-white mb-3 leading-tight hover:text-gold transition-colors duration-200 max-w-3xl"
+                    style={{ fontFamily: 'var(--font-serif)' }}
+                  >
+                    {featured.title}
+                  </h2>
+                </Link>
+                {featured.excerpt && (
+                  <p className="text-white/80 text-sm md:text-base leading-relaxed mb-4 max-w-2xl line-clamp-2 hidden sm:block">
+                    {featured.excerpt}
+                  </p>
+                )}
+                <div className="flex items-center gap-3 text-xs text-white/70 mb-5">
+                  <span className="font-semibold text-white/90">
+                    {featured.author.name}
+                  </span>
+                  <span className="text-gold/60">·</span>
+                  <span>
+                    {featured.publishedAt
+                      ? format(new Date(featured.publishedAt), 'd MMMM yyyy')
+                      : ''}
+                  </span>
+                </div>
+                <Link
+                  href={`/articles/${featured.slug}`}
+                  className="inline-flex items-center gap-2 text-gold text-xs font-bold uppercase tracking-widest group/link hover:gap-3 transition-all duration-200"
+                >
+                  Read Article
+                  <span className="inline-block transition-transform duration-200 group-hover/link:translate-x-1">
+                    →
+                  </span>
+                </Link>
               </div>
             </div>
           </AnimateIn>
@@ -400,12 +396,84 @@ export default async function HomePage({
 
         {/* ── Article Grid ─────────────────────────────────────────────────── */}
         {gridArticles.length > 0 ? (
-          <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
-            {gridArticles.map((article) => (
-              <StaggerItem key={article.id}>
-                <ArticleCard article={article} />
-              </StaggerItem>
-            ))}
+          <StaggerContainer className="mt-2 space-y-6">
+            {/* Lead card — first article, full-width row, image left 60% / text right 40% */}
+            <StaggerItem>
+              <Link href={`/articles/${gridArticles[0].slug}`} className="block group">
+                <article className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden card-hover shadow-[var(--shadow-card)] flex flex-col sm:flex-row h-auto sm:h-[320px]">
+                  {/* Image — full width on mobile, 60% on sm+ */}
+                  <div className="relative h-52 sm:h-full sm:w-[60%] bg-navy/10 dark:bg-navy/20 overflow-hidden img-zoom flex-shrink-0">
+                    {gridArticles[0].coverImage ? (
+                      <BlurImage
+                        src={gridArticles[0].coverImage}
+                        alt={gridArticles[0].title}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 640px) 100vw, 60vw"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-navy to-navy-light flex items-center justify-center">
+                        <span
+                          className="text-gold/15 text-5xl font-bold select-none"
+                          style={{ fontFamily: 'var(--font-serif)' }}
+                        >
+                          TC
+                        </span>
+                      </div>
+                    )}
+                    {/* Top overlay row: category badge (left) + read time (right) */}
+                    <div className="absolute top-0 left-0 right-0 z-10 flex items-start justify-between p-3">
+                      {gridArticles[0].category ? (
+                        <span className="category-badge">{gridArticles[0].category.name}</span>
+                      ) : (
+                        <span aria-hidden="true" />
+                      )}
+                      <span className="flex items-center gap-1 bg-navy/70 text-cream/90 text-[10px] font-semibold px-2 py-1 backdrop-blur-sm leading-none">
+                        <Clock size={9} className="shrink-0" />
+                        {readTimeLabel(gridArticles[0].content)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Text — 40% on sm+ */}
+                  <div className="p-6 sm:p-8 flex flex-col justify-center sm:w-[40%] flex-1">
+                    <h3
+                      className="text-xl sm:text-2xl font-bold text-[var(--fg)] mb-3 leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-3"
+                      style={{ fontFamily: 'var(--font-serif)' }}
+                    >
+                      {gridArticles[0].title}
+                    </h3>
+                    {gridArticles[0].excerpt && (
+                      <p className="text-[var(--fg-muted)] text-sm leading-relaxed mb-5 line-clamp-3">
+                        {gridArticles[0].excerpt}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between text-[0.7rem] text-[var(--fg-faint)] border-t border-[var(--border)] pt-3 mt-auto">
+                      <span className="font-semibold text-[var(--fg-muted)]">{gridArticles[0].author.name}</span>
+                      <div className="flex items-center gap-3">
+                        <span>
+                          {gridArticles[0].publishedAt
+                            ? format(new Date(gridArticles[0].publishedAt), 'd MMM yyyy')
+                            : ''}
+                        </span>
+                        <BookmarkButton articleId={gridArticles[0].id} />
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              </Link>
+            </StaggerItem>
+
+            {/* Remaining articles — three-column grid */}
+            {gridArticles.length > 1 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {gridArticles.slice(1).map((article) => (
+                  <StaggerItem key={article.id}>
+                    <ArticleCard article={article} />
+                  </StaggerItem>
+                ))}
+              </div>
+            )}
           </StaggerContainer>
         ) : (
           <AnimateIn variant="fade-in">
