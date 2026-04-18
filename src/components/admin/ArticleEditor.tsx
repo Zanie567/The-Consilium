@@ -821,9 +821,9 @@ export function ArticleEditor({
                     type="button"
                     onClick={() => coverFileRef.current?.click()}
                     disabled={uploading}
-                    className="w-full py-4 flex items-center justify-center gap-2 text-[#ccc] text-xs hover:text-[#aaa] hover:bg-[#f0f0f0] transition-colors disabled:opacity-50"
+                    className="w-full py-5 flex items-center justify-center gap-2 text-[#aaa] text-sm font-bold hover:text-[#888] hover:bg-[#ebebeb] transition-colors disabled:opacity-50 tracking-wide"
                   >
-                    <ImagePlus size={14} />
+                    <ImagePlus size={16} />
                     {uploading ? 'Uploading…' : 'Add cover image'}
                   </button>
                 )
