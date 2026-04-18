@@ -739,7 +739,7 @@ export function ArticleEditor({
       {/* Formatting toolbar — Tiptap portals its toolbar content into this fixed container */}
       <div
         ref={toolbarPortalRef}
-        className="fixed top-12 left-[220px] right-0 z-40"
+        className="fixed top-12 left-[220px] right-0 z-[200]"
       />
 
       {/* Content (top chrome 48px + toolbar ~44px = 92px, pt-[96px] adds 4px breathing) */}
@@ -773,7 +773,7 @@ export function ArticleEditor({
 
           {/* Document card */}
           <div
-            className="flex-none w-full max-w-[960px] bg-white dark:bg-[#1e1e1e]"
+            className="flex-none w-full max-w-[1100px] bg-white dark:bg-[#1e1e1e]"
             style={{
               boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)',
               minHeight: 'calc(100vh - 120px)',

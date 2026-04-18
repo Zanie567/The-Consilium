@@ -429,7 +429,9 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         style={style}
         className={`p-2 rounded transition-all min-w-[30px] h-8 flex items-center justify-center ${
           active
-            ? darkMode ? 'bg-white/15 text-white' : 'bg-[#1a2744]/10 text-[#1a2744] dark:bg-gold/20 dark:text-gold'
+            ? darkMode
+              ? 'bg-white/20 text-white ring-1 ring-white/30'
+              : 'bg-[#1a2744]/20 text-[#1a2744] ring-1 ring-[#1a2744]/30 font-semibold'
             : darkMode ? 'text-white/70 hover:bg-white/8' : 'text-[#444] dark:text-[var(--fg-muted)] hover:bg-black/8 dark:hover:bg-white/10'
         } disabled:opacity-30`}
       >
@@ -568,30 +570,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                 </div>
               )}
             </div>
-
-            <Sep />
-
-            {/* Font is fixed to EB Garamond — picker removed */}
-
-            {/* Group 4: Font size */}
-            <ToolbarBtn onClick={() => changeFontSize(-1)} title="Decrease font size">
-              <span className="text-xs font-bold leading-none">A-</span>
-            </ToolbarBtn>
-            <input
-              ref={fontSizeRef}
-              type="number"
-              value={fontSizeInput}
-              onChange={(e) => setFontSizeInput(e.target.value)}
-              onBlur={(e) => applyFontSize(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyFontSize(fontSizeInput) } }}
-              min={6}
-              max={96}
-              className="w-10 h-8 text-center text-xs border border-black/15 dark:border-white/15 bg-transparent rounded focus:outline-none focus:border-[#1a2744] dark:focus:border-gold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              title="Font size"
-            />
-            <ToolbarBtn onClick={() => changeFontSize(1)} title="Increase font size">
-              <span className="text-xs font-bold leading-none">A+</span>
-            </ToolbarBtn>
 
             <Sep />
 
@@ -943,7 +921,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
           />
         ) : (
           <div className="editor-outer min-h-[600px] py-8 px-4">
-            <div className="editor-page max-w-[816px] mx-auto">
+            <div className="editor-page max-w-[1000px] mx-auto">
               <EditorContent
                 editor={editor}
                 className={`tiptap-editor ${darkMode ? 'editor-dark-mode' : ''} ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
