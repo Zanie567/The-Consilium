@@ -40,7 +40,7 @@ interface NavGroup {
   items: NavItem[]
 }
 
-export function EditorialSidebar({ user }: { user: User }) {
+export function EditorialSidebar({ user, onNavClick }: { user: User; onNavClick?: () => void }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -138,6 +138,7 @@ export function EditorialSidebar({ user }: { user: User }) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={onNavClick}
                     className={`flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium transition-colors duration-150 border-l-2 ${
                       active
                         ? 'border-gold text-gold'
@@ -174,7 +175,7 @@ export function EditorialSidebar({ user }: { user: User }) {
           <ThemeToggle />
         </div>
         <button
-          onClick={() => signOut({ callbackUrl: '/editorial/login' })}
+          onClick={() => { onNavClick?.(); signOut({ callbackUrl: '/editorial/login' }) }}
           className="flex items-center gap-2.5 px-4 py-2.5 text-[12px] text-cream/30 hover:text-cream/60 w-full transition-colors border-t border-white/6"
         >
           <LogOut size={13} />

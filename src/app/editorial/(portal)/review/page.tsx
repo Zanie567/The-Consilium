@@ -47,8 +47,8 @@ export default async function ReviewQueuePage() {
   }
 
   return (
-    <PortalPage className="p-6 lg:p-8 max-w-4xl">
-      <PortalSection className="mb-8">
+    <PortalPage className="p-4 sm:p-6 lg:p-8 max-w-4xl">
+      <PortalSection className="mb-6 sm:mb-8 pl-10 md:pl-0">
         <h1
           className="text-2xl font-bold text-[var(--fg)] mb-1"
           style={{ fontFamily: 'var(--font-serif)' }}
@@ -77,18 +77,18 @@ export default async function ReviewQueuePage() {
             {articles.map((article, i) => (
               <div
                 key={article.id}
-                className={`flex items-center gap-4 px-6 py-4 hover:bg-[var(--bg-subtle)] transition-colors ${
+                className={`flex items-start sm:items-center gap-3 sm:gap-4 px-4 sm:px-6 py-4 hover:bg-[var(--bg-subtle)] transition-colors ${
                   i > 0 ? 'border-t border-[var(--border)]' : ''
                 }`}
               >
                 <div className="flex-1 min-w-0">
                   <Link
                     href={`/editorial/review/${article.id}`}
-                    className="font-semibold text-[var(--fg)] hover:text-gold transition-colors line-clamp-1 text-sm"
+                    className="font-semibold text-[var(--fg)] hover:text-gold transition-colors line-clamp-2 sm:line-clamp-1 text-sm"
                   >
                     {article.title}
                   </Link>
-                  <p className="text-[var(--fg-faint)] text-xs mt-0.5">
+                  <p className="text-[var(--fg-faint)] text-xs mt-0.5 line-clamp-2">
                     {article.author.name}
                     {article.category ? ` · ${article.category.name}` : ''}
                     {' · '}{wordCount(article.content).toLocaleString()} words
@@ -97,7 +97,7 @@ export default async function ReviewQueuePage() {
                 </div>
                 <Link
                   href={`/editorial/review/${article.id}`}
-                  className="shrink-0 bg-gold text-navy text-xs font-bold px-4 py-1.5 uppercase tracking-widest hover:bg-gold/90 transition-colors"
+                  className="shrink-0 bg-gold text-navy text-xs font-bold px-3 sm:px-4 py-2 sm:py-1.5 uppercase tracking-widest hover:bg-gold/90 transition-colors min-h-[44px] flex items-center"
                 >
                   Review
                 </Link>

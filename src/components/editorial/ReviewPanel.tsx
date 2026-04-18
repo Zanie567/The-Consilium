@@ -125,23 +125,23 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl">
-      {/* Back + header */}
-      <div className="flex items-start gap-4 mb-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
+      {/* Back + header — on mobile add left padding to clear the hamburger */}
+      <div className="flex items-start gap-3 sm:gap-4 mb-5 sm:mb-6 pl-10 md:pl-0">
         <Link
           href="/editorial/review"
-          className="mt-1 text-[var(--fg-faint)] hover:text-gold transition-colors"
+          className="mt-1 text-[var(--fg-faint)] hover:text-gold transition-colors shrink-0"
         >
           <ArrowLeft size={18} />
         </Link>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <h1
-            className="text-xl font-bold text-[var(--fg)] mb-1"
+            className="text-lg sm:text-xl font-bold text-[var(--fg)] mb-1"
             style={{ fontFamily: 'var(--font-serif)' }}
           >
             {article.title}
           </h1>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--fg-faint)]">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-[var(--fg-faint)]">
             <span>By {article.author.name}</span>
             {article.category && <span>· {article.category.name}</span>}
             <span>· {wordCount().toLocaleString()} words</span>
@@ -149,39 +149,39 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
               {status.replace('_', ' ')}
             </span>
           </div>
-        </div>
 
-        {/* Feature + Pin toggles */}
-        {status === 'PUBLISHED' && (
-          <div className="flex gap-2">
-            <Tooltip content={isFeatured ? 'Remove from featured: stops appearing in the homepage spotlight' : 'Set as featured: this article will appear in the main featured slot on the homepage'} variant="editorial" side="bottom" maxWidth={280}>
-              <button
-                onClick={toggleFeature}
-                aria-label={isFeatured ? 'Remove featured' : 'Set as featured'}
-                className={`p-2 border transition-colors ${
-                  isFeatured
-                    ? 'border-gold bg-gold/10 text-gold'
-                    : 'border-[var(--border)] text-[var(--fg-faint)] hover:border-gold hover:text-gold'
-                }`}
-              >
-                <Star size={16} className={isFeatured ? 'fill-gold' : ''} />
-              </button>
-            </Tooltip>
-            <Tooltip content={isPinned ? 'Unpin from category page' : 'Pin to the top of this article\'s category page'} variant="editorial" side="bottom" maxWidth={260}>
-              <button
-                onClick={togglePin}
-                aria-label={isPinned ? 'Unpin from category' : 'Pin to category page'}
-                className={`p-2 border transition-colors ${
-                  isPinned
-                    ? 'border-gold bg-gold/10 text-gold'
-                    : 'border-[var(--border)] text-[var(--fg-faint)] hover:border-gold hover:text-gold'
-                }`}
-              >
-                <Pin size={16} className={isPinned ? 'fill-gold' : ''} />
-              </button>
-            </Tooltip>
-          </div>
-        )}
+          {/* Feature + Pin toggles — moved inside header div so they wrap on mobile */}
+          {status === 'PUBLISHED' && (
+            <div className="flex gap-2 mt-2">
+              <Tooltip content={isFeatured ? 'Remove from featured: stops appearing in the homepage spotlight' : 'Set as featured: this article will appear in the main featured slot on the homepage'} variant="editorial" side="bottom" maxWidth={280}>
+                <button
+                  onClick={toggleFeature}
+                  aria-label={isFeatured ? 'Remove featured' : 'Set as featured'}
+                  className={`p-2 border transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${
+                    isFeatured
+                      ? 'border-gold bg-gold/10 text-gold'
+                      : 'border-[var(--border)] text-[var(--fg-faint)] hover:border-gold hover:text-gold'
+                  }`}
+                >
+                  <Star size={16} className={isFeatured ? 'fill-gold' : ''} />
+                </button>
+              </Tooltip>
+              <Tooltip content={isPinned ? 'Unpin from category page' : 'Pin to the top of this article\'s category page'} variant="editorial" side="bottom" maxWidth={260}>
+                <button
+                  onClick={togglePin}
+                  aria-label={isPinned ? 'Unpin from category' : 'Pin to category page'}
+                  className={`p-2 border transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${
+                    isPinned
+                      ? 'border-gold bg-gold/10 text-gold'
+                      : 'border-[var(--border)] text-[var(--fg-faint)] hover:border-gold hover:text-gold'
+                  }`}
+                >
+                  <Pin size={16} className={isPinned ? 'fill-gold' : ''} />
+                </button>
+              </Tooltip>
+            </div>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -190,7 +190,7 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
         </p>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Article preview */}
         <div className="lg:col-span-2 bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden">
           <div className="px-6 py-3 border-b border-[var(--border)] flex items-center justify-between">
@@ -205,7 +205,7 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
             </Link>
           </div>
           <div
-            className="p-6 prose-consilium max-h-[60vh] overflow-y-auto text-sm"
+            className="p-4 sm:p-6 prose-consilium max-h-[40vh] sm:max-h-[60vh] overflow-y-auto text-sm"
             dangerouslySetInnerHTML={{ __html: renderContent(article.content) }}
           />
         </div>
@@ -224,7 +224,7 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
                 <button
                   onClick={() => act('approve')}
                   disabled={loading !== null}
-                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-emerald-700 transition-colors disabled:opacity-60"
+                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-emerald-700 transition-colors disabled:opacity-60 min-h-[44px]"
                 >
                   <CheckCircle size={14} />
                   {loading === 'approve' ? 'Publishing…' : 'Publish Now'}
@@ -240,13 +240,14 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
                   type="datetime-local"
                   value={scheduledAt}
                   onChange={(e) => setScheduledAt(e.target.value)}
-                  className="w-full bg-[var(--bg)] border border-[var(--border)] px-3 py-2 text-[var(--fg)] text-xs focus:outline-none focus:border-gold"
+                  className="w-full bg-[var(--bg)] border border-[var(--border)] px-3 py-2 text-[var(--fg)] text-xs focus:outline-none focus:border-gold min-h-[44px]"
+                  style={{ fontSize: 16 }}
                 />
                 <Tooltip content="Schedule this article to go live automatically at the chosen date and time" variant="editorial" side="left" maxWidth={260}>
                   <button
                     onClick={() => act('schedule', { scheduledAt })}
                     disabled={loading !== null}
-                    className="mt-2 w-full flex items-center justify-center gap-2 bg-navy text-gold py-2 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors disabled:opacity-60"
+                    className="mt-2 w-full flex items-center justify-center gap-2 bg-navy text-gold py-3 sm:py-2 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors disabled:opacity-60 min-h-[44px]"
                   >
                     <Clock size={14} />
                     {loading === 'schedule' ? 'Scheduling…' : 'Schedule'}
@@ -262,15 +263,16 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
                 <textarea
                   value={returnNote}
                   onChange={(e) => setReturnNote(e.target.value)}
-                  rows={3}
+                  rows={4}
                   placeholder="What needs to be revised?"
-                  className="w-full bg-[var(--bg)] border border-[var(--border)] px-3 py-2 text-[var(--fg)] text-xs focus:outline-none focus:border-gold resize-none"
+                  className="w-full bg-[var(--bg)] border border-[var(--border)] px-3 py-2 text-[var(--fg)] focus:outline-none focus:border-gold resize-none"
+                  style={{ fontSize: 16 }}
                 />
                 <Tooltip content="Return this article to the writer with your feedback: they will be notified and can revise and resubmit" variant="editorial" side="left" maxWidth={280}>
                   <button
                     onClick={() => act('return', { note: returnNote })}
                     disabled={loading !== null || !returnNote.trim()}
-                    className="mt-2 w-full flex items-center justify-center gap-2 border border-red-500/50 text-red-500 py-2 text-xs font-bold uppercase tracking-widest hover:bg-red-500/10 transition-colors disabled:opacity-60"
+                    className="mt-2 w-full flex items-center justify-center gap-2 border border-red-500/50 text-red-500 py-3 sm:py-2 text-xs font-bold uppercase tracking-widest hover:bg-red-500/10 transition-colors disabled:opacity-60 min-h-[44px]"
                   >
                     <RotateCcw size={14} />
                     {loading === 'return' ? 'Returning…' : 'Return to Writer'}
@@ -364,12 +366,13 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
                 onChange={(e) => setNote(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addNote()}
                 placeholder="Add internal note…"
-                className="flex-1 bg-[var(--bg)] border border-[var(--border)] px-3 py-2 text-[var(--fg)] text-xs focus:outline-none focus:border-gold"
+                className="flex-1 bg-[var(--bg)] border border-[var(--border)] px-3 py-2 text-[var(--fg)] focus:outline-none focus:border-gold min-h-[44px]"
+                style={{ fontSize: 16 }}
               />
               <button
                 onClick={addNote}
                 disabled={!note.trim() || loading === 'note'}
-                className="bg-navy text-gold px-3 py-2 text-xs font-bold hover:bg-navy-dark transition-colors disabled:opacity-60"
+                className="bg-navy text-gold px-3 py-2 text-xs font-bold hover:bg-navy-dark transition-colors disabled:opacity-60 min-h-[44px] min-w-[44px]"
               >
                 Add
               </button>

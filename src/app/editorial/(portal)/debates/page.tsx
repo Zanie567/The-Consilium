@@ -46,8 +46,8 @@ export default async function DebatesPage() {
   const breakdowns = await Promise.all(debates.map((d) => getVoteBreakdown(d.id)))
 
   return (
-    <div className="p-8 max-w-5xl">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
+      <div className="flex items-center justify-between mb-6 sm:mb-8 pl-10 md:pl-0">
         <div>
           <h1 className="text-2xl font-bold text-[var(--fg)]" style={{ fontFamily: 'var(--font-serif)' }}>
             Debates
@@ -56,10 +56,11 @@ export default async function DebatesPage() {
         </div>
         <Link
           href="/editorial/debates/new"
-          className="flex items-center gap-2 bg-navy text-cream text-xs font-bold uppercase tracking-widest px-5 py-2.5 hover:bg-navy/90 transition-colors"
+          className="flex items-center gap-2 bg-navy text-cream text-xs font-bold uppercase tracking-widest px-3 sm:px-5 py-2.5 hover:bg-navy/90 transition-colors min-h-[44px]"
         >
           <PlusCircle size={14} />
-          New Debate
+          <span className="hidden sm:inline">New Debate</span>
+          <span className="sm:hidden">New</span>
         </Link>
       </div>
 

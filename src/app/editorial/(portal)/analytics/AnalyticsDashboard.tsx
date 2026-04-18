@@ -226,9 +226,9 @@ export function AnalyticsDashboard() {
     : 'in the last 30 days'
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl">
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex items-start justify-between mb-6 sm:mb-8 pl-10 md:pl-0">
         <div>
           <h1
             className="text-2xl font-bold text-[var(--fg)] mb-1"
