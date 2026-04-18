@@ -427,12 +427,14 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         title={title}
         disabled={dis}
         style={style}
-        className={`p-2 rounded transition-all min-w-[30px] h-8 flex items-center justify-center ${
+        className={`p-2 rounded min-w-[30px] h-8 flex items-center justify-center ${
           active
             ? darkMode
               ? 'bg-white/20 text-white ring-1 ring-white/30'
               : 'bg-[#1a2744]/20 text-[#1a2744] ring-1 ring-[#1a2744]/30 font-semibold'
-            : darkMode ? 'text-white/70 hover:bg-white/8' : 'text-[#444] dark:text-[var(--fg-muted)] hover:bg-black/8 dark:hover:bg-white/10'
+            : darkMode
+              ? 'text-white/70 hover:bg-white/8 transition-colors duration-100'
+              : 'text-[#444] hover:bg-black/8 transition-colors duration-100'
         } disabled:opacity-30`}
       >
         {children}
@@ -517,7 +519,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         {/* ── Toolbar ────────────────────────────────────────────────────────── */}
         {editable && (() => {
           const toolbarContent = (
-            <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-4 py-1.5 flex flex-wrap gap-1 items-center w-full h-full overflow-x-auto">
+            <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-4 py-1.5 flex flex-wrap gap-1 items-center w-full h-full">
 
             {/* Group 1: History */}
             <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo (Ctrl+Z)">
