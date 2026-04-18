@@ -33,6 +33,15 @@ const nextConfig: NextConfig = {
   experimental: {
     viewTransition: true,
   },
+  async redirects() {
+    return [
+      { source: '/news',       destination: '/category/news',      permanent: true },
+      { source: '/opinion',    destination: '/category/opinion',   permanent: true },
+      { source: '/analysis',   destination: '/category/analysis',  permanent: true },
+      { source: '/interviews', destination: '/category/interviews', permanent: true },
+      { source: '/debate',     destination: '/opinion-debate',     permanent: true },
+    ]
+  },
   async headers() {
     return [
       {

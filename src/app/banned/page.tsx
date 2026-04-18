@@ -2,7 +2,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Account Suspended | The Consilium',
+  title: 'Account Suspended',
   robots: { index: false, follow: false },
 }
 

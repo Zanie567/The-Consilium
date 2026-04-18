@@ -9,7 +9,7 @@ import type { Metadata } from 'next'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'Opinion Debate | The Consilium',
+  title: 'Opinion Debate',
   description: 'Read both sides of the argument, then cast your vote. The Consilium opinion debate series.',
   openGraph: {
     title: 'Opinion Debate | The Consilium',
