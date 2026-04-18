@@ -600,6 +600,9 @@ export function ArticleEditor({
             {uploading ? 'Uploading…' : 'Upload file'}
           </button>
         )}
+        <p className="text-xs text-gray-400 mt-1.5 leading-snug">
+          For best results: landscape orientation, minimum 1200&nbsp;px wide, subject centred in frame.
+        </p>
       </div>
 
       {/* Tags */}
