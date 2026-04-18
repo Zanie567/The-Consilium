@@ -112,7 +112,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter, emptyMessa
 
       <div className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden">
         {filtered.length > 0 ? (
-          <div className="overflow-x-auto"><table className="w-full text-sm">
+          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}><table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--bg-subtle)]">
                 <th className="px-5 py-3 text-left text-xs font-semibold text-[var(--fg-faint)] uppercase tracking-wider">
@@ -174,8 +174,8 @@ export function ArticlesList({ articles: initial, isEditor, isWriter, emptyMessa
                       </p>
                     )}
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
+                  <td className="px-2 sm:px-4 py-2 sm:py-3">
+                    <div className="flex items-center justify-end gap-0.5 sm:gap-1">
                       {isEditor && article.status === 'PUBLISHED' && (
                         <>
                           <Tooltip
@@ -185,7 +185,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter, emptyMessa
                             <button
                               onClick={() => featureArticle(article.id, article.isFeatured)}
                               aria-label={article.isFeatured ? 'Remove featured' : 'Set as featured'}
-                              className={`p-1.5 transition-colors ${
+                              className={`p-2 sm:p-1.5 transition-colors ${
                                 article.isFeatured ? 'text-gold' : 'text-[var(--fg-faint)] hover:text-gold'
                               }`}
                             >
@@ -199,7 +199,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter, emptyMessa
                             <button
                               onClick={() => pinArticle(article.id, article.isPinned)}
                               aria-label={article.isPinned ? 'Unpin' : 'Pin to category'}
-                              className={`p-1.5 transition-colors ${
+                              className={`p-2 sm:p-1.5 transition-colors ${
                                 article.isPinned ? 'text-gold' : 'text-[var(--fg-faint)] hover:text-gold'
                               }`}
                             >
@@ -215,7 +215,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter, emptyMessa
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label="View live article"
-                            className="p-1.5 text-[var(--fg-faint)] hover:text-gold transition-colors"
+                            className="p-2 sm:p-1.5 text-[var(--fg-faint)] hover:text-gold transition-colors"
                           >
                             <ExternalLink size={13} />
                           </a>
@@ -262,7 +262,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter, emptyMessa
                         <button
                           onClick={() => deleteArticle(article.id)}
                           aria-label="Delete article"
-                          className="p-1.5 text-[var(--fg-faint)] hover:text-red-500 transition-colors"
+                          className="p-2 sm:p-1.5 text-[var(--fg-faint)] hover:text-red-500 transition-colors"
                         >
                           <Trash2 size={13} />
                         </button>

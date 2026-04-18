@@ -109,7 +109,7 @@ export default async function EditorialDashboard() {
   }
 
   return (
-    <PortalPage className="p-6 lg:p-8 max-w-6xl">
+    <PortalPage className="p-4 sm:p-6 lg:p-8 max-w-6xl">
       {/* BUG-05: Surface DB errors rather than silently rendering empty data */}
       {fetchError && (
         <div className="mb-6 bg-red-500/10 border border-red-500/20 px-5 py-4 text-red-600 dark:text-red-400 text-sm">
@@ -118,9 +118,9 @@ export default async function EditorialDashboard() {
         </div>
       )}
 
-      {/* Header */}
-      <PortalSection className="flex items-start justify-between mb-8">
-        <div>
+      {/* Header — on mobile, add left padding to clear the hamburger button */}
+      <PortalSection className="flex items-start justify-between mb-6 sm:mb-8">
+        <div className="pl-10 md:pl-0">
           <h1
             className="text-2xl font-bold text-[var(--fg)] mb-1"
             style={{ fontFamily: 'var(--font-serif)' }}
@@ -139,7 +139,7 @@ export default async function EditorialDashboard() {
       </PortalSection>
 
       {/* Stats row */}
-      <PortalSection className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      <PortalSection className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <StatCard label="My Drafts" value={myDrafts.length} />
         <StatCard label="Published" value={publishedCount} accent="emerald" />
         {isEditor && (
@@ -174,18 +174,18 @@ export default async function EditorialDashboard() {
             {pendingArticles.map((article, i) => (
               <div
                 key={article.id}
-                className={`flex items-center gap-4 px-6 py-4 hover:bg-[var(--bg-subtle)] transition-colors ${
+                className={`flex items-start sm:items-center gap-3 sm:gap-4 px-4 sm:px-6 py-4 hover:bg-[var(--bg-subtle)] transition-colors ${
                   i > 0 ? 'border-t border-[var(--border)]' : ''
                 }`}
               >
                 <div className="flex-1 min-w-0">
                   <Link
                     href={`/editorial/review/${article.id}`}
-                    className="font-semibold text-[var(--fg)] hover:text-gold transition-colors line-clamp-1 text-sm"
+                    className="font-semibold text-[var(--fg)] hover:text-gold transition-colors line-clamp-2 sm:line-clamp-1 text-sm"
                   >
                     {article.title}
                   </Link>
-                  <p className="text-[var(--fg-faint)] text-xs mt-0.5">
+                  <p className="text-[var(--fg-faint)] text-xs mt-0.5 line-clamp-2">
                     {article.author.name} · {article.category?.name ?? 'Uncategorised'} ·{' '}
                     {wordCount(article.content).toLocaleString()} words ·{' '}
                     submitted {formatDistanceToNow(new Date(article.updatedAt), { addSuffix: true })}
@@ -193,7 +193,7 @@ export default async function EditorialDashboard() {
                 </div>
                 <Link
                   href={`/editorial/review/${article.id}`}
-                  className="shrink-0 bg-gold text-navy text-xs font-bold px-4 py-1.5 uppercase tracking-widest hover:bg-gold/90 transition-colors"
+                  className="shrink-0 bg-gold text-navy text-xs font-bold px-3 sm:px-4 py-2 sm:py-1.5 uppercase tracking-widest hover:bg-gold/90 transition-colors min-h-[44px] flex items-center"
                 >
                   Review
                 </Link>
@@ -203,24 +203,24 @@ export default async function EditorialDashboard() {
         </PortalSection>
       )}
 
-      {/* Quick actions */}
-      <PortalSection className="flex flex-wrap gap-3 mb-8">
+      {/* Quick actions — stack full-width on mobile */}
+      <PortalSection className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mb-6 sm:mb-8">
         <Link
           href="/editorial/articles/new"
-          className="inline-flex items-center gap-2 bg-navy text-gold px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors"
+          className="flex items-center justify-center gap-2 bg-navy text-gold px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors min-h-[44px]"
         >
           + New Article
         </Link>
         <Link
           href="/editorial/articles"
-          className="inline-flex items-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-colors"
+          className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-colors min-h-[44px]"
         >
           All Articles
         </Link>
         {isEditor && (
           <Link
             href="/editorial/users"
-            className="inline-flex items-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-colors"
+            className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-colors min-h-[44px]"
           >
             Manage Users
           </Link>
@@ -228,7 +228,7 @@ export default async function EditorialDashboard() {
         {isEditor && (
           <Link
             href="/editorial/series"
-            className="inline-flex items-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-colors"
+            className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-colors min-h-[44px]"
           >
             Article Series
           </Link>
@@ -357,9 +357,9 @@ function StatCard({
       : 'text-[var(--fg)]'
 
   return (
-    <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-5 shadow-[var(--shadow-card)]">
-      <p className="text-[var(--fg-faint)] text-xs uppercase tracking-widest mb-2">{label}</p>
-      <p className={`text-3xl font-bold ${valueClass}`} style={{ fontFamily: 'var(--font-serif)' }}>
+    <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-4 sm:p-5 shadow-[var(--shadow-card)]">
+      <p className="text-[var(--fg-faint)] text-[10px] sm:text-xs uppercase tracking-widest mb-1 sm:mb-2 truncate">{label}</p>
+      <p className={`text-2xl sm:text-3xl font-bold ${valueClass}`} style={{ fontFamily: 'var(--font-serif)' }}>
         {value}
       </p>
     </div>

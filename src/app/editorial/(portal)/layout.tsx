@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { EditorialSidebar } from '@/components/layout/EditorialSidebar'
+import { EditorialSidebarWrapper } from '@/components/layout/EditorialSidebarWrapper'
 
 const EDITORIAL_ROLES = ['ADMIN', 'EDITOR', 'WRITER']
 
@@ -83,9 +83,11 @@ export default async function EditorialLayout({
 
   return (
     <div className="min-h-screen bg-[var(--bg-subtle)] flex">
-      <Suspense fallback={<div className="w-[220px] shrink-0" style={{ background: '#0F1623' }} />}>
-        <EditorialSidebar user={verifiedUser} />
+      {/* Sidebar: hidden on mobile (overlay via wrapper), always visible on desktop */}
+      <Suspense fallback={<div className="hidden md:block w-[220px] shrink-0" style={{ background: '#0F1623' }} />}>
+        <EditorialSidebarWrapper user={verifiedUser} />
       </Suspense>
+      {/* Main content: full-width on mobile (sidebar is overlay), flex-1 on desktop */}
       <main className="flex-1 min-w-0 overflow-auto">{children}</main>
     </div>
   )

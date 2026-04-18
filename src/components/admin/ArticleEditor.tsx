@@ -115,6 +115,7 @@ export function ArticleEditor({
   const [coverError, setCoverError] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [tutorialOpen, setTutorialOpen] = useState(false)
+  const [toolbarHeight, setToolbarHeight] = useState(44)
 
   // ── Refs that need to be stable inside closures ────────────────────────────
   // articleIdRef holds the current article ID — set from prop on mount, then
@@ -307,6 +308,17 @@ export function ArticleEditor({
     clearTimeout(savedTimeoutRef.current)
   }, [])
 
+  // Measure toolbar height so content offset stays correct when toolbar wraps on mobile
+  useEffect(() => {
+    const el = toolbarPortalRef.current
+    if (!el) return
+    const observer = new ResizeObserver(() => {
+      setToolbarHeight(el.offsetHeight || 44)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
   // ── Field change helpers ───────────────────────────────────────────────────
   const updateTitle = (val: string) => {
     setTitle(val)
@@ -435,7 +447,7 @@ export function ArticleEditor({
             <select
               value={status}
               onChange={(e) => { setStatus(e.target.value); statusRef.current = e.target.value; scheduleAutosave() }}
-              className="w-full h-8 text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer"
+              className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer"
             >
               <option value="DRAFT">Draft</option>
               <option value="PENDING_REVIEW">Pending Review</option>
@@ -464,7 +476,7 @@ export function ArticleEditor({
             value={scheduledAt}
             min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
             onChange={(e) => { setScheduledAt(e.target.value); scheduledAtRef.current = e.target.value; scheduleAutosave() }}
-            className="w-full h-8 text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] cursor-pointer"
+            className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] cursor-pointer"
           />
           {!scheduledAt && (
             <p className="text-amber-500 text-[10px] mt-1">Pick a future date and time.</p>
@@ -480,7 +492,7 @@ export function ArticleEditor({
             value={categoryId}
             onChange={(e) => { setCategoryId(e.target.value); categoryIdRef.current = e.target.value; scheduleAutosave() }}
             disabled={!canEdit}
-            className="w-full h-8 text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer disabled:opacity-60"
+            className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer disabled:opacity-60"
           >
             <option value="">No category</option>
             {categories.map((cat) => (
@@ -500,7 +512,7 @@ export function ArticleEditor({
           value={coverImage}
           onChange={(e) => { setCoverImage(e.target.value); coverImageRef.current = e.target.value; scheduleAutosave() }}
           placeholder="https://..."
-          className="w-full h-8 text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] placeholder:text-[#ccc]"
+          className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] placeholder:text-[#ccc]"
         />
         {uploading && <p className="text-[10px] text-[#999] mt-1">Uploading…</p>}
         {coverError && <p className="text-[10px] text-red-500 mt-1">{coverError}</p>}
@@ -573,7 +585,7 @@ export function ArticleEditor({
             onBlur={() => tagInput && addTag(tagInput)}
             placeholder={tags.length < 10 ? 'Add a tag, press Enter...' : 'Max 10 tags'}
             disabled={tags.length >= 10}
-            className="w-full h-8 text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] placeholder:text-[#ccc] disabled:opacity-50"
+            className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] placeholder:text-[#ccc] disabled:opacity-50"
           />
         )}
         <p className="text-[10px] text-[#ccc] mt-1">Separate with Enter or comma. Up to 10.</p>
@@ -588,7 +600,7 @@ export function ArticleEditor({
             value={slug}
             onChange={(e) => { setSlug(e.target.value); slugRef.current = e.target.value; scheduleAutosave() }}
             placeholder="url-slug"
-            className="w-full h-8 text-[11px] font-mono border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744]"
+            className="w-full h-8 text-[16px] sm:text-[11px] font-mono border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744]"
           />
         </div>
       )}
@@ -599,8 +611,8 @@ export function ArticleEditor({
   return (
     <div className="min-h-full">
 
-      {/* FIXED: Top chrome (48px) */}
-      <div className="fixed top-0 left-[220px] right-0 z-50 h-12 bg-white dark:bg-[#1a1a1a] border-b border-[#e0e0e0] dark:border-[#333] flex items-center px-3 gap-2">
+      {/* FIXED: Top chrome (48px) — full-width on mobile, offset by sidebar on md+ */}
+      <div className="fixed top-0 left-0 md:left-[220px] right-0 z-50 h-12 bg-white dark:bg-[#1a1a1a] border-b border-[#e0e0e0] dark:border-[#333] flex items-center pl-[52px] md:pl-3 pr-3 gap-2">
         <button
           onClick={handleBack}
           className="p-1.5 rounded hover:bg-[#f1f3f4] text-[#555] transition-colors shrink-0"
@@ -616,7 +628,8 @@ export function ArticleEditor({
           onChange={(e) => updateTitle(e.target.value)}
           disabled={!canEdit}
           placeholder="Untitled document"
-          className="flex-1 min-w-0 text-[15px] bg-transparent border-none outline-none placeholder:text-[#bbb] dark:placeholder:text-[#555] disabled:opacity-60 text-[#1a1a1a] dark:text-[#e8e8e8]"
+          className="flex-1 min-w-0 bg-transparent border-none outline-none placeholder:text-[#bbb] dark:placeholder:text-[#555] disabled:opacity-60 text-[#1a1a1a] dark:text-[#e8e8e8]"
+          style={{ fontSize: 16 }}
         />
 
         {/* Status pill */}
@@ -739,15 +752,15 @@ export function ArticleEditor({
       {/* Formatting toolbar — Tiptap portals its toolbar content into this fixed container */}
       <div
         ref={toolbarPortalRef}
-        className="fixed top-12 left-[220px] right-0 z-[200]"
+        className="fixed top-12 left-0 md:left-[220px] right-0 z-[200]"
       />
 
-      {/* Content (top chrome 48px + toolbar ~44px = 92px, pt-[96px] adds 4px breathing) */}
-      <div className="pt-[96px] min-h-screen bg-[#f0f0f0] dark:bg-[#111]">
+      {/* Content — offset by top chrome (48px) + measured toolbar height */}
+      <div className="min-h-screen bg-[#f0f0f0] dark:bg-[#111]" style={{ paddingTop: 48 + toolbarHeight + 4 }}>
 
         {/* Banners */}
         {(initialData?.editorNote || error || !canEdit) && (
-          <div className="max-w-[1120px] mx-auto px-6 pt-5 space-y-3">
+          <div className="max-w-[1120px] mx-auto px-3 sm:px-6 pt-4 sm:pt-5 space-y-3">
             {initialData?.editorNote && (
               <div className="bg-amber-500/8 border border-amber-500/20 px-4 py-3 rounded">
                 <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Editor feedback</p>
@@ -769,7 +782,7 @@ export function ArticleEditor({
         )}
 
         {/* Main row: document card + right panel */}
-        <div className="flex justify-center gap-6 px-6 py-8 items-start">
+        <div className="flex justify-center gap-6 px-2 sm:px-4 md:px-6 py-4 md:py-8 items-start">
 
           {/* Document card */}
           <div
@@ -779,6 +792,7 @@ export function ArticleEditor({
               minHeight: 'calc(100vh - 120px)',
             }}
           >
+
             {/* Cover image block — full bleed above padded content */}
             <div
               className="relative group w-full overflow-hidden bg-[#f5f5f5]"
@@ -830,7 +844,7 @@ export function ArticleEditor({
               )}
             </div>
 
-            <div style={{ padding: '80px 160px' }}>
+            <div className="px-5 py-8 sm:px-10 sm:py-12 md:px-16 md:py-14 lg:px-24 xl:px-[140px] xl:py-[80px]">
 
               {/* Headline */}
               <textarea
@@ -844,7 +858,8 @@ export function ArticleEditor({
                 style={{
                   color: '#1a1a1a',
                   fontFamily: 'var(--font-serif)',
-                  fontSize: 'clamp(1.75rem, 4vw, 2.5rem)',
+                  /* clamp handles iOS zoom threshold (min 16px) */
+                  fontSize: 'clamp(1rem, 5vw, 2.5rem)',
                   fontWeight: 700,
                 }}
               />
@@ -857,8 +872,8 @@ export function ArticleEditor({
                 disabled={!canEdit}
                 placeholder="Write a brief summary that draws readers in..."
                 rows={2}
-                className="w-full bg-transparent border-none outline-none resize-none text-lg leading-relaxed placeholder:text-[#ccc] disabled:opacity-60 overflow-hidden"
-                style={{ color: '#666', fontStyle: 'italic' }}
+                className="w-full bg-transparent border-none outline-none resize-none leading-relaxed placeholder:text-[#ccc] disabled:opacity-60 overflow-hidden"
+                style={{ color: '#666', fontStyle: 'italic', fontSize: '1.1rem' }}
               />
 
               {/* Body editor */}
@@ -893,7 +908,10 @@ export function ArticleEditor({
             className="fixed inset-0 z-[60] bg-black/20"
             onClick={() => setSettingsOpen(false)}
           />
-          <div className="fixed top-12 right-0 bottom-0 z-[61] w-72 bg-white border-l border-[#e0e0e0] overflow-y-auto p-4 shadow-xl">
+          <div
+            className="fixed right-0 bottom-0 z-[61] w-72 bg-white border-l border-[#e0e0e0] overflow-y-auto p-4 shadow-xl"
+            style={{ top: 48 + toolbarHeight }}
+          >
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-semibold text-[#333]">Document settings</span>
               <button

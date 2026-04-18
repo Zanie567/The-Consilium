@@ -79,7 +79,7 @@ export default async function EditorialArticlesPage({
     : 'All Articles'
 
   return (
-    <PortalPage className="p-6 lg:p-8 max-w-6xl">
+    <PortalPage className="p-4 sm:p-6 lg:p-8 max-w-6xl">
       {/* BUG-06: Surface DB errors rather than silently rendering an empty list */}
       {fetchError && (
         <div className="mb-6 bg-red-500/10 border border-red-500/20 px-5 py-4 text-red-600 dark:text-red-400 text-sm">
@@ -87,7 +87,7 @@ export default async function EditorialArticlesPage({
           Please refresh the page.
         </div>
       )}
-      <PortalSection className="mb-6 flex items-center justify-between">
+      <PortalSection className="mb-6 flex items-center justify-between pl-10 md:pl-0">
         <div>
           <h1
             className="text-2xl font-bold text-[var(--fg)] mb-1"
@@ -101,9 +101,9 @@ export default async function EditorialArticlesPage({
         </div>
         <a
           href="/editorial/articles/new"
-          className="bg-navy text-gold px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors"
+          className="bg-navy text-gold px-3 sm:px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors min-h-[44px] flex items-center"
         >
-          + New Article
+          + New
         </a>
       </PortalSection>
       <PortalSection>
