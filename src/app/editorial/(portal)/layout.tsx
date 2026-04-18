@@ -44,34 +44,6 @@ export default async function EditorialLayout({
     )
   }
 
-  // Auto-publish any articles whose scheduled time has passed.
-  // Runs on every editorial page load so publishing happens promptly
-  // without depending solely on the cron job.
-  try {
-    const now = new Date()
-    const due = await prisma.article.findMany({
-      where: { status: 'SCHEDULED', scheduledAt: { lte: now } },
-      include: { author: true },
-    })
-    for (const article of due) {
-      await prisma.article.update({
-        where: { id: article.id },
-        data: { status: 'PUBLISHED', publishedAt: now },
-      })
-      await prisma.notification.create({
-        data: {
-          userId: article.authorId,
-          type: 'published',
-          title: 'Article published',
-          message: `Your article "${article.title}" has been published.`,
-          articleId: article.id,
-        },
-      })
-    }
-  } catch {
-    // Never let this block the page
-  }
-
   // Build a user object using the verified DB role
   const verifiedUser = {
     id: session.user.id,

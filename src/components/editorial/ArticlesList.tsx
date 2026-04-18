@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import Link from 'next/link'
 import { Star, Pin, Trash2, ExternalLink } from 'lucide-react'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { formatEditorialScheduleDisplay } from '@/lib/editorialSchedule'
 
 interface ArticleItem {
   id: string
@@ -170,7 +171,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter, emptyMessa
                     </span>
                     {article.status === 'SCHEDULED' && article.scheduledAt && (
                       <p className="text-[10px] text-blue-500 mt-0.5">
-                        {format(new Date(article.scheduledAt), 'd MMM, HH:mm')}
+                        {formatEditorialScheduleDisplay(article.scheduledAt, { includeYear: false })}
                       </p>
                     )}
                   </td>
