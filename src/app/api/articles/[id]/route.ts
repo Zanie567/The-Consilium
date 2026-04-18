@@ -66,6 +66,7 @@ export async function PUT(
     const {
       title, slug, content, excerpt, coverImage, categoryId, status,
       corrected, correctionNote, seriesId, seriesOrder, tags, scheduledAt,
+      authorId: bodyAuthorId,
     } = body
 
     // Writers can only set status to DRAFT or PENDING_REVIEW
@@ -100,6 +101,8 @@ export async function PUT(
         ...(excerpt !== undefined && { excerpt }),
         ...(coverImage !== undefined && { coverImage: coverImage || null }),
         ...(categoryId !== undefined && { categoryId: categoryId || null }),
+        // Admins and editors may reassign the article to a different author
+        ...(isAdminOrEditor && bodyAuthorId && { authorId: bodyAuthorId }),
         ...(corrected !== undefined && { corrected }),
         ...(correctionNote !== undefined && { correctionNote }),
         ...(seriesId !== undefined && { seriesId: seriesId || null }),

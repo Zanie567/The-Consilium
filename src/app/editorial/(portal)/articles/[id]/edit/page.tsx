@@ -48,6 +48,8 @@ export default async function EditorialEditArticlePage({ params }: Props) {
         scheduledAt: article.scheduledAt ? article.scheduledAt.toISOString().slice(0, 16) : null,
         editorNote: article.editorNote,
         tags: article.tags.map((t) => t.tag.name),
+        // Pass the article's actual author so the dropdown defaults to the right person
+        authorId: article.authorId,
       }}
       categories={categories}
       authorId={session.user.id}
