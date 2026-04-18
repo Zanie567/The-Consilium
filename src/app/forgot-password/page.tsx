@@ -2,7 +2,7 @@ import { ForgotPasswordForm } from '@/components/ui/ForgotPasswordForm'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
-export const metadata: Metadata = { title: 'Forgot Password | The Consilium' }
+export const metadata: Metadata = { title: 'Forgot Password' }
 
 export default function ForgotPasswordPage() {
   return (

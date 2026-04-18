@@ -216,7 +216,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
     const fileInputRef      = useRef<HTMLInputElement>(null)
     const linkInputRef      = useRef<HTMLInputElement>(null)
     const fontSizeRef       = useRef<HTMLInputElement>(null)
-    const headingRef        = useRef<HTMLDivElement>(null)
     const colorPickerRef    = useRef<HTMLDivElement>(null)
     const highlightRef      = useRef<HTMLDivElement>(null)
     const tablePickerRef    = useRef<HTMLDivElement>(null)
@@ -226,7 +225,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
     const [linkUrl,            setLinkUrl]            = useState('')
     const [uploadError,        setUploadError]        = useState('')
     const [uploading,          setUploading]          = useState(false)
-    const [headingOpen,        setHeadingOpen]        = useState(false)
     const [colorOpen,          setColorOpen]          = useState(false)
     const [highlightOpen,      setHighlightOpen]      = useState(false)
     const [tableOpen,          setTableOpen]          = useState(false)
@@ -303,7 +301,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
     useEffect(() => {
       const handler = (e: MouseEvent) => {
         const target = e.target as globalThis.Node
-        if (headingRef.current    && !headingRef.current.contains(target))    setHeadingOpen(false)
         if (colorPickerRef.current && !colorPickerRef.current.contains(target)) setColorOpen(false)
         if (highlightRef.current  && !highlightRef.current.contains(target))  setHighlightOpen(false)
         if (tablePickerRef.current && !tablePickerRef.current.contains(target)) setTableOpen(false)
@@ -396,17 +393,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
     if (!editor) return null
 
-    // Current text style for dropdown
-    const getHeadingLabel = () => {
-      if (editor.isActive('heading', { level: 1 })) return 'Heading 1'
-      if (editor.isActive('heading', { level: 2 })) return 'Heading 2'
-      if (editor.isActive('heading', { level: 3 })) return 'Heading 3'
-      if (editor.isActive('heading', { level: 4 })) return 'Heading 4'
-      if (editor.isActive('blockquote'))           return 'Block Quote'
-      if (editor.isActive('codeBlock'))            return 'Code Block'
-      return 'Normal text'
-    }
-    const headingLabel = getHeadingLabel()
     const wordCount    = editor.storage.characterCount.words()
     const readingTime  = Math.max(1, Math.round(wordCount / 200))
 
@@ -532,46 +518,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
               <Printer size={15} />
             </ToolbarBtn>
 
-            <Sep />
-
-            {/* Group 2: Text style dropdown */}
-            <div className="relative" ref={headingRef}>
-              <button
-                type="button"
-                onMouseDown={(e) => { e.preventDefault(); setHeadingOpen((o) => !o) }}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-[#444] dark:text-[var(--fg-muted)] hover:bg-black/8 dark:hover:bg-white/10 transition-colors min-w-[110px] h-8"
-                title="Text style"
-              >
-                <span className="flex-1 text-left truncate">{headingLabel}</span>
-                <ChevronDown size={11} className={`shrink-0 transition-transform ${headingOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {headingOpen && (
-                <div className="absolute left-0 top-full mt-1 bg-white dark:bg-[var(--bg-elevated)] border border-black/10 dark:border-white/10 shadow-xl z-50 min-w-[160px] rounded overflow-hidden">
-                  {[
-                    { label: 'Normal text', action: () => editor.chain().focus().setParagraph().run(), isActive: !editor.isActive('heading') && !editor.isActive('blockquote') && !editor.isActive('codeBlock'), size: '1rem' },
-                    { label: 'Heading 1', action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(), isActive: editor.isActive('heading', { level: 1 }), size: '1.6rem', weight: 700 },
-                    { label: 'Heading 2', action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(), isActive: editor.isActive('heading', { level: 2 }), size: '1.3rem', weight: 700 },
-                    { label: 'Heading 3', action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(), isActive: editor.isActive('heading', { level: 3 }), size: '1.1rem', weight: 700 },
-                    { label: 'Heading 4', action: () => editor.chain().focus().toggleHeading({ level: 4 }).run(), isActive: editor.isActive('heading', { level: 4 }), size: '1rem', weight: 700 },
-                  ].map(({ label, action, isActive, size, weight }) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onMouseDown={(e) => { e.preventDefault(); action(); setHeadingOpen(false) }}
-                      className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                        isActive
-                          ? 'bg-[#1a2744]/8 text-[#1a2744] dark:text-gold'
-                          : 'text-[#333] dark:text-[var(--fg)] hover:bg-black/5 dark:hover:bg-white/5'
-                      }`}
-                      style={{ fontFamily: weight ? 'var(--font-serif)' : undefined, fontSize: size, fontWeight: weight }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
 
             <Sep />
 
