@@ -108,7 +108,14 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { title, slug: rawSlug, content, excerpt, coverImage, categoryId, status, tags } = body
+    const { title, slug: rawSlug, content, excerpt, coverImage, categoryId, status, tags, authorId: bodyAuthorId } = body
+
+    // Admins and editors may specify a different authorId in the body.
+    // Writers always own the article themselves.
+    const isAdminOrEditorCreating = ['ADMIN', 'EDITOR'].includes(session!.user.role)
+    const effectiveAuthorId = (isAdminOrEditorCreating && bodyAuthorId)
+      ? bodyAuthorId
+      : session!.user.id
 
     // Title is optional for autosave - untitled drafts are valid
     const effectiveTitle = title ?? ''
@@ -136,7 +143,7 @@ export async function POST(request: NextRequest) {
         excerpt:    excerpt ?? null,
         coverImage: coverImage ?? null,
         categoryId: categoryId ?? null,
-        authorId:   session!.user.id,
+        authorId:   effectiveAuthorId,
         status:     status ?? 'DRAFT',
         publishedAt: status === 'PUBLISHED' ? new Date() : null,
       },

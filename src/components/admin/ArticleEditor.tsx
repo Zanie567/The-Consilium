@@ -39,6 +39,12 @@ interface Category {
   slug: string
 }
 
+interface UserOption {
+  id: string
+  name: string | null
+  role: string
+}
+
 interface ArticleEditorProps {
   articleId?: string
   initialData?: {
@@ -52,8 +58,10 @@ interface ArticleEditorProps {
     scheduledAt?: string | null
     editorNote?: string | null
     tags?: string[]
+    authorId?: string
   }
   categories: Category[]
+  /** The ID of the currently logged-in user — used as fallback when creating a new article */
   authorId: string
   canPublish: boolean
   returnUrl?: string
@@ -93,6 +101,15 @@ export function ArticleEditor({
   const { theme, setTheme } = useTheme()
   const [themeMounted, setThemeMounted] = useState(false)
   useEffect(() => setThemeMounted(true), [])
+
+  // Fetch the list of all editorial users so admins/editors can override the author
+  useEffect(() => {
+    if (isWriter) return // writers cannot change authorship
+    fetch('/api/editorial/users')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: UserOption[]) => { if (Array.isArray(data)) setUsers(data) })
+      .catch(() => {})
+  }, [isWriter])
   const isDark = theme === 'dark'
 
   // ── Field state ────────────────────────────────────────────────────────────
@@ -106,6 +123,9 @@ export function ArticleEditor({
   const [scheduledAt, setScheduledAt] = useState(initialData?.scheduledAt ?? '')
   const [tags, setTags]             = useState<string[]>(initialData?.tags ?? [])
   const [tagInput, setTagInput]     = useState('')
+  // Author override: default to the article's existing author, or the session user for new articles
+  const [selectedAuthorId, setSelectedAuthorId] = useState(initialData?.authorId ?? authorId)
+  const [users, setUsers]           = useState<UserOption[]>([])
 
   // ── UI state ───────────────────────────────────────────────────────────────
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
@@ -128,25 +148,27 @@ export function ArticleEditor({
 
   // Keep a ref copy of every field so the autosave callback always reads the
   // latest values without depending on state (avoids stale closure issues).
-  const titleRef      = useRef(title)
-  const slugRef       = useRef(slug)
-  const contentRef    = useRef(content)
-  const excerptRef    = useRef(excerpt)
-  const coverImageRef = useRef(coverImage)
-  const categoryIdRef = useRef(categoryId)
-  const statusRef     = useRef(status)
-  const scheduledAtRef= useRef(scheduledAt)
-  const tagsRef       = useRef(tags)
+  const titleRef           = useRef(title)
+  const slugRef            = useRef(slug)
+  const contentRef         = useRef(content)
+  const excerptRef         = useRef(excerpt)
+  const coverImageRef      = useRef(coverImage)
+  const categoryIdRef      = useRef(categoryId)
+  const statusRef          = useRef(status)
+  const scheduledAtRef     = useRef(scheduledAt)
+  const tagsRef            = useRef(tags)
+  const selectedAuthorIdRef= useRef(selectedAuthorId)
 
-  useEffect(() => { titleRef.current      = title      }, [title])
-  useEffect(() => { slugRef.current       = slug       }, [slug])
-  useEffect(() => { contentRef.current    = content    }, [content])
-  useEffect(() => { excerptRef.current    = excerpt    }, [excerpt])
-  useEffect(() => { coverImageRef.current = coverImage }, [coverImage])
-  useEffect(() => { categoryIdRef.current = categoryId }, [categoryId])
-  useEffect(() => { statusRef.current     = status     }, [status])
-  useEffect(() => { scheduledAtRef.current= scheduledAt}, [scheduledAt])
-  useEffect(() => { tagsRef.current       = tags       }, [tags])
+  useEffect(() => { titleRef.current           = title           }, [title])
+  useEffect(() => { slugRef.current            = slug            }, [slug])
+  useEffect(() => { contentRef.current         = content         }, [content])
+  useEffect(() => { excerptRef.current         = excerpt         }, [excerpt])
+  useEffect(() => { coverImageRef.current      = coverImage      }, [coverImage])
+  useEffect(() => { categoryIdRef.current      = categoryId      }, [categoryId])
+  useEffect(() => { statusRef.current          = status          }, [status])
+  useEffect(() => { scheduledAtRef.current     = scheduledAt     }, [scheduledAt])
+  useEffect(() => { tagsRef.current            = tags            }, [tags])
+  useEffect(() => { selectedAuthorIdRef.current= selectedAuthorId}, [selectedAuthorId])
 
   // DOM refs
   const titleDomRef   = useRef<HTMLTextAreaElement>(null)
@@ -195,7 +217,9 @@ export function ArticleEditor({
       excerpt:    excerptRef.current,
       coverImage: coverImageRef.current || null,
       categoryId: categoryIdRef.current || null,
-      authorId,
+      // Send the selected author — admins/editors can override; writers always
+      // use their own session ID (selectedAuthorIdRef defaults to authorId prop).
+      authorId:   selectedAuthorIdRef.current,
       status:     finalStatus,
       tags:       tagsRef.current,
       ...(finalStatus === 'SCHEDULED' && scheduledAtRef.current
@@ -464,6 +488,33 @@ export function ArticleEditor({
           <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-widest px-2 py-1 border rounded ${STATUS_COLOURS[currentStatus] ?? STATUS_COLOURS.DRAFT}`}>
             {STATUS_LABELS[currentStatus] ?? currentStatus}
           </span>
+        </div>
+      )}
+
+      {/* Author override — only visible to editors/admins */}
+      {!isWriter && users.length > 0 && (
+        <div>
+          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Author</label>
+          <div className="relative">
+            <select
+              value={selectedAuthorId}
+              onChange={(e) => {
+                setSelectedAuthorId(e.target.value)
+                selectedAuthorIdRef.current = e.target.value
+                scheduleAutosave()
+              }}
+              disabled={!canEdit}
+              className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer disabled:opacity-60"
+            >
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name ?? u.id}
+                  {u.role !== 'WRITER' ? ` (${u.role.charAt(0) + u.role.slice(1).toLowerCase()})` : ''}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
+          </div>
         </div>
       )}
 
@@ -1015,6 +1066,7 @@ export function ArticleEditor({
                 <TutorialSection title="Right panel">
                   <ul className="space-y-2 mt-1">
                     <TutorialItem label="Status">Draft while writing. Publish when ready (editors/admins) or Submit for review (writers).</TutorialItem>
+                    <TutorialItem label="Author">Editors and admins can reassign the article to any writer or editor. Defaults to your account for new articles.</TutorialItem>
                     <TutorialItem label="Category">Assign to News, Opinion, Analysis etc.</TutorialItem>
                     <TutorialItem label="Cover image">Paste a URL or upload a file</TutorialItem>
                     <TutorialItem label="Tags">Up to 10 tags. Press Enter or comma after each.</TutorialItem>

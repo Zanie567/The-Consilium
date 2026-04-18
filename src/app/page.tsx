@@ -324,7 +324,7 @@ export default async function HomePage({
                     {featured.category ? (
                       <span className="category-badge">{featured.category.name}</span>
                     ) : (
-                      <span />
+                      <span aria-hidden="true" />
                     )}
                     <span className="flex items-center gap-1 bg-navy/70 text-cream/90 text-[10px] font-semibold px-2 py-1 backdrop-blur-sm leading-none">
                       <Clock size={9} className="shrink-0" />
