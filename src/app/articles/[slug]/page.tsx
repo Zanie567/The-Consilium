@@ -274,12 +274,12 @@ export default async function ArticlePage({ params }: Props) {
 
       {/* Cover Image */}
       {article.coverImage && (
-        <div className="relative h-72 sm:h-96 md:h-[520px] w-full overflow-hidden bg-[#f5f4f0] no-print">
+        <div className="relative h-[260px] md:h-[480px] w-full overflow-hidden no-print">
           <BlurImage
             src={article.coverImage}
             alt={article.title}
             fill
-            className="object-contain"
+            className="object-cover"
             priority
             sizes="100vw"
           />
