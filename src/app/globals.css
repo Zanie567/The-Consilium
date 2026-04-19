@@ -574,13 +574,13 @@ body {
 
 /* ─── Utility: card hover ──────────────────────────────────────────────────── */
 .card-hover {
-  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-              box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 200ms ease,
+              box-shadow 200ms ease;
   will-change: transform;
 }
 .card-hover:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(26, 39, 68, 0.12);
 }
 .card-hover:active {
   transform: translateY(-1px);
@@ -609,12 +609,12 @@ body {
 }
 .img-zoom img,
 .img-zoom > div > img {
-  transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 200ms ease;
   will-change: transform;
 }
 .img-zoom:hover img,
 .img-zoom:hover > div > img {
-  transform: scale(1.05);
+  transform: scale(1.03);
 }
 
 /* ─── Link underline reveal ────────────────────────────────────────────────── */
