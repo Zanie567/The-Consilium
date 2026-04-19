@@ -613,7 +613,9 @@ body {
   will-change: transform;
 }
 .img-zoom:hover img,
-.img-zoom:hover > div > img {
+.img-zoom:hover > div > img,
+.group:hover .img-zoom img,
+.group:hover .img-zoom > div > img {
   transform: scale(1.03);
 }
 

@@ -298,7 +298,7 @@ export default async function HomePage({
         {/* ── Featured Article ─────────────────────────────────────────────── */}
         {featured ? (
           <AnimateIn variant="fade-up" duration={0.6} className="mb-14">
-            <div className="overflow-hidden group border border-[var(--border)]">
+            <div className="overflow-hidden group border border-[var(--border)] transition-[border-color] duration-300 hover:border-gold/40">
               <div className="grid grid-cols-1 lg:grid-cols-2">
                 {/* Image */}
                 <div className="relative h-64 lg:h-auto lg:min-h-[400px] bg-navy-light overflow-hidden img-zoom">
@@ -338,7 +338,7 @@ export default async function HomePage({
                 </div>
 
                 {/* Content */}
-                <div className="p-8 lg:p-12 flex flex-col justify-center border-t lg:border-t-0 lg:border-l border-[var(--border)]">
+                <div className="p-8 lg:p-12 flex flex-col justify-center border-t lg:border-t-0 lg:border-l border-[var(--border)] transition-[border-color] duration-300 group-hover:border-gold/40">
                   <div className="text-gold/50 text-[0.65rem] tracking-[0.3em] uppercase mb-3 font-semibold">
                     Featured
                   </div>
