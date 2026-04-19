@@ -34,7 +34,7 @@ function NavLink({
     <Link
       href={href}
       onClick={onClick}
-      className={`relative text-xs font-semibold tracking-widest uppercase py-1 transition-colors duration-200 ${
+      className={`relative text-xs font-semibold tracking-widest uppercase py-1 transition-[colors,transform] duration-100 active:scale-[0.95] active:opacity-75 ${
         active ? 'text-gold' : 'text-cream/70 hover:text-cream'
       }`}
     >
@@ -310,14 +310,14 @@ export function Navbar() {
                 {navLinks.map((link, i) => (
                   <motion.div
                     key={link.href}
-                    initial={prefersReducedMotion ? undefined : { opacity: 0, x: 16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.04 + 0.05, duration: 0.2 }}
+                    initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }}
                   >
                     <Link
                       href={link.href}
                       onClick={() => setMobileOpen(false)}
-                      className={`block py-3 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-colors duration-150 ${
+                      className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[colors,transform] duration-100 active:scale-[0.97] active:opacity-80 ${
                         isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold'
                       }`}
                     >

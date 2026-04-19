@@ -128,9 +128,10 @@ export function DebatePanel({ initialData }: Props) {
             </div>
             <Link
               href={`/articles/${data.forArticle.slug}`}
-              className="mt-3 inline-flex items-center gap-1 text-navy text-xs font-bold uppercase tracking-widest hover:gap-2 transition-all duration-200"
+              className="mt-3 inline-flex items-center gap-2 text-navy text-xs font-bold uppercase tracking-widest group/link hover:gap-3 transition-all duration-200"
             >
-              Read the argument →
+              Read the argument
+              <span className="inline-block transition-transform duration-200 group-hover/link:translate-x-1">→</span>
             </Link>
           </div>
         </div>
@@ -159,9 +160,10 @@ export function DebatePanel({ initialData }: Props) {
             </div>
             <Link
               href={`/articles/${data.againstArticle.slug}`}
-              className="mt-3 inline-flex items-center gap-1 text-gold text-xs font-bold uppercase tracking-widest hover:gap-2 transition-all duration-200"
+              className="mt-3 inline-flex items-center gap-2 text-gold text-xs font-bold uppercase tracking-widest group/link hover:gap-3 transition-all duration-200"
             >
-              Read the argument →
+              Read the argument
+              <span className="inline-block transition-transform duration-200 group-hover/link:translate-x-1">→</span>
             </Link>
           </div>
         </div>

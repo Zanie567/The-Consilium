@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { EditorialSidebarWrapper } from '@/components/layout/EditorialSidebarWrapper'
+import { PortalTransition } from '@/components/editorial/PortalTransition'
 
 const EDITORIAL_ROLES = ['ADMIN', 'EDITOR', 'WRITER']
 
@@ -64,8 +65,10 @@ export default async function EditorialLayout({
       <Suspense fallback={<div className="hidden md:block w-[220px] shrink-0" style={{ background: '#0F1623' }} />}>
         <EditorialSidebarWrapper user={verifiedUser} trashCount={trashCount} />
       </Suspense>
-      {/* Main content: full-width on mobile (sidebar is overlay), flex-1 on desktop */}
-      <main className="flex-1 min-w-0 overflow-auto">{children}</main>
+      {/* Main content wrapped in page-transition component */}
+      <main className="flex-1 min-w-0 overflow-auto">
+        <PortalTransition>{children}</PortalTransition>
+      </main>
     </div>
   )
 }

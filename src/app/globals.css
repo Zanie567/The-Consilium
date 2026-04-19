@@ -613,7 +613,9 @@ body {
   will-change: transform;
 }
 .img-zoom:hover img,
-.img-zoom:hover > div > img {
+.img-zoom:hover > div > img,
+.group:hover .img-zoom img,
+.group:hover .img-zoom > div > img {
   transform: scale(1.03);
 }
 
@@ -1070,4 +1072,54 @@ mark {
   /* Skeleton: freeze without shimmer */
   .skeleton-shimmer { animation: none; background: #ede8e0; }
   .dark .skeleton-shimmer { background: #1e2d50; }
+}
+
+/* ─── Mobile & tablet animation primitives ────────────────────────────────── */
+
+/*
+ * Portal page-enter animation.
+ * Applied via PortalTransition component which re-keys on pathname change,
+ * causing React to remount the div and re-run the animation on every navigation.
+ *
+ * Outgoing: the old element is removed instantly (React unmounts it).
+ * Incoming: this animation plays — opacity 0→1, translateY 8px→0 over 200ms.
+ */
+@keyframes portal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.portal-page-enter {
+  animation: portal-enter 200ms ease-out both;
+}
+
+/*
+ * Universal tap feedback — scale-compress on press.
+ * Apply the .tap class to any interactive element that needs tactile feedback.
+ * This supplements Tailwind's active: variants for cases where a global rule
+ * is cleaner than per-element classes.
+ */
+.tap {
+  transition: transform 100ms ease, opacity 100ms ease;
+}
+.tap:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+/* Icon buttons compress a little more */
+.tap-icon:active {
+  transform: scale(0.92);
+  opacity: 0.75;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-page-enter { animation: none; }
+  .tap:active, .tap-icon:active { transform: none; }
 }

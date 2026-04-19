@@ -34,7 +34,7 @@ export default async function EditorialDashboard() {
   // BUG-05: Wrap all DB queries so a failure surfaces as an error banner rather
   // than silently returning empty data that makes the dashboard look healthy.
   let fetchError = false
-  const [myArticles, pendingArticles, publishedCount, myDrafts, totalViews, userCount, scheduledCount] =
+  const [myArticles, pendingArticles, publishedCount, myDrafts, totalViews, userCount] =
     await Promise.all([
       prisma.article.findMany({
         where: role === 'WRITER' ? { authorId: userId, deletedAt: null } : { deletedAt: null },
@@ -85,18 +85,10 @@ export default async function EditorialDashboard() {
       isEditor
         ? prisma.user.count({ where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] } } })
         : Promise.resolve(0),
-
-      prisma.article.count({
-        where: {
-          status: 'SCHEDULED',
-          deletedAt: null,
-          ...(role === 'WRITER' ? { authorId: userId } : {}),
-        },
-      }),
     ]).catch((err) => {
       console.error('[editorial/dashboard] DB error:', err)
       fetchError = true
-      return [[], [], 0, [], 0, 0, 0] as const
+      return [[], [], 0, [], 0, 0] as const
     })
 
   const statusColour: Record<string, string> = {
@@ -137,19 +129,13 @@ export default async function EditorialDashboard() {
           >
             Welcome back.
           </h1>
-          {isEditor && pendingArticles.length > 0 ? (
-            <p className="text-amber-600 dark:text-amber-400 text-sm font-medium">
-              You have {pendingArticles.length} article{pendingArticles.length !== 1 ? 's' : ''} awaiting review.
-            </p>
-          ) : scheduledCount > 0 ? (
-            <p className="text-[var(--fg-muted)] text-sm">
-              You have {scheduledCount} article{scheduledCount !== 1 ? 's' : ''} scheduled to publish.
-            </p>
-          ) : (
-            <p className="text-[var(--fg-faint)] text-sm">
-              {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
-          )}
+          <p className="text-[var(--fg-muted)] text-sm">
+            {isAdmin
+              ? 'You have full editorial access.'
+              : isEditor
+              ? 'Manage the review queue and editorial content.'
+              : 'Write and manage your articles.'}
+          </p>
         </div>
         <NotificationBell />
       </PortalSection>
@@ -190,7 +176,7 @@ export default async function EditorialDashboard() {
             {pendingArticles.map((article, i) => (
               <div
                 key={article.id}
-                className={`flex items-start sm:items-center gap-3 sm:gap-4 px-4 sm:px-6 py-4 hover:bg-[rgba(201,168,76,0.04)] transition-colors duration-150 ${
+                className={`flex items-start sm:items-center gap-3 sm:gap-4 px-4 sm:px-6 py-4 hover:bg-[var(--bg-subtle)] transition-colors ${
                   i > 0 ? 'border-t border-[var(--border)]' : ''
                 }`}
               >
@@ -223,20 +209,20 @@ export default async function EditorialDashboard() {
       <PortalSection className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mb-6 sm:mb-8">
         <Link
           href="/editorial/articles/new"
-          className="flex items-center justify-center gap-2 bg-navy text-gold px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors min-h-[44px]"
+          className="flex items-center justify-center gap-2 bg-navy text-gold px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
         >
           + New Article
         </Link>
         <Link
           href="/editorial/articles"
-          className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-colors min-h-[44px]"
+          className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
         >
           All Articles
         </Link>
         {isEditor && (
           <Link
             href="/editorial/users"
-            className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-colors min-h-[44px]"
+            className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
           >
             Manage Users
           </Link>
@@ -244,7 +230,7 @@ export default async function EditorialDashboard() {
         {isEditor && (
           <Link
             href="/editorial/series"
-            className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-colors min-h-[44px]"
+            className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
           >
             Article Series
           </Link>
@@ -312,8 +298,8 @@ export default async function EditorialDashboard() {
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]">
                   {myArticles.map((article) => (
-                    <tr key={article.id} className="hover:bg-[rgba(201,168,76,0.04)] transition-colors duration-150">
-                      <td className="px-6 py-3">
+                    <tr key={article.id} className="hover:bg-[#faf8f4] active:bg-gold/10 transition-colors duration-100 cursor-pointer" style={{ minHeight: '52px' }}>
+                      <td className="px-6 py-3" style={{ minHeight: '52px' }}>
                         <Link
                           href={`/editorial/articles/${article.id}/edit`}
                           className="font-medium text-[var(--fg)] hover:text-gold transition-colors line-clamp-1"
@@ -373,9 +359,9 @@ function StatCard({
       : 'text-[var(--fg)]'
 
   return (
-    <div className="border-l-[3px] border-l-[#c9a84c] border border-[var(--border)] bg-[rgba(201,168,76,0.04)] p-4 sm:p-5">
-      <p className="text-[var(--fg-faint)] text-[10px] tracking-widest uppercase mb-2 truncate">{label}</p>
-      <p className={`text-4xl sm:text-5xl font-bold leading-none ${valueClass}`} style={{ fontFamily: 'var(--font-serif)' }}>
+    <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-4 sm:p-5 shadow-[var(--shadow-card)]">
+      <p className="text-[var(--fg-faint)] text-[10px] sm:text-xs uppercase tracking-widest mb-1 sm:mb-2 truncate">{label}</p>
+      <p className={`text-2xl sm:text-3xl font-bold ${valueClass}`} style={{ fontFamily: 'var(--font-serif)' }}>
         {value}
       </p>
     </div>
