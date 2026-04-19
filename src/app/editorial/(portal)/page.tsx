@@ -209,20 +209,20 @@ export default async function EditorialDashboard() {
       <PortalSection className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mb-6 sm:mb-8">
         <Link
           href="/editorial/articles/new"
-          className="flex items-center justify-center gap-2 bg-navy text-gold px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors min-h-[44px]"
+          className="flex items-center justify-center gap-2 bg-navy text-gold px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
         >
           + New Article
         </Link>
         <Link
           href="/editorial/articles"
-          className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-colors min-h-[44px]"
+          className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
         >
           All Articles
         </Link>
         {isEditor && (
           <Link
             href="/editorial/users"
-            className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-colors min-h-[44px]"
+            className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
           >
             Manage Users
           </Link>
@@ -230,7 +230,7 @@ export default async function EditorialDashboard() {
         {isEditor && (
           <Link
             href="/editorial/series"
-            className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-colors min-h-[44px]"
+            className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
           >
             Article Series
           </Link>
@@ -298,8 +298,8 @@ export default async function EditorialDashboard() {
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]">
                   {myArticles.map((article) => (
-                    <tr key={article.id} className="hover:bg-[var(--bg-subtle)] transition-colors">
-                      <td className="px-6 py-3">
+                    <tr key={article.id} className="hover:bg-[#faf8f4] active:bg-gold/10 transition-colors duration-100 cursor-pointer" style={{ minHeight: '52px' }}>
+                      <td className="px-6 py-3" style={{ minHeight: '52px' }}>
                         <Link
                           href={`/editorial/articles/${article.id}/edit`}
                           className="font-medium text-[var(--fg)] hover:text-gold transition-colors line-clamp-1"

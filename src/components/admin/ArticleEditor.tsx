@@ -964,31 +964,59 @@ export function ArticleEditor({
         </div>
       </div>
 
-      {/* Mobile settings drawer */}
-      {settingsOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-[60] bg-black/20"
+      {/*
+       * Mobile metadata bottom sheet
+       *
+       * Always rendered so CSS transitions fire on open/close.
+       * Slides up from translateY(100%) → translateY(0) in 300ms with
+       * Material Design easing: cubic-bezier(0.4, 0, 0.2, 1).
+       * Backdrop fades in simultaneously.
+       */}
+
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-[60] bg-black/40 transition-opacity duration-300"
+        style={{
+          opacity: settingsOpen ? 1 : 0,
+          pointerEvents: settingsOpen ? 'auto' : 'none',
+        }}
+        onClick={() => setSettingsOpen(false)}
+        aria-hidden
+      />
+
+      {/* Bottom sheet */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-[61] bg-white rounded-t-2xl shadow-2xl overflow-hidden flex flex-col"
+        style={{
+          maxHeight: '82vh',
+          transform: settingsOpen ? 'translateY(0)' : 'translateY(100%)',
+          transition: 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+          willChange: 'transform',
+        }}
+        aria-hidden={!settingsOpen}
+      >
+        {/* Drag handle — decorative iOS-style pill */}
+        <div className="flex justify-center pt-3 pb-1 shrink-0">
+          <div className="w-10 h-1 rounded-full bg-[#d0d0d0]" />
+        </div>
+
+        {/* Sheet header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#e8e8e8] shrink-0">
+          <span className="text-sm font-semibold text-[#333]">Document settings</span>
+          <button
             onClick={() => setSettingsOpen(false)}
-          />
-          <div
-            className="fixed right-0 bottom-0 z-[61] w-72 bg-white border-l border-[#e0e0e0] overflow-y-auto p-4 shadow-xl"
-            style={{ top: 48 + toolbarHeight }}
+            className="text-[#999] hover:text-[#333] transition-colors p-1.5 rounded-md hover:bg-[#f1f3f4] active:scale-[0.92] transition-transform"
+            aria-label="Close settings"
           >
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-semibold text-[#333]">Document settings</span>
-              <button
-                onClick={() => setSettingsOpen(false)}
-                className="text-[#999] hover:text-[#333] transition-colors p-1 rounded hover:bg-[#f1f3f4]"
-                aria-label="Close settings"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            {renderMetadataFields()}
-          </div>
-        </>
-      )}
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="overflow-y-auto p-4 flex-1">
+          {renderMetadataFields()}
+        </div>
+      </div>
 
       {/* Tutorial modal */}
       {tutorialOpen && (
