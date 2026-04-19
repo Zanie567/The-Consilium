@@ -301,13 +301,13 @@ export default async function HomePage({
             <div className="overflow-hidden group border border-[var(--border)] transition-[border-color] duration-300 hover:border-gold/40">
               <div className="grid grid-cols-1 lg:grid-cols-2">
                 {/* Image */}
-                <div className="relative h-64 lg:h-auto lg:min-h-[400px] bg-navy-light overflow-hidden img-zoom">
+                <div className="relative h-64 lg:h-auto lg:min-h-[400px] bg-navy-light overflow-hidden">
                   {featured.coverImage ? (
                     <BlurImage
                       src={featured.coverImage}
                       alt={featured.title}
                       fill
-                      className="object-cover"
+                      className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
                       priority
                       sizes="(max-width: 1024px) 100vw, 50vw"
                     />
