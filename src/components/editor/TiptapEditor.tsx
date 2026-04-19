@@ -216,7 +216,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
     const fileInputRef      = useRef<HTMLInputElement>(null)
     const linkInputRef      = useRef<HTMLInputElement>(null)
     const fontSizeRef       = useRef<HTMLInputElement>(null)
-    const headingRef        = useRef<HTMLDivElement>(null)
     const colorPickerRef    = useRef<HTMLDivElement>(null)
     const highlightRef      = useRef<HTMLDivElement>(null)
     const tablePickerRef    = useRef<HTMLDivElement>(null)
@@ -226,7 +225,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
     const [linkUrl,            setLinkUrl]            = useState('')
     const [uploadError,        setUploadError]        = useState('')
     const [uploading,          setUploading]          = useState(false)
-    const [headingOpen,        setHeadingOpen]        = useState(false)
     const [colorOpen,          setColorOpen]          = useState(false)
     const [highlightOpen,      setHighlightOpen]      = useState(false)
     const [tableOpen,          setTableOpen]          = useState(false)
@@ -303,7 +301,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
     useEffect(() => {
       const handler = (e: MouseEvent) => {
         const target = e.target as globalThis.Node
-        if (headingRef.current    && !headingRef.current.contains(target))    setHeadingOpen(false)
         if (colorPickerRef.current && !colorPickerRef.current.contains(target)) setColorOpen(false)
         if (highlightRef.current  && !highlightRef.current.contains(target))  setHighlightOpen(false)
         if (tablePickerRef.current && !tablePickerRef.current.contains(target)) setTableOpen(false)
@@ -396,17 +393,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
     if (!editor) return null
 
-    // Current text style for dropdown
-    const getHeadingLabel = () => {
-      if (editor.isActive('heading', { level: 1 })) return 'Heading 1'
-      if (editor.isActive('heading', { level: 2 })) return 'Heading 2'
-      if (editor.isActive('heading', { level: 3 })) return 'Heading 3'
-      if (editor.isActive('heading', { level: 4 })) return 'Heading 4'
-      if (editor.isActive('blockquote'))           return 'Block Quote'
-      if (editor.isActive('codeBlock'))            return 'Code Block'
-      return 'Normal text'
-    }
-    const headingLabel = getHeadingLabel()
     const wordCount    = editor.storage.characterCount.words()
     const readingTime  = Math.max(1, Math.round(wordCount / 200))
 
@@ -427,10 +413,14 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         title={title}
         disabled={dis}
         style={style}
-        className={`p-1.5 rounded transition-all min-w-[28px] h-7 flex items-center justify-center ${
+        className={`p-2 rounded min-w-[30px] h-8 flex items-center justify-center ${
           active
-            ? darkMode ? 'bg-white/15 text-white' : 'bg-[#1a2744]/10 text-[#1a2744] dark:bg-gold/20 dark:text-gold'
-            : darkMode ? 'text-white/70 hover:bg-white/8' : 'text-[#444] dark:text-[var(--fg-muted)] hover:bg-black/8 dark:hover:bg-white/10'
+            ? darkMode
+              ? 'bg-white/20 text-white ring-1 ring-white/30'
+              : 'bg-[#1a2744]/20 text-[#1a2744] ring-1 ring-[#1a2744]/30 font-semibold'
+            : darkMode
+              ? 'text-white/70 hover:bg-white/8 transition-colors duration-100'
+              : 'text-[#444] hover:bg-black/8 transition-colors duration-100'
         } disabled:opacity-30`}
       >
         {children}
@@ -455,7 +445,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
     )
 
     const Sep = () => (
-      <div className="w-px mx-1 self-stretch bg-black/10 dark:bg-white/10" />
+      <div className="w-px mx-2.5 self-stretch bg-black/10 dark:bg-white/10" />
     )
 
     return (
@@ -489,25 +479,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
           </div>
         )}
 
-        {/* Bubble menu for selected text */}
-        {editable && (
-          <BubbleMenu
-            editor={editor}
-            shouldShow={({ editor: ed }) => !ed.isActive('table')}
-          >
-            <div className="flex items-center gap-0.5 bg-navy border border-gold/20 shadow-2xl px-1.5 py-1 rounded">
-              <BubbleBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold"><Bold size={13} /></BubbleBtn>
-              <BubbleBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Italic"><Italic size={13} /></BubbleBtn>
-              <BubbleBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} title="Underline"><UnderlineIcon size={13} /></BubbleBtn>
-              <BubbleBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} title="Strikethrough"><Strikethrough size={13} /></BubbleBtn>
-              <div className="w-px h-4 bg-gold/20 mx-0.5" />
-              <BubbleBtn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} title="Heading 2"><span className="text-xs font-bold">H2</span></BubbleBtn>
-              <BubbleBtn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })} title="Heading 3"><span className="text-xs font-bold">H3</span></BubbleBtn>
-              <div className="w-px h-4 bg-gold/20 mx-0.5" />
-              <BubbleBtn onClick={openLinkBar} active={editor.isActive('link')} title="Add link"><Link2 size={13} /></BubbleBtn>
-            </div>
-          </BubbleMenu>
-        )}
+        {/* Text-selection bubble menu removed — all formatting options live in the fixed toolbar */}
 
         {editable && (
           <BubbleMenu
@@ -533,7 +505,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         {/* ── Toolbar ────────────────────────────────────────────────────────── */}
         {editable && (() => {
           const toolbarContent = (
-            <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-2 py-1 flex flex-wrap gap-0.5 items-center w-full h-full overflow-x-auto">
+            <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-4 py-1.5 flex flex-wrap gap-1 items-center w-full h-full">
 
             {/* Group 1: History */}
             <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo (Ctrl+Z)">
@@ -546,75 +518,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
               <Printer size={15} />
             </ToolbarBtn>
 
-            <Sep />
-
-            {/* Group 2: Text style dropdown */}
-            <div className="relative" ref={headingRef}>
-              <button
-                type="button"
-                onMouseDown={(e) => { e.preventDefault(); setHeadingOpen((o) => !o) }}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-[#444] dark:text-[var(--fg-muted)] hover:bg-black/8 dark:hover:bg-white/10 transition-colors min-w-[110px] h-7"
-                title="Text style"
-              >
-                <span className="flex-1 text-left truncate">{headingLabel}</span>
-                <ChevronDown size={11} className={`shrink-0 transition-transform ${headingOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {headingOpen && (
-                <div className="absolute left-0 top-full mt-1 bg-white dark:bg-[var(--bg-elevated)] border border-black/10 dark:border-white/10 shadow-xl z-50 min-w-[160px] rounded overflow-hidden">
-                  {[
-                    { label: 'Normal text', action: () => editor.chain().focus().setParagraph().run(), isActive: !editor.isActive('heading') && !editor.isActive('blockquote') && !editor.isActive('codeBlock'), size: '1rem' },
-                    { label: 'Heading 1', action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(), isActive: editor.isActive('heading', { level: 1 }), size: '1.6rem', weight: 700 },
-                    { label: 'Heading 2', action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(), isActive: editor.isActive('heading', { level: 2 }), size: '1.3rem', weight: 700 },
-                    { label: 'Heading 3', action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(), isActive: editor.isActive('heading', { level: 3 }), size: '1.1rem', weight: 700 },
-                    { label: 'Heading 4', action: () => editor.chain().focus().toggleHeading({ level: 4 }).run(), isActive: editor.isActive('heading', { level: 4 }), size: '1rem', weight: 700 },
-                  ].map(({ label, action, isActive, size, weight }) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onMouseDown={(e) => { e.preventDefault(); action(); setHeadingOpen(false) }}
-                      className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                        isActive
-                          ? 'bg-[#1a2744]/8 text-[#1a2744] dark:text-gold'
-                          : 'text-[#333] dark:text-[var(--fg)] hover:bg-black/5 dark:hover:bg-white/5'
-                      }`}
-                      style={{ fontFamily: weight ? 'var(--font-serif)' : undefined, fontSize: size, fontWeight: weight }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <Sep />
-
-            {/* Group 3: Font name */}
-            <div className="px-2 py-1 text-xs text-[#666] dark:text-[var(--fg-faint)] select-none h-7 flex items-center" title="Font">
-              Playfair
-            </div>
-
-            <Sep />
-
-            {/* Group 4: Font size */}
-            <ToolbarBtn onClick={() => changeFontSize(-1)} title="Decrease font size">
-              <span className="text-xs font-bold leading-none">A-</span>
-            </ToolbarBtn>
-            <input
-              ref={fontSizeRef}
-              type="number"
-              value={fontSizeInput}
-              onChange={(e) => setFontSizeInput(e.target.value)}
-              onBlur={(e) => applyFontSize(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyFontSize(fontSizeInput) } }}
-              min={6}
-              max={96}
-              className="w-10 h-7 text-center text-xs border border-black/15 dark:border-white/15 bg-transparent rounded focus:outline-none focus:border-[#1a2744] dark:focus:border-gold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              title="Font size"
-            />
-            <ToolbarBtn onClick={() => changeFontSize(1)} title="Increase font size">
-              <span className="text-xs font-bold leading-none">A+</span>
-            </ToolbarBtn>
 
             <Sep />
 
@@ -966,7 +869,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
           />
         ) : (
           <div className="editor-outer min-h-[600px] py-8 px-4">
-            <div className="editor-page max-w-[816px] mx-auto">
+            <div className="editor-page max-w-[1000px] mx-auto">
               <EditorContent
                 editor={editor}
                 className={`tiptap-editor ${darkMode ? 'editor-dark-mode' : ''} ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}

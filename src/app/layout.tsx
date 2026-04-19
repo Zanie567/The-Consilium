@@ -8,6 +8,7 @@ import { ThemeProvider } from '@/providers/ThemeProvider'
 import { ScrollIndicator } from '@/components/ui/ScrollIndicator'
 import { SignupPrompt } from '@/components/ui/SignupPrompt'
 import { CookieConsentBanner } from '@/components/ui/CookieConsent'
+import { InstallBanner } from '@/components/ui/InstallBanner'
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -73,6 +74,7 @@ export default function RootLayout({
             <Footer />
             <SignupPrompt />
             <CookieConsentBanner />
+            <InstallBanner />
           </AuthProvider>
         </ThemeProvider>
       </body>

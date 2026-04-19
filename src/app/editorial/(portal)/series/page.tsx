@@ -27,15 +27,15 @@ export default async function SeriesPage() {
       orderBy: { createdAt: 'desc' },
     }),
     prisma.article.findMany({
-      where: { status: 'PUBLISHED' },
+      where: { status: 'PUBLISHED', deletedAt: null },
       select: { id: true, title: true, seriesId: true, seriesOrder: true },
       orderBy: { publishedAt: 'desc' },
     }),
   ])
 
   return (
-    <PortalPage className="p-6 lg:p-8 max-w-4xl">
-      <PortalSection className="mb-8">
+    <PortalPage className="p-4 sm:p-6 lg:p-8 max-w-4xl">
+      <PortalSection className="mb-6 sm:mb-8 pl-10 md:pl-0">
         <h1
           className="text-2xl font-bold text-[var(--fg)] mb-1"
           style={{ fontFamily: 'var(--font-serif)' }}

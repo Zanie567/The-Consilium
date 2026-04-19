@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, articleSubmittedEmail } from '@/lib/email'
+import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
 
 export async function GET(
   _req: NextRequest,
@@ -21,7 +22,7 @@ export async function GET(
         tags: { include: { tag: true } },
       },
     })
-    if (!article) return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!article || article.deletedAt) return Response.json({ error: 'Not found' }, { status: 404 })
 
     const isOwner = session?.user?.id === article.authorId
     const isAdmin = session?.user?.role === 'ADMIN'
@@ -94,7 +95,7 @@ export async function PUT(
       where: { id },
       include: { author: true, category: true },
     })
-    if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!existing || existing.deletedAt) return Response.json({ error: 'Not found' }, { status: 404 })
 
     // Writers can only edit their own articles
     if (!isAdminOrEditor && existing.authorId !== session!.user.id) {
@@ -117,6 +118,7 @@ export async function PUT(
     const {
       title, slug, content, excerpt, coverImage, categoryId, status,
       corrected, correctionNote, seriesId, seriesOrder, tags, scheduledAt,
+      authorId: bodyAuthorId,
     } = body
 
     const nextCategoryId = categoryId !== undefined ? (categoryId || null) : existing.categoryId
@@ -131,8 +133,8 @@ export async function PUT(
 
     // Validate scheduledAt is in the future when scheduling
     if (finalStatus === 'SCHEDULED' && scheduledAt) {
-      const scheduledDate = new Date(scheduledAt)
-      if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
+      const scheduledDate = parseEditorialScheduleInput(scheduledAt)
+      if (!scheduledDate || scheduledDate <= new Date()) {
         return Response.json({ error: 'Scheduled date must be in the future.' }, { status: 400 })
       }
     }
@@ -153,6 +155,8 @@ export async function PUT(
         ...(excerpt !== undefined && { excerpt }),
         ...(coverImage !== undefined && { coverImage: coverImage || null }),
         ...(categoryId !== undefined && { categoryId: categoryId || null }),
+        // Admins and editors may reassign the article to a different author
+        ...(isAdminOrEditor && bodyAuthorId && { authorId: bodyAuthorId }),
         ...(corrected !== undefined && { corrected }),
         ...(correctionNote !== undefined && { correctionNote }),
         ...(seriesId !== undefined && { seriesId: seriesId || null }),
@@ -161,7 +165,7 @@ export async function PUT(
         ...(wasJustSubmitted && { editorNote: null }),
         status: finalStatus,
         scheduledAt: finalStatus === 'SCHEDULED' && scheduledAt
-          ? new Date(scheduledAt)
+          ? parseEditorialScheduleInput(scheduledAt)
           : finalStatus !== 'SCHEDULED'
           ? null
           : existing.scheduledAt,
@@ -273,13 +277,14 @@ export async function DELETE(
 
   try {
     const existing = await prisma.article.findUnique({ where: { id } })
-    if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!existing || existing.deletedAt) return Response.json({ error: 'Not found' }, { status: 404 })
 
     if (!isAdminOrEditor && existing.authorId !== session!.user.id) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    await prisma.article.delete({ where: { id } })
+    // Soft delete — move to trash; permanently removed after 30 days by the cron job
+    await prisma.article.update({ where: { id }, data: { deletedAt: new Date() } })
     return Response.json({ success: true })
   } catch {
     return Response.json({ error: 'Failed to delete article' }, { status: 500 })

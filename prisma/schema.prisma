@@ -178,6 +178,7 @@ model Article {
   seriesId       String?
   series         Series?       @relation(fields: [seriesId], references: [id])
   seriesOrder    Int?
+  deletedAt      DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 

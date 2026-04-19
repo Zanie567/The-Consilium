@@ -46,7 +46,7 @@ export async function GET(req: Request) {
 
   const articleIds = rows.map((r) => r.article_id)
   const articles = await prisma.article.findMany({
-    where: { id: { in: articleIds } },
+    where: { id: { in: articleIds }, deletedAt: null },
     select: {
       id: true,
       title: true,

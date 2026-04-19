@@ -47,17 +47,40 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // ── Publish logic ──────────────────────────────────────────────────────────
   try {
-    const published = await publishScheduledArticles()
+    const result = await publishScheduledArticles()
 
-    if (published.length === 0) {
-      // Normal - nothing to do right now.
+    if (result.published.length === 0 && result.dueCount === 0) {
       console.log('[publish-scheduled] No articles due for publishing')
-      return NextResponse.json({ published: 0, articles: [] })
+      return NextResponse.json({
+        ranAt: result.ranAt,
+        due: 0,
+        published: 0,
+        articles: [],
+        skipped: [],
+        warnings: [],
+      })
     }
 
-    return NextResponse.json({ published: published.length, ids: published })
+    for (const article of result.published) {
+      console.log(`[publish-scheduled] Published: "${article.title}" (${article.id})`)
+    }
+
+    for (const warning of result.warnings) {
+      console.error(
+        `[publish-scheduled] ${warning.stage} warning for ${warning.articleId}: ${warning.message}`
+      )
+    }
+
+    return NextResponse.json({
+      ranAt: result.ranAt,
+      due: result.dueCount,
+      published: result.published.length,
+      articles: result.published,
+      skipped: result.skipped,
+      warnings: result.warnings,
+      purged: result.purged,
+    })
   } catch (err) {
     // Surface the error in the response body so GitHub Actions logs show it.
     const message = err instanceof Error ? err.message : String(err)

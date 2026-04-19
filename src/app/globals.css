@@ -54,8 +54,8 @@
   --bg-elevated:   #ffffff;
   --bg-subtle:     #f5f0e8;
   --fg:            #1a2744;
-  --fg-muted:      rgba(26,39,68,0.55);
-  --fg-faint:      rgba(26,39,68,0.35);
+  --fg-muted:      rgba(26,39,68,0.75);
+  --fg-faint:      rgba(26,39,68,0.50);
   --border:        rgba(201,162,39,0.18);
   --border-strong: rgba(201,162,39,0.35);
   --ticker-pos:    #145a32;
@@ -151,7 +151,7 @@ body {
 
 /* ─── Prose styles for article content ────────────────────────────────────── */
 .prose-consilium {
-  color: #2d2d2d;
+  color: #1a1a1a;
   line-height: 1.85;
   font-size: 1.125rem;
 }

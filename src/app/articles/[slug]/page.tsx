@@ -25,7 +25,7 @@ interface Props {
 async function getArticle(slug: string) {
   try {
     return await prisma.article.findUnique({
-      where: { slug, status: 'PUBLISHED' },
+      where: { slug, status: 'PUBLISHED', deletedAt: null },
       include: {
         author: true,
         category: true,
@@ -33,7 +33,7 @@ async function getArticle(slug: string) {
         series: {
           include: {
             articles: {
-              where: { status: 'PUBLISHED' },
+              where: { status: 'PUBLISHED', deletedAt: null },
               select: { id: true, title: true, slug: true, seriesOrder: true },
               orderBy: { seriesOrder: 'asc' },
             },
@@ -70,7 +70,7 @@ async function getRelatedArticles(
 ) {
   try {
     const candidates = await prisma.article.findMany({
-      where: { status: 'PUBLISHED', id: { not: currentId } },
+      where: { status: 'PUBLISHED', id: { not: currentId }, deletedAt: null },
       take: 40,
       orderBy: { publishedAt: 'desc' },
       include: { author: true, category: true },
@@ -274,12 +274,12 @@ export default async function ArticlePage({ params }: Props) {
 
       {/* Cover Image */}
       {article.coverImage && (
-        <div className="relative h-72 sm:h-96 md:h-[520px] w-full overflow-hidden bg-[#f5f4f0] no-print">
+        <div className="relative h-[260px] md:h-[480px] w-full overflow-hidden no-print">
           <BlurImage
             src={article.coverImage}
             alt={article.title}
             fill
-            className="object-contain"
+            className="object-cover"
             priority
             sizes="100vw"
           />

@@ -1,22 +1,47 @@
+import { articlePublishedEmail, sendEmail } from '@/lib/email'
 import { prisma } from '@/lib/prisma'
-import { sendEmail, articlePublishedEmail } from '@/lib/email'
 
-export async function publishScheduledArticles(now = new Date()) {
+interface ScheduledPublishArticleResult {
+  id: string
+  title: string
+  slug: string
+}
+
+interface ScheduledPublishWarning {
+  articleId: string
+  title: string
+  stage: 'email' | 'notification'
+  message: string
+}
+
+export interface ScheduledPublishResult {
+  ranAt: string
+  dueCount: number
+  published: ScheduledPublishArticleResult[]
+  skipped: ScheduledPublishArticleResult[]
+  warnings: ScheduledPublishWarning[]
+  purged: number
+}
+
+export async function publishScheduledArticles(now = new Date()): Promise<ScheduledPublishResult> {
   const due = await prisma.article.findMany({
     where: {
       status: 'SCHEDULED',
       scheduledAt: { lte: now },
+      deletedAt: null,
     },
     include: { author: true },
     orderBy: { scheduledAt: 'asc' },
   })
 
-  const published: string[] = []
+  const published: ScheduledPublishArticleResult[] = []
+  const skipped: ScheduledPublishArticleResult[] = []
+  const warnings: ScheduledPublishWarning[] = []
 
   for (const article of due) {
-    // Compare-and-set so concurrent triggers do not double-publish and
-    // double-notify the same article.
-    const result = await prisma.article.updateMany({
+    // Use updateMany as a one-row compare-and-set so concurrent runs cannot
+    // double-publish or send duplicate side effects for the same article.
+    const updated = await prisma.article.updateMany({
       where: {
         id: article.id,
         status: 'SCHEDULED',
@@ -25,32 +50,73 @@ export async function publishScheduledArticles(now = new Date()) {
       data: {
         status: 'PUBLISHED',
         publishedAt: now,
+        scheduledAt: null,
       },
     })
 
-    if (result.count === 0) continue
+    const summary = { id: article.id, title: article.title, slug: article.slug }
+    if (updated.count === 0) {
+      skipped.push(summary)
+      continue
+    }
 
     if (article.author.email) {
       try {
         const { subject, html } = articlePublishedEmail(article.title, article.slug)
         await sendEmail({ to: article.author.email, subject, html })
-      } catch (emailErr) {
-        console.error(`[publish-scheduled] Email failed for article ${article.id}:`, emailErr)
+      } catch (error) {
+        warnings.push({
+          articleId: article.id,
+          title: article.title,
+          stage: 'email',
+          message: error instanceof Error ? error.message : String(error),
+        })
       }
     }
 
-    await prisma.notification.create({
-      data: {
-        userId: article.authorId,
-        type: 'published',
-        title: 'Article published',
-        message: `Your article "${article.title}" has been published.`,
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: article.authorId,
+          type: 'published',
+          title: 'Article published',
+          message: `Your article "${article.title}" has been published.`,
+          articleId: article.id,
+        },
+      })
+    } catch (error) {
+      warnings.push({
         articleId: article.id,
-      },
-    })
+        title: article.title,
+        stage: 'notification',
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
 
-    published.push(article.id)
+    published.push(summary)
   }
 
-  return published
+  // Permanently purge articles soft-deleted more than 30 days ago
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  let purged = 0
+  try {
+    const result = await prisma.article.deleteMany({
+      where: { deletedAt: { not: null, lte: thirtyDaysAgo } },
+    })
+    purged = result.count
+    if (purged > 0) {
+      console.log(`[scheduledPublishing] Purged ${purged} article(s) from trash (>30 days old)`)
+    }
+  } catch {
+    // Never let purge failure block publishing results
+  }
+
+  return {
+    ranAt: now.toISOString(),
+    dueCount: due.length,
+    published,
+    skipped,
+    warnings,
+    purged,
+  }
 }

@@ -4,8 +4,9 @@ import { cookies } from 'next/headers'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/lib/auth'
-import { format } from 'date-fns'
 import { Clock } from 'lucide-react'
+import { ClientDate } from '@/components/ui/ClientDate'
+import { format } from 'date-fns'
 import { NewsletterSignup } from '@/components/ui/NewsletterSignup'
 import { CategoryTabs } from '@/components/ui/CategoryTabs'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
@@ -24,12 +25,12 @@ async function getFeaturedArticle() {
     // First try explicitly featured, then fall back to most recent published
     // Debate articles are excluded - they live on /opinion-debate
     const featured = await prisma.article.findFirst({
-      where: { status: 'PUBLISHED', isFeatured: true, isDebate: false },
+      where: { status: 'PUBLISHED', isFeatured: true, isDebate: false, deletedAt: null },
       include: { author: true, category: true },
     })
     if (featured) return featured
     return await prisma.article.findFirst({
-      where: { status: 'PUBLISHED', isDebate: false },
+      where: { status: 'PUBLISHED', isDebate: false, deletedAt: null },
       orderBy: { publishedAt: 'desc' },
       include: { author: true, category: true },
     })
@@ -50,7 +51,7 @@ async function getMostReadArticles() {
     })
     if (topIds.length === 0) {
       return prisma.article.findMany({
-        where: { status: 'PUBLISHED', isDebate: false },
+        where: { status: 'PUBLISHED', isDebate: false, deletedAt: null },
         orderBy: { viewCount: 'desc' },
         take: 5,
         select: { id: true, title: true, slug: true, viewCount: true, author: { select: { name: true } }, category: { select: { name: true } } },
@@ -58,7 +59,7 @@ async function getMostReadArticles() {
     }
     const ids = topIds.map((r) => r.articleId)
     const articles = await prisma.article.findMany({
-      where: { id: { in: ids }, status: 'PUBLISHED', isDebate: false },
+      where: { id: { in: ids }, status: 'PUBLISHED', isDebate: false, deletedAt: null },
       select: { id: true, title: true, slug: true, viewCount: true, author: { select: { name: true } }, category: { select: { name: true } } },
     })
     // Sort by weekly views order
@@ -74,6 +75,7 @@ async function getArticles(categorySlug?: string) {
       where: {
         status: 'PUBLISHED',
         isDebate: false,
+        deletedAt: null,
         ...(categorySlug ? { category: { slug: categorySlug } } : {}),
       },
       orderBy: { publishedAt: 'desc' },
@@ -178,6 +180,7 @@ async function getTrendingTags() {
         article: {
           status: 'PUBLISHED',
           publishedAt: { gte: thirtyDaysAgo },
+          deletedAt: null,
         },
       },
       include: {
@@ -205,29 +208,19 @@ async function getTrendingTags() {
   }
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-  try {
-    const debate = await prisma.debate.findFirst({ where: { isActive: true }, select: { title: true } })
-    if (debate) {
-      return {
-        title: `${debate.title} | The Consilium`,
-        description: `Read both sides and vote in our latest debate: ${debate.title}`,
-        openGraph: {
-          title: `Debate: ${debate.title}`,
-          description: `Read both sides and cast your vote on The Consilium.`,
-        },
-        twitter: {
-          card: 'summary',
-          title: `Debate: ${debate.title}`,
-          description: `Read both sides and cast your vote on The Consilium.`,
-        },
-      }
-    }
-  } catch { /* fall through */ }
-  return {
-    title: 'The Consilium | University of Edinburgh Economics Society',
-    description: 'Economics analysis, opinion, and research from the University of Edinburgh.',
-  }
+// Title is inherited from layout's `default` ("The Consilium | University of Edinburgh Economics Society")
+// — do NOT set a title here so the template does not double-wrap it.
+export const metadata: Metadata = {
+  description: 'Economics analysis, opinion, and research from the University of Edinburgh.',
+  openGraph: {
+    title: 'The Consilium',
+    description: 'The voice of the University of Edinburgh Economics Society.',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'The Consilium',
+    description: 'The voice of the University of Edinburgh Economics Society.',
+  },
 }
 
 export default async function HomePage({
@@ -270,7 +263,7 @@ export default async function HomePage({
         />
         <div className="relative">
           <AnimateIn variant="fade-in" duration={0.5}>
-            <p className="text-gold/60 text-[0.65rem] tracking-[0.4em] uppercase mb-3 font-semibold">
+            <p className="text-gold/60 text-[0.65rem] tracking-[0.2em] sm:tracking-[0.4em] uppercase mb-3 font-semibold leading-relaxed">
               University of Edinburgh Economics Society
             </p>
           </AnimateIn>
@@ -284,7 +277,7 @@ export default async function HomePage({
           </AnimateIn>
           <AnimateIn variant="fade-in" delay={0.2} duration={0.6}>
             <div className="w-16 h-px bg-gradient-to-r from-transparent via-gold to-transparent mx-auto mb-3 opacity-60" />
-            <p className="text-cream/60 text-sm tracking-wide whitespace-nowrap mx-auto leading-relaxed">
+            <p className="text-cream/60 text-sm tracking-wide max-w-xs sm:max-w-none mx-auto leading-relaxed">
               The voice of the University of Edinburgh Economics Society
             </p>
           </AnimateIn>
@@ -294,7 +287,7 @@ export default async function HomePage({
       {/* ── Date banner ────────────────────────────────────────────────────── */}
       <div className="bg-[var(--bg-subtle)] border-b border-[var(--border)] px-4 py-2 text-center">
         <span className="text-[var(--fg-faint)] text-[0.65rem] tracking-widest uppercase font-bold">
-          {format(new Date(), 'EEEE, d MMMM yyyy')}
+          <ClientDate />
         </span>
       </div>
 
@@ -333,7 +326,7 @@ export default async function HomePage({
                     {featured.category ? (
                       <span className="category-badge">{featured.category.name}</span>
                     ) : (
-                      <span />
+                      <span aria-hidden="true" />
                     )}
                     <span className="flex items-center gap-1 bg-navy/70 text-cream/90 text-[10px] font-semibold px-2 py-1 backdrop-blur-sm leading-none">
                       <Clock size={9} className="shrink-0" />

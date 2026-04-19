@@ -6,7 +6,7 @@ const BASE = 'https://the-consilium.vercel.app'
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [articles, categories, tags, authors] = await Promise.all([
     prisma.article.findMany({
-      where: { status: 'PUBLISHED' },
+      where: { status: 'PUBLISHED', deletedAt: null },
       select: { slug: true, updatedAt: true },
       orderBy: { publishedAt: 'desc' },
     }).catch(() => []),

@@ -31,7 +31,7 @@ export function ArticleCard({ article, badgeLabel }: ArticleCardProps) {
     <Link href={`/articles/${article.slug}`} className="block h-full group">
       <article className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden card-hover shadow-[var(--shadow-card)] h-full flex flex-col">
         {/* Image */}
-        <div className="relative h-48 bg-navy/10 overflow-hidden img-zoom flex-shrink-0">
+        <div className="relative h-48 bg-navy/10 dark:bg-navy/20 overflow-hidden img-zoom flex-shrink-0">
           {article.coverImage ? (
             <BlurImage
               src={article.coverImage}
@@ -56,7 +56,7 @@ export function ArticleCard({ article, badgeLabel }: ArticleCardProps) {
             {badge ? (
               <span className="category-badge">{badge}</span>
             ) : (
-              <span />
+              <span aria-hidden="true" />
             )}
             <span className="flex items-center gap-1 bg-navy/70 text-cream/90 text-[10px] font-semibold px-2 py-1 backdrop-blur-sm leading-none">
               <Clock size={9} className="shrink-0" />

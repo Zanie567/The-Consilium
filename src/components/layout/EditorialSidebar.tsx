@@ -18,6 +18,7 @@ import {
   MessagesSquare,
   MessageCircle,
   Pencil,
+  Trash2,
 } from 'lucide-react'
 
 interface User {
@@ -33,6 +34,7 @@ interface NavItem {
   label: string
   exact?: boolean
   show: boolean
+  badge?: number
 }
 
 interface NavGroup {
@@ -40,7 +42,7 @@ interface NavGroup {
   items: NavItem[]
 }
 
-export function EditorialSidebar({ user }: { user: User }) {
+export function EditorialSidebar({ user, trashCount = 0, onNavClick }: { user: User; trashCount?: number; onNavClick?: () => void }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -61,6 +63,7 @@ export function EditorialSidebar({ user }: { user: User }) {
         { href: '/editorial/articles/new', icon: PlusCircle, label: 'New Article', exact: true, show: true },
         { href: '/editorial/series', icon: BookOpen, label: 'Article Series', show: isEditor },
         { href: '/editorial/scheduled', icon: Clock, label: 'Scheduled', show: isEditor },
+        { href: '/editorial/trash', icon: Trash2, label: 'Trash', exact: true, show: isEditor, badge: trashCount > 0 ? trashCount : undefined },
       ],
     },
     {
@@ -138,6 +141,7 @@ export function EditorialSidebar({ user }: { user: User }) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={onNavClick}
                     className={`flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium transition-colors duration-150 border-l-2 ${
                       active
                         ? 'border-gold text-gold'
@@ -146,7 +150,12 @@ export function EditorialSidebar({ user }: { user: User }) {
                   >
                     <item.icon size={14} className="shrink-0" />
                     <span className="tracking-wide">{item.label}</span>
-                    {active && <ChevronRight size={11} className="ml-auto opacity-50" />}
+                    {item.badge !== undefined && (
+                      <span className="ml-auto text-[10px] font-bold bg-gold/20 text-gold px-1.5 py-0.5 rounded-full leading-none">
+                        {item.badge}
+                      </span>
+                    )}
+                    {active && !item.badge && <ChevronRight size={11} className="ml-auto opacity-50" />}
                   </Link>
                 )
               })}
@@ -174,7 +183,7 @@ export function EditorialSidebar({ user }: { user: User }) {
           <ThemeToggle />
         </div>
         <button
-          onClick={() => signOut({ callbackUrl: '/editorial/login' })}
+          onClick={() => { onNavClick?.(); signOut({ callbackUrl: '/editorial/login' }) }}
           className="flex items-center gap-2.5 px-4 py-2.5 text-[12px] text-cream/30 hover:text-cream/60 w-full transition-colors border-t border-white/6"
         >
           <LogOut size={13} />

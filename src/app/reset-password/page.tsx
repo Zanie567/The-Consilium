@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Reset Password | The Consilium',
+  title: 'Reset Password',
   robots: { index: false, follow: false },
 }
 
