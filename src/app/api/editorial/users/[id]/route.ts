@@ -88,7 +88,7 @@ export async function PATCH(req: Request, { params }: Props) {
   // Only admins can set adminNotes or change role to ADMIN
   if (callerRole === 'ADMIN') {
     if (typeof adminNotes === 'string') updates.adminNotes = adminNotes.trim() || null
-    if (role && ['ADMIN', 'EDITOR', 'WRITER', 'READER'].includes(role)) updates.role = role
+    if (role && ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].includes(role)) updates.role = role
   } else {
     // Editors can change role between EDITOR/WRITER/READER only
     if (role && ['EDITOR', 'WRITER', 'READER'].includes(role)) updates.role = role

@@ -344,7 +344,7 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
                 </button>
                 {roleOpen && (
                   <div className="absolute top-full left-0 mt-1 z-10 bg-[var(--bg-elevated)] border border-[var(--border)] shadow-lg min-w-[120px]">
-                    {['ADMIN', 'EDITOR', 'WRITER', 'READER'].filter((r) => r !== user.role).map((r) => (
+                    {['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].filter((r) => r !== user.role).map((r) => (
                       <button
                         key={r}
                         onClick={() => handleRoleChange(r)}
