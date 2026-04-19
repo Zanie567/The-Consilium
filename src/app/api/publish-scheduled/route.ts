@@ -79,6 +79,7 @@ export async function POST(req: Request) {
       articles: result.published,
       skipped: result.skipped,
       warnings: result.warnings,
+      purged: result.purged,
     })
   } catch (err) {
     // Surface the error in the response body so GitHub Actions logs show it.

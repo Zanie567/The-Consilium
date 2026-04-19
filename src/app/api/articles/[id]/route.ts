@@ -11,7 +11,58 @@ export async function GET(
 ) {
   const { id } = await params
   try {
+    const session = await getServerSession(authOptions)
+
     const article = await prisma.article.findUnique({
+      where: { id },
+      include: {
+        author: true,
+        category: true,
+        series: true,
+        tags: { include: { tag: true } },
+      },
+    })
+    if (!article || article.deletedAt) return Response.json({ error: 'Not found' }, { status: 404 })
+
+    const isOwner = session?.user?.id === article.authorId
+    const isAdmin = session?.user?.role === 'ADMIN'
+    const isEditor = session?.user?.role === 'EDITOR'
+    const isEditorial = isAdmin || isEditor
+
+    if (article.status === 'PUBLISHED' && !isOwner && !isEditorial) {
+      return Response.json(article)
+    }
+
+    const authError = requireActiveSession(session)
+    if (authError) return authError
+
+    if (!isOwner && !isEditorial) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    if (isEditor) {
+      if (article.categoryId) {
+        const assignment = await prisma.categoryEditor.findFirst({
+          where: { userId: session!.user.id, categoryId: article.categoryId },
+        })
+        if (!assignment) {
+          return Response.json({ error: 'Forbidden' }, { status: 403 })
+        }
+      } else {
+        const anyAssignment = await prisma.categoryEditor.findFirst({
+          where: { userId: session!.user.id },
+        })
+        if (anyAssignment) {
+          return Response.json({ error: 'Forbidden' }, { status: 403 })
+        }
+      }
+    }
+
+    if (!isEditorial) {
+      return Response.json(article)
+    }
+
+    const articleWithNotes = await prisma.article.findUnique({
       where: { id },
       include: {
         author: true,
@@ -21,8 +72,8 @@ export async function GET(
         tags: { include: { tag: true } },
       },
     })
-    if (!article || article.deletedAt) return Response.json({ error: 'Not found' }, { status: 404 })
-    return Response.json(article)
+
+    return Response.json(articleWithNotes)
   } catch {
     return Response.json({ error: 'Failed to fetch article' }, { status: 500 })
   }
@@ -69,6 +120,8 @@ export async function PUT(
       corrected, correctionNote, seriesId, seriesOrder, tags, scheduledAt,
       authorId: bodyAuthorId,
     } = body
+
+    const nextCategoryId = categoryId !== undefined ? (categoryId || null) : existing.categoryId
 
     // Writers can only set status to DRAFT or PENDING_REVIEW
     let finalStatus = existing.status
@@ -128,9 +181,9 @@ export async function PUT(
     if (wasJustSubmitted) {
       let editorIds: string[] = []
 
-      if (existing.categoryId) {
+      if (nextCategoryId) {
         const assignments = await prisma.categoryEditor.findMany({
-          where: { categoryId: existing.categoryId },
+          where: { categoryId: nextCategoryId },
           select: { userId: true, user: { select: { email: true, name: true } } },
         })
         editorIds = assignments.map((a) => a.userId)
@@ -140,7 +193,7 @@ export async function PUT(
           if (a.user.email) {
             const { subject, html } = articleSubmittedEmail(
               existing.author.name ?? 'Unknown',
-              existing.title,
+              updated.title,
               existing.id
             )
             await sendEmail({ to: a.user.email, subject, html })
@@ -159,7 +212,7 @@ export async function PUT(
           if (e.email) {
             const { subject, html } = articleSubmittedEmail(
               existing.author.name ?? 'Unknown',
-              existing.title,
+              updated.title,
               existing.id
             )
             await sendEmail({ to: e.email, subject, html })
@@ -173,7 +226,7 @@ export async function PUT(
           userId: uid,
           type: 'article_submitted',
           title: 'New article for review',
-          message: `"${existing.title}" by ${existing.author.name ?? 'Unknown'} is ready for review.`,
+          message: `"${updated.title}" by ${existing.author.name ?? 'Unknown'} is ready for review.`,
           articleId: existing.id,
         })),
       })

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { checkRateLimit } from '@/lib/rate-limiter'
 
@@ -43,6 +43,11 @@ export async function POST(req: Request, { params }: Props) {
 
   const session = await getServerSession(authOptions)
   const cookieStore = await cookies()
+
+  if (session) {
+    const authError = requireActiveSession(session)
+    if (authError) return authError
+  }
 
   try {
     if (session?.user?.id) {

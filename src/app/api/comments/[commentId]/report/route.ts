@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 interface Props {
@@ -10,9 +10,8 @@ interface Props {
 export async function POST(_req: Request, { params }: Props) {
   const { commentId } = await params
   const session = await getServerSession(authOptions)
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
-  }
+  const authError = requireActiveSession(session)
+  if (authError) return authError
 
   const comment = await prisma.comment.findUnique({
     where: { id: commentId },
