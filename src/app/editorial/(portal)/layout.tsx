@@ -50,7 +50,6 @@ export default async function EditorialLayout({
   const trashCount = isEditorOrAdmin
     ? await prisma.article.count({ where: { deletedAt: { not: null } } }).catch(() => 0)
     : 0
-
   // Build a user object using the verified DB role
   const verifiedUser = {
     id: session.user.id,

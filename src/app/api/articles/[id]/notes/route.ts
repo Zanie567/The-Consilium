@@ -19,9 +19,35 @@ export async function POST(req: Request, { params }: Props) {
     return NextResponse.json({ error: 'Content required' }, { status: 400 })
   }
 
+  const article = await prisma.article.findUnique({
+    where: { id },
+    select: { id: true, categoryId: true },
+  })
+  if (!article) {
+    return NextResponse.json({ error: 'Article not found' }, { status: 404 })
+  }
+
+  if (session.user.role === 'EDITOR') {
+    if (article.categoryId) {
+      const assignment = await prisma.categoryEditor.findFirst({
+        where: { userId: session.user.id, categoryId: article.categoryId },
+      })
+      if (!assignment) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    } else {
+      const anyAssignment = await prisma.categoryEditor.findFirst({
+        where: { userId: session.user.id },
+      })
+      if (anyAssignment) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+  }
+
   const note = await prisma.articleNote.create({
     data: {
-      articleId: id,
+      articleId: article.id,
       authorId: session.user.id,
       content: content.trim(),
       isPrivate: isPrivate ?? false,

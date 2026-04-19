@@ -54,7 +54,7 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const { scrolled } = useScrolled(16)
+  const { scrolled } = useScrolled(20)
   const { data: session } = useSession()
   const pathname = usePathname()
   const router = useRouter()
@@ -102,7 +102,7 @@ export function Navbar() {
       <header
         className={`sticky top-0 z-50 transition-all duration-300 ease-out ${
           scrolled
-            ? 'bg-navy/[0.97] backdrop-blur-md shadow-[0_4px_24px_rgba(0,0,0,0.28)] border-b border-gold/30'
+            ? 'bg-navy/[0.85] backdrop-blur-[12px] shadow-[0_4px_24px_rgba(0,0,0,0.28)] border-b border-gold/20'
             : 'bg-navy border-b-2 border-gold'
         }`}
       >

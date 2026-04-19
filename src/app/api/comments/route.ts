@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { filterComment, stripHtml } from '@/lib/content-filter'
 import { checkRateLimit } from '@/lib/rate-limiter'
@@ -52,12 +52,11 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'You must be signed in to comment.' }, { status: 401 })
-  }
+  const authError = requireActiveSession(session)
+  if (authError) return authError
 
   // Rate limit: 5 comments per user per minute
-  if (!checkRateLimit(`comment:${session.user.id}`, 5, 60 * 1000)) {
+  if (!checkRateLimit(`comment:${session!.user.id}`, 5, 60 * 1000)) {
     return NextResponse.json(
       { error: 'You are posting too quickly. Please wait a moment before commenting again.' },
       { status: 429 },
@@ -105,10 +104,13 @@ export async function POST(req: Request) {
   if (parentId) {
     const parent = await prisma.comment.findUnique({
       where: { id: parentId },
-      select: { id: true },
+      select: { id: true, articleId: true },
     })
     if (!parent) {
       return NextResponse.json({ error: 'Parent comment not found' }, { status: 404 })
+    }
+    if (parent.articleId !== articleId) {
+      return NextResponse.json({ error: 'Parent comment belongs to a different article' }, { status: 400 })
     }
   }
 
@@ -118,7 +120,7 @@ export async function POST(req: Request) {
   const comment = await prisma.comment.create({
     data: {
       articleId,
-      userId: session.user.id,
+      userId: session!.user.id,
       body: cleanBody,
       parentId: parentId ?? null,
       isHidden: false,
@@ -126,7 +128,7 @@ export async function POST(req: Request) {
     },
     include: {
       user: { select: { id: true, name: true, image: true } },
-      upvotedBy: { where: { userId: session.user.id }, select: { id: true } },
+      upvotedBy: { where: { userId: session!.user.id }, select: { id: true } },
       _count: { select: { replies: { where: { isHidden: false } } } },
     },
   })
