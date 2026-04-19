@@ -307,7 +307,7 @@ export default async function HomePage({
                       src={featured.coverImage}
                       alt={featured.title}
                       fill
-                      className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
+                      className="object-cover transition-transform duration-700 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-[1.03]"
                       priority
                       sizes="(max-width: 1024px) 100vw, 50vw"
                     />
