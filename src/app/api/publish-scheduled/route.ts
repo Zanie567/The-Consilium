@@ -18,8 +18,7 @@
  */
 
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { sendEmail, articlePublishedEmail } from '@/lib/email'
+import { publishScheduledArticles } from '@/lib/scheduledPublishing'
 
 // Force dynamic so Next.js never pre-renders or caches this route.
 // Without this, Vercel's edge may serve a stale 404 if the route was absent
@@ -50,59 +49,15 @@ export async function POST(req: Request) {
 
   // ── Publish logic ──────────────────────────────────────────────────────────
   try {
-    const now = new Date()
+    const published = await publishScheduledArticles()
 
-    // Find all articles whose scheduled publish time has arrived.
-    const due = await prisma.article.findMany({
-      where: {
-        status: 'SCHEDULED',
-        scheduledAt: { lte: now },
-      },
-      include: { author: true },
-    })
-
-    if (due.length === 0) {
+    if (published.length === 0) {
       // Normal - nothing to do right now.
       console.log('[publish-scheduled] No articles due for publishing')
       return NextResponse.json({ published: 0, articles: [] })
     }
 
-    const publishedTitles: string[] = []
-
-    for (const article of due) {
-      // Update status to PUBLISHED and stamp publishedAt - same fields the
-      // manual Publish button updates so behaviour is identical.
-      await prisma.article.update({
-        where: { id: article.id },
-        data: { status: 'PUBLISHED', publishedAt: now },
-      })
-
-      // Send the author an email notification (non-fatal if email fails).
-      if (article.author.email) {
-        try {
-          const { subject, html } = articlePublishedEmail(article.title, article.slug)
-          await sendEmail({ to: article.author.email, subject, html })
-        } catch (emailErr) {
-          console.error(`[publish-scheduled] Email failed for article ${article.id}:`, emailErr)
-        }
-      }
-
-      // Create an in-app notification for the author.
-      await prisma.notification.create({
-        data: {
-          userId: article.authorId,
-          type: 'published',
-          title: 'Article published',
-          message: `Your article "${article.title}" has been published.`,
-          articleId: article.id,
-        },
-      })
-
-      publishedTitles.push(article.title)
-      console.log(`[publish-scheduled] Published: "${article.title}" (${article.id})`)
-    }
-
-    return NextResponse.json({ published: publishedTitles.length, articles: publishedTitles })
+    return NextResponse.json({ published: published.length, ids: published })
   } catch (err) {
     // Surface the error in the response body so GitHub Actions logs show it.
     const message = err instanceof Error ? err.message : String(err)
