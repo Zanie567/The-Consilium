@@ -51,6 +51,7 @@ const ROLE_COLOURS: Record<string, string> = {
   ADMIN:  'bg-navy text-gold border border-gold/30',
   EDITOR: 'bg-teal-800/80 text-teal-200',
   WRITER: 'bg-gold/20 text-gold',
+  GROWTH: 'bg-emerald-800/60 text-emerald-300',
   READER: 'bg-[var(--border)] text-[var(--fg-muted)]',
 }
 
@@ -169,7 +170,7 @@ function ActionMenu({
             </button>
             {roleOpen && (
               <div className="absolute left-full top-0 ml-1 bg-[var(--bg-elevated)] border border-[var(--border)] shadow-xl min-w-[100px] py-1">
-                {['ADMIN', 'EDITOR', 'WRITER', 'READER'].filter((r) => r !== user.role).map((r) => (
+                {['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].filter((r) => r !== user.role).map((r) => (
                   <button
                     key={r}
                     onClick={() => handleRoleChange(r)}

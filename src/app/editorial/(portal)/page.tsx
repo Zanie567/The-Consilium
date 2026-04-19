@@ -21,6 +21,7 @@ export default async function EditorialDashboard() {
   const role = session.user.role
   const isAdmin = role === 'ADMIN'
   const isEditor = role === 'ADMIN' || role === 'EDITOR'
+  const isGrowth = role === 'GROWTH'
 
   let assignedCategoryIds: string[] | null = null
   if (role === 'EDITOR') {
@@ -36,12 +37,15 @@ export default async function EditorialDashboard() {
   let fetchError = false
   const [myArticles, pendingArticles, publishedCount, myDrafts, totalViews, userCount] =
     await Promise.all([
-      prisma.article.findMany({
-        where: role === 'WRITER' ? { authorId: userId, deletedAt: null } : { deletedAt: null },
-        orderBy: { updatedAt: 'desc' },
-        take: 8,
-        include: { category: true, author: true },
-      }),
+      // Growth users don't need the articles table list
+      isGrowth
+        ? Promise.resolve([])
+        : prisma.article.findMany({
+            where: role === 'WRITER' ? { authorId: userId, deletedAt: null } : { deletedAt: null },
+            orderBy: { updatedAt: 'desc' },
+            take: 8,
+            include: { category: true, author: true },
+          }),
 
       isEditor
         ? prisma.article.findMany({
@@ -64,20 +68,24 @@ export default async function EditorialDashboard() {
         },
       }),
 
-      prisma.article.findMany({
-        where: { authorId: userId, status: 'DRAFT', deletedAt: null },
-        orderBy: { updatedAt: 'desc' },
-        take: 10,
-        select: {
-          id: true,
-          title: true,
-          updatedAt: true,
-          content: true,
-          category: { select: { name: true } },
-        },
-      }) as Promise<{ id: string; title: string; updatedAt: Date; content: string; category: { name: string } | null }[]>,
+      // Growth users don't have drafts
+      isGrowth
+        ? Promise.resolve([])
+        : prisma.article.findMany({
+            where: { authorId: userId, status: 'DRAFT', deletedAt: null },
+            orderBy: { updatedAt: 'desc' },
+            take: 10,
+            select: {
+              id: true,
+              title: true,
+              updatedAt: true,
+              content: true,
+              category: { select: { name: true } },
+            },
+          }) as Promise<{ id: string; title: string; updatedAt: Date; content: string; category: { name: string } | null }[]>,
 
-      isEditor
+      // Growth users also see total views
+      isEditor || isGrowth
         ? prisma.article.aggregate({ where: { deletedAt: null }, _sum: { viewCount: true } })
             .then((r) => r._sum.viewCount ?? 0)
         : Promise.resolve(0),
@@ -127,10 +135,12 @@ export default async function EditorialDashboard() {
             className="text-2xl font-bold text-[var(--fg)] mb-1"
             style={{ fontFamily: 'var(--font-serif)' }}
           >
-            Welcome back.
+            {isGrowth ? 'Welcome to your Growth dashboard.' : 'Welcome back.'}
           </h1>
           <p className="text-[var(--fg-muted)] text-sm">
-            {isAdmin
+            {isGrowth
+              ? 'Track audience growth, engagement, and community activity.'
+              : isAdmin
               ? 'You have full editorial access.'
               : isEditor
               ? 'Manage the review queue and editorial content.'
@@ -142,7 +152,7 @@ export default async function EditorialDashboard() {
 
       {/* Stats row */}
       <PortalSection className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-        <StatCard label="My Drafts" value={myDrafts.length} />
+        {!isGrowth && <StatCard label="My Drafts" value={myDrafts.length} />}
         <StatCard label="Published" value={publishedCount} accent="emerald" />
         {isEditor && (
           <StatCard
@@ -151,7 +161,7 @@ export default async function EditorialDashboard() {
             accent={pendingArticles.length > 0 ? 'amber' : undefined}
           />
         )}
-        {isEditor && (
+        {(isEditor || isGrowth) && (
           <StatCard label="Total Views" value={totalViews.toLocaleString()} />
         )}
         {isEditor && (
@@ -205,40 +215,66 @@ export default async function EditorialDashboard() {
         </PortalSection>
       )}
 
-      {/* Quick actions — stack full-width on mobile */}
-      <PortalSection className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mb-6 sm:mb-8">
-        <Link
-          href="/editorial/articles/new"
-          className="flex items-center justify-center gap-2 bg-navy text-gold px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
-        >
-          + New Article
-        </Link>
-        <Link
-          href="/editorial/articles"
-          className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
-        >
-          All Articles
-        </Link>
-        {isEditor && (
+      {/* Quick actions — hidden for growth users */}
+      {!isGrowth && (
+        <PortalSection className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mb-6 sm:mb-8">
           <Link
-            href="/editorial/users"
+            href="/editorial/articles/new"
+            className="flex items-center justify-center gap-2 bg-navy text-gold px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
+          >
+            + New Article
+          </Link>
+          <Link
+            href="/editorial/articles"
             className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
           >
-            Manage Users
+            All Articles
           </Link>
-        )}
-        {isEditor && (
-          <Link
-            href="/editorial/series"
-            className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
-          >
-            Article Series
-          </Link>
-        )}
-      </PortalSection>
+          {isEditor && (
+            <Link
+              href="/editorial/users"
+              className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
+            >
+              Manage Users
+            </Link>
+          )}
+          {isEditor && (
+            <Link
+              href="/editorial/series"
+              className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
+            >
+              Article Series
+            </Link>
+          )}
+        </PortalSection>
+      )}
 
-      {/* My Drafts */}
-      {myDrafts.length > 0 && (
+      {/* Growth quick links */}
+      {isGrowth && (
+        <PortalSection className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mb-6 sm:mb-8">
+          <Link
+            href="/editorial/analytics"
+            className="flex items-center justify-center gap-2 bg-navy text-gold px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
+          >
+            View Analytics
+          </Link>
+          <Link
+            href="/editorial/growth/subscribers"
+            className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
+          >
+            Subscribers
+          </Link>
+          <Link
+            href="/editorial/growth/engagement"
+            className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
+          >
+            Engagement
+          </Link>
+        </PortalSection>
+      )}
+
+      {/* My Drafts — hidden for growth */}
+      {!isGrowth && myDrafts.length > 0 && (
         <PortalSection className="mb-8">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">
@@ -266,8 +302,8 @@ export default async function EditorialDashboard() {
         </PortalSection>
       )}
 
-      {/* Recent articles table */}
-      <PortalSection>
+      {/* Recent articles table — hidden for growth */}
+      {!isGrowth && <PortalSection>
         <div className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden">
           <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
             <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">
@@ -337,7 +373,7 @@ export default async function EditorialDashboard() {
             </div>
           )}
         </div>
-      </PortalSection>
+      </PortalSection>}
     </PortalPage>
   )
 }

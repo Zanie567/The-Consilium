@@ -19,6 +19,8 @@ import {
   MessageCircle,
   Pencil,
   Trash2,
+  Zap,
+  UserCheck,
 } from 'lucide-react'
 
 interface User {
@@ -56,40 +58,7 @@ export function EditorialSidebar({
 
   const isEditor = user.role === 'ADMIN' || user.role === 'EDITOR'
   const isAdmin = user.role === 'ADMIN'
-
-  const groups: NavGroup[] = [
-    {
-      items: [
-        { href: '/editorial', icon: LayoutDashboard, label: 'Dashboard', exact: true, show: true },
-      ],
-    },
-    {
-      label: 'CONTENT',
-      items: [
-        { href: '/editorial/articles', icon: FileText, label: user.role === 'WRITER' ? 'My Articles' : 'All Articles', show: true },
-        { href: '/editorial/articles?mine=true&status=DRAFT', icon: Pencil, label: 'My Drafts', exact: true, show: true },
-        { href: '/editorial/articles/new', icon: PlusCircle, label: 'New Article', exact: true, show: true },
-        { href: '/editorial/series', icon: BookOpen, label: 'Article Series', show: isEditor },
-        { href: '/editorial/scheduled', icon: Clock, label: 'Scheduled', show: isEditor },
-        { href: '/editorial/trash', icon: Trash2, label: 'Trash', exact: true, show: isEditor, badge: trashCount > 0 ? trashCount : undefined },
-      ],
-    },
-    {
-      label: 'REVIEW',
-      items: [
-        { href: '/editorial/review', icon: ClipboardList, label: 'Review Queue', show: isEditor },
-        { href: '/editorial/debates', icon: MessagesSquare, label: 'Debates', show: isEditor },
-        { href: '/editorial/comments', icon: MessageCircle, label: 'Comments', show: isEditor },
-      ],
-    },
-    {
-      label: 'MANAGE',
-      items: [
-        { href: '/editorial/users', icon: Users, label: 'Users', show: isAdmin },
-        { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
-      ],
-    },
-  ]
+  const isGrowth = user.role === 'GROWTH'
 
   const isActive = (href: string, exact?: boolean) => {
     const [hrefPath, hrefQuery] = href.split('?')
@@ -112,6 +81,58 @@ export function EditorialSidebar({
     return pathname.startsWith(hrefPath) && hrefPath !== '/editorial'
   }
 
+  const groups: NavGroup[] = isGrowth
+    ? [
+        {
+          label: 'GROWTH',
+          items: [
+            { href: '/editorial', icon: LayoutDashboard, label: 'Dashboard', exact: true, show: true },
+            { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: true },
+            { href: '/editorial/growth/subscribers', icon: UserCheck, label: 'Subscribers', exact: true, show: true },
+            { href: '/editorial/growth/engagement', icon: Zap, label: 'Engagement', exact: true, show: true },
+          ],
+        },
+        {
+          label: 'COMMUNITY',
+          items: [
+            { href: '/editorial/comments', icon: MessageCircle, label: 'Comments', show: true },
+          ],
+        },
+      ]
+    : [
+        {
+          items: [
+            { href: '/editorial', icon: LayoutDashboard, label: 'Dashboard', exact: true, show: true },
+          ],
+        },
+        {
+          label: 'CONTENT',
+          items: [
+            { href: '/editorial/articles', icon: FileText, label: user.role === 'WRITER' ? 'My Articles' : 'All Articles', show: true },
+            { href: '/editorial/articles?mine=true&status=DRAFT', icon: Pencil, label: 'My Drafts', exact: true, show: true },
+            { href: '/editorial/articles/new', icon: PlusCircle, label: 'New Article', exact: true, show: true },
+            { href: '/editorial/series', icon: BookOpen, label: 'Article Series', show: isEditor },
+            { href: '/editorial/scheduled', icon: Clock, label: 'Scheduled', show: isEditor },
+            { href: '/editorial/trash', icon: Trash2, label: 'Trash', exact: true, show: isEditor, badge: trashCount > 0 ? trashCount : undefined },
+          ],
+        },
+        {
+          label: 'REVIEW',
+          items: [
+            { href: '/editorial/review', icon: ClipboardList, label: 'Review Queue', show: isEditor },
+            { href: '/editorial/debates', icon: MessagesSquare, label: 'Debates', show: isEditor },
+            { href: '/editorial/comments', icon: MessageCircle, label: 'Comments', show: isEditor },
+          ],
+        },
+        {
+          label: 'MANAGE',
+          items: [
+            { href: '/editorial/users', icon: Users, label: 'Users', show: isAdmin },
+            { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
+          ],
+        },
+      ]
+
   return (
     <aside
       className="w-[220px] shrink-0 flex flex-col min-h-screen sticky top-0 h-screen overflow-y-auto overflow-x-hidden"
@@ -119,7 +140,6 @@ export function EditorialSidebar({
     >
       {/* Masthead */}
       <div className="px-3 pt-5 pb-4 border-b border-white/8 flex items-center gap-3 min-h-[60px]">
-        {/* Small logo mark visible at all widths, used as icon in collapsed tablet rail */}
         <span
           className="text-gold font-bold text-sm shrink-0 select-none"
           style={{ fontFamily: 'var(--font-serif)' }}
@@ -127,19 +147,11 @@ export function EditorialSidebar({
         >
           TC
         </span>
-        {/*
-         * Full wordmark: hidden on tablet rail (md width < 220px),
-         * fades in as the rail expands (group-hover/sidebar),
-         * always visible at lg+.
-         */}
         <div
           className={[
             'min-w-0 transition-[opacity,max-width] duration-200 ease-in-out overflow-hidden',
-            // At md (rail): invisible and takes no space
             'md:opacity-0 md:max-w-0',
-            // When the rail is hovered → full expanded width
             'md:group-hover/sidebar:opacity-100 md:group-hover/sidebar:max-w-[160px]',
-            // At lg+: always visible
             'lg:opacity-100 lg:max-w-[160px]',
           ].join(' ')}
         >
@@ -163,7 +175,6 @@ export function EditorialSidebar({
           if (visibleItems.length === 0) return null
           return (
             <div key={gi} className={gi > 0 ? 'mt-4' : ''}>
-              {/* Group label: hidden in collapsed tablet rail */}
               {group.label && (
                 <p
                   className={[
@@ -185,27 +196,16 @@ export function EditorialSidebar({
                     href={item.href}
                     onClick={onNavClick}
                     className={[
-                      // Base layout
                       'flex items-center gap-2.5 px-3 text-[13px] font-medium border-l-2',
-                      // Touch target: 48px min-height
                       'min-h-[48px]',
-                      // Tap feedback
                       'transition-[colors,transform] duration-100 active:scale-[0.97] active:opacity-80',
-                      // Tablet rail: centre the icon; desktop: left-align with label
                       'md:justify-center lg:justify-start md:group-hover/sidebar:justify-start',
-                      // Colours
                       active
                         ? 'border-gold text-gold'
                         : 'border-transparent text-cream/45 hover:text-cream/80',
                     ].join(' ')}
                   >
-                    {/* Icon: always visible */}
                     <item.icon size={15} className="shrink-0" />
-
-                    {/*
-                     * Label: collapses in tablet rail, fades in on hover/expand.
-                     * lg: always visible.
-                     */}
                     <span
                       className={[
                         'tracking-wide truncate transition-[opacity,max-width] duration-200 ease-in-out overflow-hidden',
@@ -216,8 +216,6 @@ export function EditorialSidebar({
                     >
                       {item.label}
                     </span>
-
-                    {/* Badge */}
                     {item.badge !== undefined && (
                       <span
                         className={[
@@ -229,8 +227,6 @@ export function EditorialSidebar({
                         {item.badge}
                       </span>
                     )}
-
-                    {/* Active chevron */}
                     {active && !item.badge && (
                       <ChevronRight
                         size={11}
@@ -252,14 +248,11 @@ export function EditorialSidebar({
       {/* User info + logout at bottom */}
       <div className="border-t border-white/8 shrink-0">
         <div className="flex items-center gap-2.5 px-3 py-3 min-h-[52px]">
-          {/* Avatar: always visible */}
           <div className="w-7 h-7 rounded-full bg-gold/15 flex items-center justify-center shrink-0">
             <span className="text-gold text-[11px] font-bold">
               {user.name?.charAt(0) ?? user.email?.charAt(0) ?? '?'}
             </span>
           </div>
-
-          {/* Name + role: collapses in tablet rail */}
           <div
             className={[
               'min-w-0 flex-1 transition-[opacity,max-width] duration-200 ease-in-out overflow-hidden',
@@ -275,8 +268,6 @@ export function EditorialSidebar({
               {user.role.charAt(0) + user.role.slice(1).toLowerCase()}
             </p>
           </div>
-
-          {/* ThemeToggle: collapses in tablet rail */}
           <div
             className={[
               'shrink-0 transition-[opacity] duration-200',
@@ -288,7 +279,6 @@ export function EditorialSidebar({
             <ThemeToggle />
           </div>
         </div>
-
         <button
           onClick={() => { onNavClick?.(); signOut({ callbackUrl: '/editorial/login' }) }}
           className={[
