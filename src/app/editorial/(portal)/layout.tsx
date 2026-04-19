@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { EditorialSidebarWrapper } from '@/components/layout/EditorialSidebarWrapper'
 import { PortalTransition } from '@/components/editorial/PortalTransition'
 
-const EDITORIAL_ROLES = ['ADMIN', 'EDITOR', 'WRITER']
+const EDITORIAL_ROLES = ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH']
 
 export default async function EditorialLayout({
   children,

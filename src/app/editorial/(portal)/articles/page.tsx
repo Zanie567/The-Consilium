@@ -19,6 +19,7 @@ export default async function EditorialArticlesPage({
 }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/editorial/login')
+  if (session.user.role === 'GROWTH') redirect('/editorial')
 
   const { mine: mineParam, status: statusParam } = await searchParams
 

@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 export default async function EditorialNewArticlePage() {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/editorial/login')
+  if (session.user.role === 'GROWTH') redirect('/editorial')
 
   const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } }).catch(() => [])
   const isEditorOrAdmin = session.user.role === 'ADMIN' || session.user.role === 'EDITOR'

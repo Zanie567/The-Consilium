@@ -6,11 +6,15 @@ datasource db {
   provider = "postgresql"
 }
 
+// ⚠️  Before merging this PR, run the following SQL in Supabase SQL editor:
+//     ALTER TYPE "Role" ADD VALUE 'GROWTH';
+// prisma migrate dev cannot be used in production; this must be applied manually.
 enum Role {
   ADMIN
   EDITOR
   WRITER
   READER
+  GROWTH
 }
 
 enum ArticleStatus {

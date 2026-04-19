@@ -7,18 +7,23 @@ interface Props {
   params: Promise<{ commentId: string }>
 }
 
-// PATCH: approve (clear isReported) or hide
+// PATCH: approve (clear isReported), hide, or unhide
+// GROWTH users can hide/unhide but cannot approve (clear reports)
 export async function PATCH(req: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
-  if (!session?.user || !['ADMIN', 'EDITOR'].includes(session.user.role ?? '')) {
+  const role = session?.user?.role ?? ''
+  if (!session?.user || !['ADMIN', 'EDITOR', 'GROWTH'].includes(role)) {
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   }
 
   const { commentId } = await params
   const body = await req.json()
-  const { action } = body // 'approve' | 'hide'
+  const { action } = body // 'approve' | 'hide' | 'unhide'
 
   if (action === 'approve') {
+    if (role === 'GROWTH') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
     await prisma.comment.update({
       where: { id: commentId },
       data: { isReported: false },
@@ -27,6 +32,11 @@ export async function PATCH(req: Request, { params }: Props) {
     await prisma.comment.update({
       where: { id: commentId },
       data: { isHidden: true, body: '[Comment removed]' },
+    })
+  } else if (action === 'unhide') {
+    await prisma.comment.update({
+      where: { id: commentId },
+      data: { isHidden: false },
     })
   } else {
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
