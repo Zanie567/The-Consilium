@@ -57,6 +57,7 @@ export async function POST(req: Request) {
       where: {
         status: 'SCHEDULED',
         scheduledAt: { lte: now },
+        deletedAt: null,
       },
       include: { author: true },
     })
@@ -102,7 +103,16 @@ export async function POST(req: Request) {
       console.log(`[publish-scheduled] Published: "${article.title}" (${article.id})`)
     }
 
-    return NextResponse.json({ published: publishedTitles.length, articles: publishedTitles })
+    // Permanently purge articles soft-deleted more than 30 days ago
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const purged = await prisma.article.deleteMany({
+      where: { deletedAt: { not: null, lte: thirtyDaysAgo } },
+    })
+    if (purged.count > 0) {
+      console.log(`[publish-scheduled] Purged ${purged.count} article(s) from trash (>30 days old)`)
+    }
+
+    return NextResponse.json({ published: publishedTitles.length, articles: publishedTitles, purged: purged.count })
   } catch (err) {
     // Surface the error in the response body so GitHub Actions logs show it.
     const message = err instanceof Error ? err.message : String(err)

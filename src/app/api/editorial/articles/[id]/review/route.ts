@@ -23,7 +23,7 @@ export async function PATCH(req: Request, { params }: Props) {
     where: { id },
     include: { author: true },
   })
-  if (!article) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (!article || article.deletedAt) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // BUG-03: Editors only see their assigned categories (unless ADMIN).
   // The guard must apply even when the article has no category so that

@@ -37,7 +37,7 @@ export default async function EditorialDashboard() {
   const [myArticles, pendingArticles, publishedCount, myDrafts, totalViews, userCount] =
     await Promise.all([
       prisma.article.findMany({
-        where: role === 'WRITER' ? { authorId: userId } : undefined,
+        where: role === 'WRITER' ? { authorId: userId, deletedAt: null } : { deletedAt: null },
         orderBy: { updatedAt: 'desc' },
         take: 8,
         include: { category: true, author: true },
@@ -47,6 +47,7 @@ export default async function EditorialDashboard() {
         ? prisma.article.findMany({
             where: {
               status: 'PENDING_REVIEW',
+              deletedAt: null,
               ...(assignedCategoryIds ? { categoryId: { in: assignedCategoryIds } } : {}),
             },
             orderBy: { updatedAt: 'asc' },
@@ -58,12 +59,13 @@ export default async function EditorialDashboard() {
       prisma.article.count({
         where: {
           status: 'PUBLISHED',
+          deletedAt: null,
           ...(role === 'WRITER' ? { authorId: userId } : {}),
         },
       }),
 
       prisma.article.findMany({
-        where: { authorId: userId, status: 'DRAFT' },
+        where: { authorId: userId, status: 'DRAFT', deletedAt: null },
         orderBy: { updatedAt: 'desc' },
         take: 10,
         select: {
@@ -76,7 +78,7 @@ export default async function EditorialDashboard() {
       }) as Promise<{ id: string; title: string; updatedAt: Date; content: string; category: { name: string } | null }[]>,
 
       isEditor
-        ? prisma.article.aggregate({ _sum: { viewCount: true } })
+        ? prisma.article.aggregate({ where: { deletedAt: null }, _sum: { viewCount: true } })
             .then((r) => r._sum.viewCount ?? 0)
         : Promise.resolve(0),
 

@@ -73,6 +73,7 @@ export async function GET(req: NextRequest) {
     const candidates = await prisma.article.findMany({
       where: {
         status: 'PUBLISHED',
+        deletedAt: null,
         OR: tokens.flatMap((token) => [
           { title:   { contains: token, mode: 'insensitive' } },
           { excerpt: { contains: token, mode: 'insensitive' } },

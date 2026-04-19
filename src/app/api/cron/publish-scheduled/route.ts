@@ -11,7 +11,7 @@ export async function GET(req: Request) {
 
   const now = new Date()
   const due = await prisma.article.findMany({
-    where: { status: 'SCHEDULED', scheduledAt: { lte: now } },
+    where: { status: 'SCHEDULED', scheduledAt: { lte: now }, deletedAt: null },
     include: { author: true },
   })
 
@@ -40,5 +40,11 @@ export async function GET(req: Request) {
     results.push(article.id)
   }
 
-  return NextResponse.json({ published: results.length, ids: results })
+  // Permanently purge articles that have been in the trash for more than 30 days
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  const purged = await prisma.article.deleteMany({
+    where: { deletedAt: { not: null, lte: thirtyDaysAgo } },
+  })
+
+  return NextResponse.json({ published: results.length, ids: results, purged: purged.count })
 }

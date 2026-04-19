@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
         where: {
           authorId: session!.user.id,
           status: (status?.toUpperCase() ?? 'DRAFT') as never,
+          deletedAt: null,
         },
         orderBy: { updatedAt: 'desc' },
         select: {
@@ -86,6 +87,7 @@ export async function GET(request: NextRequest) {
     const articles = await prisma.article.findMany({
       where: {
         status: requestedStatus as never,
+        deletedAt: null,
         ...(category ? { category: { slug: category } } : {}),
       },
       orderBy: { publishedAt: 'desc' },

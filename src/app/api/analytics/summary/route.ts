@@ -52,7 +52,7 @@ export async function GET() {
     prisma.articleView.count({ where: { viewedAt: { gte: yesterday, lt: startOfToday } } }),
     prisma.articleView.count({ where: { viewedAt: { gte: startOfLastWeek, lt: endOfLastWeek } } }),
     prisma.articleView.count({ where: { viewedAt: { gte: startOfLastMonth, lt: endOfLastMonth } } }),
-    prisma.article.count({ where: { status: 'PUBLISHED' } }),
+    prisma.article.count({ where: { status: 'PUBLISHED', deletedAt: null } }),
     prisma.user.count({ where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] } } }),
   ])
 
