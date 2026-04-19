@@ -32,7 +32,7 @@ export default async function ReviewPage({ params }: Props) {
     },
   })
 
-  if (!article) notFound()
+  if (!article || article.deletedAt) notFound()
 
   // Serialize Prisma Date objects for client component
   const serialized = JSON.parse(JSON.stringify(article))

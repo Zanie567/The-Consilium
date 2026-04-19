@@ -27,7 +27,7 @@ export default async function SeriesPage() {
       orderBy: { createdAt: 'desc' },
     }),
     prisma.article.findMany({
-      where: { status: 'PUBLISHED' },
+      where: { status: 'PUBLISHED', deletedAt: null },
       select: { id: true, title: true, seriesId: true, seriesOrder: true },
       orderBy: { publishedAt: 'desc' },
     }),

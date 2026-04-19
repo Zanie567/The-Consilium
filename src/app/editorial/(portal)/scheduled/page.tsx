@@ -20,7 +20,7 @@ export default async function ScheduledPage() {
   }
 
   const articles = await prisma.article.findMany({
-    where: { status: 'SCHEDULED' },
+    where: { status: 'SCHEDULED', deletedAt: null },
     orderBy: { scheduledAt: 'asc' },
     include: { author: true, category: true },
   })
