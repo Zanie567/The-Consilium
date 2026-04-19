@@ -21,6 +21,7 @@ import {
   Trash2,
   Zap,
   UserCheck,
+  Trophy,
 } from 'lucide-react'
 
 interface User {
@@ -128,7 +129,13 @@ export function EditorialSidebar({
           label: 'MANAGE',
           items: [
             { href: '/editorial/users', icon: Users, label: 'Users', show: isAdmin },
-            { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
+            { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isEditor },
+          ],
+        },
+        {
+          label: 'STANDINGS',
+          items: [
+            { href: '/editorial/leaderboard', icon: Trophy, label: 'Leaderboard', exact: true, show: user.role === 'WRITER' },
           ],
         },
       ]
