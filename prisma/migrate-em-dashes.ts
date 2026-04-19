@@ -4,17 +4,18 @@
  * Finds every em dash (—, U+2014) in the following fields and replaces it with
  * a spaced hyphen ( - ):
  *
- *   debates        → title, description
- *   articles       → title, excerpt, content (Tiptap JSON — text nodes only)
- *   (Debate FOR / AGAINST argument bodies are the linked articles' content fields
- *    and are therefore covered by the articles pass above.)
+ *   debates   → title, description
+ *   articles  → title, excerpt, content (Tiptap JSON — text nodes only)
+ *
+ * Debate FOR / AGAINST argument bodies are the linked articles' content fields
+ * and are therefore covered by the articles pass above.
  *
  * Usage
  * ─────
- *   Dry-run (prints all changes, writes nothing):
+ *   Dry-run — prints all changes, writes nothing:
  *     npx ts-node -P tsconfig.seed.json prisma/migrate-em-dashes.ts
  *
- *   Apply changes:
+ *   Apply changes to the database:
  *     npx ts-node -P tsconfig.seed.json prisma/migrate-em-dashes.ts --apply
  */
 
@@ -22,7 +23,7 @@ import { config } from 'dotenv'
 import { resolve } from 'path'
 config({ path: resolve(__dirname, '../.env.local') })
 
-import { PrismaClient } from '@prisma/client'
+import { Prisma, PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 // ── Prisma setup ──────────────────────────────────────────────────────────────
@@ -35,24 +36,24 @@ const prisma = new PrismaClient({ adapter })
 const EM_DASH = '\u2014'
 const REPLACEMENT = ' - '
 
-/** Replace all em dashes in a plain string. */
+/**
+ * Replace every em dash in a plain string with a spaced hyphen.
+ * Collapses any surrounding whitespace so "how — and" → "how - and"
+ * rather than "how  -  and".
+ */
 function replacePlain(value: string): string {
-  // Normalise any surrounding whitespace so we don't end up with double-spaces.
-  // e.g. "foo — bar" → "foo - bar"  (not "foo  -  bar")
   return value.replace(/\s*\u2014\s*/g, REPLACEMENT)
 }
 
-/** Tiptap node type (minimal; only what we need). */
+/** Minimal Tiptap node shape — only fields we touch. */
 type TiptapNode = {
   type?: string
   text?: string
   content?: TiptapNode[]
-  marks?: unknown[]
-  attrs?: unknown
   [key: string]: unknown
 }
 
-/** Recursively replace em dashes in all text nodes in a Tiptap document. */
+/** Walk a Tiptap doc tree and replace em dashes in every text node. */
 function replaceTiptapNode(node: TiptapNode): TiptapNode {
   if (node.type === 'text' && typeof node.text === 'string') {
     return { ...node, text: replacePlain(node.text) }
@@ -64,36 +65,36 @@ function replaceTiptapNode(node: TiptapNode): TiptapNode {
 }
 
 /**
- * Replace em dashes in a Tiptap JSON string.
- * Returns the updated JSON string, or null if the value had no em dashes.
+ * Replace em dashes inside a serialised Tiptap JSON string.
+ * Returns the updated JSON, or null if the value contained no em dashes.
+ * Falls back to plain-string replacement if the value is not valid JSON.
  */
 function replaceTiptapJson(raw: string): string | null {
   if (!raw.includes(EM_DASH)) return null
   try {
     const doc = JSON.parse(raw) as TiptapNode
-    const updated = replaceTiptapNode(doc)
-    return JSON.stringify(updated)
+    return JSON.stringify(replaceTiptapNode(doc))
   } catch {
-    // Not valid JSON — treat as plain text (fallback)
     const updated = replacePlain(raw)
     return updated !== raw ? updated : null
   }
 }
 
-// ── Change log ────────────────────────────────────────────────────────────────
+// ── Change record ─────────────────────────────────────────────────────────────
 
 interface Change {
   table: string
   id: string
   field: string
-  label: string           // human-readable identifier (e.g. article title)
+  /** Human-readable label shown in the dry-run output (e.g. article title). */
+  label: string
   before: string
   after: string
 }
 
 const changes: Change[] = []
 
-function recordChange(
+function record(
   table: string,
   id: string,
   field: string,
@@ -104,113 +105,122 @@ function recordChange(
   changes.push({ table, id, field, label, before, after })
 }
 
-// ── Scan phase ────────────────────────────────────────────────────────────────
+// ── Scan ──────────────────────────────────────────────────────────────────────
 
 async function scanDebates() {
-  const debates = await prisma.debate.findMany({
+  const rows = await prisma.debate.findMany({
     select: { id: true, title: true, description: true },
   })
-
-  for (const d of debates) {
+  for (const d of rows) {
     if (d.title.includes(EM_DASH)) {
-      const after = replacePlain(d.title)
-      recordChange('debates', d.id, 'title', d.title, d.title, after)
+      record('debates', d.id, 'title', d.title, d.title, replacePlain(d.title))
     }
     if (d.description?.includes(EM_DASH)) {
-      const after = replacePlain(d.description)
-      recordChange('debates', d.id, 'description', d.title, d.description, after)
+      record('debates', d.id, 'description', d.title, d.description, replacePlain(d.description))
     }
   }
 }
 
 async function scanArticles() {
-  // We fetch all articles.  For large datasets a cursor-based approach would be
-  // better, but for a one-time migration this is fine.
-  const articles = await prisma.article.findMany({
+  const rows = await prisma.article.findMany({
     select: { id: true, title: true, excerpt: true, content: true },
   })
-
-  for (const a of articles) {
+  for (const a of rows) {
     if (a.title.includes(EM_DASH)) {
-      const after = replacePlain(a.title)
-      recordChange('articles', a.id, 'title', a.title, a.title, after)
+      record('articles', a.id, 'title', a.title, a.title, replacePlain(a.title))
     }
     if (a.excerpt?.includes(EM_DASH)) {
-      const after = replacePlain(a.excerpt)
-      recordChange('articles', a.id, 'excerpt', a.title, a.excerpt, after)
+      record('articles', a.id, 'excerpt', a.title, a.excerpt, replacePlain(a.excerpt))
     }
     const updatedContent = replaceTiptapJson(a.content)
     if (updatedContent !== null) {
-      // For the body we just show a summary of affected text rather than the
-      // full JSON blob which would be unreadable.
-      const bodyPreview = a.content
-        .match(/[^"]{0,40}\u2014[^"]{0,40}/g)
-        ?.slice(0, 5)
-        .join(' … ') ?? '(see full content)'
-      const bodyAfterPreview = bodyPreview.replace(/\s*\u2014\s*/g, REPLACEMENT)
-      recordChange('articles', a.id, 'content', a.title, bodyPreview, bodyAfterPreview)
+      // Show a short snippet rather than the full JSON blob.
+      const snippet =
+        a.content.match(/[^"]{0,40}\u2014[^"]{0,40}/g)?.slice(0, 5).join(' … ') ??
+        '(see full content)'
+      const snippetAfter = snippet.replace(/\s*\u2014\s*/g, ' - ')
+      record('articles', a.id, 'content', a.title, snippet, snippetAfter)
     }
   }
 }
 
-// ── Apply phase ───────────────────────────────────────────────────────────────
+// ── Apply ─────────────────────────────────────────────────────────────────────
 
 async function applyChanges() {
-  // Group changes by (table, id) so we issue at most one UPDATE per row.
-  const byRow = new Map<string, { table: string; id: string; updates: Record<string, string> }>()
+  // Coalesce all field changes for the same row into a single UPDATE.
+  type DebateRowUpdate = {
+    table: 'debates'
+    id: string
+    updates: Prisma.DebateUpdateInput
+  }
+  type ArticleRowUpdate = {
+    table: 'articles'
+    id: string
+    updates: Prisma.ArticleUpdateInput
+  }
+  type RowUpdate = DebateRowUpdate | ArticleRowUpdate
 
-  for (const c of changes) {
-    const key = `${c.table}:${c.id}`
-    if (!byRow.has(key)) byRow.set(key, { table: c.table, id: c.id, updates: {} })
+  const byRow = new Map<string, RowUpdate>()
 
-    // Re-compute the full replacement (not just the preview stored in `after`).
-    if (c.table === 'debates') {
-      if (c.field === 'title') {
-        byRow.get(key)!.updates.title = c.after
-      } else if (c.field === 'description') {
-        byRow.get(key)!.updates.description = c.after
+  const ensureRow = (table: string, id: string): RowUpdate => {
+    const key = `${table}:${id}`
+    if (!byRow.has(key)) {
+      if (table === 'debates') {
+        byRow.set(key, { table: 'debates', id, updates: {} })
+      } else {
+        byRow.set(key, { table: 'articles', id, updates: {} })
       }
-    } else if (c.table === 'articles') {
-      if (c.field === 'title') {
-        byRow.get(key)!.updates.title = c.after
-      } else if (c.field === 'excerpt') {
-        byRow.get(key)!.updates.excerpt = c.after
-      }
-      // Content is handled separately (needs the full raw value)
     }
+    return byRow.get(key)!
   }
 
-  // Articles with content changes need the full raw value.
-  const contentChangeIds = changes
-    .filter((c) => c.table === 'articles' && c.field === 'content')
-    .map((c) => c.id)
+  for (const c of changes) {
+    const row = ensureRow(c.table, c.id)
+    if (c.field === 'title' || c.field === 'description' || c.field === 'excerpt') {
+      if (c.field === 'title') {
+        row.updates.title = c.after
+      } else if (c.field === 'description' && row.table === 'debates') {
+        row.updates.description = c.after
+      } else if (c.field === 'excerpt' && row.table === 'articles') {
+        row.updates.excerpt = c.after
+      }
+    }
+    // content is handled below with the full raw value
+  }
 
-  let contentRows: { id: string; content: string }[] = []
-  if (contentChangeIds.length > 0) {
-    contentRows = await prisma.article.findMany({
-      where: { id: { in: contentChangeIds } },
+  // Re-fetch and re-process article content (the `after` stored in changes is
+  // only a snippet preview, not the full updated JSON).
+  const contentIds = [...new Set(
+    changes.filter((c) => c.table === 'articles' && c.field === 'content').map((c) => c.id),
+  )]
+  if (contentIds.length > 0) {
+    const contentRows = await prisma.article.findMany({
+      where: { id: { in: contentIds } },
       select: { id: true, content: true },
     })
     for (const row of contentRows) {
-      const key = `articles:${row.id}`
-      if (!byRow.has(key)) byRow.set(key, { table: 'articles', id: row.id, updates: {} })
       const updated = replaceTiptapJson(row.content)
-      if (updated) byRow.get(key)!.updates.content = updated
+      if (updated) {
+        const articleRow = ensureRow('articles', row.id)
+        if (articleRow.table === 'articles') {
+          articleRow.updates.content = updated
+        }
+      }
     }
   }
 
-  let updated = 0
+  let updatedRows = 0
   for (const { table, id, updates } of byRow.values()) {
     if (Object.keys(updates).length === 0) continue
     if (table === 'debates') {
       await prisma.debate.update({ where: { id }, data: updates })
-    } else if (table === 'articles') {
-      await (prisma.article.update as Function)({ where: { id }, data: updates })
+    } else {
+      await prisma.article.update({ where: { id }, data: updates })
     }
-    updated++
+    updatedRows++
   }
 
-  console.log(`\n✅  Updated ${updated} row(s).`)
+  console.log(`\n✅  ${updatedRows} row(s) updated.`)
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -219,7 +229,6 @@ async function main() {
   const apply = process.argv.includes('--apply')
 
   console.log('Scanning for em dashes (—) …\n')
-
   await scanDebates()
   await scanArticles()
 
@@ -228,17 +237,14 @@ async function main() {
     return
   }
 
-  // ── Print all changes ────────────────────────────────────────────────────
-
-  // Group by table for a cleaner printout
+  // Print every proposed change, grouped by table.
   const tables = [...new Set(changes.map((c) => c.table))]
   for (const table of tables) {
-    const tableChanges = changes.filter((c) => c.table === table)
-    console.log(`${'─'.repeat(72)}`)
-    console.log(`TABLE: ${table.toUpperCase()}  (${tableChanges.length} change(s))`)
-    console.log(`${'─'.repeat(72)}`)
-
-    for (const c of tableChanges) {
+    const group = changes.filter((c) => c.table === table)
+    console.log('─'.repeat(72))
+    console.log(`TABLE: ${table.toUpperCase()}  (${group.length} change(s))`)
+    console.log('─'.repeat(72))
+    for (const c of group) {
       console.log(`  id     : ${c.id}`)
       console.log(`  label  : ${c.label}`)
       console.log(`  field  : ${c.field}`)
@@ -248,20 +254,18 @@ async function main() {
     }
   }
 
-  console.log(`${'─'.repeat(72)}`)
-  console.log(`Total changes: ${changes.length} field(s) across ${[...new Set(changes.map((c) => `${c.table}:${c.id}`))].length} row(s)`)
+  const uniqueRows = new Set(changes.map((c) => `${c.table}:${c.id}`)).size
+  console.log('─'.repeat(72))
+  console.log(`Total: ${changes.length} field change(s) across ${uniqueRows} row(s)`)
   console.log()
 
   if (!apply) {
-    console.log('DRY-RUN — no changes were written to the database.')
-    console.log('Re-run with --apply to commit these changes:')
-    console.log()
-    console.log('  npx ts-node -P tsconfig.seed.json prisma/migrate-em-dashes.ts --apply')
-    console.log()
+    console.log('DRY-RUN — nothing was written to the database.')
+    console.log('Re-run with --apply to commit these changes:\n')
+    console.log('  npx ts-node -P tsconfig.seed.json prisma/migrate-em-dashes.ts --apply\n')
     return
   }
 
-  // ── Apply ────────────────────────────────────────────────────────────────
   console.log('Applying changes …')
   await applyChanges()
 }

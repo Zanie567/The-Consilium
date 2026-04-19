@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const tag = await prisma.tag.findUnique({ where: { slug } }).catch(() => null)
   if (!tag) return {}
   return {
-    title: `${tag.name} | The Consilium`,
+    title: tag.name,
     description: `All articles tagged with "${tag.name}" in The Consilium.`,
   }
 }

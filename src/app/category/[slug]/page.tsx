@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const category = await prisma.category.findUnique({ where: { slug } }).catch(() => null)
   if (!category) return {}
   return {
-    title: `${category.name} | The Consilium`,
+    title: category.name,
     description: `Read all ${category.name} articles from The Consilium`,
   }
 }
@@ -37,7 +37,7 @@ export default async function CategoryPage({ params }: Props) {
   let articles: ArticleRow[] = []
   try {
     articles = await prisma.article.findMany({
-      where: { status: 'PUBLISHED', categoryId: category.id, isDebate: false },
+      where: { status: 'PUBLISHED', categoryId: category.id, isDebate: false, deletedAt: null },
       orderBy: { publishedAt: 'desc' },
       include: { author: true, category: true },
     })

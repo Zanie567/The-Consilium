@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, articleReturnedEmail, articlePublishedEmail } from '@/lib/email'
+import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -23,7 +24,7 @@ export async function PATCH(req: Request, { params }: Props) {
     where: { id },
     include: { author: true },
   })
-  if (!article) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (!article || article.deletedAt) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // BUG-03: Editors only see their assigned categories (unless ADMIN).
   // The guard must apply even when the article has no category so that
@@ -54,7 +55,7 @@ export async function PATCH(req: Request, { params }: Props) {
 
   switch (action) {
     case 'approve': {
-      updates = { status: 'PUBLISHED', publishedAt: new Date(), isFeatured: false }
+      updates = { status: 'PUBLISHED', publishedAt: new Date(), scheduledAt: null, isFeatured: false }
       notifTitle = 'Article published'
       notifMessage = `Your article "${article.title}" has been published.`
       // Email writer
@@ -68,8 +69,8 @@ export async function PATCH(req: Request, { params }: Props) {
       if (!scheduledAt) return NextResponse.json({ error: 'scheduledAt required' }, { status: 400 })
       // BUG-04: Reject dates that are not in the future to prevent accidental
       // immediate publication by the scheduler cron.
-      const scheduledDate = new Date(scheduledAt)
-      if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
+      const scheduledDate = parseEditorialScheduleInput(scheduledAt)
+      if (!scheduledDate || scheduledDate <= new Date()) {
         return NextResponse.json({ error: 'scheduledAt must be a valid date in the future.' }, { status: 400 })
       }
       updates = { status: 'SCHEDULED', scheduledAt: scheduledDate }
@@ -88,7 +89,7 @@ export async function PATCH(req: Request, { params }: Props) {
       break
     }
     case 'unpublish': {
-      updates = { status: 'DRAFT', publishedAt: null, isFeatured: false }
+      updates = { status: 'DRAFT', publishedAt: null, scheduledAt: null, isFeatured: false }
       notifTitle = 'Article unpublished'
       notifMessage = `Your article "${article.title}" has been unpublished.`
       break

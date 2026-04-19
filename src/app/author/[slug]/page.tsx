@@ -60,6 +60,7 @@ export default async function AuthorPage({ params, searchParams }: Props) {
     where: {
       authorId: author.id,
       status: 'PUBLISHED',
+      deletedAt: null,
       ...(categoryFilter ? { category: { slug: categoryFilter } } : {}),
     },
     orderBy: { publishedAt: 'desc' },
@@ -69,7 +70,7 @@ export default async function AuthorPage({ params, searchParams }: Props) {
   // All categories this author has written in
   const allCategories = await prisma.category.findMany({
     where: {
-      articles: { some: { authorId: author.id, status: 'PUBLISHED' } },
+      articles: { some: { authorId: author.id, status: 'PUBLISHED', deletedAt: null } },
     },
     orderBy: { name: 'asc' },
   }).catch(() => [])

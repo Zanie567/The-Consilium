@@ -372,7 +372,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
     <div>
       {/* Stats bar */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           <StatCard icon={<Users size={16} />}    value={stats.total}          label="Total Users" />
           <StatCard icon={<Activity size={16} />} value={stats.activeThisWeek} label="Active This Week" />
           <StatCard icon={<Ban size={16} />}       value={stats.banned}         label="Banned" />

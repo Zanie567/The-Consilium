@@ -6,7 +6,7 @@ import { ProfileTabs } from '@/components/profile/ProfileTabs'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'My Profile | The Consilium',
+  title: 'My Profile',
 }
 
 export const dynamic = 'force-dynamic'

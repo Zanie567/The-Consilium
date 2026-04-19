@@ -54,8 +54,8 @@
   --bg-elevated:   #ffffff;
   --bg-subtle:     #f5f0e8;
   --fg:            #1a2744;
-  --fg-muted:      rgba(26,39,68,0.55);
-  --fg-faint:      rgba(26,39,68,0.35);
+  --fg-muted:      rgba(26,39,68,0.75);
+  --fg-faint:      rgba(26,39,68,0.50);
   --border:        rgba(201,162,39,0.18);
   --border-strong: rgba(201,162,39,0.35);
   --ticker-pos:    #145a32;
@@ -151,7 +151,7 @@ body {
 
 /* ─── Prose styles for article content ────────────────────────────────────── */
 .prose-consilium {
-  color: #2d2d2d;
+  color: #1a1a1a;
   line-height: 1.85;
   font-size: 1.125rem;
 }
@@ -574,13 +574,13 @@ body {
 
 /* ─── Utility: card hover ──────────────────────────────────────────────────── */
 .card-hover {
-  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-              box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 200ms ease,
+              box-shadow 200ms ease;
   will-change: transform;
 }
 .card-hover:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(26, 39, 68, 0.12);
 }
 .card-hover:active {
   transform: translateY(-1px);
@@ -609,12 +609,12 @@ body {
 }
 .img-zoom img,
 .img-zoom > div > img {
-  transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 200ms ease;
   will-change: transform;
 }
 .img-zoom:hover img,
 .img-zoom:hover > div > img {
-  transform: scale(1.05);
+  transform: scale(1.03);
 }
 
 /* ─── Link underline reveal ────────────────────────────────────────────────── */

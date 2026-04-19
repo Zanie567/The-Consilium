@@ -152,30 +152,41 @@ export const authOptions: NextAuthOptions = {
         token.roleCheckedAt = Date.now()
         token.isBanned = false
         token.bannedCheckedAt = Date.now()
+        token.isActive = true
+        token.activeCheckedAt = Date.now()
       } else {
-        // Re-check ban status every 60 seconds — critical for security
+        // Re-check privilege state every 60 seconds so bans, deactivations,
+        // and role changes take effect quickly on existing sessions.
         const oneMinuteAgo = Date.now() - 60 * 1000
-        const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000
 
         const needsBanCheck = !token.bannedCheckedAt || (token.bannedCheckedAt as number) < oneMinuteAgo
-        const needsRoleCheck = !token.roleCheckedAt || (token.roleCheckedAt as number) < thirtyMinutesAgo
+        const needsRoleCheck = !token.roleCheckedAt || (token.roleCheckedAt as number) < oneMinuteAgo
+        const needsActiveCheck = !token.activeCheckedAt || (token.activeCheckedAt as number) < oneMinuteAgo
 
-        if (needsBanCheck || needsRoleCheck) {
+        if (needsBanCheck || needsRoleCheck || needsActiveCheck) {
           try {
             const dbUser = await prisma.user.findUnique({
               where: { id: token.id as string },
               select: { role: true, isActive: true, isBanned: true },
             })
             if (dbUser) {
-              if (needsRoleCheck) {
-                token.role = dbUser.role
-                token.roleCheckedAt = Date.now()
-                if (!dbUser.isActive) token.isActive = false
-              }
+              token.isActive = dbUser.isActive
+              token.activeCheckedAt = Date.now()
               if (needsBanCheck) {
                 token.isBanned = dbUser.isBanned
                 token.bannedCheckedAt = Date.now()
               }
+              if (needsRoleCheck) {
+                token.role = (!dbUser.isActive || dbUser.isBanned) ? 'READER' : dbUser.role
+                token.roleCheckedAt = Date.now()
+              }
+            } else {
+              token.isActive = false
+              token.activeCheckedAt = Date.now()
+              token.isBanned = true
+              token.bannedCheckedAt = Date.now()
+              token.role = 'READER'
+              token.roleCheckedAt = Date.now()
             }
           } catch {
             // DB unavailable — use cached token values
@@ -189,6 +200,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as unknown as { role: Role; id: string; isBanned: boolean }).role = token.role as Role
         ;(session.user as unknown as { id: string }).id = token.id as string
         ;(session.user as unknown as { isBanned: boolean }).isBanned = (token.isBanned as boolean) ?? false
+        ;(session.user as unknown as { isActive: boolean }).isActive = (token.isActive as boolean) ?? true
       }
       return session
     },
@@ -215,10 +227,16 @@ export function isEditorialUser(role: Role): boolean {
  *   if (authError) return authError
  */
 export function requireActiveSession(
-  session: { user?: { isBanned?: boolean } | null } | null
+  session: { user?: { isBanned?: boolean; isActive?: boolean } | null } | null
 ): Response | null {
   if (!session?.user) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (session.user.isActive === false) {
+    return Response.json(
+      { error: 'Your account is inactive.' },
+      { status: 403 }
+    )
   }
   if (session.user.isBanned) {
     return Response.json(

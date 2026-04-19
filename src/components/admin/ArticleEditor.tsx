@@ -15,6 +15,10 @@ import { useTheme } from 'next-themes'
 import slugify from 'slugify'
 import { mutate as globalMutate } from 'swr'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
+import {
+  EDITORIAL_TIME_ZONE_LABEL,
+  getEditorialScheduleMinInput,
+} from '@/lib/editorialSchedule'
 import { readTimeLabel, wordCountFromContent } from '@/lib/readTime'
 import { DRAFTS_SWR_KEY } from '@/components/editorial/DraftsSection'
 
@@ -27,7 +31,7 @@ const TiptapEditor = dynamic(
     onChange: (content: string) => void
     editable?: boolean
     saveStatus?: 'idle' | 'saving' | 'saved' | 'error'
-    toolbarFixed?: boolean
+    toolbarPortalRef?: React.RefObject<HTMLDivElement | null>
     contentOnly?: boolean
   } &
   React.RefAttributes<TiptapEditorHandle>
@@ -37,6 +41,12 @@ interface Category {
   id: string
   name: string
   slug: string
+}
+
+interface UserOption {
+  id: string
+  name: string | null
+  role: string
 }
 
 interface ArticleEditorProps {
@@ -52,8 +62,10 @@ interface ArticleEditorProps {
     scheduledAt?: string | null
     editorNote?: string | null
     tags?: string[]
+    authorId?: string
   }
   categories: Category[]
+  /** The ID of the currently logged-in user — used as fallback when creating a new article */
   authorId: string
   canPublish: boolean
   returnUrl?: string
@@ -93,6 +105,15 @@ export function ArticleEditor({
   const { theme, setTheme } = useTheme()
   const [themeMounted, setThemeMounted] = useState(false)
   useEffect(() => setThemeMounted(true), [])
+
+  // Fetch the list of all editorial users so admins/editors can override the author
+  useEffect(() => {
+    if (isWriter) return // writers cannot change authorship
+    fetch('/api/editorial/users')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: UserOption[]) => { if (Array.isArray(data)) setUsers(data) })
+      .catch(() => {})
+  }, [isWriter])
   const isDark = theme === 'dark'
 
   // ── Field state ────────────────────────────────────────────────────────────
@@ -106,6 +127,9 @@ export function ArticleEditor({
   const [scheduledAt, setScheduledAt] = useState(initialData?.scheduledAt ?? '')
   const [tags, setTags]             = useState<string[]>(initialData?.tags ?? [])
   const [tagInput, setTagInput]     = useState('')
+  // Author override: default to the article's existing author, or the session user for new articles
+  const [selectedAuthorId, setSelectedAuthorId] = useState(initialData?.authorId ?? authorId)
+  const [users, setUsers]           = useState<UserOption[]>([])
 
   // ── UI state ───────────────────────────────────────────────────────────────
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
@@ -115,6 +139,7 @@ export function ArticleEditor({
   const [coverError, setCoverError] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [tutorialOpen, setTutorialOpen] = useState(false)
+  const [toolbarHeight, setToolbarHeight] = useState(44)
 
   // ── Refs that need to be stable inside closures ────────────────────────────
   // articleIdRef holds the current article ID — set from prop on mount, then
@@ -127,25 +152,27 @@ export function ArticleEditor({
 
   // Keep a ref copy of every field so the autosave callback always reads the
   // latest values without depending on state (avoids stale closure issues).
-  const titleRef      = useRef(title)
-  const slugRef       = useRef(slug)
-  const contentRef    = useRef(content)
-  const excerptRef    = useRef(excerpt)
-  const coverImageRef = useRef(coverImage)
-  const categoryIdRef = useRef(categoryId)
-  const statusRef     = useRef(status)
-  const scheduledAtRef= useRef(scheduledAt)
-  const tagsRef       = useRef(tags)
+  const titleRef           = useRef(title)
+  const slugRef            = useRef(slug)
+  const contentRef         = useRef(content)
+  const excerptRef         = useRef(excerpt)
+  const coverImageRef      = useRef(coverImage)
+  const categoryIdRef      = useRef(categoryId)
+  const statusRef          = useRef(status)
+  const scheduledAtRef     = useRef(scheduledAt)
+  const tagsRef            = useRef(tags)
+  const selectedAuthorIdRef= useRef(selectedAuthorId)
 
-  useEffect(() => { titleRef.current      = title      }, [title])
-  useEffect(() => { slugRef.current       = slug       }, [slug])
-  useEffect(() => { contentRef.current    = content    }, [content])
-  useEffect(() => { excerptRef.current    = excerpt    }, [excerpt])
-  useEffect(() => { coverImageRef.current = coverImage }, [coverImage])
-  useEffect(() => { categoryIdRef.current = categoryId }, [categoryId])
-  useEffect(() => { statusRef.current     = status     }, [status])
-  useEffect(() => { scheduledAtRef.current= scheduledAt}, [scheduledAt])
-  useEffect(() => { tagsRef.current       = tags       }, [tags])
+  useEffect(() => { titleRef.current           = title           }, [title])
+  useEffect(() => { slugRef.current            = slug            }, [slug])
+  useEffect(() => { contentRef.current         = content         }, [content])
+  useEffect(() => { excerptRef.current         = excerpt         }, [excerpt])
+  useEffect(() => { coverImageRef.current      = coverImage      }, [coverImage])
+  useEffect(() => { categoryIdRef.current      = categoryId      }, [categoryId])
+  useEffect(() => { statusRef.current          = status          }, [status])
+  useEffect(() => { scheduledAtRef.current     = scheduledAt     }, [scheduledAt])
+  useEffect(() => { tagsRef.current            = tags            }, [tags])
+  useEffect(() => { selectedAuthorIdRef.current= selectedAuthorId}, [selectedAuthorId])
 
   // DOM refs
   const titleDomRef   = useRef<HTMLTextAreaElement>(null)
@@ -153,6 +180,8 @@ export function ArticleEditor({
   const coverFileRef  = useRef<HTMLInputElement>(null)
   const editorRef     = useRef<TiptapEditorHandle | null>(null)
   const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // Portal target for the Tiptap formatting toolbar (rendered fixed below the top chrome)
+  const toolbarPortalRef = useRef<HTMLDivElement>(null)
 
   const currentStatus = initialData?.status ?? 'DRAFT'
   const canEdit = !isWriter || currentStatus === 'DRAFT' || currentStatus === 'REJECTED'
@@ -192,7 +221,9 @@ export function ArticleEditor({
       excerpt:    excerptRef.current,
       coverImage: coverImageRef.current || null,
       categoryId: categoryIdRef.current || null,
-      authorId,
+      // Send the selected author — admins/editors can override; writers always
+      // use their own session ID (selectedAuthorIdRef defaults to authorId prop).
+      authorId:   selectedAuthorIdRef.current,
       status:     finalStatus,
       tags:       tagsRef.current,
       ...(finalStatus === 'SCHEDULED' && scheduledAtRef.current
@@ -303,6 +334,17 @@ export function ArticleEditor({
     clearTimeout(autoSaveTimer.current)
     clearTimeout(savedFadeTimer.current)
     clearTimeout(savedTimeoutRef.current)
+  }, [])
+
+  // Measure toolbar height so content offset stays correct when toolbar wraps on mobile
+  useEffect(() => {
+    const el = toolbarPortalRef.current
+    if (!el) return
+    const observer = new ResizeObserver(() => {
+      setToolbarHeight(el.offsetHeight || 44)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
   }, [])
 
   // ── Field change helpers ───────────────────────────────────────────────────
@@ -433,7 +475,7 @@ export function ArticleEditor({
             <select
               value={status}
               onChange={(e) => { setStatus(e.target.value); statusRef.current = e.target.value; scheduleAutosave() }}
-              className="w-full h-8 text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer"
+              className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer"
             >
               <option value="DRAFT">Draft</option>
               <option value="PENDING_REVIEW">Pending Review</option>
@@ -453,17 +495,49 @@ export function ArticleEditor({
         </div>
       )}
 
+      {/* Author override — only visible to editors/admins */}
+      {!isWriter && users.length > 0 && (
+        <div>
+          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Author</label>
+          <div className="relative">
+            <select
+              value={selectedAuthorId}
+              onChange={(e) => {
+                setSelectedAuthorId(e.target.value)
+                selectedAuthorIdRef.current = e.target.value
+                scheduleAutosave()
+              }}
+              disabled={!canEdit}
+              className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer disabled:opacity-60"
+            >
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name ?? u.id}
+                  {u.role !== 'WRITER' ? ` (${u.role.charAt(0) + u.role.slice(1).toLowerCase()})` : ''}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
+          </div>
+        </div>
+      )}
+
       {/* Scheduled date */}
       {!isWriter && status === 'SCHEDULED' && (
         <div>
-          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Publish At</label>
+          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">
+            Publish At ({EDITORIAL_TIME_ZONE_LABEL})
+          </label>
           <input
             type="datetime-local"
             value={scheduledAt}
-            min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+            min={getEditorialScheduleMinInput()}
             onChange={(e) => { setScheduledAt(e.target.value); scheduledAtRef.current = e.target.value; scheduleAutosave() }}
-            className="w-full h-8 text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] cursor-pointer"
+            className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] cursor-pointer"
           />
+          <p className="text-[10px] text-[#999] mt-1">
+            Stored and displayed as UK editorial time.
+          </p>
           {!scheduledAt && (
             <p className="text-amber-500 text-[10px] mt-1">Pick a future date and time.</p>
           )}
@@ -478,7 +552,7 @@ export function ArticleEditor({
             value={categoryId}
             onChange={(e) => { setCategoryId(e.target.value); categoryIdRef.current = e.target.value; scheduleAutosave() }}
             disabled={!canEdit}
-            className="w-full h-8 text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer disabled:opacity-60"
+            className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer disabled:opacity-60"
           >
             <option value="">No category</option>
             {categories.map((cat) => (
@@ -498,7 +572,7 @@ export function ArticleEditor({
           value={coverImage}
           onChange={(e) => { setCoverImage(e.target.value); coverImageRef.current = e.target.value; scheduleAutosave() }}
           placeholder="https://..."
-          className="w-full h-8 text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] placeholder:text-[#ccc]"
+          className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] placeholder:text-[#ccc]"
         />
         {uploading && <p className="text-[10px] text-[#999] mt-1">Uploading…</p>}
         {coverError && <p className="text-[10px] text-red-500 mt-1">{coverError}</p>}
@@ -535,6 +609,9 @@ export function ArticleEditor({
             {uploading ? 'Uploading…' : 'Upload file'}
           </button>
         )}
+        <p className="text-xs text-gray-400 mt-1.5 leading-snug">
+          For best results: landscape orientation, minimum 1200&nbsp;px wide, subject centred in frame.
+        </p>
       </div>
 
       {/* Tags */}
@@ -571,7 +648,7 @@ export function ArticleEditor({
             onBlur={() => tagInput && addTag(tagInput)}
             placeholder={tags.length < 10 ? 'Add a tag, press Enter...' : 'Max 10 tags'}
             disabled={tags.length >= 10}
-            className="w-full h-8 text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] placeholder:text-[#ccc] disabled:opacity-50"
+            className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] placeholder:text-[#ccc] disabled:opacity-50"
           />
         )}
         <p className="text-[10px] text-[#ccc] mt-1">Separate with Enter or comma. Up to 10.</p>
@@ -586,7 +663,7 @@ export function ArticleEditor({
             value={slug}
             onChange={(e) => { setSlug(e.target.value); slugRef.current = e.target.value; scheduleAutosave() }}
             placeholder="url-slug"
-            className="w-full h-8 text-[11px] font-mono border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744]"
+            className="w-full h-8 text-[16px] sm:text-[11px] font-mono border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744]"
           />
         </div>
       )}
@@ -597,8 +674,8 @@ export function ArticleEditor({
   return (
     <div className="min-h-full">
 
-      {/* FIXED: Top chrome (48px) */}
-      <div className="fixed top-0 left-[220px] right-0 z-50 h-12 bg-white dark:bg-[#1a1a1a] border-b border-[#e0e0e0] dark:border-[#333] flex items-center px-3 gap-2">
+      {/* FIXED: Top chrome (48px) — full-width on mobile, offset by sidebar on md+ */}
+      <div className="fixed top-0 left-0 md:left-[220px] right-0 z-50 h-12 bg-white dark:bg-[#1a1a1a] border-b border-[#e0e0e0] dark:border-[#333] flex items-center pl-[52px] md:pl-3 pr-3 gap-2">
         <button
           onClick={handleBack}
           className="p-1.5 rounded hover:bg-[#f1f3f4] text-[#555] transition-colors shrink-0"
@@ -614,7 +691,8 @@ export function ArticleEditor({
           onChange={(e) => updateTitle(e.target.value)}
           disabled={!canEdit}
           placeholder="Untitled document"
-          className="flex-1 min-w-0 text-[15px] bg-transparent border-none outline-none placeholder:text-[#bbb] dark:placeholder:text-[#555] disabled:opacity-60 text-[#1a1a1a] dark:text-[#e8e8e8]"
+          className="flex-1 min-w-0 bg-transparent border-none outline-none placeholder:text-[#bbb] dark:placeholder:text-[#555] disabled:opacity-60 text-[#1a1a1a] dark:text-[#e8e8e8]"
+          style={{ fontSize: 16 }}
         />
 
         {/* Status pill */}
@@ -734,14 +812,18 @@ export function ArticleEditor({
         </button>
       </div>
 
-      {/* TiptapEditor's fixed toolbar renders at top-12 via toolbarFixed prop */}
+      {/* Formatting toolbar — Tiptap portals its toolbar content into this fixed container */}
+      <div
+        ref={toolbarPortalRef}
+        className="fixed top-12 left-0 md:left-[220px] right-0 z-[200]"
+      />
 
-      {/* Content (below both fixed bars = 88px) */}
-      <div className="pt-[88px] min-h-screen bg-[#f0f0f0] dark:bg-[#111]">
+      {/* Content — offset by top chrome (48px) + measured toolbar height */}
+      <div className="min-h-screen bg-[#f0f0f0] dark:bg-[#111]" style={{ paddingTop: 48 + toolbarHeight + 4 }}>
 
         {/* Banners */}
         {(initialData?.editorNote || error || !canEdit) && (
-          <div className="max-w-[1120px] mx-auto px-6 pt-5 space-y-3">
+          <div className="max-w-[1120px] mx-auto px-3 sm:px-6 pt-4 sm:pt-5 space-y-3">
             {initialData?.editorNote && (
               <div className="bg-amber-500/8 border border-amber-500/20 px-4 py-3 rounded">
                 <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Editor feedback</p>
@@ -763,16 +845,17 @@ export function ArticleEditor({
         )}
 
         {/* Main row: document card + right panel */}
-        <div className="flex justify-center gap-6 px-6 py-8 items-start">
+        <div className="flex justify-center gap-6 px-2 sm:px-4 md:px-6 py-4 md:py-8 items-start">
 
           {/* Document card */}
           <div
-            className="flex-none w-full max-w-[816px] bg-white dark:bg-[#1e1e1e]"
+            className="flex-none w-full max-w-[1100px] bg-white dark:bg-[#1e1e1e]"
             style={{
               boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)',
               minHeight: 'calc(100vh - 120px)',
             }}
           >
+
             {/* Cover image block — full bleed above padded content */}
             <div
               className="relative group w-full overflow-hidden bg-[#f5f5f5]"
@@ -815,16 +898,16 @@ export function ArticleEditor({
                     type="button"
                     onClick={() => coverFileRef.current?.click()}
                     disabled={uploading}
-                    className="w-full py-4 flex items-center justify-center gap-2 text-[#ccc] text-xs hover:text-[#aaa] hover:bg-[#f0f0f0] transition-colors disabled:opacity-50"
+                    className="w-full py-5 flex items-center justify-center gap-2 text-[#aaa] text-sm font-bold hover:text-[#888] hover:bg-[#ebebeb] transition-colors disabled:opacity-50 tracking-wide"
                   >
-                    <ImagePlus size={14} />
+                    <ImagePlus size={16} />
                     {uploading ? 'Uploading…' : 'Add cover image'}
                   </button>
                 )
               )}
             </div>
 
-            <div style={{ padding: '64px 128px' }}>
+            <div className="px-5 py-8 sm:px-10 sm:py-12 md:px-16 md:py-14 lg:px-24 xl:px-[140px] xl:py-[80px]">
 
               {/* Headline */}
               <textarea
@@ -838,7 +921,8 @@ export function ArticleEditor({
                 style={{
                   color: '#1a1a1a',
                   fontFamily: 'var(--font-serif)',
-                  fontSize: 'clamp(1.75rem, 4vw, 2.5rem)',
+                  /* clamp handles iOS zoom threshold (min 16px) */
+                  fontSize: 'clamp(1rem, 5vw, 2.5rem)',
                   fontWeight: 700,
                 }}
               />
@@ -851,8 +935,8 @@ export function ArticleEditor({
                 disabled={!canEdit}
                 placeholder="Write a brief summary that draws readers in..."
                 rows={2}
-                className="w-full bg-transparent border-none outline-none resize-none text-lg leading-relaxed placeholder:text-[#ccc] disabled:opacity-60 overflow-hidden"
-                style={{ color: '#666', fontStyle: 'italic' }}
+                className="w-full bg-transparent border-none outline-none resize-none leading-relaxed placeholder:text-[#ccc] disabled:opacity-60 overflow-hidden"
+                style={{ color: '#666', fontStyle: 'italic', fontSize: '1.1rem' }}
               />
 
               {/* Body editor */}
@@ -863,7 +947,7 @@ export function ArticleEditor({
                   onChange={handleContentChange}
                   editable={canEdit}
                   saveStatus={saveStatus}
-                  toolbarFixed
+                  toolbarPortalRef={toolbarPortalRef}
                   contentOnly
                 />
               </div>
@@ -887,7 +971,10 @@ export function ArticleEditor({
             className="fixed inset-0 z-[60] bg-black/20"
             onClick={() => setSettingsOpen(false)}
           />
-          <div className="fixed top-12 right-0 bottom-0 z-[61] w-72 bg-white border-l border-[#e0e0e0] overflow-y-auto p-4 shadow-xl">
+          <div
+            className="fixed right-0 bottom-0 z-[61] w-72 bg-white border-l border-[#e0e0e0] overflow-y-auto p-4 shadow-xl"
+            style={{ top: 48 + toolbarHeight }}
+          >
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-semibold text-[#333]">Document settings</span>
               <button
@@ -991,6 +1078,7 @@ export function ArticleEditor({
                 <TutorialSection title="Right panel">
                   <ul className="space-y-2 mt-1">
                     <TutorialItem label="Status">Draft while writing. Publish when ready (editors/admins) or Submit for review (writers).</TutorialItem>
+                    <TutorialItem label="Author">Editors and admins can reassign the article to any writer or editor. Defaults to your account for new articles.</TutorialItem>
                     <TutorialItem label="Category">Assign to News, Opinion, Analysis etc.</TutorialItem>
                     <TutorialItem label="Cover image">Paste a URL or upload a file</TutorialItem>
                     <TutorialItem label="Tags">Up to 10 tags. Press Enter or comma after each.</TutorialItem>

@@ -27,7 +27,7 @@ export async function GET() {
            COALESCE(SUM(a."view_count"), 0) AS total_views
     FROM articles a
     JOIN users u ON u.id = a."author_id"
-    WHERE a.status = 'PUBLISHED'
+    WHERE a.status = 'PUBLISHED' AND a.deleted_at IS NULL
     GROUP BY a."author_id", u.name
     ORDER BY total_views DESC
   `
@@ -38,7 +38,7 @@ export async function GET() {
 
   // Best article per author by view count
   const bestArticles = await prisma.article.findMany({
-    where: { authorId: { in: authorIds }, status: 'PUBLISHED' },
+    where: { authorId: { in: authorIds }, status: 'PUBLISHED', deletedAt: null },
     orderBy: { viewCount: 'desc' },
     select: { authorId: true, title: true, slug: true, viewCount: true },
   })
