@@ -21,7 +21,7 @@ export async function GET(
         tags: { include: { tag: true } },
       },
     })
-    if (!article) return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!article || article.deletedAt) return Response.json({ error: 'Not found' }, { status: 404 })
     return Response.json(article)
   } catch {
     return Response.json({ error: 'Failed to fetch article' }, { status: 500 })
@@ -44,7 +44,7 @@ export async function PUT(
       where: { id },
       include: { author: true, category: true },
     })
-    if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!existing || existing.deletedAt) return Response.json({ error: 'Not found' }, { status: 404 })
 
     // Writers can only edit their own articles
     if (!isAdminOrEditor && existing.authorId !== session!.user.id) {
@@ -224,13 +224,14 @@ export async function DELETE(
 
   try {
     const existing = await prisma.article.findUnique({ where: { id } })
-    if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!existing || existing.deletedAt) return Response.json({ error: 'Not found' }, { status: 404 })
 
     if (!isAdminOrEditor && existing.authorId !== session!.user.id) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    await prisma.article.delete({ where: { id } })
+    // Soft delete — move to trash; permanently removed after 30 days by the cron job
+    await prisma.article.update({ where: { id }, data: { deletedAt: new Date() } })
     return Response.json({ success: true })
   } catch {
     return Response.json({ error: 'Failed to delete article' }, { status: 500 })

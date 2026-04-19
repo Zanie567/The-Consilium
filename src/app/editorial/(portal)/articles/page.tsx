@@ -42,6 +42,7 @@ export default async function EditorialArticlesPage({
   let fetchError = false
   const articles = await prisma.article.findMany({
     where: {
+      deletedAt: null,
       ...(myDraftsMode
         ? { authorId: userId, status: 'DRAFT' }
         : {

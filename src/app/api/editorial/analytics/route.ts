@@ -46,11 +46,11 @@ export async function GET(req: NextRequest) {
     allViewSources,
   ] = await Promise.all([
     prisma.article
-      .aggregate({ _sum: { viewCount: true } })
+      .aggregate({ where: { deletedAt: null }, _sum: { viewCount: true } })
       .then((r) => r._sum.viewCount ?? 0)
       .catch(() => 0),
 
-    prisma.article.count({ where: { status: 'PUBLISHED' } }).catch(() => 0),
+    prisma.article.count({ where: { status: 'PUBLISHED', deletedAt: null } }).catch(() => 0),
 
     prisma.user.count().catch(() => 0),
 
@@ -61,12 +61,12 @@ export async function GET(req: NextRequest) {
       .catch(() => 0),
 
     prisma.article
-      .count({ where: { status: 'PUBLISHED', publishedAt: { gte: since } } })
+      .count({ where: { status: 'PUBLISHED', deletedAt: null, publishedAt: { gte: since } } })
       .catch(() => 0),
 
     prisma.article
       .findMany({
-        where: { status: 'PUBLISHED' },
+        where: { status: 'PUBLISHED', deletedAt: null },
         orderBy: { viewCount: 'desc' },
         take: 10,
         select: {
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
     prisma.category
       .findMany({
         include: {
-          articles: { where: { status: 'PUBLISHED' }, select: { viewCount: true } },
+          articles: { where: { status: 'PUBLISHED', deletedAt: null }, select: { viewCount: true } },
         },
       })
       .catch(() => []),
@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
           name: true,
           email: true,
           articles: {
-            where: { status: 'PUBLISHED' },
+            where: { status: 'PUBLISHED', deletedAt: null },
             select: { viewCount: true },
           },
         },
@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
 
     prisma.article
       .findMany({
-        where: { status: 'PUBLISHED' },
+        where: { status: 'PUBLISHED', deletedAt: null },
         orderBy: { publishedAt: 'desc' },
         take: 10,
         select: {
@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
     // Published articles in period with their publishedAt timestamps
     prisma.article
       .findMany({
-        where: { status: 'PUBLISHED', publishedAt: { gte: since } },
+        where: { status: 'PUBLISHED', deletedAt: null, publishedAt: { gte: since } },
         select: { publishedAt: true },
       })
       .catch(() => [] as { publishedAt: Date | null }[]),

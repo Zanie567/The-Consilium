@@ -31,6 +31,7 @@ export default async function ReviewQueuePage() {
   const articles = await prisma.article.findMany({
     where: {
       status: 'PENDING_REVIEW',
+      deletedAt: null,
       ...(assignedCategoryIds ? { categoryId: { in: assignedCategoryIds } } : {}),
     },
     orderBy: { updatedAt: 'asc' },

@@ -12,7 +12,7 @@ interface User {
   role: string
 }
 
-export function EditorialSidebarWrapper({ user }: { user: User }) {
+export function EditorialSidebarWrapper({ user, trashCount = 0 }: { user: User; trashCount?: number }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
 
@@ -70,6 +70,7 @@ export function EditorialSidebarWrapper({ user }: { user: User }) {
       >
         <EditorialSidebar
           user={user}
+          trashCount={trashCount}
           onNavClick={() => setMobileOpen(false)}
         />
       </div>

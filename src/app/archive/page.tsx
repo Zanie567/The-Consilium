@@ -19,6 +19,7 @@ async function getArticles(q?: string, categorySlug?: string) {
       where: {
         status: 'PUBLISHED',
         isDebate: false,
+        deletedAt: null,
         ...(q
           ? {
               OR: [

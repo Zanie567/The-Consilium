@@ -25,12 +25,12 @@ async function getFeaturedArticle() {
     // First try explicitly featured, then fall back to most recent published
     // Debate articles are excluded - they live on /opinion-debate
     const featured = await prisma.article.findFirst({
-      where: { status: 'PUBLISHED', isFeatured: true, isDebate: false },
+      where: { status: 'PUBLISHED', isFeatured: true, isDebate: false, deletedAt: null },
       include: { author: true, category: true },
     })
     if (featured) return featured
     return await prisma.article.findFirst({
-      where: { status: 'PUBLISHED', isDebate: false },
+      where: { status: 'PUBLISHED', isDebate: false, deletedAt: null },
       orderBy: { publishedAt: 'desc' },
       include: { author: true, category: true },
     })
@@ -51,7 +51,7 @@ async function getMostReadArticles() {
     })
     if (topIds.length === 0) {
       return prisma.article.findMany({
-        where: { status: 'PUBLISHED', isDebate: false },
+        where: { status: 'PUBLISHED', isDebate: false, deletedAt: null },
         orderBy: { viewCount: 'desc' },
         take: 5,
         select: { id: true, title: true, slug: true, viewCount: true, author: { select: { name: true } }, category: { select: { name: true } } },
@@ -59,7 +59,7 @@ async function getMostReadArticles() {
     }
     const ids = topIds.map((r) => r.articleId)
     const articles = await prisma.article.findMany({
-      where: { id: { in: ids }, status: 'PUBLISHED', isDebate: false },
+      where: { id: { in: ids }, status: 'PUBLISHED', isDebate: false, deletedAt: null },
       select: { id: true, title: true, slug: true, viewCount: true, author: { select: { name: true } }, category: { select: { name: true } } },
     })
     // Sort by weekly views order
@@ -75,6 +75,7 @@ async function getArticles(categorySlug?: string) {
       where: {
         status: 'PUBLISHED',
         isDebate: false,
+        deletedAt: null,
         ...(categorySlug ? { category: { slug: categorySlug } } : {}),
       },
       orderBy: { publishedAt: 'desc' },
@@ -179,6 +180,7 @@ async function getTrendingTags() {
         article: {
           status: 'PUBLISHED',
           publishedAt: { gte: thirtyDaysAgo },
+          deletedAt: null,
         },
       },
       include: {

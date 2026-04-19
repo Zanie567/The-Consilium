@@ -37,7 +37,7 @@ export default async function CategoryPage({ params }: Props) {
   let articles: ArticleRow[] = []
   try {
     articles = await prisma.article.findMany({
-      where: { status: 'PUBLISHED', categoryId: category.id, isDebate: false },
+      where: { status: 'PUBLISHED', categoryId: category.id, isDebate: false, deletedAt: null },
       orderBy: { publishedAt: 'desc' },
       include: { author: true, category: true },
     })

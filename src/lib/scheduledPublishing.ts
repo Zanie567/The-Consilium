@@ -20,6 +20,7 @@ export interface ScheduledPublishResult {
   published: ScheduledPublishArticleResult[]
   skipped: ScheduledPublishArticleResult[]
   warnings: ScheduledPublishWarning[]
+  purged: number
 }
 
 export async function publishScheduledArticles(now = new Date()): Promise<ScheduledPublishResult> {
@@ -27,6 +28,7 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
     where: {
       status: 'SCHEDULED',
       scheduledAt: { lte: now },
+      deletedAt: null,
     },
     include: { author: true },
     orderBy: { scheduledAt: 'asc' },
@@ -94,11 +96,27 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
     published.push(summary)
   }
 
+  // Permanently purge articles soft-deleted more than 30 days ago
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  let purged = 0
+  try {
+    const result = await prisma.article.deleteMany({
+      where: { deletedAt: { not: null, lte: thirtyDaysAgo } },
+    })
+    purged = result.count
+    if (purged > 0) {
+      console.log(`[scheduledPublishing] Purged ${purged} article(s) from trash (>30 days old)`)
+    }
+  } catch {
+    // Never let purge failure block publishing results
+  }
+
   return {
     ranAt: now.toISOString(),
     dueCount: due.length,
     published,
     skipped,
     warnings,
+    purged,
   }
 }

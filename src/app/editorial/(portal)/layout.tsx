@@ -44,6 +44,12 @@ export default async function EditorialLayout({
     )
   }
 
+  // Fetch trash count for the sidebar badge (admin/editor only)
+  const isEditorOrAdmin = dbUser.role === 'ADMIN' || dbUser.role === 'EDITOR'
+  const trashCount = isEditorOrAdmin
+    ? await prisma.article.count({ where: { deletedAt: { not: null } } }).catch(() => 0)
+    : 0
+
   // Build a user object using the verified DB role
   const verifiedUser = {
     id: session.user.id,
@@ -57,7 +63,7 @@ export default async function EditorialLayout({
     <div className="min-h-screen bg-[var(--bg-subtle)] flex">
       {/* Sidebar: hidden on mobile (overlay via wrapper), always visible on desktop */}
       <Suspense fallback={<div className="hidden md:block w-[220px] shrink-0" style={{ background: '#0F1623' }} />}>
-        <EditorialSidebarWrapper user={verifiedUser} />
+        <EditorialSidebarWrapper user={verifiedUser} trashCount={trashCount} />
       </Suspense>
       {/* Main content: full-width on mobile (sidebar is overlay), flex-1 on desktop */}
       <main className="flex-1 min-w-0 overflow-auto">{children}</main>
