@@ -32,6 +32,10 @@ const ebGaramond = EB_Garamond({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://the-consilium.vercel.app')
+  ),
   title: {
     default: 'The Consilium | University of Edinburgh Economics Society',
     template: '%s | The Consilium',
