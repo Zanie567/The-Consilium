@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     ]
   }
 
-  if (role && ['ADMIN', 'EDITOR', 'WRITER', 'READER'].includes(role)) {
+  if (role && ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].includes(role)) {
     where.role = role
   }
 

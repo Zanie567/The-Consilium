@@ -52,7 +52,7 @@ const STATUS_STYLE: Record<string, string> = {
   ARCHIVED: 'bg-[var(--bg-subtle)] text-[var(--fg-faint)]',
 }
 
-const ROLE_OPTIONS = ['ADMIN', 'EDITOR', 'WRITER', 'READER'] as const
+const ROLE_OPTIONS = ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'] as const
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ msg, ok }: { msg: string; ok: boolean }) {
