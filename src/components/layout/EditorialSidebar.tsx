@@ -42,7 +42,15 @@ interface NavGroup {
   items: NavItem[]
 }
 
-export function EditorialSidebar({ user, trashCount = 0, onNavClick }: { user: User; trashCount?: number; onNavClick?: () => void }) {
+export function EditorialSidebar({
+  user,
+  trashCount = 0,
+  onNavClick,
+}: {
+  user: User
+  trashCount?: number
+  onNavClick?: () => void
+}) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -85,7 +93,6 @@ export function EditorialSidebar({ user, trashCount = 0, onNavClick }: { user: U
 
   const isActive = (href: string, exact?: boolean) => {
     const [hrefPath, hrefQuery] = href.split('?')
-    // Links with query params: require both pathname and all specified params to match
     if (hrefQuery) {
       if (pathname !== hrefPath) return false
       const hrefParams = new URLSearchParams(hrefQuery)
@@ -95,9 +102,8 @@ export function EditorialSidebar({ user, trashCount = 0, onNavClick }: { user: U
       return true
     }
     if (exact) return pathname === hrefPath
-    // Articles list: match /editorial/articles and edits, but NOT /new or query-param variants
     if (hrefPath === '/editorial/articles') {
-      if (searchParams.get('mine') === 'true') return false // "My Drafts" is active instead
+      if (searchParams.get('mine') === 'true') return false
       return (
         pathname === '/editorial/articles' ||
         (pathname.startsWith('/editorial/articles/') && pathname !== '/editorial/articles/new')
@@ -108,19 +114,46 @@ export function EditorialSidebar({ user, trashCount = 0, onNavClick }: { user: U
 
   return (
     <aside
-      className="w-[220px] shrink-0 flex flex-col min-h-screen sticky top-0 h-screen overflow-y-auto"
+      className="w-[220px] shrink-0 flex flex-col min-h-screen sticky top-0 h-screen overflow-y-auto overflow-x-hidden"
       style={{ background: '#0F1623' }}
     >
       {/* Masthead */}
-      <div className="px-5 pt-5 pb-4 border-b border-white/8">
-        <Link
-          href="/"
-          className="text-gold font-bold text-sm tracking-widest uppercase"
+      <div className="px-3 pt-5 pb-4 border-b border-white/8 flex items-center gap-3 min-h-[60px]">
+        {/* Small logo mark visible at all widths, used as icon in collapsed tablet rail */}
+        <span
+          className="text-gold font-bold text-sm shrink-0 select-none"
           style={{ fontFamily: 'var(--font-serif)' }}
+          aria-hidden
         >
-          The Consilium
-        </Link>
-        <p className="text-cream/25 text-[9px] mt-0.5 uppercase tracking-widest">Editorial Portal</p>
+          TC
+        </span>
+        {/*
+         * Full wordmark: hidden on tablet rail (md width < 220px),
+         * fades in as the rail expands (group-hover/sidebar),
+         * always visible at lg+.
+         */}
+        <div
+          className={[
+            'min-w-0 transition-[opacity,max-width] duration-200 ease-in-out overflow-hidden',
+            // At md (rail): invisible and takes no space
+            'md:opacity-0 md:max-w-0',
+            // When the rail is hovered → full expanded width
+            'md:group-hover/sidebar:opacity-100 md:group-hover/sidebar:max-w-[160px]',
+            // At lg+: always visible
+            'lg:opacity-100 lg:max-w-[160px]',
+          ].join(' ')}
+        >
+          <Link
+            href="/"
+            className="text-gold font-bold text-sm tracking-widest uppercase whitespace-nowrap block"
+            style={{ fontFamily: 'var(--font-serif)' }}
+          >
+            The Consilium
+          </Link>
+          <p className="text-cream/25 text-[9px] mt-0.5 uppercase tracking-widest whitespace-nowrap">
+            Editorial Portal
+          </p>
+        </div>
       </div>
 
       {/* Nav groups */}
@@ -130,8 +163,17 @@ export function EditorialSidebar({ user, trashCount = 0, onNavClick }: { user: U
           if (visibleItems.length === 0) return null
           return (
             <div key={gi} className={gi > 0 ? 'mt-4' : ''}>
+              {/* Group label: hidden in collapsed tablet rail */}
               {group.label && (
-                <p className="px-4 mb-1 text-[10px] tracking-[0.2em] uppercase text-cream/20">
+                <p
+                  className={[
+                    'px-3 mb-1 text-[10px] font-semibold tracking-[0.12em] uppercase text-cream/25',
+                    'transition-[opacity,max-height] duration-200',
+                    'md:opacity-0 md:max-h-0 md:overflow-hidden',
+                    'md:group-hover/sidebar:opacity-100 md:group-hover/sidebar:max-h-8',
+                    'lg:opacity-100 lg:max-h-8 lg:overflow-visible',
+                  ].join(' ')}
+                >
                   {group.label}
                 </p>
               )}
@@ -142,20 +184,63 @@ export function EditorialSidebar({ user, trashCount = 0, onNavClick }: { user: U
                     key={item.href}
                     href={item.href}
                     onClick={onNavClick}
-                    className={`flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium transition-all duration-150 border-l-2 ${
+                    className={[
+                      // Base layout
+                      'flex items-center gap-2.5 px-3 text-[13px] font-medium border-l-2',
+                      // Touch target: 48px min-height
+                      'min-h-[48px]',
+                      // Tap feedback
+                      'transition-[colors,transform] duration-100 active:scale-[0.97] active:opacity-80',
+                      // Tablet rail: centre the icon; desktop: left-align with label
+                      'md:justify-center lg:justify-start md:group-hover/sidebar:justify-start',
+                      // Colours
                       active
-                        ? 'border-[#c9a84c] bg-[rgba(201,168,76,0.15)] text-white'
-                        : 'border-transparent text-cream/45 hover:text-white hover:bg-[rgba(201,168,76,0.08)]'
-                    }`}
+                        ? 'border-gold text-gold'
+                        : 'border-transparent text-cream/45 hover:text-cream/80',
+                    ].join(' ')}
                   >
-                    <item.icon size={14} className="shrink-0" />
-                    <span className="tracking-wide">{item.label}</span>
+                    {/* Icon: always visible */}
+                    <item.icon size={15} className="shrink-0" />
+
+                    {/*
+                     * Label: collapses in tablet rail, fades in on hover/expand.
+                     * lg: always visible.
+                     */}
+                    <span
+                      className={[
+                        'tracking-wide truncate transition-[opacity,max-width] duration-200 ease-in-out overflow-hidden',
+                        'md:opacity-0 md:max-w-0',
+                        'md:group-hover/sidebar:opacity-100 md:group-hover/sidebar:max-w-[140px]',
+                        'lg:opacity-100 lg:max-w-[140px]',
+                      ].join(' ')}
+                    >
+                      {item.label}
+                    </span>
+
+                    {/* Badge */}
                     {item.badge !== undefined && (
-                      <span className="ml-auto text-[10px] font-bold bg-gold/20 text-gold px-1.5 py-0.5 rounded-full leading-none">
+                      <span
+                        className={[
+                          'ml-auto text-[10px] font-bold bg-gold/20 text-gold px-1.5 py-0.5 rounded-full leading-none shrink-0',
+                          'transition-[opacity] duration-200',
+                          'md:opacity-0 md:group-hover/sidebar:opacity-100 lg:opacity-100',
+                        ].join(' ')}
+                      >
                         {item.badge}
                       </span>
                     )}
-                    {active && !item.badge && <ChevronRight size={11} className="ml-auto opacity-50" />}
+
+                    {/* Active chevron */}
+                    {active && !item.badge && (
+                      <ChevronRight
+                        size={11}
+                        className={[
+                          'ml-auto opacity-50 shrink-0',
+                          'transition-[opacity] duration-200',
+                          'md:hidden md:group-hover/sidebar:block lg:block',
+                        ].join(' ')}
+                      />
+                    )}
                   </Link>
                 )
               })}
@@ -165,29 +250,65 @@ export function EditorialSidebar({ user, trashCount = 0, onNavClick }: { user: U
       </nav>
 
       {/* User info + logout at bottom */}
-      <div className="border-t border-white/8">
-        <div className="flex items-center gap-2.5 px-4 py-3">
+      <div className="border-t border-white/8 shrink-0">
+        <div className="flex items-center gap-2.5 px-3 py-3 min-h-[52px]">
+          {/* Avatar: always visible */}
           <div className="w-7 h-7 rounded-full bg-gold/15 flex items-center justify-center shrink-0">
             <span className="text-gold text-[11px] font-bold">
               {user.name?.charAt(0) ?? user.email?.charAt(0) ?? '?'}
             </span>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-cream/80 text-[12px] font-medium truncate">
+
+          {/* Name + role: collapses in tablet rail */}
+          <div
+            className={[
+              'min-w-0 flex-1 transition-[opacity,max-width] duration-200 ease-in-out overflow-hidden',
+              'md:opacity-0 md:max-w-0',
+              'md:group-hover/sidebar:opacity-100 md:group-hover/sidebar:max-w-[120px]',
+              'lg:opacity-100 lg:max-w-[120px]',
+            ].join(' ')}
+          >
+            <p className="text-cream/80 text-[12px] font-medium truncate whitespace-nowrap">
               {user.name ?? user.email}
             </p>
-            <p className="text-gold/50 text-[9px] uppercase tracking-widest">
+            <p className="text-gold/50 text-[9px] uppercase tracking-widest whitespace-nowrap">
               {user.role.charAt(0) + user.role.slice(1).toLowerCase()}
             </p>
           </div>
-          <ThemeToggle />
+
+          {/* ThemeToggle: collapses in tablet rail */}
+          <div
+            className={[
+              'shrink-0 transition-[opacity] duration-200',
+              'md:opacity-0 md:pointer-events-none',
+              'md:group-hover/sidebar:opacity-100 md:group-hover/sidebar:pointer-events-auto',
+              'lg:opacity-100 lg:pointer-events-auto',
+            ].join(' ')}
+          >
+            <ThemeToggle />
+          </div>
         </div>
+
         <button
           onClick={() => { onNavClick?.(); signOut({ callbackUrl: '/editorial/login' }) }}
-          className="flex items-center gap-2.5 px-4 py-2.5 text-[12px] text-cream/30 hover:text-cream/60 w-full transition-colors border-t border-white/6"
+          className={[
+            'flex items-center gap-2.5 px-3 py-3 text-[12px] text-cream/30 hover:text-cream/60 w-full',
+            'border-t border-white/6 min-h-[44px]',
+            'transition-[colors,transform] duration-100 active:scale-[0.97]',
+            'md:justify-center lg:justify-start md:group-hover/sidebar:justify-start',
+          ].join(' ')}
         >
-          <LogOut size={13} />
-          <span>Sign Out</span>
+          <LogOut size={13} className="shrink-0" />
+          <span
+            className={[
+              'transition-[opacity,max-width] duration-200 ease-in-out overflow-hidden',
+              'md:opacity-0 md:max-w-0',
+              'md:group-hover/sidebar:opacity-100 md:group-hover/sidebar:max-w-[120px]',
+              'lg:opacity-100 lg:max-w-[120px]',
+            ].join(' ')}
+          >
+            Sign Out
+          </span>
         </button>
       </div>
     </aside>
