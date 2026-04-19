@@ -294,7 +294,7 @@ interface Props {
   currentAdminId: string
 }
 
-const ROLE_TABS = ['All', 'Admin', 'Editor', 'Writer', 'Reader']
+const ROLE_TABS = ['All', 'Admin', 'Editor', 'Writer', 'Growth', 'Reader']
 const SORT_OPTIONS = [
   { value: 'createdAt',    label: 'Newest' },
   { value: 'oldest',       label: 'Oldest' },

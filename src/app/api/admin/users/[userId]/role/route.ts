@@ -20,7 +20,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   }
 
   const { role } = await req.json()
-  if (!['ADMIN', 'EDITOR', 'WRITER', 'READER'].includes(role)) {
+  if (!['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].includes(role)) {
     return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
   }
 

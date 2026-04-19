@@ -15,7 +15,7 @@ if (!process.env.NEXTAUTH_SECRET) {
   )
 }
 
-const EDITORIAL_ROLES: Role[] = ['ADMIN', 'EDITOR', 'WRITER']
+const EDITORIAL_ROLES: Role[] = ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH']
 const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
 
