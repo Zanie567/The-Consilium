@@ -44,35 +44,7 @@ export default async function EditorialLayout({
     )
   }
 
-  // Auto-publish any articles whose scheduled time has passed.
-  // Runs on every editorial page load so publishing happens promptly
-  // without depending solely on the cron job.
-  try {
-    const now = new Date()
-    const due = await prisma.article.findMany({
-      where: { status: 'SCHEDULED', scheduledAt: { lte: now }, deletedAt: null },
-      include: { author: true },
-    })
-    for (const article of due) {
-      await prisma.article.update({
-        where: { id: article.id },
-        data: { status: 'PUBLISHED', publishedAt: now },
-      })
-      await prisma.notification.create({
-        data: {
-          userId: article.authorId,
-          type: 'published',
-          title: 'Article published',
-          message: `Your article "${article.title}" has been published.`,
-          articleId: article.id,
-        },
-      })
-    }
-  } catch {
-    // Never let this block the page
-  }
-
-  // Fetch trash count for editors/admins (shown as sidebar badge)
+  // Fetch trash count for the sidebar badge (admin/editor only)
   const isEditorOrAdmin = dbUser.role === 'ADMIN' || dbUser.role === 'EDITOR'
   const trashCount = isEditorOrAdmin
     ? await prisma.article.count({ where: { deletedAt: { not: null } } }).catch(() => 0)

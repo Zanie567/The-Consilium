@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, articleSubmittedEmail } from '@/lib/email'
+import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
 
 export async function GET(
   _req: NextRequest,
@@ -79,8 +80,8 @@ export async function PUT(
 
     // Validate scheduledAt is in the future when scheduling
     if (finalStatus === 'SCHEDULED' && scheduledAt) {
-      const scheduledDate = new Date(scheduledAt)
-      if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
+      const scheduledDate = parseEditorialScheduleInput(scheduledAt)
+      if (!scheduledDate || scheduledDate <= new Date()) {
         return Response.json({ error: 'Scheduled date must be in the future.' }, { status: 400 })
       }
     }
@@ -111,7 +112,7 @@ export async function PUT(
         ...(wasJustSubmitted && { editorNote: null }),
         status: finalStatus,
         scheduledAt: finalStatus === 'SCHEDULED' && scheduledAt
-          ? new Date(scheduledAt)
+          ? parseEditorialScheduleInput(scheduledAt)
           : finalStatus !== 'SCHEDULED'
           ? null
           : existing.scheduledAt,
