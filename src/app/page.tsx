@@ -298,7 +298,7 @@ export default async function HomePage({
         {/* ── Featured Article ─────────────────────────────────────────────── */}
         {featured ? (
           <AnimateIn variant="fade-up" duration={0.6} className="mb-14">
-            <div className="overflow-hidden group border border-[var(--border)] transition-[border-color] duration-300 hover:border-gold/40">
+            <div className="overflow-hidden group border border-[var(--border)] card-hover transition-[transform,box-shadow,border-color] duration-200 ease-out hover:border-gold/40">
               <div className="grid grid-cols-1 lg:grid-cols-2">
                 {/* Image */}
                 <div className="relative h-64 lg:h-auto lg:min-h-[400px] bg-navy-light overflow-hidden">
@@ -307,7 +307,7 @@ export default async function HomePage({
                       src={featured.coverImage}
                       alt={featured.title}
                       fill
-                      className="object-cover transition-transform duration-700 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-[1.03]"
+                      className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.05]"
                       priority
                       sizes="(max-width: 1024px) 100vw, 50vw"
                     />
@@ -338,24 +338,24 @@ export default async function HomePage({
                 </div>
 
                 {/* Content */}
-                <div className="p-8 lg:p-12 flex flex-col justify-center border-t lg:border-t-0 lg:border-l border-[var(--border)] transition-[border-color] duration-300 group-hover:border-gold/40 overflow-hidden">
-                  <div className="text-gold/50 text-[0.65rem] tracking-[0.3em] uppercase mb-3 font-semibold translate-y-0 transition-transform duration-500 ease-out group-hover:-translate-y-1">
+                <div className="p-8 lg:p-12 flex flex-col justify-center border-t lg:border-t-0 lg:border-l border-[var(--border)] transition-[border-color] duration-200 ease-out group-hover:border-gold/40">
+                  <div className="text-gold/50 text-[0.65rem] tracking-[0.3em] uppercase mb-3 font-semibold">
                     Featured
                   </div>
                   <Link href={`/articles/${featured.slug}`}>
                     <h2
-                      className="text-3xl lg:text-4xl font-bold text-[var(--fg)] mb-4 leading-tight hover:text-gold transition-[color,transform] duration-500 ease-out group-hover:-translate-y-1"
+                      className="text-3xl lg:text-4xl font-bold text-[var(--fg)] mb-4 leading-tight transition-colors duration-200 hover:text-gold"
                       style={{ fontFamily: 'var(--font-serif)' }}
                     >
                       {featured.title}
                     </h2>
                   </Link>
                   {featured.excerpt && (
-                    <p className="text-[var(--fg-muted)] text-base leading-relaxed mb-6 translate-y-0 transition-transform duration-500 ease-out group-hover:-translate-y-0.5">
+                    <p className="text-[var(--fg-muted)] text-base leading-relaxed mb-6">
                       {featured.excerpt}
                     </p>
                   )}
-                  <div className="flex items-center gap-3 text-xs text-[var(--fg-faint)] mb-7 translate-y-0 transition-transform duration-500 ease-out group-hover:-translate-y-0.5">
+                  <div className="flex items-center gap-3 text-xs text-[var(--fg-faint)] mb-7">
                     <span className="font-semibold text-[var(--fg-muted)]">
                       {featured.author.name}
                     </span>
@@ -368,10 +368,10 @@ export default async function HomePage({
                   </div>
                   <Link
                     href={`/articles/${featured.slug}`}
-                    className="inline-flex items-center gap-2 text-gold text-xs font-bold uppercase tracking-widest group/link hover:gap-3 transition-all duration-300 group-hover:-translate-y-0.5"
+                    className="inline-flex items-center gap-2 text-gold text-xs font-bold uppercase tracking-widest group/link hover:gap-3 transition-[gap] duration-200 ease-out"
                   >
                     Read Article
-                    <span className="inline-block transition-transform duration-200 group-hover/link:translate-x-1">
+                    <span className="inline-block transition-transform duration-200 ease-out group-hover/link:translate-x-1">
                       →
                     </span>
                   </Link>
