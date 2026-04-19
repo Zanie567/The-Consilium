@@ -131,7 +131,7 @@ export function EditorialSidebar({ user, trashCount = 0, onNavClick }: { user: U
           return (
             <div key={gi} className={gi > 0 ? 'mt-4' : ''}>
               {group.label && (
-                <p className="px-4 mb-1 text-[10px] font-semibold tracking-[0.12em] uppercase text-cream/25">
+                <p className="px-4 mb-1 text-[10px] tracking-[0.2em] uppercase text-cream/20">
                   {group.label}
                 </p>
               )}
@@ -142,10 +142,10 @@ export function EditorialSidebar({ user, trashCount = 0, onNavClick }: { user: U
                     key={item.href}
                     href={item.href}
                     onClick={onNavClick}
-                    className={`flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium transition-colors duration-150 border-l-2 ${
+                    className={`flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium transition-all duration-150 border-l-2 ${
                       active
-                        ? 'border-gold text-gold'
-                        : 'border-transparent text-cream/45 hover:text-cream/80'
+                        ? 'border-[#c9a84c] bg-[rgba(201,168,76,0.15)] text-white'
+                        : 'border-transparent text-cream/45 hover:text-white hover:bg-[rgba(201,168,76,0.08)]'
                     }`}
                   >
                     <item.icon size={14} className="shrink-0" />
