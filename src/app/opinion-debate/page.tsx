@@ -153,7 +153,7 @@ export default async function OpinionDebatePage() {
       </section>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-        {/* Active debates */}
+        {/* Active debates — hidden entirely when none are live */}
         {active.length > 0 && (
           <section className="mb-16">
             <AnimateIn variant="fade-up">
@@ -168,14 +168,12 @@ export default async function OpinionDebatePage() {
               </div>
             </AnimateIn>
             {active.map((debate) => (
-              <AnimateIn key={debate.id} variant="fade-up" delay={0.05}>
-                <DebatePanel initialData={debate} />
-              </AnimateIn>
+              <DebatePanel key={debate.id} initialData={debate} compact />
             ))}
           </section>
         )}
 
-        {/* Past debates */}
+        {/* Past debates — starts immediately below header when no active debate */}
         {past.length > 0 && (
           <section>
             <AnimateIn variant="fade-up">
@@ -190,10 +188,8 @@ export default async function OpinionDebatePage() {
               </div>
             </AnimateIn>
             <div className="space-y-10">
-              {past.map((debate, i) => (
-                <AnimateIn key={debate.id} variant="fade-up" delay={i * 0.05}>
-                  <DebatePanel initialData={debate} />
-                </AnimateIn>
+              {past.map((debate) => (
+                <DebatePanel key={debate.id} initialData={debate} compact />
               ))}
             </div>
           </section>

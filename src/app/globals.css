@@ -606,11 +606,13 @@ body {
 /* ─── Smooth image zoom container ─────────────────────────────────────────── */
 .img-zoom {
   overflow: hidden;
+  /* isolation: isolate prevents GPU compositing artefacts (white seam) in dark mode */
+  isolation: isolate;
 }
 .img-zoom img,
 .img-zoom > div > img {
   transition: transform 200ms ease;
-  will-change: transform;
+  /* will-change removed: was causing white GPU compositing seam in dark mode */
 }
 .img-zoom:hover img,
 .img-zoom:hover > div > img,

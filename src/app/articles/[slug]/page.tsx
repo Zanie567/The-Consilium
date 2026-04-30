@@ -16,6 +16,7 @@ import { SaveAsPdfButton } from '@/components/ui/SaveAsPdfButton'
 import { BlurImage } from '@/components/ui/BlurImage'
 import { CommentSection } from '@/components/ui/CommentSection'
 import { readTimeLabel } from '@/lib/readTime'
+import { getInitials, displayAuthorName } from '@/lib/authorUtils'
 import type { Metadata } from 'next'
 
 interface Props {
@@ -154,8 +155,11 @@ interface TiptapNode {
 
 function nodeToHtml(node: TiptapNode): string {
   switch (node.type) {
-    case 'paragraph':
-      return `<p>${node.content?.map(nodeToHtml).join('') ?? ''}</p>`
+    case 'paragraph': {
+      const inner = node.content?.map(nodeToHtml).join('') ?? ''
+      if (!inner.trim()) return ''
+      return `<p>${inner}</p>`
+    }
     case 'heading': {
       const level = (node.attrs?.level as number) ?? 2
       return `<h${level}>${node.content?.map(nodeToHtml).join('') ?? ''}</h${level}>`
@@ -368,7 +372,7 @@ export default async function ArticlePage({ params }: Props) {
                   />
                 ) : (
                   <div className="w-11 h-11 rounded-full bg-navy flex items-center justify-center text-gold font-bold text-base ring-2 ring-gold/20 hover:ring-gold/50 transition-all">
-                    {article.author.name?.charAt(0) ?? '?'}
+                    {getInitials(article.author.name)}
                   </div>
                 )}
               </Link>
@@ -377,7 +381,7 @@ export default async function ArticlePage({ params }: Props) {
                   href={authorHref}
                   className="text-[var(--fg)] font-semibold text-sm hover:text-gold transition-colors"
                 >
-                  {article.author.name}
+                  {displayAuthorName(article.author.name)}
                 </Link>
                 <p className="text-[var(--fg-faint)] text-xs mt-0.5">
                   {article.publishedAt ? format(new Date(article.publishedAt), 'd MMMM yyyy') : ''}
@@ -486,7 +490,7 @@ export default async function ArticlePage({ params }: Props) {
                 About the Author
               </p>
               <Link href={authorHref} className="font-semibold text-[var(--fg)] text-sm mb-1.5 hover:text-gold transition-colors block">
-                {article.author.name}
+                {displayAuthorName(article.author.name)}
               </Link>
               <p className="text-[var(--fg-muted)] text-sm leading-relaxed">{article.author.bio}</p>
             </div>
@@ -561,7 +565,7 @@ export default async function ArticlePage({ params }: Props) {
                           href={`/author/${rel.author.slug ?? rel.author.id}`}
                           className="relative z-10 font-semibold text-[var(--fg-muted)] hover:text-gold transition-colors"
                         >
-                          {rel.author.name}
+                          {displayAuthorName(rel.author.name)}
                         </Link>
                         {rel.publishedAt && (
                           <span>{format(new Date(rel.publishedAt), 'd MMM yyyy')}</span>

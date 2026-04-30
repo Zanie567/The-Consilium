@@ -16,6 +16,7 @@ import { BlurImage } from '@/components/ui/BlurImage'
 import { DebatePanel, type DebateData } from '@/components/ui/DebatePanel'
 import { readTimeLabel } from '@/lib/readTime'
 import { EconomicTicker } from '@/components/ui/EconomicTicker'
+import { displayAuthorName } from '@/lib/authorUtils'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
@@ -357,7 +358,7 @@ export default async function HomePage({
                   )}
                   <div className="flex items-center gap-3 text-xs text-[var(--fg-faint)] mb-7">
                     <span className="font-semibold text-[var(--fg-muted)]">
-                      {featured.author.name}
+                      {displayAuthorName(featured.author.name)}
                     </span>
                     <span className="text-gold/40">·</span>
                     <span>
@@ -441,7 +442,7 @@ export default async function HomePage({
         )}
 
         {/* ── Most Read This Week ─────────────────────────────────────────────── */}
-        {mostRead.length > 0 && !categorySlug && (
+        {mostRead.length > 1 && !categorySlug && (
           <AnimateIn variant="fade-up" delay={0.1} className="mt-14">
             <div className="border-t border-[var(--border)] pt-10">
             <div className="flex items-center gap-3 mb-6">
@@ -474,7 +475,7 @@ export default async function HomePage({
                         {article.title}
                       </p>
                       <p className="text-[var(--fg-faint)] text-xs mt-0.5">
-                        {article.author.name}
+                        {displayAuthorName(article.author.name)}
                         {article.category && ` · ${article.category.name}`}
                       </p>
                     </div>

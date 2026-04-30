@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
 import type { Metadata } from 'next'
 import { AnimateIn } from '@/components/ui/AnimateIn'
+import { displayAuthorName } from '@/lib/authorUtils'
 
 export const metadata: Metadata = {
   title: 'Archive',
@@ -148,7 +149,7 @@ export default async function ArchivePage({ searchParams }: Props) {
                         {article.excerpt}
                       </p>
                     )}
-                    <p className="text-[var(--fg-faint)] text-xs">By {article.author.name}</p>
+                    <p className="text-[var(--fg-faint)] text-xs">By {displayAuthorName(article.author.name)}</p>
                   </div>
                 </Link>
               </AnimateIn>

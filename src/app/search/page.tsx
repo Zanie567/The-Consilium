@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { Search, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { motion, AnimatePresence } from 'framer-motion'
+import { displayAuthorName } from '@/lib/authorUtils'
 
 interface SearchResult {
   id: string
@@ -135,7 +136,7 @@ function SearchContent() {
               placeholder="Search articles, authors, topics..."
               autoComplete="off"
               spellCheck="false"
-              className="w-full bg-white/8 border border-gold/30 focus:border-gold text-cream placeholder-cream/35 text-base pl-12 pr-5 py-4 outline-none transition-colors duration-200"
+              className="w-full bg-white/[0.08] border border-gold/60 focus:border-gold text-cream placeholder-cream/60 text-base pl-12 pr-5 py-4 outline-none transition-colors duration-200"
               style={{ fontFamily: 'var(--font-sans)' }}
             />
             {loading && (
@@ -271,7 +272,7 @@ function SearchContent() {
                           href={`/author/${result.author.slug ?? result.author.id}`}
                           className="font-semibold text-[var(--fg-muted)] hover:text-gold transition-colors"
                         >
-                          {result.author.name}
+                          {displayAuthorName(result.author.name)}
                         </Link>
                       )}
                       {result.author.name && result.publishedAt && (

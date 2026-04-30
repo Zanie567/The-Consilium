@@ -12,6 +12,7 @@ import {
   ChevronRight, TrendingUp, Clock, Flame, Star, BookMarked,
 } from 'lucide-react'
 import { readTimeLabel } from '@/lib/readTime'
+import { getInitials } from '@/lib/authorUtils'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -719,7 +720,7 @@ export function ProfileTabs({ initialName, initialBio, email, image, createdAt, 
     router.replace(url.pathname + url.search, { scroll: false })
   }
 
-  const initials = (displayName || email).charAt(0).toUpperCase()
+  const initials = displayName ? getInitials(displayName) : (email?.charAt(0).toUpperCase() ?? '?')
 
   return (
     <div>

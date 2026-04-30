@@ -64,20 +64,20 @@ export default function AboutPage() {
         />
         <div className="relative">
           <AnimateIn variant="fade-in" duration={0.4}>
-            <p className="text-gold/55 text-[0.65rem] tracking-[0.4em] uppercase mb-3 font-semibold">
-              About
+            <p className="text-gold/60 text-[0.65rem] tracking-[0.4em] uppercase mb-3 font-semibold">
+              The Consilium
             </p>
           </AnimateIn>
           <AnimateIn variant="fade-up" delay={0.07} duration={0.65}>
             <h1
-              className="text-4xl sm:text-5xl font-bold text-gold mb-4 tracking-wide"
+              className="text-4xl sm:text-5xl font-bold text-gold mb-4"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
-              The Consilium
+              About
             </h1>
           </AnimateIn>
           <AnimateIn variant="fade-in" delay={0.16} duration={0.55}>
-            <p className="text-cream/55 text-sm max-w-xl mx-auto">
+            <p className="text-cream/60 text-sm max-w-xl mx-auto">
               The official publication of the University of Edinburgh Economics Society
             </p>
           </AnimateIn>
