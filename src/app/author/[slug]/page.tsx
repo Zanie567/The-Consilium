@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import type { Metadata } from 'next'
+import { getInitials } from '@/lib/authorUtils'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -98,7 +99,7 @@ export default async function AuthorPage({ params, searchParams }: Props) {
                   className="text-gold text-4xl font-bold"
                   style={{ fontFamily: 'var(--font-serif)' }}
                 >
-                  {author.name?.charAt(0) ?? '?'}
+                  {getInitials(author.name)}
                 </span>
               </div>
             )}

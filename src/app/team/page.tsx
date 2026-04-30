@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { Mail } from 'lucide-react'
 import type { Metadata } from 'next'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
+import { getInitials } from '@/lib/authorUtils'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,7 +73,7 @@ export default async function TeamPage() {
                           className="text-gold text-2xl font-bold"
                           style={{ fontFamily: 'var(--font-serif)' }}
                         >
-                          {member.name.charAt(0)}
+                          {getInitials(member.name)}
                         </span>
                       </div>
                     )}

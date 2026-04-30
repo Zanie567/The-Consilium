@@ -60,11 +60,11 @@ export default async function CategoryPage({ params }: Props) {
               className="text-4xl sm:text-5xl font-bold text-gold"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
-              {category.name}
+              {category.name || slug.charAt(0).toUpperCase() + slug.slice(1)}
             </h1>
           </AnimateIn>
           <AnimateIn variant="fade-in" delay={0.15} duration={0.4}>
-            <p className="text-cream/40 text-sm mt-2">
+            <p className="text-cream/60 text-sm mt-2">
               {articles.length} article{articles.length !== 1 ? 's' : ''}
             </p>
           </AnimateIn>

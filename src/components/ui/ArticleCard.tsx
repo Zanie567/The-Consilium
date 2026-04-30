@@ -4,6 +4,7 @@ import { Clock } from 'lucide-react'
 import { BlurImage } from '@/components/ui/BlurImage'
 import { BookmarkButton } from '@/components/ui/BookmarkButton'
 import { readTimeLabel } from '@/lib/readTime'
+import { displayAuthorName } from '@/lib/authorUtils'
 
 interface Article {
   id: string
@@ -31,7 +32,7 @@ export function ArticleCard({ article, badgeLabel }: ArticleCardProps) {
     <Link href={`/articles/${article.slug}`} className="block h-full group">
       <article className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden card-hover shadow-[var(--shadow-card)] h-full flex flex-col">
         {/* Image */}
-        <div className="relative h-48 bg-navy/10 dark:bg-navy/20 overflow-hidden img-zoom flex-shrink-0">
+        <div className="relative h-48 bg-navy/10 dark:bg-navy/20 overflow-hidden img-zoom flex-shrink-0 isolate">
           {article.coverImage ? (
             <BlurImage
               src={article.coverImage}
@@ -79,7 +80,7 @@ export function ArticleCard({ article, badgeLabel }: ArticleCardProps) {
             </p>
           )}
           <div className="flex items-center justify-between text-[0.7rem] text-[var(--fg-faint)] border-t border-[var(--border)] pt-3 mt-auto">
-            <span className="font-semibold text-[var(--fg-muted)]">{article.author.name}</span>
+            <span className="font-semibold text-[var(--fg-muted)]">{displayAuthorName(article.author.name)}</span>
             <div className="flex items-center gap-3">
               <span>
                 {article.publishedAt

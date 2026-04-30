@@ -42,8 +42,10 @@ function timeLabel(dateStr: string): string {
 }
 
 function initials(name: string | null | undefined): string {
-  if (!name) return '?'
-  return name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
+  if (!name?.trim()) return '?'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return name.slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
 // ── Avatar ───────────────────────────────────────────────────────────────────

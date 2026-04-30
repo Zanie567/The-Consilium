@@ -36,9 +36,11 @@ export interface DebateData {
 
 interface Props {
   initialData: DebateData
+  /** When true, removes the top margin so the panel can be placed without extra gap */
+  compact?: boolean
 }
 
-export function DebatePanel({ initialData }: Props) {
+export function DebatePanel({ initialData, compact = false }: Props) {
   const [data, setData] = useState<DebateData>(initialData)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -74,7 +76,7 @@ export function DebatePanel({ initialData }: Props) {
 
   return (
     <section
-      className="mt-14 border-t border-[var(--border)] pt-10"
+      className={`${compact ? '' : 'mt-14 '}border-t border-[var(--border)] pt-10`}
       aria-label="Opinion debate"
     >
       {/* Section header */}
