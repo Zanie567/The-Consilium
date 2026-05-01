@@ -172,21 +172,26 @@ function SearchContent() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.35 }}
-              className="text-center py-14"
+              className="text-center py-16 flex flex-col items-center"
             >
+              <div className="w-14 h-14 rounded-full bg-[var(--bg-subtle)] flex items-center justify-center mb-5 border border-[var(--border)]">
+                <Search size={20} className="text-gold/60" />
+              </div>
               <p
-                className="text-2xl font-bold text-[var(--fg)] mb-3"
+                className="text-2xl font-bold text-[var(--fg)] mb-2"
                 style={{ fontFamily: 'var(--font-serif)' }}
               >
-                No results found
+                No results for &ldquo;{query}&rdquo;
               </p>
-              <p className="text-[var(--fg-muted)] text-sm">
-                Try different keywords, check for spelling, or{' '}
-                <Link href="/archive" className="text-gold hover:underline">
-                  browse all articles
-                </Link>
-                .
+              <p className="text-[var(--fg-muted)] text-sm mb-6">
+                Try different keywords or check your spelling.
               </p>
+              <Link
+                href="/archive"
+                className="text-gold text-xs font-bold uppercase tracking-[-0.01em] border border-gold/50 px-6 py-3 hover:bg-gold hover:text-navy transition-all duration-150"
+              >
+                Browse the Archive
+              </Link>
             </motion.div>
           )}
         </AnimatePresence>

@@ -9,6 +9,8 @@ import { Clock } from 'lucide-react'
 import { ShareButtons } from '@/components/ui/ShareButtons'
 import { BookmarkButton } from '@/components/ui/BookmarkButton'
 import { ReadingTracker } from '@/components/ui/ReadingTracker'
+import { ReadingProgress } from '@/components/ui/ReadingProgress'
+import { ArticleAnchorLinks } from '@/components/ui/ArticleAnchorLinks'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { ViewCounter } from '@/components/ui/ViewCounter'
 import { PrintButton } from '@/components/ui/PrintButton'
@@ -267,6 +269,7 @@ export default async function ArticlePage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
+      <ReadingProgress />
       <ReadingTracker articleId={article.id} />
       <ViewCounter articleId={article.id} />
 
@@ -295,7 +298,7 @@ export default async function ArticlePage({ params }: Props) {
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 print-article-wrapper">
+      <div className="max-w-[680px] mx-auto px-6 sm:px-8 lg:px-12 py-12 print-article-wrapper">
 
         {/* Correction banner - above everything */}
         {article.corrected && (
@@ -341,8 +344,12 @@ export default async function ArticlePage({ params }: Props) {
         {/* Title */}
         <AnimateIn variant="fade-up" delay={0.05} duration={0.6}>
           <h1
-            className="text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--fg)] leading-tight mb-6 tracking-tight"
-            style={{ fontFamily: 'var(--font-serif)' }}
+            className="font-bold text-[var(--fg)] leading-tight mb-6 tracking-tight"
+            style={{
+              fontFamily: 'var(--font-serif)',
+              fontSize: 'clamp(2rem, 4vw, 3.25rem)',
+              fontWeight: 800,
+            }}
           >
             {article.title}
           </h1>
@@ -400,9 +407,11 @@ export default async function ArticlePage({ params }: Props) {
         {/* Article content */}
         <AnimateIn variant="fade-up" delay={0.2} duration={0.6}>
           <div
+            id="article-body"
             className="prose-consilium"
             dangerouslySetInnerHTML={{ __html: htmlContent }}
           />
+          <ArticleAnchorLinks containerSelector="#article-body" />
         </AnimateIn>
 
         {/* Tags */}

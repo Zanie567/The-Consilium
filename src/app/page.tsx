@@ -299,7 +299,7 @@ export default async function HomePage({
         {/* ── Featured Article ─────────────────────────────────────────────── */}
         {featured ? (
           <AnimateIn variant="fade-up" duration={0.6} className="mb-14">
-            <div className="overflow-hidden group border border-[var(--border)] card-hover transition-[transform,box-shadow,border-color] duration-200 ease-out hover:border-gold/40">
+            <div className="overflow-hidden group card-hover transition-[transform,box-shadow] duration-150 ease-out">
               <div className="grid grid-cols-1 lg:grid-cols-2">
                 {/* Image */}
                 <div className="relative h-64 lg:h-auto lg:min-h-[400px] bg-navy-light overflow-hidden">
@@ -339,7 +339,7 @@ export default async function HomePage({
                 </div>
 
                 {/* Content */}
-                <div className="p-8 lg:p-12 flex flex-col justify-center border-t lg:border-t-0 lg:border-l border-[var(--border)] transition-[border-color] duration-200 ease-out group-hover:border-gold/40">
+                <div className="p-8 lg:p-12 flex flex-col justify-center border-t lg:border-t-0 lg:border-l border-[var(--border)]">
                   <div className="text-gold/50 text-[0.65rem] tracking-[0.3em] uppercase mb-3 font-semibold">
                     Featured
                   </div>
@@ -437,6 +437,7 @@ export default async function HomePage({
         {/* ── Debate Panel ─────────────────────────────────────────────────── */}
         {activeDebate && !categorySlug && (
           <AnimateIn variant="fade-up" delay={0.1} className="mt-14">
+            <hr className="section-divider mb-14" />
             <DebatePanel initialData={activeDebate} />
           </AnimateIn>
         )}
@@ -444,11 +445,12 @@ export default async function HomePage({
         {/* ── Most Read This Week ─────────────────────────────────────────────── */}
         {mostRead.length > 1 && !categorySlug && (
           <AnimateIn variant="fade-up" delay={0.1} className="mt-14">
-            <div className="border-t border-[var(--border)] pt-10">
-            <div className="flex items-center gap-3 mb-6">
-              <span className="text-gold/50 text-[0.65rem] font-bold tracking-[0.3em] uppercase">Most Read</span>
+            <hr className="section-divider mb-14" />
+            <div className="pt-0">
+            <div className="flex items-center gap-3 mb-8">
+              <span className="text-gold/50 text-[0.65rem] font-bold tracking-[-0.01em] uppercase">Most Read</span>
               <div className="flex-1 h-px bg-[var(--border)]" />
-              <span className="text-[var(--fg-faint)] text-[0.65rem] uppercase tracking-widest">This Week</span>
+              <span className="text-[var(--fg-faint)] text-[0.65rem] uppercase tracking-[-0.01em]">This Week</span>
             </div>
             <div className="space-y-0 divide-y divide-[var(--border)]">
               {(mostRead.filter(Boolean) as { id: string; title: string; slug: string; viewCount: number; author: { name: string | null }; category: { name: string } | null }[]).map((article, i) => (
@@ -456,25 +458,19 @@ export default async function HomePage({
                   <Link
                     key={article.id}
                     href={`/articles/${article.slug}`}
-                    className="flex items-center gap-5 py-4 group hover:bg-[var(--bg-subtle)] -mx-2 px-2 transition-colors"
+                    className="flex items-center gap-6 py-4 group hover:bg-[var(--bg-subtle)] -mx-2 px-2 transition-colors duration-150"
                   >
-                    <span
-                      className="text-3xl font-bold shrink-0 w-8 text-center"
-                      style={{
-                        fontFamily: 'var(--font-serif)',
-                        color: i === 0 ? '#c9a227' : 'rgba(26,39,68,0.18)',
-                      }}
-                    >
+                    <span className="most-read-number shrink-0">
                       {i + 1}
                     </span>
                     <div className="flex-1 min-w-0">
                       <p
-                        className="font-semibold text-[var(--fg)] group-hover:text-gold transition-colors line-clamp-1 text-sm"
+                        className="font-bold text-[var(--fg)] group-hover:text-gold transition-colors duration-150 line-clamp-2 text-base leading-snug"
                         style={{ fontFamily: 'var(--font-serif)' }}
                       >
                         {article.title}
                       </p>
-                      <p className="text-[var(--fg-faint)] text-xs mt-0.5">
+                      <p className="text-[var(--fg-faint)] text-xs mt-1">
                         {displayAuthorName(article.author.name)}
                         {article.category && ` · ${article.category.name}`}
                       </p>
@@ -490,11 +486,12 @@ export default async function HomePage({
         {/* ── Trending Topics ──────────────────────────────────────────────── */}
         {trendingTags.length > 0 && !categorySlug && (
           <AnimateIn variant="fade-up" delay={0.1} className="mt-14">
-            <div className="border-t border-[var(--border)] pt-10">
+            <hr className="section-divider mb-14" />
+            <div className="pt-0">
               <div className="flex items-center gap-3 mb-6">
-                <span className="text-gold/50 text-[0.65rem] font-bold tracking-[0.3em] uppercase">Trending Topics</span>
+                <span className="text-gold/50 text-[0.65rem] font-bold tracking-[-0.01em] uppercase">Trending Topics</span>
                 <div className="flex-1 h-px bg-[var(--border)]" />
-                <span className="text-[var(--fg-faint)] text-[0.65rem] uppercase tracking-widest">Past 30 Days</span>
+                <span className="text-[var(--fg-faint)] text-[0.65rem] uppercase tracking-[-0.01em]">Past 30 Days</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {trendingTags.map(({ tag }) => (
@@ -518,6 +515,9 @@ export default async function HomePage({
       </div>
 
       {/* ── Newsletter ───────────────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <hr className="section-divider" />
+      </div>
       <NewsletterSignup />
     </div>
   )
