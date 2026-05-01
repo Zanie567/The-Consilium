@@ -108,7 +108,7 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-cream/45 hover:text-gold transition-colors duration-200 hover:scale-110 inline-block"
-                aria-label="Instagram"
+                aria-label="Follow The Consilium on Instagram"
               >
                 <InstagramIcon />
               </a>
@@ -117,14 +117,14 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-cream/45 hover:text-gold transition-colors duration-200 hover:scale-110 inline-block"
-                aria-label="LinkedIn"
+                aria-label="Connect with The Consilium on LinkedIn"
               >
                 <LinkedInIcon />
               </a>
               <a
                 href="mailto:theconsilium.editor@gmail.com"
                 className="text-cream/45 hover:text-gold transition-colors duration-200 hover:scale-110 inline-block"
-                aria-label="Email"
+                aria-label="Email The Consilium"
               >
                 <Mail size={17} />
               </a>

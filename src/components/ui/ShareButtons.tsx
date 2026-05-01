@@ -39,7 +39,7 @@ function ShareBtn({ onClick, label, children }: ShareBtnProps) {
   return (
     <motion.button
       onClick={onClick}
-      className="w-8 h-8 flex items-center justify-center border border-[var(--border)] text-[var(--fg-muted)] hover:bg-navy hover:text-gold hover:border-navy dark:hover:bg-gold dark:hover:text-navy dark:hover:border-gold transition-colors duration-200"
+      className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center border border-[var(--border)] text-[var(--fg-muted)] hover:bg-navy hover:text-gold hover:border-navy dark:hover:bg-gold dark:hover:text-navy dark:hover:border-gold transition-colors duration-150"
       whileHover={{ scale: 1.08 }}
       whileTap={{ scale: 0.9 }}
       aria-label={label}
@@ -96,7 +96,7 @@ export function ShareButtons({ title }: { title: string }) {
       <Tooltip content={copied ? 'Link copied!' : 'Copy link to clipboard'}>
       <motion.button
         onClick={copyLink}
-        className="w-8 h-8 flex items-center justify-center border border-[var(--border)] text-[var(--fg-muted)] hover:bg-navy hover:text-gold hover:border-navy dark:hover:bg-gold dark:hover:text-navy dark:hover:border-gold transition-colors duration-200 overflow-hidden"
+        className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center border border-[var(--border)] text-[var(--fg-muted)] hover:bg-navy hover:text-gold hover:border-navy dark:hover:bg-gold dark:hover:text-navy dark:hover:border-gold transition-colors duration-150 overflow-hidden"
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.9 }}
         aria-label={copied ? 'Link copied!' : 'Copy link'}

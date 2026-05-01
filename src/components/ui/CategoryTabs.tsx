@@ -21,7 +21,7 @@ export function CategoryTabs({ categories, currentSlug }: CategoryTabsProps) {
   ]
 
   return (
-    <div className="border-b border-[var(--border)] mb-6">
+    <div className="border-b border-navy/10 dark:border-white/10 mb-6">
       <div
         className="flex overflow-x-auto scrollbar-none gap-0"
         role="tablist"
@@ -35,7 +35,7 @@ export function CategoryTabs({ categories, currentSlug }: CategoryTabsProps) {
               href={tab.href}
               role="tab"
               aria-selected={isActive}
-              className={`relative flex-shrink-0 px-5 py-3 text-[0.7rem] font-bold tracking-widest uppercase whitespace-nowrap transition-colors duration-200 ${
+              className={`relative flex-shrink-0 px-5 py-3 text-[0.7rem] font-bold tracking-[-0.01em] uppercase whitespace-nowrap transition-colors duration-150 ${
                 isActive
                   ? 'text-gold'
                   : 'text-[var(--fg-muted)] hover:text-[var(--fg)]'

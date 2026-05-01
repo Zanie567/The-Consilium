@@ -65,13 +65,13 @@
 /* ─── Dark mode CSS vars ───────────────────────────────────────────────────── */
 .dark {
   --bg:            #0d1526;
-  --bg-elevated:   #141f35;
-  --bg-subtle:     #1a2744;
-  --fg:            #e8e2d4;
-  --fg-muted:      rgba(232,226,212,0.60);
-  --fg-faint:      rgba(232,226,212,0.35);
-  --border:        rgba(201,162,39,0.14);
-  --border-strong: rgba(201,162,39,0.28);
+  --bg-elevated:   #1e2f52;
+  --bg-subtle:     #162040;
+  --fg:            rgba(255, 255, 255, 0.87);
+  --fg-muted:      rgba(255, 255, 255, 0.60);
+  --fg-faint:      rgba(255, 255, 255, 0.35);
+  --border:        rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.20);
   --ticker-pos:    #4a9e68;
   --ticker-neg:    #b84444;
 }
@@ -152,12 +152,21 @@ body {
 /* ─── Prose styles for article content ────────────────────────────────────── */
 .prose-consilium {
   color: #1a1a1a;
-  line-height: 1.85;
-  font-size: 1.125rem;
+  line-height: 1.7;
+  font-size: 1.125rem; /* 18px desktop */
+  font-weight: 400;
+}
+
+/* Mobile: slightly smaller for readability on narrow screens */
+@media (max-width: 639px) {
+  .prose-consilium {
+    font-size: 1rem; /* 16px mobile */
+    line-height: 1.65;
+  }
 }
 
 .dark .prose-consilium {
-  color: #c8c0b2;
+  color: rgba(255, 255, 255, 0.87);
 }
 
 .prose-consilium h1,
@@ -171,19 +180,57 @@ body {
   margin-top: 2.2em;
   margin-bottom: 0.8em;
   letter-spacing: -0.01em;
+  position: relative;
 }
 
 .dark .prose-consilium h1,
 .dark .prose-consilium h2,
 .dark .prose-consilium h3,
 .dark .prose-consilium h4 {
-  color: #e8e2d4;
+  color: rgba(255, 255, 255, 0.87);
 }
 
 .prose-consilium h1 { font-size: 2.25rem; }
 .prose-consilium h2 { font-size: 1.75rem; }
 .prose-consilium h3 { font-size: 1.375rem; }
 .prose-consilium h4 { font-size: 1.125rem; }
+
+/* ─── Section heading anchor links ─────────────────────────────── */
+.prose-consilium h2 .anchor-link,
+.prose-consilium h3 .anchor-link {
+  position: absolute;
+  left: -1.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  color: #c9a227;
+  transition: opacity 0.15s ease;
+  text-decoration: none;
+  font-size: 0.85em;
+  padding: 0 0.25rem;
+}
+
+.prose-consilium h2:hover .anchor-link,
+.prose-consilium h3:hover .anchor-link {
+  opacity: 1;
+}
+
+/* ─── Drop cap on first paragraph ───────────────────────────────── */
+.prose-consilium > p:first-of-type::first-letter {
+  font-family: var(--font-serif);
+  font-size: 3.4em;
+  font-weight: 800;
+  color: #1a2744;
+  float: left;
+  line-height: 0.78;
+  margin-right: 0.08em;
+  margin-top: 0.08em;
+  padding-bottom: 0.02em;
+}
+
+.dark .prose-consilium > p:first-of-type::first-letter {
+  color: rgba(255, 255, 255, 0.87);
+}
 
 .prose-consilium p {
   margin-bottom: 1.6em;
@@ -220,45 +267,22 @@ body {
 }
 
 .prose-consilium blockquote {
-  position: relative;
-  border-left: 3px solid #c9a227;
-  padding: 0.75rem 1rem 0.75rem 3rem;
-  margin: 2.2rem 0;
+  border-left: 4px solid #c9a227;
+  padding: 0.5rem 1.5rem 0.5rem 1.5rem;
+  margin: 2rem 0;
   font-style: italic;
   font-family: var(--font-serif);
-  font-size: 1.25rem;
-  line-height: 1.7;
+  font-size: 1.2em;
+  line-height: 1.65;
   color: #1a2744;
-  background: rgba(201,162,39,0.04);
-  border-radius: 0 4px 4px 0;
 }
 
-.prose-consilium blockquote::before {
-  content: '\201C';
-  position: absolute;
-  left: 0.6rem;
-  top: -0.1rem;
-  font-size: 3.5rem;
-  font-family: var(--font-serif);
-  color: #c9a227;
-  line-height: 1;
-  opacity: 0.6;
-}
-.prose-consilium blockquote::after {
-  content: '\201D';
-  position: absolute;
-  bottom: -0.75rem;
-  right: 1rem;
-  font-size: 3.5rem;
-  font-family: var(--font-serif);
-  color: #c9a227;
-  line-height: 1;
-  opacity: 0.6;
+.prose-consilium blockquote p {
+  margin-bottom: 0;
 }
 
 .dark .prose-consilium blockquote {
-  color: #e8e2d4;
-  background: rgba(201,162,39,0.06);
+  color: rgba(255, 255, 255, 0.80);
 }
 
 .prose-consilium ul,
@@ -541,7 +565,7 @@ body {
   color: #c9a227;
   font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: -0.01em;
   text-transform: uppercase;
   padding: 0.22rem 0.65rem;
   border-radius: 1px;
@@ -574,13 +598,14 @@ body {
 
 /* ─── Utility: card hover ──────────────────────────────────────────────────── */
 .card-hover {
-  transition: transform 200ms ease,
-              box-shadow 200ms ease;
+  transition: transform 150ms ease,
+              box-shadow 150ms ease,
+              border-color 150ms ease;
   will-change: transform;
 }
 .card-hover:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 30px rgba(26, 39, 68, 0.12);
+  box-shadow: 0 4px 24px rgba(26, 39, 68, 0.12);
 }
 .card-hover:active {
   transform: translateY(-1px);
@@ -601,6 +626,26 @@ body {
   transform: translateY(0) scale(0.97);
   box-shadow: none;
   transition-duration: 0.08s;
+}
+
+/* ─── Section gold divider ─────────────────────────────────────────────────── */
+.section-divider {
+  height: 1px;
+  background: #c9a227;
+  opacity: 0.20;
+  border: none;
+  margin: 0;
+}
+
+/* ─── Most Read editorial number ──────────────────────────────────────────── */
+.most-read-number {
+  font-size: 3rem; /* 48px */
+  font-weight: 200;
+  font-family: var(--font-serif);
+  color: #c9a227;
+  line-height: 1;
+  min-width: 2.5rem;
+  text-align: center;
 }
 
 /* ─── Smooth image zoom container ─────────────────────────────────────────── */
@@ -1060,6 +1105,22 @@ mark {
   border-radius: 3px;
   font-size: 0.875em;
   font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+}
+
+/* ─── Touch target enforcement (coarse pointer = touch device) ─────────────── */
+@media (pointer: coarse) {
+  /* Expand tap area for small interactive elements without changing visual size */
+  button, [role="button"], a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  /* Exception: inline text links should NOT get min-height */
+  .prose-consilium a,
+  .prose-consilium h2 .anchor-link,
+  .prose-consilium h3 .anchor-link {
+    min-height: unset;
+    min-width: unset;
+  }
 }
 
 /* ─── Reduced motion ───────────────────────────────────────────────────────── */

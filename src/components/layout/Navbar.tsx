@@ -190,17 +190,17 @@ export function Navbar() {
           </div>
 
           {/* Mobile: search + theme + hamburger */}
-          <div className="md:hidden flex items-center gap-2">
+          <div className="md:hidden flex items-center gap-1">
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search"
-              className="text-cream/60 hover:text-gold transition-colors p-1.5"
+              className="text-cream/60 hover:text-gold transition-colors w-11 h-11 flex items-center justify-center"
             >
               <Search size={17} />
             </button>
             <ThemeToggle />
             <motion.button
-              className="text-cream p-2 hover:text-gold transition-colors"
+              className="text-cream w-11 h-11 flex items-center justify-center hover:text-gold transition-colors"
               onClick={() => setMobileOpen((o) => !o)}
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileOpen}
