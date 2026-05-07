@@ -121,7 +121,7 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        // Successful login — reset lockout state, track last active
+        // Successful login - reset lockout state, track last active
         await prisma.user.update({
           where: { id: user.id },
           data: {
@@ -189,7 +189,7 @@ export const authOptions: NextAuthOptions = {
               token.roleCheckedAt = Date.now()
             }
           } catch {
-            // DB unavailable — use cached token values
+            // DB unavailable - use cached token values
           }
         }
       }

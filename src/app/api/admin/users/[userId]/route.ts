@@ -12,7 +12,7 @@ function isAdmin(session: Awaited<ReturnType<typeof getServerSession>>): boolean
 
 interface Ctx { params: Promise<{ userId: string }> }
 
-// GET /api/admin/users/[userId] — full user profile
+// GET /api/admin/users/[userId] - full user profile
 export async function GET(_req: NextRequest, { params }: Ctx) {
   const session = await getServerSession(authOptions)
   if (!isAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -81,7 +81,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   return NextResponse.json(user)
 }
 
-// DELETE /api/admin/users/[userId] — hard delete
+// DELETE /api/admin/users/[userId] - hard delete
 export async function DELETE(req: NextRequest, { params }: Ctx) {
   const session = await getServerSession(authOptions)
   if (!isAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

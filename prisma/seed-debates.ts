@@ -134,11 +134,11 @@ const freeTradeAgainstContent = doc(
 
 // ── Cover images (Unsplash, free to use) ────────────────────────────────────
 const IMAGES = {
-  // Workers in discussion — minimum wage / labour market
+  // Workers in discussion - minimum wage / labour market
   minWage:   'https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=1200&q=80',
-  // AI chip / neural network — AI regulation
+  // AI chip / neural network - AI regulation
   aiReg:     'https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=1200&q=80',
-  // Shipping containers at port — free trade / global commerce
+  // Shipping containers at port - free trade / global commerce
   freeTrade: 'https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=1200&q=80',
 }
 
@@ -327,7 +327,7 @@ async function main() {
     // Check if already has votes
     const existingVotes = await prisma.debateVote.count({ where: { debateId: debate.id } })
     if (existingVotes > 0) {
-      console.log(`  Debate "${debate.title}" already has ${existingVotes} votes — skipping`)
+      console.log(`  Debate "${debate.title}" already has ${existingVotes} votes - skipping`)
       continue
     }
 

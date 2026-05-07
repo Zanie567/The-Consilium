@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-// GET /api/profile/saved-articles — full bookmark list with article data
+// GET /api/profile/saved-articles - full bookmark list with article data
 export async function GET() {
   const session = await getServerSession(authOptions)
   const authError = requireActiveSession(session)
@@ -35,7 +35,7 @@ export async function GET() {
   }
 }
 
-// DELETE /api/profile/saved-articles?articleId=xxx — remove a bookmark
+// DELETE /api/profile/saved-articles?articleId=xxx - remove a bookmark
 export async function DELETE(request: NextRequest) {
   const session = await getServerSession(authOptions)
   const authError2 = requireActiveSession(session)

@@ -11,7 +11,7 @@ function getLabel() {
  * Returns milliseconds until the next local midnight.
  * JavaScript computes this in the browser's local timezone, so it is
  * automatically correct across DST transitions (spring-forward / fall-back)
- * in any country — the engine adjusts the wall-clock offset for you.
+ * in any country - the engine adjusts the wall-clock offset for you.
  */
 function msUntilLocalMidnight() {
   const now = new Date()
@@ -24,12 +24,12 @@ function msUntilLocalMidnight() {
  * Renders today's date in the user's local timezone.
  *
  * Handles three cases correctly:
- *  1. Normal midnight rollover — a self-rescheduling timer fires at each
+ *  1. Normal midnight rollover - a self-rescheduling timer fires at each
  *     local midnight and updates the label.
- *  2. DST spring-forward / fall-back — `setHours(24, 0, 0, 0)` uses
+ *  2. DST spring-forward / fall-back - `setHours(24, 0, 0, 0)` uses
  *     local-time arithmetic, so the timer fires at the correct wall-clock
  *     midnight even on the night clocks change.
- *  3. Tab hidden during a DST event — a `visibilitychange` listener
+ *  3. Tab hidden during a DST event - a `visibilitychange` listener
  *     refreshes the label the moment the user returns to the tab.
  */
 export function ClientDate() {

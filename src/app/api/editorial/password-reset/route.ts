@@ -12,14 +12,14 @@ export async function POST(req: NextRequest) {
   // BUG-21: rate limit to 5 requests per IP per 15 minutes
   const ip = getIp(req)
   if (!checkRateLimit(`pwd-reset-editorial:${ip}`, 5, 15 * 60 * 1000)) {
-    return NextResponse.json({ ok: true }) // silent — do not leak rate-limit info
+    return NextResponse.json({ ok: true }) // silent - do not leak rate-limit info
   }
 
   let email: string | undefined
   try {
     ;({ email } = await req.json())
   } catch {
-    // BUG-23: Malformed body is a client error — return 400 instead of silently succeeding
+    // BUG-23: Malformed body is a client error - return 400 instead of silently succeeding
     return NextResponse.json({ error: 'Bad request.' }, { status: 400 })
   }
   if (!email) return NextResponse.json({ ok: true }) // silent

@@ -19,7 +19,7 @@ export default async function EngagementPage() {
   if (!['ADMIN', 'GROWTH'].includes(session.user.role ?? '')) redirect('/editorial')
 
   const [topArticles, debates, topCommenters] = await Promise.all([
-    // Section 1 – top articles by view count
+    // Section 1 - top articles by view count
     prisma.article.findMany({
       where: { status: 'PUBLISHED', deletedAt: null },
       orderBy: { viewCount: 'desc' },
@@ -33,7 +33,7 @@ export default async function EngagementPage() {
       },
     }),
 
-    // Section 2 – all debates with vote breakdown
+    // Section 2 - all debates with vote breakdown
     prisma.debate.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
@@ -43,7 +43,7 @@ export default async function EngagementPage() {
       },
     }),
 
-    // Section 3 – top commenters
+    // Section 3 - top commenters
     prisma.comment.groupBy({
       by: ['userId'],
       _count: { id: true },

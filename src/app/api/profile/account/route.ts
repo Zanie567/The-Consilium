@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-// PATCH /api/profile/account — update display name and bio
+// PATCH /api/profile/account - update display name and bio
 export async function PATCH(request: NextRequest) {
   const session = await getServerSession(authOptions)
   const authError = requireActiveSession(session)
@@ -27,7 +27,7 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-// DELETE /api/profile/account — permanently delete the account
+// DELETE /api/profile/account - permanently delete the account
 export async function DELETE(request: NextRequest) {
   const session = await getServerSession(authOptions)
   const authError2 = requireActiveSession(session)

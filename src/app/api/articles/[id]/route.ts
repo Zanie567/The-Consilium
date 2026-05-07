@@ -261,7 +261,7 @@ export async function PUT(
   }
 }
 
-// PATCH is an alias for PUT — used by the autosave system
+// PATCH is an alias for PUT - used by the autosave system
 export const PATCH = PUT
 
 export async function DELETE(
@@ -283,7 +283,7 @@ export async function DELETE(
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Soft delete — move to trash; permanently removed after 30 days by the cron job
+    // Soft delete - move to trash; permanently removed after 30 days by the cron job
     await prisma.article.update({ where: { id }, data: { deletedAt: new Date() } })
     return Response.json({ success: true })
   } catch {

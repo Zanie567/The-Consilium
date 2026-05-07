@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
     const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs') as any
 
     // In pdfjs-dist v5, Node.js always uses the "fake worker" path (no Web Worker API).
-    // The fake worker is loaded via dynamic import() of workerSrc — it must be a non-empty,
+    // The fake worker is loaded via dynamic import() of workerSrc - it must be a non-empty,
     // resolvable path. Use a file:// URL pointing to the bundled worker file.
     const workerPath = path.join(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs')
     pdfjsLib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href

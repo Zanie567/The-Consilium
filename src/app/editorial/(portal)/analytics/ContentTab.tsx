@@ -205,7 +205,7 @@ export function ContentTab({ data, loading }: { data: ContentData | null; loadin
                       <td className="px-4 py-3 text-right tabular-nums">
                         {cat.avgCompletion !== null
                           ? <span className="text-[var(--fg)] font-medium">{cat.avgCompletion}%</span>
-                          : <span className="text-[var(--fg-faint)]">—</span>}
+                          : <span className="text-[var(--fg-faint)]">-</span>}
                       </td>
                     </tr>
                   ))}

@@ -133,7 +133,7 @@ export function TrashList({ initialArticles }: { initialArticles: TrashedArticle
         </div>
       ) : (
         <div className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden">
-          {/* Column headers — desktop only */}
+          {/* Column headers - desktop only */}
           <div className="hidden sm:grid grid-cols-[1fr_140px_120px_140px_auto] gap-4 px-5 py-2.5 border-b border-[var(--border)] bg-[var(--bg-subtle)]">
             <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--fg-faint)]">Article</span>
             <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--fg-faint)]">Category</span>

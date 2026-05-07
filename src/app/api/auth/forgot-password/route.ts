@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   // BUG-21: rate limit to 5 requests per IP per 15 minutes
   const ip = getIp(req)
   if (!checkRateLimit(`pwd-reset-public:${ip}`, 5, 15 * 60 * 1000)) {
-    return Response.json({ ok: true }) // silent — do not leak rate-limit info
+    return Response.json({ ok: true }) // silent - do not leak rate-limit info
   }
 
   let email: string | undefined

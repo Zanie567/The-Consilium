@@ -479,7 +479,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
           </div>
         )}
 
-        {/* Text-selection bubble menu removed — all formatting options live in the fixed toolbar */}
+        {/* Text-selection bubble menu removed - all formatting options live in the fixed toolbar */}
 
         {editable && (
           <BubbleMenu

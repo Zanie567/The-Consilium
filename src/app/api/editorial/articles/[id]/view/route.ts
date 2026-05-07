@@ -28,10 +28,10 @@ function classifySource(referer: string | null): string {
 export async function POST(req: NextRequest, { params }: Props) {
   const { id } = await params
 
-  // BUG-02: Rate limit — 1 view per IP per article per 10 minutes to prevent count inflation
+  // BUG-02: Rate limit - 1 view per IP per article per 10 minutes to prevent count inflation
   const ip = getIp(req)
   if (!checkRateLimit(`view:${ip}:${id}`, 1, 10 * 60 * 1000)) {
-    return NextResponse.json({ ok: true }) // silent — don't reveal the limit to clients
+    return NextResponse.json({ ok: true }) // silent - don't reveal the limit to clients
   }
 
   const referer = req.headers.get('referer') ?? req.headers.get('referrer') ?? null
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest, { params }: Props) {
     ])
     return NextResponse.json({ ok: true })
   } catch {
-    // Column may not exist yet — retry without source field
+    // Column may not exist yet - retry without source field
     try {
       await prisma.$transaction([
         prisma.articleView.create({ data: { articleId: id } }),

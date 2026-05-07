@@ -22,7 +22,7 @@ export default async function UsersPage() {
     select: { role: true },
   }).catch(() => null)
 
-  // Admin only — editors can no longer access user management
+  // Admin only - editors can no longer access user management
   if (!dbUser || dbUser.role !== 'ADMIN') redirect('/editorial')
 
   return (
