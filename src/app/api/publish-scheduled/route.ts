@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     const result = await publishScheduledArticles()
 
     if (result.published.length === 0 && result.dueCount === 0) {
-      console.log('[publish-scheduled] No articles due for publishing')
+      console.warn('[publish-scheduled] No articles due for publishing')
       return NextResponse.json({
         ranAt: result.ranAt,
         due: 0,
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
     }
 
     for (const article of result.published) {
-      console.log(`[publish-scheduled] Published: "${article.title}" (${article.id})`)
+      console.warn(`[publish-scheduled] Published: "${article.title}" (${article.id})`)
     }
 
     for (const warning of result.warnings) {

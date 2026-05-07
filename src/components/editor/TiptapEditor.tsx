@@ -21,7 +21,7 @@ import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table
 import {
   Bold, Italic, UnderlineIcon, Strikethrough, Link2, Link2Off, Upload,
   Minus, AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  Undo, Redo, ChevronDown, List, ListOrdered, Quote, Code2,
+  Undo, Redo, List, ListOrdered, Quote, Code2,
   Star, Printer, Type, Highlighter, Table as TableIcon,
   Indent, Outdent,
 } from 'lucide-react'
@@ -208,14 +208,12 @@ const GOOGLE_DOCS_COLORS: string[] = [
   '#fff8f8','#fffaf5','#fefef5','#f8fbf5','#f5fcfd','#f8faff','#f8f8ff','#fbf8ff','#fdf8fb','#fff8fb',
 ]
 
-const FONT_SIZES = ['10','11','12','14','16','18','20','24','28','32','36','48','60','72']
-
 // ── Main component ────────────────────────────────────────────────────────────
 export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
   function TiptapEditor({ content, onChange, editable = true, saveStatus, toolbarPortalRef, onEditorReady, noWrapper, darkMode }, ref) {
     const fileInputRef      = useRef<HTMLInputElement>(null)
     const linkInputRef      = useRef<HTMLInputElement>(null)
-    const fontSizeRef       = useRef<HTMLInputElement>(null)
+    const _fontSizeRef      = useRef<HTMLInputElement>(null)
     const colorPickerRef    = useRef<HTMLDivElement>(null)
     const highlightRef      = useRef<HTMLDivElement>(null)
     const tablePickerRef    = useRef<HTMLDivElement>(null)
@@ -377,12 +375,12 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
       }
     }, [editor])
 
-    const changeFontSize = useCallback((delta: number) => {
+    const _changeFontSize = useCallback((delta: number) => {
       const cur = parseInt(fontSizeInput, 10) || 16
       applyFontSize(String(Math.max(6, Math.min(96, cur + delta))))
     }, [fontSizeInput, applyFontSize])
 
-    const applyLineSpacing = useCallback((spacing: string) => {
+    const applyLineSpacing = useCallback((_spacing: string) => {
       // Apply line height via textStyle attributes or a paragraph style
       // TipTap doesn't have native line-spacing, we use CSS via a class
       if (!editor) return
@@ -422,23 +420,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
               ? 'text-white/70 hover:bg-white/8 transition-colors duration-100'
               : 'text-[#444] hover:bg-black/8 transition-colors duration-100'
         } disabled:opacity-30`}
-      >
-        {children}
-      </button>
-    )
-
-    const BubbleBtn = ({
-      onClick, active, title, children,
-    }: {
-      onClick: () => void; active?: boolean; title: string; children: ReactNode
-    }) => (
-      <button
-        type="button"
-        onClick={onClick}
-        title={title}
-        className={`p-1.5 rounded transition-colors ${
-          active ? 'bg-gold/20 text-gold' : 'text-cream/75 hover:text-cream hover:bg-white/10'
-        }`}
       >
         {children}
       </button>

@@ -32,6 +32,28 @@ const PERIOD_LABELS: Record<Period, string> = {
 
 const fadeUp = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } }
 
+function SortBtn({ col, label, sortCol, sortDir, onSort }: {
+  col: SortCol
+  label: string
+  sortCol: SortCol
+  sortDir: SortDir
+  onSort: (col: SortCol) => void
+}) {
+  return (
+    <button
+      onClick={() => onSort(col)}
+      className={`flex items-center gap-0.5 text-xs font-semibold uppercase tracking-wider transition-colors hover:text-[var(--fg)] ${
+        sortCol === col ? 'text-gold' : 'text-[var(--fg-faint)]'
+      }`}
+    >
+      {label}
+      {sortCol === col
+        ? (sortDir === 'desc' ? <ChevDown size={10} /> : <ChevronUp size={10} />)
+        : <ChevDown size={10} className="opacity-30" />}
+    </button>
+  )
+}
+
 export function LeaderboardTab({ data, loading, period }: {
   data: LeaderboardData | null
   loading: boolean
@@ -66,20 +88,6 @@ export function LeaderboardTab({ data, loading, period }: {
     return sortDir === 'desc' ? vb - va : va - vb
   })
 
-  const SortBtn = ({ col, label }: { col: SortCol; label: string }) => (
-    <button
-      onClick={() => handleSort(col)}
-      className={`flex items-center gap-0.5 text-xs font-semibold uppercase tracking-wider transition-colors hover:text-[var(--fg)] ${
-        sortCol === col ? 'text-gold' : 'text-[var(--fg-faint)]'
-      }`}
-    >
-      {label}
-      {sortCol === col
-        ? (sortDir === 'desc' ? <ChevDown size={10} /> : <ChevronUp size={10} />)
-        : <ChevDown size={10} className="opacity-30" />}
-    </button>
-  )
-
   return (
     <motion.div key="leaderboard" initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05 } } }} className="space-y-4">
 
@@ -106,23 +114,23 @@ export function LeaderboardTab({ data, loading, period }: {
               <thead>
                 <tr className="border-b border-[var(--border)]">
                   <th className="px-4 py-3 text-left w-10">
-                    <SortBtn col="rank" label="#" />
+                    <SortBtn col="rank" label="#" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
                   </th>
                   <th className="px-4 py-3 text-left text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider">Writer</th>
                   <th className="px-4 py-3 text-right">
-                    <SortBtn col="articlesCount" label="Articles" />
+                    <SortBtn col="articlesCount" label="Articles" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
                   </th>
                   <th className="px-4 py-3 text-right">
-                    <SortBtn col="totalReadingMinutes" label="Reading Mins" />
+                    <SortBtn col="totalReadingMinutes" label="Reading Mins" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
                   </th>
                   <th className="px-4 py-3 text-right">
-                    <SortBtn col="avgCompletionRate" label="Avg Read %" />
+                    <SortBtn col="avgCompletionRate" label="Avg Read %" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
                   </th>
                   <th className="px-4 py-3 text-right">
-                    <SortBtn col="avgViewsPerArticle" label="Avg Views" />
+                    <SortBtn col="avgViewsPerArticle" label="Avg Views" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
                   </th>
                   <th className="px-4 py-3 text-right">
-                    <SortBtn col="commentsGenerated" label="Comments" />
+                    <SortBtn col="commentsGenerated" label="Comments" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
                   </th>
                 </tr>
               </thead>

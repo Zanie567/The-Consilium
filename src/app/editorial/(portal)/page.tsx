@@ -95,6 +95,7 @@ export default async function EditorialDashboard() {
         : Promise.resolve(0),
     ]).catch((err) => {
       console.error('[editorial/dashboard] DB error:', err)
+      // eslint-disable-next-line react-hooks/immutability -- server component, no render cycle
       fetchError = true
       return [[], [], 0, [], 0, 0] as const
     })

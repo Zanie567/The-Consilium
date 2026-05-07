@@ -37,7 +37,7 @@ const STATUS_STYLE: Record<string, string> = {
   ARCHIVED: 'bg-[var(--bg-subtle)] text-[var(--fg-faint)]',
 }
 
-export function ArticlesList({ articles: initial, isEditor, isWriter, emptyMessage }: Props) {
+export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter, emptyMessage }: Props) {
   const [articles, setArticles] = useState(initial)
   const [filter, setFilter] = useState<string>('all')
 

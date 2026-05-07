@@ -20,7 +20,7 @@
  *   - Client-side refresh every 6 hours (server routes are also ISR-cached)
  */
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 
 // ── Data types ──────────────────────────────────────────────────────────────
 

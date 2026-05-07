@@ -27,8 +27,6 @@ interface WriterRow {
 type SortCol = keyof Omit<WriterRow, 'id' | 'name' | 'rankChange'>
 type SortDir = 'asc' | 'desc'
 
-const fadeUp = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } }
-
 export function LeaderboardClient({ currentUserId }: { currentUserId: string }) {
   const [period, setPeriod]       = useState<LeaderboardPeriod>('month')
   const [writers, setWriters]     = useState<WriterRow[]>([])

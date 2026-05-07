@@ -3,7 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
-import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
+import { StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import type { Metadata } from 'next'
 import { getInitials } from '@/lib/authorUtils'
 

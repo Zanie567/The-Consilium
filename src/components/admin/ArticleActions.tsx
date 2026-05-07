@@ -12,7 +12,7 @@ interface ArticleActionsProps {
   slug: string
 }
 
-export function ArticleActions({ articleId, status, canPublish, slug }: ArticleActionsProps) {
+export function ArticleActions({ articleId, status, canPublish, slug: _slug }: ArticleActionsProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
