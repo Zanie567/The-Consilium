@@ -20,6 +20,7 @@ import { CommentSection } from '@/components/ui/CommentSection'
 import { readTimeLabel } from '@/lib/readTime'
 import { getInitials, displayAuthorName } from '@/lib/authorUtils'
 import type { Metadata } from 'next'
+import { LOGO_URL } from '@/lib/constants'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -129,13 +130,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       authors: article.author.name ? [article.author.name] : undefined,
       images: article.coverImage
         ? [{ url: article.coverImage, width: 1200, height: 630, alt: article.title }]
-        : [{ url: 'https://the-consilium.vercel.app/logo.png', width: 512, height: 512, alt: 'The Consilium' }],
+        : [{ url: LOGO_URL, width: 512, height: 512, alt: 'The Consilium' }],
     },
     twitter: {
       card: 'summary_large_image',
       title: article.title,
       description: article.excerpt ?? undefined,
-      images: article.coverImage ? [article.coverImage] : ['https://the-consilium.vercel.app/logo.png'],
+      images: article.coverImage ? [article.coverImage] : [LOGO_URL],
     },
   }
 }

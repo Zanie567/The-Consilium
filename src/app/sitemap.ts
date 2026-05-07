@@ -1,7 +1,8 @@
 import { MetadataRoute } from 'next'
 import { prisma } from '@/lib/prisma'
+import { SITE_URL } from '@/lib/constants'
 
-const BASE = 'https://the-consilium.vercel.app'
+const BASE = SITE_URL
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [articles, categories, tags, authors] = await Promise.all([

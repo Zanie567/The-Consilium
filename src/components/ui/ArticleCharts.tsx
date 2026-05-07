@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { COLORS } from '@/lib/constants'
 import {
   Chart,
   CategoryScale, LinearScale, BarElement, LineElement, PointElement,
@@ -57,7 +58,7 @@ export function ArticleCharts() {
               label: ds.label,
               data: ds.data,
               backgroundColor: i === 0 ? 'rgba(201,162,39,0.7)' : 'rgba(26,39,68,0.7)',
-              borderColor: i === 0 ? '#c9a227' : '#1a2744',
+              borderColor: i === 0 ? COLORS.GOLD : COLORS.NAVY,
               borderWidth: 1.5,
               tension: 0.3,
               fill: false,

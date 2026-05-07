@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { Line } from 'react-chartjs-2'
+import { COLORS } from '@/lib/constants'
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip,
@@ -91,7 +92,7 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: '#1a2744', titleColor: '#c9a227', bodyColor: '#faf8f3',
+        backgroundColor: COLORS.NAVY, titleColor: COLORS.GOLD, bodyColor: COLORS.CREAM,
         padding: 12, cornerRadius: 0,
         callbacks: { label: item => ` ${(item.raw as number).toLocaleString()} views` },
       },

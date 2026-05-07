@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { CONTACT_EMAIL } from '@/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
@@ -97,7 +98,7 @@ export default function TermsPage() {
             <p>
               We may update these terms occasionally. The date at the top of the page will reflect
               the most recent revision. If you have any questions, please get in touch at{' '}
-              <a href="mailto:theconsilium.editor@gmail.com">theconsilium.editor@gmail.com</a>.
+              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
             </p>
             <p>
               These terms are governed by the laws of Scotland. You may also want to read our{' '}
