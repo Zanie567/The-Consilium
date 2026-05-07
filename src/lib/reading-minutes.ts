@@ -28,7 +28,7 @@ export function countWordsInTiptapContent(content: string): number {
  * Estimate actual reading minutes consumed for one article.
  *
  * @param articleContent  TipTap JSON string stored in Article.content
- * @param avgProgress     Average scroll progress 0–100 from ReadingProgress.progress
+ * @param avgProgress     Average scroll progress 0-100 from ReadingProgress.progress
  * @returns               Minutes actually read (word-count / 200 × completion fraction)
  */
 export function estimateReadingMinutes(

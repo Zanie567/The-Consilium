@@ -65,7 +65,7 @@ interface ArticleEditorProps {
     authorId?: string
   }
   categories: Category[]
-  /** The ID of the currently logged-in user — used as fallback when creating a new article */
+  /** The ID of the currently logged-in user - used as fallback when creating a new article */
   authorId: string
   canPublish: boolean
   returnUrl?: string
@@ -142,7 +142,7 @@ export function ArticleEditor({
   const [toolbarHeight, setToolbarHeight] = useState(44)
 
   // ── Refs that need to be stable inside closures ────────────────────────────
-  // articleIdRef holds the current article ID — set from prop on mount, then
+  // articleIdRef holds the current article ID - set from prop on mount, then
   // updated in-place when a new article is first created via autosave.
   const articleIdRef   = useRef<string | undefined>(articleId)
   const isCreatingRef  = useRef(false)   // prevent concurrent POSTs
@@ -221,7 +221,7 @@ export function ArticleEditor({
       excerpt:    excerptRef.current,
       coverImage: coverImageRef.current || null,
       categoryId: categoryIdRef.current || null,
-      // Send the selected author — admins/editors can override; writers always
+      // Send the selected author - admins/editors can override; writers always
       // use their own session ID (selectedAuthorIdRef defaults to authorId prop).
       authorId:   selectedAuthorIdRef.current,
       status:     finalStatus,
@@ -235,14 +235,14 @@ export function ArticleEditor({
       let res: Response
 
       if (currentId) {
-        // Existing article — PATCH
+        // Existing article - PATCH
         res = await fetch(`/api/articles/${currentId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         })
       } else {
-        // Brand-new article — guard against concurrent POSTs
+        // Brand-new article - guard against concurrent POSTs
         if (isCreatingRef.current) return false
         isCreatingRef.current = true
         res = await fetch('/api/articles', {
@@ -317,7 +317,7 @@ export function ArticleEditor({
       if (isDirtyRef.current) {
         e.preventDefault()
         e.returnValue = ''
-        // Best-effort synchronous save (no await — browser won't wait)
+        // Best-effort synchronous save (no await - browser won't wait)
         void performSave()
       }
     }
@@ -495,7 +495,7 @@ export function ArticleEditor({
         </div>
       )}
 
-      {/* Author override — only visible to editors/admins */}
+      {/* Author override - only visible to editors/admins */}
       {!isWriter && users.length > 0 && (
         <div>
           <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Author</label>
@@ -674,7 +674,7 @@ export function ArticleEditor({
   return (
     <div className="min-h-full">
 
-      {/* FIXED: Top chrome (48px) — full-width on mobile, offset by sidebar on md+ */}
+      {/* FIXED: Top chrome (48px) - full-width on mobile, offset by sidebar on md+ */}
       <div className="fixed top-0 left-0 md:left-[220px] right-0 z-50 h-12 bg-white dark:bg-[#1a1a1a] border-b border-[#e0e0e0] dark:border-[#333] flex items-center pl-[52px] md:pl-3 pr-3 gap-2">
         <button
           onClick={handleBack}
@@ -812,13 +812,13 @@ export function ArticleEditor({
         </button>
       </div>
 
-      {/* Formatting toolbar — Tiptap portals its toolbar content into this fixed container */}
+      {/* Formatting toolbar - Tiptap portals its toolbar content into this fixed container */}
       <div
         ref={toolbarPortalRef}
         className="fixed top-12 left-0 md:left-[220px] right-0 z-[200]"
       />
 
-      {/* Content — offset by top chrome (48px) + measured toolbar height */}
+      {/* Content - offset by top chrome (48px) + measured toolbar height */}
       <div className="min-h-screen bg-[#f0f0f0] dark:bg-[#111]" style={{ paddingTop: 48 + toolbarHeight + 4 }}>
 
         {/* Banners */}
@@ -856,7 +856,7 @@ export function ArticleEditor({
             }}
           >
 
-            {/* Cover image block — full bleed above padded content */}
+            {/* Cover image block - full bleed above padded content */}
             <div
               className="relative group w-full overflow-hidden bg-[#f5f5f5]"
               style={{ height: coverImage ? 240 : undefined }}
@@ -995,7 +995,7 @@ export function ArticleEditor({
         }}
         aria-hidden={!settingsOpen}
       >
-        {/* Drag handle — decorative iOS-style pill */}
+        {/* Drag handle - decorative iOS-style pill */}
         <div className="flex justify-center pt-3 pb-1 shrink-0">
           <div className="w-10 h-1 rounded-full bg-[#d0d0d0]" />
         </div>
@@ -1052,7 +1052,7 @@ export function ArticleEditor({
                 </button>
               </div>
 
-              {/* Modal body — scrollable */}
+              {/* Modal body - scrollable */}
               <div className="overflow-y-auto px-6 py-5 space-y-0 text-[14px] leading-[1.7] text-[#333] dark:text-[#ccc]">
 
                 {/* Getting started */}

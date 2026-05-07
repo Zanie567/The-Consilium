@@ -126,11 +126,11 @@ export function AudienceTab({ data, loading }: { data: AudienceData | null; load
                 <div className="flex justify-between text-[10px] text-[var(--fg-faint)]">
                   <span className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-gold/60 inline-block" />
-                    New — {newPct}% ({rv.newCount.toLocaleString()})
+                    New: {newPct}% ({rv.newCount.toLocaleString()})
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-navy/40 inline-block" />
-                    Returning — {returnPct}% ({rv.returningCount.toLocaleString()})
+                    Returning: {returnPct}% ({rv.returningCount.toLocaleString()})
                   </span>
                 </div>
               </div>
@@ -171,7 +171,7 @@ export function AudienceTab({ data, loading }: { data: AudienceData | null; load
 
       {/* Subscriber growth chart */}
       <motion.div variants={fadeUp}>
-        <TabCard title="Subscriber growth — last 12 weeks">
+        <TabCard title="Subscriber growth: last 12 weeks">
           <div className="p-6">
             {data.subscriberGrowth.some(w => w.count > 0) ? (
               <Bar data={barData} options={barOptions} />

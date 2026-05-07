@@ -530,7 +530,7 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
                       <div key={w.id} className="bg-amber-500/5 border border-amber-500/20 p-3 rounded-sm">
                         <p className="text-[var(--fg)] text-xs leading-relaxed">{w.reason}</p>
                         <p className="text-amber-500/70 text-[9px] mt-1">
-                          Issued by {w.issuedBy} — {format(new Date(w.createdAt), 'd MMM yyyy HH:mm')}
+                          Issued by {w.issuedBy} on {format(new Date(w.createdAt), 'd MMM yyyy HH:mm')}
                         </p>
                       </div>
                     ))}
@@ -552,7 +552,7 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
                         <div className="flex-1">
                           <p className="text-[var(--fg)] text-xs leading-relaxed">{n.note}</p>
                           <p className="text-[var(--fg-faint)] text-[9px] mt-1">
-                            {n.authorName ?? n.authorId} — {format(new Date(n.createdAt), 'd MMM yyyy HH:mm')}
+                            {n.authorName ?? n.authorId} on {format(new Date(n.createdAt), 'd MMM yyyy HH:mm')}
                           </p>
                         </div>
                         <button

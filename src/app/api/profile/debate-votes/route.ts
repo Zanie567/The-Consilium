@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-// GET /api/profile/debate-votes — user's debate votes with results
+// GET /api/profile/debate-votes - user's debate votes with results
 export async function GET() {
   const session = await getServerSession(authOptions)
   const authError = requireActiveSession(session)

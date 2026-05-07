@@ -368,7 +368,7 @@ body {
   color: #1a1a1a;
 }
 /* When TiptapEditor is embedded inside a document card (contentOnly mode),
-   the card provides its own padding — override the redundant inner padding. */
+   the card provides its own padding - override the redundant inner padding. */
 .tiptap-editor--bare .ProseMirror {
   padding: 0.5rem 0 4rem 0;
 }
@@ -1145,7 +1145,7 @@ mark {
  * causing React to remount the div and re-run the animation on every navigation.
  *
  * Outgoing: the old element is removed instantly (React unmounts it).
- * Incoming: this animation plays — opacity 0→1, translateY 8px→0 over 200ms.
+ * Incoming: this animation plays - opacity 0→1, translateY 8px→0 over 200ms.
  */
 @keyframes portal-enter {
   from {
@@ -1163,7 +1163,7 @@ mark {
 }
 
 /*
- * Universal tap feedback — scale-compress on press.
+ * Universal tap feedback - scale-compress on press.
  * Apply the .tap class to any interactive element that needs tactile feedback.
  * This supplements Tailwind's active: variants for cases where a global rule
  * is cleaner than per-element classes.

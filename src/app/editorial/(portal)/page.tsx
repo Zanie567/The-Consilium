@@ -128,7 +128,7 @@ export default async function EditorialDashboard() {
         </div>
       )}
 
-      {/* Header — on mobile, add left padding to clear the hamburger button */}
+      {/* Header - on mobile, add left padding to clear the hamburger button */}
       <PortalSection className="flex items-start justify-between mb-6 sm:mb-8">
         <div className="pl-10 md:pl-0">
           <h1
@@ -215,7 +215,7 @@ export default async function EditorialDashboard() {
         </PortalSection>
       )}
 
-      {/* Quick actions — hidden for growth users */}
+      {/* Quick actions - hidden for growth users */}
       {!isGrowth && (
         <PortalSection className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mb-6 sm:mb-8">
           <Link
@@ -273,7 +273,7 @@ export default async function EditorialDashboard() {
         </PortalSection>
       )}
 
-      {/* My Drafts — hidden for growth */}
+      {/* My Drafts - hidden for growth */}
       {!isGrowth && myDrafts.length > 0 && (
         <PortalSection className="mb-8">
           <div className="flex items-center justify-between mb-3">
@@ -302,7 +302,7 @@ export default async function EditorialDashboard() {
         </PortalSection>
       )}
 
-      {/* Recent articles table — hidden for growth */}
+      {/* Recent articles table - hidden for growth */}
       {!isGrowth && <PortalSection>
         <div className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden">
           <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">

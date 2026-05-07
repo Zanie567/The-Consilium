@@ -28,7 +28,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // ── CSRF protection for API routes ───────────────────────────────────────
-  // NextAuth handles its own CSRF for /api/auth/* — skip those.
+  // NextAuth handles its own CSRF for /api/auth/* - skip those.
   if (pathname.startsWith('/api/auth/')) {
     return NextResponse.next()
   }

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-// GET /api/profile/comments — user's comments with article context
+// GET /api/profile/comments - user's comments with article context
 export async function GET() {
   const session = await getServerSession(authOptions)
   const authError = requireActiveSession(session)

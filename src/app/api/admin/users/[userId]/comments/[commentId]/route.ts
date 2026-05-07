@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 
 interface Ctx { params: Promise<{ userId: string; commentId: string }> }
 
-// DELETE — soft-hide a comment (admin moderation)
+// DELETE - soft-hide a comment (admin moderation)
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const session = await getServerSession(authOptions)
   if (!session || (session.user as { role: string; isBanned?: boolean }).role !== 'ADMIN' || (session.user as { isBanned?: boolean }).isBanned) {

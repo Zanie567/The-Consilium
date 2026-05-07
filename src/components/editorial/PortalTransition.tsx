@@ -3,7 +3,7 @@
 /**
  * Wraps editorial portal page content with a subtle enter animation.
  * Because React uses the `key` prop to unmount/remount the div on every
- * pathname change, the CSS animation re-fires on each navigation —
+ * pathname change, the CSS animation re-fires on each navigation,
  * giving a lightweight fade + slide-up transition without any animation library.
  */
 

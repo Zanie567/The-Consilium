@@ -33,7 +33,7 @@ const IMAGE_SIGNATURES: Array<{ mimeType: string; sigs: Signature[] }> = [
     ],
   },
   {
-    // AVIF / HEIF: ISO base media file format — 'ftyp' box at offset 4
+    // AVIF / HEIF: ISO base media file format - 'ftyp' box at offset 4
     mimeType: 'image/avif',
     sigs: [{ offset: 4, bytes: [0x66, 0x74, 0x79, 0x70] }],
   },

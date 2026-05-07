@@ -19,7 +19,7 @@ export async function GET(_req: Request, { params }: Props) {
       where: { userId_articleId: { userId: session.user.id, articleId } },
       select: { progress: true, scrollY: true },
     })
-    // null means no record — that is a valid, expected state
+    // null means no record - that is a valid, expected state
     return NextResponse.json(row)
   } catch (err) {
     console.error('[reading-progress/[articleId]/GET]', err)

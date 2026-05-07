@@ -1,18 +1,18 @@
 /**
  * migrate-em-dashes.ts
  *
- * Finds every em dash (—, U+2014) in the following fields and replaces it with
+ * Finds every em dash (U+2014) in the following fields and replaces it with
  * a spaced hyphen ( - ):
  *
  *   debates   → title, description
- *   articles  → title, excerpt, content (Tiptap JSON — text nodes only)
+ *   articles  → title, excerpt, content (Tiptap JSON - text nodes only)
  *
  * Debate FOR / AGAINST argument bodies are the linked articles' content fields
  * and are therefore covered by the articles pass above.
  *
  * Usage
  * ─────
- *   Dry-run — prints all changes, writes nothing:
+ *   Dry-run - prints all changes, writes nothing:
  *     npx ts-node -P tsconfig.seed.json prisma/migrate-em-dashes.ts
  *
  *   Apply changes to the database:
@@ -38,14 +38,14 @@ const REPLACEMENT = ' - '
 
 /**
  * Replace every em dash in a plain string with a spaced hyphen.
- * Collapses any surrounding whitespace so "how — and" → "how - and"
+ * Collapses any surrounding whitespace so "how - and" → "how - and"
  * rather than "how  -  and".
  */
 function replacePlain(value: string): string {
   return value.replace(/\s*\u2014\s*/g, REPLACEMENT)
 }
 
-/** Minimal Tiptap node shape — only fields we touch. */
+/** Minimal Tiptap node shape - only fields we touch. */
 type TiptapNode = {
   type?: string
   text?: string
@@ -228,7 +228,7 @@ async function applyChanges() {
 async function main() {
   const apply = process.argv.includes('--apply')
 
-  console.log('Scanning for em dashes (—) …\n')
+  console.log('Scanning for em dashes (U+2014) …\n')
   await scanDebates()
   await scanArticles()
 
@@ -260,7 +260,7 @@ async function main() {
   console.log()
 
   if (!apply) {
-    console.log('DRY-RUN — nothing was written to the database.')
+    console.log('DRY-RUN - nothing was written to the database.')
     console.log('Re-run with --apply to commit these changes:\n')
     console.log('  npx ts-node -P tsconfig.seed.json prisma/migrate-em-dashes.ts --apply\n')
     return

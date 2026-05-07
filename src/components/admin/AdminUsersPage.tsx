@@ -505,7 +505,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
                               {(user.name || user.email).charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-[var(--fg)] font-semibold text-xs truncate">{user.name ?? '—'}</p>
+                              <p className="text-[var(--fg)] font-semibold text-xs truncate">{user.name ?? '-'}</p>
                               <p className="text-[var(--fg-faint)] text-[10px] truncate">{user.email}</p>
                             </div>
                           </div>
@@ -573,7 +573,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
             {total > 0 && (
               <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border)]">
                 <p className="text-[var(--fg-faint)] text-xs">
-                  Showing {start}–{end} of {total} users
+                  Showing {start} to {end} of {total} users
                 </p>
                 <div className="flex items-center gap-2">
                   <button

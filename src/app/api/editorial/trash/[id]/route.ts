@@ -7,7 +7,7 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
-// PATCH /api/editorial/trash/[id] — restore a soft-deleted article
+// PATCH /api/editorial/trash/[id] - restore a soft-deleted article
 export async function PATCH(_req: NextRequest, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -33,7 +33,7 @@ export async function PATCH(_req: NextRequest, { params }: Props) {
   }
 }
 
-// DELETE /api/editorial/trash/[id] — permanently delete a trashed article
+// DELETE /api/editorial/trash/[id] - permanently delete a trashed article
 export async function DELETE(_req: NextRequest, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

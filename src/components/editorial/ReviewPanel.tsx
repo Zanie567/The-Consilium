@@ -131,7 +131,7 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
-      {/* Back + header — on mobile add left padding to clear the hamburger */}
+      {/* Back + header - on mobile add left padding to clear the hamburger */}
       <div className="flex items-start gap-3 sm:gap-4 mb-5 sm:mb-6 pl-10 md:pl-0">
         <Link
           href="/editorial/review"
@@ -155,7 +155,7 @@ export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
             </span>
           </div>
 
-          {/* Feature + Pin toggles — moved inside header div so they wrap on mobile */}
+          {/* Feature + Pin toggles - moved inside header div so they wrap on mobile */}
           {status === 'PUBLISHED' && (
             <div className="flex gap-2 mt-2">
               <Tooltip content={isFeatured ? 'Remove from featured: stops appearing in the homepage spotlight' : 'Set as featured: this article will appear in the main featured slot on the homepage'} variant="editorial" side="bottom" maxWidth={280}>

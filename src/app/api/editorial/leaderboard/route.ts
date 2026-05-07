@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { subDays } from 'date-fns'
 import { estimateReadingMinutes } from '@/lib/reading-minutes'
 
-// Accessible to writers and above — NOT readers
+// Accessible to writers and above - NOT readers
 const LEADERBOARD_ROLES = ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH']
 
 type LeaderboardPeriod = 'week' | 'month' | 'alltime'

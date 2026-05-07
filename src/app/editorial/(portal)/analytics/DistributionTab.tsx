@@ -74,7 +74,7 @@ export function DistributionTab({ data, loading }: { data: DistributionData | nu
               <div className="mt-4 pt-4 border-t border-[var(--border)]">
                 <p className="text-xs text-[var(--fg-faint)] leading-relaxed">
                   As your publication grows, this tab will show referral sources, search visibility, and social traffic breakdowns.
-                  Currently all traffic is direct — readers are coming straight to your content.
+                  Currently all traffic is direct. Readers are coming straight to your content.
                 </p>
               </div>
             )}

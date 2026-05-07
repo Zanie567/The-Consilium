@@ -77,7 +77,7 @@ export default function SubscribersPage() {
               className="text-3xl font-bold text-[var(--fg)]"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
-              {loading ? '—' : subscribers.length.toLocaleString()}
+              {loading ? '-' : subscribers.length.toLocaleString()}
             </p>
           </div>
         </div>

@@ -137,7 +137,7 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <motion.div variants={fadeUp}>
-          <StatCard label={`Views — ${PERIOD_LABELS[period]}`} value={summary.viewsInPeriod} trend={summary.viewsChange} />
+          <StatCard label={`Views: ${PERIOD_LABELS[period]}`} value={summary.viewsInPeriod} trend={summary.viewsChange} />
         </motion.div>
         <motion.div variants={fadeUp}>
           <StatCard label="Total views all time" value={summary.totalViews} />
@@ -170,7 +170,7 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
                   change > 0 ? 'text-emerald-600' : change < 0 ? 'text-red-500' : 'text-[var(--fg-faint)]'
                 }`}>
                   {change > 0 ? <TrendingUp size={10} /> : change < 0 ? <TrendingDown size={10} /> : <Minus size={10} />}
-                  {change > 0 ? `+${change}%` : change < 0 ? `${change}%` : '—'}
+                  {change > 0 ? `+${change}%` : change < 0 ? `${change}%` : '0%'}
                 </span>
               )}
             </div>

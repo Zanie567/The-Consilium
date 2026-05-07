@@ -30,7 +30,7 @@ export function EditorialSidebarWrapper({ user, trashCount = 0 }: { user: User; 
   return (
     <>
       {/*
-       * Mobile hamburger button — visible below md (768px).
+       * Mobile hamburger button - visible below md (768px).
        * Animates between ☰ and ✕ icons with a rotation/fade crossfade.
        */}
       <button
@@ -40,7 +40,7 @@ export function EditorialSidebarWrapper({ user, trashCount = 0 }: { user: User; 
         aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
         aria-expanded={mobileOpen}
       >
-        {/* Hamburger icon — fades out and rotates when open */}
+        {/* Hamburger icon - fades out and rotates when open */}
         <span
           className="absolute inset-0 flex items-center justify-center transition-all duration-200 ease-in-out"
           style={{
@@ -51,7 +51,7 @@ export function EditorialSidebarWrapper({ user, trashCount = 0 }: { user: User; 
         >
           <Menu size={18} />
         </span>
-        {/* X icon — fades in and un-rotates when open */}
+        {/* X icon - fades in and un-rotates when open */}
         <span
           className="absolute inset-0 flex items-center justify-center transition-all duration-200 ease-in-out"
           style={{
@@ -65,7 +65,7 @@ export function EditorialSidebarWrapper({ user, trashCount = 0 }: { user: User; 
       </button>
 
       {/*
-       * Backdrop — always mounted for smooth fade.
+       * Backdrop - always mounted for smooth fade.
        * pointer-events-none when closed so clicks fall through.
        */}
       <div
@@ -82,17 +82,17 @@ export function EditorialSidebarWrapper({ user, trashCount = 0 }: { user: User; 
        * Sidebar container:
        *
        * MOBILE (< md = 768px):
-       *   Fixed overlay; slides left (–100%) → 0 on open.
-       *   Cubic-bezier(0.4, 0, 0.2, 1) — Material Design standard easing.
+       *   Fixed overlay; slides left (-100%) → 0 on open.
+       *   Cubic-bezier(0.4, 0, 0.2, 1) - Material Design standard easing.
        *
-       * TABLET (md → lg = 768–1023px):
+       * TABLET (md → lg = 768-1023px):
        *   Relative in-flow element.
        *   Collapsed to 48px wide (icon rail); expands to 220px on hover.
        *   Width transitions at 200ms ease.
        *   Nav labels fade in as the rail expands (via group-hover/sidebar).
        *
        * DESKTOP (≥ lg = 1024px):
-       *   Always full 220px — no rail behaviour.
+       *   Always full 220px - no rail behaviour.
        */}
       <div
         className={[

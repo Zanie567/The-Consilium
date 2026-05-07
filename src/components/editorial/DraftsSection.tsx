@@ -36,7 +36,7 @@ export function DraftsSection({ drafts }: { drafts: Draft[] }) {
       }
       router.refresh()
     } catch {
-      // Network error — revert and inform the user
+      // Network error - revert and inform the user
       setDeleteError('Could not reach the server. Check your connection and try again.')
     } finally {
       setDeleting(null)
