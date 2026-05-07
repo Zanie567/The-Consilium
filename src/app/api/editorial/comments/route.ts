@@ -19,7 +19,7 @@ export async function GET(req: Request) {
   else if (tab === 'hidden') where = { isHidden: true }
   else where = {} // 'recent' = all visible
 
-  const [comments, total, stats] = await Promise.all([
+  const [comments, total, _stats] = await Promise.all([
     prisma.comment.findMany({
       where,
       orderBy: { createdAt: 'desc' },
