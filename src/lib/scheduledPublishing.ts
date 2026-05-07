@@ -105,7 +105,7 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
     })
     purged = result.count
     if (purged > 0) {
-      console.log(`[scheduledPublishing] Purged ${purged} article(s) from trash (>30 days old)`)
+      console.warn(`[scheduledPublishing] Purged ${purged} article(s) from trash (>30 days old)`)
     }
   } catch {
     // Never let purge failure block publishing results

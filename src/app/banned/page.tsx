@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { CONTACT_EMAIL } from '@/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Account Suspended',
@@ -29,10 +30,10 @@ export default function BannedPage() {
         <p className="text-[var(--fg-muted)] text-sm leading-relaxed mb-8">
           If you believe this is an error or would like to appeal, please contact us at{' '}
           <a
-            href="mailto:theconsilium.editor@gmail.com"
+            href={`mailto:${CONTACT_EMAIL}`}
             className="text-gold hover:underline"
           >
-            theconsilium.editor@gmail.com
+            {CONTACT_EMAIL}
           </a>
           .
         </p>

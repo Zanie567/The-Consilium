@@ -70,6 +70,7 @@ export default async function EditorialArticlesPage({
     },
   }).catch((err: unknown) => {
     console.error('[editorial/articles] DB error:', err)
+    // eslint-disable-next-line react-hooks/immutability -- server component, no render cycle
     fetchError = true
     return []
   })

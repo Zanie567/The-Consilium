@@ -2,9 +2,7 @@
 
 import { useState } from 'react'
 import { Trash2, Search, AlertTriangle } from 'lucide-react'
-import type { Metadata } from 'next'
-
-// Note: metadata export doesn't work in client components - title is set via AdminSidebar context.
+// Note: This is a client component — metadata must be set via the layout or a parent server component.
 
 type Stage = 'idle' | 'searching' | 'found' | 'confirming' | 'deleting' | 'done' | 'error'
 

@@ -24,8 +24,7 @@ export async function GET(request: NextRequest) {
   const sort   = searchParams.get('sort') ?? 'createdAt'
 
   // Build where clause
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const where: any = {}
+  const where: Record<string, unknown> = {}
 
   if (search) {
     where.OR = [
@@ -48,8 +47,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Build orderBy
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let orderBy: any = { createdAt: 'desc' }
+  let orderBy: Record<string, unknown> = { createdAt: 'desc' }
   if (sort === 'oldest') orderBy = { createdAt: 'asc' }
   else if (sort === 'lastActive') orderBy = { lastActiveAt: { sort: 'desc', nulls: 'last' } }
 

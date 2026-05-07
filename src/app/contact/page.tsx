@@ -2,6 +2,7 @@ import { ContactForm } from '@/components/ui/ContactForm'
 import { Mail, MapPin } from 'lucide-react'
 import type { Metadata } from 'next'
 import { AnimateIn } from '@/components/ui/AnimateIn'
+import { CONTACT_EMAIL, INSTAGRAM_URL, LINKEDIN_URL } from '@/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Contact',
@@ -72,10 +73,10 @@ export default function ContactPage() {
                     Email
                   </p>
                   <a
-                    href="mailto:theconsilium.editor@gmail.com"
+                    href={`mailto:${CONTACT_EMAIL}`}
                     className="text-[var(--fg-muted)] text-sm hover:text-gold transition-colors"
                   >
-                    theconsilium.editor@gmail.com
+                    {CONTACT_EMAIL}
                   </a>
                 </div>
               </div>
@@ -99,17 +100,19 @@ export default function ContactPage() {
               </p>
               <div className="flex gap-3">
                 <a
-                  href="https://www.instagram.com/theconsilium.editor/"
+                  href={INSTAGRAM_URL}
                   target="_blank"
                   rel="noopener noreferrer"
+                  aria-label="Follow The Consilium on Instagram"
                   className="w-9 h-9 border border-[var(--border)] flex items-center justify-center text-[var(--fg-faint)] hover:bg-navy hover:text-gold hover:border-navy transition-colors"
                 >
                   <InstagramIcon />
                 </a>
                 <a
-                  href="https://linkedin.com"
+                  href={LINKEDIN_URL}
                   target="_blank"
                   rel="noopener noreferrer"
+                  aria-label="Connect with The Consilium on LinkedIn"
                   className="w-9 h-9 border border-[var(--border)] flex items-center justify-center text-[var(--fg-faint)] hover:bg-navy hover:text-gold hover:border-navy transition-colors"
                 >
                   <LinkedInIcon />

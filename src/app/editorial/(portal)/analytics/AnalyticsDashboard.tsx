@@ -33,7 +33,7 @@ const TABS: { id: TabId; label: string }[] = [
 type TabCache = Partial<Record<TabId, any>>
 type LoadingSet = Set<TabId>
 
-export function AnalyticsDashboard({ userRole }: { userRole: string }) {
+export function AnalyticsDashboard({ userRole: _userRole }: { userRole: string }) {
   const [period, setPeriod]           = useState<Period>('30d')
   const [activeTab, setActiveTab]     = useState<TabId>('overview')
   const [tabCache, setTabCache]       = useState<TabCache>({})

@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { Bar } from 'react-chartjs-2'
+import { COLORS } from '@/lib/constants'
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, BarElement, Tooltip,
@@ -57,7 +58,7 @@ export function AudienceTab({ data, loading }: { data: AudienceData | null; load
       label: 'New subscribers',
       data: data.subscriberGrowth.map(w => w.count),
       backgroundColor: 'rgba(201,168,76,0.6)',
-      borderColor: '#c9a84c',
+      borderColor: COLORS.GOLD_ALT,
       borderWidth: 1,
       borderRadius: 2,
     }],
@@ -69,7 +70,7 @@ export function AudienceTab({ data, loading }: { data: AudienceData | null; load
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: '#1a2744', titleColor: '#c9a227', bodyColor: '#faf8f3',
+        backgroundColor: COLORS.NAVY, titleColor: COLORS.GOLD, bodyColor: COLORS.CREAM,
         padding: 10, cornerRadius: 0,
         callbacks: { label: item => ` ${(item.raw as number)} new subscribers` },
       },

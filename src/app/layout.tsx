@@ -9,6 +9,7 @@ import { ScrollIndicator } from '@/components/ui/ScrollIndicator'
 import { SignupPrompt } from '@/components/ui/SignupPrompt'
 import { CookieConsentBanner } from '@/components/ui/CookieConsent'
 import { InstallBanner } from '@/components/ui/InstallBanner'
+import { SITE_URL } from '@/lib/constants'
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -32,10 +33,7 @@ const ebGaramond = EB_Garamond({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://the-consilium.vercel.app')
-  ),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: 'The Consilium | University of Edinburgh Economics Society',
     template: '%s | The Consilium',
@@ -70,11 +68,17 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-[var(--bg)] text-[var(--fg)]">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:bg-navy focus:text-gold focus:px-4 focus:py-2 focus:text-xs focus:font-bold focus:uppercase focus:tracking-widest focus:border focus:border-gold/60"
+        >
+          Skip to content
+        </a>
         <ThemeProvider>
           <AuthProvider>
             <ScrollIndicator />
             <Navbar />
-            <main className="flex-1">{children}</main>
+            <main id="main-content" className="flex-1">{children}</main>
             <Footer />
             <SignupPrompt />
             <CookieConsentBanner />

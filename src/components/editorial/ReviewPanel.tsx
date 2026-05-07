@@ -44,7 +44,7 @@ interface Props {
   reviewerRole: string
 }
 
-export function ReviewPanel({ article, reviewerId, reviewerRole }: Props) {
+export function ReviewPanel({ article, reviewerId: _reviewerId, reviewerRole: _reviewerRole }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
   const [note, setNote] = useState('')

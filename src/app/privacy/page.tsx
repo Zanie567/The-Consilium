@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { CONTACT_EMAIL } from '@/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
@@ -39,7 +40,7 @@ export default function PrivacyPage() {
             <p>
               If you have any questions about this policy or how we handle your data, please contact
               us at{' '}
-              <a href="mailto:theconsilium.editor@gmail.com">theconsilium.editor@gmail.com</a>.
+              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
             </p>
           </section>
 
@@ -176,7 +177,7 @@ export default function PrivacyPage() {
             </ul>
             <p>
               To exercise any of these rights, email us at{' '}
-              <a href="mailto:theconsilium.editor@gmail.com">theconsilium.editor@gmail.com</a>.
+              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
               We will respond within 30 days.
             </p>
             <p>
@@ -205,7 +206,7 @@ export default function PrivacyPage() {
             <h2>Contact us</h2>
             <p>
               For any questions about this privacy policy or your personal data, contact us at{' '}
-              <a href="mailto:theconsilium.editor@gmail.com">theconsilium.editor@gmail.com</a>.
+              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
             </p>
           </section>
 

@@ -4,13 +4,15 @@ import { authOptions, requireActiveSession } from '@/lib/auth'
 import path from 'path'
 import { pathToFileURL } from 'url'
 
-// DOMMatrix polyfill - pdfjs-dist uses it even during text extraction,
+// DOMMatrix polyfill — pdfjs-dist uses it even during text extraction,
 // but Node.js does not expose it as a global. This minimal implementation
 // is enough for coordinate transforms during text extraction.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- globalThis is dynamic in Node.js
+type AnyGlobal = Record<string, any>
+
 function ensureDOMMatrix() {
   if (typeof globalThis.DOMMatrix !== 'undefined') return
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(globalThis as any).DOMMatrix = class DOMMatrix {
+  ;(globalThis as unknown as AnyGlobal).DOMMatrix = class DOMMatrix {
     a: number; b: number; c: number; d: number; e: number; f: number
     m11: number; m12: number; m13: number; m14: number
     m21: number; m22: number; m23: number; m24: number
@@ -49,11 +51,9 @@ function ensureDOMMatrix() {
       }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    multiply(other: any) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const G = globalThis as any
-      const m = new G.DOMMatrix()
+    multiply(other: { a: number; b: number; c: number; d: number; e: number; f: number }) {
+      const G = globalThis as unknown as AnyGlobal
+      const m = new G.DOMMatrix() as DOMMatrix
       m.a  = this.a * other.a  + this.c * other.b
       m.b  = this.b * other.a  + this.d * other.b
       m.c  = this.a * other.c  + this.c * other.d
@@ -65,34 +65,29 @@ function ensureDOMMatrix() {
     }
 
     translate(tx = 0, ty = 0, _tz = 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const G = globalThis as any
-      const m = new G.DOMMatrix([this.a, this.b, this.c, this.d, this.e + this.a * tx + this.c * ty, this.f + this.b * tx + this.d * ty])
-      return m
+      const G = globalThis as unknown as AnyGlobal
+      return new G.DOMMatrix([this.a, this.b, this.c, this.d, this.e + this.a * tx + this.c * ty, this.f + this.b * tx + this.d * ty]) as DOMMatrix
     }
 
     scale(sx = 1, sy = sx, _sz = 1, _ox = 0, _oy = 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const G = globalThis as any
-      return new G.DOMMatrix([this.a * sx, this.b * sx, this.c * sy, this.d * sy, this.e, this.f])
+      const G = globalThis as unknown as AnyGlobal
+      return new G.DOMMatrix([this.a * sx, this.b * sx, this.c * sy, this.d * sy, this.e, this.f]) as DOMMatrix
     }
 
     rotate(_angle = 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return new (globalThis as any).DOMMatrix()
+      return new (globalThis as unknown as AnyGlobal).DOMMatrix() as DOMMatrix
     }
 
     inverse() {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const G = globalThis as any
+      const G = globalThis as unknown as AnyGlobal
       const det = this.a * this.d - this.b * this.c
-      if (Math.abs(det) < 1e-10) return new G.DOMMatrix()
+      if (Math.abs(det) < 1e-10) return new G.DOMMatrix() as DOMMatrix
       return new G.DOMMatrix([
         this.d / det, -this.b / det,
         -this.c / det, this.a / det,
         (this.c * this.f - this.d * this.e) / det,
         (this.b * this.e - this.a * this.f) / det,
-      ])
+      ]) as DOMMatrix
     }
 
     transformPoint(pt: { x?: number; y?: number } = {}) {
@@ -100,12 +95,9 @@ function ensureDOMMatrix() {
       return { x: this.a * x + this.c * y + this.e, y: this.b * x + this.d * y + this.f, z: 0, w: 1 }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    static fromMatrix(init: any) { return new (globalThis as any).DOMMatrix(init) }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    static fromFloat32Array(a: Float32Array) { return new (globalThis as any).DOMMatrix(Array.from(a) as number[]) }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    static fromFloat64Array(a: Float64Array) { return new (globalThis as any).DOMMatrix(Array.from(a) as number[]) }
+    static fromMatrix(init: DOMMatrixInit) { return new (globalThis as unknown as AnyGlobal).DOMMatrix(init) as DOMMatrix }
+    static fromFloat32Array(a: Float32Array) { return new (globalThis as unknown as AnyGlobal).DOMMatrix(Array.from(a) as number[]) as DOMMatrix }
+    static fromFloat64Array(a: Float64Array) { return new (globalThis as unknown as AnyGlobal).DOMMatrix(Array.from(a) as number[]) as DOMMatrix }
   }
 }
 
@@ -136,9 +128,10 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer())
     const data = new Uint8Array(buffer)
 
-    // Use pdfjs-dist directly - more reliable in Node.js than the pdf-parse wrapper
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs') as any
+    // Use pdfjs-dist directly - more reliable in Node.js than the pdf-parse wrapper.
+    // The legacy build doesn't ship type declarations for its own subpath, so we cast
+    // to the main package's type which has the same shape.
+    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs') as unknown as typeof import('pdfjs-dist')
 
     // In pdfjs-dist v5, Node.js always uses the "fake worker" path (no Web Worker API).
     // The fake worker is loaded via dynamic import() of workerSrc - it must be a non-empty,
@@ -146,7 +139,7 @@ export async function POST(request: NextRequest) {
     const workerPath = path.join(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs')
     pdfjsLib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href
 
-    let loadingTask: any // eslint-disable-line @typescript-eslint/no-explicit-any
+    let loadingTask: ReturnType<typeof pdfjsLib.getDocument>
     try {
       loadingTask = pdfjsLib.getDocument({
         data,
@@ -168,16 +161,15 @@ export async function POST(request: NextRequest) {
       throw e
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let pdf: any
+    let pdf: Awaited<typeof loadingTask.promise>
     try {
       pdf = await loadingTask.promise
     } catch (e) {
       // pdfjs throws PasswordException for encrypted PDFs
-      if (e && typeof e === 'object' && (e as any).name === 'PasswordException') {
+      if (e && typeof e === 'object' && (e as { name?: string }).name === 'PasswordException') {
         return Response.json({ error: 'This PDF is password-protected and cannot be imported.' }, { status: 422 })
       }
-      if (e && typeof e === 'object' && (e as any).name === 'InvalidPDFException') {
+      if (e && typeof e === 'object' && (e as { name?: string }).name === 'InvalidPDFException') {
         return Response.json({ error: 'The file does not appear to be a valid PDF.' }, { status: 422 })
       }
       throw e
@@ -196,15 +188,16 @@ export async function POST(request: NextRequest) {
       // Reconstruct readable text, preserving line breaks
       let lastY: number | null = null
       let pageText = ''
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const item of content.items as any[]) {
+      
+      for (const item of content.items) {
         if (!('str' in item)) continue
-        const y = item.transform?.[5] ?? 0
+        const typedItem = item as { str: string; transform?: number[]; hasEOL?: boolean }
+        const y = typedItem.transform?.[5] ?? 0
         if (lastY !== null && Math.abs(y - lastY) > 5) {
           pageText += '\n'
         }
-        pageText += item.str
-        if (item.hasEOL) pageText += '\n'
+        pageText += typedItem.str
+        if (typedItem.hasEOL) pageText += '\n'
         lastY = y
       }
       pageTexts.push(pageText.trim())

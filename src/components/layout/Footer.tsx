@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Mail } from 'lucide-react'
+import { CONTACT_EMAIL, INSTAGRAM_URL, LINKEDIN_URL, FEEDBACK_FORM_URL } from '@/lib/constants'
 
 function InstagramIcon() {
   return (
@@ -104,7 +105,7 @@ export function Footer() {
 
             <div className="flex items-center gap-3">
               <a
-                href="https://www.instagram.com/theconsilium.editor/"
+                href={INSTAGRAM_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-cream/45 hover:text-gold transition-colors duration-200 hover:scale-110 inline-block"
@@ -113,7 +114,7 @@ export function Footer() {
                 <InstagramIcon />
               </a>
               <a
-                href="https://linkedin.com"
+                href={LINKEDIN_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-cream/45 hover:text-gold transition-colors duration-200 hover:scale-110 inline-block"
@@ -122,7 +123,7 @@ export function Footer() {
                 <LinkedInIcon />
               </a>
               <a
-                href="mailto:theconsilium.editor@gmail.com"
+                href={`mailto:${CONTACT_EMAIL}`}
                 className="text-cream/45 hover:text-gold transition-colors duration-200 hover:scale-110 inline-block"
                 aria-label="Email The Consilium"
               >
@@ -131,10 +132,10 @@ export function Footer() {
             </div>
             <p className="text-cream/35 text-xs mt-3">
               <a
-                href="mailto:theconsilium.editor@gmail.com"
+                href={`mailto:${CONTACT_EMAIL}`}
                 className="hover:text-gold transition-colors duration-200"
               >
-                theconsilium.editor@gmail.com
+                {CONTACT_EMAIL}
               </a>
             </p>
           </div>
@@ -146,7 +147,7 @@ export function Footer() {
               Have feedback or a suggestion? Fill out this form to let us know.
             </p>
             <a
-              href="https://forms.gle/ufUnT7sDoKagnLqGA"
+              href={FEEDBACK_FORM_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-block text-gold text-xs font-bold uppercase tracking-widest border border-gold/40 px-5 py-2 hover:bg-gold hover:text-navy transition-all duration-200"

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import Link from 'next/link'
+import { COLORS } from '@/lib/constants'
 import {
   Chart,
   LineController,
@@ -108,7 +109,7 @@ export default function DebateAnalyticsPage({ params }: { params: Promise<{ deba
           {
             label: 'For',
             data: forData,
-            borderColor: '#1a2744',
+            borderColor: COLORS.NAVY,
             backgroundColor: 'rgba(26,39,68,0.08)',
             fill: true,
             tension: 0.3,

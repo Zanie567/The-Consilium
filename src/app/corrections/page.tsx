@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { CONTACT_EMAIL } from '@/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Corrections Policy',
@@ -82,10 +83,10 @@ export default function CorrectionsPage() {
                   Send a detailed message to our editorial team:
                 </p>
                 <a
-                  href="mailto:theconsilium.editor@gmail.com?subject=Correction%20Request"
+                  href={`mailto:${CONTACT_EMAIL}?subject=Correction%20Request`}
                   className="text-gold font-semibold text-sm hover:underline"
                 >
-                  theconsilium.editor@gmail.com
+                  {CONTACT_EMAIL}
                 </a>
               </div>
 
@@ -157,8 +158,8 @@ export default function CorrectionsPage() {
             <p>
               For all editorial enquiries, including corrections, complaints, and feedback, please
               contact us at{' '}
-              <a href="mailto:theconsilium.editor@gmail.com">
-                theconsilium.editor@gmail.com
+              <a href={`mailto:${CONTACT_EMAIL}`}>
+                {CONTACT_EMAIL}
               </a>
               . We read and respond to every message.
             </p>

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email'
+import { CONTACT_EMAIL } from '@/lib/constants'
 
 function isAdmin(session: Awaited<ReturnType<typeof getServerSession>>): boolean {
   if (!session) return false
@@ -134,7 +135,7 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
       },
     }).catch(() => {})
 
-    console.log(`[audit] USER_DELETED userId=${userId} email=${target.email} by adminId=${adminId} at ${new Date().toISOString()}`)
+    console.warn(`[audit] USER_DELETED userId=${userId} email=${target.email} by adminId=${adminId} at ${new Date().toISOString()}`)
 
     // Notify deleted user
     sendEmail({
@@ -143,7 +144,7 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
       html: `
         <p>Hi${target.name ? ` ${target.name}` : ''},</p>
         <p>Your account and all associated data have been permanently deleted from The Consilium.</p>
-        <p>If you believe this was in error, please contact us at theconsilium.editor@gmail.com.</p>
+        <p>If you believe this was in error, please contact us at ${CONTACT_EMAIL}.</p>
         <p>The Consilium</p>
       `,
     }).catch(() => {})

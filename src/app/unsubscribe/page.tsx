@@ -2,6 +2,7 @@ import { createHmac } from 'crypto'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import type { Metadata } from 'next'
+import { CONTACT_EMAIL } from '@/lib/constants'
 
 export const metadata: Metadata = { title: 'Unsubscribe' }
 
@@ -65,8 +66,8 @@ function Result({ success, message }: { success: boolean; message: string }) {
         {!success && (
           <p className="text-[var(--fg-faint)] text-xs mb-8">
             Please contact us at{' '}
-            <a href="mailto:theconsilium.editor@gmail.com" className="text-gold hover:underline">
-              theconsilium.editor@gmail.com
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-gold hover:underline">
+              {CONTACT_EMAIL}
             </a>{' '}
             and we will remove you manually.
           </p>

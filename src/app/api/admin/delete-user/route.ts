@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email'
+import { CONTACT_EMAIL } from '@/lib/constants'
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
         <p>Hi${user.name ? ` ${user.name}` : ''},</p>
         <p>This is to confirm that your account and all associated personal data have been permanently deleted from The Consilium.</p>
         <p>This includes your account details, reading history, bookmarks, and any newsletter subscriptions.</p>
-        <p>If you did not request this deletion, please contact us at theconsilium.editor@gmail.com.</p>
+        <p>If you did not request this deletion, please contact us at ${CONTACT_EMAIL}.</p>
         <p>The Consilium</p>
       `,
     })

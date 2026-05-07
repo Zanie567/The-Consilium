@@ -1,10 +1,11 @@
 import { Resend } from 'resend'
 import { createHmac } from 'crypto'
+import { SITE_URL, CONTACT_EMAIL } from '@/lib/constants'
 
 export function unsubscribeUrl(email: string): string {
   const secret = process.env.NEXTAUTH_SECRET ?? 'consilium-unsubscribe'
   const token = createHmac('sha256', secret).update(email.toLowerCase()).digest('hex')
-  const base = process.env.NEXTAUTH_URL ?? 'https://the-consilium.vercel.app'
+  const base = process.env.NEXTAUTH_URL ?? SITE_URL
   return `${base}/unsubscribe?email=${encodeURIComponent(email)}&token=${token}`
 }
 
@@ -103,7 +104,7 @@ export function userBannedEmail(userName: string | null, reason: string) {
       <p>Hi${userName ? ` ${userName}` : ''},</p>
       <p>Your account on The Consilium has been suspended.</p>
       <blockquote style="border-left:3px solid #e53e3e;padding:8px 16px;margin:16px 0;color:#555">${reason}</blockquote>
-      <p>If you believe this suspension was issued in error, please contact us at <a href="mailto:theconsilium.editor@gmail.com">theconsilium.editor@gmail.com</a> to appeal.</p>
+      <p>If you believe this suspension was issued in error, please contact us at <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a> to appeal.</p>
       <p>The Consilium</p>
     `,
   }
@@ -154,7 +155,7 @@ export function commentFlaggedEmail(
   commentExcerpt: string,
   flagReason: string,
 ) {
-  const base = process.env.NEXTAUTH_URL ?? 'https://the-consilium.vercel.app'
+  const base = process.env.NEXTAUTH_URL ?? SITE_URL
   return {
     subject: `Comment flagged for review on "${articleTitle}"`,
     html: `
