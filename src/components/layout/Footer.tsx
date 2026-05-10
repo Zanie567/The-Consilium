@@ -165,6 +165,9 @@ export function Footer() {
             <p className="text-cream/20 text-[10px] mt-1">
               Founded by Alex Escala, Lucas Dwyer and Satvik Singla
             </p>
+            <p className="text-cream/15 text-[10px] mt-1 leading-relaxed">
+              Student-led economics journalism at the University of Edinburgh — independent, rigorous, and open to all.
+            </p>
           </div>
           <p className="text-cream/20 text-xs">Edinburgh, Scotland</p>
           </div>
