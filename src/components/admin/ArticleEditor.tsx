@@ -32,7 +32,7 @@ const TiptapEditor = dynamic(
     editable?: boolean
     saveStatus?: 'idle' | 'saving' | 'saved' | 'error'
     toolbarPortalRef?: React.RefObject<HTMLDivElement | null>
-    contentOnly?: boolean
+    noWrapper?: boolean
   } &
   React.RefAttributes<TiptapEditorHandle>
 >
@@ -675,7 +675,7 @@ export function ArticleEditor({
     <div className="min-h-full">
 
       {/* FIXED: Top chrome (48px) - full-width on mobile, offset by sidebar on md+ */}
-      <div className="fixed top-0 left-0 md:left-[220px] right-0 z-50 h-12 bg-white dark:bg-[#1a1a1a] border-b border-[#e0e0e0] dark:border-[#333] flex items-center pl-[52px] md:pl-3 pr-3 gap-2">
+      <div className="fixed top-0 left-0 md:left-12 lg:left-[220px] right-0 z-50 h-12 bg-white dark:bg-[#1a1a1a] border-b border-[#e0e0e0] dark:border-[#333] flex items-center pl-[52px] md:pl-3 pr-3 gap-2">
         <button
           onClick={handleBack}
           className="p-1.5 rounded hover:bg-[#f1f3f4] text-[#555] transition-colors shrink-0"
@@ -815,7 +815,7 @@ export function ArticleEditor({
       {/* Formatting toolbar - Tiptap portals its toolbar content into this fixed container */}
       <div
         ref={toolbarPortalRef}
-        className="fixed top-12 left-0 md:left-[220px] right-0 z-[200]"
+        className="fixed top-12 left-0 md:left-12 lg:left-[220px] right-0 z-[200]"
       />
 
       {/* Content - offset by top chrome (48px) + measured toolbar height */}
@@ -948,7 +948,7 @@ export function ArticleEditor({
                   editable={canEdit}
                   saveStatus={saveStatus}
                   toolbarPortalRef={toolbarPortalRef}
-                  contentOnly
+                  noWrapper
                 />
               </div>
             </div>
