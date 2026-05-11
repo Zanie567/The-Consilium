@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { cookies } from 'next/headers'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
@@ -206,18 +207,18 @@ async function getTrendingTags() {
   }
 }
 
-// Title is inherited from layout's `default` ("The Consilium | University of Edinburgh Economics Society")
-// do NOT set a title here so the template does not double-wrap it.
+// Title is inherited from layout's default value.
+// Do not set a title here so the template does not double-wrap it.
 export const metadata: Metadata = {
   description: 'Economics analysis, opinion, and research from the University of Edinburgh.',
   openGraph: {
     title: 'The Consilium',
-    description: 'The voice of the University of Edinburgh Economics Society.',
+    description: 'Ratione et Consilio',
   },
   twitter: {
     card: 'summary',
     title: 'The Consilium',
-    description: 'The voice of the University of Edinburgh Economics Society.',
+    description: 'Ratione et Consilio',
   },
 }
 
@@ -246,10 +247,9 @@ export default async function HomePage({
   const allGridArticles = featured
     ? articles.filter((a) => a.id !== featured.id)
     : articles
-
   // First 3 are shown in the hero side column; the main grid starts after them
   const heroSideArticles = allGridArticles.slice(0, 3)
-  const gridArticles = allGridArticles.slice(3)
+  const articleGrid = allGridArticles.slice(3)
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
@@ -279,8 +279,8 @@ export default async function HomePage({
           </AnimateIn>
           <AnimateIn variant="fade-in" delay={0.2} duration={0.6}>
             <div className="w-16 h-px bg-gradient-to-r from-transparent via-gold to-transparent mx-auto mb-3 opacity-60" />
-            <p className="text-cream/60 text-sm tracking-wide max-w-xs sm:max-w-none mx-auto leading-relaxed">
-              The voice of the University of Edinburgh Economics Society
+            <p className="text-cream/70 text-sm italic tracking-[0.08em] max-w-xs sm:max-w-none mx-auto leading-relaxed">
+              Ratione et Consilio
             </p>
           </AnimateIn>
         </div>
@@ -323,9 +323,9 @@ export default async function HomePage({
         </AnimateIn>
 
         {/* ── Article Grid ─────────────────────────────────────────────────── */}
-        {gridArticles.length > 0 ? (
+        {articleGrid.length > 0 ? (
           <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
-            {gridArticles.map((article) => (
+            {articleGrid.map((article) => (
               <StaggerItem key={article.id}>
                 <ArticleCard article={article} />
               </StaggerItem>
@@ -344,7 +344,7 @@ export default async function HomePage({
         )}
 
         {/* View all */}
-        {gridArticles.length >= 11 && (
+        {articleGrid.length >= 11 && (
           <AnimateIn variant="fade-up" delay={0.1} className="mt-12 text-center">
             <Link
               href="/archive"

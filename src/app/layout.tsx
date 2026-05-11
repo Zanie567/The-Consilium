@@ -49,7 +49,7 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     title: 'The Consilium',
-    description: 'The voice of the University of Edinburgh Economics Society',
+    description: 'Ratione et Consilio',
     type: 'website',
     locale: 'en_GB',
     images: [{ url: '/logo.png', width: 512, height: 512 }],

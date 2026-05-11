@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { AlertTriangle, Zap, Clock, BookOpen } from 'lucide-react'
 
-interface ContentData {
+export interface ContentData {
   topArticles: {
     id: string; title: string; viewCount: number
     publishedAt: string | null

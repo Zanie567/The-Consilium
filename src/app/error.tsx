@@ -10,7 +10,7 @@ interface ErrorPageProps {
 
 export default function GlobalError({ error, reset }: ErrorPageProps) {
   useEffect(() => {
-    // Only log errors that have a digest — those are server-side Next.js errors
+    // Only log errors that have a digest, those are server-side Next.js errors
     // worth surfacing to an error reporting service. Client-only errors (no digest)
     // tend to be transient UI issues and do not need to be logged.
     if (error.digest) {

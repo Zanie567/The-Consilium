@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default async function AnalyticsPage() {
   const session = await getServerSession(authOptions)
   const role = (session?.user as { role?: string })?.role ?? ''
-  if (!session || !['ADMIN', 'EDITOR', 'GROWTH'].includes(role)) {
+  if (!session || !['ADMIN', 'GROWTH'].includes(role)) {
     redirect('/editorial')
   }
 
