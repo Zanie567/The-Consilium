@@ -1,8 +1,8 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { AnalyticsDashboard } from './AnalyticsDashboard'
+import { ANALYTICS_ACCESS_ROLES } from '@/lib/rbac'
 
 export const metadata: Metadata = {
   title: 'Analytics | Editorial',
@@ -10,11 +10,10 @@ export const metadata: Metadata = {
 }
 
 export default async function AnalyticsPage() {
-  const session = await getServerSession(authOptions)
-  const role = (session?.user as { role?: string })?.role ?? ''
-  if (!session || !['ADMIN', 'GROWTH'].includes(role)) {
+  const user = await getVerifiedSessionUser(ANALYTICS_ACCESS_ROLES)
+  if (!user) {
     redirect('/editorial')
   }
 
-  return <AnalyticsDashboard userRole={role} />
+  return <AnalyticsDashboard userRole={user.role} />
 }

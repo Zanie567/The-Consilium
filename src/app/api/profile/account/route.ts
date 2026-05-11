@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions, requireActiveSession } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ALL_ROLES } from '@/lib/rbac'
 
 // PATCH /api/profile/account - update display name and bio
 export async function PATCH(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  const authError = requireActiveSession(session)
-  if (authError) return authError
+  const user = await getVerifiedSessionUser(ALL_ROLES)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
     const { name, bio } = await request.json()
 
     const updated = await prisma.user.update({
-      where: { id: session!.user.id },
+      where: { id: user.id },
       data: {
         ...(typeof name === 'string' ? { name: name.trim() || null } : {}),
         ...(typeof bio === 'string' ? { bio: bio.trim() || null } : {}),
@@ -29,19 +28,18 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE /api/profile/account - permanently delete the account
 export async function DELETE(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  const authError2 = requireActiveSession(session)
-  if (authError2) return authError2
+  const user = await getVerifiedSessionUser(ALL_ROLES)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
     const { confirmEmail } = await request.json()
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { email: true } })
 
-    if (!confirmEmail || confirmEmail.toLowerCase() !== session!.user.email?.toLowerCase()) {
+    if (!confirmEmail || confirmEmail.toLowerCase() !== dbUser?.email.toLowerCase()) {
       return NextResponse.json({ error: 'Email confirmation does not match' }, { status: 400 })
     }
 
-    // Cascade deletes handle all related records
-    await prisma.user.delete({ where: { id: session!.user.id } })
+    await prisma.user.delete({ where: { id: user.id } })
 
     return NextResponse.json({ ok: true })
   } catch {

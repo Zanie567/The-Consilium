@@ -1,10 +1,9 @@
 import { redirect } from 'next/navigation'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { AdminUsersPage } from '@/components/admin/AdminUsersPage'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
 import type { Metadata } from 'next'
+import { ADMIN_ONLY } from '@/lib/rbac'
 
 export const metadata: Metadata = {
   title: 'User Management | Editorial',
@@ -14,16 +13,8 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function UsersPage() {
-  const session = await getServerSession(authOptions)
-  if (!session) redirect('/editorial/login')
-
-  const dbUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
-  }).catch(() => null)
-
-  // Admin only - editors can no longer access user management
-  if (!dbUser || dbUser.role !== 'ADMIN') redirect('/editorial')
+  const user = await getVerifiedSessionUser(ADMIN_ONLY)
+  if (!user) redirect('/editorial')
 
   return (
     <PortalPage className="p-4 sm:p-6 lg:p-8">
@@ -39,7 +30,7 @@ export default async function UsersPage() {
         </p>
       </PortalSection>
       <PortalSection>
-        <AdminUsersPage currentAdminId={session.user.id} />
+        <AdminUsersPage currentAdminId={user.id} />
       </PortalSection>
     </PortalPage>
   )

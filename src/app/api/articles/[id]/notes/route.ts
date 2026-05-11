@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 
 interface Props {
   params: Promise<{ id: string }>
 }
 
 export async function POST(req: Request, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR')) {
+  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  if (!user) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -27,17 +27,17 @@ export async function POST(req: Request, { params }: Props) {
     return NextResponse.json({ error: 'Article not found' }, { status: 404 })
   }
 
-  if (session.user.role === 'EDITOR') {
+  if (user.role === 'EDITOR') {
     if (article.categoryId) {
       const assignment = await prisma.categoryEditor.findFirst({
-        where: { userId: session.user.id, categoryId: article.categoryId },
+          where: { userId: user.id, categoryId: article.categoryId },
       })
       if (!assignment) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     } else {
       const anyAssignment = await prisma.categoryEditor.findFirst({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
       })
       if (anyAssignment) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -48,7 +48,7 @@ export async function POST(req: Request, { params }: Props) {
   const note = await prisma.articleNote.create({
     data: {
       articleId: article.id,
-      authorId: session.user.id,
+      authorId: user.id,
       content: content.trim(),
       isPrivate: isPrivate ?? false,
     },

@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { EDITORIAL_MANAGEMENT_ROLES, ANALYTICS_ACCESS_ROLES } from '@/lib/rbac'
+
+const COMMENT_MODERATION_ROLES = [...EDITORIAL_MANAGEMENT_ROLES, ...ANALYTICS_ACCESS_ROLES] as const
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user || !['ADMIN', 'EDITOR', 'GROWTH'].includes(session.user.role ?? '')) {
+  const user = await getVerifiedSessionUser(COMMENT_MODERATION_ROLES)
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   }
 

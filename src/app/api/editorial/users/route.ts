@@ -1,34 +1,17 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions, requireActiveSession } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
-
-async function getVerifiedRole(userId: string): Promise<string | null> {
-  try {
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, isActive: true } })
-    if (!user || !user.isActive) return null
-    return user.role
-  } catch {
-    return null
-  }
-}
-
-function isEditorialStaff(role: string) {
-  return role === 'ADMIN' || role === 'EDITOR'
-}
+import { ALL_ROLES, EDITORIAL_MANAGEMENT_ROLES, EDITOR_USER_TARGET_ROLES, isAllowedRole } from '@/lib/rbac'
 
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  const authError = requireActiveSession(session)
-  if (authError) return authError
-  const role = await getVerifiedRole(session!.user.id)
-  if (!role || !isEditorialStaff(role)) {
+  const caller = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  if (!caller) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const users = await prisma.user.findMany({
-    where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] } },
+    where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'] } },
     select: {
       id: true, name: true, email: true, role: true, isActive: true, createdAt: true,
       categoryAssignments: { select: { category: { select: { id: true, name: true, slug: true } } } },
@@ -40,11 +23,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
-  const authError2 = requireActiveSession(session)
-  if (authError2) return authError2
-  const callerRole = await getVerifiedRole(session!.user.id)
-  if (!callerRole || !isEditorialStaff(callerRole)) {
+  const caller = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  if (!caller) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -53,13 +33,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Name, email, password, and role are required.' }, { status: 400 })
   }
 
-  // Editors can create EDITOR/WRITER accounts; only admins can create ADMIN accounts
-  const allowedRoles = callerRole === 'ADMIN'
-    ? ['EDITOR', 'WRITER', 'ADMIN']
-    : ['EDITOR', 'WRITER']
+  const allowedRoles = caller.role === 'ADMIN' ? ALL_ROLES : EDITOR_USER_TARGET_ROLES
 
-  if (!allowedRoles.includes(role)) {
-    return NextResponse.json({ error: callerRole === 'ADMIN' ? 'Invalid role.' : 'Editors cannot create Admin accounts.' }, { status: 400 })
+  if (!isAllowedRole(role, allowedRoles)) {
+    return NextResponse.json({ error: caller.role === 'ADMIN' ? 'Invalid role.' : 'Editors can only create writer or reader accounts.' }, { status: 400 })
   }
   if (password.length < 8) {
     return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { EDITORIAL_MANAGEMENT_ROLES, ANALYTICS_ACCESS_ROLES } from '@/lib/rbac'
+
+const COMMENT_MODERATION_ROLES = [...EDITORIAL_MANAGEMENT_ROLES, ...ANALYTICS_ACCESS_ROLES] as const
 
 interface Props {
   params: Promise<{ commentId: string }>
@@ -10,11 +12,11 @@ interface Props {
 // PATCH: approve (clear isReported), hide, or unhide
 // GROWTH users can hide/unhide but cannot approve (clear reports)
 export async function PATCH(req: Request, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  const role = session?.user?.role ?? ''
-  if (!session?.user || !['ADMIN', 'EDITOR', 'GROWTH'].includes(role)) {
+  const user = await getVerifiedSessionUser(COMMENT_MODERATION_ROLES)
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   }
+  const role = user.role
 
   const { commentId } = await params
   const body = await req.json()

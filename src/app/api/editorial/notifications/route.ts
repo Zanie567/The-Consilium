@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions, requireActiveSession } from '@/lib/auth'
+import { authOptions, getVerifiedSessionUser, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { EDITORIAL_PORTAL_ROLES } from '@/lib/rbac'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -19,12 +20,11 @@ export async function GET() {
 }
 
 export async function PATCH() {
-  const session = await getServerSession(authOptions)
-  const authError2 = requireActiveSession(session)
-  if (authError2) return authError2
+  const user = await getVerifiedSessionUser(EDITORIAL_PORTAL_ROLES)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   await prisma.notification.updateMany({
-    where: { userId: session!.user.id, read: false },
+    where: { userId: user.id, read: false },
     data: { read: true },
   })
 

@@ -126,6 +126,7 @@ export function roleChangedEmail(userName: string | null, newRole: string, promo
   const roleDescriptions: Record<string, string> = {
     WRITER: 'submit articles for editorial review and publish content on The Consilium',
     EDITOR: 'review and publish articles, manage writers, and moderate content',
+    GROWTH: 'view audience analytics and manage growth workflows',
     ADMIN: 'access the full editorial dashboard with all admin controls',
     READER: 'read and comment on articles',
   }

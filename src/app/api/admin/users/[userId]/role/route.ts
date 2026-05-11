@@ -1,26 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, roleChangedEmail } from '@/lib/email'
+import { ADMIN_ONLY, ALL_ROLES, isAllowedRole } from '@/lib/rbac'
 
 interface Ctx { params: Promise<{ userId: string }> }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const session = await getServerSession(authOptions)
-  if (!session || (session.user as { role: string; isBanned?: boolean }).role !== 'ADMIN' || (session.user as { isBanned?: boolean }).isBanned) {
+  const admin = await getVerifiedSessionUser(ADMIN_ONLY)
+  if (!admin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const { userId } = await params
-  const adminId = session.user.id
+  const adminId = admin.id
 
   if (userId === adminId) {
     return NextResponse.json({ error: 'Cannot change your own role' }, { status: 400 })
   }
 
   const { role } = await req.json()
-  if (!['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].includes(role)) {
+  if (!isAllowedRole(role, ALL_ROLES)) {
     return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
   }
 
@@ -31,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (!target) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
   const oldRole = target.role
-  const adminName = session.user.name ?? session.user.email ?? adminId
+  const adminName = adminId
 
   await prisma.user.update({
     where: { id: userId },

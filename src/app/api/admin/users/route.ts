@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-
-function isAdmin(session: Awaited<ReturnType<typeof getServerSession>>): boolean {
-  if (!session) return false
-  const user = (session as { user?: { role?: string; isBanned?: boolean } }).user
-  return user?.role === 'ADMIN' && !user?.isBanned
-}
+import { ADMIN_ONLY, ALL_ROLES } from '@/lib/rbac'
 
 // GET /api/admin/users
 // Paginated user list with search, role, status filters
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!isAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const admin = await getVerifiedSessionUser(ADMIN_ONLY)
+  if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { searchParams } = new URL(request.url)
   const page   = Math.max(1, parseInt(searchParams.get('page') ?? '1'))
@@ -33,7 +27,7 @@ export async function GET(request: NextRequest) {
     ]
   }
 
-  if (role && ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].includes(role)) {
+  if (role && (ALL_ROLES as readonly string[]).includes(role)) {
     where.role = role
   }
 

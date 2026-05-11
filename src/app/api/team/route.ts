@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ADMIN_ONLY } from '@/lib/rbac'
 
 export async function GET() {
   try {
@@ -16,8 +16,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session || session.user.role !== 'ADMIN') {
+  const admin = await getVerifiedSessionUser(ADMIN_ONLY)
+  if (!admin) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

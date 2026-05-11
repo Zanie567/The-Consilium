@@ -1,19 +1,17 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
 import { subDays } from 'date-fns'
 import { estimateReadingMinutes } from '@/lib/reading-minutes'
+import { EDITORIAL_PORTAL_ROLES } from '@/lib/rbac'
 
-// Accessible to writers and above - NOT readers
-const LEADERBOARD_ROLES = ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH']
+const LEADERBOARD_ROLES = EDITORIAL_PORTAL_ROLES
 
 type LeaderboardPeriod = 'week' | 'month' | 'alltime'
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  const role = (session?.user as { role?: string })?.role ?? ''
-  if (!session || !LEADERBOARD_ROLES.includes(role)) {
+  const user = await getVerifiedSessionUser(LEADERBOARD_ROLES)
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -92,7 +90,7 @@ export async function GET(req: NextRequest) {
     prevSince ? buildLeaderboard(prevSince) : Promise.resolve([]),
   ])
 
-  const currentUserId = (session.user as { id?: string })?.id ?? ''
+  const currentUserId = user.id
 
   // Attach rank change
   const boardWithChange = currentBoard.map(w => {

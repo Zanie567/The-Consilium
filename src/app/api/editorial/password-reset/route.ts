@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (!email) return NextResponse.json({ ok: true }) // silent
 
   const user = await prisma.user.findFirst({
-    where: { email: email.toLowerCase(), role: { in: ['ADMIN', 'EDITOR', 'WRITER'] } },
+    where: { email: email.toLowerCase(), role: { in: ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH'] } },
   })
 
   // Always return ok to avoid user enumeration
