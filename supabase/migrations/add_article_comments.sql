@@ -6,8 +6,8 @@
 
 CREATE TABLE IF NOT EXISTS article_comments (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  article_id  TEXT        NOT NULL REFERENCES "Article"(id) ON DELETE CASCADE,
-  author_id   TEXT        NOT NULL REFERENCES "User"(id)    ON DELETE CASCADE,
+  article_id  TEXT        NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+  author_id   TEXT        NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
   comment_text TEXT       NOT NULL,
   resolved    BOOLEAN     NOT NULL DEFAULT false,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),

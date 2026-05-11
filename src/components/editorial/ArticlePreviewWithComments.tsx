@@ -52,6 +52,7 @@ export function ArticlePreviewWithComments({
   const [commentFormOpen, setCommentFormOpen] = useState(false)
   const [commentText, setCommentText] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   // Apply comment highlights when editor is ready or comments change
   const applyHighlights = useCallback((editor: Editor) => {
@@ -131,6 +132,7 @@ export function ArticlePreviewWithComments({
   const submitComment = async () => {
     if (!commentText.trim() || submitting) return
     setSubmitting(true)
+    setSubmitError(null)
     try {
       const res = await fetch(`/api/articles/${articleId}/comments`, {
         method: 'POST',
@@ -144,7 +146,6 @@ export function ArticlePreviewWithComments({
       if (res.ok) {
         const newComment = await res.json() as ArticleComment
 
-        // Apply the highlight mark to the editor
         const editor = editorRef.current
         if (editor) {
           editor.chain()
@@ -157,7 +158,12 @@ export function ArticlePreviewWithComments({
         setCommentText('')
         setCommentFormOpen(false)
         setFloatingBtn((s) => ({ ...s, visible: false }))
+      } else {
+        const json = await res.json().catch(() => ({})) as { error?: string }
+        setSubmitError(json.error ?? 'Failed to save comment. Please try again.')
       }
+    } catch {
+      setSubmitError('Network error. Please try again.')
     } finally {
       setSubmitting(false)
     }
@@ -204,6 +210,9 @@ export function ArticlePreviewWithComments({
             autoFocus
             className="w-full bg-[var(--bg)] border border-[var(--border)] text-[var(--fg)] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-gold resize-none placeholder:text-[var(--fg-faint)]"
           />
+          {submitError && (
+            <p className="text-[11px] text-red-500 mt-2">{submitError}</p>
+          )}
           <div className="flex items-center justify-between mt-2">
             <span className="text-[10px] text-[var(--fg-faint)]">Cmd+Enter to submit</span>
             <div className="flex gap-2">
