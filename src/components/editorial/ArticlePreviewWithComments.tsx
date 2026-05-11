@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import dynamic from 'next/dynamic'
 import { MessageSquare } from 'lucide-react'
 import type { Editor } from '@tiptap/react'
@@ -27,8 +28,10 @@ interface Props {
 
 interface FloatingButtonState {
   visible: boolean
-  x: number
-  y: number
+  /** Viewport-relative left position for the portal-rendered UI */
+  vx: number
+  /** Viewport-relative top position for the portal-rendered UI */
+  vy: number
   from: number
   to: number
 }
@@ -43,7 +46,7 @@ export function ArticlePreviewWithComments({
 }: Props) {
   const editorRef = useRef<Editor | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const [floatingBtn, setFloatingBtn] = useState<FloatingButtonState>({ visible: false, x: 0, y: 0, from: 0, to: 0 })
+  const [floatingBtn, setFloatingBtn] = useState<FloatingButtonState>({ visible: false, vx: 0, vy: 0, from: 0, to: 0 })
   const [commentFormOpen, setCommentFormOpen] = useState(false)
   const [commentText, setCommentText] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -87,25 +90,29 @@ export function ArticlePreviewWithComments({
 
       const range = domSel.getRangeAt(0)
       const rect = range.getBoundingClientRect()
-      const containerRect = container.getBoundingClientRect()
 
       setFloatingBtn({
         visible: true,
-        x: rect.left - containerRect.left + rect.width / 2,
-        y: rect.top - containerRect.top - 8,
+        vx: rect.left + rect.width / 2,
+        vy: rect.top - 8,
         from,
         to,
       })
     }
 
-    container.addEventListener('mouseup', handleMouseUp)
-    document.addEventListener('mousedown', (e) => {
+    const handleMouseDown = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setFloatingBtn((s) => ({ ...s, visible: false }))
         setCommentFormOpen(false)
       }
-    })
-    return () => container.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    container.addEventListener('mouseup', handleMouseUp)
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => {
+      container.removeEventListener('mouseup', handleMouseUp)
+      document.removeEventListener('mousedown', handleMouseDown)
+    }
   }, [])
 
   // Scroll active comment's highlight into view
@@ -150,25 +157,17 @@ export function ArticlePreviewWithComments({
     }
   }
 
-  return (
-    <div ref={containerRef} className="relative">
-      {/* TipTap read-only preview */}
-      <TiptapEditor
-        content={content}
-        onChange={() => {}}
-        editable={false}
-        onEditorReady={handleEditorReady}
-      />
-
-      {/* Floating "add comment" button */}
+  const portalContent = typeof document !== 'undefined' ? (
+    <>
+      {/* Floating "add comment" button - rendered via portal to escape overflow:hidden parents */}
       {floatingBtn.visible && !commentFormOpen && (
         <button
           type="button"
           onClick={() => { setCommentFormOpen(true); setCommentText('') }}
-          className="absolute z-20 flex items-center gap-1.5 bg-gold text-navy text-xs font-bold px-2.5 py-1.5 rounded-full shadow-lg hover:bg-gold/90 transition-colors"
+          className="fixed z-[200] flex items-center gap-1.5 bg-gold text-navy text-xs font-bold px-2.5 py-1.5 rounded-full shadow-lg hover:bg-gold/90 transition-colors"
           style={{
-            left: floatingBtn.x,
-            top: floatingBtn.y,
+            left: floatingBtn.vx,
+            top: floatingBtn.vy,
             transform: 'translate(-50%, -100%)',
           }}
           aria-label="Add comment"
@@ -178,13 +177,13 @@ export function ArticlePreviewWithComments({
         </button>
       )}
 
-      {/* Comment form popover */}
+      {/* Comment form popover - rendered via portal to escape overflow:hidden parents */}
       {commentFormOpen && (
         <div
-          className="absolute z-30 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl shadow-2xl p-3 w-72"
+          className="fixed z-[200] bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl shadow-2xl p-3 w-72"
           style={{
-            left: Math.min(floatingBtn.x, (containerRef.current?.offsetWidth ?? 400) - 288),
-            top: floatingBtn.y,
+            left: Math.min(floatingBtn.vx, window.innerWidth - 296),
+            top: floatingBtn.vy,
             transform: 'translateY(-100%) translateY(-8px)',
           }}
         >
@@ -217,6 +216,20 @@ export function ArticlePreviewWithComments({
           </div>
         </div>
       )}
+    </>
+  ) : null
+
+  return (
+    <div ref={containerRef} className="relative">
+      {/* TipTap read-only preview */}
+      <TiptapEditor
+        content={content}
+        onChange={() => {}}
+        editable={false}
+        onEditorReady={handleEditorReady}
+      />
+
+      {portalContent && createPortal(portalContent, document.body)}
     </div>
   )
 }

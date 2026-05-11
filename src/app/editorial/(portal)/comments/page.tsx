@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { Flag, EyeOff, CheckCircle } from 'lucide-react'
@@ -25,6 +27,8 @@ interface Stats {
 type Tab = 'reported' | 'recent' | 'hidden'
 
 export default function CommentsPage() {
+  const { data: session } = useSession()
+  const router = useRouter()
   const [tab, setTab] = useState<Tab>('reported')
   const [comments, setComments] = useState<CommentRow[]>([])
   const [total, setTotal] = useState(0)
@@ -32,6 +36,12 @@ export default function CommentsPage() {
   const [stats, setStats] = useState<Stats>({ total: 0, reported: 0, hidden: 0 })
   const [loading, setLoading] = useState(true)
   const PER_PAGE = 30
+
+  useEffect(() => {
+    if (session && !['ADMIN', 'EDITOR'].includes(session.user.role ?? '')) {
+      router.replace('/editorial')
+    }
+  }, [session, router])
 
   const fetchComments = useCallback(async () => {
     setLoading(true)
