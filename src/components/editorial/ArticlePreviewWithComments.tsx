@@ -46,6 +46,8 @@ export function ArticlePreviewWithComments({
 }: Props) {
   const editorRef = useRef<Editor | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const portalBtnRef = useRef<HTMLButtonElement>(null)
+  const portalFormRef = useRef<HTMLDivElement>(null)
   const [floatingBtn, setFloatingBtn] = useState<FloatingButtonState>({ visible: false, vx: 0, vy: 0, from: 0, to: 0 })
   const [commentFormOpen, setCommentFormOpen] = useState(false)
   const [commentText, setCommentText] = useState('')
@@ -101,7 +103,11 @@ export function ArticlePreviewWithComments({
     }
 
     const handleMouseDown = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node
+      const inContainer = containerRef.current?.contains(target)
+      const inPortalBtn = portalBtnRef.current?.contains(target)
+      const inPortalForm = portalFormRef.current?.contains(target)
+      if (!inContainer && !inPortalBtn && !inPortalForm) {
         setFloatingBtn((s) => ({ ...s, visible: false }))
         setCommentFormOpen(false)
       }
@@ -162,6 +168,7 @@ export function ArticlePreviewWithComments({
       {/* Floating "add comment" button - rendered via portal to escape overflow:hidden parents */}
       {floatingBtn.visible && !commentFormOpen && (
         <button
+          ref={portalBtnRef}
           type="button"
           onClick={() => { setCommentFormOpen(true); setCommentText('') }}
           className="fixed z-[200] flex items-center gap-1.5 bg-gold text-navy text-xs font-bold px-2.5 py-1.5 rounded-full shadow-lg hover:bg-gold/90 transition-colors"
@@ -180,6 +187,7 @@ export function ArticlePreviewWithComments({
       {/* Comment form popover - rendered via portal to escape overflow:hidden parents */}
       {commentFormOpen && (
         <div
+          ref={portalFormRef}
           className="fixed z-[200] bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl shadow-2xl p-3 w-72"
           style={{
             left: Math.min(floatingBtn.vx, window.innerWidth - 296),

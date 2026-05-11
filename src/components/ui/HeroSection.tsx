@@ -42,7 +42,7 @@ export function HeroSection({ featured, sideArticles }: HeroSectionProps) {
               aria-label={`Featured: ${featured.title}`}
             >
               {/* Cover image: viewport-relative height so it never pushes below the fold */}
-              <div className="relative w-full overflow-hidden bg-navy h-[26vh] min-h-[160px] max-h-[280px]">
+              <div className="relative w-full overflow-hidden bg-navy h-[38vh] min-h-[220px] max-h-[400px]">
                 {featured.coverImage ? (
                   <BlurImage
                     src={featured.coverImage}
@@ -65,7 +65,7 @@ export function HeroSection({ featured, sideArticles }: HeroSectionProps) {
               </div>
 
               {/* Text block */}
-              <div className="p-3 sm:p-4">
+              <div className="p-4 sm:p-5">
                 <div className="flex items-center justify-between mb-2">
                   {featured.category && (
                     <span className="category-badge">{featured.category.name}</span>
@@ -80,7 +80,7 @@ export function HeroSection({ featured, sideArticles }: HeroSectionProps) {
                   Featured
                 </p>
                 <h2
-                  className="text-lg sm:text-xl lg:text-2xl font-bold text-[var(--fg)] leading-tight mb-2 group-hover:text-gold transition-colors duration-200 line-clamp-2"
+                  className="text-xl sm:text-2xl lg:text-3xl font-bold text-[var(--fg)] leading-tight mb-2 group-hover:text-gold transition-colors duration-200 line-clamp-2"
                   style={{ fontFamily: 'var(--font-serif)' }}
                 >
                   {featured.title}
