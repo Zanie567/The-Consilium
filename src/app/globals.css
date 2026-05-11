@@ -1148,14 +1148,8 @@ mark {
  * Incoming: this animation plays - opacity 0→1, translateY 8px→0 over 200ms.
  */
 @keyframes portal-enter {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .portal-page-enter {
