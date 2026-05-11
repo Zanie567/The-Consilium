@@ -11,7 +11,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "node_modules/**",
-    // Prisma scripts are Node.js scripts, not React modules — console.log is expected.
+    // Prisma scripts are Node.js scripts, not React modules: console.log is expected.
     "prisma/**",
   ]),
   {
@@ -20,7 +20,7 @@ const eslintConfig = defineConfig([
       // lib/email.ts) is acceptable because those files never run in the browser.
       "no-console": ["warn", { allow: ["warn", "error"] }],
 
-      // Disallow `any` — use `unknown` with a type guard instead.
+      // Disallow `any`: use `unknown` with a type guard instead.
       "@typescript-eslint/no-explicit-any": "error",
 
       // React prop-types is unnecessary with TypeScript interfaces.
@@ -37,7 +37,7 @@ const eslintConfig = defineConfig([
       "react-hooks/set-state-in-effect": "off",
 
       // The error-boundaries rule forbids JSX inside try/catch. In server components
-      // and API route handlers this pattern is fine — only disable in those contexts
+      // and API route handlers this pattern is fine: only disable in those contexts
       // via inline comments where needed.
       "react-hooks/error-boundaries": "off",
     },

@@ -13,6 +13,10 @@ export async function GET(
   try {
     const session = await getServerSession(authOptions)
 
+    if (session?.user.role === 'GROWTH') {
+      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const article = await prisma.article.findUnique({
       where: { id },
       include: {
@@ -86,6 +90,9 @@ export async function PUT(
   const session = await getServerSession(authOptions)
   const authError = requireActiveSession(session)
   if (authError) return authError
+  if (session!.user.role === 'GROWTH') {
+    return Response.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const { id } = await params
   const isAdminOrEditor = session!.user.role === 'ADMIN' || session!.user.role === 'EDITOR'
@@ -271,6 +278,9 @@ export async function DELETE(
   const session = await getServerSession(authOptions)
   const authError2 = requireActiveSession(session)
   if (authError2) return authError2
+  if (session!.user.role === 'GROWTH') {
+    return Response.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const { id } = await params
   const isAdminOrEditor = session!.user.role === 'ADMIN' || session!.user.role === 'EDITOR'

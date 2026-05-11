@@ -72,13 +72,13 @@ const minWageAgainstContent = doc(
 
 const aiRegForContent = doc(
   h2('Regulating Artificial Intelligence: An Economic Imperative'),
-  p('The rapid proliferation of large language models, generative AI systems, and autonomous decision-making tools has outpaced the regulatory frameworks designed to govern them. The economic case for comprehensive AI regulation is not primarily about preventing science-fiction scenarios. It is about correcting real and present market failures.'),
+  p('The rapid proliferation of large language models, generative AI systems, and autonomous decision-making tools has outpaced the regulatory frameworks designed to govern them. The economic case for broad AI regulation is not primarily about preventing science-fiction scenarios. It is about correcting real and present market failures.'),
   p('AI systems generate significant negative externalities. Algorithmic hiring tools encode historical discrimination. Credit scoring models amplify existing inequality. Recommendation systems optimise for engagement, not welfare. These are not hypothetical risks; they are documented harms that the market has shown no capacity to self-correct.'),
   bq('"Markets do not price the harms of AI that fall on those who have no voice in the transaction."'),
   h2('The Case for Regulatory Intervention'),
   p('Standard economic theory justifies regulation where markets fail, where prices do not reflect true social costs and benefits. AI creates a textbook case for intervention. The developers of AI systems capture the revenue from their deployment; the costs are distributed across workers displaced, individuals subjected to biased decisions, and societies exposed to misinformation. Pigouvian logic demands correction.'),
   h2('Liability and Accountability'),
-  p('Currently, AI developers face limited liability for the downstream harms their systems cause. This is economically irrational: it systematically undersupplies safety and oversupplies capability. A robust regulatory framework, with clear liability standards, mandatory auditing, and enforcement, would internalise these costs, creating market incentives for safer development.'),
+  p('Currently, AI developers face limited liability for the downstream harms their systems cause. This is economically irrational: it systematically undersupplies safety and oversupplies capability. A regulatory framework with clear liability standards, mandatory auditing, and enforcement would internalise these costs, creating market incentives for safer development.'),
   h2('Competition and Concentration'),
   p('Without regulation, AI markets will consolidate rapidly. The economics of foundation models favour a handful of firms with access to compute and training data. This is not a prediction; it is already happening. Regulatory frameworks that mandate interoperability, require data access for challengers, and prevent anticompetitive bundling are essential to preserving the competitive dynamics from which innovation flows.'),
   h2('Conclusion'),
@@ -87,7 +87,7 @@ const aiRegForContent = doc(
 
 const aiRegAgainstContent = doc(
   h2('Against AI Regulation: The Innovation Cost We Cannot Afford'),
-  p('The instinct to regulate AI is understandable. New technologies generate anxiety, and policymakers respond to anxiety with legislation. But good economic policy requires weighing costs against benefits, and the costs of premature, comprehensive AI regulation are substantial while many of the claimed benefits remain speculative.'),
+  p('The instinct to regulate AI is understandable. New technologies generate anxiety, and policymakers respond to anxiety with legislation. But good economic policy requires weighing costs against benefits, and the costs of premature broad AI regulation are substantial while many of the claimed benefits remain speculative.'),
   p('We are at an early and critical stage of AI development. The systems that exist today are capable but narrow; the systems being built now will be transformative. Locking in regulatory frameworks based on current capabilities risks both stifling beneficial innovation and failing to anticipate the actual risks of future systems.'),
   bq('"Regulating AI today is like regulating the internet in 1993. We barely understood what it was."'),
   h2('The Innovation Cost'),
@@ -97,14 +97,14 @@ const aiRegAgainstContent = doc(
   h2('Existing Laws Are Sufficient'),
   p('Most of the harms attributed to AI, including discrimination, fraud, and privacy violation, are already illegal. The problem is not absence of law but absence of enforcement. Dedicating regulatory energy to new AI-specific frameworks, rather than enforcing existing consumer protection, competition, and data protection law, is displacement activity.'),
   h2('Conclusion'),
-  p('The economic history of technology regulation is not encouraging. We have consistently overestimated the risks of new technologies and underestimated the costs of constraining them. AI regulation should be targeted, light-touch, and adaptive, not the comprehensive framework being proposed, which will damage the UK\'s position in the most consequential technological race of our time.'),
+  p('The economic history of technology regulation is not encouraging. We have consistently overestimated the risks of new technologies and underestimated the costs of constraining them. AI regulation should be targeted, light-touch, and adaptive, not the broad framework being proposed, which will damage the UK\'s position in the most consequential technological race of our time.'),
 )
 
 // ── Debate 3: Free Trade ─────────────────────────────────────────────────────
 
 const freeTradeForContent = doc(
   h2('In Defence of Free Trade'),
-  p('The case for free trade is one of the most robust propositions in economics. From Ricardo\'s principle of comparative advantage to modern empirical work on trade openness and growth, the evidence is consistent: countries that trade freely are richer, more innovative, and over time more peaceful than those that do not.'),
+  p('The case for free trade is one of the best-supported propositions in economics. From Ricardo\'s principle of comparative advantage to modern empirical work on trade openness and growth, the evidence is consistent: countries that trade freely are richer, more innovative, and over time more peaceful than those that do not.'),
   p('Trade enables specialisation. When countries focus on producing what they do relatively best, total output rises. The gains are not evenly distributed, and this is a legitimate concern. But the response to uneven distribution is redistribution policy, not protectionism. Abandoning the gains from trade to avoid redistribution is an economically illiterate trade.'),
   bq('"The gains from free trade are among the most thoroughly documented phenomena in all of economics."'),
   h2('Consumer Welfare'),
@@ -255,7 +255,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-debate-aireg',
-      title: 'Should AI be comprehensively regulated?',
+      title: 'Should AI be broadly regulated?',
       description: 'As AI transforms economies and labour markets, the question of how and whether to regulate it has never been more urgent.',
       forArticleId: aiForArticle.id,
       againstArticleId: aiAgainstArticle.id,
@@ -277,7 +277,7 @@ async function main() {
         title: 'In Defence of Free Trade',
         slug: ftForSlug,
         content: freeTradeForContent,
-        excerpt: 'The empirical case for free trade remains robust. Its distributional consequences require management, but the answer is redistribution policy, not protectionism.',
+        excerpt: 'The empirical case for free trade remains strong. Its distributional consequences require management, but the answer is redistribution policy, not protectionism.',
         authorId: admin.id,
         categoryId: opinionCategory?.id ?? null,
         status: 'PUBLISHED',

@@ -9,8 +9,8 @@
 -- Superusers bypass RLS automatically in PostgreSQL, so NO existing Prisma
 -- queries or API routes are affected by enabling RLS.
 --
--- The Supabase client SDK is used only for Storage (file uploads) — not for
--- any database table reads/writes — so RLS on tables does not affect uploads.
+-- The Supabase client SDK is used only for Storage (file uploads): not for
+-- any database table reads/writes: so RLS on tables does not affect uploads.
 --
 -- This app uses NextAuth (not Supabase Auth), so the `authenticated` role from
 -- Supabase Auth is never populated. All PostgREST access is via the `anon` role.
@@ -24,7 +24,7 @@
 
 
 -- =============================================================================
--- SECTION 1: Enable RLS on all tables (no existing policies — deny-by-default)
+-- SECTION 1: Enable RLS on all tables (no existing policies: deny-by-default)
 -- =============================================================================
 
 ALTER TABLE accounts             ENABLE ROW LEVEL SECURITY;
@@ -92,28 +92,28 @@ CREATE POLICY "anon_read_published_article_tags"
 
 -- =============================================================================
 -- SECTION 3: Fully restricted tables
--- RLS is enabled above with NO policies for anon — deny-by-default applies.
+-- RLS is enabled above with NO policies for anon: deny-by-default applies.
 -- These tables are only accessible via the postgres superuser (Prisma) or
 -- service_role (both bypass RLS automatically).
 --
 -- Tables and why they are fully restricted:
---   accounts             — NextAuth OAuth tokens; never expose externally
---   article_notes        — editorial-only internal notes
---   article_views        — view-count tracking; write-only from API routes
---   bookmarks            — private per-user reading lists
---   category_editors     — internal role assignments
---   contact_messages     — private contact form submissions
---   login_attempts       — security audit log; sensitive
---   notifications        — private per-user notifications
---   password_reset_tokens — sensitive tokens; never expose
---   reading_progress     — private per-user progress data
---   sessions             — NextAuth session tokens; never expose
---   subscribers          — private email list
---   users                — user PII and hashed passwords; never expose
---   verification_tokens  — NextAuth email verification; never expose
+--   accounts            : NextAuth OAuth tokens; never expose externally
+--   article_notes       : editorial-only internal notes
+--   article_views       : view-count tracking; write-only from API routes
+--   bookmarks           : private per-user reading lists
+--   category_editors    : internal role assignments
+--   contact_messages    : private contact form submissions
+--   login_attempts      : security audit log; sensitive
+--   notifications       : private per-user notifications
+--   password_reset_tokens: sensitive tokens; never expose
+--   reading_progress    : private per-user progress data
+--   sessions            : NextAuth session tokens; never expose
+--   subscribers         : private email list
+--   users               : user PII and hashed passwords; never expose
+--   verification_tokens : NextAuth email verification; never expose
 -- =============================================================================
 
--- (No policies needed — deny-by-default when RLS is enabled without policies)
+-- (No policies needed: deny-by-default when RLS is enabled without policies)
 
 
 -- =============================================================================

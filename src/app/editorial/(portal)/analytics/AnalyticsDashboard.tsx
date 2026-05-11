@@ -9,6 +9,12 @@ import { AudienceTab } from './AudienceTab'
 import { EngagementTab } from './EngagementTab'
 import { LeaderboardTab } from './LeaderboardTab'
 import { DistributionTab } from './DistributionTab'
+import type { OverviewData } from './OverviewTab'
+import type { ContentData } from './ContentTab'
+import type { AudienceData } from './AudienceTab'
+import type { EngagementData } from './EngagementTab'
+import type { LeaderboardData } from './LeaderboardTab'
+import type { DistributionData } from './DistributionTab'
 
 export type Period = '24h' | '7d' | '30d' | '90d'
 
@@ -29,8 +35,14 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'distribution', label: 'Distribution' },
 ]
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type TabCache = Partial<Record<TabId, any>>
+interface TabCache {
+  overview?: OverviewData
+  content?: ContentData
+  audience?: AudienceData
+  engagement?: EngagementData
+  leaderboard?: LeaderboardData
+  distribution?: DistributionData
+}
 type LoadingSet = Set<TabId>
 
 export function AnalyticsDashboard({ userRole: _userRole }: { userRole: string }) {
@@ -163,22 +175,22 @@ export function AnalyticsDashboard({ userRole: _userRole }: { userRole: string }
       {/* Tab content */}
       <div>
         {activeTab === 'overview' && (
-          <OverviewTab data={tabCache.overview} loading={isLoading('overview')} period={period} />
+          <OverviewTab data={tabCache.overview ?? null} loading={isLoading('overview')} period={period} />
         )}
         {activeTab === 'content' && (
-          <ContentTab data={tabCache.content} loading={isLoading('content')} />
+          <ContentTab data={tabCache.content ?? null} loading={isLoading('content')} />
         )}
         {activeTab === 'audience' && (
-          <AudienceTab data={tabCache.audience} loading={isLoading('audience')} />
+          <AudienceTab data={tabCache.audience ?? null} loading={isLoading('audience')} />
         )}
         {activeTab === 'engagement' && (
-          <EngagementTab data={tabCache.engagement} loading={isLoading('engagement')} />
+          <EngagementTab data={tabCache.engagement ?? null} loading={isLoading('engagement')} />
         )}
         {activeTab === 'leaderboard' && (
-          <LeaderboardTab data={tabCache.leaderboard} loading={isLoading('leaderboard')} period={period} />
+          <LeaderboardTab data={tabCache.leaderboard ?? null} loading={isLoading('leaderboard')} period={period} />
         )}
         {activeTab === 'distribution' && (
-          <DistributionTab data={tabCache.distribution} loading={isLoading('distribution')} />
+          <DistributionTab data={tabCache.distribution ?? null} loading={isLoading('distribution')} />
         )}
       </div>
     </div>

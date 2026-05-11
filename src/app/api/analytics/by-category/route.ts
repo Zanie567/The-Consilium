@@ -10,7 +10,7 @@ async function requireAdmin(): Promise<boolean> {
     where: { id: session.user.id },
     select: { role: true, isActive: true, isBanned: true },
   })
-  return !!(user && user.isActive && !user.isBanned && user.role === 'ADMIN')
+  return !!(user && user.isActive && !user.isBanned && ['ADMIN', 'GROWTH'].includes(user.role))
 }
 
 export async function GET() {

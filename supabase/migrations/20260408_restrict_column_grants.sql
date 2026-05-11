@@ -1,5 +1,5 @@
 -- =============================================================================
--- Migration: Restrict column-level grants — remove sensitive column exposure
+-- Migration: Restrict column-level grants: remove sensitive column exposure
 -- Date: 2026-04-08
 -- =============================================================================
 --
@@ -18,13 +18,13 @@
 -- 3. Grant SELECT on only the specific safe columns of the 6 public tables.
 --
 -- SAFE TABLES + COLUMN ALLOWLISTS (anon can read these):
---   articles      — published content only (RLS enforces status='PUBLISHED');
+--   articles     : published content only (RLS enforces status='PUBLISHED');
 --                   editorNote and scheduledAt are excluded (editorial-internal)
---   categories    — all columns safe
---   series        — all columns safe
---   tags          — all columns safe
---   team_members  — email excluded (staff PII)
---   article_tags  — all columns safe
+--   categories   : all columns safe
+--   series       : all columns safe
+--   tags         : all columns safe
+--   team_members : email excluded (staff PII)
+--   article_tags : all columns safe
 --
 -- BLOCKED TABLES (no column grants at all for anon/authenticated):
 --   accounts, article_notes, article_views, bookmarks, category_editors,

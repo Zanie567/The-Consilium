@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import { MessageCircle, Bookmark, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
-interface EngagementData {
+export interface EngagementData {
   commentRates: {
     id: string; title: string; category: string | null
     views: number; comments: number; commentRate: number
