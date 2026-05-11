@@ -1,25 +1,22 @@
 'use client'
 
 import React, { useState, useCallback, useRef, useEffect, KeyboardEvent } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import {
-  Save, Send, Eye, X, Tag, ArrowLeft, Check, AlertCircle,
-  ImagePlus, Loader2, ChevronDown, Clock, Settings,
+  Save, Send, Eye, X, ArrowLeft, Check, AlertCircle,
+  ImagePlus, Loader2, Settings,
   Bold, Italic, Underline, Strikethrough, Type, Highlighter,
   List, ListOrdered, Quote, Code2, Link2, Upload,
   Table, Minus, AlignLeft, AlignCenter, AlignRight,
   Moon, Sun, Heading2,
 } from 'lucide-react'
+import { EditorMetadataSidebar } from '@/components/admin/EditorMetadataSidebar'
 import { useTheme } from 'next-themes'
 import slugify from 'slugify'
 import { mutate as globalMutate } from 'swr'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
-import {
-  EDITORIAL_TIME_ZONE_LABEL,
-  getEditorialScheduleMinInput,
-} from '@/lib/editorialSchedule'
-import { readTimeLabel, wordCountFromContent } from '@/lib/readTime'
 import { DRAFTS_SWR_KEY } from '@/components/editorial/DraftsSection'
 
 const TiptapEditor = dynamic(
@@ -447,229 +444,6 @@ export function ArticleEditor({
 
 
 
-  // ── Metadata panel (shared between right panel + mobile drawer) ────────────
-  const renderMetadataFields = () => (
-    <div className="space-y-0">
-
-      {/* Read time + word count */}
-      <div className="flex items-center gap-2 pb-3 mb-1 border-b border-[#e8e8e8]">
-        <Clock size={11} className="text-[#aaa] shrink-0" />
-        <span className="text-[12px] text-[#aaa] uppercase tracking-wider font-medium">
-          {content.length > 2 ? readTimeLabel(content) : '- min read'}
-        </span>
-        {content.length > 2 && (
-          <>
-            <span className="text-[#ddd]">·</span>
-            <span className="text-[12px] text-[#aaa] uppercase tracking-wider font-medium">
-              {wordCountFromContent(content).toLocaleString()} words
-            </span>
-          </>
-        )}
-      </div>
-
-      {/* Status */}
-      {!isWriter ? (
-        <div>
-          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Status</label>
-          <div className="relative">
-            <select
-              value={status}
-              onChange={(e) => { setStatus(e.target.value); statusRef.current = e.target.value; scheduleAutosave() }}
-              className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer"
-            >
-              <option value="DRAFT">Draft</option>
-              <option value="PENDING_REVIEW">Pending Review</option>
-              {canPublish && <option value="PUBLISHED">Published</option>}
-              {canPublish && <option value="SCHEDULED">Scheduled</option>}
-              <option value="ARCHIVED">Archived</option>
-            </select>
-            <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
-          </div>
-        </div>
-      ) : (
-        <div>
-          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Status</label>
-          <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-widest px-2 py-1 border rounded ${STATUS_COLOURS[currentStatus] ?? STATUS_COLOURS.DRAFT}`}>
-            {STATUS_LABELS[currentStatus] ?? currentStatus}
-          </span>
-        </div>
-      )}
-
-      {/* Author override - only visible to editors/admins */}
-      {!isWriter && users.length > 0 && (
-        <div>
-          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Author</label>
-          <div className="relative">
-            <select
-              value={selectedAuthorId}
-              onChange={(e) => {
-                setSelectedAuthorId(e.target.value)
-                selectedAuthorIdRef.current = e.target.value
-                scheduleAutosave()
-              }}
-              disabled={!canEdit}
-              className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer disabled:opacity-60"
-            >
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name ?? u.id}
-                  {u.role !== 'WRITER' ? ` (${u.role.charAt(0) + u.role.slice(1).toLowerCase()})` : ''}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
-          </div>
-        </div>
-      )}
-
-      {/* Scheduled date */}
-      {!isWriter && status === 'SCHEDULED' && (
-        <div>
-          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">
-            Publish At ({EDITORIAL_TIME_ZONE_LABEL})
-          </label>
-          <input
-            type="datetime-local"
-            value={scheduledAt}
-            min={getEditorialScheduleMinInput()}
-            onChange={(e) => { setScheduledAt(e.target.value); scheduledAtRef.current = e.target.value; scheduleAutosave() }}
-            className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] cursor-pointer"
-          />
-          <p className="text-[10px] text-[#999] mt-1">
-            Stored and displayed as UK editorial time.
-          </p>
-          {!scheduledAt && (
-            <p className="text-amber-500 text-[10px] mt-1">Pick a future date and time.</p>
-          )}
-        </div>
-      )}
-
-      {/* Category */}
-      <div>
-        <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Category</label>
-        <div className="relative">
-          <select
-            value={categoryId}
-            onChange={(e) => { setCategoryId(e.target.value); categoryIdRef.current = e.target.value; scheduleAutosave() }}
-            disabled={!canEdit}
-            className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer disabled:opacity-60"
-          >
-            <option value="">No category</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
-          <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
-        </div>
-      </div>
-
-      {/* Cover image */}
-      <div>
-        <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Cover Image</label>
-        <input ref={coverFileRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
-        <input
-          type="url"
-          value={coverImage}
-          onChange={(e) => { setCoverImage(e.target.value); coverImageRef.current = e.target.value; scheduleAutosave() }}
-          placeholder="https://..."
-          className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] placeholder:text-[#ccc]"
-        />
-        {uploading && <p className="text-[10px] text-[#999] mt-1">Uploading…</p>}
-        {coverError && <p className="text-[10px] text-red-500 mt-1">{coverError}</p>}
-        {coverImage && (
-          <div className="mt-2 relative">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={coverImage}
-              alt="Cover preview"
-              className="w-full object-contain rounded border border-[#e0e0e0] bg-[#f5f5f5]"
-              style={{ maxHeight: 80 }}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-            />
-            {canEdit && (
-              <button
-                type="button"
-                onClick={() => { setCoverImage(''); coverImageRef.current = ''; scheduleAutosave() }}
-                className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
-                aria-label="Remove cover image"
-              >
-                <X size={10} />
-              </button>
-            )}
-          </div>
-        )}
-        {canEdit && (
-          <button
-            type="button"
-            onClick={() => coverFileRef.current?.click()}
-            disabled={uploading}
-            className="mt-2 w-full h-7 text-[11px] border border-dashed border-[#d0d0d0] rounded text-[#aaa] hover:border-[#999] hover:text-[#666] transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
-          >
-            <ImagePlus size={11} />
-            {uploading ? 'Uploading…' : 'Upload file'}
-          </button>
-        )}
-        <p className="text-xs text-gray-400 mt-1.5 leading-snug">
-          For best results: landscape orientation, minimum 1200&nbsp;px wide, subject centred in frame.
-        </p>
-      </div>
-
-      {/* Tags */}
-      <div>
-        <label className="text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3 flex items-center gap-1">
-          <Tag size={9} />
-          Tags
-        </label>
-        {tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-1.5 mt-1">
-            {tags.map((t) => (
-              <span key={t} className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 bg-[#f1f3f4] rounded text-[#555]">
-                {t}
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => { const next = tags.filter((x) => x !== t); setTags(next); tagsRef.current = next; scheduleAutosave() }}
-                    aria-label={`Remove ${t}`}
-                    className="hover:text-red-500 transition-colors ml-0.5"
-                  >
-                    <X size={7} />
-                  </button>
-                )}
-              </span>
-            ))}
-          </div>
-        )}
-        {canEdit && (
-          <input
-            type="text"
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={handleTagKeyDown}
-            onBlur={() => tagInput && addTag(tagInput)}
-            placeholder={tags.length < 10 ? 'Add a tag, press Enter...' : 'Max 10 tags'}
-            disabled={tags.length >= 10}
-            className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] placeholder:text-[#ccc] disabled:opacity-50"
-          />
-        )}
-        <p className="text-[10px] text-[#ccc] mt-1">Separate with Enter or comma. Up to 10.</p>
-      </div>
-
-      {/* URL slug */}
-      {!isWriter && (
-        <div>
-          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">URL Slug</label>
-          <input
-            type="text"
-            value={slug}
-            onChange={(e) => { setSlug(e.target.value); slugRef.current = e.target.value; scheduleAutosave() }}
-            placeholder="url-slug"
-            className="w-full h-8 text-[16px] sm:text-[11px] font-mono border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744]"
-          />
-        </div>
-      )}
-    </div>
-  )
-
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-full">
@@ -858,18 +632,21 @@ export function ArticleEditor({
 
             {/* Cover image block - full bleed above padded content */}
             <div
-              className="relative group w-full overflow-hidden bg-[#f5f5f5]"
+              className="relative group w-full overflow-hidden bg-[#f5f5f5] dark:bg-[#1a1a1a]"
               style={{ height: coverImage ? 240 : undefined }}
             >
               {coverImage ? (
                 <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={coverImage}
-                    alt="Cover"
-                    className="w-full h-full object-contain"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                  />
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={coverImage}
+                      alt="Cover"
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 1100px) 100vw, 820px"
+                      unoptimized
+                    />
+                  </div>
                   {canEdit && (
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                       <button
@@ -879,7 +656,7 @@ export function ArticleEditor({
                         className="flex items-center gap-2 text-white text-xs font-semibold bg-black/50 border border-white/20 px-4 py-2 rounded hover:bg-black/70 transition-colors"
                       >
                         <ImagePlus size={13} />
-                        {uploading ? 'Uploading…' : 'Change'}
+                        {uploading ? 'Uploading...' : 'Change'}
                       </button>
                       <button
                         type="button"
@@ -898,10 +675,10 @@ export function ArticleEditor({
                     type="button"
                     onClick={() => coverFileRef.current?.click()}
                     disabled={uploading}
-                    className="w-full py-5 flex items-center justify-center gap-2 text-[#aaa] text-sm font-bold hover:text-[#888] hover:bg-[#ebebeb] transition-colors disabled:opacity-50 tracking-wide"
+                    className="w-full py-5 flex items-center justify-center gap-2 text-[#aaa] dark:text-[#555] text-sm font-bold hover:text-[#888] dark:hover:text-[#888] hover:bg-[#ebebeb] dark:hover:bg-[#2a2a2a] transition-colors disabled:opacity-50 tracking-wide border-2 border-dashed border-[#ddd] dark:border-[#333] m-4 rounded"
                   >
                     <ImagePlus size={16} />
-                    {uploading ? 'Uploading…' : 'Add cover image'}
+                    {uploading ? 'Uploading...' : 'Add cover image'}
                   </button>
                 )
               )}
@@ -917,11 +694,9 @@ export function ArticleEditor({
                 disabled={!canEdit}
                 placeholder="Your headline here..."
                 rows={1}
-                className="w-full bg-transparent border-none outline-none resize-none leading-tight placeholder:text-[#bbb] disabled:opacity-60 overflow-hidden mb-3"
+                className="w-full bg-transparent border-none outline-none resize-none leading-tight placeholder:text-[#bbb] dark:placeholder:text-[#444] text-[#1a1a1a] dark:text-[#e8e8e8] disabled:opacity-60 overflow-hidden mb-3"
                 style={{
-                  color: '#1a1a1a',
                   fontFamily: 'var(--font-serif)',
-                  /* clamp handles iOS zoom threshold (min 16px) */
                   fontSize: 'clamp(1rem, 5vw, 2.5rem)',
                   fontWeight: 700,
                 }}
@@ -935,8 +710,8 @@ export function ArticleEditor({
                 disabled={!canEdit}
                 placeholder="Write a brief summary that draws readers in..."
                 rows={2}
-                className="w-full bg-transparent border-none outline-none resize-none leading-relaxed placeholder:text-[#ccc] disabled:opacity-60 overflow-hidden"
-                style={{ color: '#666', fontStyle: 'italic', fontSize: '1.1rem' }}
+                className="w-full bg-transparent border-none outline-none resize-none leading-relaxed placeholder:text-[#ccc] dark:placeholder:text-[#444] text-[#555] dark:text-[#aaa] disabled:opacity-60 overflow-hidden"
+                style={{ fontStyle: 'italic', fontSize: '1.1rem' }}
               />
 
               {/* Body editor */}
@@ -954,67 +729,47 @@ export function ArticleEditor({
             </div>
           </div>
 
-          {/* Right metadata panel (hidden below 1100px) */}
-          <div className="hidden min-[1100px]:block flex-none w-[220px] sticky top-24">
-            <div className="bg-white dark:bg-[#1a1a1a] border border-[#e0e0e0] dark:border-[#333] rounded-lg p-4 overflow-hidden">
-              {renderMetadataFields()}
-            </div>
-          </div>
+          <EditorMetadataSidebar
+            content={content}
+            status={status}
+            setStatus={setStatus}
+            isWriter={isWriter}
+            canEdit={canEdit}
+            canPublish={canPublish}
+            currentStatus={currentStatus}
+            users={users}
+            selectedAuthorId={selectedAuthorId}
+            setSelectedAuthorId={setSelectedAuthorId}
+            scheduledAt={scheduledAt}
+            setScheduledAt={setScheduledAt}
+            categoryId={categoryId}
+            setCategoryId={setCategoryId}
+            categories={categories}
+            coverImage={coverImage}
+            setCoverImage={setCoverImage}
+            coverFileRef={coverFileRef}
+            uploading={uploading}
+            coverError={coverError}
+            handleCoverUpload={handleCoverUpload}
+            tags={tags}
+            setTags={setTags}
+            tagInput={tagInput}
+            setTagInput={setTagInput}
+            handleTagKeyDown={handleTagKeyDown}
+            slug={slug}
+            setSlug={setSlug}
+            scheduleAutosave={scheduleAutosave}
+            statusRef={statusRef}
+            selectedAuthorIdRef={selectedAuthorIdRef}
+            scheduledAtRef={scheduledAtRef}
+            categoryIdRef={categoryIdRef}
+            coverImageRef={coverImageRef}
+            tagsRef={tagsRef}
+            slugRef={slugRef}
+            settingsOpen={settingsOpen}
+            setSettingsOpen={setSettingsOpen}
+          />
 
-        </div>
-      </div>
-
-      {/*
-       * Mobile metadata bottom sheet
-       *
-       * Always rendered so CSS transitions fire on open/close.
-       * Slides up from translateY(100%) → translateY(0) in 300ms with
-       * Material Design easing: cubic-bezier(0.4, 0, 0.2, 1).
-       * Backdrop fades in simultaneously.
-       */}
-
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-[60] bg-black/40 transition-opacity duration-300"
-        style={{
-          opacity: settingsOpen ? 1 : 0,
-          pointerEvents: settingsOpen ? 'auto' : 'none',
-        }}
-        onClick={() => setSettingsOpen(false)}
-        aria-hidden
-      />
-
-      {/* Bottom sheet */}
-      <div
-        className="fixed inset-x-0 bottom-0 z-[61] bg-white rounded-t-2xl shadow-2xl overflow-hidden flex flex-col"
-        style={{
-          maxHeight: '82vh',
-          transform: settingsOpen ? 'translateY(0)' : 'translateY(100%)',
-          transition: 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-          willChange: 'transform',
-        }}
-        aria-hidden={!settingsOpen}
-      >
-        {/* Drag handle - decorative iOS-style pill */}
-        <div className="flex justify-center pt-3 pb-1 shrink-0">
-          <div className="w-10 h-1 rounded-full bg-[#d0d0d0]" />
-        </div>
-
-        {/* Sheet header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#e8e8e8] shrink-0">
-          <span className="text-sm font-semibold text-[#333]">Document settings</span>
-          <button
-            onClick={() => setSettingsOpen(false)}
-            className="text-[#999] hover:text-[#333] transition-colors p-1.5 rounded-md hover:bg-[#f1f3f4] active:scale-[0.92] transition-transform"
-            aria-label="Close settings"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Scrollable content */}
-        <div className="overflow-y-auto p-4 flex-1">
-          {renderMetadataFields()}
         </div>
       </div>
 

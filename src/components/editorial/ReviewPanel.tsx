@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, nextFriday } from 'date-fns'
-import { ArrowLeft, Star, Pin, Clock, CheckCircle, RotateCcw, EyeOff } from 'lucide-react'
+import { ArrowLeft, Star, Pin, Clock, CheckCircle, RotateCcw, EyeOff, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 import { Tooltip } from '@/components/ui/Tooltip'
 import {
@@ -11,6 +11,8 @@ import {
   formatEditorialScheduleInput,
   getEditorialScheduleMinInput,
 } from '@/lib/editorialSchedule'
+import { CommentsPanel, type ArticleComment } from '@/components/editorial/CommentsPanel'
+import { ArticlePreviewWithComments } from '@/components/editorial/ArticlePreviewWithComments'
 
 interface Note {
   id: string
@@ -48,6 +50,16 @@ export function ReviewPanel({ article, reviewerId: _reviewerId, reviewerRole: _r
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
   const [note, setNote] = useState('')
+  const [comments, setComments] = useState<ArticleComment[]>([])
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
+  const [commentsTab, setCommentsTab] = useState<'actions' | 'comments'>('actions')
+
+  useEffect(() => {
+    fetch(`/api/articles/${article.id}/comments`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: ArticleComment[]) => setComments(data))
+      .catch(() => {})
+  }, [article.id])
   const [returnNote, setReturnNote] = useState(article.editorNote ?? '')
   const [scheduledAt, setScheduledAt] = useState(
     formatEditorialScheduleInput(article.scheduledAt ?? nextFriday(new Date()))
@@ -196,27 +208,78 @@ export function ReviewPanel({ article, reviewerId: _reviewerId, reviewerRole: _r
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        {/* Article preview */}
+        {/* Article preview with inline commenting */}
         <div className="lg:col-span-2 bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden">
-          <div className="px-6 py-3 border-b border-[var(--border)] flex items-center justify-between">
+          <div className="px-4 sm:px-6 py-3 border-b border-[var(--border)] flex items-center justify-between">
             <span className="text-xs font-bold text-[var(--fg-faint)] uppercase tracking-wider">
               Article Content
             </span>
-            <Link
-              href={`/editorial/articles/${article.id}/edit`}
-              className="text-xs text-gold hover:underline"
-            >
-              Edit in editor →
-            </Link>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] text-[var(--fg-faint)] hidden sm:block">
+                Select text to comment
+              </span>
+              <Link
+                href={`/editorial/articles/${article.id}/edit`}
+                className="text-xs text-gold hover:underline"
+              >
+                Edit →
+              </Link>
+            </div>
           </div>
-          <div
-            className="p-4 sm:p-6 prose-consilium max-h-[40vh] sm:max-h-[60vh] overflow-y-auto text-sm"
-            dangerouslySetInnerHTML={{ __html: renderContent(article.content) }}
-          />
+          <div className="p-4 sm:p-6 prose-consilium max-h-[40vh] sm:max-h-[60vh] overflow-y-auto text-sm">
+            <ArticlePreviewWithComments
+              content={article.content}
+              articleId={article.id}
+              comments={comments}
+              activeCommentId={activeCommentId}
+              onCommentCreated={(c) => {
+                setComments((prev) => [...prev, c])
+                setCommentsTab('comments')
+              }}
+              onSelectComment={setActiveCommentId}
+            />
+          </div>
         </div>
 
-        {/* Actions panel */}
+        {/* Actions + comments right panel */}
         <div className="space-y-4">
+          {/* Tab bar */}
+          <div className="flex border border-[var(--border)] bg-[var(--bg-elevated)]">
+            <button
+              onClick={() => setCommentsTab('actions')}
+              className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-widest transition-colors ${commentsTab === 'actions' ? 'bg-navy text-gold' : 'text-[var(--fg-faint)] hover:text-[var(--fg)]'}`}
+            >
+              Review
+            </button>
+            <button
+              onClick={() => setCommentsTab('comments')}
+              className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5 ${commentsTab === 'comments' ? 'bg-navy text-gold' : 'text-[var(--fg-faint)] hover:text-[var(--fg)]'}`}
+            >
+              <MessageSquare size={12} />
+              Comments
+              {comments.filter((c) => !c.resolved && !c.parentId).length > 0 && (
+                <span className="bg-gold text-navy text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">
+                  {comments.filter((c) => !c.resolved && !c.parentId).length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {commentsTab === 'comments' ? (
+            <div className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden">
+              <CommentsPanel
+                articleId={article.id}
+                comments={comments}
+                onCommentResolved={(id, resolved) => {
+                  setComments((prev) => prev.map((c) => c.id === id ? { ...c, resolved } : c))
+                }}
+                onCommentAdded={(c) => setComments((prev) => [...prev, c])}
+                activeCommentId={activeCommentId}
+                onSelectComment={setActiveCommentId}
+              />
+            </div>
+          ) : (
+            <div className="space-y-4">
           {/* Primary actions */}
           {status === 'PENDING_REVIEW' && (
             <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-4 space-y-3">
@@ -374,7 +437,7 @@ export function ReviewPanel({ article, reviewerId: _reviewerId, reviewerRole: _r
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addNote()}
-                placeholder="Add internal note…"
+                placeholder="Add internal note..."
                 className="flex-1 bg-[var(--bg)] border border-[var(--border)] px-3 py-2 text-[var(--fg)] focus:outline-none focus:border-gold min-h-[44px]"
                 style={{ fontSize: 16 }}
               />
@@ -387,6 +450,8 @@ export function ReviewPanel({ article, reviewerId: _reviewerId, reviewerRole: _r
               </button>
             </div>
           </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
