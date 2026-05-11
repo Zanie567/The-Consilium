@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 
 type ReviewCommentRow = {
   thread_id: string
@@ -33,11 +33,7 @@ type ReviewCommentThread = {
 }
 
 async function requireReviewer() {
-  const session = await getServerSession(authOptions)
-  if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR')) {
-    return null
-  }
-  return session
+  return getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
 }
 
 function isMissingReviewCommentTable(error: unknown) {
@@ -123,9 +119,9 @@ export async function POST(req: NextRequest) {
         { id: string; body: string; created_at: Date; author_id: string; author_name: string | null }[]
       >`
         INSERT INTO review_comment_replies (thread_id, author_id, body)
-        VALUES (${body.threadId}::uuid, ${session.user.id}, ${commentBody})
+        VALUES (${body.threadId}::uuid, ${session.id}, ${commentBody})
         RETURNING id::text, body, created_at, author_id, (
-          SELECT name FROM users WHERE id = ${session.user.id}
+          SELECT name FROM users WHERE id = ${session.id}
         ) AS author_name
       `
       return NextResponse.json({
@@ -157,12 +153,12 @@ export async function POST(req: NextRequest) {
     >`
       WITH new_thread AS (
         INSERT INTO review_comment_threads (article_id, anchor_text, selected_text, created_by)
-        VALUES (${body.articleId}, ${body.anchorText}, ${body.selectedText}, ${session.user.id})
+        VALUES (${body.articleId}, ${body.anchorText}, ${body.selectedText}, ${session.id})
         RETURNING id, article_id, anchor_text, selected_text, created_at
       ),
       new_reply AS (
         INSERT INTO review_comment_replies (thread_id, author_id, body)
-        SELECT id, ${session.user.id}, ${commentBody} FROM new_thread
+        SELECT id, ${session.id}, ${commentBody} FROM new_thread
         RETURNING id, created_at
       )
       SELECT
@@ -187,7 +183,7 @@ export async function POST(req: NextRequest) {
         id: thread.reply_id,
         body: commentBody,
         createdAt: thread.reply_created_at.toISOString(),
-        author: { id: session.user.id, name: session.user.name ?? null },
+        author: { id: session.id, name: null },
       }],
     })
   } catch (error) {

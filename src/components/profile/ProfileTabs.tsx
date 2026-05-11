@@ -742,7 +742,7 @@ export function ProfileTabs({ initialName, initialBio, email, image, createdAt, 
               <p className="text-cream/50 text-sm mt-0.5">{email}</p>
               <div className="flex items-center gap-3 mt-1.5">
                 <p className="text-cream/35 text-xs">Member since {format(new Date(createdAt), 'MMMM yyyy')}</p>
-                {role !== 'READER' && (
+                {['ADMIN', 'EDITOR', 'WRITER', 'GROWTH'].includes(role) && (
                   <span className="text-gold text-[9px] font-bold uppercase tracking-widest border border-gold/30 px-1.5 py-0.5">
                     {role}
                   </span>

@@ -1,15 +1,15 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { TeamManagement } from '@/components/admin/TeamManagement'
 import type { Metadata } from 'next'
+import { ADMIN_ONLY } from '@/lib/rbac'
 
 export const metadata: Metadata = { title: 'Team | Admin' }
 
 export default async function AdminTeamPage() {
-  const session = await getServerSession(authOptions)
-  if (!session || session.user.role !== 'ADMIN') {
+  const user = await getVerifiedSessionUser(ADMIN_ONLY)
+  if (!user) {
     redirect('/editorial')
   }
 

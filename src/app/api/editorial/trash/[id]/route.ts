@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -9,9 +9,8 @@ interface Props {
 
 // PATCH /api/editorial/trash/[id] - restore a soft-deleted article
 export async function PATCH(_req: NextRequest, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR') {
+  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  if (!user) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -35,9 +34,8 @@ export async function PATCH(_req: NextRequest, { params }: Props) {
 
 // DELETE /api/editorial/trash/[id] - permanently delete a trashed article
 export async function DELETE(_req: NextRequest, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR') {
+  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  if (!user) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

@@ -3,12 +3,43 @@ import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
+const PUBLIC_API_PREFIXES = [
+  '/api/auth',
+  '/api/analytics/track',
+  '/api/articles/',
+  '/api/auth/',
+  '/api/comments',
+  '/api/contact',
+  '/api/debates',
+  '/api/editorial/setup',
+  '/api/publish-scheduled',
+  '/api/search',
+  '/api/subscribe',
+  '/api/team',
+  '/api/ticker',
+]
+const PUBLIC_PAGE_PREFIXES = [
+  '/editorial/login',
+  '/editorial/reset-password',
+  '/editorial/setup',
+  '/login',
+  '/reset-password',
+]
+
+function isPublicApi(pathname: string) {
+  if (/^\/api\/editorial\/articles\/[^/]+\/view$/.test(pathname)) return true
+  return PUBLIC_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`) || pathname.startsWith(prefix))
+}
+
+function isPublicPage(pathname: string) {
+  return PUBLIC_PAGE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+}
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET }).catch(() => null)
 
-  // ── Ban enforcement ───────────────────────────────────────────────────────
-  // Skip for the banned page itself, auth routes, and static assets
+  // Ban enforcement
   const isBannable =
     !pathname.startsWith('/banned') &&
     !pathname.startsWith('/api/auth') &&
@@ -17,18 +48,25 @@ export async function proxy(request: NextRequest) {
     !pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|webp|css|js|woff|woff2|ttf)$/)
 
   if (isBannable) {
-    try {
-      const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
-      if (token?.isBanned && !pathname.startsWith('/api/')) {
-        return NextResponse.redirect(new URL('/banned', request.url))
-      }
-    } catch {
-      // If token check fails, let the request through
+    if (token?.isBanned && !pathname.startsWith('/api/')) {
+      return NextResponse.redirect(new URL('/banned', request.url))
     }
   }
 
-  // ── CSRF protection for API routes ───────────────────────────────────────
-  // NextAuth handles its own CSRF for /api/auth/* - skip those.
+  const requiresSession =
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/editorial') ||
+    (pathname.startsWith('/api/') && !isPublicApi(pathname))
+
+  if (requiresSession && !isPublicPage(pathname) && !token) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // CSRF protection for API routes
   if (pathname.startsWith('/api/auth/')) {
     return NextResponse.next()
   }
@@ -58,7 +96,7 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all paths except Next.js internals and static files
+     * Match all paths except Next.js internals and static files.
      */
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],

@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions, requireActiveSession } from '@/lib/auth'
+import { authOptions, getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { filterComment, stripHtml } from '@/lib/content-filter'
 import { checkRateLimit } from '@/lib/rate-limiter'
 import { sendEmail, commentFlaggedEmail } from '@/lib/email'
+import { ALL_ROLES } from '@/lib/rbac'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,12 +52,10 @@ export async function GET(req: Request) {
 // ── POST /api/comments ───────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
-  const authError = requireActiveSession(session)
-  if (authError) return authError
+  const user = await getVerifiedSessionUser(ALL_ROLES)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Rate limit: 5 comments per user per minute
-  if (!checkRateLimit(`comment:${session!.user.id}`, 5, 60 * 1000)) {
+  if (!checkRateLimit(`comment:${user.id}`, 5, 60 * 1000)) {
     return NextResponse.json(
       { error: 'You are posting too quickly. Please wait a moment before commenting again.' },
       { status: 429 },
@@ -120,7 +119,7 @@ export async function POST(req: Request) {
   const comment = await prisma.comment.create({
     data: {
       articleId,
-      userId: session!.user.id,
+      userId: user.id,
       body: cleanBody,
       parentId: parentId ?? null,
       isHidden: false,
@@ -128,7 +127,7 @@ export async function POST(req: Request) {
     },
     include: {
       user: { select: { id: true, name: true, image: true } },
-      upvotedBy: { where: { userId: session!.user.id }, select: { id: true } },
+      upvotedBy: { where: { userId: user.id }, select: { id: true } },
       _count: { select: { replies: { where: { isHidden: false } } } },
     },
   })

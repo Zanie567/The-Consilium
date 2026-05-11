@@ -207,7 +207,7 @@ function ActionMenu({
             </button>
           )}
 
-          {user.role !== 'ADMIN' && (
+          {['EDITOR', 'WRITER', 'GROWTH', 'READER'].includes(user.role) && (
             <button
               onClick={() => { setOpen(false); onView() }}
               className="w-full text-left px-4 py-2 text-xs text-red-500 hover:bg-red-500/10 flex items-center gap-2 border-t border-[var(--border)] mt-1 pt-2"

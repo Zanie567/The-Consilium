@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 
 interface Props {
   params: Promise<{ debateId: string }>
 }
 
 export async function GET(_req: Request, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user || !['ADMIN', 'EDITOR'].includes(session.user.role ?? '')) {
+  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   }
 
@@ -49,8 +49,8 @@ export async function GET(_req: Request, { params }: Props) {
 }
 
 export async function PATCH(req: Request, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user || !['ADMIN', 'EDITOR'].includes(session.user.role ?? '')) {
+  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   }
 

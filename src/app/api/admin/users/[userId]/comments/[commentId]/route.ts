@@ -1,23 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ADMIN_ONLY } from '@/lib/rbac'
 
 interface Ctx { params: Promise<{ userId: string; commentId: string }> }
 
 // DELETE - soft-hide a comment (admin moderation)
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  const session = await getServerSession(authOptions)
-  if (!session || (session.user as { role: string; isBanned?: boolean }).role !== 'ADMIN' || (session.user as { isBanned?: boolean }).isBanned) {
+  const admin = await getVerifiedSessionUser(ADMIN_ONLY)
+  if (!admin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { commentId } = await params
-  const adminId = session.user.id
-  const adminName = session.user.name ?? session.user.email ?? adminId
+  const { userId, commentId } = await params
+  const adminId = admin.id
+  const adminName = adminId
 
   const comment = await prisma.comment.findUnique({
-    where: { id: commentId },
+    where: { id: commentId, userId },
     select: { id: true, userId: true, body: true, article: { select: { title: true } } },
   })
   if (!comment) return NextResponse.json({ error: 'Comment not found' }, { status: 404 })

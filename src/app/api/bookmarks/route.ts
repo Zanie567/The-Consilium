@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions, requireActiveSession } from '@/lib/auth'
+import { authOptions, getVerifiedSessionUser, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ALL_ROLES } from '@/lib/rbac'
 
 // GET /api/bookmarks - returns all bookmarked article IDs for the current user
 export async function GET() {
@@ -22,9 +23,8 @@ export async function GET() {
 
 // POST /api/bookmarks - toggle a bookmark (add if missing, remove if present)
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  const authError2 = requireActiveSession(session)
-  if (authError2) return authError2
+  const user = await getVerifiedSessionUser(ALL_ROLES)
+  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
     const { articleId } = await request.json()
@@ -33,17 +33,17 @@ export async function POST(request: NextRequest) {
     }
 
     const existing = await prisma.bookmark.findUnique({
-      where: { userId_articleId: { userId: session!.user.id, articleId } },
+      where: { userId_articleId: { userId: user.id, articleId } },
     })
 
     if (existing) {
       await prisma.bookmark.delete({
-        where: { userId_articleId: { userId: session!.user.id, articleId } },
+        where: { userId_articleId: { userId: user.id, articleId } },
       })
       return Response.json({ bookmarked: false })
     } else {
       await prisma.bookmark.create({
-        data: { userId: session!.user.id, articleId },
+        data: { userId: user.id, articleId },
       })
       return Response.json({ bookmarked: true })
     }

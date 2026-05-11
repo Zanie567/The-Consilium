@@ -1,9 +1,14 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions, requireActiveSession } from '@/lib/auth'
+import { authOptions, getVerifiedSessionUser, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, articleSubmittedEmail } from '@/lib/email'
 import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
+import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
+import type { ArticleStatus } from '@prisma/client'
+
+const STAFF_ARTICLE_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'ARCHIVED', 'REJECTED', 'SCHEDULED'] as const satisfies readonly ArticleStatus[]
+const WRITER_UPDATE_STATUSES = ['DRAFT', 'PENDING_REVIEW'] as const satisfies readonly ArticleStatus[]
 
 export async function GET(
   _req: NextRequest,
@@ -87,15 +92,13 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions)
-  const authError = requireActiveSession(session)
-  if (authError) return authError
-  if (session!.user.role === 'GROWTH') {
+  const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
+  if (!user) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const { id } = await params
-  const isAdminOrEditor = session!.user.role === 'ADMIN' || session!.user.role === 'EDITOR'
+  const isAdminOrEditor = user.role === 'ADMIN' || user.role === 'EDITOR'
 
   try {
     const existing = await prisma.article.findUnique({
@@ -105,7 +108,7 @@ export async function PUT(
     if (!existing || existing.deletedAt) return Response.json({ error: 'Not found' }, { status: 404 })
 
     // Writers can only edit their own articles
-    if (!isAdminOrEditor && existing.authorId !== session!.user.id) {
+    if (!isAdminOrEditor && existing.authorId !== user.id) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -130,12 +133,12 @@ export async function PUT(
 
     const nextCategoryId = categoryId !== undefined ? (categoryId || null) : existing.categoryId
 
-    // Writers can only set status to DRAFT or PENDING_REVIEW
     let finalStatus = existing.status
-    if (isAdminOrEditor && status) {
-      finalStatus = status
-    } else if (!isAdminOrEditor && (status === 'DRAFT' || status === 'PENDING_REVIEW')) {
-      finalStatus = status
+    if (typeof status === 'string') {
+      const allowedStatuses = isAdminOrEditor ? STAFF_ARTICLE_STATUSES : WRITER_UPDATE_STATUSES
+      if ((allowedStatuses as readonly string[]).includes(status)) {
+        finalStatus = status as ArticleStatus
+      }
     }
 
     // Validate scheduledAt is in the future when scheduling
@@ -162,13 +165,11 @@ export async function PUT(
         ...(excerpt !== undefined && { excerpt }),
         ...(coverImage !== undefined && { coverImage: coverImage || null }),
         ...(categoryId !== undefined && { categoryId: categoryId || null }),
-        // Admins and editors may reassign the article to a different author
         ...(isAdminOrEditor && bodyAuthorId && { authorId: bodyAuthorId }),
-        ...(corrected !== undefined && { corrected }),
-        ...(correctionNote !== undefined && { correctionNote }),
-        ...(seriesId !== undefined && { seriesId: seriesId || null }),
-        ...(seriesOrder !== undefined && { seriesOrder }),
-        // Clear editor note when writer resubmits
+        ...(isAdminOrEditor && corrected !== undefined && { corrected }),
+        ...(isAdminOrEditor && correctionNote !== undefined && { correctionNote }),
+        ...(isAdminOrEditor && seriesId !== undefined && { seriesId: seriesId || null }),
+        ...(isAdminOrEditor && seriesOrder !== undefined && { seriesOrder }),
         ...(wasJustSubmitted && { editorNote: null }),
         status: finalStatus,
         scheduledAt: finalStatus === 'SCHEDULED' && scheduledAt
@@ -275,21 +276,19 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions)
-  const authError2 = requireActiveSession(session)
-  if (authError2) return authError2
-  if (session!.user.role === 'GROWTH') {
+  const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
+  if (!user) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const { id } = await params
-  const isAdminOrEditor = session!.user.role === 'ADMIN' || session!.user.role === 'EDITOR'
+  const isAdminOrEditor = user.role === 'ADMIN' || user.role === 'EDITOR'
 
   try {
     const existing = await prisma.article.findUnique({ where: { id } })
     if (!existing || existing.deletedAt) return Response.json({ error: 'Not found' }, { status: 404 })
 
-    if (!isAdminOrEditor && existing.authorId !== session!.user.id) {
+    if (!isAdminOrEditor && existing.authorId !== user.id) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
 

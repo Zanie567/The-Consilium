@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, userBannedEmail } from '@/lib/email'
+import { ADMIN_ONLY } from '@/lib/rbac'
 
 interface Ctx { params: Promise<{ userId: string }> }
 
 export async function POST(req: NextRequest, { params }: Ctx) {
-  const session = await getServerSession(authOptions)
-  if (!session || (session.user as { role: string; isBanned?: boolean }).role !== 'ADMIN' || (session.user as { isBanned?: boolean }).isBanned) {
+  const admin = await getVerifiedSessionUser(ADMIN_ONLY)
+  if (!admin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const { userId } = await params
-  const adminId = session.user.id
+  const adminId = admin.id
 
   if (userId === adminId) {
     return NextResponse.json({ error: 'Cannot ban yourself' }, { status: 400 })
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: 'Cannot ban admin accounts' }, { status: 400 })
   }
 
-  const adminName = session.user.name ?? session.user.email ?? adminId
+  const adminName = adminId
 
   await prisma.user.update({
     where: { id: userId },

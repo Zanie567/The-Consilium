@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions, requireActiveSession } from '@/lib/auth'
+import { authOptions, getVerifiedSessionUser, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ALL_ROLES } from '@/lib/rbac'
 
 // GET /api/profile/saved-articles - full bookmark list with article data
 export async function GET() {
@@ -37,9 +38,8 @@ export async function GET() {
 
 // DELETE /api/profile/saved-articles?articleId=xxx - remove a bookmark
 export async function DELETE(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  const authError2 = requireActiveSession(session)
-  if (authError2) return authError2
+  const user = await getVerifiedSessionUser(ALL_ROLES)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const articleId = searchParams.get('articleId')
@@ -47,7 +47,7 @@ export async function DELETE(request: NextRequest) {
 
   try {
     await prisma.bookmark.deleteMany({
-      where: { userId: session!.user.id, articleId },
+      where: { userId: user.id, articleId },
     })
     return NextResponse.json({ ok: true })
   } catch {

@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions, requireActiveSession } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import path from 'path'
 import { pathToFileURL } from 'url'
+import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 
 // DOMMatrix polyfill: pdfjs-dist uses it even during text extraction,
 // but Node.js does not expose it as a global. This minimal implementation
@@ -105,9 +105,8 @@ function ensureDOMMatrix() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  const authError = requireActiveSession(session)
-  if (authError) return authError
+  const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
+  if (!user) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
     const formData = await request.formData()
