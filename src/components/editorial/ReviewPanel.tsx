@@ -149,9 +149,9 @@ export function ReviewPanel({ article }: Props) {
 
         {error && <p className="mb-4 border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</p>}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Article preview with inline commenting */}
-          <div className="lg:col-span-2 bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
+          {/* Article preview with inline commenting - full height, page scrolls */}
+          <div className="lg:col-span-2 bg-[var(--bg-elevated)] border border-[var(--border)]">
             <div className="px-4 sm:px-6 py-3 border-b border-[var(--border)] flex items-center justify-between">
               <span className="text-xs font-bold text-[var(--fg-faint)] uppercase tracking-wider">
                 Article Content
@@ -168,7 +168,7 @@ export function ReviewPanel({ article }: Props) {
                 </Link>
               </div>
             </div>
-            <div className="p-4 sm:p-6 prose-consilium max-h-[40vh] sm:max-h-[60vh] overflow-y-auto text-sm">
+            <div className="p-4 sm:p-6 prose-consilium text-sm">
               <ArticlePreviewWithComments
                 content={article.content}
                 articleId={article.id}
@@ -183,8 +183,8 @@ export function ReviewPanel({ article }: Props) {
             </div>
           </div>
 
-          {/* Actions + comments right panel */}
-          <div className="space-y-4">
+          {/* Actions + comments right panel - sticky so it stays visible while reading */}
+          <div className="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
             {/* Tab bar */}
             <div className="flex border border-[var(--border)] bg-[var(--bg-elevated)]">
               <button

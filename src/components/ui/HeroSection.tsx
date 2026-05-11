@@ -28,12 +28,12 @@ export function HeroSection({ featured, sideArticles }: HeroSectionProps) {
 
   return (
     <AnimateIn variant="fade-up" duration={0.6}>
-      <section className="py-8 lg:py-10 border-b border-[var(--border)]">
+      <section className="py-4 lg:py-6 border-b border-[var(--border)]">
         {/* Width matches navbar: full-width with same horizontal padding */}
         <div className="w-full pl-3 pr-4 sm:pl-5 sm:pr-6 lg:pl-7 lg:pr-8">
 
           {/* Desktop: left 2/3 featured + right 1/3 three cards */}
-          <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
 
             {/* ── Featured article (2/3 width on lg+) ── */}
             <Link
@@ -41,8 +41,8 @@ export function HeroSection({ featured, sideArticles }: HeroSectionProps) {
               className="block lg:w-2/3 border-r-0 lg:border-r border-gray-200 dark:border-gray-700 group bg-[var(--bg-elevated)] flex-shrink-0"
               aria-label={`Featured: ${featured.title}`}
             >
-              {/* Cover image: fixed aspect ratio, no overlay */}
-              <div className="relative w-full overflow-hidden bg-navy" style={{ aspectRatio: '16 / 9' }}>
+              {/* Cover image: viewport-relative height so it never pushes below the fold */}
+              <div className="relative w-full overflow-hidden bg-navy h-[26vh] min-h-[160px] max-h-[280px]">
                 {featured.coverImage ? (
                   <BlurImage
                     src={featured.coverImage}
@@ -64,9 +64,9 @@ export function HeroSection({ featured, sideArticles }: HeroSectionProps) {
                 )}
               </div>
 
-              {/* Text block: clean space below image */}
-              <div className="p-5 sm:p-6">
-                <div className="flex items-center justify-between mb-3">
+              {/* Text block */}
+              <div className="p-3 sm:p-4">
+                <div className="flex items-center justify-between mb-2">
                   {featured.category && (
                     <span className="category-badge">{featured.category.name}</span>
                   )}
@@ -76,20 +76,15 @@ export function HeroSection({ featured, sideArticles }: HeroSectionProps) {
                   </span>
                 </div>
 
-                <p className="text-gold/70 text-[0.6rem] tracking-[0.25em] uppercase font-bold mb-2">
+                <p className="text-gold/70 text-[0.6rem] tracking-[0.25em] uppercase font-bold mb-1.5">
                   Featured
                 </p>
                 <h2
-                  className="text-xl sm:text-2xl lg:text-3xl font-bold text-[var(--fg)] leading-tight mb-3 group-hover:text-gold transition-colors duration-200 line-clamp-3"
+                  className="text-lg sm:text-xl lg:text-2xl font-bold text-[var(--fg)] leading-tight mb-2 group-hover:text-gold transition-colors duration-200 line-clamp-2"
                   style={{ fontFamily: 'var(--font-serif)' }}
                 >
                   {featured.title}
                 </h2>
-                {featured.excerpt && (
-                  <p className="text-[var(--fg-muted)] text-sm leading-relaxed line-clamp-2 mb-4 hidden sm:block">
-                    {featured.excerpt}
-                  </p>
-                )}
                 <div className="flex items-center gap-2 text-[var(--fg-faint)] text-xs">
                   <span className="font-semibold text-[var(--fg-muted)]">
                     {displayAuthorName(featured.author.name)}
@@ -105,7 +100,7 @@ export function HeroSection({ featured, sideArticles }: HeroSectionProps) {
             </Link>
 
             {/* ── Side cards (1/3 width on lg+): each card is individually bordered ── */}
-            <div className="lg:w-1/3 flex flex-col gap-3">
+            <div className="lg:w-1/3 flex flex-col gap-2.5">
               {three.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center p-8 border border-gray-200 dark:border-gray-700 rounded-sm bg-[var(--bg-elevated)]">
                   <p className="text-[var(--fg-faint)] text-xs uppercase tracking-widest">
@@ -117,17 +112,17 @@ export function HeroSection({ featured, sideArticles }: HeroSectionProps) {
                   <Link
                     key={article.id}
                     href={`/articles/${article.slug}`}
-                    className="flex gap-3 group border border-gray-200 dark:border-gray-700 rounded-sm p-3 bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] transition-colors duration-150"
+                    className="flex gap-3 group border border-gray-200 dark:border-gray-700 rounded-sm p-2.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] transition-colors duration-150"
                   >
                     {/* Thumbnail */}
-                    <div className="relative w-20 sm:w-24 flex-shrink-0 bg-navy/10 overflow-hidden rounded-sm self-start" style={{ aspectRatio: '4 / 3' }}>
+                    <div className="relative w-16 sm:w-20 flex-shrink-0 bg-navy/10 overflow-hidden rounded-sm self-start" style={{ aspectRatio: '4 / 3' }}>
                       {article.coverImage ? (
                         <BlurImage
                           src={article.coverImage}
                           alt={article.title}
                           fill
                           className="object-cover object-center transition-transform duration-300 group-hover:scale-[1.04]"
-                          sizes="96px"
+                          sizes="80px"
                         />
                       ) : (
                         <div className="absolute inset-0 bg-gradient-to-br from-navy to-navy-light flex items-center justify-center">
@@ -149,12 +144,12 @@ export function HeroSection({ featured, sideArticles }: HeroSectionProps) {
                         </span>
                       )}
                       <h3
-                        className="text-sm font-semibold text-[var(--fg)] leading-snug group-hover:text-gold transition-colors duration-150 line-clamp-2 flex-1"
+                        className="text-xs font-semibold text-[var(--fg)] leading-snug group-hover:text-gold transition-colors duration-150 line-clamp-2 flex-1"
                         style={{ fontFamily: 'var(--font-serif)' }}
                       >
                         {article.title}
                       </h3>
-                      <div className="flex items-center gap-1.5 text-[var(--fg-faint)] text-[0.65rem] mt-2">
+                      <div className="flex items-center gap-1.5 text-[var(--fg-faint)] text-[0.6rem] mt-1.5">
                         <span className="truncate">{displayAuthorName(article.author.name)}</span>
                         {article.publishedAt && (
                           <>
