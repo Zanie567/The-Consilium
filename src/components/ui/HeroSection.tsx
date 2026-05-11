@@ -29,15 +29,16 @@ export function HeroSection({ featured, sideArticles }: HeroSectionProps) {
   return (
     <AnimateIn variant="fade-up" duration={0.6}>
       <section className="py-8 lg:py-10 border-b border-[var(--border)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Width matches navbar: full-width with same horizontal padding */}
+        <div className="w-full pl-3 pr-4 sm:pl-5 sm:pr-6 lg:pl-7 lg:pr-8">
 
           {/* Desktop: left 2/3 featured + right 1/3 three cards */}
-          <div className="flex flex-col lg:flex-row border border-[var(--border)]">
+          <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
 
             {/* ── Featured article (2/3 width on lg+) ── */}
             <Link
               href={`/articles/${featured.slug}`}
-              className="block lg:w-2/3 border-r-0 lg:border-r border-[var(--border)] group bg-[var(--bg-elevated)] flex-shrink-0"
+              className="block lg:w-2/3 border-r-0 lg:border-r border-gray-200 dark:border-gray-700 group bg-[var(--bg-elevated)] flex-shrink-0"
               aria-label={`Featured: ${featured.title}`}
             >
               {/* Cover image: fixed aspect ratio, no overlay */}
@@ -103,29 +104,29 @@ export function HeroSection({ featured, sideArticles }: HeroSectionProps) {
               </div>
             </Link>
 
-            {/* ── Side cards (1/3 width on lg+) ── */}
-            <div className="lg:w-1/3 flex flex-col border-t lg:border-t-0 bg-[var(--bg-elevated)]">
+            {/* ── Side cards (1/3 width on lg+): each card is individually bordered ── */}
+            <div className="lg:w-1/3 flex flex-col gap-3">
               {three.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center p-8">
+                <div className="flex-1 flex items-center justify-center p-8 border border-gray-200 dark:border-gray-700 rounded-sm bg-[var(--bg-elevated)]">
                   <p className="text-[var(--fg-faint)] text-xs uppercase tracking-widest">
                     More stories soon
                   </p>
                 </div>
               ) : (
-                three.map((article, index) => (
+                three.map((article) => (
                   <Link
                     key={article.id}
                     href={`/articles/${article.slug}`}
-                    className={`flex gap-4 group hover:bg-[var(--bg-subtle)] transition-colors duration-150 p-4 sm:p-5${index < three.length - 1 ? ' border-b border-gray-100 dark:border-gray-800' : ''}`}
+                    className="flex gap-3 group border border-gray-200 dark:border-gray-700 rounded-sm p-3 bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] transition-colors duration-150"
                   >
                     {/* Thumbnail */}
-                    <div className="relative w-20 sm:w-24 flex-shrink-0 bg-navy/10 overflow-hidden self-start" style={{ aspectRatio: '4 / 3' }}>
+                    <div className="relative w-20 sm:w-24 flex-shrink-0 bg-navy/10 overflow-hidden rounded-sm self-start" style={{ aspectRatio: '4 / 3' }}>
                       {article.coverImage ? (
                         <BlurImage
                           src={article.coverImage}
                           alt={article.title}
                           fill
-                          className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+                          className="object-cover object-center transition-transform duration-300 group-hover:scale-[1.04]"
                           sizes="96px"
                         />
                       ) : (
@@ -141,14 +142,14 @@ export function HeroSection({ featured, sideArticles }: HeroSectionProps) {
                     </div>
 
                     {/* Content */}
-                    <div className="flex flex-col justify-between flex-1 min-w-0">
+                    <div className="flex flex-col flex-1 min-w-0">
                       {article.category && (
                         <span className="text-gold text-[0.6rem] font-bold tracking-[0.15em] uppercase mb-1 truncate">
                           {article.category.name}
                         </span>
                       )}
                       <h3
-                        className="text-sm font-semibold text-[var(--fg)] leading-snug group-hover:text-gold transition-colors duration-150 line-clamp-3 flex-1"
+                        className="text-sm font-semibold text-[var(--fg)] leading-snug group-hover:text-gold transition-colors duration-150 line-clamp-2 flex-1"
                         style={{ fontFamily: 'var(--font-serif)' }}
                       >
                         {article.title}
