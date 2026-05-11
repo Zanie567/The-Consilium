@@ -13,7 +13,7 @@ import type { Period } from './AnalyticsDashboard'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip)
 
-interface OverviewData {
+export interface OverviewData {
   summary: {
     viewsInPeriod: number
     viewsChange: number | null

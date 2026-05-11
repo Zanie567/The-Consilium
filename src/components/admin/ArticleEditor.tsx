@@ -33,6 +33,7 @@ const TiptapEditor = dynamic(
     saveStatus?: 'idle' | 'saving' | 'saved' | 'error'
     toolbarPortalRef?: React.RefObject<HTMLDivElement | null>
     noWrapper?: boolean
+    darkMode?: boolean
   } &
   React.RefAttributes<TiptapEditorHandle>
 >
@@ -452,15 +453,15 @@ export function ArticleEditor({
     <div className="space-y-0">
 
       {/* Read time + word count */}
-      <div className="flex items-center gap-2 pb-3 mb-1 border-b border-[#e8e8e8]">
-        <Clock size={11} className="text-[#aaa] shrink-0" />
-        <span className="text-[12px] text-[#aaa] uppercase tracking-wider font-medium">
+      <div className="flex items-center gap-2 pb-3 mb-1 border-b border-[var(--border)]">
+        <Clock size={11} className="text-[var(--fg-faint)] shrink-0" />
+        <span className="text-[12px] text-[var(--fg-faint)] uppercase tracking-wider font-medium">
           {content.length > 2 ? readTimeLabel(content) : '- min read'}
         </span>
         {content.length > 2 && (
           <>
-            <span className="text-[#ddd]">·</span>
-            <span className="text-[12px] text-[#aaa] uppercase tracking-wider font-medium">
+            <span className="text-[var(--fg-faint)]">·</span>
+            <span className="text-[12px] text-[var(--fg-faint)] uppercase tracking-wider font-medium">
               {wordCountFromContent(content).toLocaleString()} words
             </span>
           </>
@@ -470,12 +471,12 @@ export function ArticleEditor({
       {/* Status */}
       {!isWriter ? (
         <div>
-          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Status</label>
+          <label className="block text-[10px] uppercase tracking-[0.08em] text-[var(--fg-faint)] mb-1 mt-3">Status</label>
           <div className="relative">
             <select
               value={status}
               onChange={(e) => { setStatus(e.target.value); statusRef.current = e.target.value; scheduleAutosave() }}
-              className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer"
+              className="w-full h-8 text-[16px] sm:text-[12px] border border-[var(--border)] rounded px-2 pr-6 bg-[var(--bg-elevated)] focus:outline-none focus:border-gold appearance-none cursor-pointer"
             >
               <option value="DRAFT">Draft</option>
               <option value="PENDING_REVIEW">Pending Review</option>
@@ -483,12 +484,12 @@ export function ArticleEditor({
               {canPublish && <option value="SCHEDULED">Scheduled</option>}
               <option value="ARCHIVED">Archived</option>
             </select>
-            <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
+            <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--fg-faint)] pointer-events-none" />
           </div>
         </div>
       ) : (
         <div>
-          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Status</label>
+          <label className="block text-[10px] uppercase tracking-[0.08em] text-[var(--fg-faint)] mb-1 mt-3">Status</label>
           <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-widest px-2 py-1 border rounded ${STATUS_COLOURS[currentStatus] ?? STATUS_COLOURS.DRAFT}`}>
             {STATUS_LABELS[currentStatus] ?? currentStatus}
           </span>
@@ -498,7 +499,7 @@ export function ArticleEditor({
       {/* Author override - only visible to editors/admins */}
       {!isWriter && users.length > 0 && (
         <div>
-          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Author</label>
+          <label className="block text-[10px] uppercase tracking-[0.08em] text-[var(--fg-faint)] mb-1 mt-3">Author</label>
           <div className="relative">
             <select
               value={selectedAuthorId}
@@ -508,7 +509,7 @@ export function ArticleEditor({
                 scheduleAutosave()
               }}
               disabled={!canEdit}
-              className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer disabled:opacity-60"
+              className="w-full h-8 text-[16px] sm:text-[12px] border border-[var(--border)] rounded px-2 pr-6 bg-[var(--bg-elevated)] focus:outline-none focus:border-gold appearance-none cursor-pointer disabled:opacity-60"
             >
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
@@ -517,7 +518,7 @@ export function ArticleEditor({
                 </option>
               ))}
             </select>
-            <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
+            <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--fg-faint)] pointer-events-none" />
           </div>
         </div>
       )}
@@ -525,7 +526,7 @@ export function ArticleEditor({
       {/* Scheduled date */}
       {!isWriter && status === 'SCHEDULED' && (
         <div>
-          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">
+          <label className="block text-[10px] uppercase tracking-[0.08em] text-[var(--fg-faint)] mb-1 mt-3">
             Publish At ({EDITORIAL_TIME_ZONE_LABEL})
           </label>
           <input
@@ -533,9 +534,9 @@ export function ArticleEditor({
             value={scheduledAt}
             min={getEditorialScheduleMinInput()}
             onChange={(e) => { setScheduledAt(e.target.value); scheduledAtRef.current = e.target.value; scheduleAutosave() }}
-            className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] cursor-pointer"
+            className="w-full h-8 text-[16px] sm:text-[12px] border border-[var(--border)] rounded px-2 bg-[var(--bg-elevated)] focus:outline-none focus:border-gold cursor-pointer"
           />
-          <p className="text-[10px] text-[#999] mt-1">
+          <p className="text-[10px] text-[var(--fg-faint)] mt-1">
             Stored and displayed as UK editorial time.
           </p>
           {!scheduledAt && (
@@ -546,35 +547,35 @@ export function ArticleEditor({
 
       {/* Category */}
       <div>
-        <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Category</label>
+        <label className="block text-[10px] uppercase tracking-[0.08em] text-[var(--fg-faint)] mb-1 mt-3">Category</label>
         <div className="relative">
           <select
             value={categoryId}
             onChange={(e) => { setCategoryId(e.target.value); categoryIdRef.current = e.target.value; scheduleAutosave() }}
             disabled={!canEdit}
-            className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 pr-6 bg-white focus:outline-none focus:border-[#1a2744] appearance-none cursor-pointer disabled:opacity-60"
+            className="w-full h-8 text-[16px] sm:text-[12px] border border-[var(--border)] rounded px-2 pr-6 bg-[var(--bg-elevated)] focus:outline-none focus:border-gold appearance-none cursor-pointer disabled:opacity-60"
           >
             <option value="">No category</option>
             {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>{cat.name}</option>
             ))}
           </select>
-          <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
+          <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--fg-faint)] pointer-events-none" />
         </div>
       </div>
 
       {/* Cover image */}
       <div>
-        <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">Cover Image</label>
+        <label className="block text-[10px] uppercase tracking-[0.08em] text-[var(--fg-faint)] mb-1 mt-3">Cover Image</label>
         <input ref={coverFileRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
         <input
           type="url"
           value={coverImage}
           onChange={(e) => { setCoverImage(e.target.value); coverImageRef.current = e.target.value; scheduleAutosave() }}
           placeholder="https://..."
-          className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] placeholder:text-[#ccc]"
+          className="w-full h-8 text-[16px] sm:text-[12px] border border-[var(--border)] rounded px-2 bg-[var(--bg-elevated)] focus:outline-none focus:border-gold placeholder:text-[var(--fg-faint)]"
         />
-        {uploading && <p className="text-[10px] text-[#999] mt-1">Uploading…</p>}
+        {uploading && <p className="text-[10px] text-[var(--fg-faint)] mt-1">Uploading…</p>}
         {coverError && <p className="text-[10px] text-red-500 mt-1">{coverError}</p>}
         {coverImage && (
           <div className="mt-2 relative">
@@ -582,7 +583,7 @@ export function ArticleEditor({
             <img
               src={coverImage}
               alt="Cover preview"
-              className="w-full object-contain rounded border border-[#e0e0e0] bg-[#f5f5f5]"
+              className="w-full object-contain rounded border border-[var(--border)] bg-[var(--bg-subtle)]"
               style={{ maxHeight: 80 }}
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
             />
@@ -603,7 +604,7 @@ export function ArticleEditor({
             type="button"
             onClick={() => coverFileRef.current?.click()}
             disabled={uploading}
-            className="mt-2 w-full h-7 text-[11px] border border-dashed border-[#d0d0d0] rounded text-[#aaa] hover:border-[#999] hover:text-[#666] transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
+            className="mt-2 w-full h-7 text-[11px] border border-dashed border-[var(--border)] rounded text-[var(--fg-faint)] hover:border-gold hover:text-[var(--fg-muted)] transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
           >
             <ImagePlus size={11} />
             {uploading ? 'Uploading…' : 'Upload file'}
@@ -616,14 +617,14 @@ export function ArticleEditor({
 
       {/* Tags */}
       <div>
-        <label className="text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3 flex items-center gap-1">
+        <label className="text-[10px] uppercase tracking-[0.08em] text-[var(--fg-faint)] mb-1 mt-3 flex items-center gap-1">
           <Tag size={9} />
           Tags
         </label>
         {tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-1.5 mt-1">
             {tags.map((t) => (
-              <span key={t} className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 bg-[#f1f3f4] rounded text-[#555]">
+              <span key={t} className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 bg-[var(--bg-subtle)] rounded text-[var(--fg-muted)]">
                 {t}
                 {canEdit && (
                   <button
@@ -648,22 +649,22 @@ export function ArticleEditor({
             onBlur={() => tagInput && addTag(tagInput)}
             placeholder={tags.length < 10 ? 'Add a tag, press Enter...' : 'Max 10 tags'}
             disabled={tags.length >= 10}
-            className="w-full h-8 text-[16px] sm:text-[12px] border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744] placeholder:text-[#ccc] disabled:opacity-50"
+            className="w-full h-8 text-[16px] sm:text-[12px] border border-[var(--border)] rounded px-2 bg-[var(--bg-elevated)] focus:outline-none focus:border-gold placeholder:text-[var(--fg-faint)] disabled:opacity-50"
           />
         )}
-        <p className="text-[10px] text-[#ccc] mt-1">Separate with Enter or comma. Up to 10.</p>
+        <p className="text-[10px] text-[var(--fg-faint)] mt-1">Separate with Enter or comma. Up to 10.</p>
       </div>
 
       {/* URL slug */}
       {!isWriter && (
         <div>
-          <label className="block text-[10px] uppercase tracking-[0.08em] text-[#999] mb-1 mt-3">URL Slug</label>
+          <label className="block text-[10px] uppercase tracking-[0.08em] text-[var(--fg-faint)] mb-1 mt-3">URL Slug</label>
           <input
             type="text"
             value={slug}
             onChange={(e) => { setSlug(e.target.value); slugRef.current = e.target.value; scheduleAutosave() }}
             placeholder="url-slug"
-            className="w-full h-8 text-[16px] sm:text-[11px] font-mono border border-[#d0d0d0] rounded px-2 bg-white focus:outline-none focus:border-[#1a2744]"
+            className="w-full h-8 text-[16px] sm:text-[11px] font-mono border border-[var(--border)] rounded px-2 bg-[var(--bg-elevated)] focus:outline-none focus:border-gold"
           />
         </div>
       )}
@@ -675,10 +676,10 @@ export function ArticleEditor({
     <div className="min-h-full">
 
       {/* FIXED: Top chrome (48px) - full-width on mobile, offset by sidebar on md+ */}
-      <div className="fixed top-0 left-0 md:left-12 lg:left-[220px] right-0 z-50 h-12 bg-white dark:bg-[#1a1a1a] border-b border-[#e0e0e0] dark:border-[#333] flex items-center pl-[52px] md:pl-3 pr-3 gap-2">
+      <div className="fixed top-0 left-0 md:left-12 lg:left-[220px] right-0 z-50 h-12 bg-[var(--bg-elevated)] border-b border-[var(--border)] flex items-center pl-[52px] md:pl-3 pr-3 gap-2">
         <button
           onClick={handleBack}
-          className="p-1.5 rounded hover:bg-[#f1f3f4] text-[#555] transition-colors shrink-0"
+          className="p-1.5 rounded text-[var(--fg-muted)] hover:bg-[var(--bg-subtle)] hover:text-gold transition-colors shrink-0"
           aria-label="Back to articles"
         >
           <ArrowLeft size={16} />
@@ -691,7 +692,7 @@ export function ArticleEditor({
           onChange={(e) => updateTitle(e.target.value)}
           disabled={!canEdit}
           placeholder="Untitled document"
-          className="flex-1 min-w-0 bg-transparent border-none outline-none placeholder:text-[#bbb] dark:placeholder:text-[#555] disabled:opacity-60 text-[#1a1a1a] dark:text-[#e8e8e8]"
+          className="flex-1 min-w-0 bg-transparent border-none outline-none placeholder:text-[var(--fg-faint)] disabled:opacity-60 text-[var(--fg)]"
           style={{ fontSize: 16 }}
         />
 
@@ -704,13 +705,13 @@ export function ArticleEditor({
         <div className="shrink-0 flex items-center gap-1 min-w-[70px] justify-end">
           {saveStatus === 'saving' && (
             <>
-              <Loader2 size={11} className="animate-spin text-[#aaa]" />
-              <span className="text-[11px] text-[#aaa] hidden sm:inline">Saving…</span>
+              <Loader2 size={11} className="animate-spin text-[var(--fg-faint)]" />
+              <span className="text-[11px] text-[var(--fg-faint)] hidden sm:inline">Saving…</span>
             </>
           )}
           {saveStatus === 'saved' && (
             <span
-              className="flex items-center gap-1 text-[11px] text-[#aaa] transition-opacity duration-1000"
+              className="flex items-center gap-1 text-[11px] text-[var(--fg-faint)] transition-opacity duration-1000"
               style={{ opacity: savedVisible ? 1 : 0 }}
             >
               <Check size={11} className="text-emerald-500" />
@@ -731,7 +732,7 @@ export function ArticleEditor({
             href={`/articles/${slug}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden md:inline-flex shrink-0 items-center gap-1 text-[#555] text-[12px] px-2.5 h-8 rounded border border-[#d0d0d0] hover:border-[#1a2744] hover:text-[#1a2744] transition-colors"
+            className="hidden md:inline-flex shrink-0 items-center gap-1 text-[var(--fg-muted)] text-[12px] px-2.5 h-8 rounded border border-[var(--border)] hover:border-gold hover:text-gold transition-colors"
           >
             <Eye size={12} />
             View live
@@ -743,7 +744,7 @@ export function ArticleEditor({
           <button
             onClick={() => setTheme(isDark ? 'light' : 'dark')}
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            className="shrink-0 p-1.5 rounded hover:bg-[#f1f3f4] dark:hover:bg-[#2a2a2a] text-[#555] dark:text-[#aaa] transition-colors"
+            className="shrink-0 p-1.5 rounded text-[var(--fg-muted)] hover:bg-[var(--bg-subtle)] hover:text-gold transition-colors"
           >
             {isDark ? <Sun size={15} /> : <Moon size={15} />}
           </button>
@@ -753,7 +754,7 @@ export function ArticleEditor({
         <button
           onClick={() => setTutorialOpen(true)}
           aria-label="Open editor tutorial"
-          className="shrink-0 w-7 h-7 rounded-full border border-[#d0d0d0] bg-transparent flex items-center justify-center text-[13px] font-medium text-[#555] hover:bg-[#f1f3f4] transition-colors dark:border-[#444] dark:text-[#aaa] dark:hover:bg-[#2a2a2a]"
+          className="shrink-0 w-7 h-7 rounded-full border border-[var(--border)] bg-transparent flex items-center justify-center text-[13px] font-medium text-[var(--fg-muted)] hover:bg-[var(--bg-subtle)] hover:text-gold transition-colors"
         >
           ?
         </button>
@@ -763,7 +764,7 @@ export function ArticleEditor({
           <button
             onClick={() => handleSave()}
             disabled={saveStatus === 'saving'}
-            className="hidden sm:inline-flex shrink-0 items-center gap-1 text-[#555] text-[12px] px-3 h-8 rounded border border-[#d0d0d0] hover:border-[#1a2744] hover:text-[#1a2744] transition-colors disabled:opacity-50"
+            className="hidden sm:inline-flex shrink-0 items-center gap-1 text-[var(--fg-muted)] text-[12px] px-3 h-8 rounded border border-[var(--border)] hover:border-gold hover:text-gold transition-colors disabled:opacity-50"
           >
             <Save size={12} />
             Save draft
@@ -785,7 +786,7 @@ export function ArticleEditor({
           <button
             onClick={() => handleSave(status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED')}
             disabled={saveStatus === 'saving'}
-            className="shrink-0 inline-flex items-center gap-1 bg-[#1a2744] text-[#c9a227] text-[12px] font-semibold px-3 h-8 rounded hover:bg-[#243460] transition-colors disabled:opacity-50"
+            className="shrink-0 inline-flex items-center gap-1 bg-navy text-gold text-[12px] font-semibold px-3 h-8 rounded hover:bg-navy-dark transition-colors disabled:opacity-50"
           >
             <Send size={12} />
             {status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
@@ -805,7 +806,7 @@ export function ArticleEditor({
         {/* Mobile settings icon */}
         <button
           onClick={() => setSettingsOpen((o) => !o)}
-          className="min-[1100px]:hidden shrink-0 p-1.5 rounded hover:bg-[#f1f3f4] text-[#555] transition-colors"
+          className="min-[1100px]:hidden shrink-0 p-1.5 rounded text-[var(--fg-muted)] hover:bg-[var(--bg-subtle)] hover:text-gold transition-colors"
           aria-label="Document settings"
         >
           <Settings size={16} />
@@ -819,7 +820,7 @@ export function ArticleEditor({
       />
 
       {/* Content - offset by top chrome (48px) + measured toolbar height */}
-      <div className="min-h-screen bg-[#f0f0f0] dark:bg-[#111]" style={{ paddingTop: 48 + toolbarHeight + 4 }}>
+      <div className="min-h-screen bg-[var(--bg-subtle)]" style={{ paddingTop: 48 + toolbarHeight + 4 }}>
 
         {/* Banners */}
         {(initialData?.editorNote || error || !canEdit) && (
@@ -827,7 +828,7 @@ export function ArticleEditor({
             {initialData?.editorNote && (
               <div className="bg-amber-500/8 border border-amber-500/20 px-4 py-3 rounded">
                 <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Editor feedback</p>
-                <p className="text-sm text-[#555] leading-relaxed">{initialData.editorNote}</p>
+                <p className="text-sm text-[var(--fg-muted)] leading-relaxed">{initialData.editorNote}</p>
               </div>
             )}
             {error && (
@@ -837,7 +838,7 @@ export function ArticleEditor({
               </div>
             )}
             {!canEdit && (
-              <div className="bg-white border border-[#e0e0e0] px-4 py-3 rounded text-[#666] text-sm">
+            <div className="bg-[var(--bg-elevated)] border border-[var(--border)] px-4 py-3 rounded text-[var(--fg-muted)] text-sm">
                 This article is under review and cannot be edited until an editor responds.
               </div>
             )}
@@ -849,7 +850,7 @@ export function ArticleEditor({
 
           {/* Document card */}
           <div
-            className="flex-none w-full max-w-[1100px] bg-white dark:bg-[#1e1e1e]"
+            className="flex-none w-full max-w-[960px] bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)]"
             style={{
               boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)',
               minHeight: 'calc(100vh - 120px)',
@@ -858,7 +859,7 @@ export function ArticleEditor({
 
             {/* Cover image block - full bleed above padded content */}
             <div
-              className="relative group w-full overflow-hidden bg-[#f5f5f5]"
+              className="relative group w-full overflow-hidden bg-[var(--bg-subtle)]"
               style={{ height: coverImage ? 240 : undefined }}
             >
               {coverImage ? (
@@ -898,7 +899,7 @@ export function ArticleEditor({
                     type="button"
                     onClick={() => coverFileRef.current?.click()}
                     disabled={uploading}
-                    className="w-full py-5 flex items-center justify-center gap-2 text-[#aaa] text-sm font-bold hover:text-[#888] hover:bg-[#ebebeb] transition-colors disabled:opacity-50 tracking-wide"
+                    className="w-full py-6 flex items-center justify-center gap-2 text-[var(--fg-faint)] text-sm font-bold hover:text-gold hover:bg-[var(--bg)] transition-colors disabled:opacity-50 tracking-wide"
                   >
                     <ImagePlus size={16} />
                     {uploading ? 'Uploading…' : 'Add cover image'}
@@ -907,7 +908,7 @@ export function ArticleEditor({
               )}
             </div>
 
-            <div className="px-5 py-8 sm:px-10 sm:py-12 md:px-16 md:py-14 lg:px-24 xl:px-[140px] xl:py-[80px]">
+            <div className="px-6 py-10 sm:px-10 sm:py-12 md:px-16 md:py-16 lg:px-20 xl:px-24">
 
               {/* Headline */}
               <textarea
@@ -917,14 +918,8 @@ export function ArticleEditor({
                 disabled={!canEdit}
                 placeholder="Your headline here..."
                 rows={1}
-                className="w-full bg-transparent border-none outline-none resize-none leading-tight placeholder:text-[#bbb] disabled:opacity-60 overflow-hidden mb-3"
-                style={{
-                  color: '#1a1a1a',
-                  fontFamily: 'var(--font-serif)',
-                  /* clamp handles iOS zoom threshold (min 16px) */
-                  fontSize: 'clamp(1rem, 5vw, 2.5rem)',
-                  fontWeight: 700,
-                }}
+                className="w-full bg-transparent border-none outline-none resize-none text-4xl sm:text-5xl font-bold leading-tight placeholder:text-[var(--fg-faint)] disabled:opacity-60 overflow-hidden mb-4 text-[var(--fg)]"
+                style={{ fontFamily: 'var(--font-serif)' }}
               />
 
               {/* Excerpt */}
@@ -935,8 +930,7 @@ export function ArticleEditor({
                 disabled={!canEdit}
                 placeholder="Write a brief summary that draws readers in..."
                 rows={2}
-                className="w-full bg-transparent border-none outline-none resize-none leading-relaxed placeholder:text-[#ccc] disabled:opacity-60 overflow-hidden"
-                style={{ color: '#666', fontStyle: 'italic', fontSize: '1.1rem' }}
+                className="w-full bg-transparent border-none outline-none resize-none text-xl italic leading-relaxed placeholder:text-[var(--fg-faint)] disabled:opacity-60 overflow-hidden text-[var(--fg-muted)]"
               />
 
               {/* Body editor */}
@@ -949,14 +943,15 @@ export function ArticleEditor({
                   saveStatus={saveStatus}
                   toolbarPortalRef={toolbarPortalRef}
                   noWrapper
+                  darkMode={isDark}
                 />
               </div>
             </div>
           </div>
 
           {/* Right metadata panel (hidden below 1100px) */}
-          <div className="hidden min-[1100px]:block flex-none w-[220px] sticky top-24">
-            <div className="bg-white dark:bg-[#1a1a1a] border border-[#e0e0e0] dark:border-[#333] rounded-lg p-4 overflow-hidden">
+          <div className="hidden min-[1100px]:block flex-none w-[280px] sticky top-24">
+            <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg p-5 overflow-hidden shadow-[var(--shadow-card)]">
               {renderMetadataFields()}
             </div>
           </div>
@@ -986,7 +981,7 @@ export function ArticleEditor({
 
       {/* Bottom sheet */}
       <div
-        className="fixed inset-x-0 bottom-0 z-[61] bg-white rounded-t-2xl shadow-2xl overflow-hidden flex flex-col"
+        className="fixed inset-x-0 bottom-0 z-[61] bg-[var(--bg-elevated)] rounded-t-2xl shadow-2xl overflow-hidden flex flex-col"
         style={{
           maxHeight: '82vh',
           transform: settingsOpen ? 'translateY(0)' : 'translateY(100%)',
@@ -997,15 +992,15 @@ export function ArticleEditor({
       >
         {/* Drag handle - decorative iOS-style pill */}
         <div className="flex justify-center pt-3 pb-1 shrink-0">
-          <div className="w-10 h-1 rounded-full bg-[#d0d0d0]" />
+          <div className="w-10 h-1 rounded-full bg-[var(--border)]" />
         </div>
 
         {/* Sheet header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#e8e8e8] shrink-0">
-          <span className="text-sm font-semibold text-[#333]">Document settings</span>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] shrink-0">
+          <span className="text-sm font-semibold text-[var(--fg)]">Document settings</span>
           <button
             onClick={() => setSettingsOpen(false)}
-            className="text-[#999] hover:text-[#333] transition-colors p-1.5 rounded-md hover:bg-[#f1f3f4] active:scale-[0.92] transition-transform"
+            className="text-[var(--fg-faint)] hover:text-[var(--fg)] transition-colors p-1.5 rounded-md hover:bg-[var(--bg-subtle)] active:scale-[0.92] transition-transform"
             aria-label="Close settings"
           >
             <X size={16} />
@@ -1031,14 +1026,14 @@ export function ArticleEditor({
             className="fixed inset-0 z-[71] flex items-center justify-center p-4 pointer-events-none"
           >
             <div
-              className="pointer-events-auto w-full bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-2xl flex flex-col"
+              className="pointer-events-auto w-full bg-[var(--bg-elevated)] dark:bg-[var(--bg-elevated)] rounded-2xl shadow-2xl flex flex-col"
               style={{ maxWidth: 680, maxHeight: '80vh', borderRadius: 16 }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-[#e8e8e8] dark:border-[#333] shrink-0">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] dark:border-[var(--border)] shrink-0">
                 <h2
-                  className="text-[15px] font-semibold text-[#1a1a1a] dark:text-[#e8e8e8]"
+                  className="text-[15px] font-semibold text-[var(--fg)] dark:text-[var(--fg)]"
                   style={{ fontFamily: 'var(--font-serif)' }}
                 >
                   How to use the article editor
@@ -1046,14 +1041,14 @@ export function ArticleEditor({
                 <button
                   onClick={() => setTutorialOpen(false)}
                   aria-label="Close tutorial"
-                  className="w-7 h-7 flex items-center justify-center rounded text-[#999] dark:text-[#666] hover:bg-[#f1f3f4] dark:hover:bg-[#2a2a2a] hover:text-[#333] dark:hover:text-[#ccc] transition-colors text-[18px] leading-none"
+                  className="w-7 h-7 flex items-center justify-center rounded text-[var(--fg-faint)] dark:text-[var(--fg-muted)] hover:bg-[var(--bg-subtle)] dark:hover:bg-[var(--bg-subtle)] hover:text-[var(--fg)] dark:hover:text-[var(--fg-faint)] transition-colors text-[18px] leading-none"
                 >
                   ×
                 </button>
               </div>
 
               {/* Modal body - scrollable */}
-              <div className="overflow-y-auto px-6 py-5 space-y-0 text-[14px] leading-[1.7] text-[#333] dark:text-[#ccc]">
+              <div className="overflow-y-auto px-6 py-5 space-y-0 text-[14px] leading-[1.7] text-[var(--fg)] dark:text-[var(--fg-faint)]">
 
                 {/* Getting started */}
                 <TutorialSection title="Getting started">
@@ -1148,9 +1143,9 @@ function TutorialSection({
   last?: boolean
 }) {
   return (
-    <div className={`py-4 ${last ? '' : 'border-b border-[#ebebeb] dark:border-[#2e2e2e]'}`}>
+    <div className={`py-4 ${last ? '' : 'border-b border-[var(--border)]'}`}>
       <p
-        className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[#999] dark:text-[#666] mb-2"
+        className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[var(--fg-faint)] dark:text-[var(--fg-muted)] mb-2"
       >
         {title}
       </p>
@@ -1170,13 +1165,13 @@ function TutorialItem({
 }) {
   return (
     <li className="flex items-start gap-2.5">
-      <span className="shrink-0 w-[26px] h-[26px] flex items-center justify-center rounded border border-[#e0e0e0] dark:border-[#333] bg-[#f5f5f5] dark:bg-[#272727] text-[#444] dark:text-[#aaa]">
+      <span className="shrink-0 w-[26px] h-[26px] flex items-center justify-center rounded border border-[var(--border)] dark:border-[var(--border)] bg-[var(--bg-subtle)] dark:bg-[var(--bg-subtle)] text-[var(--fg-muted)] dark:text-[var(--fg-faint)]">
         {icon ?? <span className="text-[10px] font-bold leading-none">{label.slice(0, 2)}</span>}
       </span>
       <span className="flex-1 pt-[3px]">
-        <span className="font-medium text-[#222] dark:text-[#ddd]">{label}</span>
+        <span className="font-medium text-[var(--fg)]">{label}</span>
         {children && (
-          <span className="text-[#666] dark:text-[#888]">: {children}</span>
+          <span className="text-[var(--fg-muted)]">: {children}</span>
         )}
       </span>
     </li>

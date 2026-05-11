@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { subHours, subDays, subWeeks, format, startOfWeek } from 'date-fns'
 import { estimateReadingMinutes } from '@/lib/reading-minutes'
 
-export const ANALYTICS_ROLES = ['ADMIN', 'EDITOR', 'GROWTH']
+export const ANALYTICS_ROLES = ['ADMIN', 'GROWTH']
 
 type Period = '24h' | '7d' | '30d' | '90d'
 type Tab = 'overview' | 'content' | 'audience' | 'engagement' | 'leaderboard' | 'distribution'

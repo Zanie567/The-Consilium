@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 export default async function EditorialEditArticlePage({ params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/editorial/login')
+  if (session.user.role === 'GROWTH') redirect('/editorial')
 
   const { id } = await params
   const isEditorOrAdmin = session.user.role === 'ADMIN' || session.user.role === 'EDITOR'

@@ -43,12 +43,12 @@ The Consilium is a student-run economics publication. This repository contains t
    ```
 
    Key variables:
-   - `DATABASE_URL` — Supabase PostgreSQL connection string (use the Transaction pooler URL)
-   - `NEXTAUTH_SECRET` — random secret, generate with `openssl rand -base64 32`
-   - `NEXTAUTH_URL` — `http://localhost:3000` for local dev
-   - `NEXT_PUBLIC_SITE_URL` — same as `NEXTAUTH_URL` for local dev
-   - `RESEND_API_KEY` — from [resend.com](https://resend.com)
-   - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` — from your Supabase project settings
+   - `DATABASE_URL`: Supabase PostgreSQL connection string, use the Transaction pooler URL
+   - `NEXTAUTH_SECRET`: random secret, generate with `openssl rand -base64 32`
+   - `NEXTAUTH_URL`: `http://localhost:3000` for local dev
+   - `NEXT_PUBLIC_SITE_URL`: same as `NEXTAUTH_URL` for local dev
+   - `RESEND_API_KEY`: from [resend.com](https://resend.com)
+   - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`: from your Supabase project settings
 
 4. **Run the development server**
 
@@ -67,7 +67,7 @@ Articles are created through the editorial portal at `/editorial/articles/new`. 
 1. Sign in at `/editorial/login`
 2. Navigate to **New Article**
 3. Write your article in the rich-text editor (TipTap)
-4. Submit for review — Editors receive an email notification
+4. Submit for review: editors receive an email notification
 5. An Editor reviews and either publishes or returns the article with feedback
 
 ---
@@ -90,9 +90,9 @@ Role changes take effect on the user's next sign-in.
 
 ## Branch naming conventions
 
-- `main` — production. **Never push directly.**
-- `claude/<description>` — branches created by Claude Code
-- `codex/<description>` — branches created by Codex
+- `main`: production. **Never push directly.**
+- `claude/<description>`: branches created by Claude Code
+- `codex/<description>`: branches created by Codex
 - Feature branches should be short-lived and merged via PR.
 
 ---
@@ -120,7 +120,7 @@ To deploy manually:
 2. Open a PR to `main`
 3. Merge after CI passes and at least one review
 
-Environment variables must be set in the Vercel project dashboard — they are **not** automatically synced from `.env.local`.
+Environment variables must be set in the Vercel project dashboard. They are **not** automatically synced from `.env.local`.
 
 ---
 

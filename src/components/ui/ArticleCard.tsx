@@ -29,9 +29,8 @@ export function ArticleCard({ article, badgeLabel }: ArticleCardProps) {
   const readTime = readTimeLabel(article.content)
 
   return (
-    <Link href={`/articles/${article.slug}`} className="block h-full group">
-      <article className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden card-hover shadow-[var(--shadow-card)] h-full flex flex-col">
-        {/* Image */}
+    <article className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden card-hover shadow-[var(--shadow-card)] h-full flex flex-col group">
+      <Link href={`/articles/${article.slug}`} className="block">
         <div className="relative h-48 bg-navy/10 dark:bg-navy/20 overflow-hidden img-zoom flex-shrink-0 isolate">
           {article.coverImage ? (
             <BlurImage
@@ -65,15 +64,17 @@ export function ArticleCard({ article, badgeLabel }: ArticleCardProps) {
             </span>
           </div>
         </div>
+      </Link>
 
-        {/* Content */}
-        <div className="p-5 flex flex-col flex-1">
+      <div className="p-5 flex flex-col flex-1">
+        <Link href={`/articles/${article.slug}`} className="block">
           <h3
             className="text-base font-bold text-[var(--fg)] mb-2 leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2 flex-1"
             style={{ fontFamily: 'var(--font-serif)' }}
           >
             {article.title}
           </h3>
+        </Link>
           {article.excerpt && (
             <p className="text-[var(--fg-muted)] text-sm leading-relaxed mb-4 line-clamp-2">
               {article.excerpt}
@@ -91,7 +92,6 @@ export function ArticleCard({ article, badgeLabel }: ArticleCardProps) {
             </div>
           </div>
         </div>
-      </article>
-    </Link>
+    </article>
   )
 }

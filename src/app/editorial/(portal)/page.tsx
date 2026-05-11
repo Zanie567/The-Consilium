@@ -119,6 +119,10 @@ export default async function EditorialDashboard() {
     }
   }
 
+  const growthMetrics = isGrowth
+    ? await loadGrowthMetrics()
+    : null
+
   return (
     <PortalPage className="p-4 sm:p-6 lg:p-8 max-w-6xl">
       {/* BUG-05: Surface DB errors rather than silently rendering empty data */}
@@ -171,6 +175,41 @@ export default async function EditorialDashboard() {
           </Link>
         )}
       </PortalSection>
+
+      {growthMetrics && (
+        <PortalSection className="mb-6 sm:mb-8">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr]">
+            <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-5 shadow-[var(--shadow-card)]">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--fg)] mb-4">
+                Audience Growth
+              </h2>
+              <div className="grid grid-cols-2 gap-3">
+                <StatCard label="Subscribers" value={growthMetrics.subscriberCount.toLocaleString()} />
+                <StatCard label="New 30 Days" value={growthMetrics.newSubscribers.toLocaleString()} accent="emerald" />
+                <StatCard label="Views 30 Days" value={growthMetrics.viewsLast30.toLocaleString()} />
+                <StatCard label="Total Views" value={totalViews.toLocaleString()} />
+              </div>
+            </div>
+            <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-5 shadow-[var(--shadow-card)]">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--fg)] mb-4">
+                Traffic Sources
+              </h2>
+              <div className="space-y-3">
+                {growthMetrics.sources.length > 0 ? (
+                  growthMetrics.sources.map((source) => (
+                    <div key={source.label} className="flex items-center justify-between border-b border-[var(--border)] pb-2 last:border-0">
+                      <span className="text-sm text-[var(--fg-muted)]">{source.label}</span>
+                      <span className="text-sm font-semibold text-[var(--fg)]">{source.count.toLocaleString()}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-[var(--fg-faint)]">No source data yet.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </PortalSection>
+      )}
 
       {/* Pending Review queue */}
       {isEditor && pendingArticles.length > 0 && (
@@ -403,4 +442,50 @@ function StatCard({
       </p>
     </div>
   )
+}
+
+async function loadGrowthMetrics() {
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const [subscriberCount, newSubscribers, viewsLast30, recentViews] = await Promise.all([
+    prisma.subscriber.count().catch(() => 0),
+    prisma.subscriber.count({ where: { subscribedAt: { gte: since } } }).catch(() => 0),
+    prisma.articleView.count({ where: { viewedAt: { gte: since } } }).catch(() => 0),
+    prisma.articleView
+      .findMany({
+        where: { viewedAt: { gte: since } },
+        select: { source: true, referrer: true },
+        take: 500,
+      })
+      .catch(() => [] as { source: string | null; referrer: string | null }[]),
+  ])
+
+  const counts = new Map<string, number>()
+  for (const view of recentViews) {
+    const label = view.source || classifyReferrer(view.referrer)
+    counts.set(label, (counts.get(label) ?? 0) + 1)
+  }
+
+  return {
+    subscriberCount,
+    newSubscribers,
+    viewsLast30,
+    sources: Array.from(counts.entries())
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5),
+  }
+}
+
+function classifyReferrer(referrer: string | null): string {
+  if (!referrer) return 'Direct'
+  try {
+    const host = new URL(referrer).hostname.replace(/^www\./, '')
+    if (host.includes('google')) return 'Search'
+    if (host.includes('linkedin')) return 'LinkedIn'
+    if (host.includes('instagram')) return 'Instagram'
+    if (host.includes('twitter') || host.includes('x.com') || host.includes('t.co')) return 'X'
+    return host || 'Other'
+  } catch {
+    return 'Other'
+  }
 }

@@ -30,10 +30,14 @@ export async function GET(request: NextRequest) {
   const category = searchParams.get('category')
   const take     = parseInt(searchParams.get('take') ?? '20')
   const mine     = searchParams.get('mine') === 'true'
+  const session = await getServerSession(authOptions)
+
+  if (session?.user.role === 'GROWTH') {
+    return Response.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   // Drafts-for-current-user query (used by My Drafts section + autosave polling)
   if (mine) {
-    const session = await getServerSession(authOptions)
     const authError = requireActiveSession(session)
     if (authError) return authError
 
@@ -74,11 +78,10 @@ export async function GET(request: NextRequest) {
   // Without this check any visitor could retrieve all drafts by passing ?status=DRAFT.
   const requestedStatus = status?.toUpperCase() ?? 'PUBLISHED'
   if (requestedStatus !== 'PUBLISHED') {
-    const session = await getServerSession(authOptions)
     const authError = requireActiveSession(session)
     if (authError) return authError
     const role = (session!.user as { role?: string }).role
-    if (!role || !['ADMIN', 'EDITOR'].includes(role)) {
+    if (!role || !['ADMIN', 'EDITOR', 'WRITER'].includes(role)) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
   }
@@ -89,6 +92,9 @@ export async function GET(request: NextRequest) {
         status: requestedStatus as never,
         deletedAt: null,
         ...(category ? { category: { slug: category } } : {}),
+        ...(session?.user.role === 'WRITER' && requestedStatus !== 'PUBLISHED'
+          ? { authorId: session.user.id }
+          : {}),
       },
       orderBy: { publishedAt: 'desc' },
       take,

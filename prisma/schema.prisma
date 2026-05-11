@@ -383,8 +383,8 @@ model DebateVote {
   side        VoteSide
   createdAt   DateTime @default(now())
 
-  // Authenticated deduplication — one vote per user per debate
-  // Anonymous deduplication  — one vote per anonymousId per debate
+  // Authenticated deduplication: one vote per user per debate
+  // Anonymous deduplication : one vote per anonymousId per debate
   // NULLs are distinct in Postgres unique constraints so these are safe
   @@unique([debateId, userId])
   @@unique([debateId, anonymousId])

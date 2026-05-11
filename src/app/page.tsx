@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { cookies } from 'next/headers'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
@@ -11,7 +12,6 @@ import { CategoryTabs } from '@/components/ui/CategoryTabs'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { ContinueReading } from '@/components/ui/ContinueReading'
 import { ArticleCard } from '@/components/ui/ArticleCard'
-import { BlurImage } from '@/components/ui/BlurImage'
 import { DebatePanel, type DebateData } from '@/components/ui/DebatePanel'
 import { readTimeLabel } from '@/lib/readTime'
 import { EconomicTicker } from '@/components/ui/EconomicTicker'
@@ -208,18 +208,18 @@ async function getTrendingTags() {
   }
 }
 
-// Title is inherited from layout's `default` ("The Consilium | University of Edinburgh Economics Society")
-// — do NOT set a title here so the template does not double-wrap it.
+// Title is inherited from layout's default value.
+// Do not set a title here so the template does not double-wrap it.
 export const metadata: Metadata = {
   description: 'Economics analysis, opinion, and research from the University of Edinburgh.',
   openGraph: {
     title: 'The Consilium',
-    description: 'The voice of the University of Edinburgh Economics Society.',
+    description: 'Ratione et Consilio',
   },
   twitter: {
     card: 'summary',
     title: 'The Consilium',
-    description: 'The voice of the University of Edinburgh Economics Society.',
+    description: 'Ratione et Consilio',
   },
 }
 
@@ -248,6 +248,8 @@ export default async function HomePage({
   const gridArticles = featured
     ? articles.filter((a) => a.id !== featured.id)
     : articles
+  const heroSideArticles = gridArticles.slice(0, 3)
+  const articleGrid = gridArticles.slice(heroSideArticles.length)
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
@@ -277,8 +279,8 @@ export default async function HomePage({
           </AnimateIn>
           <AnimateIn variant="fade-in" delay={0.2} duration={0.6}>
             <div className="w-16 h-px bg-gradient-to-r from-transparent via-gold to-transparent mx-auto mb-3 opacity-60" />
-            <p className="text-cream/60 text-sm tracking-wide max-w-xs sm:max-w-none mx-auto leading-relaxed">
-              The voice of the University of Edinburgh Economics Society
+            <p className="text-cream/70 text-sm italic tracking-[0.08em] max-w-xs sm:max-w-none mx-auto leading-relaxed">
+              Ratione et Consilio
             </p>
           </AnimateIn>
         </div>
@@ -298,12 +300,12 @@ export default async function HomePage({
         {/* ── Featured Article ─────────────────────────────────────────────── */}
         {featured ? (
           <AnimateIn variant="fade-up" duration={0.6} className="mb-14">
-            <div className="overflow-hidden group card-hover transition-[transform,box-shadow] duration-150 ease-out">
-              <div className="grid grid-cols-1 lg:grid-cols-2">
-                {/* Image */}
-                <div className="relative h-64 lg:h-auto lg:min-h-[400px] bg-navy-light overflow-hidden">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+              <div className="group overflow-hidden border border-[var(--border)] bg-[var(--bg-elevated)] transition-[transform,box-shadow] duration-150 ease-out hover:shadow-[var(--shadow-card)]">
+                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.85fr)]">
+                  <div className="relative h-72 overflow-hidden bg-navy-light xl:h-auto xl:min-h-[460px]">
                   {featured.coverImage ? (
-                    <BlurImage
+                    <Image
                       src={featured.coverImage}
                       alt={featured.title}
                       fill
@@ -321,7 +323,6 @@ export default async function HomePage({
                       </span>
                     </div>
                   )}
-                  {/* Top row: category badge + read time */}
                   <div className="absolute top-4 left-4 right-4 z-10 flex items-start justify-between">
                     {featured.category ? (
                       <span className="category-badge">{featured.category.name}</span>
@@ -333,12 +334,10 @@ export default async function HomePage({
                       {readTimeLabel(featured.content)}
                     </span>
                   </div>
-                  {/* Gradient overlay bottom */}
                   <div className="absolute inset-0 bg-gradient-to-t from-navy/30 via-transparent to-transparent pointer-events-none" />
                 </div>
 
-                {/* Content */}
-                <div className="p-8 lg:p-12 flex flex-col justify-center border-t lg:border-t-0 lg:border-l border-[var(--border)]">
+                <div className="flex flex-col justify-center border-t border-[var(--border)] p-8 xl:border-l xl:border-t-0 xl:p-12">
                   <div className="text-gold/50 text-[0.65rem] tracking-[0.3em] uppercase mb-3 font-semibold">
                     Featured
                   </div>
@@ -377,6 +376,45 @@ export default async function HomePage({
                   </Link>
                 </div>
               </div>
+              </div>
+
+              {heroSideArticles.length > 0 && (
+                <div className="grid gap-4">
+                  {heroSideArticles.map((article) => (
+                    <Link
+                      key={article.id}
+                      href={`/articles/${article.slug}`}
+                      className="group grid min-h-[144px] grid-cols-[128px_minmax(0,1fr)] overflow-hidden border border-[var(--border)] bg-[var(--bg-elevated)] transition-colors hover:border-gold/50 sm:grid-cols-[156px_minmax(0,1fr)] lg:grid-cols-[132px_minmax(0,1fr)]"
+                    >
+                      <div className="relative bg-navy-light">
+                        {article.coverImage ? (
+                          <Image
+                            src={article.coverImage}
+                            alt={article.title}
+                            fill
+                            className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+                            sizes="(max-width: 1024px) 40vw, 12vw"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center bg-navy">
+                            <span className="text-2xl font-bold text-gold/25" style={{ fontFamily: 'var(--font-serif)' }}>TC</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex min-w-0 flex-col justify-center p-4">
+                        {article.category && (
+                          <p className="mb-2 text-[0.6rem] font-bold uppercase tracking-widest text-gold/70">
+                            {article.category.name}
+                          </p>
+                        )}
+                        <h3 className="line-clamp-3 text-lg font-bold leading-tight text-[var(--fg)] transition-colors group-hover:text-gold" style={{ fontFamily: 'var(--font-serif)' }}>
+                          {article.title}
+                        </h3>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           </AnimateIn>
         ) : (
@@ -401,9 +439,9 @@ export default async function HomePage({
         </AnimateIn>
 
         {/* ── Article Grid ─────────────────────────────────────────────────── */}
-        {gridArticles.length > 0 ? (
+        {articleGrid.length > 0 ? (
           <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
-            {gridArticles.map((article) => (
+            {articleGrid.map((article) => (
               <StaggerItem key={article.id}>
                 <ArticleCard article={article} />
               </StaggerItem>
@@ -422,7 +460,7 @@ export default async function HomePage({
         )}
 
         {/* View all */}
-        {gridArticles.length >= 11 && (
+        {articleGrid.length >= 11 && (
           <AnimateIn variant="fade-up" delay={0.1} className="mt-12 text-center">
             <Link
               href="/archive"

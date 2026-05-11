@@ -93,12 +93,6 @@ export function EditorialSidebar({
             { href: '/editorial/growth/engagement', icon: Zap, label: 'Engagement', exact: true, show: true },
           ],
         },
-        {
-          label: 'COMMUNITY',
-          items: [
-            { href: '/editorial/comments', icon: MessageCircle, label: 'Comments', show: true },
-          ],
-        },
       ]
     : [
         {
@@ -129,7 +123,7 @@ export function EditorialSidebar({
           label: 'MANAGE',
           items: [
             { href: '/editorial/users', icon: Users, label: 'Users', show: isAdmin },
-            { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isEditor },
+            { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
           ],
         },
         {

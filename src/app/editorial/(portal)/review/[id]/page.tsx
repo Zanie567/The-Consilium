@@ -34,6 +34,20 @@ export default async function ReviewPage({ params }: Props) {
 
   if (!article || article.deletedAt) notFound()
 
+  if (session.user.role === 'EDITOR') {
+    if (article.categoryId) {
+      const assignment = await prisma.categoryEditor.findFirst({
+        where: { userId: session.user.id, categoryId: article.categoryId },
+      })
+      if (!assignment) redirect('/editorial/review')
+    } else {
+      const anyAssignment = await prisma.categoryEditor.findFirst({
+        where: { userId: session.user.id },
+      })
+      if (anyAssignment) redirect('/editorial/review')
+    }
+  }
+
   // Serialize Prisma Date objects for client component
   const serialized = JSON.parse(JSON.stringify(article))
 

@@ -38,6 +38,7 @@ declare module '@tiptap/core' {
     pullQuote:  { togglePullQuote: () => ReturnType }
     footnoteRef: { insertFootnote: (content: string) => ReturnType }
     figure:     { insertFigure: (attrs: { src: string; alt?: string; caption?: string; credit?: string }) => ReturnType }
+    fontSize:   { setFontSize: (fontSize: string) => ReturnType; unsetFontSize: () => ReturnType }
   }
 }
 
@@ -368,9 +369,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
       if (!editor) return
       const n = parseInt(size, 10)
       if (!isNaN(n) && n > 0) {
-        // TipTap 3's FontSize extension adds setFontSize to the chain
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(editor.chain().focus() as any).setFontSize(`${n}px`).run()
+        editor.chain().focus().setFontSize(`${n}px`).run()
         setFontSizeInput(String(n))
       }
     }, [editor])
