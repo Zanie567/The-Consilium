@@ -1186,3 +1186,19 @@ mark {
   .portal-page-enter { animation: none; }
   .tap:active, .tap-icon:active { transform: none; }
 }
+
+/* ── Inline comment highlights (CommentMark TipTap extension) ── */
+.comment-highlight {
+  background-color: rgba(201, 168, 76, 0.25);
+  border-bottom: 2px solid rgba(201, 168, 76, 0.8);
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+.comment-highlight:hover {
+  background-color: rgba(201, 168, 76, 0.4);
+}
+.comment-highlight.comment-resolved {
+  background-color: transparent;
+  border-bottom-color: rgba(156, 163, 175, 0.4);
+  opacity: 0.5;
+}

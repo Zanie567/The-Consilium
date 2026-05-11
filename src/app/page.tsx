@@ -4,7 +4,6 @@ import { cookies } from 'next/headers'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/lib/auth'
-import { Clock } from 'lucide-react'
 import { ClientDate } from '@/components/ui/ClientDate'
 import { format } from 'date-fns'
 import { NewsletterSignup } from '@/components/ui/NewsletterSignup'
@@ -13,9 +12,9 @@ import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/Animat
 import { ContinueReading } from '@/components/ui/ContinueReading'
 import { ArticleCard } from '@/components/ui/ArticleCard'
 import { DebatePanel, type DebateData } from '@/components/ui/DebatePanel'
-import { readTimeLabel } from '@/lib/readTime'
 import { EconomicTicker } from '@/components/ui/EconomicTicker'
 import { displayAuthorName } from '@/lib/authorUtils'
+import { HeroSection } from '@/components/ui/HeroSection'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
@@ -245,11 +244,12 @@ export default async function HomePage({
     getActiveDebate(session?.user?.id, anonymousId),
   ])
 
-  const gridArticles = featured
+  const allGridArticles = featured
     ? articles.filter((a) => a.id !== featured.id)
     : articles
-  const heroSideArticles = gridArticles.slice(0, 3)
-  const articleGrid = gridArticles.slice(heroSideArticles.length)
+  // First 3 are shown in the hero side column; the main grid starts after them
+  const heroSideArticles = allGridArticles.slice(0, 3)
+  const articleGrid = allGridArticles.slice(3)
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
@@ -296,142 +296,26 @@ export default async function HomePage({
       {/* ── Economic data ticker ───────────────────────────────────────────── */}
       <EconomicTicker />
 
+      {/* ── Hero Section (full-width, outside the constrained container) ──── */}
+      {featured ? (
+        <HeroSection featured={featured} sideArticles={heroSideArticles} />
+      ) : (
+        <AnimateIn variant="fade-up">
+          <div className="py-20 text-center border-b border-dashed border-[var(--border)]">
+            <p
+              className="text-4xl font-bold text-[var(--fg-faint)] mb-3"
+              style={{ fontFamily: 'var(--font-serif)' }}
+            >
+              No articles yet
+            </p>
+            <p className="text-[var(--fg-faint)] text-sm">
+              Check back soon for our latest publications.
+            </p>
+          </div>
+        </AnimateIn>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* ── Featured Article ─────────────────────────────────────────────── */}
-        {featured ? (
-          <AnimateIn variant="fade-up" duration={0.6} className="mb-14">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-              <div className="group overflow-hidden border border-[var(--border)] bg-[var(--bg-elevated)] transition-[transform,box-shadow] duration-150 ease-out hover:shadow-[var(--shadow-card)]">
-                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.85fr)]">
-                  <div className="relative h-72 overflow-hidden bg-navy-light xl:h-auto xl:min-h-[460px]">
-                  {featured.coverImage ? (
-                    <Image
-                      src={featured.coverImage}
-                      alt={featured.title}
-                      fill
-                      className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.05]"
-                      priority
-                      sizes="(max-width: 1024px) 100vw, 50vw"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-navy via-navy-light to-navy flex items-center justify-center">
-                      <span
-                        className="text-gold/15 text-8xl font-bold select-none"
-                        style={{ fontFamily: 'var(--font-serif)' }}
-                      >
-                        TC
-                      </span>
-                    </div>
-                  )}
-                  <div className="absolute top-4 left-4 right-4 z-10 flex items-start justify-between">
-                    {featured.category ? (
-                      <span className="category-badge">{featured.category.name}</span>
-                    ) : (
-                      <span aria-hidden="true" />
-                    )}
-                    <span className="flex items-center gap-1 bg-navy/70 text-cream/90 text-[10px] font-semibold px-2 py-1 backdrop-blur-sm leading-none">
-                      <Clock size={9} className="shrink-0" />
-                      {readTimeLabel(featured.content)}
-                    </span>
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-navy/30 via-transparent to-transparent pointer-events-none" />
-                </div>
-
-                <div className="flex flex-col justify-center border-t border-[var(--border)] p-8 xl:border-l xl:border-t-0 xl:p-12">
-                  <div className="text-gold/50 text-[0.65rem] tracking-[0.3em] uppercase mb-3 font-semibold">
-                    Featured
-                  </div>
-                  <Link href={`/articles/${featured.slug}`}>
-                    <h2
-                      className="text-3xl lg:text-4xl font-bold text-[var(--fg)] mb-4 leading-tight transition-colors duration-200 hover:text-gold"
-                      style={{ fontFamily: 'var(--font-serif)' }}
-                    >
-                      {featured.title}
-                    </h2>
-                  </Link>
-                  {featured.excerpt && (
-                    <p className="text-[var(--fg-muted)] text-base leading-relaxed mb-6">
-                      {featured.excerpt}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-3 text-xs text-[var(--fg-faint)] mb-7">
-                    <span className="font-semibold text-[var(--fg-muted)]">
-                      {displayAuthorName(featured.author.name)}
-                    </span>
-                    <span className="text-gold/40">·</span>
-                    <span>
-                      {featured.publishedAt
-                        ? format(new Date(featured.publishedAt), 'd MMMM yyyy')
-                        : ''}
-                    </span>
-                  </div>
-                  <Link
-                    href={`/articles/${featured.slug}`}
-                    className="inline-flex items-center gap-2 text-gold text-xs font-bold uppercase tracking-widest group/link hover:gap-3 transition-[gap] duration-200 ease-out"
-                  >
-                    Read Article
-                    <span className="inline-block transition-transform duration-200 ease-out group-hover/link:translate-x-1">
-                      →
-                    </span>
-                  </Link>
-                </div>
-              </div>
-              </div>
-
-              {heroSideArticles.length > 0 && (
-                <div className="grid gap-4">
-                  {heroSideArticles.map((article) => (
-                    <Link
-                      key={article.id}
-                      href={`/articles/${article.slug}`}
-                      className="group grid min-h-[144px] grid-cols-[128px_minmax(0,1fr)] overflow-hidden border border-[var(--border)] bg-[var(--bg-elevated)] transition-colors hover:border-gold/50 sm:grid-cols-[156px_minmax(0,1fr)] lg:grid-cols-[132px_minmax(0,1fr)]"
-                    >
-                      <div className="relative bg-navy-light">
-                        {article.coverImage ? (
-                          <Image
-                            src={article.coverImage}
-                            alt={article.title}
-                            fill
-                            className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
-                            sizes="(max-width: 1024px) 40vw, 12vw"
-                          />
-                        ) : (
-                          <div className="flex h-full items-center justify-center bg-navy">
-                            <span className="text-2xl font-bold text-gold/25" style={{ fontFamily: 'var(--font-serif)' }}>TC</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex min-w-0 flex-col justify-center p-4">
-                        {article.category && (
-                          <p className="mb-2 text-[0.6rem] font-bold uppercase tracking-widest text-gold/70">
-                            {article.category.name}
-                          </p>
-                        )}
-                        <h3 className="line-clamp-3 text-lg font-bold leading-tight text-[var(--fg)] transition-colors group-hover:text-gold" style={{ fontFamily: 'var(--font-serif)' }}>
-                          {article.title}
-                        </h3>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          </AnimateIn>
-        ) : (
-          <AnimateIn variant="fade-up" className="mb-14">
-            <div className="py-20 text-center border border-dashed border-[var(--border)]">
-              <p
-                className="text-4xl font-bold text-[var(--fg-faint)] mb-3"
-                style={{ fontFamily: 'var(--font-serif)' }}
-              >
-                No articles yet
-              </p>
-              <p className="text-[var(--fg-faint)] text-sm">
-                Check back soon for our latest publications.
-              </p>
-            </div>
-          </AnimateIn>
-        )}
 
         {/* ── Category Tabs ────────────────────────────────────────────────── */}
         <AnimateIn variant="fade-in" delay={0.1}>

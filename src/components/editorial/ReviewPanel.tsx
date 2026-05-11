@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, nextFriday } from 'date-fns'
-import { ArrowLeft, CheckCircle, Clock, EyeOff, MessageSquarePlus, Pin, RotateCcw, Star } from 'lucide-react'
+import { ArrowLeft, Star, Pin, Clock, CheckCircle, RotateCcw, EyeOff, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 import { Tooltip } from '@/components/ui/Tooltip'
 import {
@@ -11,6 +11,8 @@ import {
   formatEditorialScheduleInput,
   getEditorialScheduleMinInput,
 } from '@/lib/editorialSchedule'
+import { CommentsPanel, type ArticleComment } from '@/components/editorial/CommentsPanel'
+import { ArticlePreviewWithComments } from '@/components/editorial/ArticlePreviewWithComments'
 
 interface Note {
   id: string
@@ -18,23 +20,6 @@ interface Note {
   isPrivate: boolean
   createdAt: string
   author: { name: string | null }
-}
-
-interface ReviewCommentReply {
-  id: string
-  body: string
-  createdAt: string
-  author: { id: string; name: string | null }
-}
-
-interface ReviewCommentThread {
-  id: string
-  articleId: string
-  anchorText: string
-  selectedText: string
-  resolved: boolean
-  createdAt: string
-  replies: ReviewCommentReply[]
 }
 
 interface Article {
@@ -65,6 +50,17 @@ export function ReviewPanel({ article }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
   const [note, setNote] = useState('')
+  const [comments, setComments] = useState<ArticleComment[]>([])
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
+  const [commentsTab, setCommentsTab] = useState<'actions' | 'comments'>('actions')
+
+  useEffect(() => {
+    fetch(`/api/articles/${article.id}/comments`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: ArticleComment[]) => setComments(data))
+      .catch(() => {})
+  }, [article.id])
+
   const [returnNote, setReturnNote] = useState(article.editorNote ?? '')
   const [scheduledAt, setScheduledAt] = useState(
     formatEditorialScheduleInput(article.scheduledAt ?? nextFriday(new Date()))
@@ -76,27 +72,6 @@ export function ReviewPanel({ article }: Props) {
   const [notes, setNotes] = useState<Note[]>(article.notes)
   const [status, setStatus] = useState(article.status)
   const [error, setError] = useState('')
-  const [threads, setThreads] = useState<ReviewCommentThread[]>([])
-  const [selectedText, setSelectedText] = useState('')
-  const [commentBody, setCommentBody] = useState('')
-  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
-  const [showResolved, setShowResolved] = useState(false)
-
-  useEffect(() => {
-    fetch(`/api/editorial/review-comments?articleId=${article.id}`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data: unknown) => {
-        if (Array.isArray(data)) setThreads(data as ReviewCommentThread[])
-      })
-      .catch(() => setThreads([]))
-  }, [article.id])
-
-  const activeThreads = threads.filter((thread) => !thread.resolved)
-  const resolvedThreads = threads.filter((thread) => thread.resolved)
-  const renderedArticle = useMemo(
-    () => highlightComments(renderContent(article.content), activeThreads),
-    [article.content, activeThreads]
-  )
 
   const act = async (action: string, extra?: Record<string, unknown>) => {
     setLoading(action)
@@ -146,68 +121,6 @@ export function ReviewPanel({ article }: Props) {
     if (res.ok) setIsPinned(!isPinned)
   }
 
-  const captureSelection = () => {
-    const selection = window.getSelection()
-    const text = selection?.toString().trim() ?? ''
-    if (text.length > 1) setSelectedText(text.slice(0, 500))
-  }
-
-  const addThread = async () => {
-    if (!selectedText || !commentBody.trim()) return
-    setLoading('comment')
-    const res = await fetch('/api/editorial/review-comments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        articleId: article.id,
-        selectedText,
-        anchorText: selectedText,
-        body: commentBody,
-      }),
-    })
-    if (res.ok) {
-      const thread = (await res.json()) as ReviewCommentThread
-      setThreads((prev) => [...prev, thread])
-      setSelectedText('')
-      setCommentBody('')
-    } else {
-      setError('Review comments need the manual SQL installed before they can be saved.')
-    }
-    setLoading(null)
-  }
-
-  const addReply = async (threadId: string) => {
-    const body = replyDrafts[threadId]?.trim()
-    if (!body) return
-    setLoading(`reply-${threadId}`)
-    const res = await fetch('/api/editorial/review-comments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ threadId, body }),
-    })
-    if (res.ok) {
-      const reply = (await res.json()) as ReviewCommentReply
-      setThreads((prev) =>
-        prev.map((thread) =>
-          thread.id === threadId ? { ...thread, replies: [...thread.replies, reply] } : thread
-        )
-      )
-      setReplyDrafts((prev) => ({ ...prev, [threadId]: '' }))
-    }
-    setLoading(null)
-  }
-
-  const setResolved = async (threadId: string, resolved: boolean) => {
-    const res = await fetch('/api/editorial/review-comments', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ threadId, resolved }),
-    })
-    if (res.ok) {
-      setThreads((prev) => prev.map((thread) => (thread.id === threadId ? { ...thread, resolved } : thread)))
-    }
-  }
-
   return (
     <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1440px]">
@@ -236,119 +149,203 @@ export function ReviewPanel({ article }: Props) {
 
         {error && <p className="mb-4 border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</p>}
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <section className="border border-[var(--border)] bg-[var(--bg-elevated)] shadow-[var(--shadow-card)]">
-            <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-[var(--fg-faint)]">Article Preview</p>
-                <p className="mt-1 text-xs text-[var(--fg-faint)]">Select text to anchor a review comment.</p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          {/* Article preview with inline commenting */}
+          <div className="lg:col-span-2 bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden">
+            <div className="px-4 sm:px-6 py-3 border-b border-[var(--border)] flex items-center justify-between">
+              <span className="text-xs font-bold text-[var(--fg-faint)] uppercase tracking-wider">
+                Article Content
+              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] text-[var(--fg-faint)] hidden sm:block">
+                  Select text to comment
+                </span>
+                <Link
+                  href={`/editorial/articles/${article.id}/edit`}
+                  className="text-xs text-gold hover:underline"
+                >
+                  Edit →
+                </Link>
               </div>
-              <Link href={`/editorial/articles/${article.id}/edit`} className="text-xs font-bold uppercase tracking-widest text-gold hover:underline">
-                Edit in editor
-              </Link>
             </div>
-            <article
-              onMouseUp={captureSelection}
-              className="prose-consilium mx-auto min-h-[70vh] max-w-[820px] px-6 py-10 text-[var(--fg)] sm:px-10 lg:px-14"
-              dangerouslySetInnerHTML={{ __html: renderedArticle }}
-            />
-          </section>
+            <div className="p-4 sm:p-6 prose-consilium max-h-[40vh] sm:max-h-[60vh] overflow-y-auto text-sm">
+              <ArticlePreviewWithComments
+                content={article.content}
+                articleId={article.id}
+                comments={comments}
+                activeCommentId={activeCommentId}
+                onCommentCreated={(c) => {
+                  setComments((prev) => [...prev, c])
+                  setCommentsTab('comments')
+                }}
+                onSelectComment={setActiveCommentId}
+              />
+            </div>
+          </div>
 
-          <aside className="space-y-5 xl:sticky xl:top-6 xl:self-start">
-            {selectedText && (
-              <Panel title="New Comment" icon={<MessageSquarePlus size={14} />}>
-                <p className="mb-3 border-l-2 border-gold bg-gold/10 px-3 py-2 text-xs italic text-[var(--fg-muted)]">
-                  {selectedText}
-                </p>
-                <textarea
-                  value={commentBody}
-                  onChange={(event) => setCommentBody(event.target.value)}
-                  rows={4}
-                  placeholder="Add an editorial comment..."
-                  className="w-full resize-none border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-[var(--fg)] outline-none focus:border-gold"
-                />
-                <button onClick={addThread} disabled={loading === 'comment' || !commentBody.trim()} className="mt-3 w-full bg-navy px-4 py-3 text-xs font-bold uppercase tracking-widest text-gold disabled:opacity-60">
-                  Save Comment
-                </button>
-              </Panel>
-            )}
-
-            {status === 'PENDING_REVIEW' && (
-              <Panel title="Review Actions">
-                <button onClick={() => act('approve')} disabled={loading !== null} className="flex min-h-[44px] w-full items-center justify-center gap-2 bg-emerald-600 px-4 py-3 text-xs font-bold uppercase tracking-widest text-white disabled:opacity-60">
-                  <CheckCircle size={14} />
-                  {loading === 'approve' ? 'Publishing...' : 'Publish Now'}
-                </button>
-                <label className="mt-4 block text-[10px] font-bold uppercase tracking-widest text-[var(--fg-faint)]">
-                  Schedule for {EDITORIAL_TIME_ZONE_LABEL}
-                </label>
-                <input type="datetime-local" value={scheduledAt} min={getEditorialScheduleMinInput()} onChange={(event) => setScheduledAt(event.target.value)} className="mt-2 min-h-[44px] w-full border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-[var(--fg)] outline-none focus:border-gold" />
-                <button onClick={() => act('schedule', { scheduledAt })} disabled={loading !== null} className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 bg-navy px-4 py-3 text-xs font-bold uppercase tracking-widest text-gold disabled:opacity-60">
-                  <Clock size={14} />
-                  {loading === 'schedule' ? 'Scheduling...' : 'Schedule'}
-                </button>
-                <label className="mt-5 block text-[10px] font-bold uppercase tracking-widest text-[var(--fg-faint)]">
-                  Feedback for writer
-                </label>
-                <textarea value={returnNote} onChange={(event) => setReturnNote(event.target.value)} rows={5} placeholder="What needs to be revised?" className="mt-2 w-full resize-none border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-[var(--fg)] outline-none focus:border-gold" />
-                <button onClick={() => act('return', { note: returnNote })} disabled={loading !== null || !returnNote.trim()} className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 border border-red-500/50 px-4 py-3 text-xs font-bold uppercase tracking-widest text-red-500 disabled:opacity-60">
-                  <RotateCcw size={14} />
-                  {loading === 'return' ? 'Returning...' : 'Return to Writer'}
-                </button>
-              </Panel>
-            )}
-
-            {status === 'PUBLISHED' && (
-              <Panel title="Published Actions">
-                <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--fg)]">
-                  <input type="checkbox" checked={corrected} onChange={(event) => setCorrected(event.target.checked)} className="accent-gold" />
-                  Mark as corrected
-                </label>
-                <input value={correctionNote} onChange={(event) => setCorrectionNote(event.target.value)} placeholder="Correction note" className="mt-3 w-full border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-[var(--fg)] outline-none focus:border-gold" />
-                <button onClick={() => act('correct', { corrected, correctionNote })} disabled={loading !== null} className="mt-3 w-full border border-[var(--border)] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[var(--fg-muted)] disabled:opacity-60">
-                  Save Correction
-                </button>
-                <button onClick={() => act('unpublish')} disabled={loading !== null} className="mt-3 flex w-full items-center justify-center gap-2 border border-red-500/40 px-4 py-2 text-xs font-bold uppercase tracking-widest text-red-500 disabled:opacity-60">
-                  <EyeOff size={14} />
-                  Unpublish
-                </button>
-              </Panel>
-            )}
-
-            <Panel title={`Comments ${activeThreads.length ? `(${activeThreads.length})` : ''}`}>
-              <CommentList threads={activeThreads} replyDrafts={replyDrafts} setReplyDrafts={setReplyDrafts} addReply={addReply} setResolved={setResolved} loading={loading} />
-              <button onClick={() => setShowResolved((value) => !value)} className="mt-4 text-xs font-bold uppercase tracking-widest text-gold">
-                {showResolved ? 'Hide Resolved' : `Resolved (${resolvedThreads.length})`}
+          {/* Actions + comments right panel */}
+          <div className="space-y-4">
+            {/* Tab bar */}
+            <div className="flex border border-[var(--border)] bg-[var(--bg-elevated)]">
+              <button
+                onClick={() => setCommentsTab('actions')}
+                className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-widest transition-colors ${commentsTab === 'actions' ? 'bg-navy text-gold' : 'text-[var(--fg-faint)] hover:text-[var(--fg)]'}`}
+              >
+                Review
               </button>
-              {showResolved && <CommentList threads={resolvedThreads} replyDrafts={replyDrafts} setReplyDrafts={setReplyDrafts} addReply={addReply} setResolved={setResolved} loading={loading} />}
-            </Panel>
+              <button
+                onClick={() => setCommentsTab('comments')}
+                className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5 ${commentsTab === 'comments' ? 'bg-navy text-gold' : 'text-[var(--fg-faint)] hover:text-[var(--fg)]'}`}
+              >
+                <MessageSquare size={12} />
+                Comments
+                {comments.filter((c) => !c.resolved && !c.parentId).length > 0 && (
+                  <span className="bg-gold text-navy text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">
+                    {comments.filter((c) => !c.resolved && !c.parentId).length}
+                  </span>
+                )}
+              </button>
+            </div>
 
-            {article.editorNote && (
-              <Panel title="Editor Note">
-                <p className="text-sm text-[var(--fg-muted)]">{article.editorNote}</p>
-              </Panel>
-            )}
-
-            <Panel title="Internal Notes">
-              {notes.length > 0 && (
-                <div className="mb-3 max-h-48 space-y-3 overflow-y-auto">
-                  {notes.map((item) => (
-                    <div key={item.id} className="text-xs">
-                      <p className="font-semibold text-[var(--fg)]">{item.author.name}</p>
-                      <p className="mt-1 text-[var(--fg-muted)]">{item.content}</p>
-                      <p className="mt-1 text-[var(--fg-faint)]">{format(new Date(item.createdAt), 'd MMM, HH:mm')}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="flex gap-2">
-                <input value={note} onChange={(event) => setNote(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && addNote()} placeholder="Add internal note..." className="min-h-[44px] flex-1 border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-[var(--fg)] outline-none focus:border-gold" />
-                <button onClick={addNote} disabled={!note.trim() || loading === 'note'} className="min-h-[44px] bg-navy px-3 py-2 text-xs font-bold text-gold disabled:opacity-60">
-                  Add
-                </button>
+            {commentsTab === 'comments' ? (
+              <div className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden">
+                <CommentsPanel
+                  articleId={article.id}
+                  comments={comments}
+                  onCommentResolved={(id, resolved) => {
+                    setComments((prev) => prev.map((c) => c.id === id ? { ...c, resolved } : c))
+                  }}
+                  onCommentAdded={(c) => setComments((prev) => [...prev, c])}
+                  activeCommentId={activeCommentId}
+                  onSelectComment={setActiveCommentId}
+                />
               </div>
-            </Panel>
-          </aside>
+            ) : (
+              <div className="space-y-4">
+                {status === 'PENDING_REVIEW' && (
+                  <Panel title="Review Actions">
+                    <Tooltip content="Publish this article immediately: it will appear live on the public website" variant="editorial" side="left" maxWidth={260}>
+                      <button
+                        onClick={() => act('approve')}
+                        disabled={loading !== null}
+                        className="flex min-h-[44px] w-full items-center justify-center gap-2 bg-emerald-600 px-4 py-3 text-xs font-bold uppercase tracking-widest text-white disabled:opacity-60 hover:bg-emerald-700 transition-colors"
+                      >
+                        <CheckCircle size={14} />
+                        {loading === 'approve' ? 'Publishing...' : 'Publish Now'}
+                      </button>
+                    </Tooltip>
+                    <label className="mt-4 block text-[10px] font-bold uppercase tracking-widest text-[var(--fg-faint)]">
+                      Schedule for {EDITORIAL_TIME_ZONE_LABEL}
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={scheduledAt}
+                      min={getEditorialScheduleMinInput()}
+                      onChange={(e) => setScheduledAt(e.target.value)}
+                      className="mt-2 min-h-[44px] w-full border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-[var(--fg)] outline-none focus:border-gold"
+                    />
+                    <button
+                      onClick={() => act('schedule', { scheduledAt })}
+                      disabled={loading !== null}
+                      className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 bg-navy px-4 py-3 text-xs font-bold uppercase tracking-widest text-gold disabled:opacity-60"
+                    >
+                      <Clock size={14} />
+                      {loading === 'schedule' ? 'Scheduling...' : 'Schedule'}
+                    </button>
+                    <label className="mt-5 block text-[10px] font-bold uppercase tracking-widest text-[var(--fg-faint)]">
+                      Feedback for writer
+                    </label>
+                    <textarea
+                      value={returnNote}
+                      onChange={(e) => setReturnNote(e.target.value)}
+                      rows={5}
+                      placeholder="What needs to be revised?"
+                      className="mt-2 w-full resize-none border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-[var(--fg)] outline-none focus:border-gold"
+                    />
+                    <button
+                      onClick={() => act('return', { note: returnNote })}
+                      disabled={loading !== null || !returnNote.trim()}
+                      className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 border border-red-500/50 px-4 py-3 text-xs font-bold uppercase tracking-widest text-red-500 disabled:opacity-60"
+                    >
+                      <RotateCcw size={14} />
+                      {loading === 'return' ? 'Returning...' : 'Return to Writer'}
+                    </button>
+                  </Panel>
+                )}
+
+                {status === 'PUBLISHED' && (
+                  <Panel title="Published Actions">
+                    <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--fg)]">
+                      <input
+                        type="checkbox"
+                        checked={corrected}
+                        onChange={(e) => setCorrected(e.target.checked)}
+                        className="accent-gold"
+                      />
+                      Mark as corrected
+                    </label>
+                    <input
+                      value={correctionNote}
+                      onChange={(e) => setCorrectionNote(e.target.value)}
+                      placeholder="Correction note"
+                      className="mt-3 w-full border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-[var(--fg)] outline-none focus:border-gold"
+                    />
+                    <button
+                      onClick={() => act('correct', { corrected, correctionNote })}
+                      disabled={loading !== null}
+                      className="mt-3 w-full border border-[var(--border)] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[var(--fg-muted)] disabled:opacity-60"
+                    >
+                      Save Correction
+                    </button>
+                    <button
+                      onClick={() => act('unpublish')}
+                      disabled={loading !== null}
+                      className="mt-3 flex w-full items-center justify-center gap-2 border border-red-500/40 px-4 py-2 text-xs font-bold uppercase tracking-widest text-red-500 disabled:opacity-60"
+                    >
+                      <EyeOff size={14} />
+                      Unpublish
+                    </button>
+                  </Panel>
+                )}
+
+                {article.editorNote && (
+                  <Panel title="Editor Note">
+                    <p className="text-sm text-[var(--fg-muted)]">{article.editorNote}</p>
+                  </Panel>
+                )}
+
+                <Panel title="Internal Notes">
+                  {notes.length > 0 && (
+                    <div className="mb-3 max-h-48 space-y-3 overflow-y-auto">
+                      {notes.map((item) => (
+                        <div key={item.id} className="text-xs">
+                          <p className="font-semibold text-[var(--fg)]">{item.author.name}</p>
+                          <p className="mt-1 text-[var(--fg-muted)]">{item.content}</p>
+                          <p className="mt-1 text-[var(--fg-faint)]">{format(new Date(item.createdAt), 'd MMM, HH:mm')}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && addNote()}
+                      placeholder="Add internal note..."
+                      className="min-h-[44px] flex-1 border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-[var(--fg)] outline-none focus:border-gold"
+                    />
+                    <button
+                      onClick={addNote}
+                      disabled={!note.trim() || loading === 'note'}
+                      className="min-h-[44px] bg-navy px-3 py-2 text-xs font-bold text-gold disabled:opacity-60"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </Panel>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -387,126 +384,4 @@ function StatusPill({ status }: { status: string }) {
     ARCHIVED: 'bg-[var(--bg-subtle)] text-[var(--fg-faint)]',
   }
   return <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${statusClass[status] ?? ''}`}>{status.replace('_', ' ')}</span>
-}
-
-function CommentList({
-  threads,
-  replyDrafts,
-  setReplyDrafts,
-  addReply,
-  setResolved,
-  loading,
-}: {
-  threads: ReviewCommentThread[]
-  replyDrafts: Record<string, string>
-  setReplyDrafts: Dispatch<SetStateAction<Record<string, string>>>
-  addReply: (threadId: string) => void
-  setResolved: (threadId: string, resolved: boolean) => void
-  loading: string | null
-}) {
-  if (threads.length === 0) return <p className="text-sm text-[var(--fg-faint)]">No comments in this view.</p>
-
-  return (
-    <div className="space-y-4">
-      {threads.map((thread) => (
-        <div key={thread.id} className="border-l-2 border-gold bg-gold/5 p-3">
-          <p className="mb-3 text-xs italic text-[var(--fg-muted)]">{thread.selectedText}</p>
-          <div className="space-y-3">
-            {thread.replies.map((reply) => (
-              <div key={reply.id} className="text-sm">
-                <p className="font-semibold text-[var(--fg)]">{reply.author.name ?? 'Editor'}</p>
-                <p className="mt-1 text-[var(--fg-muted)]">{reply.body}</p>
-                <p className="mt-1 text-[10px] text-[var(--fg-faint)]">{format(new Date(reply.createdAt), 'd MMM, HH:mm')}</p>
-              </div>
-            ))}
-          </div>
-          <input value={replyDrafts[thread.id] ?? ''} onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [thread.id]: event.target.value }))} placeholder="Reply..." className="mt-3 min-h-[40px] w-full border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--fg)] outline-none focus:border-gold" />
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <button onClick={() => addReply(thread.id)} disabled={loading === `reply-${thread.id}` || !replyDrafts[thread.id]?.trim()} className="text-xs font-bold uppercase tracking-widest text-gold disabled:opacity-50">
-              Reply
-            </button>
-            <button onClick={() => setResolved(thread.id, !thread.resolved)} className="text-xs font-bold uppercase tracking-widest text-[var(--fg-faint)] hover:text-gold">
-              {thread.resolved ? 'Reopen' : 'Resolve'}
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function renderContent(content: string): string {
-  try {
-    const parsed = JSON.parse(content) as { type?: string; content?: TNode[] }
-    if (parsed.type === 'doc') return tiptapToHtml({ type: 'doc', content: parsed.content })
-  } catch {}
-  return escapeHtml(content)
-}
-
-function tiptapToHtml(doc: { type: string; content?: TNode[] }): string {
-  return (doc.content ?? []).map(nodeToHtml).join('')
-}
-
-interface TNode {
-  type: string
-  content?: TNode[]
-  text?: string
-  marks?: { type: string; attrs?: Record<string, unknown> }[]
-  attrs?: Record<string, unknown>
-}
-
-function nodeToHtml(node: TNode): string {
-  switch (node.type) {
-    case 'paragraph': return `<p>${(node.content ?? []).map(nodeToHtml).join('')}</p>`
-    case 'heading': {
-      const level = typeof node.attrs?.level === 'number' ? node.attrs.level : 2
-      return `<h${level}>${(node.content ?? []).map(nodeToHtml).join('')}</h${level}>`
-    }
-    case 'text': {
-      let text = escapeHtml(node.text ?? '')
-      for (const mark of node.marks ?? []) {
-        if (mark.type === 'bold') text = `<strong>${text}</strong>`
-        if (mark.type === 'italic') text = `<em>${text}</em>`
-        if (mark.type === 'underline') text = `<u>${text}</u>`
-        if (mark.type === 'highlight') text = `<mark>${text}</mark>`
-        if (mark.type === 'link') text = `<a href="${escapeAttribute(String(mark.attrs?.href ?? '#'))}">${text}</a>`
-      }
-      return text
-    }
-    case 'bulletList': return `<ul>${(node.content ?? []).map(nodeToHtml).join('')}</ul>`
-    case 'orderedList': return `<ol>${(node.content ?? []).map(nodeToHtml).join('')}</ol>`
-    case 'listItem': return `<li>${(node.content ?? []).map(nodeToHtml).join('')}</li>`
-    case 'blockquote': return `<blockquote>${(node.content ?? []).map(nodeToHtml).join('')}</blockquote>`
-    case 'horizontalRule': return '<hr />'
-    case 'figure': return `<figure><img src="${escapeAttribute(String(node.attrs?.src ?? ''))}" alt="${escapeAttribute(String(node.attrs?.alt ?? ''))}" /></figure>`
-    case 'image': return `<img src="${escapeAttribute(String(node.attrs?.src ?? ''))}" alt="${escapeAttribute(String(node.attrs?.alt ?? ''))}" />`
-    case 'hardBreak': return '<br />'
-    default: return (node.content ?? []).map(nodeToHtml).join('')
-  }
-}
-
-function highlightComments(html: string, threads: ReviewCommentThread[]): string {
-  let output = html
-  for (const thread of threads) {
-    const needle = escapeHtml(thread.selectedText)
-    if (!needle || !output.includes(needle)) continue
-    output = output.replace(
-      needle,
-      `<mark class="bg-gold/20 text-inherit ring-1 ring-gold/40" data-review-comment="${escapeAttribute(thread.id)}">${needle}</mark>`
-    )
-  }
-  return output
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
-}
-
-function escapeAttribute(value: string): string {
-  return escapeHtml(value).replace(/`/g, '&#096;')
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import type React from 'react'
+import Image from 'next/image'
 import { ChevronDown, Clock, ImagePlus, Tag, X } from 'lucide-react'
 import { EDITORIAL_TIME_ZONE_LABEL, getEditorialScheduleMinInput } from '@/lib/editorialSchedule'
 import { readTimeLabel, wordCountFromContent } from '@/lib/readTime'
@@ -110,13 +111,14 @@ export function ArticleEditorMetadataPanel({ editor }: ArticleEditorMetadataPane
         {editor.uploading && <p className="text-[10px] text-[var(--fg-faint)] mt-1">Uploading...</p>}
         {editor.coverError && <p className="text-[10px] text-red-500 mt-1">{editor.coverError}</p>}
         {editor.coverImage && (
-          <div className="mt-2 relative">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+          <div className="mt-2 relative h-20">
+            <Image
               src={editor.coverImage}
               alt="Cover preview"
-              className="w-full max-h-20 object-contain rounded border border-[var(--border)] bg-[var(--bg-subtle)]"
-              onError={(event) => { event.currentTarget.style.display = 'none' }}
+              fill
+              className="object-contain rounded border border-[var(--border)] bg-[var(--bg-subtle)]"
+              unoptimized
+              sizes="280px"
             />
             {editor.canEdit && (
               <button
