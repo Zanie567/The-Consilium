@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 
-const SITE_URL = 'https://the-consilium.vercel.app'
+const SITE_URL = 'https://theconsilium.co.uk'
 const CHANNEL_DESCRIPTION =
   'Economics analysis, opinion, and research from the University of Edinburgh'
 
