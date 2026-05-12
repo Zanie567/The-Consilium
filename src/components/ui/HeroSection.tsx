@@ -24,8 +24,6 @@ interface HeroSectionProps {
 }
 
 export function HeroSection({ featured, sideArticles }: HeroSectionProps) {
-  const three = sideArticles.slice(0, 3)
-
   return (
     <AnimateIn variant="fade-up" duration={0.6}>
       <section className="py-4 lg:py-6 border-b border-[var(--border)]">
@@ -100,29 +98,29 @@ export function HeroSection({ featured, sideArticles }: HeroSectionProps) {
             </Link>
 
             {/* ── Side cards (1/3 width on lg+): each card is individually bordered ── */}
-            <div className="lg:w-1/3 flex flex-col gap-3">
-              {three.length === 0 ? (
+            <div className="lg:w-1/3 flex flex-col gap-2.5">
+              {sideArticles.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center p-8 border border-gray-200 dark:border-gray-700 rounded-sm bg-[var(--bg-elevated)]">
                   <p className="text-[var(--fg-faint)] text-xs uppercase tracking-widest">
                     More stories soon
                   </p>
                 </div>
               ) : (
-                three.map((article) => (
+                sideArticles.map((article) => (
                   <Link
                     key={article.id}
                     href={`/articles/${article.slug}`}
-                    className="flex gap-3 group border border-gray-200 dark:border-gray-700 rounded-sm p-3 bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] transition-colors duration-150"
+                    className="flex gap-3 group border border-gray-200 dark:border-gray-700 rounded-sm p-2.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] transition-colors duration-150"
                   >
                     {/* Thumbnail */}
-                    <div className="relative w-20 sm:w-24 flex-shrink-0 bg-navy/10 overflow-hidden rounded-sm self-start" style={{ aspectRatio: '4 / 3' }}>
+                    <div className="relative w-16 sm:w-20 flex-shrink-0 bg-navy/10 overflow-hidden rounded-sm self-start" style={{ aspectRatio: '4 / 3' }}>
                       {article.coverImage ? (
                         <BlurImage
                           src={article.coverImage}
                           alt={article.title}
                           fill
                           className="object-cover object-center transition-transform duration-300 group-hover:scale-[1.04]"
-                          sizes="96px"
+                          sizes="80px"
                         />
                       ) : (
                         <div className="absolute inset-0 bg-gradient-to-br from-navy to-navy-light flex items-center justify-center">
@@ -139,17 +137,17 @@ export function HeroSection({ featured, sideArticles }: HeroSectionProps) {
                     {/* Content */}
                     <div className="flex flex-col flex-1 min-w-0">
                       {article.category && (
-                        <span className="text-gold text-[0.65rem] font-bold tracking-[0.12em] uppercase mb-1 truncate">
+                        <span className="text-gold text-[0.6rem] font-bold tracking-[0.12em] uppercase mb-0.5 truncate">
                           {article.category.name}
                         </span>
                       )}
                       <h3
-                        className="text-sm font-semibold text-[var(--fg)] leading-snug group-hover:text-gold transition-colors duration-150 line-clamp-2 flex-1"
+                        className="text-xs font-semibold text-[var(--fg)] leading-snug group-hover:text-gold transition-colors duration-150 line-clamp-2 flex-1"
                         style={{ fontFamily: 'var(--font-serif)' }}
                       >
                         {article.title}
                       </h3>
-                      <div className="flex items-center gap-1.5 text-[var(--fg-faint)] text-xs mt-1.5">
+                      <div className="flex items-center gap-1.5 text-[var(--fg-faint)] text-[10px] mt-1">
                         <span className="truncate">{displayAuthorName(article.author.name)}</span>
                         {article.publishedAt && (
                           <>

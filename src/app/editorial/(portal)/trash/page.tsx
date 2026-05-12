@@ -13,12 +13,14 @@ export const metadata: Metadata = {
 export default async function TrashPage() {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/editorial/login')
-  if (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR') {
+  if (!['ADMIN', 'EDITOR', 'WRITER'].includes(session.user.role)) {
     redirect('/editorial')
   }
+  const { role, id: userId } = session.user
+  const isWriter = role === 'WRITER'
 
   const articles = await prisma.article.findMany({
-    where: { deletedAt: { not: null } },
+    where: { deletedAt: { not: null }, ...(isWriter ? { authorId: userId } : {}) },
     orderBy: { deletedAt: 'desc' },
     select: {
       id: true,

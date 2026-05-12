@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -9,7 +8,7 @@ interface Props {
 
 // PATCH /api/editorial/trash/[id] - restore a soft-deleted article
 export async function PATCH(_req: NextRequest, { params }: Props) {
-  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  const user = await getVerifiedSessionUser(['ADMIN', 'EDITOR', 'WRITER'] as const)
   if (!user) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -20,6 +19,9 @@ export async function PATCH(_req: NextRequest, { params }: Props) {
     const article = await prisma.article.findUnique({ where: { id } })
     if (!article || !article.deletedAt) {
       return NextResponse.json({ error: 'Not found in trash' }, { status: 404 })
+    }
+    if (user.role === 'WRITER' && article.authorId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const restored = await prisma.article.update({
@@ -34,7 +36,7 @@ export async function PATCH(_req: NextRequest, { params }: Props) {
 
 // DELETE /api/editorial/trash/[id] - permanently delete a trashed article
 export async function DELETE(_req: NextRequest, { params }: Props) {
-  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  const user = await getVerifiedSessionUser(['ADMIN', 'EDITOR', 'WRITER'] as const)
   if (!user) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -45,6 +47,9 @@ export async function DELETE(_req: NextRequest, { params }: Props) {
     const article = await prisma.article.findUnique({ where: { id } })
     if (!article || !article.deletedAt) {
       return NextResponse.json({ error: 'Not found in trash' }, { status: 404 })
+    }
+    if (user.role === 'WRITER' && article.authorId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     await prisma.article.delete({ where: { id } })

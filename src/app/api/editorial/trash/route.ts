@@ -1,18 +1,19 @@
 import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 
+// TODO: move ['ADMIN', 'EDITOR', 'WRITER'] into rbac.ts as TRASH_ACCESS_ROLES
 // GET /api/editorial/trash - list all soft-deleted articles, most recently deleted first
 export async function GET() {
-  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  const user = await getVerifiedSessionUser(['ADMIN', 'EDITOR', 'WRITER'] as const)
   if (!user) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+  const isWriter = user.role === 'WRITER'
 
   try {
     const articles = await prisma.article.findMany({
-      where: { deletedAt: { not: null } },
+      where: { deletedAt: { not: null }, ...(isWriter ? { authorId: user.id } : {}) },
       orderBy: { deletedAt: 'desc' },
       select: {
         id: true,

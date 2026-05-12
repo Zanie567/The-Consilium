@@ -169,7 +169,7 @@ function ActionMenu({
               <Shield size={12} /> Change Role <ChevronDown size={10} className="ml-auto" />
             </button>
             {roleOpen && (
-              <div className="absolute left-full top-0 ml-1 bg-[var(--bg-elevated)] border border-[var(--border)] shadow-xl min-w-[100px] py-1">
+              <div className="absolute right-full top-0 mr-1 bg-[var(--bg-elevated)] border border-[var(--border)] shadow-xl min-w-[100px] py-1">
                 {['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].filter((r) => r !== user.role).map((r) => (
                   <button
                     key={r}
