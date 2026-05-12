@@ -20,7 +20,7 @@ export const FEEDBACK_FORM_URL = 'https://forms.gle/ufUnT7sDoKagnLqGA'
 /** Canonical site URL. Falls back to the Vercel deployment URL, then the production domain. */
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://the-consilium.vercel.app')
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://theconsilium.co.uk')
 
 export const LOGO_URL = `${SITE_URL}/logo.png`
 
