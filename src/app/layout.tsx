@@ -9,6 +9,7 @@ import { ScrollIndicator } from '@/components/ui/ScrollIndicator'
 import { SignupPrompt } from '@/components/ui/SignupPrompt'
 import { CookieConsentBanner } from '@/components/ui/CookieConsent'
 import { InstallBanner } from '@/components/ui/InstallBanner'
+import { FaviconSwitcher } from '@/components/ui/FaviconSwitcher'
 import { SITE_URL } from '@/lib/constants'
 
 const playfair = Playfair_Display({
@@ -102,6 +103,7 @@ export default function RootLayout({
             <SignupPrompt />
             <CookieConsentBanner />
             <InstallBanner />
+            <FaviconSwitcher />
           </AuthProvider>
         </ThemeProvider>
       </body>
