@@ -56,10 +56,16 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon.ico', sizes: '16x16 32x32 48x48' },
-      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      // Light browser theme → dark navy emblem (high contrast on light tab bar)
+      { url: '/favicon-navy-32.png', sizes: '32x32', type: 'image/png', media: '(prefers-color-scheme: light)' },
+      { url: '/favicon-navy-16.png', sizes: '16x16', type: 'image/png', media: '(prefers-color-scheme: light)' },
+      // Dark browser theme → cream emblem (high contrast on dark tab bar)
+      { url: '/favicon-cream-32.png', sizes: '32x32', type: 'image/png', media: '(prefers-color-scheme: dark)' },
+      { url: '/favicon-cream-16.png', sizes: '16x16', type: 'image/png', media: '(prefers-color-scheme: dark)' },
+      // Universal fallback for browsers that ignore media on <link rel="icon">
+      { url: '/favicon.ico', sizes: 'any' },
     ],
+    // src/app/icon.png (512px navy) also generates an unconditional fallback link automatically
     apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
   alternates: {
