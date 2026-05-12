@@ -16,6 +16,7 @@ import { EconomicTicker } from '@/components/ui/EconomicTicker'
 import { displayAuthorName } from '@/lib/authorUtils'
 import { HeroSection } from '@/components/ui/HeroSection'
 import type { Metadata } from 'next'
+import { SITE_NAME, SITE_URL } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -247,12 +248,34 @@ export default async function HomePage({
   const allGridArticles = featured
     ? articles.filter((a) => a.id !== featured.id)
     : articles
-  // First 3 are shown in the hero side column; the main grid starts after them
+  // First 5 are shown in the hero side column; the main grid starts after them
   const heroSideArticles = allGridArticles.slice(0, 5)
   const articleGrid = allGridArticles.slice(5)
+  const websiteStructuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE_NAME,
+    url: SITE_URL,
+    description: 'Economics analysis, opinion, and research from the University of Edinburgh',
+  }
+  const organizationStructuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE_NAME,
+    url: SITE_URL,
+    description: 'The official publication of the University of Edinburgh Economics Society',
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteStructuredData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationStructuredData) }}
+      />
       {/* ── Masthead Hero ──────────────────────────────────────────────────── */}
       <section className="bg-navy text-cream py-7 px-4 text-center border-b border-gold/25 relative overflow-hidden">
         {/* Subtle dot grid */}

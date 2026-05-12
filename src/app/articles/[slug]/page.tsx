@@ -20,7 +20,7 @@ import { CommentSection } from '@/components/ui/CommentSection'
 import { readTimeLabel } from '@/lib/readTime'
 import { getInitials, displayAuthorName } from '@/lib/authorUtils'
 import type { Metadata } from 'next'
-import { LOGO_URL } from '@/lib/constants'
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/constants'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -46,6 +46,10 @@ async function getArticle(slug: string) {
       },
     })
   } catch { return null }
+}
+
+function getArticleUrl(slug: string): string {
+  return `${SITE_URL.replace(/\/$/, '')}/articles/${slug}`
 }
 
 // ── Relevance-scored related articles ────────────────────────────────────────
@@ -118,25 +122,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const article = await getArticle(slug)
   if (!article) return {}
+  const articleUrl = getArticleUrl(article.slug)
+
   return {
-    title: article.title,
-    description: article.excerpt ?? `An article by ${article.author.name ?? 'The Consilium'}.`,
+    title: {
+      absolute: `${article.title} | ${SITE_NAME}`,
+    },
+    description: article.excerpt ?? SITE_DESCRIPTION,
     authors: article.author.name ? [{ name: article.author.name }] : undefined,
     openGraph: {
       title: article.title,
       description: article.excerpt ?? undefined,
       type: 'article',
+      url: articleUrl,
       publishedTime: article.publishedAt?.toISOString(),
       authors: article.author.name ? [article.author.name] : undefined,
       images: article.coverImage
-        ? [{ url: article.coverImage, width: 1200, height: 630, alt: article.title }]
-        : [{ url: LOGO_URL, width: 512, height: 512, alt: 'The Consilium' }],
+        ? [{ url: article.coverImage }]
+        : undefined,
     },
     twitter: {
       card: 'summary_large_image',
       title: article.title,
       description: article.excerpt ?? undefined,
-      images: article.coverImage ? [article.coverImage] : [LOGO_URL],
     },
   }
 }
@@ -267,9 +275,34 @@ export default async function ArticlePage({ params }: Props) {
   const nextInSeries = seriesPosition < seriesArticles.length - 1 ? seriesArticles[seriesPosition + 1] : null
 
   const authorHref = `/author/${article.author.slug ?? article.author.id}`
+  const articleUrl = getArticleUrl(article.slug)
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: article.title,
+    description: article.excerpt ?? '',
+    image: article.coverImage ?? undefined,
+    author: {
+      '@type': 'Person',
+      name: article.author.name ?? SITE_NAME,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: SITE_NAME,
+      url: SITE_URL,
+    },
+    datePublished: article.publishedAt?.toISOString() ?? '',
+    dateModified: article.updatedAt.toISOString(),
+    url: articleUrl,
+    mainEntityOfPage: articleUrl,
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
       <ReadingProgress />
       <ReadingTracker articleId={article.id} />
       <ViewCounter articleId={article.id} />

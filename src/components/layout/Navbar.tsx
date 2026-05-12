@@ -34,7 +34,7 @@ function NavLink({
     <Link
       href={href}
       onClick={onClick}
-      className={`relative text-xs font-semibold tracking-widest uppercase py-1 transition-[colors,transform] duration-100 active:scale-[0.95] active:opacity-75 ${
+      className={`relative text-xs font-semibold tracking-widest uppercase py-1 transition-[color,transform] duration-100 active:scale-[0.95] active:opacity-75 ${
         active ? 'text-gold' : 'text-cream/70 hover:text-cream'
       }`}
     >
@@ -100,16 +100,14 @@ export function Navbar() {
   return (
     <>
       <header
-        className={`sticky top-0 z-50 transition-all duration-300 ease-out ${
+        className={`sticky top-0 z-50 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ease-out ${
           scrolled
             ? 'bg-navy/[0.85] backdrop-blur-[12px] shadow-[0_4px_24px_rgba(0,0,0,0.28)] border-b border-gold/20'
             : 'bg-navy border-b-2 border-gold'
         }`}
       >
         <div
-          className={`w-full pl-3 pr-4 sm:pl-5 sm:pr-6 lg:pl-7 lg:pr-8 flex items-center justify-between transition-all duration-300 ${
-            scrolled ? 'h-14' : 'h-16'
-          }`}
+          className="w-full h-16 pl-3 pr-4 sm:pl-5 sm:pr-6 lg:pl-7 lg:pr-8 flex items-center justify-between"
         >
           {/* Masthead */}
           <Link
@@ -317,7 +315,7 @@ export function Navbar() {
                     <Link
                       href={link.href}
                       onClick={() => setMobileOpen(false)}
-                      className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[colors,transform] duration-100 active:scale-[0.97] active:opacity-80 ${
+                      className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${
                         isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold'
                       }`}
                     >
