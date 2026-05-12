@@ -26,7 +26,7 @@ interface UserData {
   id: string
   name: string | null
   email: string
-  role: 'ADMIN' | 'EDITOR' | 'WRITER' | 'READER'
+  role: 'ADMIN' | 'EDITOR' | 'WRITER' | 'GROWTH' | 'READER'
   isActive: boolean
   slug: string | null
   bio: string | null

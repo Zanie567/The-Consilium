@@ -1,17 +1,11 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ANALYTICS_ACCESS_ROLES } from '@/lib/rbac'
 
 async function requireAdmin(): Promise<string | null> {
-  const session = await getServerSession(authOptions)
-  if (!session) return null
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true, isActive: true, isBanned: true },
-  })
-  if (!user || !user.isActive || user.isBanned || user.role !== 'ADMIN') return null
-  return session.user.id
+  const user = await getVerifiedSessionUser(ANALYTICS_ACCESS_ROLES)
+  return user?.id ?? null
 }
 
 export async function GET() {
@@ -53,7 +47,7 @@ export async function GET() {
     prisma.articleView.count({ where: { viewedAt: { gte: startOfLastWeek, lt: endOfLastWeek } } }),
     prisma.articleView.count({ where: { viewedAt: { gte: startOfLastMonth, lt: endOfLastMonth } } }),
     prisma.article.count({ where: { status: 'PUBLISHED', deletedAt: null } }),
-    prisma.user.count({ where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] } } }),
+    prisma.user.count({ where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH'] } } }),
   ])
 
   const avgViewsPerArticle = totalArticlesPublished > 0

@@ -12,7 +12,7 @@ import { TrendingUp, TrendingDown, Minus, Users, Bookmark } from 'lucide-react'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip)
 
-interface AudienceData {
+export interface AudienceData {
   returnVisitorRate: {
     rate: number; newCount: number; returningCount: number; trend: number
   }

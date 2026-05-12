@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { Signal, Clock } from 'lucide-react'
 
-interface DistributionData {
+export interface DistributionData {
   trafficSources: { source: string; views: number; pct: number }[]
   recentActivity: {
     id: string; title: string; publishedAt: string | null; viewCount: number

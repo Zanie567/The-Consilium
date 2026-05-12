@@ -40,6 +40,7 @@ const STATUS_STYLE: Record<string, string> = {
 export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter, emptyMessage }: Props) {
   const [articles, setArticles] = useState(initial)
   const [filter, setFilter] = useState<string>('all')
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setArticles(initial)
@@ -54,32 +55,48 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
   }
 
   const featureArticle = async (id: string, current: boolean) => {
-    const method = current ? 'DELETE' : 'POST'
-    const res = await fetch(`/api/editorial/articles/${id}/feature`, { method })
-    if (res.ok) toggle(id, 'isFeatured', !current)
+    try {
+      const method = current ? 'DELETE' : 'POST'
+      const res = await fetch(`/api/editorial/articles/${id}/feature`, { method })
+      if (res.ok) toggle(id, 'isFeatured', !current)
+    } catch {
+      setError('Failed to update featured status.')
+    }
   }
 
   const pinArticle = async (id: string, current: boolean) => {
-    const method = current ? 'DELETE' : 'POST'
-    const res = await fetch(`/api/editorial/articles/${id}/pin`, { method })
-    if (res.ok) toggle(id, 'isPinned', !current)
+    try {
+      const method = current ? 'DELETE' : 'POST'
+      const res = await fetch(`/api/editorial/articles/${id}/pin`, { method })
+      if (res.ok) toggle(id, 'isPinned', !current)
+    } catch {
+      setError('Failed to update pinned status.')
+    }
   }
 
   const deleteArticle = async (id: string) => {
     if (!confirm('Delete this article? This cannot be undone.')) return
-    const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' })
-    if (res.ok) setArticles((prev) => prev.filter((a) => a.id !== id))
+    try {
+      const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' })
+      if (res.ok) setArticles((prev) => prev.filter((a) => a.id !== id))
+    } catch {
+      setError('Failed to delete article.')
+    }
   }
 
   const publishArticle = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED'
-    const res = await fetch(`/api/articles/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus }),
-    })
-    if (res.ok) {
-      setArticles((prev) => prev.map((a) => a.id === id ? { ...a, status: newStatus } : a))
+    try {
+      const res = await fetch(`/api/articles/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (res.ok) {
+        setArticles((prev) => prev.map((a) => a.id === id ? { ...a, status: newStatus } : a))
+      }
+    } catch {
+      setError('Failed to update article status.')
     }
   }
 
@@ -89,6 +106,11 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
 
   return (
     <div>
+      {error && (
+        <div className="mb-4 px-4 py-3 text-sm text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20">
+          {error}
+        </div>
+      )}
       {/* Filter tabs */}
       <div className="flex gap-1 mb-4 flex-wrap">
         {statuses.map((s) => (

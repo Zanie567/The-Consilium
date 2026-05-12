@@ -1,16 +1,10 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ANALYTICS_ACCESS_ROLES } from '@/lib/rbac'
 
 async function requireAdmin(): Promise<boolean> {
-  const session = await getServerSession(authOptions)
-  if (!session) return false
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true, isActive: true, isBanned: true },
-  })
-  return !!(user && user.isActive && !user.isBanned && user.role === 'ADMIN')
+  return !!(await getVerifiedSessionUser(ANALYTICS_ACCESS_ROLES))
 }
 
 export async function GET(req: Request) {

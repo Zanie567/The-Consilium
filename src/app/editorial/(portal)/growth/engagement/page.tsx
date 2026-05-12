@@ -1,10 +1,10 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
 import type { Metadata } from 'next'
+import { ANALYTICS_ACCESS_ROLES } from '@/lib/rbac'
 
 export const metadata: Metadata = {
   title: 'Engagement | Editorial',
@@ -14,9 +14,8 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function EngagementPage() {
-  const session = await getServerSession(authOptions)
-  if (!session) redirect('/editorial/login')
-  if (!['ADMIN', 'GROWTH'].includes(session.user.role ?? '')) redirect('/editorial')
+  const user = await getVerifiedSessionUser(ANALYTICS_ACCESS_ROLES)
+  if (!user) redirect('/editorial')
 
   const [topArticles, debates, topCommenters] = await Promise.all([
     // Section 1 - top articles by view count

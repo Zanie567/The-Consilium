@@ -1,22 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email'
 import { CONTACT_EMAIL } from '@/lib/constants'
-
-function isAdmin(session: Awaited<ReturnType<typeof getServerSession>>): boolean {
-  if (!session) return false
-  const user = (session as { user?: { role?: string; isBanned?: boolean } }).user
-  return user?.role === 'ADMIN' && !user?.isBanned
-}
+import { ADMIN_ONLY } from '@/lib/rbac'
 
 interface Ctx { params: Promise<{ userId: string }> }
 
 // GET /api/admin/users/[userId] - full user profile
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  const session = await getServerSession(authOptions)
-  if (!isAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const admin = await getVerifiedSessionUser(ADMIN_ONLY)
+  if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { userId } = await params
 
@@ -84,11 +78,11 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 // DELETE /api/admin/users/[userId] - hard delete
 export async function DELETE(req: NextRequest, { params }: Ctx) {
-  const session = await getServerSession(authOptions)
-  if (!isAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const admin = await getVerifiedSessionUser(ADMIN_ONLY)
+  if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { userId } = await params
-  const adminId = session!.user.id
+  const adminId = admin.id
 
   // Cannot delete yourself
   if (userId === adminId) {
@@ -113,7 +107,7 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: 'Email confirmation does not match' }, { status: 400 })
   }
 
-  const adminName = session!.user.name ?? session!.user.email ?? adminId
+  const adminName = adminId
 
   try {
     await prisma.$transaction(async (tx) => {

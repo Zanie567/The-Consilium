@@ -17,7 +17,7 @@ interface UserRecord {
   id: string
   name: string | null
   email: string
-  role: 'ADMIN' | 'EDITOR' | 'WRITER'
+  role: 'ADMIN' | 'EDITOR' | 'WRITER' | 'GROWTH' | 'READER'
   isActive: boolean
   createdAt: string
   categoryAssignments: { category: Category }[]
@@ -34,6 +34,8 @@ const ROLE_BADGE: Record<string, string> = {
   ADMIN: 'bg-gold/20 text-gold',
   EDITOR: 'bg-blue-500/20 text-blue-600 dark:text-blue-400',
   WRITER: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
+  GROWTH: 'bg-teal-500/20 text-teal-600 dark:text-teal-400',
+  READER: 'bg-[var(--border)] text-[var(--fg-muted)]',
 }
 
 export function UserManagement({ initialUsers, categories, currentUserId, currentUserRole }: Props) {
@@ -204,7 +206,9 @@ export function UserManagement({ initialUsers, categories, currentUserId, curren
                 className="w-full bg-[var(--bg)] border border-[var(--border)] px-3 py-2 text-[var(--fg)] text-sm focus:outline-none focus:border-gold"
               >
                 <option value="WRITER">Writer</option>
+                <option value="READER">Reader</option>
                 <option value="EDITOR">Editor</option>
+                {isAdmin && <option value="GROWTH">Growth</option>}
                 {isAdmin && <option value="ADMIN">Admin</option>}
               </select>
             </div>

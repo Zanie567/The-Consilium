@@ -1,15 +1,15 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
 import type { Metadata } from 'next'
+import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 
 export const metadata: Metadata = { title: 'Subscribers | Admin' }
 
 export default async function AdminSubscribersPage() {
-  const session = await getServerSession(authOptions)
-  if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR')) {
+  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  if (!user) {
     redirect('/editorial')
   }
 

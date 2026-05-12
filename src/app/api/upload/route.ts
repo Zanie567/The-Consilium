@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions, requireActiveSession } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
+import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 
 // BUG-18: Explicit allowlist of buckets callers may upload to.
 // Any value not in this list is rejected outright.
@@ -53,15 +53,8 @@ function detectImageMimeType(buf: Uint8Array): string | null {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-
-  // BUG-20: reject missing sessions and banned users
-  const authError = requireActiveSession(session)
-  if (authError) return authError
-
-  // BUG-17: only editorial staff may upload files
-  const role = (session!.user as { role?: string }).role
-  if (!role || !['ADMIN', 'EDITOR', 'WRITER'].includes(role)) {
+  const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
+  if (!user) {
     return Response.json(
       { error: 'Only writers and editors may upload files.' },
       { status: 403 }

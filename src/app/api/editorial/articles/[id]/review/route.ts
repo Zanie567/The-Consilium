@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, articleReturnedEmail, articlePublishedEmail } from '@/lib/email'
 import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
+import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -12,8 +12,8 @@ interface Props {
 // PATCH - editor action on a submitted article
 // action: 'approve' | 'reject' | 'schedule' | 'return' | 'unpublish'
 export async function PATCH(req: Request, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR')) {
+  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  if (!user) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -29,10 +29,10 @@ export async function PATCH(req: Request, { params }: Props) {
   // BUG-03: Editors only see their assigned categories (unless ADMIN).
   // The guard must apply even when the article has no category so that
   // category-restricted editors cannot review uncategorised articles.
-  if (session.user.role === 'EDITOR') {
+  if (user.role === 'EDITOR') {
     if (article.categoryId) {
       const assignment = await prisma.categoryEditor.findFirst({
-        where: { userId: session.user.id, categoryId: article.categoryId },
+          where: { userId: user.id, categoryId: article.categoryId },
       })
       if (!assignment) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -41,7 +41,7 @@ export async function PATCH(req: Request, { params }: Props) {
       // Uncategorised article: an editor who has category restrictions cannot
       // review it because there is no matching assignment to grant access.
       const anyAssignment = await prisma.categoryEditor.findFirst({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
       })
       if (anyAssignment) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

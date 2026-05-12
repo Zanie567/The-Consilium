@@ -1,33 +1,32 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions, requireActiveSession } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import { ADMIN_ONLY, ALL_ROLES, EDITORIAL_MANAGEMENT_ROLES, EDITOR_USER_TARGET_ROLES, isAllowedRole } from '@/lib/rbac'
+import type { Role } from '@prisma/client'
 
 interface Props {
   params: Promise<{ id: string }>
 }
 
-function isEditorialStaff(role: string) {
-  return role === 'ADMIN' || role === 'EDITOR'
+const ADMIN_PROFILE_FIELDS = new Set(['name', 'email', 'bio', 'image', 'slug', 'adminNotes', 'isActive', 'categoryIds'])
+const EDITOR_PROFILE_FIELDS = new Set(['name', 'email', 'bio', 'image', 'slug'])
+
+function bodyKeys(body: Record<string, unknown>) {
+  return Object.keys(body).filter((key) => body[key] !== undefined)
 }
 
-async function getVerifiedRole(userId: string): Promise<string | null> {
-  try {
-    const u = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, isActive: true } })
-    if (!u || !u.isActive) return null
-    return u.role
-  } catch {
-    return null
-  }
+function hasOnlyKeys(keys: string[], allowed: Set<string>) {
+  return keys.every((key) => allowed.has(key))
+}
+
+function canEditorModifyTarget(role: Role) {
+  return (EDITOR_USER_TARGET_ROLES as readonly Role[]).includes(role)
 }
 
 export async function GET(_req: Request, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  const authError = requireActiveSession(session)
-  if (authError) return authError
-  const callerRole = await getVerifiedRole(session!.user.id)
-  if (!callerRole || !isEditorialStaff(callerRole)) {
+  const caller = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  if (!caller) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -57,41 +56,67 @@ export async function GET(_req: Request, { params }: Props) {
 }
 
 export async function PATCH(req: Request, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  const authError2 = requireActiveSession(session)
-  if (authError2) return authError2
-  const callerRole = await getVerifiedRole(session!.user.id)
-  if (!callerRole || !isEditorialStaff(callerRole)) {
+  const caller = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  if (!caller) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const { id } = await params
 
-  // Editors cannot modify Admin accounts
-  if (callerRole === 'EDITOR') {
-    const target = await prisma.user.findUnique({ where: { id }, select: { role: true } })
-    if (target?.role === 'ADMIN') {
-      return NextResponse.json({ error: 'Editors cannot modify Admin accounts.' }, { status: 403 })
-    }
+  const target = await prisma.user.findUnique({
+    where: { id },
+    select: { id: true, role: true, name: true, email: true },
+  })
+  if (!target) {
+    return NextResponse.json({ error: 'User not found.' }, { status: 404 })
   }
 
-  const body = await req.json()
+  if (caller.role === 'EDITOR' && !canEditorModifyTarget(target.role)) {
+    return NextResponse.json({ error: 'Editors can only modify writer and reader accounts.' }, { status: 403 })
+  }
+
+  const body = await req.json() as Record<string, unknown>
+  const keys = bodyKeys(body)
   const { isActive, password, categoryIds, name, email, role, bio, image, slug, adminNotes } = body
 
+  const isRoleChange = role !== undefined
+  const isPasswordChange = password !== undefined
+  if ([isRoleChange, isPasswordChange].filter(Boolean).length > 1) {
+    return NextResponse.json({ error: 'Submit role changes and password changes separately.' }, { status: 400 })
+  }
+
+  if (isRoleChange && keys.length !== 1) {
+    return NextResponse.json({ error: 'Role changes must only include role.' }, { status: 400 })
+  }
+  if (isPasswordChange && keys.length !== 1) {
+    return NextResponse.json({ error: 'Password resets must only include password.' }, { status: 400 })
+  }
+
+  const allowedProfileFields = caller.role === 'ADMIN' ? ADMIN_PROFILE_FIELDS : EDITOR_PROFILE_FIELDS
+  if (!isRoleChange && !isPasswordChange && !hasOnlyKeys(keys, allowedProfileFields)) {
+    return NextResponse.json({ error: 'Request includes fields you cannot update.' }, { status: 400 })
+  }
+
   const updates: Record<string, unknown> = {}
-  if (typeof isActive === 'boolean') updates.isActive = isActive
+  if (caller.role === 'ADMIN' && typeof isActive === 'boolean') updates.isActive = isActive
   if (typeof name === 'string' && name.trim()) updates.name = name.trim()
   if (typeof email === 'string' && email.trim()) updates.email = email.trim().toLowerCase()
   if (typeof bio === 'string') updates.bio = bio.trim() || null
   if (typeof image === 'string') updates.image = image.trim() || null
 
-  // Only admins can set adminNotes or change role to ADMIN
-  if (callerRole === 'ADMIN') {
+  if (caller.role === 'ADMIN') {
     if (typeof adminNotes === 'string') updates.adminNotes = adminNotes.trim() || null
-    if (role && ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].includes(role)) updates.role = role
+    if (role !== undefined) {
+      if (!isAllowedRole(role, ALL_ROLES)) return NextResponse.json({ error: 'Invalid role.' }, { status: 400 })
+      updates.role = role
+    }
   } else {
-    // Editors can change role between EDITOR/WRITER/READER only
-    if (role && ['EDITOR', 'WRITER', 'READER'].includes(role)) updates.role = role
+    if (role !== undefined) {
+      if (!isAllowedRole(role, EDITOR_USER_TARGET_ROLES)) {
+        return NextResponse.json({ error: 'Editors can only assign writer or reader roles.' }, { status: 403 })
+      }
+      updates.role = role
+    }
   }
 
   if (typeof slug === 'string' && slug.trim()) {
@@ -103,20 +128,50 @@ export async function PATCH(req: Request, { params }: Props) {
     updates.slug = clean
   }
 
-  if (password) {
-    if (password.length < 8) {
+  if (password !== undefined) {
+    if (caller.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Only admins can reset passwords.' }, { status: 403 })
+    }
+    if (typeof password !== 'string' || password.length < 8) {
       return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })
     }
     updates.password = await bcrypt.hash(password, 10)
   }
 
-  const user = await prisma.user.update({
-    where: { id },
-    data: updates,
-    select: { id: true, name: true, role: true, isActive: true, slug: true, email: true, bio: true, image: true, adminNotes: true },
+  const user = await prisma.$transaction(async (tx) => {
+    const updated = await tx.user.update({
+      where: { id },
+      data: updates,
+      select: { id: true, name: true, role: true, isActive: true, slug: true, email: true, bio: true, image: true, adminNotes: true },
+    })
+
+    if (updates.role && updates.role !== target.role) {
+      await tx.auditLog.create({
+        data: {
+          action: 'USER_ROLE_CHANGED',
+          targetId: id,
+          targetType: 'user',
+          performedBy: caller.id,
+          metadata: {
+            oldRole: target.role,
+            newRole: updates.role,
+            targetName: target.name,
+            targetEmail: target.email,
+          },
+        },
+      })
+    }
+
+    return updated
   })
 
   if (categoryIds !== undefined) {
+    if (caller.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Only admins can update category assignments.' }, { status: 403 })
+    }
+    if (!Array.isArray(categoryIds)) {
+      return NextResponse.json({ error: 'categoryIds must be an array.' }, { status: 400 })
+    }
     await prisma.categoryEditor.deleteMany({ where: { userId: id } })
     if (categoryIds.length > 0) {
       await prisma.categoryEditor.createMany({
@@ -129,11 +184,8 @@ export async function PATCH(req: Request, { params }: Props) {
 }
 
 export async function DELETE(_req: Request, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  const authError3 = requireActiveSession(session)
-  if (authError3) return authError3
-  const callerRole = await getVerifiedRole(session!.user.id)
-  if (!callerRole || !isEditorialStaff(callerRole)) {
+  const caller = await getVerifiedSessionUser(ADMIN_ONLY)
+  if (!caller) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -144,9 +196,8 @@ export async function DELETE(_req: Request, { params }: Props) {
     return NextResponse.json({ error: 'User not found.' }, { status: 404 })
   }
 
-  // Editors cannot delete Admin accounts
-  if (callerRole === 'EDITOR' && target.role === 'ADMIN') {
-    return NextResponse.json({ error: 'Editors cannot delete Admin accounts.' }, { status: 403 })
+  if (target.role === 'ADMIN') {
+    return NextResponse.json({ error: 'Cannot delete Admin accounts.' }, { status: 403 })
   }
 
   await prisma.$transaction(async (tx) => {

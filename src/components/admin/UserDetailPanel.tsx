@@ -71,6 +71,7 @@ const ROLE_COLOURS: Record<string, string> = {
   ADMIN:  'bg-navy text-gold border border-gold/30',
   EDITOR: 'bg-teal-800/80 text-teal-200',
   WRITER: 'bg-gold/20 text-gold',
+  GROWTH: 'bg-emerald-800/60 text-emerald-300',
   READER: 'bg-[var(--border)] text-[var(--fg-muted)]',
 }
 
@@ -383,7 +384,7 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
               )}
 
               {/* Delete */}
-              {user.role !== 'ADMIN' && (
+              {['EDITOR', 'WRITER', 'GROWTH', 'READER'].includes(user.role) && (
                 <button
                   onClick={() => setDeleteOpen((o) => !o)}
                   className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/30 text-red-500 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 hover:bg-red-500/20 transition-colors"

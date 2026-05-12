@@ -1,9 +1,14 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions, requireActiveSession } from '@/lib/auth'
+import { authOptions, getVerifiedSessionUser, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import slugify from 'slugify'
 import { stripHtml } from '@/lib/content-filter'
+import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
+import type { ArticleStatus } from '@prisma/client'
+
+const STAFF_ARTICLE_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'ARCHIVED', 'REJECTED', 'SCHEDULED'] as const satisfies readonly ArticleStatus[]
+const WRITER_CREATE_STATUSES = ['DRAFT', 'PENDING_REVIEW'] as const satisfies readonly ArticleStatus[]
 
 function computeWordCount(content: string): number {
   try {
@@ -30,10 +35,14 @@ export async function GET(request: NextRequest) {
   const category = searchParams.get('category')
   const take     = parseInt(searchParams.get('take') ?? '20')
   const mine     = searchParams.get('mine') === 'true'
+  const session = await getServerSession(authOptions)
+
+  if (session?.user.role === 'GROWTH') {
+    return Response.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   // Drafts-for-current-user query (used by My Drafts section + autosave polling)
   if (mine) {
-    const session = await getServerSession(authOptions)
     const authError = requireActiveSession(session)
     if (authError) return authError
 
@@ -74,11 +83,10 @@ export async function GET(request: NextRequest) {
   // Without this check any visitor could retrieve all drafts by passing ?status=DRAFT.
   const requestedStatus = status?.toUpperCase() ?? 'PUBLISHED'
   if (requestedStatus !== 'PUBLISHED') {
-    const session = await getServerSession(authOptions)
     const authError = requireActiveSession(session)
     if (authError) return authError
     const role = (session!.user as { role?: string }).role
-    if (!role || !['ADMIN', 'EDITOR'].includes(role)) {
+    if (!role || !['ADMIN', 'EDITOR', 'WRITER'].includes(role)) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
   }
@@ -89,6 +97,9 @@ export async function GET(request: NextRequest) {
         status: requestedStatus as never,
         deletedAt: null,
         ...(category ? { category: { slug: category } } : {}),
+        ...(session?.user.role === 'WRITER' && requestedStatus !== 'PUBLISHED'
+          ? { authorId: session.user.id }
+          : {}),
       },
       orderBy: { publishedAt: 'desc' },
       take,
@@ -101,10 +112,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  const authError = requireActiveSession(session)
-  if (authError) return authError
-  if (!['ADMIN', 'EDITOR', 'WRITER'].includes(session!.user.role)) {
+  const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
+  if (!user) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -112,12 +121,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { title, slug: rawSlug, content, excerpt, coverImage, categoryId, status, tags, authorId: bodyAuthorId } = body
 
-    // Admins and editors may specify a different authorId in the body.
-    // Writers always own the article themselves.
-    const isAdminOrEditorCreating = ['ADMIN', 'EDITOR'].includes(session!.user.role)
+    const isAdminOrEditorCreating = ['ADMIN', 'EDITOR'].includes(user.role)
     const effectiveAuthorId = (isAdminOrEditorCreating && bodyAuthorId)
       ? bodyAuthorId
-      : session!.user.id
+      : user.id
+
+    const requestedStatus = typeof status === 'string' ? status : 'DRAFT'
+    const allowedStatuses = isAdminOrEditorCreating ? STAFF_ARTICLE_STATUSES : WRITER_CREATE_STATUSES
+    const finalStatus = (allowedStatuses as readonly string[]).includes(requestedStatus)
+      ? requestedStatus as ArticleStatus
+      : 'DRAFT'
 
     // Title is optional for autosave - untitled drafts are valid
     const effectiveTitle = title ?? ''
@@ -146,8 +159,8 @@ export async function POST(request: NextRequest) {
         coverImage: coverImage ?? null,
         categoryId: categoryId ?? null,
         authorId:   effectiveAuthorId,
-        status:     status ?? 'DRAFT',
-        publishedAt: status === 'PUBLISHED' ? new Date() : null,
+        status:     finalStatus,
+        publishedAt: finalStatus === 'PUBLISHED' ? new Date() : null,
       },
     })
 

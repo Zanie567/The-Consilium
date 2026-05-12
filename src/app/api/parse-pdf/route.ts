@@ -1,18 +1,20 @@
 import { NextRequest } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions, requireActiveSession } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import path from 'path'
 import { pathToFileURL } from 'url'
+import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 
-// DOMMatrix polyfill — pdfjs-dist uses it even during text extraction,
+// DOMMatrix polyfill: pdfjs-dist uses it even during text extraction,
 // but Node.js does not expose it as a global. This minimal implementation
 // is enough for coordinate transforms during text extraction.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- globalThis is dynamic in Node.js
-type AnyGlobal = Record<string, any>
-
 function ensureDOMMatrix() {
   if (typeof globalThis.DOMMatrix !== 'undefined') return
-  ;(globalThis as unknown as AnyGlobal).DOMMatrix = class DOMMatrix {
+  type MatrixCtor = { new (init?: string | number[] | DOMMatrixInit): DOMMatrix }
+  const createMatrix = (init?: string | number[] | DOMMatrixInit) => {
+    const Matrix = globalThis.DOMMatrix as unknown as MatrixCtor
+    return new Matrix(init)
+  }
+  const DOMMatrixPolyfill = class {
     a: number; b: number; c: number; d: number; e: number; f: number
     m11: number; m12: number; m13: number; m14: number
     m21: number; m22: number; m23: number; m24: number
@@ -52,8 +54,7 @@ function ensureDOMMatrix() {
     }
 
     multiply(other: { a: number; b: number; c: number; d: number; e: number; f: number }) {
-      const G = globalThis as unknown as AnyGlobal
-      const m = new G.DOMMatrix() as DOMMatrix
+      const m = createMatrix()
       m.a  = this.a * other.a  + this.c * other.b
       m.b  = this.b * other.a  + this.d * other.b
       m.c  = this.a * other.c  + this.c * other.d
@@ -65,24 +66,21 @@ function ensureDOMMatrix() {
     }
 
     translate(tx = 0, ty = 0, _tz = 0) {
-      const G = globalThis as unknown as AnyGlobal
-      return new G.DOMMatrix([this.a, this.b, this.c, this.d, this.e + this.a * tx + this.c * ty, this.f + this.b * tx + this.d * ty]) as DOMMatrix
+      return createMatrix([this.a, this.b, this.c, this.d, this.e + this.a * tx + this.c * ty, this.f + this.b * tx + this.d * ty])
     }
 
     scale(sx = 1, sy = sx, _sz = 1, _ox = 0, _oy = 0) {
-      const G = globalThis as unknown as AnyGlobal
-      return new G.DOMMatrix([this.a * sx, this.b * sx, this.c * sy, this.d * sy, this.e, this.f]) as DOMMatrix
+      return createMatrix([this.a * sx, this.b * sx, this.c * sy, this.d * sy, this.e, this.f])
     }
 
     rotate(_angle = 0) {
-      return new (globalThis as unknown as AnyGlobal).DOMMatrix() as DOMMatrix
+      return createMatrix()
     }
 
     inverse() {
-      const G = globalThis as unknown as AnyGlobal
       const det = this.a * this.d - this.b * this.c
-      if (Math.abs(det) < 1e-10) return new G.DOMMatrix() as DOMMatrix
-      return new G.DOMMatrix([
+      if (Math.abs(det) < 1e-10) return createMatrix()
+      return createMatrix([
         this.d / det, -this.b / det,
         -this.c / det, this.a / det,
         (this.c * this.f - this.d * this.e) / det,
@@ -95,16 +93,20 @@ function ensureDOMMatrix() {
       return { x: this.a * x + this.c * y + this.e, y: this.b * x + this.d * y + this.f, z: 0, w: 1 }
     }
 
-    static fromMatrix(init: DOMMatrixInit) { return new (globalThis as unknown as AnyGlobal).DOMMatrix(init) as DOMMatrix }
-    static fromFloat32Array(a: Float32Array) { return new (globalThis as unknown as AnyGlobal).DOMMatrix(Array.from(a) as number[]) as DOMMatrix }
-    static fromFloat64Array(a: Float64Array) { return new (globalThis as unknown as AnyGlobal).DOMMatrix(Array.from(a) as number[]) as DOMMatrix }
+    static fromMatrix(init: DOMMatrixInit) { return createMatrix(init) }
+    static fromFloat32Array(a: Float32Array) { return createMatrix(Array.from(a)) }
+    static fromFloat64Array(a: Float64Array) { return createMatrix(Array.from(a)) }
   }
+  Object.defineProperty(globalThis, 'DOMMatrix', {
+    value: DOMMatrixPolyfill,
+    configurable: true,
+    writable: true,
+  })
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  const authError = requireActiveSession(session)
-  if (authError) return authError
+  const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
+  if (!user) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
     const formData = await request.formData()

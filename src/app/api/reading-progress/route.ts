@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions, requireActiveSession } from '@/lib/auth'
+import { authOptions, getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ALL_ROLES } from '@/lib/rbac'
 
 // GET /api/reading-progress - fetch in-progress articles for the current user
 export async function GET() {
@@ -37,9 +38,8 @@ export async function GET() {
 
 // POST /api/reading-progress - upsert progress for an article
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
-  const authError = requireActiveSession(session)
-  if (authError) return authError
+  const user = await getVerifiedSessionUser(ALL_ROLES)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { articleId, progress, scrollY } = await req.json()
   if (!articleId || typeof progress !== 'number') {
@@ -51,8 +51,8 @@ export async function POST(req: Request) {
   const completed = progress >= 90
   try {
     await prisma.readingProgress.upsert({
-      where: { userId_articleId: { userId: session!.user.id, articleId } },
-      create: { userId: session!.user.id, articleId, progress, scrollY: scrollY ?? 0, completed },
+      where: { userId_articleId: { userId: user.id, articleId } },
+      create: { userId: user.id, articleId, progress, scrollY: scrollY ?? 0, completed },
       update: { progress, scrollY: scrollY ?? 0, ...(completed ? { completed: true } : {}) },
     })
     return NextResponse.json({ ok: true })

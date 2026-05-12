@@ -1,9 +1,9 @@
 import { redirect, notFound } from 'next/navigation'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { UserProfileEditor } from '@/components/editorial/UserProfileEditor'
 import type { Metadata } from 'next'
+import { ADMIN_ONLY } from '@/lib/rbac'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -19,9 +19,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function UserProfilePage({ params }: Props) {
-  const session = await getServerSession(authOptions)
-  if (!session) redirect('/editorial/login')
-  if (session.user.role !== 'ADMIN') redirect('/editorial')
+  const session = await getVerifiedSessionUser(ADMIN_ONLY)
+  if (!session) redirect('/editorial')
 
   const { id } = await params
 

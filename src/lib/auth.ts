@@ -1,4 +1,5 @@
 import { NextAuthOptions } from 'next-auth'
+import { getServerSession } from 'next-auth'
 import { PrismaAdapter } from '@auth/prisma-adapter'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
@@ -16,6 +17,8 @@ if (!process.env.NEXTAUTH_SECRET) {
 }
 
 const EDITORIAL_ROLES: Role[] = ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH']
+export const ANALYTICS_ROLES = ['ADMIN', 'GROWTH'] as const satisfies readonly Role[]
+export const ARTICLE_ACCESS_ROLES = ['ADMIN', 'EDITOR', 'WRITER'] as const satisfies readonly Role[]
 const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
 
@@ -214,6 +217,23 @@ export const authOptions: NextAuthOptions = {
 
 export function isEditorialUser(role: Role): boolean {
   return EDITORIAL_ROLES.includes(role)
+}
+
+export async function getVerifiedSessionUser(
+  allowedRoles?: readonly Role[]
+): Promise<{ id: string; role: Role } | null> {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return null
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, role: true, isActive: true, isBanned: true },
+  })
+
+  if (!user || !user.isActive || user.isBanned) return null
+  if (allowedRoles && !allowedRoles.includes(user.role)) return null
+
+  return { id: user.id, role: user.role }
 }
 
 /**

@@ -5,6 +5,8 @@ import {
   ReactNodeViewRenderer, NodeViewWrapper,
 } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
+import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model'
+import { Plugin } from '@tiptap/pm/state'
 import {
   Node, mergeAttributes, type SingleCommands, type RawCommands,
 } from '@tiptap/core'
@@ -31,6 +33,7 @@ import React, {
 } from 'react'
 import { createPortal } from 'react-dom'
 import type { NodeViewProps } from '@tiptap/core'
+import { cleanPastedHTML } from '@/lib/editor/cleanPastedHTML'
 
 // ── Module augmentations ─────────────────────────────────────────────────────
 declare module '@tiptap/core' {
@@ -38,6 +41,7 @@ declare module '@tiptap/core' {
     pullQuote:  { togglePullQuote: () => ReturnType }
     footnoteRef: { insertFootnote: (content: string) => ReturnType }
     figure:     { insertFigure: (attrs: { src: string; alt?: string; caption?: string; credit?: string }) => ReturnType }
+    fontSize:   { setFontSize: (fontSize: string) => ReturnType; unsetFontSize: () => ReturnType }
   }
 }
 
@@ -232,6 +236,40 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
     const [activeColor,        setActiveColor]        = useState<string | null>(null)
     const [activeHighlight,    setActiveHighlight]    = useState<string | null>(null)
 
+    // Stable ref so handlePaste can call the upload function without
+    // a circular dependency on the editor instance.
+    const uploadForPasteRef = useRef<
+      (dataUrl: string, mimeType: string, filename: string) => Promise<string | null>
+    >(() => Promise.resolve(null))
+
+    const uploadForPasteImage = useCallback(
+      async (dataUrl: string, mimeType: string, filename: string): Promise<string | null> => {
+        try {
+          setUploading(true)
+          // Convert base64 data URI to Blob then to File
+          const res = await fetch(dataUrl)
+          const blob = await res.blob()
+          const file = new File([blob], filename, { type: mimeType })
+          const form = new FormData()
+          form.append('file', file)
+          form.append('bucket', 'article-images')
+          const uploadRes = await fetch('/api/upload', { method: 'POST', body: form })
+          const data = await uploadRes.json()
+          if (uploadRes.ok) return data.url as string
+          setUploadError(data.error ?? 'Paste image upload failed.')
+          return null
+        } catch {
+          setUploadError('Paste image upload failed. Check your connection.')
+          return null
+        } finally {
+          setUploading(false)
+        }
+      },
+      []
+    )
+
+    uploadForPasteRef.current = uploadForPasteImage
+
     const editor = useEditor({
       editable,
       extensions: [
@@ -269,16 +307,67 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
       },
       immediatelyRender: false,
       editorProps: {
-        transformPastedHTML(html) {
-          return html
-            .replace(/style="[^"]*"/gi, '')
-            .replace(/class="[^"]*"/gi, '')
-            .replace(/<span\b[^>]*>/gi, '').replace(/<\/span>/gi, '')
-            .replace(/<!--[\s\S]*?-->/g, '')
-            .replace(/<meta[^>]*>/gi, '')
-            .replace(/<b\b[^>]*>([\s\S]*?)<\/b>/gi, '<strong>$1</strong>')
-            .replace(/<i\b[^>]*>([\s\S]*?)<\/i>/gi, '<em>$1</em>')
-            .trim()
+        handlePaste(view, event) {
+          const html = event.clipboardData?.getData('text/html')
+          // If no HTML in clipboard, return false and let TipTap
+          // handle plain text paste normally.
+          if (!html || !/<[a-z][\s\S]*>/i.test(html)) return false
+
+          // Return true immediately to suppress the default paste.
+          // We do the real work asynchronously.
+          ;(async () => {
+            try {
+              // Parse to find base64 images before cleaning
+              const tempDiv = document.createElement('div')
+              tempDiv.innerHTML = html
+
+              const images = Array.from(
+                tempDiv.querySelectorAll<HTMLImageElement>('img[src^="data:"]')
+              )
+
+              // Upload all base64 images in parallel
+              await Promise.all(
+                images.map(async (img, index) => {
+                  const src = img.getAttribute('src') ?? ''
+                  const mimeMatch = src.match(/^data:([^;]+);base64,/)
+                  if (!mimeMatch) return
+                  const mimeType = mimeMatch[1]
+                  const ext = mimeType.split('/')[1] ?? 'png'
+                  const filename = `paste-image-${Date.now()}-${index}.${ext}`
+                  const url = await uploadForPasteRef.current(src, mimeType, filename)
+                  if (url) {
+                    img.setAttribute('src', url)
+                    img.removeAttribute('data-src')
+                  } else {
+                    // Upload failed: remove the img so we do not insert a broken
+                    // data URI into the document
+                    img.remove()
+                  }
+                })
+              )
+
+              // Run the full HTML cleaning pipeline
+              const cleanedHtml = cleanPastedHTML(tempDiv.innerHTML)
+
+              // Guard: editor may have been unmounted during the async work
+              if (!view.dom.isConnected) return
+
+              // Parse the cleaned HTML into a ProseMirror slice using the
+              // editor schema so custom node parseHTML rules apply.
+              const wrapper = document.createElement('div')
+              wrapper.innerHTML = cleanedHtml
+              const parser = ProseMirrorDOMParser.fromSchema(view.state.schema)
+              const slice = parser.parseSlice(wrapper, { preserveWhitespace: false })
+              const tr = view.state.tr.replaceSelection(slice)
+              view.dispatch(tr)
+            } catch (err) {
+              // Log but do not surface to user. The paste simply will not
+              // complete, which is recoverable with Ctrl+Z.
+              console.error('[TiptapEditor] paste processing error:', err)
+            }
+          })()
+
+          return true
         },
       },
     })
@@ -368,9 +457,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
       if (!editor) return
       const n = parseInt(size, 10)
       if (!isNaN(n) && n > 0) {
-        // TipTap 3's FontSize extension adds setFontSize to the chain
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(editor.chain().focus() as any).setFontSize(`${n}px`).run()
+        editor.chain().focus().setFontSize(`${n}px`).run()
         setFontSizeInput(String(n))
       }
     }, [editor])

@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ADMIN_ONLY } from '@/lib/rbac'
 
 // GET /api/admin/audit-log - last 100 audit actions
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session || (session.user as { role: string; isBanned?: boolean }).role !== 'ADMIN' || (session.user as { isBanned?: boolean }).isBanned) {
+  const admin = await getVerifiedSessionUser(ADMIN_ONLY)
+  if (!admin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

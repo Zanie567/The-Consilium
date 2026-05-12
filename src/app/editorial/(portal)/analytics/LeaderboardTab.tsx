@@ -16,7 +16,7 @@ interface WriterRow {
   commentsGenerated: number
 }
 
-interface LeaderboardData {
+export interface LeaderboardData {
   writers: WriterRow[]
 }
 

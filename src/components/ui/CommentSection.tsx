@@ -83,21 +83,24 @@ function Composer({ articleId, parentId, onSuccess, onCancel, autoFocus }: Compo
     if (body.trim().length < 3) return
     setLoading(true)
     setError(null)
-
-    const res = await fetch('/api/comments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ articleId, body, parentId }),
-    })
-    const json = await res.json()
-    setLoading(false)
-
-    if (!res.ok) {
-      setError(json.error ?? 'Failed to post comment.')
-      return
+    try {
+      const res = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ articleId, body, parentId }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setError(json.error ?? 'Failed to post comment.')
+        return
+      }
+      setBody('')
+      onSuccess(json)
+    } catch {
+      setError('Failed to post comment. Please try again.')
+    } finally {
+      setLoading(false)
     }
-    setBody('')
-    onSuccess(json)
   }
 
   return (
@@ -164,22 +167,34 @@ function SingleComment({
 
   async function toggleUpvote() {
     if (!currentUser) return
-    const res = await fetch(`/api/comments/${comment.id}/upvote`, { method: 'POST' })
-    if (res.ok) {
-      const json = await res.json()
-      setUpvotes(json.upvotes)
-      setUpvoted(json.upvoted)
+    try {
+      const res = await fetch(`/api/comments/${comment.id}/upvote`, { method: 'POST' })
+      if (res.ok) {
+        const json = await res.json()
+        setUpvotes(json.upvotes)
+        setUpvoted(json.upvoted)
+      }
+    } catch {
+      // Network error - upvote state unchanged
     }
   }
 
   async function handleDelete() {
-    const res = await fetch(`/api/comments/${comment.id}`, { method: 'DELETE' })
-    if (res.ok) onDelete(comment.id)
+    try {
+      const res = await fetch(`/api/comments/${comment.id}`, { method: 'DELETE' })
+      if (res.ok) onDelete(comment.id)
+    } catch {
+      // Network error - comment not deleted
+    }
   }
 
   async function handleReport() {
-    const res = await fetch(`/api/comments/${comment.id}/report`, { method: 'POST' })
-    if (res.ok) setReported(true)
+    try {
+      const res = await fetch(`/api/comments/${comment.id}/report`, { method: 'POST' })
+      if (res.ok) setReported(true)
+    } catch {
+      // Network error - report not submitted
+    }
   }
 
   const isOwner = currentUser?.id === comment.user.id
@@ -307,13 +322,18 @@ export function CommentSection({ articleId, currentUser }: Props) {
   const [loading, setLoading] = useState(true)
 
   const fetchComments = useCallback(async () => {
-    const res = await fetch(`/api/comments?articleId=${articleId}`)
-    if (res.ok) {
-      const json = await res.json()
-      setComments(json.comments)
-      setTotal(json.total)
+    try {
+      const res = await fetch(`/api/comments?articleId=${articleId}`)
+      if (res.ok) {
+        const json = await res.json()
+        setComments(json.comments)
+        setTotal(json.total)
+      }
+    } catch {
+      // Network error - comments not loaded
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [articleId])
 
   useEffect(() => { fetchComments() }, [fetchComments])
