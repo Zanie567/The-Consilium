@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma'
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   const secret = process.env.CRON_SECRET
+console.log('[cron] secret defined:', !!secret)
 
   if (!secret || authHeader !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
