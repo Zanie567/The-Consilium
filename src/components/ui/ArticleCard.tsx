@@ -27,10 +27,12 @@ interface ArticleCardProps {
 export function ArticleCard({ article, badgeLabel }: ArticleCardProps) {
   const badge = badgeLabel ?? article.category?.name
   const readTime = readTimeLabel(article.content)
+  const articleHref = `/articles/${article.slug}`
 
   return (
     <article className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden card-hover shadow-[var(--shadow-card)] h-full flex flex-col group">
-      <Link href={`/articles/${article.slug}`} className="block">
+      <Link href={articleHref} className="block">
+        {/* Image */}
         <div className="relative h-48 bg-navy/10 dark:bg-navy/20 overflow-hidden img-zoom flex-shrink-0 isolate">
           {article.coverImage ? (
             <BlurImage
@@ -66,32 +68,34 @@ export function ArticleCard({ article, badgeLabel }: ArticleCardProps) {
         </div>
       </Link>
 
+      {/* Content */}
       <div className="p-5 flex flex-col flex-1">
-        <Link href={`/articles/${article.slug}`} className="block">
+        <Link href={articleHref} className="block">
           <h3
-            className="text-base font-bold text-[var(--fg)] mb-2 leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2 flex-1"
+            className="text-base font-bold text-[var(--fg)] mb-2 leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2"
             style={{ fontFamily: 'var(--font-serif)' }}
           >
             {article.title}
           </h3>
         </Link>
-          {article.excerpt && (
-            <p className="text-[var(--fg-muted)] text-sm leading-relaxed mb-4 line-clamp-2">
-              {article.excerpt}
-            </p>
-          )}
-          <div className="flex items-center justify-between text-[0.7rem] text-[var(--fg-faint)] border-t border-[var(--border)] pt-3 mt-auto">
-            <span className="font-semibold text-[var(--fg-muted)]">{displayAuthorName(article.author.name)}</span>
-            <div className="flex items-center gap-3">
-              <span>
-                {article.publishedAt
-                  ? format(new Date(article.publishedAt), 'd MMM yyyy')
-                  : ''}
-              </span>
-              <BookmarkButton articleId={article.id} />
-            </div>
+        {article.excerpt && (
+          <p className="text-[var(--fg-muted)] text-sm leading-relaxed mb-4 line-clamp-2">
+            {article.excerpt}
+          </p>
+        )}
+
+        <div className="flex items-center justify-between text-[0.7rem] text-[var(--fg-faint)] border-t border-[var(--border)] pt-3 mt-auto">
+          <span className="font-semibold text-[var(--fg-muted)]">{displayAuthorName(article.author.name)}</span>
+          <div className="flex items-center gap-3">
+            <span>
+              {article.publishedAt
+                ? format(new Date(article.publishedAt), 'd MMM yyyy')
+                : ''}
+            </span>
+            <BookmarkButton articleId={article.id} />
           </div>
         </div>
+      </div>
     </article>
   )
 }
