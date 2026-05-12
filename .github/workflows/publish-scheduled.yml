@@ -28,7 +28,7 @@ jobs:
     timeout-minutes: 2
 
     steps:
-      - name: Call /api/cron/publish-scheduled
+      - name: Call /api/publish-scheduled
         id: call
         run: |
           # Make the request, capture HTTP status code and body separately.
@@ -37,7 +37,7 @@ jobs:
             --request POST \
             --header "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --header "Content-Type: application/json" \
-            "${{ secrets.SITE_URL }}/api/cron/publish-scheduled")
+            "${{ secrets.SITE_URL }}/api/publish-scheduled")
 
           RESPONSE_BODY=$(cat /tmp/response_body.txt)
 
