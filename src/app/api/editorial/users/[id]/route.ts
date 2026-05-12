@@ -56,7 +56,7 @@ export async function GET(_req: Request, { params }: Props) {
 }
 
 export async function PATCH(req: Request, { params }: Props) {
-  const caller = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  const caller = await getVerifiedSessionUser(ADMIN_ONLY)
   if (!caller) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -69,10 +69,6 @@ export async function PATCH(req: Request, { params }: Props) {
   })
   if (!target) {
     return NextResponse.json({ error: 'User not found.' }, { status: 404 })
-  }
-
-  if (caller.role === 'EDITOR' && !canEditorModifyTarget(target.role)) {
-    return NextResponse.json({ error: 'Editors can only modify writer and reader accounts.' }, { status: 403 })
   }
 
   const body = await req.json() as Record<string, unknown>
@@ -92,32 +88,20 @@ export async function PATCH(req: Request, { params }: Props) {
     return NextResponse.json({ error: 'Password resets must only include password.' }, { status: 400 })
   }
 
-  const allowedProfileFields = caller.role === 'ADMIN' ? ADMIN_PROFILE_FIELDS : EDITOR_PROFILE_FIELDS
+  const allowedProfileFields = ADMIN_PROFILE_FIELDS
   if (!isRoleChange && !isPasswordChange && !hasOnlyKeys(keys, allowedProfileFields)) {
     return NextResponse.json({ error: 'Request includes fields you cannot update.' }, { status: 400 })
   }
 
   const updates: Record<string, unknown> = {}
-  if (caller.role === 'ADMIN' && typeof isActive === 'boolean') updates.isActive = isActive
+  if (typeof isActive === 'boolean') updates.isActive = isActive
   if (typeof name === 'string' && name.trim()) updates.name = name.trim()
   if (typeof email === 'string' && email.trim()) updates.email = email.trim().toLowerCase()
   if (typeof bio === 'string') updates.bio = bio.trim() || null
   if (typeof image === 'string') updates.image = image.trim() || null
 
-  if (caller.role === 'ADMIN') {
-    if (typeof adminNotes === 'string') updates.adminNotes = adminNotes.trim() || null
-    if (role !== undefined) {
-      if (!isAllowedRole(role, ALL_ROLES)) return NextResponse.json({ error: 'Invalid role.' }, { status: 400 })
-      updates.role = role
-    }
-  } else {
-    if (role !== undefined) {
-      if (!isAllowedRole(role, EDITOR_USER_TARGET_ROLES)) {
-        return NextResponse.json({ error: 'Editors can only assign writer or reader roles.' }, { status: 403 })
-      }
-      updates.role = role
-    }
-  }
+  if (typeof adminNotes === 'string') updates.adminNotes = adminNotes.trim() || null
+  if (role && ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].includes(role as string)) updates.role = role
 
   if (typeof slug === 'string' && slug.trim()) {
     const clean = slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')

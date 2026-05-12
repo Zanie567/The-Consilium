@@ -112,6 +112,27 @@ export async function PUT(
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // Editors are scoped to their assigned categories. Mirror the same
+    // category-assignment check that the GET handler applies to reads.
+    if (user.role === 'EDITOR') {
+      if (existing.categoryId) {
+        const assignment = await prisma.categoryEditor.findFirst({
+          where: { userId: user.id, categoryId: existing.categoryId },
+        })
+        if (!assignment) {
+          return Response.json({ error: 'Forbidden' }, { status: 403 })
+        }
+      } else {
+        // Uncategorized article: scoped editors (those with any assignment) are blocked.
+        const anyAssignment = await prisma.categoryEditor.findFirst({
+          where: { userId: user.id },
+        })
+        if (anyAssignment) {
+          return Response.json({ error: 'Forbidden' }, { status: 403 })
+        }
+      }
+    }
+
     // Writers cannot edit articles that are pending/published (unless editor returned them)
     if (
       !isAdminOrEditor &&
