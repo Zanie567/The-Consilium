@@ -79,7 +79,7 @@ async function getArticles(categorySlug?: string) {
         ...(categorySlug ? { category: { slug: categorySlug } } : {}),
       },
       orderBy: { publishedAt: 'desc' },
-      take: 12,
+      take: 16,
       include: { author: true, category: true },
     })
   } catch {
@@ -248,9 +248,9 @@ export default async function HomePage({
   const allGridArticles = featured
     ? articles.filter((a) => a.id !== featured.id)
     : articles
-  // First 3 are shown in the hero side column; the main grid starts after them
-  const heroSideArticles = allGridArticles.slice(0, 3)
-  const articleGrid = allGridArticles.slice(3)
+  // First 5 are shown in the hero side column; the main grid starts after them
+  const heroSideArticles = allGridArticles.slice(0, 5)
+  const articleGrid = allGridArticles.slice(5)
   const websiteStructuredData = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
@@ -367,7 +367,7 @@ export default async function HomePage({
         )}
 
         {/* View all */}
-        {articleGrid.length >= 11 && (
+        {articles.length >= 16 && (
           <AnimateIn variant="fade-up" delay={0.1} className="mt-12 text-center">
             <Link
               href="/archive"
