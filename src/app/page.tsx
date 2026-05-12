@@ -17,6 +17,7 @@ import { readTimeLabel } from '@/lib/readTime'
 import { EconomicTicker } from '@/components/ui/EconomicTicker'
 import { displayAuthorName } from '@/lib/authorUtils'
 import type { Metadata } from 'next'
+import { SITE_NAME, SITE_URL } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -209,7 +210,7 @@ async function getTrendingTags() {
 }
 
 // Title is inherited from layout's `default` ("The Consilium | University of Edinburgh Economics Society")
-// — do NOT set a title here so the template does not double-wrap it.
+// Do NOT set a title here so the template does not double-wrap it.
 export const metadata: Metadata = {
   description: 'Economics analysis, opinion, and research from the University of Edinburgh.',
   openGraph: {
@@ -248,9 +249,31 @@ export default async function HomePage({
   const gridArticles = featured
     ? articles.filter((a) => a.id !== featured.id)
     : articles
+  const websiteStructuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE_NAME,
+    url: SITE_URL,
+    description: 'Economics analysis, opinion, and research from the University of Edinburgh',
+  }
+  const organizationStructuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE_NAME,
+    url: SITE_URL,
+    description: 'The official publication of the University of Edinburgh Economics Society',
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteStructuredData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationStructuredData) }}
+      />
       {/* ── Masthead Hero ──────────────────────────────────────────────────── */}
       <section className="bg-navy text-cream py-7 px-4 text-center border-b border-gold/25 relative overflow-hidden">
         {/* Subtle dot grid */}
