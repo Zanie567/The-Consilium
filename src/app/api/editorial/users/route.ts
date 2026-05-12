@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
-import { ALL_ROLES, EDITORIAL_MANAGEMENT_ROLES, EDITOR_USER_TARGET_ROLES, isAllowedRole } from '@/lib/rbac'
+import { ADMIN_ONLY, EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 
 export async function GET() {
   const caller = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
@@ -23,7 +23,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const caller = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  const caller = await getVerifiedSessionUser(ADMIN_ONLY)
   if (!caller) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -33,10 +33,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Name, email, password, and role are required.' }, { status: 400 })
   }
 
-  const allowedRoles = caller.role === 'ADMIN' ? ALL_ROLES : EDITOR_USER_TARGET_ROLES
-
-  if (!isAllowedRole(role, allowedRoles)) {
-    return NextResponse.json({ error: caller.role === 'ADMIN' ? 'Invalid role.' : 'Editors can only create writer or reader accounts.' }, { status: 400 })
+  if (!['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].includes(role)) {
+    return NextResponse.json({ error: 'Invalid role.' }, { status: 400 })
   }
   if (password.length < 8) {
     return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })

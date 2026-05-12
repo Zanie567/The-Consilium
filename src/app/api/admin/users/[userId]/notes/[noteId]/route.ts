@@ -13,7 +13,10 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
 
   const { userId, noteId } = await params
 
-  await prisma.adminNote.deleteMany({ where: { id: noteId, userId } }).catch(() => {})
-
+  try {
+    await prisma.adminNote.delete({ where: { id: noteId } })
+  } catch {
+    return NextResponse.json({ error: 'Failed to delete note' }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }

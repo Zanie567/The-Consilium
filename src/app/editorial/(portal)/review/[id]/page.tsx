@@ -34,17 +34,20 @@ export default async function ReviewPage({ params }: Props) {
 
   if (!article || article.deletedAt) notFound()
 
+  // Editors are scoped to assigned categories. Verify access before rendering
+  // any article content to the client component.
   if (session.user.role === 'EDITOR') {
     if (article.categoryId) {
       const assignment = await prisma.categoryEditor.findFirst({
         where: { userId: session.user.id, categoryId: article.categoryId },
       })
-      if (!assignment) redirect('/editorial/review')
+      if (!assignment) notFound()
     } else {
+      // Uncategorized article: block editors who have any category assignment (scoped editors).
       const anyAssignment = await prisma.categoryEditor.findFirst({
         where: { userId: session.user.id },
       })
-      if (anyAssignment) redirect('/editorial/review')
+      if (anyAssignment) notFound()
     }
   }
 
