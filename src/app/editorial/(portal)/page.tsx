@@ -6,7 +6,6 @@ import { format, formatDistanceToNow } from 'date-fns'
 import { NotificationBell } from '@/components/editorial/NotificationBell'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
 import { DraftsSection } from '@/components/editorial/DraftsSection'
-import { BarChart2, CalendarDays, LayoutDashboard, Tickets } from 'lucide-react'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -154,68 +153,6 @@ export default async function EditorialDashboard() {
           </p>
         </div>
         <NotificationBell />
-      </PortalSection>
-
-      <PortalSection className="mb-6 sm:mb-8">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {[
-            {
-              href: '/editorial',
-              label: 'Overview',
-              description: 'Current publishing activity and priorities.',
-              icon: LayoutDashboard,
-              active: true,
-            },
-            {
-              href: '/editorial/events',
-              label: 'Events',
-              description: 'Plan Economics Society events and coverage.',
-              icon: Tickets,
-            },
-            {
-              href: '/editorial/calendar',
-              label: 'Calendar',
-              description: 'Track dates, deadlines, and upcoming activity.',
-              icon: CalendarDays,
-            },
-            {
-              href: '/editorial/analytics',
-              label: 'Analytics',
-              description: 'Review audience and publication performance.',
-              icon: BarChart2,
-            },
-          ].map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={[
-                'group border bg-[var(--bg-elevated)] p-5 shadow-[var(--shadow-card)]',
-                'transition-[border-color,transform,box-shadow] duration-150 active:scale-[0.98]',
-                item.active
-                  ? 'border-gold/45'
-                  : 'border-[var(--border)] hover:border-gold/45 hover:shadow-[var(--shadow-card-hover)]',
-              ].join(' ')}
-            >
-              <div className="mb-5 flex items-center justify-between">
-                <span className="flex h-10 w-10 items-center justify-center border border-gold/25 bg-gold/8 text-gold">
-                  <item.icon size={17} aria-hidden="true" />
-                </span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--fg-faint)] group-hover:text-gold">
-                  {item.active ? 'Current' : 'Open'}
-                </span>
-              </div>
-              <h2
-                className="mb-2 text-xl font-bold text-[var(--fg)] group-hover:text-gold"
-                style={{ fontFamily: 'var(--font-serif)' }}
-              >
-                {item.label}
-              </h2>
-              <p className="text-sm leading-relaxed text-[var(--fg-muted)]">
-                {item.description}
-              </p>
-            </Link>
-          ))}
-        </div>
       </PortalSection>
 
       {/* Stats row */}
