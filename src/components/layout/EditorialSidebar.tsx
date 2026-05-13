@@ -6,22 +6,11 @@ import { signOut } from 'next-auth/react'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import {
   LayoutDashboard,
-  FileText,
-  PlusCircle,
   LogOut,
   ChevronRight,
-  Users,
-  ClipboardList,
-  BookOpen,
-  Clock,
+  CalendarDays,
   BarChart2,
-  MessagesSquare,
-  MessageCircle,
-  Pencil,
-  Trash2,
-  Zap,
-  UserCheck,
-  Trophy,
+  Tickets,
 } from 'lucide-react'
 
 interface User {
@@ -47,7 +36,7 @@ interface NavGroup {
 
 export function EditorialSidebar({
   user,
-  trashCount = 0,
+  trashCount: _trashCount = 0,
   onNavClick,
 }: {
   user: User
@@ -56,10 +45,6 @@ export function EditorialSidebar({
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-
-  const isEditor = user.role === 'ADMIN' || user.role === 'EDITOR'
-  const isAdmin = user.role === 'ADMIN'
-  const isGrowth = user.role === 'GROWTH'
 
   const isActive = (href: string, exact?: boolean) => {
     const [hrefPath, hrefQuery] = href.split('?')
@@ -82,57 +67,17 @@ export function EditorialSidebar({
     return pathname.startsWith(hrefPath) && hrefPath !== '/editorial'
   }
 
-  const groups: NavGroup[] = isGrowth
-    ? [
-        {
-          label: 'GROWTH',
-          items: [
-            { href: '/editorial', icon: LayoutDashboard, label: 'Dashboard', exact: true, show: true },
-            { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: true },
-            { href: '/editorial/growth/subscribers', icon: UserCheck, label: 'Subscribers', exact: true, show: true },
-            { href: '/editorial/growth/engagement', icon: Zap, label: 'Engagement', exact: true, show: true },
-          ],
-        },
-      ]
-    : [
-        {
-          items: [
-            { href: '/editorial', icon: LayoutDashboard, label: 'Dashboard', exact: true, show: true },
-          ],
-        },
-        {
-          label: 'CONTENT',
-          items: [
-            { href: '/editorial/articles', icon: FileText, label: user.role === 'WRITER' ? 'My Articles' : 'All Articles', show: true },
-            { href: '/editorial/articles?mine=true&status=DRAFT', icon: Pencil, label: 'My Drafts', exact: true, show: true },
-            { href: '/editorial/articles/new', icon: PlusCircle, label: 'New Article', exact: true, show: true },
-            { href: '/editorial/series', icon: BookOpen, label: 'Article Series', show: isEditor },
-            { href: '/editorial/scheduled', icon: Clock, label: 'Scheduled', show: isEditor },
-            { href: '/editorial/trash', icon: Trash2, label: 'Trash', exact: true, show: isEditor, badge: trashCount > 0 ? trashCount : undefined },
-          ],
-        },
-        {
-          label: 'REVIEW',
-          items: [
-            { href: '/editorial/review', icon: ClipboardList, label: 'Review Queue', show: isEditor },
-            { href: '/editorial/debates', icon: MessagesSquare, label: 'Debates', show: isEditor },
-            { href: '/editorial/comments', icon: MessageCircle, label: 'Comments', show: isEditor },
-          ],
-        },
-        {
-          label: 'MANAGE',
-          items: [
-            { href: '/editorial/users', icon: Users, label: 'Users', show: isAdmin },
-            { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
-          ],
-        },
-        {
-          label: 'STANDINGS',
-          items: [
-            { href: '/editorial/leaderboard', icon: Trophy, label: 'Leaderboard', exact: true, show: user.role === 'WRITER' },
-          ],
-        },
-      ]
+  const groups: NavGroup[] = [
+    {
+      label: 'DASHBOARD',
+      items: [
+        { href: '/editorial', icon: LayoutDashboard, label: 'Overview', exact: true, show: true },
+        { href: '/editorial/events', icon: Tickets, label: 'Events', exact: true, show: true },
+        { href: '/editorial/calendar', icon: CalendarDays, label: 'Calendar', exact: true, show: true },
+        { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: true },
+      ],
+    },
+  ]
 
   return (
     <aside
