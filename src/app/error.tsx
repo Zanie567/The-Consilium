@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { RotateCcw } from 'lucide-react'
-import { SystemMessagePage } from '@/components/ui/SystemMessagePage'
+import Link from 'next/link'
 
 interface ErrorPageProps {
   error: Error & { digest?: string }
@@ -20,29 +19,43 @@ export default function GlobalError({ error, reset }: ErrorPageProps) {
   }, [error])
 
   return (
-    <SystemMessagePage
-      eyebrow="Something went wrong"
-      title="Unexpected Error"
-      statusLabel="!"
-      message={
-        <>
-          Something went wrong on our end. Try again, or head back to the homepage.
-          {error.digest && (
-            <span className="mt-2 block font-mono text-xs text-[var(--fg-faint)]">
-              Reference: {error.digest}
-            </span>
-          )}
-        </>
-      }
-      action={
+    <div className="min-h-[70vh] bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-24 text-center">
+      <p className="text-gold/60 text-[0.65rem] tracking-[0.4em] uppercase mb-4 font-semibold">
+        Something went wrong
+      </p>
+
+      <h1
+        className="text-5xl sm:text-6xl font-bold text-[var(--fg)] mb-4"
+        style={{ fontFamily: 'var(--font-serif)' }}
+      >
+        Unexpected Error
+      </h1>
+
+      <div className="w-12 h-0.5 bg-gold/40 mx-auto mb-6" />
+
+      <p className="text-[var(--fg-muted)] text-base sm:text-lg max-w-md leading-relaxed mb-10">
+        Something went wrong on our end. Try refreshing the page, or head back to the homepage.
+        {error.digest && (
+          <span className="block mt-2 text-[var(--fg-faint)] text-xs font-mono">
+            Reference: {error.digest}
+          </span>
+        )}
+      </p>
+
+      <div className="flex flex-col sm:flex-row items-center gap-4">
         <button
           onClick={reset}
-          className="inline-flex min-h-12 items-center justify-center gap-2 bg-navy px-7 py-3 text-xs font-bold uppercase tracking-widest text-gold transition-colors duration-200 hover:bg-navy/85 dark:border dark:border-gold/35"
+          className="inline-flex items-center gap-2 bg-navy text-gold border border-gold/40 px-8 py-3 text-xs font-bold uppercase tracking-widest hover:bg-navy/80 transition-colors duration-200"
         >
-          <RotateCcw size={15} aria-hidden="true" />
-          Try Again
+          Try again
         </button>
-      }
-    />
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-gold text-xs font-bold uppercase tracking-widest hover:opacity-70 transition-opacity duration-200"
+        >
+          ← Back to Homepage
+        </Link>
+      </div>
+    </div>
   )
 }
