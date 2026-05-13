@@ -120,6 +120,12 @@ body {
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font-sans);
+  overflow-x: clip;
+}
+
+h1, h2, h3, h4, h5, h6,
+p, a, span, button {
+  overflow-wrap: anywhere;
 }
 
 /* ─── Scrollbar ────────────────────────────────────────────────────────────── */
@@ -155,6 +161,7 @@ body {
   line-height: 1.7;
   font-size: 1.125rem; /* 18px desktop */
   font-weight: 400;
+  overflow-wrap: anywhere;
 }
 
 /* Mobile: slightly smaller for readability on narrow screens */
@@ -1069,6 +1076,9 @@ mark {
 /* Table in prose (published articles) */
 .prose-consilium table {
   border-collapse: collapse;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
   width: 100%;
   margin: 2rem 0;
 }

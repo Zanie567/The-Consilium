@@ -236,6 +236,7 @@ function SearchContent() {
                         src={result.coverImage}
                         alt={result.title}
                         fill
+                        sizes="(max-width: 640px) 96px, 128px"
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                     ) : (

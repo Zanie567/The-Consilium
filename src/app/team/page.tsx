@@ -65,6 +65,7 @@ export default async function TeamPage() {
                         src={member.image}
                         alt={member.name}
                         fill
+                        sizes="96px"
                         className="object-cover"
                       />
                     ) : (
