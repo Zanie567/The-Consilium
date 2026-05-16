@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: 'Cannot ban admin accounts' }, { status: 400 })
   }
 
-  const adminName = adminId
+  const adminName = admin.name ?? admin.email ?? adminId
 
   await prisma.user.update({
     where: { id: userId },
