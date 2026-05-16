@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { createHash } from 'crypto'
 import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -56,14 +57,15 @@ export async function POST(req: Request, { params }: Props) {
         data: { debateId, userId: session.user.id, side: side as 'FOR' | 'AGAINST' },
       })
     } else {
-      // Anonymous vote - read or generate cookie
+      // Anonymous vote - deduplicate by cookie ID and by hashed IP
       let anonymousId = cookieStore.get('consilium_anon_id')?.value
       if (!anonymousId) {
         anonymousId = crypto.randomUUID()
       }
+      const anonIpHash = createHash('sha256').update(ip).digest('hex')
 
       await prisma.debateVote.create({
-        data: { debateId, anonymousId, side: side as 'FOR' | 'AGAINST' },
+        data: { debateId, anonymousId, anonIpHash, side: side as 'FOR' | 'AGAINST' },
       })
 
       // Set the httpOnly cookie in the response

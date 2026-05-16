@@ -151,6 +151,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // ── Content rendering ────────────────────────────────────────────────────────
 
+function escHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function safeHref(href: string): string {
+  const trimmed = href.trim().toLowerCase()
+  if (trimmed.startsWith('javascript:') || trimmed.startsWith('data:')) return '#'
+  return href
+}
+
 interface TiptapMark {
   type: string
   attrs?: Record<string, string | number | boolean | null>
@@ -176,15 +191,18 @@ function nodeToHtml(node: TiptapNode): string {
       return `<h${level}>${node.content?.map(nodeToHtml).join('') ?? ''}</h${level}>`
     }
     case 'text': {
-      let text = node.text ?? ''
+      let text = escHtml(node.text ?? '')
       if (node.marks) {
         for (const mark of node.marks) {
           if (mark.type === 'bold')      text = `<strong>${text}</strong>`
           if (mark.type === 'italic')    text = `<em>${text}</em>`
           if (mark.type === 'underline') text = `<u>${text}</u>`
           if (mark.type === 'highlight') text = `<mark>${text}</mark>`
-          if (mark.type === 'link')
-            text = `<a href="${mark.attrs?.href ?? '#'}" target="${mark.attrs?.target ?? '_self'}" rel="noopener">${text}</a>`
+          if (mark.type === 'link') {
+            const href = safeHref(String(mark.attrs?.href ?? '#'))
+            const target = escHtml(String(mark.attrs?.target ?? '_self'))
+            text = `<a href="${escHtml(href)}" target="${target}" rel="noopener">${text}</a>`
+          }
         }
       }
       return text
@@ -196,12 +214,12 @@ function nodeToHtml(node: TiptapNode): string {
     case 'horizontalRule': return `<hr />`
     case 'image':
       // Legacy plain image nodes (new content uses 'figure')
-      return `<figure class="article-figure"><img src="${node.attrs?.src ?? ''}" alt="${node.attrs?.alt ?? ''}" /></figure>`
+      return `<figure class="article-figure"><img src="${escHtml(String(node.attrs?.src ?? ''))}" alt="${escHtml(String(node.attrs?.alt ?? ''))}" /></figure>`
     case 'figure': {
-      const src = String(node.attrs?.src ?? '')
-      const alt = String(node.attrs?.alt ?? '')
-      const caption = String(node.attrs?.caption ?? '')
-      const credit = String(node.attrs?.credit ?? '')
+      const src = escHtml(String(node.attrs?.src ?? ''))
+      const alt = escHtml(String(node.attrs?.alt ?? ''))
+      const caption = escHtml(String(node.attrs?.caption ?? ''))
+      const credit = escHtml(String(node.attrs?.credit ?? ''))
       let html = `<figure class="article-figure"><img src="${src}" alt="${alt}" />`
       if (caption) html += `<figcaption class="caption">${caption}</figcaption>`
       if (credit) html += `<p class="image-credit">${credit}</p>`
@@ -212,7 +230,7 @@ function nodeToHtml(node: TiptapNode): string {
     case 'pullQuote':
       return `<aside data-type="pull-quote" class="pull-quote">${node.content?.map(nodeToHtml).join('') ?? ''}</aside>`
     case 'footnoteRef':
-      return `<sup class="footnote-ref" data-footnote="${encodeURIComponent(String(node.attrs?.content ?? ''))}" data-index="${node.attrs?.index ?? ''}" title="${node.attrs?.content ?? ''}">[${node.attrs?.index ?? ''}]</sup>`
+      return `<sup class="footnote-ref" data-footnote="${encodeURIComponent(String(node.attrs?.content ?? ''))}" data-index="${escHtml(String(node.attrs?.index ?? ''))}" title="${escHtml(String(node.attrs?.content ?? ''))}">[${escHtml(String(node.attrs?.index ?? ''))}]</sup>`
     // chartNode: silently drop - data callout has been removed
     case 'chartNode':
       return ''
@@ -244,7 +262,8 @@ function renderContent(content: string): { html: string; footnotes: { index: num
       return { html, footnotes }
     }
   } catch {}
-  return { html: content, footnotes: [] }
+  // Fallback: treat as plain text — escape to prevent XSS from raw stored strings
+  return { html: escHtml(content), footnotes: [] }
 }
 
 export default async function ArticlePage({ params }: Props) {

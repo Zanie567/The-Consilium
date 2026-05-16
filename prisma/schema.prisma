@@ -380,14 +380,16 @@ model DebateVote {
   userId      String?
   user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   anonymousId String?
+  anonIpHash  String?
   side        VoteSide
   createdAt   DateTime @default(now())
 
   // Authenticated deduplication: one vote per user per debate
-  // Anonymous deduplication : one vote per anonymousId per debate
+  // Anonymous deduplication : one vote per anonymousId per debate, and one per IP hash
   // NULLs are distinct in Postgres unique constraints so these are safe
   @@unique([debateId, userId])
   @@unique([debateId, anonymousId])
+  @@unique([debateId, anonIpHash])
   @@index([debateId, side])
   @@map("debate_votes")
 }

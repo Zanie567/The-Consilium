@@ -104,23 +104,22 @@ export const authOptions: NextAuthOptions = {
         const validPassword = await bcrypt.compare(credentials.password, user.password)
 
         if (!validPassword) {
-          const newCount = user.failedLoginAttempts + 1
-          const shouldLock = newCount >= MAX_FAILED_ATTEMPTS
-
-          await prisma.user.update({
+          // Atomic increment — prevents concurrent requests bypassing the limit
+          const { failedLoginAttempts: newCount } = await prisma.user.update({
             where: { id: user.id },
-            data: {
-              failedLoginAttempts: newCount,
-              ...(shouldLock && { lockedUntil: new Date(Date.now() + LOCKOUT_DURATION_MS) }),
-            },
+            data: { failedLoginAttempts: { increment: 1 } },
+            select: { failedLoginAttempts: true },
           })
 
-          await logAttempt(credentials.email, ip, false)
-
-          if (shouldLock) {
+          if (newCount >= MAX_FAILED_ATTEMPTS) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { lockedUntil: new Date(Date.now() + LOCKOUT_DURATION_MS) },
+            })
             notifyAdminOfLockout(user.email, ip).catch(() => {})
           }
 
+          await logAttempt(credentials.email, ip, false)
           return null
         }
 
