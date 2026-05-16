@@ -8,6 +8,14 @@ interface Entry {
 
 const store = new Map<string, Entry>()
 
+// Prune expired entries every 5 minutes to prevent unbounded memory growth.
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, entry] of store) {
+    if (now > entry.resetAt) store.delete(key)
+  }
+}, 5 * 60 * 1000).unref()
+
 /**
  * Returns true if the request is allowed, false if it should be blocked.
  * @param key     Unique key (e.g. `contact:192.168.1.1`)

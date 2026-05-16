@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   const { userId } = await params
   const adminId = admin.id
-  const adminName = adminId
+  const adminName = admin.name ?? admin.email ?? adminId
 
   const { reason } = await req.json()
   if (!reason?.trim()) return NextResponse.json({ error: 'Reason is required' }, { status: 400 })

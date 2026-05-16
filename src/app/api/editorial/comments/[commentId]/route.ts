@@ -31,14 +31,32 @@ export async function PATCH(req: Request, { params }: Props) {
       data: { isReported: false },
     })
   } else if (action === 'hide') {
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      select: { body: true, isHidden: true },
+    })
+    if (!comment) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     await prisma.comment.update({
       where: { id: commentId },
-      data: { isHidden: true, body: '[Comment removed]' },
+      data: {
+        isHidden: true,
+        hiddenBody: comment.isHidden ? undefined : comment.body,
+        body: '[Comment removed]',
+      },
     })
   } else if (action === 'unhide') {
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      select: { hiddenBody: true },
+    })
+    if (!comment) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     await prisma.comment.update({
       where: { id: commentId },
-      data: { isHidden: false },
+      data: {
+        isHidden: false,
+        body: comment.hiddenBody ?? '[Comment removed]',
+        hiddenBody: null,
+      },
     })
   } else {
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 })

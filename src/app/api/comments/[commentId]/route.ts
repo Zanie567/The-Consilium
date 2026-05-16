@@ -14,7 +14,7 @@ export async function DELETE(_req: Request, { params }: Props) {
 
   const comment = await prisma.comment.findUnique({
     where: { id: commentId },
-    select: { userId: true },
+    select: { userId: true, body: true },
   })
   if (!comment) {
     return NextResponse.json({ error: 'Comment not found' }, { status: 404 })
@@ -27,10 +27,10 @@ export async function DELETE(_req: Request, { params }: Props) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Soft delete
+  // Soft delete — preserve original body so editorial can review/restore
   await prisma.comment.update({
     where: { id: commentId },
-    data: { isHidden: true, body: '[Comment removed]' },
+    data: { isHidden: true, hiddenBody: comment.body, body: '[Comment removed]' },
   })
 
   return NextResponse.json({ ok: true })

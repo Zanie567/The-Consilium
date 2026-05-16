@@ -2,6 +2,15 @@ import { Resend } from 'resend'
 import { createHmac } from 'crypto'
 import { SITE_URL, CONTACT_EMAIL } from '@/lib/constants'
 
+function esc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export function unsubscribeUrl(email: string): string {
   const secret = process.env.NEXTAUTH_SECRET ?? 'consilium-unsubscribe'
   const token = createHmac('sha256', secret).update(email.toLowerCase()).digest('hex')
@@ -51,7 +60,7 @@ export function articleReturnedEmail(articleTitle: string, editorNote: string, a
     html: `
       <p>Hi,</p>
       <p>Your article <strong>"${articleTitle}"</strong> has been returned to you with feedback:</p>
-      <blockquote style="border-left:3px solid #c9a227;padding:8px 16px;margin:16px 0;color:#555">${editorNote}</blockquote>
+      <blockquote style="border-left:3px solid #c9a227;padding:8px 16px;margin:16px 0;color:#555">${esc(editorNote)}</blockquote>
       <p><a href="${process.env.NEXTAUTH_URL}/editorial/articles/${articleId}/edit">Open your article →</a></p>
       <p>The Consilium</p>
     `,
@@ -89,7 +98,7 @@ export function userWarningEmail(userName: string | null, reason: string) {
     html: `
       <p>Hi${userName ? ` ${userName}` : ''},</p>
       <p>Your account on The Consilium has received a warning from our moderation team.</p>
-      <blockquote style="border-left:3px solid #c9a227;padding:8px 16px;margin:16px 0;color:#555">${reason}</blockquote>
+      <blockquote style="border-left:3px solid #c9a227;padding:8px 16px;margin:16px 0;color:#555">${esc(reason)}</blockquote>
       <p>Please review our community guidelines to ensure your activity remains within our standards. Repeated violations may result in account suspension.</p>
       <p>If you believe this warning was issued in error, please contact our editorial team.</p>
       <p>The Consilium</p>
@@ -103,7 +112,7 @@ export function userBannedEmail(userName: string | null, reason: string) {
     html: `
       <p>Hi${userName ? ` ${userName}` : ''},</p>
       <p>Your account on The Consilium has been suspended.</p>
-      <blockquote style="border-left:3px solid #e53e3e;padding:8px 16px;margin:16px 0;color:#555">${reason}</blockquote>
+      <blockquote style="border-left:3px solid #e53e3e;padding:8px 16px;margin:16px 0;color:#555">${esc(reason)}</blockquote>
       <p>If you believe this suspension was issued in error, please contact us at <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a> to appeal.</p>
       <p>The Consilium</p>
     `,
@@ -163,9 +172,9 @@ export function commentFlaggedEmail(
       <p>Hi,</p>
       <p>A comment was flagged by the content filter on the article <strong>"${articleTitle}"</strong>.</p>
       <blockquote style="border-left:3px solid #c9a227;padding:8px 16px;margin:16px 0;color:#555;font-style:italic">
-        ${commentExcerpt.slice(0, 200)}${commentExcerpt.length > 200 ? '…' : ''}
+        ${esc(commentExcerpt.slice(0, 200))}${commentExcerpt.length > 200 ? '…' : ''}
       </blockquote>
-      <p><strong>Flag reason:</strong> ${flagReason}</p>
+      <p><strong>Flag reason:</strong> ${esc(flagReason)}</p>
       <p><a href="${base}/editorial/comments">Review in the moderation dashboard →</a></p>
       <p>The Consilium</p>
     `,

@@ -6,7 +6,7 @@
  * is the primary reliable publish trigger because Vercel Hobby plan does not
  * guarantee per-minute cron execution.
  *
- * Authentication: Bearer token in Authorization header, OR ?secret= query param.
+ * Authentication: Bearer token in Authorization header only.
  * The secret value must match the CRON_SECRET environment variable.
  *
  * GitHub Actions secrets required:
@@ -34,13 +34,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
   }
 
-  // Accept secret as Bearer token OR as ?secret= query param (for easy curl testing).
   const authHeader = req.headers.get('authorization') ?? ''
-  const url = new URL(req.url)
-  const querySecret = url.searchParams.get('secret') ?? ''
   const provided = authHeader.startsWith('Bearer ')
     ? authHeader.slice('Bearer '.length).trim()
-    : querySecret
+    : ''
 
   if (!provided || provided !== secret) {
     console.warn('[publish-scheduled] Unauthorized attempt - bad or missing secret')

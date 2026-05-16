@@ -31,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (!target) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
   const oldRole = target.role
-  const adminName = adminId
+  const adminName = admin.name ?? admin.email ?? adminId
 
   await prisma.user.update({
     where: { id: userId },
