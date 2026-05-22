@@ -42,9 +42,15 @@ export function NotificationBell() {
 
   const unread = notifs.filter((n) => !n.read).length
 
+  // Bug 8: optimistically mark all notifications as read in local state and
+  // persist to the server.  Using the functional setState form guarantees we
+  // always operate on the latest state, avoiding any stale-closure issues.
   const markAllRead = () => {
-    fetch('/api/editorial/notifications', { method: 'PATCH' }).catch(() => {})
+    // Optimistic UI update – happens synchronously before the network round-trip
     setNotifs((prev) => prev.map((n) => ({ ...n, read: true })))
+    // Fire-and-forget server sync; errors are silently ignored because the
+    // optimistic update already gives the user immediate feedback.
+    fetch('/api/editorial/notifications', { method: 'PATCH' }).catch(() => {})
   }
 
   return (
@@ -77,7 +83,9 @@ export function NotificationBell() {
             <span className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">
               Notifications
             </span>
-            {notifs.length > 0 && (
+            {/* Bug 8: only offer "Mark all read" when there are actually unread
+                notifications so clicking it always produces a visible change */}
+            {unread > 0 && (
               <button
                 onClick={markAllRead}
                 className="text-xs text-gold hover:underline"
@@ -95,35 +103,59 @@ export function NotificationBell() {
               {notifs.map((n) => (
                 <div
                   key={n.id}
-                  className={`px-4 py-3 border-b border-[var(--border)] last:border-0 ${
+                  className={`px-4 py-3 border-b border-[var(--border)] last:border-0 flex gap-2.5 ${
                     !n.read ? 'bg-gold/5' : ''
                   }`}
                 >
-                  {n.articleId ? (
-                    <Link
-                      href={
-                        n.type === 'article_submitted'
-                          ? `/editorial/review/${n.articleId}`
-                          : `/editorial/articles/${n.articleId}/edit`
-                      }
-                      onClick={() => setOpen(false)}
-                      className="block"
-                    >
-                      <p className="text-xs font-semibold text-[var(--fg)] mb-0.5">{n.title}</p>
-                      <p className="text-xs text-[var(--fg-muted)] line-clamp-2">{n.message}</p>
-                      <p className="text-[var(--fg-faint)] text-[10px] mt-1">
-                        {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
-                      </p>
-                    </Link>
-                  ) : (
-                    <>
-                      <p className="text-xs font-semibold text-[var(--fg)] mb-0.5">{n.title}</p>
-                      <p className="text-xs text-[var(--fg-muted)] line-clamp-2">{n.message}</p>
-                      <p className="text-[var(--fg-faint)] text-[10px] mt-1">
-                        {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
-                      </p>
-                    </>
-                  )}
+                  {/* Bug 8: unread dot indicator that disappears once read */}
+                  <div className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full transition-colors duration-200"
+                    style={{ background: n.read ? 'transparent' : 'var(--color-gold, #b8972e)' }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    {n.articleId ? (
+                      <Link
+                        href={
+                          n.type === 'article_submitted'
+                            ? `/editorial/review/${n.articleId}`
+                            : `/editorial/articles/${n.articleId}/edit`
+                        }
+                        onClick={() => {
+                          // Optimistically mark read; persist to server; revert on failure.
+                          if (!n.read) {
+                            setNotifs((prev) =>
+                              prev.map((item) => item.id === n.id ? { ...item, read: true } : item)
+                            )
+                            fetch(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' })
+                              .then((r) => {
+                                if (!r.ok) throw new Error('failed')
+                              })
+                              .catch(() => {
+                                // Revert the optimistic update on error
+                                setNotifs((prev) =>
+                                  prev.map((item) => item.id === n.id ? { ...item, read: false } : item)
+                                )
+                              })
+                          }
+                          setOpen(false)
+                        }}
+                        className="block"
+                      >
+                        <p className="text-xs font-semibold text-[var(--fg)] mb-0.5">{n.title}</p>
+                        <p className="text-xs text-[var(--fg-muted)] line-clamp-2">{n.message}</p>
+                        <p className="text-[var(--fg-faint)] text-[10px] mt-1">
+                          {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+                        </p>
+                      </Link>
+                    ) : (
+                      <>
+                        <p className="text-xs font-semibold text-[var(--fg)] mb-0.5">{n.title}</p>
+                        <p className="text-xs text-[var(--fg-muted)] line-clamp-2">{n.message}</p>
+                        <p className="text-[var(--fg-faint)] text-[10px] mt-1">
+                          {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+                        </p>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

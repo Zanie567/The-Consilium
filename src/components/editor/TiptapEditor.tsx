@@ -18,7 +18,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import CharacterCount from '@tiptap/extension-character-count'
 import TextAlign from '@tiptap/extension-text-align'
 import Highlight from '@tiptap/extension-highlight'
-import { TextStyle, Color, FontSize as TipTapFontSize } from '@tiptap/extension-text-style'
+import { TextStyle, Color, FontSize as TipTapFontSize, LineHeight } from '@tiptap/extension-text-style'
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
 import {
   Bold, Italic, UnderlineIcon, Strikethrough, Link2, Link2Off, Upload,
@@ -41,7 +41,9 @@ declare module '@tiptap/core' {
     pullQuote:  { togglePullQuote: () => ReturnType }
     footnoteRef: { insertFootnote: (content: string) => ReturnType }
     figure:     { insertFigure: (attrs: { src: string; alt?: string; caption?: string; credit?: string }) => ReturnType }
+    // fontSize and lineHeight commands are declared by @tiptap/extension-text-style; listed here for IDE navigation only
     fontSize:   { setFontSize: (fontSize: string) => ReturnType; unsetFontSize: () => ReturnType }
+    lineHeight: { setLineHeight: (lineHeight: string) => ReturnType; unsetLineHeight: () => ReturnType }
   }
 }
 
@@ -273,17 +275,26 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
     const editor = useEditor({
       editable,
       extensions: [
-        StarterKit.configure({ codeBlock: { HTMLAttributes: { class: 'code-block' } } }),
+        // Bug 1: StarterKit v3 bundles Link and Underline — disable them here
+        // so the manually configured versions below are the sole registrations.
+        StarterKit.configure({
+          codeBlock: { HTMLAttributes: { class: 'code-block' } },
+          link: false,
+          underline: false,
+        }),
+        // Underline and Link registered once, with our custom options
         Underline,
+        Link.configure({ openOnClick: false }),
         Highlight.configure({ multicolor: true }),
         TextAlign.configure({ types: ['heading', 'paragraph'] }),
         Image.configure({ inline: false }),
-        Link.configure({ openOnClick: false }),
         Placeholder.configure({ placeholder: 'Begin writing your article…' }),
         CharacterCount,
         TextStyle,
         Color,
         TipTapFontSize,
+        // Bug 5: register LineHeight so the line-spacing toolbar picker works
+        LineHeight,
         Table.configure({ resizable: true }),
         TableRow,
         TableHeader,
@@ -467,12 +478,11 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
       applyFontSize(String(Math.max(6, Math.min(96, cur + delta))))
     }, [fontSizeInput, applyFontSize])
 
-    const applyLineSpacing = useCallback((_spacing: string) => {
-      // Apply line height via textStyle attributes or a paragraph style
-      // TipTap doesn't have native line-spacing, we use CSS via a class
+    const applyLineSpacing = useCallback((spacing: string) => {
       if (!editor) return
-      // We toggle a class on selected paragraphs via the DOM extension approach
-      // Simplest workaround: apply via paragraph attrs if supported, else noop
+      // Bug 5: use the LineHeight extension (from @tiptap/extension-text-style)
+      // to apply line-height as an inline style on the current selection.
+      editor.chain().focus().setLineHeight(spacing).run()
       setLineSpacingOpen(false)
     }, [editor])
 
@@ -754,9 +764,10 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
             <Sep />
 
             {/* Group 8: Insert */}
-            {/* Image upload */}
+            {/* Image upload – call .click() directly inside onMouseDown so the
+                browser still treats it as a trusted user gesture */}
             <ToolbarBtn
-              onClick={() => { setTimeout(() => fileInputRef.current?.click(), 0) }}
+              onClick={() => { fileInputRef.current?.click() }}
               title={uploading ? 'Uploading…' : 'Insert image'}
               disabled={uploading}
             >

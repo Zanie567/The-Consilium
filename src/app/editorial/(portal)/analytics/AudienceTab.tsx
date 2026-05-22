@@ -194,7 +194,7 @@ export function AudienceTab({ data, loading }: { data: AudienceData | null; load
                 <div key={article.id} className="flex items-center gap-4 px-6 py-3.5 hover:bg-[var(--bg-subtle)] transition-colors">
                   <span className="text-[var(--fg-faint)] text-xs font-bold w-5 shrink-0 text-right">{i + 1}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[var(--fg)] line-clamp-1">{article.title}</p>
+                    <p className="text-sm font-medium text-[var(--fg)] line-clamp-1">{article.title || <span className="italic text-[var(--fg-faint)]">(Untitled)</span>}</p>
                     <p className="text-xs text-[var(--fg-faint)] mt-0.5">
                       {article.authorName ?? 'Unknown'}
                       {article.category && ` · ${article.category}`}

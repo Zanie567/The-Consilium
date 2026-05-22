@@ -117,7 +117,7 @@ export default async function EngagementPage() {
                         className="font-medium text-[var(--fg)] hover:text-gold transition-colors text-sm line-clamp-1"
                         target="_blank"
                       >
-                        {article.title}
+                        {article.title || <span className="italic text-[var(--fg-faint)]">(Untitled)</span>}
                       </Link>
                       <div className="flex items-center gap-2 mt-1.5">
                         <div className="h-1.5 rounded-full bg-[var(--border)] flex-1 max-w-[200px] overflow-hidden">

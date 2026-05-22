@@ -87,7 +87,7 @@ export default async function ReviewQueuePage() {
                     href={`/editorial/review/${article.id}`}
                     className="font-semibold text-[var(--fg)] hover:text-gold transition-colors line-clamp-2 sm:line-clamp-1 text-sm"
                   >
-                    {article.title}
+                    {article.title || <span className="italic text-[var(--fg-faint)]">(Untitled)</span>}
                   </Link>
                   <p className="text-[var(--fg-faint)] text-xs mt-0.5 line-clamp-2">
                     {article.author.name}
