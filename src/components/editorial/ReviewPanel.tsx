@@ -131,7 +131,7 @@ export function ReviewPanel({ article }: Props) {
           <div className="min-w-0 flex-1">
             <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-gold/70">Review Studio</p>
             <h1 className="text-2xl font-bold leading-tight text-[var(--fg)] sm:text-3xl" style={{ fontFamily: 'var(--font-serif)' }}>
-              {article.title}
+              {article.title || <span className="italic text-[var(--fg-faint)]">(Untitled)</span>}
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--fg-faint)]">
               <span>By {article.author.name}</span>

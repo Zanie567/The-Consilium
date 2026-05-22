@@ -97,7 +97,7 @@ export function DistributionTab({ data, loading }: { data: DistributionData | nu
                       href={`/editorial/articles/${article.id}/edit`}
                       className="text-sm font-medium text-[var(--fg)] hover:text-gold transition-colors line-clamp-1"
                     >
-                      {article.title}
+                      {article.title || <span className="italic text-[var(--fg-faint)]">(Untitled)</span>}
                     </Link>
                     <p className="text-xs text-[var(--fg-faint)] mt-0.5">
                       {article.author.name} in {article.category?.name ?? 'Uncategorised'}

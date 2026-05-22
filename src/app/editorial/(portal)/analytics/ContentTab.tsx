@@ -74,7 +74,7 @@ export function ContentTab({ data, loading }: { data: ContentData | null; loadin
                   <span className="text-[var(--fg-faint)] text-xs font-bold w-5 shrink-0 text-right">{i + 1}</span>
                   <div className="flex-1 min-w-0">
                     <Link href={`/editorial/articles/${article.id}/edit`} className="text-sm font-medium text-[var(--fg)] hover:text-gold transition-colors line-clamp-1">
-                      {article.title}
+                      {article.title || <span className="italic text-[var(--fg-faint)]">(Untitled)</span>}
                     </Link>
                     <p className="text-xs text-[var(--fg-faint)] mt-0.5">
                       {article.author.name} · {article.category?.name ?? 'Uncategorised'}
@@ -106,7 +106,7 @@ export function ContentTab({ data, loading }: { data: ContentData | null; loadin
                     <span className="text-[var(--fg-faint)] text-xs font-bold w-4 shrink-0 text-right">{i + 1}</span>
                     <div className="flex-1 min-w-0">
                       <Link href={`/editorial/articles/${article.id}/edit`} className="text-sm font-medium text-[var(--fg)] hover:text-gold transition-colors line-clamp-1">
-                        {article.title}
+                        {article.title || <span className="italic text-[var(--fg-faint)]">(Untitled)</span>}
                       </Link>
                       {article.authorName && (
                         <p className="text-[10px] text-[var(--fg-faint)] mt-0.5">{article.authorName}</p>
@@ -163,7 +163,7 @@ export function ContentTab({ data, loading }: { data: ContentData | null; loadin
                 <div key={article.id} className="flex items-center gap-3 px-6 py-3 hover:bg-amber-500/5 transition-colors">
                   <div className="flex-1 min-w-0">
                     <Link href={`/editorial/articles/${article.id}/edit`} className="text-sm font-medium text-[var(--fg)] hover:text-gold transition-colors line-clamp-1">
-                      {article.title}
+                      {article.title || <span className="italic text-[var(--fg-faint)]">(Untitled)</span>}
                     </Link>
                     <p className="text-xs text-[var(--fg-faint)] mt-0.5">
                       {article.author?.name ?? 'Unknown'}
@@ -227,7 +227,7 @@ export function ContentTab({ data, loading }: { data: ContentData | null; loadin
                 <div key={article.id} className="flex items-center gap-4 px-6 py-3.5 hover:bg-[var(--bg-subtle)] transition-colors">
                   <span className="text-[var(--fg-faint)] text-xs font-bold w-5 shrink-0 text-right">{i + 1}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[var(--fg)] line-clamp-1">{article.title}</p>
+                    <p className="text-sm font-medium text-[var(--fg)] line-clamp-1">{article.title || <span className="italic text-[var(--fg-faint)]">(Untitled)</span>}</p>
                     <p className="text-[10px] text-[var(--fg-faint)] mt-0.5">
                       {article.authorName ?? 'Unknown'} · {article.readerCount} reader{article.readerCount !== 1 ? 's' : ''}
                     </p>

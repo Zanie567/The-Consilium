@@ -120,10 +120,22 @@ export function NotificationBell() {
                             : `/editorial/articles/${n.articleId}/edit`
                         }
                         onClick={() => {
-                          // Mark this notification as read when the user navigates to it
-                          setNotifs((prev) =>
-                            prev.map((item) => item.id === n.id ? { ...item, read: true } : item)
-                          )
+                          // Optimistically mark read; persist to server; revert on failure.
+                          if (!n.read) {
+                            setNotifs((prev) =>
+                              prev.map((item) => item.id === n.id ? { ...item, read: true } : item)
+                            )
+                            fetch(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' })
+                              .then((r) => {
+                                if (!r.ok) throw new Error('failed')
+                              })
+                              .catch(() => {
+                                // Revert the optimistic update on error
+                                setNotifs((prev) =>
+                                  prev.map((item) => item.id === n.id ? { ...item, read: false } : item)
+                                )
+                              })
+                          }
                           setOpen(false)
                         }}
                         className="block"
