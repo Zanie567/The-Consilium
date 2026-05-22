@@ -1,6 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import { useRef } from 'react'
 import { ImagePlus, X } from 'lucide-react'
 import type React from 'react'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
@@ -28,8 +29,25 @@ interface ArticleEditorDocumentProps {
 export function ArticleEditorDocument({ editor }: ArticleEditorDocumentProps) {
   const { actions, refs } = editor
 
+  // Bug 4: Dedicated cover-image file input for the document-body button.
+  // The shared coverFileRef lives inside ArticleEditorMetadataPanel (sidebar /
+  // mobile drawer); calling it from a different component tree can fail in
+  // certain browsers when that element is visually off-screen or inside an
+  // overflow-hidden ancestor.  Having a local input here gives us a reliable,
+  // always-reachable DOM element for the "Add cover image" body button.
+  const docCoverInputRef = useRef<HTMLInputElement>(null)
+
   return (
     <div className="flex-none w-full max-w-[960px] bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] min-h-[calc(100vh-120px)]">
+      {/* Hidden file input for the document-body cover-image button */}
+      <input
+        ref={docCoverInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => void actions.handleCoverUpload(e)}
+      />
+
       <div className={`relative group w-full overflow-hidden bg-[var(--bg-subtle)] ${editor.coverImage ? 'h-60' : ''}`}>
         {editor.coverImage ? (
           <>
@@ -44,7 +62,7 @@ export function ArticleEditorDocument({ editor }: ArticleEditorDocumentProps) {
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                 <button
                   type="button"
-                  onClick={actions.openCoverPicker}
+                  onClick={() => docCoverInputRef.current?.click()}
                   disabled={editor.uploading}
                   className="flex items-center gap-2 text-white text-xs font-semibold bg-black/50 border border-white/20 px-4 py-2 rounded hover:bg-black/70 transition-colors"
                 >
@@ -66,7 +84,7 @@ export function ArticleEditorDocument({ editor }: ArticleEditorDocumentProps) {
           editor.canEdit && (
             <button
               type="button"
-              onClick={actions.openCoverPicker}
+              onClick={() => docCoverInputRef.current?.click()}
               disabled={editor.uploading}
               className="w-full py-6 flex items-center justify-center gap-2 text-[var(--fg-faint)] text-sm font-bold hover:text-gold hover:bg-[var(--bg)] transition-colors disabled:opacity-50 tracking-wide"
             >

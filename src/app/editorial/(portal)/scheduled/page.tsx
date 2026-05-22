@@ -63,7 +63,8 @@ export default async function ScheduledPage() {
                       className="font-semibold text-[var(--fg)] hover:text-gold transition-colors text-sm line-clamp-1"
                       style={{ fontFamily: 'var(--font-serif)' }}
                     >
-                      {article.title}
+                      {/* Bug 7 */}
+                      {article.title || <span className="italic text-[var(--fg-faint)]">(Untitled)</span>}
                     </Link>
                     <p className="text-[var(--fg-faint)] text-xs mt-0.5">
                       {article.author.name}
