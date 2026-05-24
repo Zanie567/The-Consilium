@@ -17,6 +17,7 @@ export async function GET() {
       where: {
         status: 'PUBLISHED',
         deletedAt: null,
+        publishedAt: { not: null },
       },
       orderBy: { publishedAt: 'desc' },
       select: {
