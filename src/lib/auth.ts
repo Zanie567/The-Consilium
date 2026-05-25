@@ -104,23 +104,22 @@ export const authOptions: NextAuthOptions = {
         const validPassword = await bcrypt.compare(credentials.password, user.password)
 
         if (!validPassword) {
-          const newCount = user.failedLoginAttempts + 1
-          const shouldLock = newCount >= MAX_FAILED_ATTEMPTS
-
-          await prisma.user.update({
+          // Atomic increment — prevents concurrent requests bypassing the limit
+          const { failedLoginAttempts: newCount } = await prisma.user.update({
             where: { id: user.id },
-            data: {
-              failedLoginAttempts: newCount,
-              ...(shouldLock && { lockedUntil: new Date(Date.now() + LOCKOUT_DURATION_MS) }),
-            },
+            data: { failedLoginAttempts: { increment: 1 } },
+            select: { failedLoginAttempts: true },
           })
 
-          await logAttempt(credentials.email, ip, false)
-
-          if (shouldLock) {
+          if (newCount >= MAX_FAILED_ATTEMPTS) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { lockedUntil: new Date(Date.now() + LOCKOUT_DURATION_MS) },
+            })
             notifyAdminOfLockout(user.email, ip).catch(() => {})
           }
 
+          await logAttempt(credentials.email, ip, false)
           return null
         }
 
@@ -221,19 +220,19 @@ export function isEditorialUser(role: Role): boolean {
 
 export async function getVerifiedSessionUser(
   allowedRoles?: readonly Role[]
-): Promise<{ id: string; role: Role } | null> {
+): Promise<{ id: string; role: Role; name: string | null; email: string | null } | null> {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return null
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, role: true, isActive: true, isBanned: true },
+    select: { id: true, role: true, name: true, email: true, isActive: true, isBanned: true },
   })
 
   if (!user || !user.isActive || user.isBanned) return null
   if (allowedRoles && !allowedRoles.includes(user.role)) return null
 
-  return { id: user.id, role: user.role }
+  return { id: user.id, role: user.role, name: user.name, email: user.email }
 }
 
 /**

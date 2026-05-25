@@ -9,7 +9,7 @@ datasource db {
 // ⚠️  Before merging this PR, run the following SQL in Supabase SQL editor:
 //     ALTER TYPE "Role" ADD VALUE 'GROWTH';
 // prisma migrate dev cannot be used in production; this must be applied manually.
-enum Role {
+enum Role { 
   ADMIN
   EDITOR
   WRITER
@@ -380,14 +380,16 @@ model DebateVote {
   userId      String?
   user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   anonymousId String?
+  anonIpHash  String?
   side        VoteSide
   createdAt   DateTime @default(now())
 
   // Authenticated deduplication: one vote per user per debate
-  // Anonymous deduplication : one vote per anonymousId per debate
+  // Anonymous deduplication : one vote per anonymousId per debate, and one per IP hash
   // NULLs are distinct in Postgres unique constraints so these are safe
   @@unique([debateId, userId])
   @@unique([debateId, anonymousId])
+  @@unique([debateId, anonIpHash])
   @@index([debateId, side])
   @@map("debate_votes")
 }
@@ -402,6 +404,7 @@ model Comment {
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   body       String    @db.Text
   isHidden   Boolean   @default(false)
+  hiddenBody String?   @db.Text
   flagReason String?
   isReported Boolean   @default(false)
   parentId   String?

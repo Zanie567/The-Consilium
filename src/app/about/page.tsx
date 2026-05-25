@@ -125,10 +125,10 @@ export default function AboutPage() {
           >
             What We Publish
           </h2>
-          <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 gap-4 auto-rows-fr">
             {sections.map((section) => (
-              <StaggerItem key={section.title}>
-                <div className="p-6 border border-[var(--border)] bg-[var(--bg-elevated)] hover:border-gold/40 transition-colors duration-200 card-hover">
+              <StaggerItem key={section.title} className="h-full">
+                <div className="h-full p-6 border border-[var(--border)] bg-[var(--bg-elevated)] hover:border-gold/40 transition-colors duration-200 card-hover">
                   <h3 className="text-[0.65rem] font-bold uppercase tracking-widest text-gold mb-2.5">
                     {section.title}
                   </h3>

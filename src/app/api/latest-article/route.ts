@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 /**
@@ -10,12 +11,22 @@ import { prisma } from '@/lib/prisma'
  * required. The select is intentionally narrow: do not expand it with private
  * fields (email, password, role, etc.).
  */
+
+// Prevent static rendering — this route queries the DB at request time.
+export const dynamic = 'force-dynamic'
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  // Cache at CDN for 60 s (matches EconSoc ISR revalidate: 60).
+  'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=10',
+}
+
 export async function GET() {
   try {
     const article = await prisma.article.findFirst({
       where: {
-        status:    'PUBLISHED',
-        deletedAt: null,
+        status:      'PUBLISHED',
+        deletedAt:   null,
         publishedAt: { not: null },
       },
       orderBy: { publishedAt: 'desc' },
@@ -34,10 +45,10 @@ export async function GET() {
     })
 
     if (!article || !article.publishedAt) {
-      return Response.json(null, { status: 404 })
+      return NextResponse.json(null, { status: 404, headers: CORS_HEADERS })
     }
 
-    return Response.json(
+    return NextResponse.json(
       {
         title:       article.title,
         slug:        article.slug,
@@ -46,15 +57,12 @@ export async function GET() {
         category:    article.category ?? null,
         author:      { name: article.author.name, slug: article.author.slug },
       },
-      {
-        headers: {
-          // Cache at the CDN for 60 s, allow stale-while-revalidate for 10 s.
-          // Matches the revalidate: 60 on the EconSoc consumer page.
-          'Cache-Control': 'public, max-age=60, stale-while-revalidate=10',
-        },
-      }
+      { headers: CORS_HEADERS }
     )
   } catch {
-    return Response.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } }
+    )
   }
 }

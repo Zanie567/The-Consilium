@@ -9,7 +9,7 @@ import { formatEditorialScheduleDisplay } from '@/lib/editorialSchedule'
 
 interface ArticleItem {
   id: string
-  title: string
+  title: string | null
   status: string
   isFeatured: boolean
   isPinned: boolean
@@ -171,8 +171,11 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                       {article.isPinned && (
                         <Pin size={12} className="shrink-0 fill-gold text-gold" />
                       )}
+                      {/* Bug 7: show a styled fallback for untitled articles */}
                       <span className="font-medium text-[var(--fg)] line-clamp-1">
-                        {article.title}
+                        {article.title || (
+                          <span className="italic text-[var(--fg-faint)]">(Untitled)</span>
+                        )}
                       </span>
                     </div>
                   </td>

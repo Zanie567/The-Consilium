@@ -235,7 +235,8 @@ export default async function EditorialDashboard() {
                     href={`/editorial/review/${article.id}`}
                     className="font-semibold text-[var(--fg)] hover:text-gold transition-colors line-clamp-2 sm:line-clamp-1 text-sm"
                   >
-                    {article.title}
+                    {/* Bug 7 */}
+                    {article.title || <span className="italic text-[var(--fg-faint)]">(Untitled)</span>}
                   </Link>
                   <p className="text-[var(--fg-faint)] text-xs mt-0.5 line-clamp-2">
                     {article.author.name} · {article.category?.name ?? 'Uncategorised'} ·{' '}
@@ -380,7 +381,8 @@ export default async function EditorialDashboard() {
                           href={`/editorial/articles/${article.id}/edit`}
                           className="font-medium text-[var(--fg)] hover:text-gold transition-colors line-clamp-1"
                         >
-                          {article.title}
+                          {/* Bug 7 */}
+                          {article.title || <span className="italic text-[var(--fg-faint)]">(Untitled)</span>}
                         </Link>
                         {isEditor && (
                           <p className="text-[var(--fg-faint)] text-xs mt-0.5">

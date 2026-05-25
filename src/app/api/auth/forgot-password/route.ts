@@ -70,6 +70,9 @@ export async function PATCH(req: NextRequest) {
   if (password.length < 8) {
     return Response.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })
   }
+  if (password.length > 128) {
+    return Response.json({ error: 'Password must be at most 128 characters.' }, { status: 400 })
+  }
 
   const record = await prisma.passwordResetToken.findUnique({ where: { token } })
   if (!record || record.used || record.expires < new Date()) {
