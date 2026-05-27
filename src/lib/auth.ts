@@ -2,17 +2,20 @@ import { NextAuthOptions } from 'next-auth'
 import { getServerSession } from 'next-auth'
 import { PrismaAdapter } from '@auth/prisma-adapter'
 import CredentialsProvider from 'next-auth/providers/credentials'
+import GoogleProvider from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 import { sendEmail } from './email'
 import type { Role } from '@prisma/client'
 
-// Fail fast at startup if the secret is missing. Without it NextAuth silently
-// generates an ephemeral secret, invalidating all sessions on every restart
-// and breaking multi-instance deployments.
 if (!process.env.NEXTAUTH_SECRET) {
   throw new Error(
     'NEXTAUTH_SECRET is not set. Add it to your .env.local file or Vercel environment variables.'
+  )
+}
+if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  throw new Error(
+    'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set. See .env.example.'
   )
 }
 
@@ -20,7 +23,7 @@ const EDITORIAL_ROLES: Role[] = ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH']
 export const ANALYTICS_ROLES = ['ADMIN', 'GROWTH'] as const satisfies readonly Role[]
 export const ARTICLE_ACCESS_ROLES = ['ADMIN', 'EDITOR', 'WRITER'] as const satisfies readonly Role[]
 const MAX_FAILED_ATTEMPTS = 5
-const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000
 
 async function logAttempt(email: string, ipAddress: string, success: boolean) {
   try {
@@ -65,6 +68,15 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      // Force account selection on every sign-in so users with multiple
+      // Google accounts are not silently signed into the wrong one.
+      authorization: {
+        params: { prompt: 'select_account' },
+      },
+    }),
     CredentialsProvider({
       name: 'credentials',
       credentials: {
@@ -83,19 +95,16 @@ export const authOptions: NextAuthOptions = {
           where: { email: credentials.email },
         })
 
-        // Banned users cannot sign in
         if (user?.isBanned) {
           await logAttempt(credentials.email, ip, false)
           return null
         }
 
-        // Account locked
         if (user?.lockedUntil && user.lockedUntil > new Date()) {
           await logAttempt(credentials.email, ip, false)
           return null
         }
 
-        // Unknown user, inactive, or no password
         if (!user || !user.password || !user.isActive) {
           await logAttempt(credentials.email, ip, false)
           return null
@@ -104,7 +113,6 @@ export const authOptions: NextAuthOptions = {
         const validPassword = await bcrypt.compare(credentials.password, user.password)
 
         if (!validPassword) {
-          // Atomic increment — prevents concurrent requests bypassing the limit
           const { failedLoginAttempts: newCount } = await prisma.user.update({
             where: { id: user.id },
             data: { failedLoginAttempts: { increment: 1 } },
@@ -123,7 +131,6 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        // Successful login - reset lockout state, track last active
         await prisma.user.update({
           where: { id: user.id },
           data: {
@@ -147,6 +154,39 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    async signIn({ user, account }) {
+      // Only gate OAuth sign-ins here. The credentials provider handles its
+      // own checks inside authorize above.
+      if (account?.provider === 'google') {
+        if (!user.email) return false
+
+        const dbUser = await prisma.user.findUnique({
+          where: { email: user.email },
+          select: { id: true, isBanned: true, isActive: true },
+        })
+
+        // No existing record: PrismaAdapter creates a new user with the
+        // default READER role. Allow it through.
+        if (!dbUser) return true
+
+        // Block suspended or deactivated accounts from using Google sign-in
+        // as a bypass route around the credentials checks.
+        if (dbUser.isBanned || !dbUser.isActive) return false
+
+        // Mirror the credentials flow: update login timestamps on success.
+        await prisma.user
+          .update({
+            where: { id: dbUser.id },
+            data: { lastLoginAt: new Date(), lastActiveAt: new Date() },
+          })
+          .catch(() => {})
+
+        return true
+      }
+
+      return true
+    },
+
     async jwt({ token, user }) {
       if (user) {
         token.role = (user as unknown as { role: Role }).role
@@ -157,8 +197,6 @@ export const authOptions: NextAuthOptions = {
         token.isActive = true
         token.activeCheckedAt = Date.now()
       } else {
-        // Re-check privilege state every 60 seconds so bans, deactivations,
-        // and role changes take effect quickly on existing sessions.
         const oneMinuteAgo = Date.now() - 60 * 1000
 
         const needsBanCheck = !token.bannedCheckedAt || (token.bannedCheckedAt as number) < oneMinuteAgo
@@ -197,6 +235,7 @@ export const authOptions: NextAuthOptions = {
       }
       return token
     },
+
     async session({ session, token }) {
       if (token && session.user) {
         ;(session.user as unknown as { role: Role; id: string; isBanned: boolean }).role = token.role as Role
@@ -206,6 +245,7 @@ export const authOptions: NextAuthOptions = {
       }
       return session
     },
+
     async redirect({ url, baseUrl }) {
       if (url.startsWith('/')) return `${baseUrl}${url}`
       if (url.startsWith(baseUrl)) return url
@@ -235,16 +275,6 @@ export async function getVerifiedSessionUser(
   return { id: user.id, role: user.role, name: user.name, email: user.email }
 }
 
-/**
- * Validates that a session exists and the user is not banned.
- *
- * Returns a 401 Response if there is no session, a 403 Response if the user
- * is banned, or null if everything is fine and the route may proceed.
- *
- * Usage:
- *   const authError = requireActiveSession(session)
- *   if (authError) return authError
- */
 export function requireActiveSession(
   session: { user?: { isBanned?: boolean; isActive?: boolean } | null } | null
 ): Response | null {
@@ -252,16 +282,10 @@ export function requireActiveSession(
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
   if (session.user.isActive === false) {
-    return Response.json(
-      { error: 'Your account is inactive.' },
-      { status: 403 }
-    )
+    return Response.json({ error: 'Your account is inactive.' }, { status: 403 })
   }
   if (session.user.isBanned) {
-    return Response.json(
-      { error: 'Your account has been suspended.' },
-      { status: 403 }
-    )
+    return Response.json({ error: 'Your account has been suspended.' }, { status: 403 })
   }
   return null
 }
