@@ -59,7 +59,7 @@ export function LoginForm({ redirectTo = '/editorial' }: { redirectTo?: string }
     setGoogleLoading(true)
     // OAuth sign-in redirects the page entirely. The loading state resets
     // on the rare chance the redirect does not happen.
-    await signIn('google', { callbackUrl: '/' })
+    await signIn('google', { callbackUrl: redirectTo })
     setGoogleLoading(false)
   }
 
