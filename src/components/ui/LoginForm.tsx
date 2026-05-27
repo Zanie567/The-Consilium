@@ -28,11 +28,17 @@ function GoogleIcon() {
   )
 }
 
-export function LoginForm({ redirectTo = '/editorial' }: { redirectTo?: string }) {
+export function LoginForm({
+  callbackUrl = '/',
+  initialError,
+}: {
+  callbackUrl?: string
+  initialError?: string
+}) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(initialError ?? '')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
@@ -51,7 +57,7 @@ export function LoginForm({ redirectTo = '/editorial' }: { redirectTo?: string }
     } else {
       // Hard navigation bypasses the Next.js router cache so the dashboard
       // always loads fresh with the new session.
-      window.location.replace(redirectTo)
+      window.location.replace(callbackUrl)
     }
   }
 
@@ -59,7 +65,7 @@ export function LoginForm({ redirectTo = '/editorial' }: { redirectTo?: string }
     setGoogleLoading(true)
     // OAuth sign-in redirects the page entirely. The loading state resets
     // on the rare chance the redirect does not happen.
-    await signIn('google', { callbackUrl: redirectTo })
+    await signIn('google', { callbackUrl })
     setGoogleLoading(false)
   }
 

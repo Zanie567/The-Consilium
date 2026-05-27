@@ -175,6 +175,30 @@ export const authOptions: NextAuthOptions = {
         // as a bypass route around the credentials checks.
         if (dbUser.isBanned || !dbUser.isActive) return false
 
+        // If the user registered with email/password and is signing in with
+        // Google for the first time, link the Google account automatically
+        // rather than throwing OAuthAccountNotLinked.
+        const linked = await prisma.account.findFirst({
+          where: { userId: dbUser.id, provider: 'google' },
+        })
+        if (!linked) {
+          await prisma.account.create({
+            data: {
+              userId: dbUser.id,
+              type: account.type,
+              provider: account.provider,
+              providerAccountId: account.providerAccountId,
+              access_token: account.access_token ?? null,
+              refresh_token: account.refresh_token ?? null,
+              expires_at: account.expires_at ?? null,
+              token_type: account.token_type ?? null,
+              scope: account.scope ?? null,
+              id_token: account.id_token ?? null,
+              session_state: account.session_state ? String(account.session_state) : null,
+            },
+          })
+        }
+
         // Mirror the credentials flow: update login timestamps on success.
         await prisma.user
           .update({
