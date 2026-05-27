@@ -11,7 +11,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { userId, noteId } = await params
+  const { noteId } = await params
 
   try {
     await prisma.adminNote.delete({ where: { id: noteId } })

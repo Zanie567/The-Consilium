@@ -5,7 +5,7 @@ import { useRef } from 'react'
 import { ImagePlus, X } from 'lucide-react'
 import type React from 'react'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
-import type { ArticleEditorController } from './types'
+import type { ArticleEditorController, ArticleEditorRefs } from './types'
 
 const TiptapEditor = dynamic(
   () => import('@/components/editor/TiptapEditor').then((module) => module.TiptapEditor),
@@ -24,10 +24,14 @@ const TiptapEditor = dynamic(
 
 interface ArticleEditorDocumentProps {
   editor: ArticleEditorController
+  editorRef: ArticleEditorRefs['editorRef']
+  excerptDomRef: ArticleEditorRefs['excerptDomRef']
+  titleDomRef: ArticleEditorRefs['titleDomRef']
+  toolbarPortalRef: ArticleEditorRefs['toolbarPortalRef']
 }
 
-export function ArticleEditorDocument({ editor }: ArticleEditorDocumentProps) {
-  const { actions, refs } = editor
+export function ArticleEditorDocument({ editor, editorRef, excerptDomRef, titleDomRef, toolbarPortalRef }: ArticleEditorDocumentProps) {
+  const { actions } = editor
 
   // Bug 4: Dedicated cover-image file input for the document-body button.
   // The shared coverFileRef lives inside ArticleEditorMetadataPanel (sidebar /
@@ -97,7 +101,7 @@ export function ArticleEditorDocument({ editor }: ArticleEditorDocumentProps) {
 
       <div className="px-6 py-10 sm:px-10 sm:py-12 md:px-16 md:py-16 lg:px-20 xl:px-24">
         <textarea
-          ref={refs.titleDomRef}
+          ref={titleDomRef}
           value={editor.title}
           onChange={(event) => actions.updateTitle(event.target.value)}
           disabled={!editor.canEdit}
@@ -107,7 +111,7 @@ export function ArticleEditorDocument({ editor }: ArticleEditorDocumentProps) {
         />
 
         <textarea
-          ref={refs.excerptDomRef}
+          ref={excerptDomRef}
           value={editor.excerpt}
           onChange={(event) => actions.setExcerpt(event.target.value)}
           disabled={!editor.canEdit}
@@ -118,12 +122,12 @@ export function ArticleEditorDocument({ editor }: ArticleEditorDocumentProps) {
 
         <div className="mt-6">
           <TiptapEditor
-            ref={refs.editorRef}
+            ref={editorRef}
             content={editor.content}
             onChange={actions.handleContentChange}
             editable={editor.canEdit}
             saveStatus={editor.saveStatus}
-            toolbarPortalRef={refs.toolbarPortalRef}
+            toolbarPortalRef={toolbarPortalRef}
             noWrapper
             darkMode={editor.isDark}
           />

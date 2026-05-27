@@ -196,6 +196,11 @@ model Article {
   forDebates      Debate[]      @relation("ForArticle")
   againstDebates  Debate[]      @relation("AgainstArticle")
 
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([status, deletedAt])
+  @@index([publishedAt])
+  @@index([scheduledAt])
   @@map("articles")
 }
 
@@ -248,6 +253,8 @@ model ArticleNote {
   article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
   author  User    @relation(fields: [authorId], references: [id])
 
+  @@index([articleId])
+  @@index([authorId])
   @@map("article_notes")
 }
 
@@ -292,6 +299,7 @@ model Notification {
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   article Article? @relation(fields: [articleId], references: [id], onDelete: SetNull)
 
+  @@index([userId, read, createdAt])
   @@map("notifications")
 }
 
@@ -417,6 +425,7 @@ model Comment {
   upvotedBy  CommentUpvote[]
 
   @@index([articleId, createdAt])
+  @@index([userId])
   @@index([isReported])
   @@map("comments")
 }

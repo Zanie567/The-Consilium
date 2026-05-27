@@ -6,7 +6,6 @@ import {
 } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model'
-import { Plugin } from '@tiptap/pm/state'
 import {
   Node, mergeAttributes, type SingleCommands, type RawCommands,
 } from '@tiptap/core'

@@ -2,13 +2,14 @@
 
 import { X } from 'lucide-react'
 import { ArticleEditorMetadataPanel } from './ArticleEditorMetadataPanel'
-import type { ArticleEditorController } from './types'
+import type { ArticleEditorController, ArticleEditorRefs } from './types'
 
 interface ArticleEditorMobileSettingsProps {
   editor: ArticleEditorController
+  coverFileRef: ArticleEditorRefs['coverFileRef']
 }
 
-export function ArticleEditorMobileSettings({ editor }: ArticleEditorMobileSettingsProps) {
+export function ArticleEditorMobileSettings({ editor, coverFileRef }: ArticleEditorMobileSettingsProps) {
   return (
     <>
       <div
@@ -37,7 +38,7 @@ export function ArticleEditorMobileSettings({ editor }: ArticleEditorMobileSetti
         </div>
 
         <div className="overflow-y-auto p-4 flex-1">
-          <ArticleEditorMetadataPanel editor={editor} />
+          <ArticleEditorMetadataPanel editor={editor} coverFileRef={coverFileRef} />
         </div>
       </div>
     </>

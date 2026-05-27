@@ -1,12 +1,18 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createHash } from 'crypto'
 import { prisma } from '@/lib/prisma'
+import { checkRateLimit, getIp } from '@/lib/rate-limit'
 
 function hashSession(sessionId: string, key: string, timeBucket: number): string {
   return createHash('sha256').update(`${sessionId}:${key}:${timeBucket}`).digest('hex')
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // 60 track events per IP per minute — bots/scrapers get silently dropped
+  if (!checkRateLimit(`track:${getIp(req)}`, 60, 60_000)) {
+    return NextResponse.json({ ok: true })
+  }
+
   try {
     const body = await req.json()
     const { articleId, sessionId, referrer, pagePath } = body

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { format, formatDistanceToNow } from 'date-fns'
 import {
   X, Shield, AlertTriangle, Ban, Trash2, ChevronDown,
@@ -146,16 +146,16 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
 
   const panelRef = useRef<HTMLDivElement>(null)
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true)
     fetch(`/api/admin/users/${userId}`)
       .then((r) => r.json())
       .then((d) => setUser(d))
       .catch(() => {})
       .finally(() => setLoading(false))
-  }
+  }, [userId])
 
-  useEffect(() => { load() }, [userId])
+  useEffect(() => { load() }, [load])
 
   // Close on Escape
   useEffect(() => {

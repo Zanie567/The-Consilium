@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import slugify from 'slugify'
 import { mutate as globalMutate } from 'swr'
-import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
 import { DRAFTS_SWR_KEY } from '@/components/editorial/DraftsSection'
-import type { ArticleEditorController, ArticleEditorProps, SaveStatus, UserOption } from './types'
+import type { ArticleEditorController, ArticleEditorHookProps, SaveStatus, UserOption } from './types'
 
 export function useArticleEditorController({
   articleId,
@@ -17,7 +16,8 @@ export function useArticleEditorController({
   canPublish,
   returnUrl,
   isWriter,
-}: ArticleEditorProps): ArticleEditorController {
+  refs: { coverFileRef, excerptDomRef, titleDomRef },
+}: ArticleEditorHookProps): ArticleEditorController {
   const router = useRouter()
   const { theme, setTheme } = useTheme()
   const [themeMounted, setThemeMounted] = useState(false)
@@ -61,12 +61,6 @@ export function useArticleEditorController({
   const tagsRef = useRef(tags)
   const selectedAuthorIdRef = useRef(selectedAuthorId)
 
-  const titleDomRef = useRef<HTMLTextAreaElement>(null)
-  const excerptDomRef = useRef<HTMLTextAreaElement>(null)
-  const coverFileRef = useRef<HTMLInputElement>(null)
-  const editorRef = useRef<TiptapEditorHandle | null>(null)
-  const toolbarPortalRef = useRef<HTMLDivElement>(null)
-
   const currentStatus = initialData?.status ?? 'DRAFT'
   const canEdit = !isWriter || currentStatus === 'DRAFT' || currentStatus === 'REJECTED'
 
@@ -98,14 +92,14 @@ export function useArticleEditorController({
     if (!element) return
     element.style.height = 'auto'
     element.style.height = `${element.scrollHeight}px`
-  }, [title])
+  }, [title, titleDomRef])
 
   useEffect(() => {
     const element = excerptDomRef.current
     if (!element) return
     element.style.height = 'auto'
     element.style.height = `${element.scrollHeight}px`
-  }, [excerpt])
+  }, [excerpt, excerptDomRef])
 
   const performSave = useCallback(async (overrideStatus?: string) => {
     const currentId = articleIdRef.current
@@ -396,13 +390,6 @@ export function useArticleEditorController({
     tutorialOpen,
     uploading,
     users,
-    refs: {
-      coverFileRef,
-      editorRef,
-      excerptDomRef,
-      titleDomRef,
-      toolbarPortalRef,
-    },
     actions: {
       addTag,
       handleBack,

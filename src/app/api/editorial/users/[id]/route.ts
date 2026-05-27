@@ -2,15 +2,12 @@ import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
-import { ADMIN_ONLY, ALL_ROLES, EDITORIAL_MANAGEMENT_ROLES, EDITOR_USER_TARGET_ROLES, isAllowedRole } from '@/lib/rbac'
-import type { Role } from '@prisma/client'
-
+import { ADMIN_ONLY, EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 interface Props {
   params: Promise<{ id: string }>
 }
 
 const ADMIN_PROFILE_FIELDS = new Set(['name', 'email', 'bio', 'image', 'slug', 'adminNotes', 'isActive', 'categoryIds'])
-const EDITOR_PROFILE_FIELDS = new Set(['name', 'email', 'bio', 'image', 'slug'])
 
 function bodyKeys(body: Record<string, unknown>) {
   return Object.keys(body).filter((key) => body[key] !== undefined)
@@ -18,10 +15,6 @@ function bodyKeys(body: Record<string, unknown>) {
 
 function hasOnlyKeys(keys: string[], allowed: Set<string>) {
   return keys.every((key) => allowed.has(key))
-}
-
-function canEditorModifyTarget(role: Role) {
-  return (EDITOR_USER_TARGET_ROLES as readonly Role[]).includes(role)
 }
 
 export async function GET(_req: Request, { params }: Props) {

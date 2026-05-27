@@ -42,7 +42,7 @@ export function ArticlePreviewWithComments({
   comments,
   activeCommentId,
   onCommentCreated,
-  onSelectComment,
+  onSelectComment: _onSelectComment,
 }: Props) {
   const editorRef = useRef<Editor | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)

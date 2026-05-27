@@ -18,7 +18,7 @@ function allowed(text: string) {
   return filterComment(text).allowed === true
 }
 
-function flagged(text: string) {
+function _flagged(text: string) {
   const r = filterComment(text)
   return r.allowed === true && r.flagForReview === true
 }

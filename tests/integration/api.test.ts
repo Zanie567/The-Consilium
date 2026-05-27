@@ -703,11 +703,7 @@ describe('POST /api/upload', () => {
     expect(res.status).toBe(403)
   })
 
-  it('invalid bucket name → 400 (no auth needed to hit bucket check)', async () => {
-    // This test only works if auth check fails AFTER bucket check — in practice auth fails first.
-    // SKIP if auth always fires first.
-    skip('invalid bucket → 400 (auth fires before bucket check in current implementation)')
-  })
+  it.skip('invalid bucket name → 400 (auth fires before bucket check in current implementation)', () => {})
 })
 
 // ── Suite 14: Bookmarks ───────────────────────────────────────────────────────

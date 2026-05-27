@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef } from 'react'
 import { AlertCircle } from 'lucide-react'
 import { ArticleEditorDocument } from './article-editor/ArticleEditorDocument'
 import { ArticleEditorMetadataPanel } from './article-editor/ArticleEditorMetadataPanel'
@@ -7,17 +8,27 @@ import { ArticleEditorMobileSettings } from './article-editor/ArticleEditorMobil
 import { ArticleEditorTopBar } from './article-editor/ArticleEditorTopBar'
 import { ArticleEditorTutorial } from './article-editor/ArticleEditorTutorial'
 import { useArticleEditorController } from './article-editor/useArticleEditorController'
-import type { ArticleEditorProps } from './article-editor/types'
+import type { ArticleEditorController, ArticleEditorProps } from './article-editor/types'
+import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
 
 export function ArticleEditor(props: ArticleEditorProps) {
-  const editor = useArticleEditorController(props)
+  const coverFileRef = useRef<HTMLInputElement>(null)
+  const editorRef = useRef<TiptapEditorHandle | null>(null)
+  const excerptDomRef = useRef<HTMLTextAreaElement>(null)
+  const titleDomRef = useRef<HTMLTextAreaElement>(null)
+  const toolbarPortalRef = useRef<HTMLDivElement>(null)
+
+  const editor = useArticleEditorController({
+    ...props,
+    refs: { coverFileRef, editorRef, excerptDomRef, titleDomRef, toolbarPortalRef },
+  })
 
   return (
     <div className="min-h-full">
       <ArticleEditorTopBar editor={editor} />
 
       <div
-        ref={editor.refs.toolbarPortalRef}
+        ref={toolbarPortalRef}
         className="fixed top-12 left-0 md:left-12 lg:left-[220px] right-0 z-[200]"
       />
 
@@ -25,24 +36,30 @@ export function ArticleEditor(props: ArticleEditorProps) {
         <EditorBanners editor={editor} />
 
         <div className="flex justify-center gap-6 px-2 sm:px-4 md:px-6 py-4 md:py-8 items-start">
-          <ArticleEditorDocument editor={editor} />
+          <ArticleEditorDocument
+            editor={editor}
+            editorRef={editorRef}
+            excerptDomRef={excerptDomRef}
+            titleDomRef={titleDomRef}
+            toolbarPortalRef={toolbarPortalRef}
+          />
 
           <aside className="hidden min-[1100px]:block flex-none w-[280px] sticky top-24">
             <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg p-5 overflow-hidden shadow-[var(--shadow-card)]">
-              <ArticleEditorMetadataPanel editor={editor} />
+              <ArticleEditorMetadataPanel editor={editor} coverFileRef={coverFileRef} />
             </div>
           </aside>
         </div>
       </div>
 
-      <ArticleEditorMobileSettings editor={editor} />
+      <ArticleEditorMobileSettings editor={editor} coverFileRef={coverFileRef} />
       <ArticleEditorTutorial editor={editor} />
     </div>
   )
 }
 
 interface EditorBannersProps {
-  editor: ReturnType<typeof useArticleEditorController>
+  editor: ArticleEditorController
 }
 
 function EditorBanners({ editor }: EditorBannersProps) {

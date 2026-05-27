@@ -36,7 +36,19 @@ export interface ArticleEditorProps {
   isWriter?: boolean
 }
 
+export interface ArticleEditorHookProps extends ArticleEditorProps {
+  refs: ArticleEditorRefs
+}
+
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+
+export interface ArticleEditorRefs {
+  coverFileRef: React.RefObject<HTMLInputElement | null>
+  editorRef: React.RefObject<TiptapEditorHandle | null>
+  excerptDomRef: React.RefObject<HTMLTextAreaElement | null>
+  titleDomRef: React.RefObject<HTMLTextAreaElement | null>
+  toolbarPortalRef: React.RefObject<HTMLDivElement | null>
+}
 
 export interface ArticleEditorController {
   articleId?: string
@@ -67,13 +79,6 @@ export interface ArticleEditorController {
   tutorialOpen: boolean
   uploading: boolean
   users: UserOption[]
-  refs: {
-    coverFileRef: React.RefObject<HTMLInputElement | null>
-    editorRef: React.RefObject<TiptapEditorHandle | null>
-    excerptDomRef: React.RefObject<HTMLTextAreaElement | null>
-    titleDomRef: React.RefObject<HTMLTextAreaElement | null>
-    toolbarPortalRef: React.RefObject<HTMLDivElement | null>
-  }
   actions: {
     addTag: (raw: string) => void
     handleBack: () => Promise<void>

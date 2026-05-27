@@ -6,13 +6,14 @@ import { ChevronDown, Clock, ImagePlus, Tag, X } from 'lucide-react'
 import { EDITORIAL_TIME_ZONE_LABEL, getEditorialScheduleMinInput } from '@/lib/editorialSchedule'
 import { readTimeLabel, wordCountFromContent } from '@/lib/readTime'
 import { STATUS_COLOURS, STATUS_LABELS } from './constants'
-import type { ArticleEditorController } from './types'
+import type { ArticleEditorController, ArticleEditorRefs } from './types'
 
 interface ArticleEditorMetadataPanelProps {
   editor: ArticleEditorController
+  coverFileRef: ArticleEditorRefs['coverFileRef']
 }
 
-export function ArticleEditorMetadataPanel({ editor }: ArticleEditorMetadataPanelProps) {
+export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEditorMetadataPanelProps) {
   const { actions } = editor
 
   return (
@@ -100,7 +101,7 @@ export function ArticleEditorMetadataPanel({ editor }: ArticleEditorMetadataPane
 
       <div>
         <FieldLabel>Cover Image</FieldLabel>
-        <input ref={editor.refs.coverFileRef} type="file" accept="image/*" className="hidden" onChange={(event) => void actions.handleCoverUpload(event)} />
+        <input ref={coverFileRef} type="file" accept="image/*" className="hidden" onChange={(event) => void actions.handleCoverUpload(event)} />
         <input
           type="url"
           value={editor.coverImage}
