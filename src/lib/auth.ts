@@ -13,11 +13,9 @@ if (!process.env.NEXTAUTH_SECRET) {
     'NEXTAUTH_SECRET is not set. Add it to your .env.local file or Vercel environment variables.'
   )
 }
-if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-  throw new Error(
-    'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set. See .env.example.'
-  )
-}
+
+const googleClientId = process.env.GOOGLE_CLIENT_ID
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET
 
 const EDITORIAL_ROLES: Role[] = ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH']
 export const ANALYTICS_ROLES = ['ADMIN', 'GROWTH'] as const satisfies readonly Role[]
@@ -68,15 +66,19 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      // Force account selection on every sign-in so users with multiple
-      // Google accounts are not silently signed into the wrong one.
-      authorization: {
-        params: { prompt: 'select_account' },
-      },
-    }),
+    ...(googleClientId && googleClientSecret
+      ? [
+          GoogleProvider({
+            clientId: googleClientId,
+            clientSecret: googleClientSecret,
+            // Force account selection on every sign-in so users with multiple
+            // Google accounts are not silently signed into the wrong one.
+            authorization: {
+              params: { prompt: 'select_account' },
+            },
+          }),
+        ]
+      : []),
     CredentialsProvider({
       name: 'credentials',
       credentials: {
