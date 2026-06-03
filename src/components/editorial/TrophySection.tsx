@@ -39,13 +39,13 @@ const TIER_CONFIG: Record<string, TierConfig> = {
   },
 }
 
+// How long each trophy card stays fully visible before fading out
 const DISPLAY_MS = 1800
 
 function TrophyOverlay({ trophy }: { trophy: TrophyRecord }) {
   const cfg = TIER_CONFIG[trophy.trophy]
   return (
     <motion.div
-      key={trophy.id}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -86,17 +86,29 @@ export function TrophySection({ trophies }: { trophies: TrophyRecord[] }) {
   const unseenIds = unseen.map((t) => t.id)
 
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [visible, setVisible] = useState(unseen.length > 0)
+  // Start hidden; a one-time effect reveals the first overlay after a short
+  // delay so the dashboard has a frame to paint before the animation fires.
+  const [visible, setVisible] = useState(false)
   const markedRef = useRef(false)
+  // Capture the initial unseen count so the entry-delay effect doesn't need
+  // to declare `unseen` as a dependency (it's stable, but ESLint can't know).
+  const hasUnseenRef = useRef(unseen.length > 0)
+
+  // Reveal the first overlay after a brief delay
+  useEffect(() => {
+    if (!hasUnseenRef.current) return
+    const t = setTimeout(() => setVisible(true), 300)
+    return () => clearTimeout(t)
+  }, [])
 
   // Auto-dismiss the current overlay after DISPLAY_MS
   useEffect(() => {
     if (!visible) return
-    const timer = setTimeout(() => setVisible(false), DISPLAY_MS)
-    return () => clearTimeout(timer)
+    const t = setTimeout(() => setVisible(false), DISPLAY_MS)
+    return () => clearTimeout(t)
   }, [visible, currentIndex])
 
-  // On exit complete: advance to next or fire mark-seen
+  // On exit complete: advance to next trophy or fire the mark-seen request
   const handleExitComplete = () => {
     const nextIndex = currentIndex + 1
     if (nextIndex < unseen.length) {
@@ -114,7 +126,7 @@ export function TrophySection({ trophies }: { trophies: TrophyRecord[] }) {
 
   if (trophies.length === 0) return null
 
-  // Group trophies by article slug
+  // Group trophies by article slug for display
   const byArticle = new Map<
     string,
     { title: string; slug: string; trophies: TrophyRecord[] }
@@ -124,7 +136,8 @@ export function TrophySection({ trophies }: { trophies: TrophyRecord[] }) {
     if (!byArticle.has(key)) {
       byArticle.set(key, { ...t.article, trophies: [] })
     }
-    byArticle.get(key)!.trophies.push(t)
+    const entry = byArticle.get(key)
+    if (entry) entry.trophies.push(t)
   }
 
   return (
