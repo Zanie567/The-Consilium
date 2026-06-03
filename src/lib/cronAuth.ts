@@ -1,11 +1,15 @@
-import { timingSafeEqual } from 'node:crypto'
+import { createHash, timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 
-/** Constant-time secret comparison so the auth check does not leak via timing. */
+/**
+ * Constant-time secret comparison. Both inputs are reduced to fixed-length SHA-256
+ * digests before comparison so the running time does not depend on input length; a
+ * raw length-equality guard would leak the secret's length through timing.
+ */
 function secretsMatch(provided: string, expected: string): boolean {
-  const a = Buffer.from(provided)
-  const b = Buffer.from(expected)
-  return a.length === b.length && timingSafeEqual(a, b)
+  const a = createHash('sha256').update(provided).digest()
+  const b = createHash('sha256').update(expected).digest()
+  return timingSafeEqual(a, b)
 }
 
 /**
