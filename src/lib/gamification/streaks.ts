@@ -1,40 +1,67 @@
 import { getISOWeek, getISOWeekYear, startOfISOWeek } from 'date-fns'
 import { prisma } from '@/lib/prisma'
+import { STREAK_INTERVAL_WEEKS } from '@/lib/constants'
 
 /**
  * Writer streaks.
  *
- * A writer earns one unit of streak for each consecutive ISO calendar week
- * (Monday to Sunday) in which they have at least one PUBLISHED article whose
- * publishedAt falls in that week.
+ * A writer extends their streak with each publication that lands within their
+ * chosen cadence of the previous one. The cadence (writer_streaks.intervalWeeks,
+ * default 1) is the maximum number of ISO weeks allowed between two consecutive
+ * publication weeks before the streak breaks, so a fortnightly writer can set 2
+ * and keep their streak. At the default of 1 this is exactly the original "every
+ * consecutive ISO week" behaviour.
  *
- * Timezone note: the recalculation cron runs on Vercel and GitHub Actions, both
- * of which use UTC, so date-fns week boundaries are UTC "Monday to Sunday" as the
- * spec requires. Adjacency is checked via the millisecond gap between each week's
- * Monday (startOfISOWeek), which stays correct across year boundaries where 52-
- * and 53-week years make raw week-number arithmetic unreliable.
+ * Timezone note: the recalculation cron runs on Vercel and GitHub Actions, both of
+ * which use UTC, so date-fns week boundaries are UTC "Monday to Sunday". Adjacency
+ * is checked via the gap between each week's Monday (startOfISOWeek) rounded to
+ * whole weeks, which stays correct across 52/53-week year boundaries and across
+ * daylight-saving transitions in non-UTC runtimes.
  */
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
+const MS_PER_WEEK = 7 * MS_PER_DAY
 
 /**
- * Whether two ISO-week Monday timestamps are exactly one week apart. The gap is
- * rounded to whole days so a daylight-saving transition falling between the two
- * Mondays (which makes the gap 7 days plus or minus 1 hour in a non-UTC runtime)
- * is still counted as adjacent. In the UTC cron runtime the gap is exactly 7 days.
+ * Whether two ISO-week Monday timestamps are within the writer's cadence: at least
+ * one and at most `intervalWeeks` weeks apart. The gap is rounded to whole weeks so
+ * a daylight-saving transition between the two Mondays (which makes the gap N weeks
+ * plus or minus an hour in a non-UTC runtime) is still counted correctly. Distinct
+ * publication weeks are always at least one week apart.
  */
-function isOneWeekApart(earlierMs: number, laterMs: number): boolean {
-  return Math.round((laterMs - earlierMs) / MS_PER_DAY) === 7
+function isWithinCadence(earlierMs: number, laterMs: number, intervalWeeks: number): boolean {
+  const weeks = Math.round((laterMs - earlierMs) / MS_PER_WEEK)
+  return weeks >= 1 && weeks <= intervalWeeks
+}
+
+/**
+ * Reads the writer's configured streak cadence, defaulting to weekly. Guarded so a
+ * missing intervalWeeks column (before its ALTER TABLE is applied) degrades to
+ * weekly rather than aborting the whole recalculation.
+ */
+async function readIntervalWeeks(userId: string): Promise<number> {
+  try {
+    const streak = await prisma.writerStreak.findUnique({
+      where: { userId },
+      select: { intervalWeeks: true },
+    })
+    return streak?.intervalWeeks ?? STREAK_INTERVAL_WEEKS.DEFAULT
+  } catch {
+    return STREAK_INTERVAL_WEEKS.DEFAULT
+  }
 }
 
 /**
  * Recomputes and upserts the WriterStreak row for a single user.
  *
  * Never throws: a failure for one writer is logged and swallowed so a batch job
- * iterating many writers is not blocked by a single bad record.
+ * iterating many writers is not blocked by a single bad record. The writer's
+ * intervalWeeks cadence is preserved (the upsert never writes that column).
  */
 export async function recalculateStreakForUser(userId: string): Promise<void> {
   try {
+    const intervalWeeks = await readIntervalWeeks(userId)
+
     const articles = await prisma.article.findMany({
       where: {
         authorId: userId,
@@ -69,11 +96,11 @@ export async function recalculateStreakForUser(userId: string): Promise<void> {
 
     const weekStarts = Array.from(weekToMonday.values()).sort((a, b) => a - b)
 
-    // Longest run of consecutive weeks anywhere in the history.
+    // Longest run of cadence-adjacent weeks anywhere in the history.
     let longestStreak = 1
     let run = 1
     for (let i = 1; i < weekStarts.length; i++) {
-      if (isOneWeekApart(weekStarts[i - 1], weekStarts[i])) {
+      if (isWithinCadence(weekStarts[i - 1], weekStarts[i], intervalWeeks)) {
         run += 1
       } else {
         run = 1
@@ -81,13 +108,13 @@ export async function recalculateStreakForUser(userId: string): Promise<void> {
       if (run > longestStreak) longestStreak = run
     }
 
-    // Current streak: consecutive weeks counting back from the most recent
-    // publication week (per spec). This is anchored to the latest publication,
-    // not to "today", so the daily cron does not silently reset a streak just
-    // because the current week has no publication yet.
+    // Current streak: cadence-adjacent weeks counting back from the most recent
+    // publication week (per spec). Anchored to the latest publication, not "today",
+    // so the daily cron does not silently reset a streak just because the current
+    // period has no publication yet.
     let currentStreak = 1
     for (let i = weekStarts.length - 1; i > 0; i--) {
-      if (isOneWeekApart(weekStarts[i - 1], weekStarts[i])) {
+      if (isWithinCadence(weekStarts[i - 1], weekStarts[i], intervalWeeks)) {
         currentStreak += 1
       } else {
         break
@@ -108,9 +135,13 @@ async function upsertStreak(
   userId: string,
   data: { currentStreak: number; longestStreak: number; lastPublishedAt: Date | null }
 ): Promise<void> {
+  // select: { id } keeps the write from referencing intervalWeeks in its RETURNING
+  // clause, so the recalculation still works (degraded to weekly) if that column
+  // has not been added to writer_streaks yet.
   await prisma.writerStreak.upsert({
     where: { userId },
     create: { userId, ...data },
     update: data,
+    select: { id: true },
   })
 }

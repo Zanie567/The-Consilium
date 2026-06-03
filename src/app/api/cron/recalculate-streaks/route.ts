@@ -23,6 +23,9 @@ export async function POST(req: Request) {
   const authError = verifyCronAuth(req, 'recalculate-streaks')
   if (authError) return authError
 
+  // Declared before the try so the catch returns the same { ranAt, ... } contract.
+  const ranAt = new Date().toISOString()
+
   try {
     const authors = await prisma.article.findMany({
       where: { status: 'PUBLISHED', deletedAt: null, publishedAt: { not: null } },
@@ -30,7 +33,6 @@ export async function POST(req: Request) {
       distinct: ['authorId'],
     })
 
-    const ranAt = new Date().toISOString()
     let processed = 0
     let errors = 0
 
@@ -55,6 +57,6 @@ export async function POST(req: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[recalculate-streaks] Error:', message)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ ranAt, error: message }, { status: 500 })
   }
 }

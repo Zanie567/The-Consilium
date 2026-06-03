@@ -113,6 +113,19 @@ export const GAMIFICATION_API_ROUTES = {
 } as const
 
 /**
+ * Writer-settable streak cadence, in ISO weeks. A streak continues as long as the
+ * writer publishes at least once every `intervalWeeks` weeks, so a fortnightly
+ * writer can set 2 and not lose their streak. MIN (1) reproduces the original
+ * weekly streak; MAX bounds how sparse a cadence may be before it stops being a
+ * streak.
+ */
+export const STREAK_INTERVAL_WEEKS = {
+  MIN: 1,
+  MAX: 8,
+  DEFAULT: 1,
+} as const
+
+/**
  * Read-quality threshold. Engagement scores strictly above this render in gold on
  * the writer dashboard; scores at or below render in muted text.
  */

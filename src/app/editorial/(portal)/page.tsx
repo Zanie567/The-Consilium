@@ -3,12 +3,13 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { format, formatDistanceToNow } from 'date-fns'
-import { ACHIEVEMENT_TYPES, COMMISSIONING_BRIEF_KEY } from '@/lib/constants'
+import { ACHIEVEMENT_TYPES, COMMISSIONING_BRIEF_KEY, STREAK_INTERVAL_WEEKS } from '@/lib/constants'
 import { NotificationBell } from '@/components/editorial/NotificationBell'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
 import { DraftsSection } from '@/components/editorial/DraftsSection'
 import { TrophySection, type TrophyRecord } from '@/components/editorial/TrophySection'
 import { StreakCard } from '@/components/editorial/StreakCard'
+import { StreakCadenceControl } from '@/components/editorial/StreakCadenceControl'
 import { FirstPublishBanner } from '@/components/editorial/FirstPublishBanner'
 import { SeriesCompleteBadges } from '@/components/editorial/SeriesCompleteBadges'
 import { CommissioningBriefEditor } from '@/components/editorial/CommissioningBriefEditor'
@@ -272,9 +273,19 @@ export default async function EditorialDashboard() {
           <StreakCard
             currentStreak={streak?.currentStreak ?? 0}
             longestStreak={streak?.longestStreak ?? 0}
+            intervalWeeks={streak?.intervalWeeks ?? STREAK_INTERVAL_WEEKS.DEFAULT}
           />
         )}
       </PortalSection>
+
+      {/* Streak cadence - writers/admins choose how often they must publish */}
+      {isWriterOrAdmin && (
+        <PortalSection className="mb-6 sm:mb-8">
+          <StreakCadenceControl
+            initialIntervalWeeks={streak?.intervalWeeks ?? STREAK_INTERVAL_WEEKS.DEFAULT}
+          />
+        </PortalSection>
+      )}
 
       {growthMetrics && (
         <PortalSection className="mb-6 sm:mb-8">

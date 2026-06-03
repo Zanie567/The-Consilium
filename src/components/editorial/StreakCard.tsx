@@ -5,17 +5,21 @@ import { Flame } from 'lucide-react'
  *
  * Presentational only (no client hooks): the dashboard fetches the streak
  * server-side via Prisma and passes the values in, matching the trophy-fetch
- * pattern. Shown for WRITER and ADMIN roles only.
+ * pattern. The label reflects the writer's chosen cadence (intervalWeeks); the
+ * cadence itself is changed via the StreakCadenceControl. Shown for WRITER and
+ * ADMIN roles only.
  */
 export function StreakCard({
   currentStreak,
   longestStreak,
+  intervalWeeks,
 }: {
   currentStreak: number
   longestStreak: number
+  intervalWeeks: number
 }) {
   const hasStreak = currentStreak > 0
-  const bestLabel = `Best: ${longestStreak} ${longestStreak === 1 ? 'week' : 'weeks'}`
+  const cadenceLabel = intervalWeeks === 1 ? 'week streak' : `${intervalWeeks}-week streak`
 
   return (
     <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-4 sm:p-5 shadow-[var(--shadow-card)]">
@@ -33,7 +37,7 @@ export function StreakCard({
               {currentStreak}
             </span>
           </p>
-          <p className="text-[10px] sm:text-xs text-[var(--fg-muted)] mt-0.5">week streak</p>
+          <p className="text-[10px] sm:text-xs text-[var(--fg-muted)] mt-0.5">{cadenceLabel}</p>
         </>
       ) : (
         <p
@@ -43,7 +47,7 @@ export function StreakCard({
           Start your streak
         </p>
       )}
-      <p className="mt-1 text-[10px] sm:text-xs text-[var(--fg-faint)]">{bestLabel}</p>
+      <p className="mt-1 text-[10px] sm:text-xs text-[var(--fg-faint)]">Best: {longestStreak}</p>
     </div>
   )
 }

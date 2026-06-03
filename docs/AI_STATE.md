@@ -5,7 +5,39 @@ Updated at the end of each session. Read this before starting work.
 
 ---
 
-## Latest Verification Report (2026-06-03, writer performance system)
+## Latest Verification Report (2026-06-04, streak cadence and review fixes)
+
+Follow-up on the same branch and PR (#72): added a writer-settable streak cadence
+and fixed four review findings. All checks rerun green.
+
+- `npx tsc --noEmit`: pass. `npm run build`: pass ("Compiled successfully").
+  `npm test`: 193 passed, 7 expected-fail, 18 skipped. No regressions.
+- Streak cadence: a new `writer_streaks.intervalWeeks` column (default 1) sets the
+  maximum number of ISO weeks allowed between consecutive publication weeks. Trace:
+  at intervalWeeks 1 the brief case is unchanged (weeks 1, 2, 3, gap, 5 give current
+  1, longest 3); at intervalWeeks 2 a fortnightly writer (weeks 1, 3, 5, 7) gets
+  current 4 and longest 4, where weekly cadence gives 1 and 1. Adjacency is
+  round(gapMs / one week) constrained to [1, intervalWeeks], so it stays DST-safe.
+  The cadence read and the recalculation upsert are guarded (the upsert uses
+  select id) so a missing column degrades to weekly rather than breaking the cron.
+- `ReadQualityBadge` shows "Not yet scored" for a null (unscored) score rather than
+  a misleading "0.0".
+- Both cron error responses now include `ranAt`, matching their success contract.
+- Removed the duplicate "Latest" header: the two older reports below are now
+  "Previous". The review finding named the performance-system header to rename, but
+  that report is newer than the gamification one, and only one section can be the
+  Latest, which is this 2026-06-04 follow-up.
+
+ALTER TABLE SQL to run in Supabase before the cadence feature works:
+
+```sql
+ALTER TABLE public.writer_streaks
+  ADD COLUMN IF NOT EXISTS "intervalWeeks" INTEGER NOT NULL DEFAULT 1;
+```
+
+---
+
+## Previous Verification Report (2026-06-03, writer performance system)
 
 Branch `claude/writer-performance-system`, built on the merged PR #71 (gamification).
 This session implemented series completion (Part 5), the Growth writer-activity view
@@ -56,7 +88,7 @@ Two deviations carried forward from PR #71 and deliberately NOT changed despite 
 
 ---
 
-## Latest Verification Report (2026-06-03, writer gamification)
+## Previous Verification Report (2026-06-03, writer gamification)
 
 Checks run before opening the PR:
 
@@ -131,6 +163,44 @@ Review pass (CodeRabbit on PR #71):
 ---
 
 ## Recent Sessions
+
+### 2026-06-04: Streak Cadence and Review Fixes (`claude/writer-performance-system`)
+
+Follow-up on PR #72.
+
+**What changed:**
+- Writer-settable streak cadence. New `writer_streaks.intervalWeeks` column
+  (`Int @default(1)`); `STREAK_INTERVAL_WEEKS` (MIN 1, MAX 8, DEFAULT 1) in
+  constants. `recalculateStreakForUser` now reads the writer's intervalWeeks and
+  treats two publication weeks as adjacent when they are 1 to intervalWeeks weeks
+  apart (weekly behaviour at 1). `GET /api/user/streak` returns intervalWeeks; a new
+  `PATCH /api/user/streak` validates and saves it (1 to 8), then recomputes the
+  streak. New `src/components/editorial/StreakCadenceControl.tsx` (a labelled select
+  that saves and calls router.refresh); `StreakCard` shows the cadence in its label.
+  Both are WRITER/ADMIN only.
+- Review fixes: `ReadQualityBadge` renders "Not yet scored" for a null score;
+  both cron routes include `ranAt` in their error response; the duplicate "Latest
+  Verification Report" header was resolved (older reports retitled "Previous").
+
+**Schema changes:**
+- `writer_streaks` gains `intervalWeeks` (`INTEGER NOT NULL DEFAULT 1`). Run the
+  ALTER TABLE in the Latest Verification Report above. Until it is applied, the
+  cadence read and recalc upsert degrade to weekly (guarded), and the dashboard
+  streak shows its zero-state; PATCH returns 500.
+
+**New environment variables:** None.
+
+**Architectural decisions:**
+- The streak stays anchored to the most recent publication (not "today"), as in
+  PR #71, so the daily cron does not reset a streak just because the current period
+  has no publication yet. Time-since-last-publish decay is surfaced separately by
+  the Growth at-risk flag.
+- Setting the cadence recomputes the streak immediately (PATCH calls
+  `recalculateStreakForUser`) so the dashboard reflects the change without waiting
+  for the nightly cron.
+
+**Issues found:**
+- None new. `tsc`, `build` and the test suite are clean.
 
 ### 2026-06-03: Writer Performance System (`claude/writer-performance-system`)
 
@@ -343,7 +413,7 @@ are already applied; the Prisma schema mirrors them (no migration is run for the
 | Table / column | Shape | Notes |
 |----------------|-------|-------|
 | `ArticleTrophy` | id, articleId, trophy, awardedAt, seenAt | unique (articleId, trophy); trophy system |
-| `writer_streaks` (`WriterStreak`) | id, userId (unique), currentStreak, longestStreak, lastPublishedAt, updatedAt | one row per writer |
+| `writer_streaks` (`WriterStreak`) | id, userId (unique), currentStreak, longestStreak, intervalWeeks, lastPublishedAt, updatedAt | one row per writer; `intervalWeeks` (default 1) is the writer-set cadence. ALTER TABLE for it NOT yet applied, see Latest report |
 | `writer_achievements` (`WriterAchievement`) | id, userId, type, referenceId, awardedAt, seenAt | unique (userId, type, referenceId) |
 | `articles.engagementScore` | Float? | per-article read-quality signal, recomputed by cron |
 | `articles.editorialCommendation` | String? (text) | one-sentence editor note, dashboard-only |
@@ -362,7 +432,7 @@ entry above and must be applied before the commissioning brief feature will work
 
 | PR | Branch | Status | Notes |
 |----|--------|--------|-------|
-| feat: writer performance system - streaks, engagement scores, commendations, achievements, commissioning brief | `claude/writer-performance-system` | Open, awaiting review | Do not merge. Run the `site_settings` CREATE TABLE SQL in Supabase before the commissioning brief works. `CRON_SECRET` reused (no new value). |
+| feat: writer performance system - streaks, engagement scores, commendations, achievements, commissioning brief | `claude/writer-performance-system` | Open, awaiting review | Do not merge. Run two SQL statements in Supabase first: the `site_settings` CREATE TABLE (commissioning brief) and the `writer_streaks.intervalWeeks` ALTER TABLE (streak cadence). Both are in the verification reports above. `CRON_SECRET` reused (no new value). |
 | feat: writer gamification system - streaks, engagement scores, commendations, milestones (#71) | `claude/writer-gamification` | Merged (commit 373652f) | Superseded by the performance-system branch above. |
 | feat: writer trophy system with award animation and cron workflow | `claude/trophy-system` | Open, awaiting review | Do not merge until CRON_SECRET is added to Vercel env vars and GitHub Actions secrets |
 
