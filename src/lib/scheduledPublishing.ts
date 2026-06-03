@@ -1,5 +1,6 @@
 import { articlePublishedEmail, sendEmail } from '@/lib/email'
 import { prisma } from '@/lib/prisma'
+import { awardPublishAchievements } from '@/lib/gamification/achievements'
 
 interface ScheduledPublishArticleResult {
   id: string
@@ -10,7 +11,7 @@ interface ScheduledPublishArticleResult {
 interface ScheduledPublishWarning {
   articleId: string
   title: string
-  stage: 'email' | 'notification'
+  stage: 'email' | 'notification' | 'achievement'
   message: string
 }
 
@@ -89,6 +90,25 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
         articleId: article.id,
         title: article.title,
         stage: 'notification',
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
+
+    // Award one-time publish milestones (first publish, series completion).
+    // awardPublishAchievements is internally guarded and never throws; this
+    // wrapper is defensive only.
+    try {
+      await awardPublishAchievements({
+        id: article.id,
+        authorId: article.authorId,
+        seriesId: article.seriesId,
+        title: article.title,
+      })
+    } catch (error) {
+      warnings.push({
+        articleId: article.id,
+        title: article.title,
+        stage: 'achievement',
         message: error instanceof Error ? error.message : String(error),
       })
     }

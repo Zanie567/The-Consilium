@@ -13,6 +13,7 @@ import {
 } from '@/lib/editorialSchedule'
 import { CommentsPanel, type ArticleComment } from '@/components/editorial/CommentsPanel'
 import { ArticlePreviewWithComments } from '@/components/editorial/ArticlePreviewWithComments'
+import { CommendationEditor } from '@/components/editorial/CommendationEditor'
 
 interface Note {
   id: string
@@ -35,6 +36,7 @@ interface Article {
   editorNote: string | null
   scheduledAt: string | null
   publishedAt: string | null
+  editorialCommendation: string | null
   author: { id: string; name: string | null; email: string | null }
   category: { id: string; name: string; slug: string } | null
   notes: Note[]
@@ -306,6 +308,20 @@ export function ReviewPanel({ article }: Props) {
                       Unpublish
                     </button>
                   </Panel>
+                )}
+
+                {/*
+                  The brief specifies statuses UNDER_REVIEW / APPROVED, which do
+                  not exist in this codebase. The analogues are PENDING_REVIEW
+                  (under review) and PUBLISHED / SCHEDULED (approved).
+                */}
+                {(status === 'PENDING_REVIEW' ||
+                  status === 'PUBLISHED' ||
+                  status === 'SCHEDULED') && (
+                  <CommendationEditor
+                    articleId={article.id}
+                    initialValue={article.editorialCommendation}
+                  />
                 )}
 
                 {article.editorNote && (

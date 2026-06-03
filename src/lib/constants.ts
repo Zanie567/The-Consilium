@@ -71,3 +71,43 @@ export const TROPHY_THRESHOLDS = {
 } as const
 
 export type TrophyTier = keyof typeof TROPHY_THRESHOLDS
+
+// ── Writer gamification ─────────────────────────────────────────────────────
+
+/** Values stored in writer_achievements.type. */
+export const ACHIEVEMENT_TYPES = {
+  FIRST_PUBLISH: 'first_publish',
+  SERIES_COMPLETE: 'series_complete',
+} as const
+
+export type AchievementType = (typeof ACHIEVEMENT_TYPES)[keyof typeof ACHIEVEMENT_TYPES]
+
+/** notifications.type value used for gamification notifications. */
+export const NOTIFICATION_TYPE_ACHIEVEMENT = 'achievement'
+
+/**
+ * Engagement-score weights. All inputs are on a 0-100 scale.
+ *
+ * NOTE: the brief wrote bookmark/comment coefficients of 30 and 20, but its own
+ * worked example (avgReadDepth 80, 2 bookmarks, 1 comment, 10 views => 40.8) and
+ * its stated "roughly 0-100" range are only satisfiable with 0.03 and 0.02. The
+ * worked example plus the range are authoritative, so those values are used.
+ */
+export const ENGAGEMENT_WEIGHTS = {
+  READ_DEPTH: 0.5,
+  BOOKMARK_RATE: 0.03,
+  COMMENT_RATE: 0.02,
+} as const
+
+/** Cron endpoints. POST only, authorised with a Bearer CRON_SECRET header. */
+export const CRON_ROUTES = {
+  recalculateStreaks: '/api/cron/recalculate-streaks',
+  updateEngagementScores: '/api/cron/update-engagement-scores',
+} as const
+
+/** Session-protected gamification endpoints consumed by the writer dashboard. */
+export const GAMIFICATION_API_ROUTES = {
+  streak: '/api/user/streak',
+  achievements: '/api/user/achievements',
+  achievementsMarkSeen: '/api/user/achievements/mark-seen',
+} as const
