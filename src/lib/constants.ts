@@ -61,3 +61,13 @@ export const COLORS = {
   GOLD_ALT: '#c9a84c',
   CREAM: '#faf8f3',
 } as const
+
+// ── Trophy system ─────────────────────────────────────────────────────────────
+
+export const TROPHY_THRESHOLDS = {
+  BRONZE: 100,
+  SILVER: 1000,
+  GOLD: 10000,
+} as const
+
+export type TrophyTier = keyof typeof TROPHY_THRESHOLDS
