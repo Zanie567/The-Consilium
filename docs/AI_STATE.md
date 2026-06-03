@@ -59,6 +59,24 @@ Second audit pass (after a review request):
   path per the brief. Articles published via the editor "Publish Now" action do not
   award milestones; wiring that path is a recommended follow-up.
 
+Review pass (CodeRabbit on PR #71):
+
+- first_publish is now race-safe under overlapping publish runs (GitHub Actions and
+  Vercel cron can both hit publish-scheduled): a fast-path check plus a Serializable
+  transaction (re-check, insert and notification together). referenceId stays as the
+  article id so the achievements API can still join the title; the reviewer's
+  suggested NULL/constant referenceId was not used (NULL is distinct in a Postgres
+  unique so it would not dedupe, and a constant would drop the title link).
+- New session routes (streak, achievements, mark-seen, commendation) log the error
+  server-side and return a generic 500 instead of echoing err.message. Cron routes
+  still return their message on purpose (secret-protected, aids Actions debugging).
+- Cron secret check uses crypto.timingSafeEqual with a length guard; both cron routes
+  set maxDuration = 60 (Vercel Hobby cap).
+- Both new workflows echo the response body with if: always() so failures show it.
+- Series-completion no longer does a per-publish DB lookup or warning; it warns once
+  per process. The sequential engagement loop is kept (bounded by maxDuration);
+  cursor batching is deferred until the article count warrants it.
+
 ---
 
 ## Recent Sessions
@@ -121,9 +139,11 @@ Second audit pass (after a review request):
   wrapper. The editor "approve" path (`/api/editorial/articles/[id]/review`) is a
   separate publish path and is out of scope per the brief; awarding there is a
   possible follow-up.
-- Streak weeks are grouped with date-fns ISO-week helpers; adjacency uses the
-  millisecond gap between each week's Monday so it stays correct across 52/53-week
-  year boundaries. Crons run in UTC, so the boundaries are UTC as specified.
+- Streak weeks are grouped with date-fns ISO-week helpers; adjacency compares each
+  week's Monday using the gap normalised to whole UTC days (rounded to a day
+  boundary), so it stays correct across 52/53-week year boundaries and across
+  daylight-saving transitions in non-UTC runtimes. Crons run in UTC, so the
+  boundaries are UTC as specified.
 - `currentStreak` is anchored to the most recent publication week (per the brief's
   algorithm), not to the current date.
 - Dashboard widgets fetch their own session-protected routes client-side via SWR

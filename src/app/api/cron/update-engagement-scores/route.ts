@@ -10,11 +10,23 @@
  * Vercel env var required:        CRON_SECRET (same value)
  */
 
+import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { computeEngagementScore } from '@/lib/gamification/engagement'
 
 export const dynamic = 'force-dynamic'
+// Bound the function (Vercel Hobby caps execution at 60s). The publication's
+// article count is small enough to score sequentially within this budget; if it
+// ever grows large enough to approach the limit, switch to cursor-based batching.
+export const maxDuration = 60
+
+/** Constant-time secret comparison so the auth check does not leak via timing. */
+function secretsMatch(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided)
+  const b = Buffer.from(expected)
+  return a.length === b.length && timingSafeEqual(a, b)
+}
 
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET
@@ -27,7 +39,7 @@ export async function POST(req: Request) {
   const provided = authHeader.startsWith('Bearer ')
     ? authHeader.slice('Bearer '.length).trim()
     : ''
-  if (!provided || provided !== secret) {
+  if (!provided || !secretsMatch(provided, secret)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

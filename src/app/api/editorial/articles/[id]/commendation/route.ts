@@ -63,7 +63,7 @@ export async function PATCH(req: Request, { params }: Props) {
       editorialCommendation: updated.editorialCommendation,
     })
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('[editorial/commendation] Error:', err instanceof Error ? err.message : String(err))
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

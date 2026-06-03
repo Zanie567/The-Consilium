@@ -38,7 +38,7 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({ updated: result.count })
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('[user/achievements/mark-seen] Error:', err instanceof Error ? err.message : String(err))
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

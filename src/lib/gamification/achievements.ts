@@ -26,61 +26,78 @@ async function awardFirstPublishAchievement(article: PublishedArticleRef): Promi
   const userId = article.authorId
   if (!userId) return // No author: skip silently.
 
-  // Guard against a *different* article creating a second first-publish row:
-  // the unique key includes referenceId, so an upsert alone would not stop that.
+  // Fast path: the writer already has the milestone (the common case once they
+  // have published before). Avoids opening a transaction on every later publish.
   const existing = await prisma.writerAchievement.findFirst({
     where: { userId, type: ACHIEVEMENT_TYPES.FIRST_PUBLISH },
     select: { id: true },
   })
   if (existing) return
 
-  // Upsert on the (userId, type, referenceId) unique key guards against the same
-  // article being processed twice (e.g. overlapping cron runs).
-  await prisma.writerAchievement.upsert({
-    where: {
-      userId_type_referenceId: {
-        userId,
-        type: ACHIEVEMENT_TYPES.FIRST_PUBLISH,
-        referenceId: article.id,
-      },
-    },
-    create: { userId, type: ACHIEVEMENT_TYPES.FIRST_PUBLISH, referenceId: article.id },
-    update: {},
-  })
+  // referenceId stays as the article id so the record shows which article was the
+  // first (and so the achievements API can join its title). That means the
+  // (userId, type, referenceId) unique cannot by itself enforce one-per-writer, so
+  // two concurrent publish runs (GitHub Actions and Vercel cron can overlap) could
+  // otherwise insert two first_publish rows for two different first articles. A
+  // Serializable transaction closes that race: the re-check plus insert form a
+  // predicate that Postgres SSI uses to abort the losing run. The notification is
+  // inside the transaction so it is sent only when the row is actually created.
+  try {
+    await prisma.$transaction(
+      async (tx) => {
+        const concurrent = await tx.writerAchievement.findFirst({
+          where: { userId, type: ACHIEVEMENT_TYPES.FIRST_PUBLISH },
+          select: { id: true },
+        })
+        if (concurrent) return
 
-  await prisma.notification.create({
-    data: {
-      userId,
-      type: NOTIFICATION_TYPE_ACHIEVEMENT,
-      title: 'First article published',
-      message: 'Your first article has been published. Welcome to The Consilium.',
-      articleId: article.id,
-    },
-  })
+        await tx.writerAchievement.create({
+          data: { userId, type: ACHIEVEMENT_TYPES.FIRST_PUBLISH, referenceId: article.id },
+        })
+        await tx.notification.create({
+          data: {
+            userId,
+            type: NOTIFICATION_TYPE_ACHIEVEMENT,
+            title: 'First article published',
+            message: 'Your first article has been published. Welcome to The Consilium.',
+            articleId: article.id,
+          },
+        })
+      },
+      { isolationLevel: 'Serializable' }
+    )
+  } catch (err) {
+    // A serialization failure means a concurrent run won the race and already
+    // awarded the milestone, so this is a no-op rather than a real error.
+    const message = err instanceof Error ? err.message : String(err)
+    console.warn(
+      `[achievements] first_publish not awarded for user ${userId} (concurrent award or conflict): ${message}`
+    )
+  }
 }
+
+// Logged at most once per process rather than on every series-article publish.
+let seriesCompletionWarned = false
 
 /**
  * Series-completion milestone.
  *
  * This cannot be awarded as specified: the Series model has no field describing
  * the expected number of parts (no partCount / totalParts / equivalent), so
- * "all parts published" is undeterminable. Per spec we do not guess a total; we
- * log a warning and skip. If a totalParts column is added to the series table,
- * the completion check and per-author award/notification can be wired in here.
+ * "all parts published" is undeterminable. We do not guess a total. No DB lookup
+ * is needed to skip; a single warning per process is enough for visibility. If a
+ * totalParts column is added to the series table, wire the completion check and
+ * per-author award/notification in here.
  */
 async function awardSeriesCompletionAchievement(article: PublishedArticleRef): Promise<void> {
   if (!article.seriesId) return
 
-  const series = await prisma.series.findUnique({
-    where: { id: article.seriesId },
-    select: { id: true, title: true },
-  })
-  if (!series) return
-
-  console.warn(
-    `[achievements] Series "${series.title}" (${series.id}) has no part-count field; ` +
-      'skipping series-completion award. Add a totalParts column to the series table to enable it.'
-  )
+  if (!seriesCompletionWarned) {
+    seriesCompletionWarned = true
+    console.warn(
+      '[achievements] series-completion award is not implemented (Series has no part-count field); skipping.'
+    )
+  }
 }
 
 /**

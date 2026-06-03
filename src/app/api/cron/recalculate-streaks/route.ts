@@ -10,11 +10,21 @@
  * Vercel env var required:        CRON_SECRET (same value)
  */
 
+import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { recalculateStreakForUser } from '@/lib/gamification/streaks'
 
 export const dynamic = 'force-dynamic'
+// Bound the function (Vercel Hobby caps execution at 60s).
+export const maxDuration = 60
+
+/** Constant-time secret comparison so the auth check does not leak via timing. */
+function secretsMatch(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided)
+  const b = Buffer.from(expected)
+  return a.length === b.length && timingSafeEqual(a, b)
+}
 
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET
@@ -27,7 +37,7 @@ export async function POST(req: Request) {
   const provided = authHeader.startsWith('Bearer ')
     ? authHeader.slice('Bearer '.length).trim()
     : ''
-  if (!provided || provided !== secret) {
+  if (!provided || !secretsMatch(provided, secret)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
