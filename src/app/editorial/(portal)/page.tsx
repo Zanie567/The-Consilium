@@ -3,12 +3,16 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { format, formatDistanceToNow } from 'date-fns'
+import { ACHIEVEMENT_TYPES, COMMISSIONING_BRIEF_KEY, STREAK_INTERVAL_WEEKS } from '@/lib/constants'
 import { NotificationBell } from '@/components/editorial/NotificationBell'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
 import { DraftsSection } from '@/components/editorial/DraftsSection'
 import { TrophySection, type TrophyRecord } from '@/components/editorial/TrophySection'
 import { StreakCard } from '@/components/editorial/StreakCard'
-import { AchievementBanner } from '@/components/editorial/AchievementBanner'
+import { StreakCadenceControl } from '@/components/editorial/StreakCadenceControl'
+import { FirstPublishBanner } from '@/components/editorial/FirstPublishBanner'
+import { SeriesCompleteBadges } from '@/components/editorial/SeriesCompleteBadges'
+import { CommissioningBriefEditor } from '@/components/editorial/CommissioningBriefEditor'
 import { ReadQualityBadge } from '@/components/editorial/ReadQualityBadge'
 import type { Metadata } from 'next'
 
@@ -26,6 +30,9 @@ export default async function EditorialDashboard() {
   const isAdmin = role === 'ADMIN'
   const isEditor = role === 'ADMIN' || role === 'EDITOR'
   const isGrowth = role === 'GROWTH'
+  const isWriter = role === 'WRITER'
+  // Streaks, achievement banners and the streak card are for authors only.
+  const isWriterOrAdmin = isWriter || isAdmin
 
   let assignedCategoryIds: string[] | null = null
   if (role === 'EDITOR') {
@@ -146,6 +153,54 @@ export default async function EditorialDashboard() {
     article: t.article,
   }))
 
+  // Publishing streak (WRITER + ADMIN only), fetched server-side via Prisma the
+  // same way trophies are, rather than through the /api/user/streak route.
+  const streak = isWriterOrAdmin
+    ? await prisma.writerStreak.findUnique({ where: { userId } }).catch((err) => {
+        console.error('[editorial/dashboard] Streak fetch error:', err)
+        return null
+      })
+    : null
+
+  // Unseen one-time achievements (WRITER + ADMIN only) that drive the dashboard
+  // banners. Seen ones are filtered out in the query so they never render.
+  const unseenAchievements = isWriterOrAdmin
+    ? await prisma.writerAchievement
+        .findMany({ where: { userId, seenAt: null }, orderBy: { awardedAt: 'desc' } })
+        .catch((err) => {
+          console.error('[editorial/dashboard] Achievement fetch error:', err)
+          return []
+        })
+    : []
+
+  const firstPublishAchievement =
+    unseenAchievements.find((a) => a.type === ACHIEVEMENT_TYPES.FIRST_PUBLISH) ?? null
+  const seriesCompleteAchievements = unseenAchievements.filter(
+    (a) => a.type === ACHIEVEMENT_TYPES.SERIES_COMPLETE
+  )
+
+  // Resolve series titles for the series-complete badges (referenceId is the series id).
+  const seriesAchievementIds = seriesCompleteAchievements
+    .map((a) => a.referenceId)
+    .filter((id): id is string => Boolean(id))
+  const seriesTitles = seriesAchievementIds.length
+    ? await prisma.series
+        .findMany({ where: { id: { in: seriesAchievementIds } }, select: { id: true, title: true } })
+        .catch(() => [] as { id: string; title: string }[])
+    : []
+  const seriesTitleById = new Map(seriesTitles.map((s) => [s.id, s.title]))
+
+  // Commissioning brief: writers see the text, ADMIN/GROWTH edit it. Fetched
+  // server-side; the read is guarded because the site_settings table may not exist
+  // yet (see the WAITING FOR SCHEMA note), in which case the brief is treated as absent.
+  const commissioningBrief =
+    isWriter || isAdmin || isGrowth
+      ? await prisma.siteSetting
+          .findUnique({ where: { key: COMMISSIONING_BRIEF_KEY }, select: { value: true } })
+          .then((s) => s?.value ?? null)
+          .catch(() => null)
+      : null
+
   const growthMetrics = isGrowth
     ? await loadGrowthMetrics()
     : null
@@ -182,8 +237,18 @@ export default async function EditorialDashboard() {
         <NotificationBell />
       </PortalSection>
 
-      {/* One-time achievement banners (first publish, series completion) */}
-      {!isGrowth && <AchievementBanner />}
+      {/* One-time achievement banners (first publish, then series completion) */}
+      {firstPublishAchievement && (
+        <FirstPublishBanner achievementId={firstPublishAchievement.id} />
+      )}
+      {seriesCompleteAchievements.length > 0 && (
+        <SeriesCompleteBadges
+          items={seriesCompleteAchievements.map((a) => ({
+            id: a.id,
+            title: a.referenceId ? seriesTitleById.get(a.referenceId) ?? null : null,
+          }))}
+        />
+      )}
 
       {/* Stats row */}
       <PortalSection className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
@@ -204,7 +269,23 @@ export default async function EditorialDashboard() {
             <StatCard label="Users" value={userCount} />
           </Link>
         )}
+        {isWriterOrAdmin && (
+          <StreakCard
+            currentStreak={streak?.currentStreak ?? 0}
+            longestStreak={streak?.longestStreak ?? 0}
+            intervalWeeks={streak?.intervalWeeks ?? STREAK_INTERVAL_WEEKS.DEFAULT}
+          />
+        )}
       </PortalSection>
+
+      {/* Streak cadence - writers/admins choose how often they must publish */}
+      {isWriterOrAdmin && (
+        <PortalSection className="mb-6 sm:mb-8">
+          <StreakCadenceControl
+            initialIntervalWeeks={streak?.intervalWeeks ?? STREAK_INTERVAL_WEEKS.DEFAULT}
+          />
+        </PortalSection>
+      )}
 
       {growthMetrics && (
         <PortalSection className="mb-6 sm:mb-8">
@@ -336,6 +417,12 @@ export default async function EditorialDashboard() {
             Subscribers
           </Link>
           <Link
+            href="/editorial/growth/writer-activity"
+            className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
+          >
+            Writer Activity
+          </Link>
+          <Link
             href="/editorial/growth/engagement"
             className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"
           >
@@ -344,10 +431,11 @@ export default async function EditorialDashboard() {
         </PortalSection>
       )}
 
-      {/* Publishing streak - hidden for growth users, who do not author */}
-      {!isGrowth && (
-        <PortalSection className="mb-8">
-          <StreakCard />
+      {/* Commissioning brief editor - ADMIN and GROWTH only. Writers see the
+          rendered brief above their article table instead. */}
+      {(isAdmin || isGrowth) && (
+        <PortalSection className="mb-6 sm:mb-8">
+          <CommissioningBriefEditor initialBrief={commissioningBrief} userRole={role} />
         </PortalSection>
       )}
 
@@ -387,6 +475,18 @@ export default async function EditorialDashboard() {
         </PortalSection>
       )}
 
+      {/* Commissioning brief - writers only. Signals what the desk wants now. */}
+      {isWriter && commissioningBrief && commissioningBrief.trim() !== '' && (
+        <PortalSection className="mb-6 sm:mb-8">
+          <div className="bg-[var(--bg-elevated)] border border-[var(--border)] border-l-4 border-l-gold p-5 shadow-[var(--shadow-card)]">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-gold mb-2">
+              What we are looking for
+            </h2>
+            <p className="text-sm text-[var(--fg)] whitespace-pre-line">{commissioningBrief}</p>
+          </div>
+        </PortalSection>
+      )}
+
       {/* Recent articles table - hidden for growth */}
       {!isGrowth && <PortalSection>
         <div className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden">
@@ -412,9 +512,11 @@ export default async function EditorialDashboard() {
                     <th className="px-4 py-2.5 text-left text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider hidden md:table-cell">
                       Updated
                     </th>
-                    <th className="px-4 py-2.5 text-left text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider hidden lg:table-cell">
-                      Read quality
-                    </th>
+                    {isWriter && (
+                      <th className="px-4 py-2.5 text-left text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider hidden lg:table-cell">
+                        Quality
+                      </th>
+                    )}
                     <th className="px-4 py-2.5 text-right text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider">
                       Status
                     </th>
@@ -437,13 +539,8 @@ export default async function EditorialDashboard() {
                           </p>
                         )}
                         {article.editorialCommendation && (
-                          <p className="mt-1 text-xs">
-                            <span className="font-semibold uppercase tracking-wider text-gold">
-                              Editorial note
-                            </span>{' '}
-                            <span className="text-[var(--fg-muted)]">
-                              {article.editorialCommendation}
-                            </span>
+                          <p className="mt-1 border-l-2 border-gold pl-2 text-xs italic text-gold">
+                            {article.editorialCommendation}
                           </p>
                         )}
                       </td>
@@ -453,11 +550,13 @@ export default async function EditorialDashboard() {
                       <td className="px-4 py-3 text-[var(--fg-faint)] text-xs hidden md:table-cell">
                         {format(new Date(article.updatedAt), 'd MMM yyyy')}
                       </td>
-                      <td className="px-4 py-3 hidden lg:table-cell">
-                        {article.status === 'PUBLISHED' && (
-                          <ReadQualityBadge score={article.engagementScore} />
-                        )}
-                      </td>
+                      {isWriter && (
+                        <td className="px-4 py-3 hidden lg:table-cell">
+                          {article.status === 'PUBLISHED' && (
+                            <ReadQualityBadge score={article.engagementScore} />
+                          )}
+                        </td>
+                      )}
                       <td className="px-4 py-3 text-right">
                         <span className={`text-xs font-bold px-2 py-0.5 ${statusColour[article.status] ?? ''}`}>
                           {article.status.replace('_', ' ')}

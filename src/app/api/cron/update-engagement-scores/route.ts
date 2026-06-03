@@ -25,6 +25,9 @@ export async function POST(req: Request) {
   const authError = verifyCronAuth(req, 'update-engagement-scores')
   if (authError) return authError
 
+  // Declared before the try so the catch returns the same { ranAt, ... } contract.
+  const ranAt = new Date().toISOString()
+
   try {
     const articles = await prisma.article.findMany({
       where: { status: 'PUBLISHED', deletedAt: null },
@@ -50,10 +53,10 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ processed, errors })
+    return NextResponse.json({ ranAt, processed, errors })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[update-engagement-scores] Error:', message)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ ranAt, error: message }, { status: 500 })
   }
 }

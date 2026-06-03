@@ -5,7 +5,90 @@ Updated at the end of each session. Read this before starting work.
 
 ---
 
-## Latest Verification Report (2026-06-03, writer gamification)
+## Latest Verification Report (2026-06-04, streak cadence and review fixes)
+
+Follow-up on the same branch and PR (#72): added a writer-settable streak cadence
+and fixed four review findings. All checks rerun green.
+
+- `npx tsc --noEmit`: pass. `npm run build`: pass ("Compiled successfully").
+  `npm test`: 193 passed, 7 expected-fail, 18 skipped. No regressions.
+- Streak cadence: a new `writer_streaks.intervalWeeks` column (default 1) sets the
+  maximum number of ISO weeks allowed between consecutive publication weeks. Trace:
+  at intervalWeeks 1 the brief case is unchanged (weeks 1, 2, 3, gap, 5 give current
+  1, longest 3); at intervalWeeks 2 a fortnightly writer (weeks 1, 3, 5, 7) gets
+  current 4 and longest 4, where weekly cadence gives 1 and 1. Adjacency is
+  round(gapMs / one week) constrained to [1, intervalWeeks], so it stays DST-safe.
+  The cadence read and the recalculation upsert are guarded (the upsert uses
+  select id) so a missing column degrades to weekly rather than breaking the cron.
+- `ReadQualityBadge` shows "Not yet scored" for a null (unscored) score rather than
+  a misleading "0.0".
+- Both cron error responses now include `ranAt`, matching their success contract.
+- Removed the duplicate "Latest" header: the two older reports below are now
+  "Previous". The review finding named the performance-system header to rename, but
+  that report is newer than the gamification one, and only one section can be the
+  Latest, which is this 2026-06-04 follow-up.
+
+ALTER TABLE SQL to run in Supabase before the cadence feature works:
+
+```sql
+ALTER TABLE public.writer_streaks
+  ADD COLUMN IF NOT EXISTS "intervalWeeks" INTEGER NOT NULL DEFAULT 1;
+```
+
+---
+
+## Previous Verification Report (2026-06-03, writer performance system)
+
+Branch `claude/writer-performance-system`, built on the merged PR #71 (gamification).
+This session implemented series completion (Part 5), the Growth writer-activity view
+(Part 6) and the commissioning brief (Part 7), and aligned Parts 1 to 4 to this
+brief's wording.
+
+Checks run before opening the PR:
+
+- `npx tsc --noEmit`: passed, exit code 0.
+- `npm run build`: passed. "Compiled successfully", TypeScript checked, every route
+  built including the new `/api/editorial/commissioning-brief`,
+  `/api/editorial/growth/writer-activity` and `/editorial/growth/writer-activity`.
+  The only warning is the pre-existing workspace-root inference notice (this worktree
+  carries its own lockfile); it is unrelated to these changes. A `.env.local` with
+  placeholder values was created only so the build could collect page data (auth.ts
+  throws without NEXTAUTH_SECRET); it is gitignored and not committed.
+- `npm test`: 193 passed, 7 expected-fail, 18 skipped. No regressions.
+
+Required check-throughs (read, not run):
+
+a. Streak weeks 1, 2, 3, a gap at 4, then 5 produce currentStreak = 1 and
+   longestStreak = 3. streaks.ts groups publications by ISO week and walks the
+   Mondays: the longest run is 3 (weeks 1-2-3) and resets at the week 3 to week 5
+   gap; the current run counts back from the most recent week (5) and stops at once
+   on the gap, so it is 1. (Logic unchanged from PR #71.)
+b. first_publish cannot be inserted twice. awardFirstPublishAchievement does a
+   fast-path findFirst on (userId, type) and returns if present, so a second publish
+   by the same writer short-circuits before any insert or notification. Concurrent
+   first publishes are additionally guarded by a Serializable transaction.
+c. Series completion does not trigger for a one-article series.
+   awardSeriesCompletionAchievement returns immediately when the series has fewer
+   than SERIES_MIN_PARTS (2) non-deleted articles, before any insert.
+d. The commissioning brief is editable only by ADMIN and GROWTH (PATCH is gated by
+   getVerifiedSessionUser([ADMIN, GROWTH]) and returns 403 otherwise) and is shown to
+   WRITER only on the dashboard (the rendered brief renders under isWriter; the
+   editor renders under isAdmin or isGrowth; EDITOR sees neither).
+
+Two deviations carried forward from PR #71 and deliberately NOT changed despite the
+"align to wording" scope, because changing either would break Part 2D or the live DB:
+
+1. Engagement weights stay 0.5 / 0.03 / 0.02, not 0.5 / 30 / 20. The literal 30 and
+   20 produce scores up to roughly 5000, which breaks Part 2D's "gold above 40"
+   threshold and the 0-100 "read quality" framing. Only 0.03 / 0.02 reproduce the
+   original worked example of 40.8.
+2. `Article.engagementScore` stays `Float?` (nullable), not `Float @default(0)`. The
+   Supabase column was created nullable; a non-nullable Prisma type would throw when
+   reading pre-existing NULL rows. The UI already treats null as 0.
+
+---
+
+## Previous Verification Report (2026-06-03, writer gamification)
 
 Checks run before opening the PR:
 
@@ -80,6 +163,134 @@ Review pass (CodeRabbit on PR #71):
 ---
 
 ## Recent Sessions
+
+### 2026-06-04: Streak Cadence and Review Fixes (`claude/writer-performance-system`)
+
+Follow-up on PR #72.
+
+**What changed:**
+- Writer-settable streak cadence. New `writer_streaks.intervalWeeks` column
+  (`Int @default(1)`); `STREAK_INTERVAL_WEEKS` (MIN 1, MAX 8, DEFAULT 1) in
+  constants. `recalculateStreakForUser` now reads the writer's intervalWeeks and
+  treats two publication weeks as adjacent when they are 1 to intervalWeeks weeks
+  apart (weekly behaviour at 1). `GET /api/user/streak` returns intervalWeeks; a new
+  `PATCH /api/user/streak` validates and saves it (1 to 8), then recomputes the
+  streak. New `src/components/editorial/StreakCadenceControl.tsx` (a labelled select
+  that saves and calls router.refresh); `StreakCard` shows the cadence in its label.
+  Both are WRITER/ADMIN only.
+- Review fixes: `ReadQualityBadge` renders "Not yet scored" for a null score;
+  both cron routes include `ranAt` in their error response; the duplicate "Latest
+  Verification Report" header was resolved (older reports retitled "Previous").
+
+**Schema changes:**
+- `writer_streaks` gains `intervalWeeks` (`INTEGER NOT NULL DEFAULT 1`). Run the
+  ALTER TABLE in the Latest Verification Report above. Until it is applied, the
+  cadence read and recalc upsert degrade to weekly (guarded), and the dashboard
+  streak shows its zero-state; PATCH returns 500.
+
+**New environment variables:** None.
+
+**Architectural decisions:**
+- The streak stays anchored to the most recent publication (not "today"), as in
+  PR #71, so the daily cron does not reset a streak just because the current period
+  has no publication yet. Time-since-last-publish decay is surfaced separately by
+  the Growth at-risk flag.
+- Setting the cadence recomputes the streak immediately (PATCH calls
+  `recalculateStreakForUser`) so the dashboard reflects the change without waiting
+  for the nightly cron.
+
+**Issues found:**
+- None new. `tsc`, `build` and the test suite are clean.
+
+### 2026-06-03: Writer Performance System (`claude/writer-performance-system`)
+
+Builds on the merged PR #71. Adds the three unbuilt features and aligns the shipped
+Parts 1 to 4 to this brief's wording.
+
+**What changed:**
+- Part 5 (series completion): real detection in
+  `src/lib/gamification/achievements.ts`. A series of at least 2 non-deleted articles
+  in which every article is PUBLISHED grants each distinct author a one-time
+  `series_complete` achievement (referenceId = seriesId) plus a notification; P2002
+  is swallowed for idempotency. The old "no part-count field, skip with a warning"
+  stub is removed.
+- Part 6 (Growth writer-activity): `src/lib/gamification/writerActivity.ts`
+  (`getWriterActivity`, shared by route and page);
+  `GET /api/editorial/growth/writer-activity` (ADMIN/GROWTH, 403 otherwise);
+  `src/app/editorial/(portal)/growth/writer-activity/page.tsx` (server component,
+  at-risk first then most recent). A "Writer Activity" link was added to the Growth
+  quick actions on the dashboard.
+- Part 7 (commissioning brief): new `SiteSetting` Prisma model mapped to
+  `site_settings` (table SQL must be run manually, see below);
+  `GET/PATCH /api/editorial/commissioning-brief` (GET public, PATCH ADMIN/GROWTH);
+  `src/components/editorial/CommissioningBriefEditor.tsx`. Writers see the rendered
+  brief above their article table; ADMIN and GROWTH see the editor.
+- Alignment of Parts 1 to 4:
+  - Streak (1E): `StreakCard` is now a server-fed presentational stats-grid cell
+    (Prisma fetch in the dashboard, not via the API route), WRITER/ADMIN only. Shows
+    the number with a flame, "week streak" beneath, and "Best: N weeks"; the
+    zero-state shows "Start your streak" with no flame.
+  - Engagement (2D): `ReadQualityBadge` now shows the score to one decimal, gold
+    (#c9a84c) above 40 and muted at or below. The dashboard column header is
+    "Quality" and the column is shown for WRITER only.
+  - Commendation (3D): the dashboard line is now italic gold with a thin gold left
+    border and no "Editorial note" prefix. (3C) the commendation editor shows for
+    PENDING_REVIEW and PUBLISHED only (APPROVED does not exist; SCHEDULED dropped).
+  - First publish (4D): new `src/components/editorial/FirstPublishBanner.tsx`
+    (`{ achievementId }`, own dismissed state, marks seen on dismiss); the dashboard
+    fetches achievements server-side via Prisma. (5B) new
+    `src/components/editorial/SeriesCompleteBadges.tsx` renders unseen
+    series-complete badges below the banner and marks them seen on dismiss. The old
+    SWR `AchievementBanner.tsx` was deleted.
+- Cron routes `recalculate-streaks` and `update-engagement-scores` now include
+  `ranAt` in their JSON response (`{ ranAt, processed, errors }`) per the brief.
+- Constants added to `src/lib/constants.ts`: `ENGAGEMENT_QUALITY_GOLD_THRESHOLD`,
+  `WRITER_AT_RISK`, `COMMISSIONING_BRIEF_KEY`, `COMMISSIONING_BRIEF_MAX_LENGTH`,
+  `EDITORIAL_API_ROUTES`.
+
+**Schema changes:**
+- New `SiteSetting` model (mapped to `site_settings`). As with every other table
+  here, no migration is run; the SQL below must be applied manually in Supabase
+  before the commissioning brief feature will function. Only `prisma generate` was
+  run this session.
+
+SQL TO RUN IN SUPABASE BEFORE THE COMMISSIONING BRIEF WORKS:
+
+```sql
+CREATE TABLE IF NOT EXISTS public.site_settings (
+  "key"       TEXT NOT NULL PRIMARY KEY,
+  "value"     TEXT,
+  "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+  "updatedBy" TEXT
+);
+
+INSERT INTO public.site_settings ("key", "value") VALUES ('commissioning_brief', NULL)
+ON CONFLICT ("key") DO NOTHING;
+```
+
+Until this runs, the commissioning-brief GET returns `{ brief: null }`, PATCH returns
+a 500, and the dashboard still renders (its server-side read is wrapped in try/catch).
+
+**New environment variables:** None. The new routes reuse `CRON_SECRET` (cron) and
+the existing NextAuth session (commissioning brief, writer activity).
+
+**Architectural decisions:**
+- Series-completion idempotency relies on the (userId, type, referenceId = seriesId)
+  unique plus a P2002 swallow; no Serializable transaction is needed because the
+  referenceId is stable per series (unlike first_publish, whose referenceId is the
+  article id and which therefore needs the transaction).
+- `getWriterActivity` is shared by the route and the page so both compute identical
+  figures from one query path; the page applies the at-risk-first sort on top of the
+  helper's most-recent-first order.
+- Milestones (first publish, series completion) still fire only from the
+  scheduled-publish path per the brief. The editor "Publish Now" path does not award
+  them; wiring that path remains a recommended follow-up.
+
+**Issues found:**
+- The brief's premise (PR #71 unmerged, schema incomplete) was stale: PR #71 is
+  merged (commit 373652f is HEAD) and Parts 0 to 4 were already built. Scope was
+  confirmed with the requester as "build Parts 5 to 7 and align 0 to 4 to wording".
+- No new dependencies. `tsc`, `build` and the test suite are all clean.
 
 ### 2026-06-03: Writer Gamification (`claude/writer-gamification`)
 
@@ -202,13 +413,18 @@ are already applied; the Prisma schema mirrors them (no migration is run for the
 | Table / column | Shape | Notes |
 |----------------|-------|-------|
 | `ArticleTrophy` | id, articleId, trophy, awardedAt, seenAt | unique (articleId, trophy); trophy system |
-| `writer_streaks` (`WriterStreak`) | id, userId (unique), currentStreak, longestStreak, lastPublishedAt, updatedAt | one row per writer |
+| `writer_streaks` (`WriterStreak`) | id, userId (unique), currentStreak, longestStreak, intervalWeeks, lastPublishedAt, updatedAt | one row per writer; `intervalWeeks` (default 1) is the writer-set cadence. ALTER TABLE for it NOT yet applied, see Latest report |
 | `writer_achievements` (`WriterAchievement`) | id, userId, type, referenceId, awardedAt, seenAt | unique (userId, type, referenceId) |
 | `articles.engagementScore` | Float? | per-article read-quality signal, recomputed by cron |
 | `articles.editorialCommendation` | String? (text) | one-sentence editor note, dashboard-only |
+| `site_settings` (`SiteSetting`) | key (PK), value (text), updatedAt, updatedBy | key-value store; holds `commissioning_brief`. SQL NOT yet applied, see below |
 
 `User` gained `streakData WriterStreak?` and `achievements WriterAchievement[]`
 reverse relations.
+
+The `site_settings` table is the only schema item here whose SQL has NOT been run in
+Supabase yet. The CREATE TABLE statement is in the Writer Performance System session
+entry above and must be applied before the commissioning brief feature will work.
 
 ---
 
@@ -216,7 +432,8 @@ reverse relations.
 
 | PR | Branch | Status | Notes |
 |----|--------|--------|-------|
-| feat: writer gamification system - streaks, engagement scores, commendations, milestones | `claude/writer-gamification` | Open, awaiting review | Do not merge. `CRON_SECRET` must be set in Vercel and GitHub Actions (reused, no new value). Confirm SQL column types match the Prisma Float/String mapping. |
+| feat: writer performance system - streaks, engagement scores, commendations, achievements, commissioning brief | `claude/writer-performance-system` | Open, awaiting review | Do not merge. Run two SQL statements in Supabase first: the `site_settings` CREATE TABLE (commissioning brief) and the `writer_streaks.intervalWeeks` ALTER TABLE (streak cadence). Both are in the verification reports above. `CRON_SECRET` reused (no new value). |
+| feat: writer gamification system - streaks, engagement scores, commendations, milestones (#71) | `claude/writer-gamification` | Merged (commit 373652f) | Superseded by the performance-system branch above. |
 | feat: writer trophy system with award animation and cron workflow | `claude/trophy-system` | Open, awaiting review | Do not merge until CRON_SECRET is added to Vercel env vars and GitHub Actions secrets |
 
 ---

@@ -499,6 +499,12 @@ model WriterStreak {
   userId          String    @unique
   currentStreak   Int       @default(0)
   longestStreak   Int       @default(0)
+  // Writer-settable cadence in ISO weeks: the streak holds as long as they publish
+  // at least once every intervalWeeks weeks. WAITING FOR SCHEMA: this column must be
+  // added to writer_streaks in Supabase (ALTER TABLE, see AI_STATE.md) before the
+  // cadence feature works. Reads of it are guarded so the streak degrades to weekly
+  // (intervalWeeks = 1) until the column exists.
+  intervalWeeks   Int       @default(1)
   lastPublishedAt DateTime?
   updatedAt       DateTime  @default(now()) @updatedAt
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -517,6 +523,22 @@ model WriterAchievement {
 
   @@unique([userId, type, referenceId])
   @@map("writer_achievements")
+}
+
+// ── Site settings ────────────────────────────────────────────────────────────
+// WAITING FOR SCHEMA: the site_settings table must be created in Supabase before
+// the commissioning-brief code will function. The CREATE TABLE SQL has been output
+// to the operator (see the session notes / AI_STATE.md). As with the other tables
+// here, no migration is run; this model only mirrors the manually applied SQL so
+// Prisma Client can read and write it. Reads are wrapped in try/catch so the
+// dashboard still renders if the table is not present yet.
+model SiteSetting {
+  key       String   @id
+  value     String?  @db.Text
+  updatedAt DateTime @default(now()) @updatedAt
+  updatedBy String?
+
+  @@map("site_settings")
 }
 
 // ── Audit log ────────────────────────────────────────────────────────────────

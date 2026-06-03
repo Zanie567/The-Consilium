@@ -1,28 +1,38 @@
+import { ENGAGEMENT_QUALITY_GOLD_THRESHOLD } from '@/lib/constants'
+
 /**
- * Compact "read quality" indicator for an article, derived from its engagement
- * score (0-100). Dashboard-only; never rendered on public article pages.
+ * Compact "read quality" badge for an article, derived from its engagement score
+ * (0-100). Dashboard-only; never rendered on public article pages.
  *
- * Pure presentational component (no client hooks) so it can render inside the
- * server-rendered dashboard table.
+ * A null score means the article has not been scored yet (the cron has not run for
+ * it), so it shows a neutral "Not yet scored" placeholder rather than a misleading
+ * "0.0". A real score shows to one decimal place: gold (#c9a84c) above the quality
+ * threshold, neutral muted text at or below it. Pure presentational component (no
+ * client hooks) so it can render inside the server-rendered dashboard table.
  */
 export function ReadQualityBadge({ score }: { score: number | null }) {
-  const value = Math.max(0, Math.min(100, Math.round(score ?? 0)))
+  if (score === null) {
+    return (
+      <span
+        className="inline-block text-xs font-medium text-[var(--fg-faint)]"
+        title="Read quality score: not yet available"
+      >
+        Not yet scored
+      </span>
+    )
+  }
+
+  const value = Math.max(0, Math.min(100, score))
+  const isHigh = value > ENGAGEMENT_QUALITY_GOLD_THRESHOLD
 
   return (
-    <div className="flex items-center gap-2" title={`Read quality: ${value} out of 100`}>
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--fg-faint)]">
-        Read quality
-      </span>
-      <span
-        className="relative h-1.5 w-16 overflow-hidden rounded-full bg-[var(--bg-subtle)]"
-        aria-hidden="true"
-      >
-        <span
-          className="absolute inset-y-0 left-0 rounded-full bg-gold"
-          style={{ width: `${value}%` }}
-        />
-      </span>
-      <span className="text-xs font-bold text-gold">{value}</span>
-    </div>
+    <span
+      className={`inline-block text-xs font-bold tabular-nums ${
+        isHigh ? 'text-[#c9a84c]' : 'text-[var(--fg-muted)]'
+      }`}
+      title={`Read quality score: ${value.toFixed(1)} out of 100`}
+    >
+      {value.toFixed(1)}
+    </span>
   )
 }

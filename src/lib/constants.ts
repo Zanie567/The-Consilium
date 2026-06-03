@@ -111,3 +111,46 @@ export const GAMIFICATION_API_ROUTES = {
   achievements: '/api/user/achievements',
   achievementsMarkSeen: '/api/user/achievements/mark-seen',
 } as const
+
+/**
+ * Writer-settable streak cadence, in ISO weeks. A streak continues as long as the
+ * writer publishes at least once every `intervalWeeks` weeks, so a fortnightly
+ * writer can set 2 and not lose their streak. MIN (1) reproduces the original
+ * weekly streak; MAX bounds how sparse a cadence may be before it stops being a
+ * streak.
+ */
+export const STREAK_INTERVAL_WEEKS = {
+  MIN: 1,
+  MAX: 8,
+  DEFAULT: 1,
+} as const
+
+/**
+ * Read-quality threshold. Engagement scores strictly above this render in gold on
+ * the writer dashboard; scores at or below render in muted text.
+ */
+export const ENGAGEMENT_QUALITY_GOLD_THRESHOLD = 40
+
+/**
+ * A writer is flagged "at risk" on the Growth activity view once they have
+ * published at least MIN_PUBLISHED articles but none in the last
+ * MAX_DAYS_SINCE_PUBLISH days.
+ */
+export const WRITER_AT_RISK = {
+  MIN_PUBLISHED: 2,
+  MAX_DAYS_SINCE_PUBLISH: 30,
+} as const
+
+// ── Site settings (key-value) ─────────────────────────────────────────────────
+
+/** site_settings.key holding the editorial commissioning brief. */
+export const COMMISSIONING_BRIEF_KEY = 'commissioning_brief'
+
+/** Maximum length of the commissioning brief, in characters after trimming. */
+export const COMMISSIONING_BRIEF_MAX_LENGTH = 1000
+
+/** Role-gated editorial endpoints consumed by portal pages and editor controls. */
+export const EDITORIAL_API_ROUTES = {
+  commissioningBrief: '/api/editorial/commissioning-brief',
+  writerActivity: '/api/editorial/growth/writer-activity',
+} as const
