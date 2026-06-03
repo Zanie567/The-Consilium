@@ -7,6 +7,9 @@ import { NotificationBell } from '@/components/editorial/NotificationBell'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
 import { DraftsSection } from '@/components/editorial/DraftsSection'
 import { TrophySection, type TrophyRecord } from '@/components/editorial/TrophySection'
+import { StreakCard } from '@/components/editorial/StreakCard'
+import { AchievementBanner } from '@/components/editorial/AchievementBanner'
+import { ReadQualityBadge } from '@/components/editorial/ReadQualityBadge'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -179,6 +182,9 @@ export default async function EditorialDashboard() {
         <NotificationBell />
       </PortalSection>
 
+      {/* One-time achievement banners (first publish, series completion) */}
+      {!isGrowth && <AchievementBanner />}
+
       {/* Stats row */}
       <PortalSection className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         {!isGrowth && <StatCard label="My Drafts" value={myDrafts.length} />}
@@ -338,6 +344,13 @@ export default async function EditorialDashboard() {
         </PortalSection>
       )}
 
+      {/* Publishing streak - hidden for growth users, who do not author */}
+      {!isGrowth && (
+        <PortalSection className="mb-8">
+          <StreakCard />
+        </PortalSection>
+      )}
+
       {/* Trophies - hidden for growth users */}
       {!isGrowth && myTrophies.length > 0 && (
         <PortalSection className="mb-8">
@@ -399,6 +412,9 @@ export default async function EditorialDashboard() {
                     <th className="px-4 py-2.5 text-left text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider hidden md:table-cell">
                       Updated
                     </th>
+                    <th className="px-4 py-2.5 text-left text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider hidden lg:table-cell">
+                      Read quality
+                    </th>
                     <th className="px-4 py-2.5 text-right text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-wider">
                       Status
                     </th>
@@ -420,12 +436,27 @@ export default async function EditorialDashboard() {
                             {article.author.name}
                           </p>
                         )}
+                        {article.editorialCommendation && (
+                          <p className="mt-1 text-xs">
+                            <span className="font-semibold uppercase tracking-wider text-gold">
+                              Editorial note
+                            </span>{' '}
+                            <span className="text-[var(--fg-muted)]">
+                              {article.editorialCommendation}
+                            </span>
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-[var(--fg-faint)] text-xs hidden sm:table-cell">
                         {article.category?.name ?? 'Uncategorised'}
                       </td>
                       <td className="px-4 py-3 text-[var(--fg-faint)] text-xs hidden md:table-cell">
                         {format(new Date(article.updatedAt), 'd MMM yyyy')}
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        {article.status === 'PUBLISHED' && (
+                          <ReadQualityBadge score={article.engagementScore} />
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <span className={`text-xs font-bold px-2 py-0.5 ${statusColour[article.status] ?? ''}`}>

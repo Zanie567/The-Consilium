@@ -1,0 +1,46 @@
+# update-engagement-scores.yml
+#
+# Recomputes and stores the engagement score for every published article.
+# Runs daily at 03:00 UTC. Also supports manual dispatch from the Actions tab.
+#
+# REQUIRED GitHub Actions secret (Settings > Secrets and variables > Actions):
+#   CRON_SECRET: long random string matching the Vercel CRON_SECRET env var
+#
+# REQUIRED Vercel environment variable:
+#   CRON_SECRET: exact same value as the GitHub Actions secret above
+
+name: Update Engagement Scores
+
+on:
+  # GitHub Actions cron runs in UTC.
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    name: Update engagement scores
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Call /api/cron/update-engagement-scores
+        id: call
+        run: |
+          HTTP_STATUS=$(curl --silent --output /tmp/response_body.txt --write-out "%{http_code}" \
+            --max-time 120 \
+            --request POST \
+            --header "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --header "Content-Type: application/json" \
+            "https://theconsilium.co.uk/api/cron/update-engagement-scores")
+
+          echo "HTTP status: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "ERROR: Endpoint returned HTTP $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Echo response
+        if: always()
+        run: cat /tmp/response_body.txt

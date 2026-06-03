@@ -68,6 +68,8 @@ model User {
   commentUpvotes     CommentUpvote[]
   warnings           UserWarning[]
   notes              AdminNote[]
+  streakData         WriterStreak?
+  achievements       WriterAchievement[]
 
   @@map("users")
 }
@@ -179,6 +181,11 @@ model Article {
   correctionNote String?       @db.Text
   editorNote     String?       @db.Text
   viewCount      Int           @default(0)
+  // Gamification columns (created manually in Supabase via SQL; declared here so
+  // Prisma Client can read/write them). Nullable so reads never fail on pre-existing
+  // rows regardless of how the SQL column nullability/defaults were set.
+  engagementScore       Float?  // 0-100 read-quality signal, recomputed by cron
+  editorialCommendation String? @db.Text // one-sentence editor note, dashboard-only
   seriesId       String?
   series         Series?       @relation(fields: [seriesId], references: [id])
   seriesOrder    Int?
@@ -481,6 +488,35 @@ model ArticleTrophy {
 
   @@unique([articleId, trophy])
   @@map("ArticleTrophy")
+}
+
+// ── Writer gamification ──────────────────────────────────────────────────────
+// Tables created manually in Supabase via SQL; declared here so Prisma Client can
+// query them. No migration is run for these models.
+
+model WriterStreak {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  currentStreak   Int       @default(0)
+  longestStreak   Int       @default(0)
+  lastPublishedAt DateTime?
+  updatedAt       DateTime  @default(now()) @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("writer_streaks")
+}
+
+model WriterAchievement {
+  id          String    @id @default(cuid())
+  userId      String
+  type        String
+  referenceId String?
+  awardedAt   DateTime  @default(now())
+  seenAt      DateTime?
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, referenceId])
+  @@map("writer_achievements")
 }
 
 // ── Audit log ────────────────────────────────────────────────────────────────
