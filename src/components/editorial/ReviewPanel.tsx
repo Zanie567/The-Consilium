@@ -311,13 +311,12 @@ export function ReviewPanel({ article }: Props) {
                 )}
 
                 {/*
-                  The brief specifies statuses UNDER_REVIEW / APPROVED, which do
-                  not exist in this codebase. The analogues are PENDING_REVIEW
-                  (under review) and PUBLISHED / SCHEDULED (approved).
+                  The brief lists PENDING_REVIEW, PUBLISHED, and APPROVED.
+                  ArticleStatus has no APPROVED value (the enum is DRAFT,
+                  PENDING_REVIEW, PUBLISHED, ARCHIVED, REJECTED, SCHEDULED), so the
+                  realisable set is PENDING_REVIEW and PUBLISHED.
                 */}
-                {(status === 'PENDING_REVIEW' ||
-                  status === 'PUBLISHED' ||
-                  status === 'SCHEDULED') && (
+                {(status === 'PENDING_REVIEW' || status === 'PUBLISHED') && (
                   <CommendationEditor
                     articleId={article.id}
                     initialValue={article.editorialCommendation}

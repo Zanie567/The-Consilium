@@ -1,5 +1,14 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { ACHIEVEMENT_TYPES, NOTIFICATION_TYPE_ACHIEVEMENT } from '@/lib/constants'
+
+/** Whether a thrown error is a Prisma unique-constraint violation (P2002). */
+function isUniqueViolation(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002'
+}
+
+/** Minimum number of articles a series needs before it can count as complete. */
+const SERIES_MIN_PARTS = 2
 
 /**
  * One-time writer achievements awarded when an article becomes PUBLISHED.
@@ -76,27 +85,75 @@ async function awardFirstPublishAchievement(article: PublishedArticleRef): Promi
   }
 }
 
-// Logged at most once per process rather than on every series-article publish.
-let seriesCompletionWarned = false
-
 /**
  * Series-completion milestone.
  *
- * This cannot be awarded as specified: the Series model has no field describing
- * the expected number of parts (no partCount / totalParts / equivalent), so
- * "all parts published" is undeterminable. We do not guess a total. No DB lookup
- * is needed to skip; a single warning per process is enough for visibility. If a
- * totalParts column is added to the series table, wire the completion check and
- * per-author award/notification in here.
+ * The Series model has no part-count field, so completion is defined
+ * structurally: a series of at least two non-deleted articles in which every one
+ * is PUBLISHED (none left in DRAFT, PENDING_REVIEW, SCHEDULED, REJECTED or
+ * ARCHIVED). When that holds, each distinct author across the series is granted a
+ * one-time series_complete achievement keyed by the series id, plus a
+ * notification.
+ *
+ * Idempotency: referenceId is the series id, so the (userId, type, referenceId)
+ * unique fully dedupes. Re-publishing a later correction re-runs this check and
+ * the create raises P2002, which we swallow so no second achievement or
+ * notification is produced. The unique constraint also makes concurrent publish
+ * runs safe: only one create per author can win.
  */
 async function awardSeriesCompletionAchievement(article: PublishedArticleRef): Promise<void> {
-  if (!article.seriesId) return
+  const seriesId = article.seriesId
+  if (!seriesId) return
 
-  if (!seriesCompletionWarned) {
-    seriesCompletionWarned = true
-    console.warn(
-      '[achievements] series-completion award is not implemented (Series has no part-count field); skipping.'
-    )
+  const seriesArticles = await prisma.article.findMany({
+    where: { seriesId, deletedAt: null },
+    select: { status: true, authorId: true },
+  })
+
+  // A single-article series cannot be "complete".
+  if (seriesArticles.length < SERIES_MIN_PARTS) return
+
+  // Every current article in the series must be published.
+  if (!seriesArticles.every((a) => a.status === 'PUBLISHED')) return
+
+  const authorIds = Array.from(
+    new Set(seriesArticles.map((a) => a.authorId).filter((id): id is string => Boolean(id)))
+  )
+
+  for (const authorId of authorIds) {
+    try {
+      await prisma.writerAchievement.create({
+        data: {
+          userId: authorId,
+          type: ACHIEVEMENT_TYPES.SERIES_COMPLETE,
+          referenceId: seriesId,
+        },
+      })
+    } catch (err) {
+      // P2002: this author already holds the series_complete achievement for this
+      // series. Expected on a later re-publish or a concurrent run; swallow it and
+      // skip the notification so each author is notified exactly once.
+      if (isUniqueViolation(err)) continue
+      throw err
+    }
+
+    // Reached only when the achievement row was newly created above.
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: authorId,
+          type: NOTIFICATION_TYPE_ACHIEVEMENT,
+          title: 'Series complete',
+          message: 'All parts of the series have been published.',
+          articleId: article.id,
+        },
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error(
+        `[achievements] series_complete notification failed for user ${authorId}: ${message}`
+      )
+    }
   }
 }
 

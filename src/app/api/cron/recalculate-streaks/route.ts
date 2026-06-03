@@ -30,6 +30,7 @@ export async function POST(req: Request) {
       distinct: ['authorId'],
     })
 
+    const ranAt = new Date().toISOString()
     let processed = 0
     let errors = 0
 
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ processed, errors })
+    return NextResponse.json({ ranAt, processed, errors })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[recalculate-streaks] Error:', message)
