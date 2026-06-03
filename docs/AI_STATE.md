@@ -39,6 +39,26 @@ Two intentional deviations from the brief, both forced by contradictions in it:
    no partCount / totalParts field. Per the brief, the code does not guess: it
    logs a warning and skips. Add a totalParts column to enable it.
 
+Second audit pass (after a review request):
+
+- Fixed a real bug. Streak week-adjacency used exact-millisecond equality, which
+  undercounts a streak across a daylight-saving boundary in any non-UTC runtime
+  (verified: a 3-week streak collapsed to 2 under America/New_York). It now
+  compares the gap rounded to whole days, correct in UTC and DST runtimes alike.
+- Re-validated the pure streak and engagement logic with date-fns in both UTC and
+  America/New_York: the brief case (current 1, longest 3), an ISO 53-week year
+  boundary, same-week dedupe, single, DST-spanning, and empty all pass; engagement
+  reproduces 40.8 plus clamp and zero-view edges.
+- Full suite: 193 passed, no regressions. `tsc` clean. ESLint clean on the new
+  files (one pre-existing warning remains on an unrelated trophy-system line).
+- Could not introspect the live database: the local `.env` DATABASE_URL is a
+  placeholder (host is literally "[host]"), so neither the build nor a local run
+  here connects to Supabase. Confirming the tables, columns and unique constraints
+  exist in the real database is still a required pre-merge step.
+- Scope note: first-publish/series milestones fire only from the scheduled-publish
+  path per the brief. Articles published via the editor "Publish Now" action do not
+  award milestones; wiring that path is a recommended follow-up.
+
 ---
 
 ## Recent Sessions

@@ -15,7 +15,17 @@ import { prisma } from '@/lib/prisma'
  * and 53-week years make raw week-number arithmetic unreliable.
  */
 
-const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+
+/**
+ * Whether two ISO-week Monday timestamps are exactly one week apart. The gap is
+ * rounded to whole days so a daylight-saving transition falling between the two
+ * Mondays (which makes the gap 7 days plus or minus 1 hour in a non-UTC runtime)
+ * is still counted as adjacent. In the UTC cron runtime the gap is exactly 7 days.
+ */
+function isOneWeekApart(earlierMs: number, laterMs: number): boolean {
+  return Math.round((laterMs - earlierMs) / MS_PER_DAY) === 7
+}
 
 /**
  * Recomputes and upserts the WriterStreak row for a single user.
@@ -63,7 +73,7 @@ export async function recalculateStreakForUser(userId: string): Promise<void> {
     let longestStreak = 1
     let run = 1
     for (let i = 1; i < weekStarts.length; i++) {
-      if (weekStarts[i] - weekStarts[i - 1] === MS_PER_WEEK) {
+      if (isOneWeekApart(weekStarts[i - 1], weekStarts[i])) {
         run += 1
       } else {
         run = 1
@@ -77,7 +87,7 @@ export async function recalculateStreakForUser(userId: string): Promise<void> {
     // because the current week has no publication yet.
     let currentStreak = 1
     for (let i = weekStarts.length - 1; i > 0; i--) {
-      if (weekStarts[i] - weekStarts[i - 1] === MS_PER_WEEK) {
+      if (isOneWeekApart(weekStarts[i - 1], weekStarts[i])) {
         currentStreak += 1
       } else {
         break
