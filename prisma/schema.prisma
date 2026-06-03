@@ -195,6 +195,7 @@ model Article {
   comments        Comment[]
   forDebates      Debate[]      @relation("ForArticle")
   againstDebates  Debate[]      @relation("AgainstArticle")
+  trophies        ArticleTrophy[]
 
   @@index([authorId])
   @@index([categoryId])
@@ -466,6 +467,20 @@ model AdminNote {
 
   @@index([userId])
   @@map("admin_notes")
+}
+
+// ── Trophy system ────────────────────────────────────────────────────────────
+
+model ArticleTrophy {
+  id         String    @id @default(cuid())
+  articleId  String
+  trophy     String
+  awardedAt  DateTime  @default(now())
+  seenAt     DateTime?
+  article    Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, trophy])
+  @@map("ArticleTrophy")
 }
 
 // ── Audit log ────────────────────────────────────────────────────────────────

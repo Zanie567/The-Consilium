@@ -1,0 +1,44 @@
+# award-trophies.yml
+#
+# Checks all published articles against trophy thresholds and awards missing
+# trophies. Runs hourly. Also supports manual dispatch from the Actions tab.
+#
+# REQUIRED GitHub Actions secrets (Settings > Secrets and variables > Actions):
+#   CRON_SECRET  — long random string matching the Vercel CRON_SECRET env var
+#
+# REQUIRED Vercel environment variable:
+#   CRON_SECRET  — exact same value as the GitHub Actions secret above
+
+name: Award Article Trophies
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  award:
+    name: Award trophies
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Call /api/award-trophies
+        id: call
+        run: |
+          HTTP_STATUS=$(curl --silent --output /tmp/response_body.txt --write-out "%{http_code}" \
+            --max-time 30 \
+            --request POST \
+            --header "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            --header "Content-Type: application/json" \
+            "https://theconsilium.co.uk/api/award-trophies")
+
+          echo "HTTP status: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "ERROR: Endpoint returned HTTP $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Echo response
+        run: cat /tmp/response_body.txt

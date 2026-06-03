@@ -6,6 +6,7 @@ import { format, formatDistanceToNow } from 'date-fns'
 import { NotificationBell } from '@/components/editorial/NotificationBell'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
 import { DraftsSection } from '@/components/editorial/DraftsSection'
+import { TrophySection, type TrophyRecord } from '@/components/editorial/TrophySection'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -118,6 +119,24 @@ export default async function EditorialDashboard() {
       return content.split(/\s+/).filter(Boolean).length
     }
   }
+
+  const rawTrophies = !isGrowth
+    ? await prisma.articleTrophy
+        .findMany({
+          where: { article: { authorId: userId, deletedAt: null } },
+          include: { article: { select: { title: true, slug: true } } },
+          orderBy: { awardedAt: 'desc' },
+        })
+        .catch(() => [])
+    : []
+
+  const myTrophies: TrophyRecord[] = rawTrophies.map((t) => ({
+    id: t.id,
+    trophy: t.trophy,
+    awardedAt: t.awardedAt.toISOString(),
+    seenAt: t.seenAt?.toISOString() ?? null,
+    article: t.article,
+  }))
 
   const growthMetrics = isGrowth
     ? await loadGrowthMetrics()
@@ -311,6 +330,13 @@ export default async function EditorialDashboard() {
           >
             Engagement
           </Link>
+        </PortalSection>
+      )}
+
+      {/* Trophies - hidden for growth users */}
+      {!isGrowth && myTrophies.length > 0 && (
+        <PortalSection className="mb-8">
+          <TrophySection trophies={myTrophies} />
         </PortalSection>
       )}
 
