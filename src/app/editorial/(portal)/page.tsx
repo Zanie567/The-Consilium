@@ -127,7 +127,12 @@ export default async function EditorialDashboard() {
           include: { article: { select: { title: true, slug: true } } },
           orderBy: { awardedAt: 'desc' },
         })
-        .catch(() => [])
+        .catch((err) => {
+          console.error('[editorial/dashboard] Trophy fetch error:', err)
+          // eslint-disable-next-line react-hooks/immutability -- server component, no render cycle
+          fetchError = true
+          return []
+        })
     : []
 
   const myTrophies: TrophyRecord[] = rawTrophies.map((t) => ({
