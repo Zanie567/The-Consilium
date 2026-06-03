@@ -12,6 +12,7 @@ const PUBLIC_API_PREFIXES = [
   '/api/contact',
   '/api/debates',
   '/api/editorial/setup',
+  '/api/award-trophies',
   '/api/publish-scheduled',
   '/api/search',
   '/api/subscribe',
