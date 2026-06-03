@@ -10,36 +10,18 @@
  * Vercel env var required:        CRON_SECRET (same value)
  */
 
-import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { recalculateStreakForUser } from '@/lib/gamification/streaks'
+import { verifyCronAuth } from '@/lib/cronAuth'
 
 export const dynamic = 'force-dynamic'
 // Bound the function (Vercel Hobby caps execution at 60s).
 export const maxDuration = 60
 
-/** Constant-time secret comparison so the auth check does not leak via timing. */
-function secretsMatch(provided: string, expected: string): boolean {
-  const a = Buffer.from(provided)
-  const b = Buffer.from(expected)
-  return a.length === b.length && timingSafeEqual(a, b)
-}
-
 export async function POST(req: Request) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) {
-    console.error('[recalculate-streaks] CRON_SECRET env var is not set')
-    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
-  }
-
-  const authHeader = req.headers.get('authorization') ?? ''
-  const provided = authHeader.startsWith('Bearer ')
-    ? authHeader.slice('Bearer '.length).trim()
-    : ''
-  if (!provided || !secretsMatch(provided, secret)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authError = verifyCronAuth(req, 'recalculate-streaks')
+  if (authError) return authError
 
   try {
     const authors = await prisma.article.findMany({
