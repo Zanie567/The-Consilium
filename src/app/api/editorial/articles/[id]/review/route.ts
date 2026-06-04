@@ -26,7 +26,7 @@ export async function PATCH(req: Request, { params }: Props) {
   })
   if (!article || article.deletedAt) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // BUG-03: Editors only see their assigned categories (unless ADMIN).
+  // Editors only see their assigned categories (unless ADMIN).
   // The guard must apply even when the article has no category so that
   // category-restricted editors cannot review uncategorised articles.
   if (user.role === 'EDITOR') {
@@ -67,7 +67,7 @@ export async function PATCH(req: Request, { params }: Props) {
     }
     case 'schedule': {
       if (!scheduledAt) return NextResponse.json({ error: 'scheduledAt required' }, { status: 400 })
-      // BUG-04: Reject dates that are not in the future to prevent accidental
+      // Reject dates that are not in the future to prevent accidental
       // immediate publication by the scheduler cron.
       const scheduledDate = parseEditorialScheduleInput(scheduledAt)
       if (!scheduledDate || scheduledDate <= new Date()) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
+import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 
 interface Props {
@@ -8,7 +9,7 @@ interface Props {
 
 // PATCH /api/editorial/trash/[id] - restore a soft-deleted article
 export async function PATCH(_req: NextRequest, { params }: Props) {
-  const user = await getVerifiedSessionUser(['ADMIN', 'EDITOR', 'WRITER'] as const)
+  const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
   if (!user) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -36,7 +37,7 @@ export async function PATCH(_req: NextRequest, { params }: Props) {
 
 // DELETE /api/editorial/trash/[id] - permanently delete a trashed article
 export async function DELETE(_req: NextRequest, { params }: Props) {
-  const user = await getVerifiedSessionUser(['ADMIN', 'EDITOR', 'WRITER'] as const)
+  const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
   if (!user) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

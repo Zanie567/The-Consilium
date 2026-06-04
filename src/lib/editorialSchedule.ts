@@ -1,4 +1,4 @@
-export const EDITORIAL_TIME_ZONE = 'Europe/London'
+const EDITORIAL_TIME_ZONE = 'Europe/London'
 export const EDITORIAL_TIME_ZONE_LABEL = 'UK time (Europe/London)'
 
 interface DateParts {

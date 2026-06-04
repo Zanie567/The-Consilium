@@ -28,7 +28,7 @@ function classifySource(referer: string | null): string {
 export async function POST(req: NextRequest, { params }: Props) {
   const { id } = await params
 
-  // BUG-02: Rate limit - 1 view per IP per article per 10 minutes to prevent count inflation
+  // Rate limit - 1 view per IP per article per 10 minutes to prevent count inflation
   const ip = getIp(req)
   if (!checkRateLimit(`view:${ip}:${id}`, 1, 10 * 60 * 1000)) {
     return NextResponse.json({ ok: true }) // silent - don't reveal the limit to clients
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest, { params }: Props) {
       ])
       return NextResponse.json({ ok: true })
     } catch (err) {
-      // BUG-02: Surface real DB failures rather than masking them with a false ok
+      // Surface real DB failures rather than masking them with a false ok
       console.error('[view] DB error:', err)
       return NextResponse.json({ error: 'Failed to record view.' }, { status: 500 })
     }

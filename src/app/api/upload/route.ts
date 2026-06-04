@@ -1,13 +1,13 @@
-import { NextRequest } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 
-// BUG-18: Explicit allowlist of buckets callers may upload to.
+// Explicit allowlist of buckets callers may upload to.
 // Any value not in this list is rejected outright.
 const ALLOWED_BUCKETS = new Set(['article-images', 'avatars'])
 
-// BUG-16: Server-side magic-byte signatures for each permitted image format.
+// Server-side magic-byte signatures for each permitted image format.
 // We read the actual file bytes rather than trusting the browser-supplied MIME type.
 type Signature = { offset: number; bytes: number[] }
 
@@ -55,7 +55,7 @@ function detectImageMimeType(buf: Uint8Array): string | null {
 export async function POST(request: NextRequest) {
   const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
   if (!user) {
-    return Response.json(
+    return NextResponse.json(
       { error: 'Only writers and editors may upload files.' },
       { status: 403 }
     )
@@ -68,14 +68,14 @@ export async function POST(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl) {
-    return Response.json(
+    return NextResponse.json(
       { error: 'Storage not configured: NEXT_PUBLIC_SUPABASE_URL is missing.' },
       { status: 503 }
     )
   }
 
   if (!supabaseKey) {
-    return Response.json(
+    return NextResponse.json(
       {
         error:
           'Storage not configured: add SUPABASE_SERVICE_ROLE_KEY to your environment variables. ' +
@@ -93,29 +93,29 @@ export async function POST(request: NextRequest) {
     const bucketParam = (formData.get('bucket') as string | null) ?? 'article-images'
 
     if (!file) {
-      return Response.json({ error: 'No file provided.' }, { status: 400 })
+      return NextResponse.json({ error: 'No file provided.' }, { status: 400 })
     }
 
-    // BUG-18: validate bucket against the allowlist
+    // Validate bucket against the allowlist
     if (!ALLOWED_BUCKETS.has(bucketParam)) {
-      return Response.json(
+      return NextResponse.json(
         { error: `Invalid bucket. Allowed values: ${[...ALLOWED_BUCKETS].join(', ')}.` },
         { status: 400 }
       )
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      return Response.json({ error: 'File too large (max 10 MB).' }, { status: 400 })
+      return NextResponse.json({ error: 'File too large (max 10 MB).' }, { status: 400 })
     }
 
     // Read the file into a buffer so we can inspect its magic bytes
     const buffer = await file.arrayBuffer()
     const bytes = new Uint8Array(buffer)
 
-    // BUG-16: verify actual file content rather than trusting the browser MIME type
+    // Verify actual file content rather than trusting the browser MIME type
     const detectedType = detectImageMimeType(bytes)
     if (!detectedType) {
-      return Response.json(
+      return NextResponse.json(
         {
           error:
             'File type not permitted. Allowed formats: JPEG, PNG, GIF, WebP, AVIF.',
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
 
     if (uploadError) {
       console.error('[upload] Supabase error:', uploadError)
-      return Response.json(
+      return NextResponse.json(
         { error: `Upload failed: ${uploadError.message}` },
         { status: 500 }
       )
@@ -142,10 +142,10 @@ export async function POST(request: NextRequest) {
 
     const { data: urlData } = supabase.storage.from(bucketParam).getPublicUrl(filename)
 
-    return Response.json({ url: urlData.publicUrl }, { status: 201 })
+    return NextResponse.json({ url: urlData.publicUrl }, { status: 201 })
   } catch (err) {
     console.error('[upload] Unexpected error:', err)
-    return Response.json(
+    return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Upload failed unexpectedly.' },
       { status: 500 }
     )

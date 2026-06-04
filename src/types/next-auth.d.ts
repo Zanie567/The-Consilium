@@ -11,6 +11,7 @@ declare module 'next-auth' {
       image?: string | null
       role: Role
       isBanned?: boolean
+      isActive?: boolean
     }
   }
 
@@ -24,6 +25,9 @@ declare module 'next-auth/jwt' {
     role: Role
     id: string
     isBanned?: boolean
+    isActive?: boolean
     bannedCheckedAt?: number
+    roleCheckedAt?: number
+    activeCheckedAt?: number
   }
 }

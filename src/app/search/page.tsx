@@ -8,6 +8,7 @@ import { Search, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { motion, AnimatePresence } from 'framer-motion'
 import { displayAuthorName } from '@/lib/authorUtils'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 interface SearchResult {
   id: string
@@ -22,11 +23,14 @@ interface SearchResult {
 }
 
 function highlight(text: string, query: string): string {
-  if (!query.trim()) return text
+  // Escape first: `text` is rendered through dangerouslySetInnerHTML, so any HTML
+  // in a title/snippet must be neutralised before we inject <mark> around matches.
+  const safe = escapeHtml(text)
+  if (!query.trim()) return safe
   const tokens = query.trim().split(/\s+/).filter((t) => t.length >= 2)
-  if (tokens.length === 0) return text
+  if (tokens.length === 0) return safe
   const pattern = tokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
-  return text.replace(new RegExp(`(${pattern})`, 'gi'), '<mark>$1</mark>')
+  return safe.replace(new RegExp(`(${pattern})`, 'gi'), '<mark>$1</mark>')
 }
 
 const itemVariants = {

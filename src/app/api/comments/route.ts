@@ -113,7 +113,7 @@ export async function POST(req: Request) {
     }
   }
 
-  // BUG-13: Include upvotedBy and matching _count shape so the newly created
+  // Include upvotedBy and matching _count shape so the newly created
   // comment has the same structure as comments returned by GET, preventing
   // client-side errors when code maps over comment.upvotedBy.
   const comment = await prisma.comment.create({

@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getVerifiedSessionUser, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -15,21 +15,21 @@ export async function GET() {
       where: { userId: session!.user.id },
       select: { articleId: true },
     })
-    return Response.json(bookmarks.map((b) => b.articleId))
+    return NextResponse.json(bookmarks.map((b) => b.articleId))
   } catch {
-    return Response.json({ error: 'Failed to fetch bookmarks' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to fetch bookmarks' }, { status: 500 })
   }
 }
 
 // POST /api/bookmarks - toggle a bookmark (add if missing, remove if present)
 export async function POST(request: NextRequest) {
   const user = await getVerifiedSessionUser(ALL_ROLES)
-  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
     const { articleId } = await request.json()
     if (!articleId) {
-      return Response.json({ error: 'articleId required' }, { status: 400 })
+      return NextResponse.json({ error: 'articleId required' }, { status: 400 })
     }
 
     const existing = await prisma.bookmark.findUnique({
@@ -40,14 +40,14 @@ export async function POST(request: NextRequest) {
       await prisma.bookmark.delete({
         where: { userId_articleId: { userId: user.id, articleId } },
       })
-      return Response.json({ bookmarked: false })
+      return NextResponse.json({ bookmarked: false })
     } else {
       await prisma.bookmark.create({
         data: { userId: user.id, articleId },
       })
-      return Response.json({ bookmarked: true })
+      return NextResponse.json({ bookmarked: true })
     }
   } catch {
-    return Response.json({ error: 'Failed to toggle bookmark' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to toggle bookmark' }, { status: 500 })
   }
 }

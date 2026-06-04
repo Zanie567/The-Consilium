@@ -9,7 +9,7 @@ export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json([], { status: 200 })
 
-  // BUG-07: Propagate DB failures so the client knows something went wrong
+  // Propagate DB failures so the client knows something went wrong
   // rather than receiving an empty array indistinguishable from "no progress".
   try {
     const rows = await prisma.readingProgress.findMany({
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
-  // BUG-07: Surface DB failures so the client knows progress was not saved
+  // Surface DB failures so the client knows progress was not saved
   // rather than receiving { ok: true } while the write silently failed.
   const completed = progress >= 90
   try {

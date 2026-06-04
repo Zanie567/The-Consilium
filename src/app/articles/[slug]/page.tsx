@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/lib/auth'
+import { escapeHtml as escHtml } from '@/lib/escapeHtml'
 import { format } from 'date-fns'
 import { Clock } from 'lucide-react'
 import { ShareButtons } from '@/components/ui/ShareButtons'
@@ -150,15 +151,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 // ── Content rendering ────────────────────────────────────────────────────────
-
-function escHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
 
 function safeHref(href: string): string {
   const trimmed = href.trim().toLowerCase()

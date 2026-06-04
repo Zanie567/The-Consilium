@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
+import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 
 interface Props {
@@ -8,8 +8,8 @@ interface Props {
 }
 
 export async function GET(_req: Request, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR')) {
+  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  if (!user) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -43,8 +43,8 @@ export async function GET(_req: Request, { params }: Props) {
 }
 
 export async function POST(req: Request, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR')) {
+  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  if (!user) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -68,7 +68,7 @@ export async function POST(req: Request, { params }: Props) {
       (article_id, author_id, comment_text, parent_id, tiptap_from, tiptap_to)
     VALUES (
       ${id},
-      ${session.user.id},
+      ${user.id},
       ${body.commentText.trim()},
       ${body.parentId ?? null},
       ${body.tiptapFrom ?? null},
@@ -87,7 +87,7 @@ export async function POST(req: Request, { params }: Props) {
   `
 
   const row = rows[0]
-  return NextResponse.json({ ...row, authorName: session.user.name ?? session.user.email }, { status: 201 })
+  return NextResponse.json({ ...row, authorName: user.name ?? user.email }, { status: 201 })
 }
 
 interface ArticleCommentRow {

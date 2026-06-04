@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_ONLY } from '@/lib/rbac'
@@ -9,16 +9,16 @@ export async function GET() {
       where: { isActive: true },
       orderBy: { order: 'asc' },
     })
-    return Response.json(members)
+    return NextResponse.json(members)
   } catch {
-    return Response.json({ error: 'Failed to fetch team' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to fetch team' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   const admin = await getVerifiedSessionUser(ADMIN_ONLY)
   if (!admin) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const { name, role, bio, image, email, order, isActive } = body
 
     if (!name || !role) {
-      return Response.json({ error: 'Name and role required' }, { status: 400 })
+      return NextResponse.json({ error: 'Name and role required' }, { status: 400 })
     }
 
     const member = await prisma.teamMember.create({
@@ -40,8 +40,8 @@ export async function POST(request: NextRequest) {
         isActive: isActive ?? true,
       },
     })
-    return Response.json(member, { status: 201 })
+    return NextResponse.json(member, { status: 201 })
   } catch {
-    return Response.json({ error: 'Failed to create team member' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to create team member' }, { status: 500 })
   }
 }

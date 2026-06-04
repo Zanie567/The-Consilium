@@ -1,10 +1,10 @@
-import { NextRequest } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getVerifiedSessionUser, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import slugify from 'slugify'
 import { stripHtml } from '@/lib/content-filter'
-import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
+import { ARTICLE_MUTATION_ROLES, EDITORIAL_MANAGEMENT_ROLES, isAllowedRole } from '@/lib/rbac'
 import { PUBLIC_AUTHOR_SELECT } from '@/lib/publicUser'
 import type { ArticleStatus } from '@prisma/client'
 
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
 
   if (session?.user.role === 'GROWTH') {
-    return Response.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   // Drafts-for-current-user query (used by My Drafts section + autosave polling)
@@ -74,21 +74,20 @@ export async function GET(request: NextRequest) {
         wordCount: computeWordCount(d.content),
       }))
 
-      return Response.json(result)
+      return NextResponse.json(result)
     } catch {
-      return Response.json({ error: 'Failed to fetch drafts' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to fetch drafts' }, { status: 500 })
     }
   }
 
-  // BUG-01: Non-PUBLISHED queries must be restricted to editorial staff.
+  // Non-PUBLISHED queries must be restricted to editorial staff.
   // Without this check any visitor could retrieve all drafts by passing ?status=DRAFT.
   const requestedStatus = status?.toUpperCase() ?? 'PUBLISHED'
   if (requestedStatus !== 'PUBLISHED') {
     const authError = requireActiveSession(session)
     if (authError) return authError
-    const role = (session!.user as { role?: string }).role
-    if (!role || !['ADMIN', 'EDITOR', 'WRITER'].includes(role)) {
-      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    if (!isAllowedRole(session!.user.role, ARTICLE_MUTATION_ROLES)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
   }
 
@@ -106,23 +105,23 @@ export async function GET(request: NextRequest) {
       take,
       include: { author: { select: PUBLIC_AUTHOR_SELECT }, category: true },
     })
-    return Response.json(articles)
+    return NextResponse.json(articles)
   } catch {
-    return Response.json({ error: 'Failed to fetch articles' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to fetch articles' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
   if (!user) {
-    return Response.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   try {
     const body = await request.json()
     const { title, slug: rawSlug, content, excerpt, coverImage, categoryId, status, tags, authorId: bodyAuthorId } = body
 
-    const isAdminOrEditorCreating = ['ADMIN', 'EDITOR'].includes(user.role)
+    const isAdminOrEditorCreating = isAllowedRole(user.role, EDITORIAL_MANAGEMENT_ROLES)
     const effectiveAuthorId = (isAdminOrEditorCreating && bodyAuthorId)
       ? bodyAuthorId
       : user.id
@@ -169,7 +168,7 @@ export async function POST(request: NextRequest) {
     if (Array.isArray(tags) && tags.length > 0) {
       const tagRecords = await Promise.all(
         tags.map((name: string) => {
-          // BUG-14: Strip HTML from tag names before storage to prevent XSS
+          // Strip HTML from tag names before storage to prevent XSS
           const safeName = stripHtml(name).trim()
           const tagSlug = safeName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
           return prisma.tag.upsert({
@@ -185,9 +184,9 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    return Response.json(article, { status: 201 })
+    return NextResponse.json(article, { status: 201 })
   } catch (error) {
     console.error('Create article error:', error)
-    return Response.json({ error: 'Failed to create article' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to create article' }, { status: 500 })
   }
 }

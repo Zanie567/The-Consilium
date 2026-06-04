@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server'
 import { NextAuthOptions } from 'next-auth'
 import { getServerSession } from 'next-auth'
 import { PrismaAdapter } from '@auth/prisma-adapter'
@@ -6,6 +7,7 @@ import GoogleProvider from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 import { sendEmail } from './email'
+import { escapeHtml } from './escapeHtml'
 import type { Role, PrismaClient } from '@prisma/client'
 
 if (!process.env.NEXTAUTH_SECRET) {
@@ -17,9 +19,6 @@ if (!process.env.NEXTAUTH_SECRET) {
 const googleClientId = process.env.GOOGLE_CLIENT_ID
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET
 
-const EDITORIAL_ROLES: Role[] = ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH']
-export const ANALYTICS_ROLES = ['ADMIN', 'GROWTH'] as const satisfies readonly Role[]
-export const ARTICLE_ACCESS_ROLES = ['ADMIN', 'EDITOR', 'WRITER'] as const satisfies readonly Role[]
 const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000
 
@@ -42,8 +41,8 @@ async function notifyAdminOfLockout(lockedEmail: string, ip: string) {
       to: admin.email,
       subject: 'Account locked: too many failed login attempts',
       html: `
-        <p>The account <strong>${lockedEmail}</strong> has been temporarily locked after ${MAX_FAILED_ATTEMPTS} consecutive failed login attempts.</p>
-        <p><strong>IP address:</strong> <code>${ip}</code></p>
+        <p>The account <strong>${escapeHtml(lockedEmail)}</strong> has been temporarily locked after ${MAX_FAILED_ATTEMPTS} consecutive failed login attempts.</p>
+        <p><strong>IP address:</strong> <code>${escapeHtml(ip)}</code></p>
         <p>The account will unlock automatically after 15 minutes.</p>
         <p>If this was not a legitimate user, consider reviewing recent login attempts in the admin dashboard.</p>
         <p>The Consilium</p>
@@ -221,7 +220,7 @@ export const authOptions: NextAuthOptions = {
 
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as unknown as { role: Role }).role
+        token.role = user.role
         token.id = user.id
         token.roleCheckedAt = Date.now()
         token.isBanned = false
@@ -231,14 +230,14 @@ export const authOptions: NextAuthOptions = {
       } else {
         const oneMinuteAgo = Date.now() - 60 * 1000
 
-        const needsBanCheck = !token.bannedCheckedAt || (token.bannedCheckedAt as number) < oneMinuteAgo
-        const needsRoleCheck = !token.roleCheckedAt || (token.roleCheckedAt as number) < oneMinuteAgo
-        const needsActiveCheck = !token.activeCheckedAt || (token.activeCheckedAt as number) < oneMinuteAgo
+        const needsBanCheck = !token.bannedCheckedAt || token.bannedCheckedAt < oneMinuteAgo
+        const needsRoleCheck = !token.roleCheckedAt || token.roleCheckedAt < oneMinuteAgo
+        const needsActiveCheck = !token.activeCheckedAt || token.activeCheckedAt < oneMinuteAgo
 
         if (needsBanCheck || needsRoleCheck || needsActiveCheck) {
           try {
             const dbUser = await prisma.user.findUnique({
-              where: { id: token.id as string },
+              where: { id: token.id },
               select: { role: true, isActive: true, isBanned: true },
             })
             if (dbUser) {
@@ -270,10 +269,10 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (token && session.user) {
-        ;(session.user as unknown as { role: Role; id: string; isBanned: boolean }).role = token.role as Role
-        ;(session.user as unknown as { id: string }).id = token.id as string
-        ;(session.user as unknown as { isBanned: boolean }).isBanned = (token.isBanned as boolean) ?? false
-        ;(session.user as unknown as { isActive: boolean }).isActive = (token.isActive as boolean) ?? true
+        session.user.role = token.role
+        session.user.id = token.id
+        session.user.isBanned = token.isBanned ?? false
+        session.user.isActive = token.isActive ?? true
       }
       return session
     },
@@ -284,10 +283,6 @@ export const authOptions: NextAuthOptions = {
       return baseUrl
     },
   },
-}
-
-export function isEditorialUser(role: Role): boolean {
-  return EDITORIAL_ROLES.includes(role)
 }
 
 export async function getVerifiedSessionUser(
@@ -311,13 +306,13 @@ export function requireActiveSession(
   session: { user?: { isBanned?: boolean; isActive?: boolean } | null } | null
 ): Response | null {
   if (!session?.user) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   if (session.user.isActive === false) {
-    return Response.json({ error: 'Your account is inactive.' }, { status: 403 })
+    return NextResponse.json({ error: 'Your account is inactive.' }, { status: 403 })
   }
   if (session.user.isBanned) {
-    return Response.json({ error: 'Your account has been suspended.' }, { status: 403 })
+    return NextResponse.json({ error: 'Your account has been suspended.' }, { status: 403 })
   }
   return null
 }

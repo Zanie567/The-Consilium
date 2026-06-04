@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 // Extract plain text from Tiptap JSON content
@@ -62,11 +62,11 @@ function getSnippet(content: string, tokens: string[], maxLen = 200): string {
 
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get('q')?.trim() ?? ''
-  if (q.length < 2) return Response.json([])
+  if (q.length < 2) return NextResponse.json([])
 
   // Tokenise: split on whitespace, keep meaningful tokens (3+ chars)
   const tokens = q.toLowerCase().split(/\s+/).filter((t) => t.length >= 2)
-  if (tokens.length === 0) return Response.json([])
+  if (tokens.length === 0) return NextResponse.json([])
 
   try {
     // Broad fetch: any article matching at least one token across key fields
@@ -109,9 +109,9 @@ export async function GET(req: NextRequest) {
       category:    article.category,
     }))
 
-    return Response.json(results)
+    return NextResponse.json(results)
   } catch (err) {
     console.error('Search error:', err)
-    return Response.json([])
+    return NextResponse.json([])
   }
 }

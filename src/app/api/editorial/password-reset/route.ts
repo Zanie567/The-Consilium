@@ -9,7 +9,7 @@ import { checkRateLimit, getIp } from '@/lib/rate-limit'
 // PATCH /api/editorial/password-reset - consume token and set new password
 
 export async function POST(req: NextRequest) {
-  // BUG-21: rate limit to 5 requests per IP per 15 minutes
+  // Rate limit to 5 requests per IP per 15 minutes
   const ip = getIp(req)
   if (!checkRateLimit(`pwd-reset-editorial:${ip}`, 5, 15 * 60 * 1000)) {
     return NextResponse.json({ ok: true }) // silent - do not leak rate-limit info
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   try {
     ;({ email } = await req.json())
   } catch {
-    // BUG-23: Malformed body is a client error - return 400 instead of silently succeeding
+    // Malformed body is a client error - return 400 instead of silently succeeding
     return NextResponse.json({ error: 'Bad request.' }, { status: 400 })
   }
   if (!email) return NextResponse.json({ ok: true }) // silent
@@ -68,7 +68,7 @@ export async function PATCH(req: NextRequest) {
 
   const TOKEN_LENGTH = 64 // 32 random bytes → 64 hex chars
 
-  // BUG-22: Fetch the record from the DB, then re-verify the token in
+  // Fetch the record from the DB, then re-verify the token in
   // constant time so the application layer reveals nothing via timing.
   // The dummy value keeps the timingSafeEqual call on the hot path even
   // when no matching record exists, preventing short-circuit timing leaks.

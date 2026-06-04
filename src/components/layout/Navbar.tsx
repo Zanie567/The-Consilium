@@ -8,6 +8,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { usePathname, useRouter } from 'next/navigation'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { useScrolled } from '@/hooks/useScrolled'
+import { isAllowedRole, ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -142,9 +143,9 @@ export function Navbar() {
             <ThemeToggle />
             {session ? (
               <div className="flex items-center gap-3 pl-3 border-l border-navy-light">
-                {(['ADMIN', 'EDITOR', 'WRITER'] as const).includes(
-                  (session.user as { role?: string }).role as 'ADMIN' | 'EDITOR' | 'WRITER'
-                ) && !pathname.startsWith('/editorial') && !pathname.startsWith('/admin') && (
+                {isAllowedRole(session.user.role, ARTICLE_MUTATION_ROLES) &&
+                  !pathname.startsWith('/editorial') &&
+                  !pathname.startsWith('/admin') && (
                   <>
                     <Link
                       href="/editorial"
@@ -327,9 +328,7 @@ export function Navbar() {
 
               {/* Auth footer */}
               <div className="px-5 py-4 border-t border-white/10 flex flex-col gap-3">
-                {session && (['ADMIN', 'EDITOR', 'WRITER'] as const).includes(
-                  (session.user as { role?: string }).role as 'ADMIN' | 'EDITOR' | 'WRITER'
-                ) && (
+                {session && isAllowedRole(session.user.role, ARTICLE_MUTATION_ROLES) && (
                   <div className="flex items-center gap-4 pb-3 border-b border-white/10">
                     <Link
                       href="/editorial"

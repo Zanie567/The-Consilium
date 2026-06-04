@@ -2,7 +2,7 @@ import type React from 'react'
 import type { KeyboardEvent } from 'react'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
 
-export interface Category {
+interface Category {
   id: string
   name: string
   slug: string
