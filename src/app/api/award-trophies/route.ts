@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     }
 
     if (candidates.length === 0) {
-      console.log('[award-trophies] No articles meet any trophy threshold')
+      console.warn('[award-trophies] No articles meet any trophy threshold')
       return NextResponse.json({ awarded: 0, checked: articles.length, articles: [] })
     }
 
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     )
 
     if (newTrophies.length === 0) {
-      console.log('[award-trophies] All eligible trophies already awarded')
+      console.warn('[award-trophies] All eligible trophies already awarded')
       return NextResponse.json({ awarded: 0, checked: articles.length, articles: [] })
     }
 
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
       trophy: t.trophy,
     }))
 
-    console.log(`[award-trophies] Awarded ${newTrophies.length} trophies:`, awardedArticles)
+    console.warn(`[award-trophies] Awarded ${newTrophies.length} trophies:`, awardedArticles)
 
     return NextResponse.json({
       awarded: newTrophies.length,
