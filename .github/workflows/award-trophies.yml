@@ -26,12 +26,17 @@ jobs:
       - name: Call /api/award-trophies
         id: call
         run: |
+          # Use the canonical host (www). The apex theconsilium.co.uk 307-redirects
+          # to www; curl does not follow it (no -L), so the POST would return 307,
+          # fail the != 200 check below, and never award a trophy. Even with -L the
+          # x-cron-secret header is dropped on the cross-host redirect → 401. Hit www
+          # directly. Do not "simplify" this back to the apex domain.
           HTTP_STATUS=$(curl --silent --output /tmp/response_body.txt --write-out "%{http_code}" \
             --max-time 30 \
             --request POST \
             --header "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
             --header "Content-Type: application/json" \
-            "https://theconsilium.co.uk/api/award-trophies")
+            "https://www.theconsilium.co.uk/api/award-trophies")
 
           echo "HTTP status: $HTTP_STATUS"
 
