@@ -635,6 +635,40 @@ describe('GET /api/articles role guard', () => {
     const res = await get('/api/articles?status=DRAFT')
     expect(res.status).toBe(401)
   })
+
+  it('published list never leaks author password/email/security fields', async () => {
+    // P0 regression guard: include: { author: true } used to serialise the
+    // bcrypt hash and account-security columns to anonymous callers.
+    if (!up) return
+    const res = await get('/api/articles')
+    expect(res.status).toBe(200)
+    const articles = await res.json()
+    if (Array.isArray(articles)) {
+      for (const a of articles) {
+        if (!a.author) continue
+        expect(a.author).not.toHaveProperty('password')
+        expect(a.author).not.toHaveProperty('email')
+        expect(a.author).not.toHaveProperty('isBanned')
+        expect(a.author).not.toHaveProperty('failedLoginAttempts')
+        expect(a.author).not.toHaveProperty('lockedUntil')
+      }
+    }
+  })
+
+  it('single published article never leaks author password/email', async () => {
+    if (!up) return
+    const list = await get('/api/articles')
+    const articles = await list.json()
+    const id = Array.isArray(articles) ? articles[0]?.id : null
+    if (!id) return
+    const res = await get(`/api/articles/${id}`)
+    if (res.status !== 200) return
+    const article = await res.json()
+    if (article?.author) {
+      expect(article.author).not.toHaveProperty('password')
+      expect(article.author).not.toHaveProperty('email')
+    }
+  })
 })
 
 // ── Suite 12: Debate voting ───────────────────────────────────────────────────

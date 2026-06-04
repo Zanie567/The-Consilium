@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import slugify from 'slugify'
 import { stripHtml } from '@/lib/content-filter'
 import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
+import { PUBLIC_AUTHOR_SELECT } from '@/lib/publicUser'
 import type { ArticleStatus } from '@prisma/client'
 
 const STAFF_ARTICLE_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'ARCHIVED', 'REJECTED', 'SCHEDULED'] as const satisfies readonly ArticleStatus[]
@@ -103,7 +104,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { publishedAt: 'desc' },
       take,
-      include: { author: true, category: true },
+      include: { author: { select: PUBLIC_AUTHOR_SELECT }, category: true },
     })
     return Response.json(articles)
   } catch {

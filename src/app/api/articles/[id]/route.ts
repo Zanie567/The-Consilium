@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail, articleSubmittedEmail } from '@/lib/email'
 import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
 import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
+import { PUBLIC_AUTHOR_SELECT } from '@/lib/publicUser'
 import type { ArticleStatus } from '@prisma/client'
 
 const STAFF_ARTICLE_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'ARCHIVED', 'REJECTED', 'SCHEDULED'] as const satisfies readonly ArticleStatus[]
@@ -25,7 +26,9 @@ export async function GET(
     const article = await prisma.article.findUnique({
       where: { id },
       include: {
-        author: true,
+        // Safe author fields only: this object is returned to anonymous callers
+        // for published articles and to the author for their own articles.
+        author: { select: PUBLIC_AUTHOR_SELECT },
         category: true,
         series: true,
         tags: { include: { tag: true } },
