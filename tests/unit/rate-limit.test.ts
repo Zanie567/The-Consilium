@@ -1,12 +1,12 @@
 /**
- * Unit tests for src/lib/rate-limiter.ts
+ * Unit tests for src/lib/rate-limit.ts
  *
  * The module uses a module-level Map as its store. To avoid cross-test
  * contamination we use unique key prefixes per describe block.
  */
 
 import { describe, it, expect } from 'vitest'
-import { checkRateLimit, retryAfterSeconds } from '@/lib/rate-limiter'
+import { checkRateLimit, retryAfterSeconds } from '@/lib/rate-limit'
 
 // ── checkRateLimit ────────────────────────────────────────────────────────────
 

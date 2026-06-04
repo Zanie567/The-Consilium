@@ -37,6 +37,14 @@ export function checkRateLimit(key: string, limit: number, windowMs: number): bo
   return true
 }
 
+/** Returns the number of seconds until the window resets for a key (0 if none/expired). */
+export function retryAfterSeconds(key: string): number {
+  const entry = store.get(key)
+  if (!entry) return 0
+  const remaining = entry.resetAt - Date.now()
+  return remaining > 0 ? Math.ceil(remaining / 1000) : 0
+}
+
 export function getIp(req: { headers: { get(key: string): string | null } }): string {
   return (
     req.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
