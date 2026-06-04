@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
-import { ADMIN_ONLY, EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
+import { ADMIN_ONLY, EDITORIAL_MANAGEMENT_ROLES, isRole } from '@/lib/rbac'
 interface Props {
   params: Promise<{ id: string }>
 }
@@ -94,7 +94,7 @@ export async function PATCH(req: Request, { params }: Props) {
   if (typeof image === 'string') updates.image = image.trim() || null
 
   if (typeof adminNotes === 'string') updates.adminNotes = adminNotes.trim() || null
-  if (role && ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].includes(role as string)) updates.role = role
+  if (role && isRole(role)) updates.role = role
 
   if (typeof slug === 'string' && slug.trim()) {
     const clean = slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')

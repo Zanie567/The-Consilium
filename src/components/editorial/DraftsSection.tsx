@@ -20,7 +20,7 @@ export function DraftsSection({ drafts }: { drafts: Draft[] }) {
   const router = useRouter()
   const [deleting, setDeleting] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
-  // BUG-11: Track per-draft error messages so failures are shown to the user
+  // Track per-draft error messages so failures are shown to the user
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const handleDelete = async (id: string) => {
@@ -29,7 +29,7 @@ export function DraftsSection({ drafts }: { drafts: Draft[] }) {
     try {
       const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' })
       if (!res.ok) {
-        // BUG-11: Revert the UI and show an error instead of silently refreshing
+        // Revert the UI and show an error instead of silently refreshing
         const data = await res.json().catch(() => ({}))
         setDeleteError(data.error ?? `Could not delete draft (${res.status}). Please try again.`)
         return
@@ -48,7 +48,7 @@ export function DraftsSection({ drafts }: { drafts: Draft[] }) {
 
   return (
     <div>
-      {/* BUG-11: Show delete errors so the user knows the draft was not removed */}
+      {/* Show delete errors so the user knows the draft was not removed */}
       {deleteError && (
         <div className="mb-3 bg-red-500/10 border border-red-500/20 px-4 py-3 text-red-600 dark:text-red-400 text-xs flex items-center justify-between gap-3">
           <span>{deleteError}</span>

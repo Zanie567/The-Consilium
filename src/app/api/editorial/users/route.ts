@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
-import { ADMIN_ONLY, EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
+import { ADMIN_ONLY, EDITORIAL_MANAGEMENT_ROLES, isRole } from '@/lib/rbac'
 
 export async function GET() {
   const caller = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Name, email, password, and role are required.' }, { status: 400 })
   }
 
-  if (!['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].includes(role)) {
+  if (!isRole(role)) {
     return NextResponse.json({ error: 'Invalid role.' }, { status: 400 })
   }
   if (password.length < 8) {

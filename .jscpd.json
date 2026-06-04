@@ -1,0 +1,7 @@
+{
+  "threshold": 3,
+  "minTokens": 70,
+  "reporters": ["console"],
+  "gitignore": true,
+  "ignore": ["**/node_modules/**", "**/.next/**", "**/*.test.ts", "**/*.test.tsx"]
+}

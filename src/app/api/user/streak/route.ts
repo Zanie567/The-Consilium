@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { STREAK_INTERVAL_WEEKS } from '@/lib/constants'
 import { recalculateStreakForUser } from '@/lib/gamification/streaks'
@@ -9,14 +8,14 @@ export const dynamic = 'force-dynamic'
 
 /** GET /api/user/streak: the current user's writer streak, or a zero-state. */
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session) {
+  const user = await getVerifiedSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
     const streak = await prisma.writerStreak.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     })
 
     return NextResponse.json({
@@ -37,8 +36,8 @@ export async function GET() {
  * sees the updated figures immediately.
  */
 export async function PATCH(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session) {
+  const user = await getVerifiedSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -63,7 +62,7 @@ export async function PATCH(req: Request) {
   }
 
   try {
-    const userId = session.user.id
+    const userId = user.id
 
     // Persist the cadence (select: { id } avoids the missing-column failure mode
     // on the RETURNING clause if the streak row is created here).

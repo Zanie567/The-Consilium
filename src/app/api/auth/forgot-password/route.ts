@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email'
 import crypto from 'crypto'
@@ -7,27 +7,27 @@ import { checkRateLimit, getIp } from '@/lib/rate-limit'
 
 // POST - request a password reset link (any user, not just editorial)
 export async function POST(req: NextRequest) {
-  // BUG-21: rate limit to 5 requests per IP per 15 minutes
+  // Rate limit to 5 requests per IP per 15 minutes
   const ip = getIp(req)
   if (!checkRateLimit(`pwd-reset-public:${ip}`, 5, 15 * 60 * 1000)) {
-    return Response.json({ ok: true }) // silent - do not leak rate-limit info
+    return NextResponse.json({ ok: true }) // silent - do not leak rate-limit info
   }
 
   let email: string | undefined
   try {
     ;({ email } = await req.json())
   } catch {
-    return Response.json({ ok: true })
+    return NextResponse.json({ ok: true })
   }
   if (!email || typeof email !== 'string') {
-    return Response.json({ ok: true }) // silent to prevent enumeration
+    return NextResponse.json({ ok: true }) // silent to prevent enumeration
   }
 
   const user = await prisma.user.findUnique({
     where: { email: email.trim().toLowerCase() },
   })
 
-  if (!user) return Response.json({ ok: true })
+  if (!user) return NextResponse.json({ ok: true })
 
   // Invalidate existing tokens
   await prisma.passwordResetToken.updateMany({
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     `,
   })
 
-  return Response.json({ ok: true })
+  return NextResponse.json({ ok: true })
 }
 
 // PATCH - set new password using token
@@ -65,18 +65,18 @@ export async function PATCH(req: NextRequest) {
   const { token, password } = await req.json()
 
   if (!token || !password) {
-    return Response.json({ error: 'Missing fields.' }, { status: 400 })
+    return NextResponse.json({ error: 'Missing fields.' }, { status: 400 })
   }
   if (password.length < 8) {
-    return Response.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })
+    return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })
   }
   if (password.length > 128) {
-    return Response.json({ error: 'Password must be at most 128 characters.' }, { status: 400 })
+    return NextResponse.json({ error: 'Password must be at most 128 characters.' }, { status: 400 })
   }
 
   const record = await prisma.passwordResetToken.findUnique({ where: { token } })
   if (!record || record.used || record.expires < new Date()) {
-    return Response.json({ error: 'This link has expired or already been used.' }, { status: 400 })
+    return NextResponse.json({ error: 'This link has expired or already been used.' }, { status: 400 })
   }
 
   const hashed = await bcrypt.hash(password, 10)
@@ -85,5 +85,5 @@ export async function PATCH(req: NextRequest) {
     prisma.passwordResetToken.update({ where: { id: record.id }, data: { used: true } }),
   ])
 
-  return Response.json({ ok: true })
+  return NextResponse.json({ ok: true })
 }

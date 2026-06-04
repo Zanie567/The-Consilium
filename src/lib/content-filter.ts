@@ -250,28 +250,6 @@ export function filterContent(text: string): FilterResult {
   return result
 }
 
-/**
- * highlightViolations - returns HTML with offending spans highlighted.
- * Used in the admin moderation review UI.
- */
-export function highlightViolations(text: string): string {
-  let highlighted = text
-  const norm = normalise(text)
-
-  for (const { pattern } of [...BANNED, ...FLAG_ONLY]) {
-    const match = norm.match(pattern)
-    if (match && match.index !== undefined) {
-      const word = text.slice(match.index, match.index + match[0].length)
-      highlighted = highlighted.replace(
-        word,
-        `<mark style="background:#fee2e2;color:#991b1b;padding:0 2px">${word}</mark>`,
-      )
-    }
-  }
-
-  return highlighted
-}
-
 /** Strip HTML tags from a string - use server-side before storing. */
 export function stripHtml(text: string): string {
   return text

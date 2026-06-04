@@ -43,7 +43,7 @@ export default async function EditorialDashboard() {
     assignedCategoryIds = assignments.map((a) => a.categoryId)
   }
 
-  // BUG-05: Wrap all DB queries so a failure surfaces as an error banner rather
+  // Wrap all DB queries so a failure surfaces as an error banner rather
   // than silently returning empty data that makes the dashboard look healthy.
   let fetchError = false
   const [myArticles, pendingArticles, publishedCount, myDrafts, totalViews, userCount] =
@@ -206,7 +206,7 @@ export default async function EditorialDashboard() {
 
   return (
     <PortalPage className="p-4 sm:p-6 lg:p-8 max-w-6xl">
-      {/* BUG-05: Surface DB errors rather than silently rendering empty data */}
+      {/* Surface DB errors rather than silently rendering empty data */}
       {fetchError && (
         <div className="mb-6 bg-red-500/10 border border-red-500/20 px-5 py-4 text-red-600 dark:text-red-400 text-sm">
           Some dashboard data could not be loaded. This is usually a temporary database issue.

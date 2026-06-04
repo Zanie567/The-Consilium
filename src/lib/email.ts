@@ -1,22 +1,6 @@
 import { Resend } from 'resend'
-import { createHmac } from 'crypto'
 import { SITE_URL, CONTACT_EMAIL } from '@/lib/constants'
-
-function esc(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
-
-export function unsubscribeUrl(email: string): string {
-  const secret = process.env.NEXTAUTH_SECRET ?? 'consilium-unsubscribe'
-  const token = createHmac('sha256', secret).update(email.toLowerCase()).digest('hex')
-  const base = process.env.NEXTAUTH_URL ?? SITE_URL
-  return `${base}/unsubscribe?email=${encodeURIComponent(email)}&token=${token}`
-}
+import { escapeHtml as esc } from '@/lib/escapeHtml'
 
 const FROM = 'The Consilium <noreply@theconsilium.co.uk>'
 

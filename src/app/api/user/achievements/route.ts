@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ACHIEVEMENT_TYPES } from '@/lib/constants'
 
@@ -14,14 +13,14 @@ export const dynamic = 'force-dynamic'
  * for series_complete.
  */
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session) {
+  const user = await getVerifiedSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
     const achievements = await prisma.writerAchievement.findMany({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       orderBy: { awardedAt: 'desc' },
     })
 

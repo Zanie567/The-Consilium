@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import path from 'path'
 import { pathToFileURL } from 'url'
@@ -106,22 +106,22 @@ function ensureDOMMatrix() {
 
 export async function POST(request: NextRequest) {
   const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
-  if (!user) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
 
     if (!file) {
-      return Response.json({ error: 'No file provided.' }, { status: 400 })
+      return NextResponse.json({ error: 'No file provided.' }, { status: 400 })
     }
 
     if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
-      return Response.json({ error: 'File must be a PDF.' }, { status: 400 })
+      return NextResponse.json({ error: 'File must be a PDF.' }, { status: 400 })
     }
 
     if (file.size > 20 * 1024 * 1024) {
-      return Response.json({ error: 'PDF too large (max 20 MB).' }, { status: 400 })
+      return NextResponse.json({ error: 'PDF too large (max 20 MB).' }, { status: 400 })
     }
 
     // Polyfill DOMMatrix before loading pdfjs (it needs it even for text extraction)
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
       }
     } catch (e) {
       if (e instanceof Error && e.message === '__password__') {
-        return Response.json({ error: 'This PDF is password-protected and cannot be imported.' }, { status: 422 })
+        return NextResponse.json({ error: 'This PDF is password-protected and cannot be imported.' }, { status: 422 })
       }
       throw e
     }
@@ -169,17 +169,17 @@ export async function POST(request: NextRequest) {
     } catch (e) {
       // pdfjs throws PasswordException for encrypted PDFs
       if (e && typeof e === 'object' && (e as { name?: string }).name === 'PasswordException') {
-        return Response.json({ error: 'This PDF is password-protected and cannot be imported.' }, { status: 422 })
+        return NextResponse.json({ error: 'This PDF is password-protected and cannot be imported.' }, { status: 422 })
       }
       if (e && typeof e === 'object' && (e as { name?: string }).name === 'InvalidPDFException') {
-        return Response.json({ error: 'The file does not appear to be a valid PDF.' }, { status: 422 })
+        return NextResponse.json({ error: 'The file does not appear to be a valid PDF.' }, { status: 422 })
       }
       throw e
     }
     const numPages: number = pdf.numPages
 
     if (numPages === 0) {
-      return Response.json({ error: 'This PDF has no pages.' }, { status: 422 })
+      return NextResponse.json({ error: 'This PDF has no pages.' }, { status: 422 })
     }
 
     const pageTexts: string[] = []
@@ -213,13 +213,13 @@ export async function POST(request: NextRequest) {
       .trim()
 
     if (!text) {
-      return Response.json({ error: 'No text found in this PDF. It may be a scanned image.' }, { status: 422 })
+      return NextResponse.json({ error: 'No text found in this PDF. It may be a scanned image.' }, { status: 422 })
     }
 
-    return Response.json({ text, pages: numPages })
+    return NextResponse.json({ text, pages: numPages })
   } catch (err) {
     console.error('[parse-pdf] error:', err)
-    return Response.json(
+    return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to parse PDF.' },
       { status: 500 }
     )

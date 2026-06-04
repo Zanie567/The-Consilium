@@ -1,11 +1,9 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getVerifiedSessionUser } from '@/lib/auth'
+import { ANALYTICS_ACCESS_ROLES } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
 import { subHours, subDays, subWeeks, format, startOfWeek } from 'date-fns'
 import { estimateReadingMinutes } from '@/lib/reading-minutes'
-
-export const ANALYTICS_ROLES = ['ADMIN', 'GROWTH']
 
 type Period = '24h' | '7d' | '30d' | '90d'
 type Tab = 'overview' | 'content' | 'audience' | 'engagement' | 'leaderboard' | 'distribution'
@@ -28,9 +26,8 @@ function getPeriodDates(period: Period) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  const role = (session?.user as { role?: string })?.role ?? ''
-  if (!session || !ANALYTICS_ROLES.includes(role)) {
+  const user = await getVerifiedSessionUser(ANALYTICS_ACCESS_ROLES)
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

@@ -6,8 +6,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 const PUBLIC_API_PREFIXES = [
   '/api/auth',
   '/api/analytics/track',
-  '/api/articles/',
-  '/api/auth/',
+  '/api/articles',
   '/api/comments',
   '/api/contact',
   '/api/debates',
@@ -29,7 +28,10 @@ const PUBLIC_PAGE_PREFIXES = [
 
 function isPublicApi(pathname: string) {
   if (/^\/api\/editorial\/articles\/[^/]+\/view$/.test(pathname)) return true
-  return PUBLIC_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`) || pathname.startsWith(prefix))
+  // Exact match or a `prefix/...` sub-path only. A bare `startsWith(prefix)`
+  // fallback would wrongly treat e.g. `/api/teams` as public via `/api/team`,
+  // so path-segment matching is enforced here.
+  return PUBLIC_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
 }
 
 function isPublicPage(pathname: string) {

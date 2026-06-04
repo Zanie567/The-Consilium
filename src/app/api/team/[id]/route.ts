@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_ONLY } from '@/lib/rbac'
@@ -9,7 +9,7 @@ export async function PUT(
 ) {
   const admin = await getVerifiedSessionUser(ADMIN_ONLY)
   if (!admin) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const { id } = await params
@@ -29,9 +29,9 @@ export async function PUT(
         isActive: isActive ?? true,
       },
     })
-    return Response.json(member)
+    return NextResponse.json(member)
   } catch {
-    return Response.json({ error: 'Failed to update team member' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to update team member' }, { status: 500 })
   }
 }
 
@@ -41,14 +41,14 @@ export async function DELETE(
 ) {
   const admin = await getVerifiedSessionUser(ADMIN_ONLY)
   if (!admin) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const { id } = await params
   try {
     await prisma.teamMember.delete({ where: { id } })
-    return Response.json({ success: true })
+    return NextResponse.json({ success: true })
   } catch {
-    return Response.json({ error: 'Failed to delete team member' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to delete team member' }, { status: 500 })
   }
 }

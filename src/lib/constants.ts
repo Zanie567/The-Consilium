@@ -3,7 +3,6 @@
 export const SITE_NAME = 'The Consilium'
 export const SITE_DESCRIPTION =
   'The official publication of the University of Edinburgh Economics Society. Rigorous analysis. Independent voice.'
-export const SITE_TAGLINE = 'University of Edinburgh Economics Society'
 
 // ── Contact ───────────────────────────────────────────────────────────────────
 
@@ -21,34 +20,6 @@ export const FEEDBACK_FORM_URL = 'https://forms.gle/ufUnT7sDoKagnLqGA'
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ??
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://theconsilium.co.uk')
-
-export const LOGO_URL = `${SITE_URL}/logo.png`
-
-// ── Routes ────────────────────────────────────────────────────────────────────
-
-export const ROUTES = {
-  home: '/',
-  login: '/login',
-  signup: '/signup',
-  profile: '/profile',
-  editorial: '/editorial',
-  editorialNew: '/editorial/articles/new',
-  about: '/about',
-  contact: '/contact',
-  corrections: '/corrections',
-  privacy: '/privacy',
-  terms: '/terms',
-  search: '/search',
-  archive: '/archive',
-  team: '/team',
-  opinionDebate: '/opinion-debate',
-  categories: {
-    news: '/category/news',
-    opinion: '/category/opinion',
-    analysis: '/category/analysis',
-    interviews: '/category/interviews',
-  },
-} as const
 
 // ── Brand colours ─────────────────────────────────────────────────────────────
 // These match the Tailwind CSS variables defined in globals.css.
@@ -70,8 +41,6 @@ export const TROPHY_THRESHOLDS = {
   GOLD: 10000,
 } as const
 
-export type TrophyTier = keyof typeof TROPHY_THRESHOLDS
-
 // ── Writer gamification ─────────────────────────────────────────────────────
 
 /** Values stored in writer_achievements.type. */
@@ -79,8 +48,6 @@ export const ACHIEVEMENT_TYPES = {
   FIRST_PUBLISH: 'first_publish',
   SERIES_COMPLETE: 'series_complete',
 } as const
-
-export type AchievementType = (typeof ACHIEVEMENT_TYPES)[keyof typeof ACHIEVEMENT_TYPES]
 
 /** notifications.type value used for gamification notifications. */
 export const NOTIFICATION_TYPE_ACHIEVEMENT = 'achievement'
@@ -97,12 +64,6 @@ export const ENGAGEMENT_WEIGHTS = {
   READ_DEPTH: 0.5,
   BOOKMARK_RATE: 0.03,
   COMMENT_RATE: 0.02,
-} as const
-
-/** Cron endpoints. POST only, authorised with a Bearer CRON_SECRET header. */
-export const CRON_ROUTES = {
-  recalculateStreaks: '/api/cron/recalculate-streaks',
-  updateEngagementScores: '/api/cron/update-engagement-scores',
 } as const
 
 /** Session-protected gamification endpoints consumed by the writer dashboard. */
