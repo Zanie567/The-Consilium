@@ -1,0 +1,5 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": ["prisma/schema.prisma", "prisma/migrate-em-dashes.ts"],
+  "ignoreDependencies": ["pg"]
+}

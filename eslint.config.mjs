@@ -11,6 +11,7 @@ const eslintConfig = defineConfig([
     ".vercel/**",
     "out/**",
     "build/**",
+    "coverage/**",
     "next-env.d.ts",
     "node_modules/**",
     // Prisma scripts are Node.js scripts, not React modules: console.log is expected.
