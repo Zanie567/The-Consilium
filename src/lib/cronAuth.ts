@@ -37,8 +37,13 @@ export function verifyCronAuth(req: Request, label: string): NextResponse | null
     ? authHeader.slice('Bearer '.length).trim()
     : ''
   const headerSecret = req.headers.get('x-cron-secret')?.trim() ?? ''
-  const provided = bearer || headerSecret
-  if (!provided || !secretsMatch(provided, secret)) {
+  // Accept when EITHER header carries the secret, compared independently so a
+  // wrong Bearer header cannot mask a valid x-cron-secret (and vice versa).
+  // Each comparison stays constant-time via secretsMatch.
+  const authorized =
+    (bearer !== '' && secretsMatch(bearer, secret)) ||
+    (headerSecret !== '' && secretsMatch(headerSecret, secret))
+  if (!authorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
