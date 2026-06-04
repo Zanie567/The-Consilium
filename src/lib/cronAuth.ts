@@ -13,8 +13,11 @@ function secretsMatch(provided: string, expected: string): boolean {
 }
 
 /**
- * Validates an `Authorization: Bearer <CRON_SECRET>` request against the
- * CRON_SECRET environment variable.
+ * Validates a cron request against the CRON_SECRET environment variable. The
+ * secret may be supplied either as `Authorization: Bearer <CRON_SECRET>` or as
+ * an `x-cron-secret: <CRON_SECRET>` header — different workflows in this repo use
+ * different conventions, and both are accepted here so every cron route can share
+ * one constant-time check.
  *
  * Returns a NextResponse to send back on failure (500 when CRON_SECRET is unset,
  * 401 when the header is missing or wrong), or null when the request is
@@ -30,9 +33,11 @@ export function verifyCronAuth(req: Request, label: string): NextResponse | null
   }
 
   const authHeader = req.headers.get('authorization') ?? ''
-  const provided = authHeader.startsWith('Bearer ')
+  const bearer = authHeader.startsWith('Bearer ')
     ? authHeader.slice('Bearer '.length).trim()
     : ''
+  const headerSecret = req.headers.get('x-cron-secret')?.trim() ?? ''
+  const provided = bearer || headerSecret
   if (!provided || !secretsMatch(provided, secret)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

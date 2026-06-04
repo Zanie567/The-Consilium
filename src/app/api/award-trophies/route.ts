@@ -13,20 +13,15 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { TROPHY_THRESHOLDS } from '@/lib/constants'
+import { verifyCronAuth } from '@/lib/cronAuth'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: Request) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) {
-    console.error('[award-trophies] CRON_SECRET env var is not set')
-    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
-  }
-
-  const provided = req.headers.get('x-cron-secret') ?? ''
-  if (!provided || provided !== secret) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Shared constant-time CRON_SECRET check. The award-trophies workflow sends the
+  // secret as x-cron-secret, which verifyCronAuth accepts alongside Bearer.
+  const authError = verifyCronAuth(req, 'award-trophies')
+  if (authError) return authError
 
   try {
     const articles = await prisma.article.findMany({
