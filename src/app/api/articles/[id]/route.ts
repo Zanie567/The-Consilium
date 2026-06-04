@@ -316,6 +316,27 @@ export async function DELETE(
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // Editors are scoped to their assigned categories for deletion too. Mirror the
+    // same category-assignment check the GET and PUT handlers apply, so a scoped
+    // editor cannot trash articles outside their remit.
+    if (user.role === 'EDITOR') {
+      if (existing.categoryId) {
+        const assignment = await prisma.categoryEditor.findFirst({
+          where: { userId: user.id, categoryId: existing.categoryId },
+        })
+        if (!assignment) {
+          return Response.json({ error: 'Forbidden' }, { status: 403 })
+        }
+      } else {
+        const anyAssignment = await prisma.categoryEditor.findFirst({
+          where: { userId: user.id },
+        })
+        if (anyAssignment) {
+          return Response.json({ error: 'Forbidden' }, { status: 403 })
+        }
+      }
+    }
+
     // Soft delete - move to trash; permanently removed after 30 days by the cron job
     await prisma.article.update({ where: { id }, data: { deletedAt: new Date() } })
     return Response.json({ success: true })
