@@ -27,12 +27,14 @@ jobs:
       - name: Call /api/cron/update-engagement-scores
         id: call
         run: |
+          # Canonical host (www): the apex 307-redirects to www, curl does not follow
+          # it (no -L), the POST returns 307, and the != 200 check fails. Hit www directly.
           HTTP_STATUS=$(curl --silent --output /tmp/response_body.txt --write-out "%{http_code}" \
             --max-time 120 \
             --request POST \
             --header "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --header "Content-Type: application/json" \
-            "https://theconsilium.co.uk/api/cron/update-engagement-scores")
+            "https://www.theconsilium.co.uk/api/cron/update-engagement-scores")
 
           echo "HTTP status: $HTTP_STATUS"
 

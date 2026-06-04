@@ -6,7 +6,11 @@
 #
 # REQUIRED GitHub Actions secrets (Settings > Secrets and variables > Actions):
 #   CRON_SECRET  — long random string matching the Vercel CRON_SECRET env var
-#   SITE_URL     — production URL, e.g. https://theconsilium.co.uk (no trailing slash)
+#   SITE_URL     — canonical production URL, e.g. https://www.theconsilium.co.uk
+#                  (no trailing slash). MUST be the canonical host: the apex
+#                  theconsilium.co.uk 307-redirects to www, and curl does not follow
+#                  it (no -L), so a non-canonical value makes every POST return 307
+#                  and the publisher silently stops running.
 #
 # REQUIRED Vercel environment variable (Dashboard > Settings > Environment Variables):
 #   CRON_SECRET  — exact same value as the GitHub Actions secret above
