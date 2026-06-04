@@ -19,6 +19,7 @@
 
 import { NextResponse } from 'next/server'
 import { publishScheduledArticles } from '@/lib/scheduledPublishing'
+import { verifyCronAuth } from '@/lib/cronAuth'
 
 // Force dynamic so Next.js never pre-renders or caches this route.
 // Without this, Vercel's edge may serve a stale 404 if the route was absent
@@ -27,22 +28,9 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req: Request) {
   // ── Auth ───────────────────────────────────────────────────────────────────
-  const secret = process.env.CRON_SECRET
-  if (!secret) {
-    // Misconfigured server - don't leak details, just refuse.
-    console.error('[publish-scheduled] CRON_SECRET env var is not set')
-    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
-  }
-
-  const authHeader = req.headers.get('authorization') ?? ''
-  const provided = authHeader.startsWith('Bearer ')
-    ? authHeader.slice('Bearer '.length).trim()
-    : ''
-
-  if (!provided || provided !== secret) {
-    console.warn('[publish-scheduled] Unauthorized attempt - bad or missing secret')
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Shared constant-time CRON_SECRET check (accepts Bearer or x-cron-secret).
+  const authError = verifyCronAuth(req, 'publish-scheduled')
+  if (authError) return authError
 
   try {
     const result = await publishScheduledArticles()

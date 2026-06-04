@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions, getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { filterComment, stripHtml } from '@/lib/content-filter'
-import { checkRateLimit } from '@/lib/rate-limiter'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { sendEmail, commentFlaggedEmail } from '@/lib/email'
 import { ALL_ROLES } from '@/lib/rbac'
 

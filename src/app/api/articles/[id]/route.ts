@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail, articleSubmittedEmail } from '@/lib/email'
 import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
 import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
+import { PUBLIC_AUTHOR_SELECT } from '@/lib/publicUser'
 import type { ArticleStatus } from '@prisma/client'
 
 const STAFF_ARTICLE_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'ARCHIVED', 'REJECTED', 'SCHEDULED'] as const satisfies readonly ArticleStatus[]
@@ -25,7 +26,9 @@ export async function GET(
     const article = await prisma.article.findUnique({
       where: { id },
       include: {
-        author: true,
+        // Safe author fields only: this object is returned to anonymous callers
+        // for published articles and to the author for their own articles.
+        author: { select: PUBLIC_AUTHOR_SELECT },
         category: true,
         series: true,
         tags: { include: { tag: true } },
@@ -311,6 +314,27 @@ export async function DELETE(
 
     if (!isAdminOrEditor && existing.authorId !== user.id) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Editors are scoped to their assigned categories for deletion too. Mirror the
+    // same category-assignment check the GET and PUT handlers apply, so a scoped
+    // editor cannot trash articles outside their remit.
+    if (user.role === 'EDITOR') {
+      if (existing.categoryId) {
+        const assignment = await prisma.categoryEditor.findFirst({
+          where: { userId: user.id, categoryId: existing.categoryId },
+        })
+        if (!assignment) {
+          return Response.json({ error: 'Forbidden' }, { status: 403 })
+        }
+      } else {
+        const anyAssignment = await prisma.categoryEditor.findFirst({
+          where: { userId: user.id },
+        })
+        if (anyAssignment) {
+          return Response.json({ error: 'Forbidden' }, { status: 403 })
+        }
+      }
     }
 
     // Soft delete - move to trash; permanently removed after 30 days by the cron job

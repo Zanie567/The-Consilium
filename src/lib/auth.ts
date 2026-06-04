@@ -6,7 +6,7 @@ import GoogleProvider from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 import { sendEmail } from './email'
-import type { Role } from '@prisma/client'
+import type { Role, PrismaClient } from '@prisma/client'
 
 if (!process.env.NEXTAUTH_SECRET) {
   throw new Error(
@@ -56,7 +56,10 @@ async function notifyAdminOfLockout(lockedEmail: string, ip: string) {
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
-  adapter: PrismaAdapter(prisma) as NextAuthOptions['adapter'],
+  // The client carries a global `omit` for User.password, which changes its
+  // static type; the adapter only ever touches OAuth columns (never password),
+  // so the cast is safe at runtime.
+  adapter: PrismaAdapter(prisma as unknown as PrismaClient) as NextAuthOptions['adapter'],
   session: {
     strategy: 'jwt',
     maxAge: 24 * 60 * 60,
@@ -95,6 +98,9 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
+          // Override the global omit: the password hash is required here to
+          // verify the supplied credentials with bcrypt.compare below.
+          omit: { password: false },
         })
 
         if (user?.isBanned) {

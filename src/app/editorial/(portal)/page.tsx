@@ -139,7 +139,6 @@ export default async function EditorialDashboard() {
         })
         .catch((err) => {
           console.error('[editorial/dashboard] Trophy fetch error:', err)
-          // eslint-disable-next-line react-hooks/immutability -- server component, no render cycle
           fetchError = true
           return []
         })

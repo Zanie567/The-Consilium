@@ -4,7 +4,7 @@ import { createHash } from 'crypto'
 import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { checkRateLimit } from '@/lib/rate-limiter'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
