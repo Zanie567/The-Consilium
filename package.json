@@ -21,7 +21,8 @@
     "audit:dead": "knip",
     "audit:dup": "jscpd src",
     "audit:types": "type-coverage --strict",
-    "audit:all": "npm run typecheck && npm run lint && npm run audit:types && npm run audit:dead && npm run audit:dup"
+    "audit:all": "npm run typecheck && npm run lint && npm run audit:types && npm run audit:dead && npm run audit:dup",
+    "smoke": "node scripts/smoke.mjs"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

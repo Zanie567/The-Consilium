@@ -14,8 +14,10 @@ const eslintConfig = defineConfig([
     "coverage/**",
     "next-env.d.ts",
     "node_modules/**",
-    // Prisma scripts are Node.js scripts, not React modules: console.log is expected.
+    // Node.js CLI scripts (Prisma seeds, smoke test) — console output is expected,
+    // not browser/React modules.
     "prisma/**",
+    "scripts/**",
   ]),
   {
     rules: {
