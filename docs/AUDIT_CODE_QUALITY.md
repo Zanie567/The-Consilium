@@ -212,7 +212,7 @@ will typecheck directly.
 ## 7. Reproducible tooling (added this pass)
 
 `package.json` now exposes:
-```
+```bash
 npm run audit:dead    # knip — dead files/exports/deps
 npm run audit:dup     # jscpd — duplication
 npm run audit:types   # type-coverage --strict

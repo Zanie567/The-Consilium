@@ -8,7 +8,7 @@
  * authorization and validation logic of the routes most recently changed.
  */
 
-import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest'
+import { describe, it, expect, beforeEach, beforeAll, afterAll, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
 // vi.mock is hoisted above imports; vi.hoisted lets the factories reference these.
@@ -246,8 +246,13 @@ describe('/api/user/streak', () => {
 // ── cron: secret enforcement wiring ──────────────────────────────────────────
 
 describe('POST /api/cron/recalculate-streaks', () => {
+  const originalCronSecret = process.env.CRON_SECRET
   beforeAll(() => {
     process.env.CRON_SECRET = 'test-cron-secret'
+  })
+  afterAll(() => {
+    if (originalCronSecret === undefined) delete process.env.CRON_SECRET
+    else process.env.CRON_SECRET = originalCronSecret
   })
 
   it('returns 401 without an Authorization header', async () => {

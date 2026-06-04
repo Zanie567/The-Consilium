@@ -67,24 +67,26 @@ async function main() {
     const res = await get('/api/articles')
     assert(res.status === 200, `expected 200, got ${res.status}`)
     const list = await res.json()
-    if (Array.isArray(list)) {
-      for (const a of list) {
-        assert(a.status === 'PUBLISHED', `leaked non-published status ${a.status}`)
-        if (!a.author) continue
-        for (const f of ['password', 'email', 'isBanned', 'failedLoginAttempts', 'lockedUntil']) {
-          assert(!(f in a.author), `author.${f} leaked to anonymous caller`)
-        }
+    assert(Array.isArray(list), `expected /api/articles to return an array, got ${typeof list}`)
+    for (const a of list) {
+      assert(a.status === 'PUBLISHED', `leaked non-published status ${a.status}`)
+      if (!a.author) continue
+      for (const f of ['password', 'email', 'isBanned', 'failedLoginAttempts', 'lockedUntil']) {
+        assert(!(f in a.author), `author.${f} leaked to anonymous caller`)
       }
     }
   })
-  await check('GET /api/articles?status=DRAFT → 401 (role guard)', async () => {
-    assert((await get('/api/articles?status=DRAFT')).status === 401, 'drafts not protected')
+  await check('GET /api/articles?status=DRAFT → 401/403 (role guard)', async () => {
+    const s = (await get('/api/articles?status=DRAFT')).status
+    assert([401, 403].includes(s), `drafts not protected (got ${s})`)
   })
-  await check('GET /api/editorial/analytics → 401 (authz conversion)', async () => {
-    assert((await get('/api/editorial/analytics?period=30d&tab=overview')).status === 401, 'analytics not protected')
+  await check('GET /api/editorial/analytics → 401/403 (authz conversion)', async () => {
+    const s = (await get('/api/editorial/analytics?period=30d&tab=overview')).status
+    assert([401, 403].includes(s), `analytics not protected (got ${s})`)
   })
-  await check('GET /api/user/streak → 401 (authz conversion)', async () => {
-    assert((await get('/api/user/streak')).status === 401, 'streak not protected')
+  await check('GET /api/user/streak → 401/403 (authz conversion)', async () => {
+    const s = (await get('/api/user/streak')).status
+    assert([401, 403].includes(s), `streak not protected (got ${s})`)
   })
   for (const path of ['/api/editorial/users', '/api/editorial/trash', '/api/admin/users']) {
     await check(`GET ${path} → 401/403`, async () => {
@@ -111,10 +113,14 @@ async function main() {
   ]
 
   console.log('\nAuthenticated role contract:')
+  const validRoles = new Set(roleGates.flatMap(({ allow }) => allow))
   if (!COOKIE) {
     console.log(dim('  (skipped — set SMOKE_COOKIE and SMOKE_ROLE to run these)'))
   } else if (!ROLE) {
     console.log(red('  SMOKE_COOKIE set but SMOKE_ROLE missing — cannot evaluate the role contract.'))
+    failed += 1
+  } else if (!validRoles.has(ROLE)) {
+    console.log(red(`  SMOKE_ROLE='${ROLE}' is not a known role (expected one of ${[...validRoles].join(', ')}).`))
     failed += 1
   } else {
     console.log(dim(`  as role: ${ROLE}`))
