@@ -263,7 +263,7 @@ export default async function EditorialDashboard() {
         {(isEditor || isGrowth) && (
           <StatCard label="Total Views" value={totalViews.toLocaleString()} />
         )}
-        {isEditor && (
+        {isAdmin && (
           <Link href="/editorial/users">
             <StatCard label="Users" value={userCount} />
           </Link>
@@ -381,7 +381,7 @@ export default async function EditorialDashboard() {
           >
             All Articles
           </Link>
-          {isEditor && (
+          {isAdmin && (
             <Link
               href="/editorial/users"
               className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--fg-muted)] px-5 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-[colors,transform] duration-100 min-h-[44px] active:scale-[0.97]"

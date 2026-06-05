@@ -281,7 +281,10 @@ export function EditorialSidebar({
           </div>
         </div>
         <button
-          onClick={() => { onNavClick?.(); signOut({ callbackUrl: '/editorial/login' }) }}
+          onClick={async () => {
+            onNavClick?.()
+            await signOut({ callbackUrl: '/editorial/login' })
+          }}
           className={[
             'flex items-center gap-2.5 px-3 py-3 text-[12px] text-cream/30 hover:text-cream/60 w-full',
             'border-t border-white/6 min-h-[44px]',
