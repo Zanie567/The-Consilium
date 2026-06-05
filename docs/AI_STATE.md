@@ -164,6 +164,33 @@ Review pass (CodeRabbit on PR #71):
 
 ## Recent Sessions
 
+### 2026-06-05: Sign-out reliability and EDITOR role over-privilege (`consilium/fix-signout-and-editor-ui`)
+
+**What changed:**
+- `src/components/layout/EditorialSidebar.tsx`: the sign-out button's `onClick`
+  handler was not awaiting the `signOut()` Promise. The handler is now `async` and
+  uses `await signOut(...)`, so the redirect to `/editorial/login` is guaranteed to
+  complete before the component unmounts or the user can interact with the portal
+  again.
+- `src/app/editorial/(portal)/page.tsx`: the "Users" stat card (links to
+  `/editorial/users`) and the "Manage Users" quick-action link were both gated on
+  `isEditor` (true for ADMIN and EDITOR). Changed both guards to `isAdmin`, so EDITOR
+  users no longer see links to a route they cannot access.
+
+**Schema changes:** None.
+
+**New environment variables:** None.
+
+**Architectural decisions:**
+- Only the two gate expressions (`isEditor` → `isAdmin`) were changed. The underlying
+  DB query that fetches `userCount` is still guarded by `isEditor`; it now fetches a
+  value that is never displayed for the EDITOR role. A future clean-up could narrow
+  that query to `isAdmin`, but that would widen the diff unnecessarily for a bug-fix
+  PR.
+
+**Issues introduced:** None. `npx tsc --noEmit` clean, `npm run build` clean (83/83
+static pages).
+
 ### 2026-06-04: Streak Cadence and Review Fixes (`claude/writer-performance-system`)
 
 Follow-up on PR #72.
@@ -432,6 +459,7 @@ entry above and must be applied before the commissioning brief feature will work
 
 | PR | Branch | Status | Notes |
 |----|--------|--------|-------|
+| fix: sign-out reliability and EDITOR role over-privilege | `consilium/fix-signout-and-editor-ui` | Open, awaiting review | No schema changes, no new env vars. Safe to merge immediately. |
 | feat: writer performance system - streaks, engagement scores, commendations, achievements, commissioning brief | `claude/writer-performance-system` | Open, awaiting review | Do not merge. Run two SQL statements in Supabase first: the `site_settings` CREATE TABLE (commissioning brief) and the `writer_streaks.intervalWeeks` ALTER TABLE (streak cadence). Both are in the verification reports above. `CRON_SECRET` reused (no new value). |
 | feat: writer gamification system - streaks, engagement scores, commendations, milestones (#71) | `claude/writer-gamification` | Merged (commit 373652f) | Superseded by the performance-system branch above. |
 | feat: writer trophy system with award animation and cron workflow | `claude/trophy-system` | Open, awaiting review | Do not merge until CRON_SECRET is added to Vercel env vars and GitHub Actions secrets |
