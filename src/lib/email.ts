@@ -30,8 +30,8 @@ export function articleSubmittedEmail(writerName: string, articleTitle: string, 
     subject: `New article pending review: "${articleTitle}"`,
     html: `
       <p>Hi,</p>
-      <p><strong>${writerName}</strong> has submitted an article for review:</p>
-      <p><strong>${articleTitle}</strong></p>
+      <p><strong>${esc(writerName)}</strong> has submitted an article for review:</p>
+      <p><strong>${esc(articleTitle)}</strong></p>
       <p><a href="${process.env.NEXTAUTH_URL}/editorial/review/${articleId}">Review it in the editorial dashboard →</a></p>
       <p>The Consilium</p>
     `,
@@ -43,7 +43,7 @@ export function articleReturnedEmail(articleTitle: string, editorNote: string, a
     subject: `Your article has been returned: "${articleTitle}"`,
     html: `
       <p>Hi,</p>
-      <p>Your article <strong>"${articleTitle}"</strong> has been returned to you with feedback:</p>
+      <p>Your article <strong>"${esc(articleTitle)}"</strong> has been returned to you with feedback:</p>
       <blockquote style="border-left:3px solid #c9a227;padding:8px 16px;margin:16px 0;color:#555">${esc(editorNote)}</blockquote>
       <p><a href="${process.env.NEXTAUTH_URL}/editorial/articles/${articleId}/edit">Open your article →</a></p>
       <p>The Consilium</p>
@@ -56,7 +56,7 @@ export function articlePublishedEmail(articleTitle: string, articleSlug: string)
     subject: `Your article is live: "${articleTitle}"`,
     html: `
       <p>Congratulations!</p>
-      <p>Your article <strong>"${articleTitle}"</strong> has been published.</p>
+      <p>Your article <strong>"${esc(articleTitle)}"</strong> has been published.</p>
       <p><a href="${process.env.NEXTAUTH_URL}/articles/${articleSlug}">Read it live →</a></p>
       <p>The Consilium</p>
     `,
@@ -80,7 +80,7 @@ export function userWarningEmail(userName: string | null, reason: string) {
   return {
     subject: 'A note about your Consilium account',
     html: `
-      <p>Hi${userName ? ` ${userName}` : ''},</p>
+      <p>Hi${userName ? ` ${esc(userName)}` : ''},</p>
       <p>Your account on The Consilium has received a warning from our moderation team.</p>
       <blockquote style="border-left:3px solid #c9a227;padding:8px 16px;margin:16px 0;color:#555">${esc(reason)}</blockquote>
       <p>Please review our community guidelines to ensure your activity remains within our standards. Repeated violations may result in account suspension.</p>
@@ -94,7 +94,7 @@ export function userBannedEmail(userName: string | null, reason: string) {
   return {
     subject: 'Your Consilium account has been suspended',
     html: `
-      <p>Hi${userName ? ` ${userName}` : ''},</p>
+      <p>Hi${userName ? ` ${esc(userName)}` : ''},</p>
       <p>Your account on The Consilium has been suspended.</p>
       <blockquote style="border-left:3px solid #e53e3e;padding:8px 16px;margin:16px 0;color:#555">${esc(reason)}</blockquote>
       <p>If you believe this suspension was issued in error, please contact us at <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a> to appeal.</p>
@@ -107,7 +107,7 @@ export function userUnbannedEmail(userName: string | null) {
   return {
     subject: 'Your Consilium account has been reinstated',
     html: `
-      <p>Hi${userName ? ` ${userName}` : ''},</p>
+      <p>Hi${userName ? ` ${esc(userName)}` : ''},</p>
       <p>Your account on The Consilium has been reinstated. You can sign in as normal.</p>
       <p>Thank you for your patience. Please continue to follow our community guidelines.</p>
       <p>The Consilium</p>
@@ -131,7 +131,7 @@ export function roleChangedEmail(userName: string | null, newRole: string, promo
       ? `You have been granted ${normalised} access on The Consilium`
       : `Your Consilium account role has been updated`,
     html: `
-      <p>Hi${userName ? ` ${userName}` : ''},</p>
+      <p>Hi${userName ? ` ${esc(userName)}` : ''},</p>
       ${promoted
         ? `<p>You have been granted <strong>${normalised}</strong> access on The Consilium. You can now ${description}.</p>`
         : `<p>Your role on The Consilium has been updated to <strong>${normalised}</strong>.</p>`
@@ -154,7 +154,7 @@ export function commentFlaggedEmail(
     subject: `Comment flagged for review on "${articleTitle}"`,
     html: `
       <p>Hi,</p>
-      <p>A comment was flagged by the content filter on the article <strong>"${articleTitle}"</strong>.</p>
+      <p>A comment was flagged by the content filter on the article <strong>"${esc(articleTitle)}"</strong>.</p>
       <blockquote style="border-left:3px solid #c9a227;padding:8px 16px;margin:16px 0;color:#555;font-style:italic">
         ${esc(commentExcerpt.slice(0, 200))}${commentExcerpt.length > 200 ? '…' : ''}
       </blockquote>

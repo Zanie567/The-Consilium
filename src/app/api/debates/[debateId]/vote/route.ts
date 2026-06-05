@@ -62,7 +62,12 @@ export async function POST(req: Request, { params }: Props) {
       if (!anonymousId) {
         anonymousId = crypto.randomUUID()
       }
-      const anonIpHash = createHash('sha256').update(ip).digest('hex')
+      // Salt the IP hash with a server-only secret so a stored hash cannot be
+      // confirmed against a guessed IP. (This does not stop X-Forwarded-For
+      // spoofing — robust anti-stuffing needs a trusted client IP or auth.)
+      const anonIpHash = createHash('sha256')
+        .update(`${process.env.NEXTAUTH_SECRET ?? ''}:${ip}`)
+        .digest('hex')
 
       await prisma.debateVote.create({
         data: { debateId, anonymousId, anonIpHash, side: side as 'FOR' | 'AGAINST' },

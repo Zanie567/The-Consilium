@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/email'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { checkRateLimit, getIp } from '@/lib/rate-limit'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 // POST - request a password reset link (any user, not just editorial)
 export async function POST(req: NextRequest) {
@@ -45,17 +46,20 @@ export async function POST(req: NextRequest) {
   const baseUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
   const resetUrl = `${baseUrl}/reset-password?token=${token}`
 
-  await sendEmail({
+  // Fire-and-forget: do NOT await the email send, so response latency does not
+  // reveal whether the address belongs to a real account (timing enumeration).
+  // user.name is escaped before interpolation to avoid HTML injection.
+  sendEmail({
     to: user.email!,
     subject: 'Reset your password: The Consilium',
     html: `
-      <p>Hi${user.name ? ` ${user.name}` : ''},</p>
+      <p>Hi${user.name ? ` ${escapeHtml(user.name)}` : ''},</p>
       <p>We received a request to reset your password for The Consilium.</p>
       <p><a href="${resetUrl}" style="color:#c9a227">Click here to reset your password</a></p>
       <p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
       <p>The Consilium</p>
     `,
-  })
+  }).catch(() => {})
 
   return NextResponse.json({ ok: true })
 }

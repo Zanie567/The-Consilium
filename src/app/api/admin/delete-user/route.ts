@@ -24,6 +24,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No account found with that email address.' }, { status: 404 })
   }
 
+  // Never delete another admin through this route (mirrors the [userId] DELETE guard).
+  if (user.role === 'ADMIN') {
+    return NextResponse.json({ error: 'Cannot delete Admin accounts.' }, { status: 403 })
+  }
+
   // checkOnly: just confirm the user exists, don't delete
   if (checkOnly) {
     return NextResponse.json({ ok: true, found: true })
@@ -31,6 +36,18 @@ export async function POST(req: NextRequest) {
 
   try {
     await prisma.$transaction(async (tx) => {
+      // Record the deletion atomically with the delete itself, so this
+      // destructive action can never commit without an audit-log entry.
+      await tx.auditLog.create({
+        data: {
+          action: 'USER_DELETED',
+          targetId: user.id,
+          targetType: 'user',
+          performedBy: admin.id,
+          metadata: { targetEmail: user.email, targetName: user.name, targetRole: user.role },
+        },
+      })
+
       // Remove notes authored by this user on any article
       await tx.articleNote.deleteMany({ where: { authorId: user.id } })
 

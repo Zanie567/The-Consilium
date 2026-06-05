@@ -46,7 +46,8 @@ export async function POST(req: NextRequest) {
 
   const resetUrl = `${process.env.NEXTAUTH_URL}/editorial/reset-password?token=${token}`
   const { subject, html } = passwordResetEmail(resetUrl)
-  await sendEmail({ to: user.email!, subject, html })
+  // Fire-and-forget so response latency does not reveal whether the account exists.
+  sendEmail({ to: user.email!, subject, html }).catch(() => {})
 
   return NextResponse.json({ ok: true })
 }

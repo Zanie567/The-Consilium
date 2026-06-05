@@ -182,8 +182,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'This PDF has no pages.' }, { status: 422 })
     }
 
+    // Bound the work: never extract more than 100 pages, so a huge or abusive
+    // PDF cannot pin CPU/event-loop time even from an authenticated caller.
+    const MAX_PAGES = 100
+    const pagesToRead = Math.min(numPages, MAX_PAGES)
     const pageTexts: string[] = []
-    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+    for (let pageNum = 1; pageNum <= pagesToRead; pageNum++) {
       const page = await pdf.getPage(pageNum)
       const content = await page.getTextContent()
 
