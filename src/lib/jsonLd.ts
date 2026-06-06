@@ -12,7 +12,10 @@
  * a raw JavaScript/JSON `<script>` body.
  */
 export function safeJsonLd(data: unknown): string {
-  return JSON.stringify(data)
+  // JSON.stringify returns undefined for a top-level undefined/function/symbol;
+  // fall back to the JSON literal "null" so the .replace chain never throws.
+  const json = JSON.stringify(data) ?? 'null'
+  return json
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e')
     .replace(/&/g, '\\u0026')

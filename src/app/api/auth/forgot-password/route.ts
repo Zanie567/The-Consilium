@@ -1,4 +1,4 @@
-import { NextResponse, NextRequest } from 'next/server'
+import { NextResponse, NextRequest, after } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email'
 import crypto from 'crypto'
@@ -28,38 +28,45 @@ export async function POST(req: NextRequest) {
     where: { email: email.trim().toLowerCase() },
   })
 
-  if (!user) return NextResponse.json({ ok: true })
+  // All token + email work runs AFTER the response is sent (Next's after()), so
+  // the synchronous response path is identical whether or not the account exists
+  // — closing the timing side-channel — while still running reliably on
+  // serverless. user.name is escaped before interpolation to avoid HTML injection.
+  if (user) {
+    after(async () => {
+      try {
+        // Invalidate existing tokens
+        await prisma.passwordResetToken.updateMany({
+          where: { userId: user.id, used: false },
+          data: { used: true },
+        })
 
-  // Invalidate existing tokens
-  await prisma.passwordResetToken.updateMany({
-    where: { userId: user.id, used: false },
-    data: { used: true },
-  })
+        const token = crypto.randomBytes(32).toString('hex')
+        const expires = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
 
-  const token = crypto.randomBytes(32).toString('hex')
-  const expires = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+        await prisma.passwordResetToken.create({
+          data: { userId: user.id, token, expires },
+        })
 
-  await prisma.passwordResetToken.create({
-    data: { userId: user.id, token, expires },
-  })
+        const baseUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
+        const resetUrl = `${baseUrl}/reset-password?token=${token}`
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
-  const resetUrl = `${baseUrl}/reset-password?token=${token}`
-
-  // Fire-and-forget: do NOT await the email send, so response latency does not
-  // reveal whether the address belongs to a real account (timing enumeration).
-  // user.name is escaped before interpolation to avoid HTML injection.
-  sendEmail({
-    to: user.email!,
-    subject: 'Reset your password: The Consilium',
-    html: `
-      <p>Hi${user.name ? ` ${escapeHtml(user.name)}` : ''},</p>
-      <p>We received a request to reset your password for The Consilium.</p>
-      <p><a href="${resetUrl}" style="color:#c9a227">Click here to reset your password</a></p>
-      <p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
-      <p>The Consilium</p>
-    `,
-  }).catch(() => {})
+        await sendEmail({
+          to: user.email!,
+          subject: 'Reset your password: The Consilium',
+          html: `
+            <p>Hi${user.name ? ` ${escapeHtml(user.name)}` : ''},</p>
+            <p>We received a request to reset your password for The Consilium.</p>
+            <p><a href="${resetUrl}" style="color:#c9a227">Click here to reset your password</a></p>
+            <p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+            <p>The Consilium</p>
+          `,
+        })
+      } catch {
+        // Never surface reset internals to the caller.
+      }
+    })
+  }
 
   return NextResponse.json({ ok: true })
 }

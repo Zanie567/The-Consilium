@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, passwordResetEmail } from '@/lib/email'
 import crypto from 'crypto'
@@ -28,26 +28,34 @@ export async function POST(req: NextRequest) {
     where: { email: email.toLowerCase(), role: { in: ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH'] } },
   })
 
-  // Always return ok to avoid user enumeration
-  if (!user) return NextResponse.json({ ok: true })
+  // Always return ok to avoid user enumeration. All token + email work runs AFTER
+  // the response (Next's after()) so the synchronous response path is identical
+  // whether or not the account exists — closing the timing side-channel — while
+  // still running reliably on serverless.
+  if (user) {
+    after(async () => {
+      try {
+        // Invalidate old tokens
+        await prisma.passwordResetToken.updateMany({
+          where: { userId: user.id, used: false },
+          data: { used: true },
+        })
 
-  // Invalidate old tokens
-  await prisma.passwordResetToken.updateMany({
-    where: { userId: user.id, used: false },
-    data: { used: true },
-  })
+        const token = crypto.randomBytes(32).toString('hex')
+        const expires = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
 
-  const token = crypto.randomBytes(32).toString('hex')
-  const expires = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+        await prisma.passwordResetToken.create({
+          data: { userId: user.id, token, expires },
+        })
 
-  await prisma.passwordResetToken.create({
-    data: { userId: user.id, token, expires },
-  })
-
-  const resetUrl = `${process.env.NEXTAUTH_URL}/editorial/reset-password?token=${token}`
-  const { subject, html } = passwordResetEmail(resetUrl)
-  // Fire-and-forget so response latency does not reveal whether the account exists.
-  sendEmail({ to: user.email!, subject, html }).catch(() => {})
+        const resetUrl = `${process.env.NEXTAUTH_URL}/editorial/reset-password?token=${token}`
+        const { subject, html } = passwordResetEmail(resetUrl)
+        await sendEmail({ to: user.email!, subject, html })
+      } catch {
+        // Never surface reset internals to the caller.
+      }
+    })
+  }
 
   return NextResponse.json({ ok: true })
 }

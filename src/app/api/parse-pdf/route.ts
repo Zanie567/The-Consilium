@@ -220,7 +220,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No text found in this PDF. It may be a scanned image.' }, { status: 422 })
     }
 
-    return NextResponse.json({ text, pages: numPages })
+    return NextResponse.json({
+      text,
+      pages: numPages,
+      pagesRead: pagesToRead,
+      truncated: numPages > MAX_PAGES,
+    })
   } catch (err) {
     console.error('[parse-pdf] error:', err)
     return NextResponse.json(
