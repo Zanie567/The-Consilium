@@ -37,6 +37,8 @@ const nextConfig: NextConfig = {
     // surface. If cover images are ever served from another host, add it here.
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
+      // Google OAuth profile images (lh3.googleusercontent.com)
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
     ],
   },
   experimental: {
