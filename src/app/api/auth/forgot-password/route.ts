@@ -35,18 +35,21 @@ export async function POST(req: NextRequest) {
   if (user) {
     after(async () => {
       try {
-        // Invalidate existing tokens
-        await prisma.passwordResetToken.updateMany({
-          where: { userId: user.id, used: false },
-          data: { used: true },
-        })
-
         const token = crypto.randomBytes(32).toString('hex')
         const expires = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
 
-        await prisma.passwordResetToken.create({
-          data: { userId: user.id, token, expires },
-        })
+        // Invalidate old tokens and create the new one atomically (both commit or
+        // neither), so a partial failure can't leave the account with its existing
+        // tokens revoked but no usable new token.
+        await prisma.$transaction([
+          prisma.passwordResetToken.updateMany({
+            where: { userId: user.id, used: false },
+            data: { used: true },
+          }),
+          prisma.passwordResetToken.create({
+            data: { userId: user.id, token, expires },
+          }),
+        ])
 
         const baseUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
         const resetUrl = `${baseUrl}/reset-password?token=${token}`
@@ -62,8 +65,13 @@ export async function POST(req: NextRequest) {
             <p>The Consilium</p>
           `,
         })
-      } catch {
-        // Never surface reset internals to the caller.
+      } catch (err) {
+        // Log generically so deferred failures aren't swallowed — never the token,
+        // email address, or raw payload.
+        console.error(
+          '[forgot-password] reset task failed:',
+          err instanceof Error ? err.message : 'unknown error'
+        )
       }
     })
   }
