@@ -1,9 +1,10 @@
-import { NextResponse, NextRequest } from 'next/server'
+import { NextResponse, NextRequest, after } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { checkRateLimit, getIp } from '@/lib/rate-limit'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 // POST - request a password reset link (any user, not just editorial)
 export async function POST(req: NextRequest) {
@@ -27,35 +28,53 @@ export async function POST(req: NextRequest) {
     where: { email: email.trim().toLowerCase() },
   })
 
-  if (!user) return NextResponse.json({ ok: true })
+  // All token + email work runs AFTER the response is sent (Next's after()), so
+  // the synchronous response path is identical whether or not the account exists
+  // — closing the timing side-channel — while still running reliably on
+  // serverless. user.name is escaped before interpolation to avoid HTML injection.
+  if (user) {
+    after(async () => {
+      try {
+        const token = crypto.randomBytes(32).toString('hex')
+        const expires = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
 
-  // Invalidate existing tokens
-  await prisma.passwordResetToken.updateMany({
-    where: { userId: user.id, used: false },
-    data: { used: true },
-  })
+        // Invalidate old tokens and create the new one atomically (both commit or
+        // neither), so a partial failure can't leave the account with its existing
+        // tokens revoked but no usable new token.
+        await prisma.$transaction([
+          prisma.passwordResetToken.updateMany({
+            where: { userId: user.id, used: false },
+            data: { used: true },
+          }),
+          prisma.passwordResetToken.create({
+            data: { userId: user.id, token, expires },
+          }),
+        ])
 
-  const token = crypto.randomBytes(32).toString('hex')
-  const expires = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+        const baseUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
+        const resetUrl = `${baseUrl}/reset-password?token=${token}`
 
-  await prisma.passwordResetToken.create({
-    data: { userId: user.id, token, expires },
-  })
-
-  const baseUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
-  const resetUrl = `${baseUrl}/reset-password?token=${token}`
-
-  await sendEmail({
-    to: user.email!,
-    subject: 'Reset your password: The Consilium',
-    html: `
-      <p>Hi${user.name ? ` ${user.name}` : ''},</p>
-      <p>We received a request to reset your password for The Consilium.</p>
-      <p><a href="${resetUrl}" style="color:#c9a227">Click here to reset your password</a></p>
-      <p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
-      <p>The Consilium</p>
-    `,
-  })
+        await sendEmail({
+          to: user.email!,
+          subject: 'Reset your password: The Consilium',
+          html: `
+            <p>Hi${user.name ? ` ${escapeHtml(user.name)}` : ''},</p>
+            <p>We received a request to reset your password for The Consilium.</p>
+            <p><a href="${resetUrl}" style="color:#c9a227">Click here to reset your password</a></p>
+            <p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+            <p>The Consilium</p>
+          `,
+        })
+      } catch (err) {
+        // Log generically so deferred failures aren't swallowed — never the token,
+        // email address, or raw payload.
+        console.error(
+          '[forgot-password] reset task failed:',
+          err instanceof Error ? err.message : 'unknown error'
+        )
+      }
+    })
+  }
 
   return NextResponse.json({ ok: true })
 }

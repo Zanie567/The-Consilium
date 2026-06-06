@@ -5,6 +5,8 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/lib/auth'
 import { escapeHtml as escHtml } from '@/lib/escapeHtml'
+import DOMPurify from 'isomorphic-dompurify'
+import { safeJsonLd } from '@/lib/jsonLd'
 import { format } from 'date-fns'
 import { Clock } from 'lucide-react'
 import { ShareButtons } from '@/components/ui/ShareButtons'
@@ -153,9 +155,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 // ── Content rendering ────────────────────────────────────────────────────────
 
 function safeHref(href: string): string {
-  const trimmed = href.trim().toLowerCase()
-  if (trimmed.startsWith('javascript:') || trimmed.startsWith('data:')) return '#'
-  return href
+  // Strip control characters (tab/newline/CR/null) that browsers ignore inside a
+  // URL scheme — otherwise `java\tscript:` would slip past a naive prefix check.
+  const cleaned = href.replace(/[\u0000-\u001f\u007f]/g, '').trim()
+  // If an explicit scheme is present, allow only safe ones; relative/anchor/
+  // protocol-relative URLs (no scheme) pass through.
+  const scheme = cleaned.match(/^([a-z][a-z0-9+.-]*):/i)
+  if (scheme && !['http', 'https', 'mailto'].includes(scheme[1].toLowerCase())) {
+    return '#'
+  }
+  return cleaned
 }
 
 interface TiptapMark {
@@ -179,7 +188,10 @@ function nodeToHtml(node: TiptapNode): string {
       return `<p>${inner}</p>`
     }
     case 'heading': {
-      const level = (node.attrs?.level as number) ?? 2
+      // Clamp to a valid h1-h6: the level is interpolated into the tag name, so an
+      // unvalidated attribute (e.g. level = "1><img onerror=...>") would inject markup.
+      const raw = Number(node.attrs?.level)
+      const level = Number.isFinite(raw) ? Math.min(6, Math.max(1, Math.trunc(raw))) : 2
       return `<h${level}>${node.content?.map(nodeToHtml).join('') ?? ''}</h${level}>`
     }
     case 'text': {
@@ -251,11 +263,24 @@ function renderContent(content: string): { html: string; footnotes: { index: num
     if (parsed?.type === 'doc') {
       const html = (parsed.content ?? []).map(nodeToHtml).join('')
       const footnotes = collectFootnotes(parsed)
-      return { html, footnotes }
+      // Defense-in-depth: even though nodeToHtml escapes text and validates hrefs,
+      // run the assembled HTML through DOMPurify so any future renderer gap (a new
+      // node type, an unescaped attribute) cannot become stored XSS.
+      return { html: sanitizeArticleHtml(html), footnotes }
     }
   } catch {}
   // Fallback: treat as plain text — escape to prevent XSS from raw stored strings
   return { html: escHtml(content), footnotes: [] }
+}
+
+// Sanitiser for the rendered article body. Keeps the structural tags/attributes
+// the renderer emits (figure/figcaption, sup[data-footnote], aside[data-type],
+// links with target/rel) while stripping scripts, event handlers and unsafe URLs.
+function sanitizeArticleHtml(html: string): string {
+  return DOMPurify.sanitize(html, {
+    ADD_ATTR: ['target'],
+    ADD_TAGS: ['figure', 'figcaption'],
+  })
 }
 
 export default async function ArticlePage({ params }: Props) {
@@ -312,7 +337,7 @@ export default async function ArticlePage({ params }: Props) {
     <div className="min-h-screen bg-[var(--bg)]">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }}
       />
       <ReadingProgress />
       <ReadingTracker articleId={article.id} />

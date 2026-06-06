@@ -12,6 +12,7 @@ import { ArticleCard } from '@/components/ui/ArticleCard'
 import { DebatePanel, type DebateData } from '@/components/ui/DebatePanel'
 import { EconomicTicker } from '@/components/ui/EconomicTicker'
 import { displayAuthorName } from '@/lib/authorUtils'
+import { safeJsonLd } from '@/lib/jsonLd'
 import { HeroSection } from '@/components/ui/HeroSection'
 import type { Metadata } from 'next'
 import { SITE_NAME, SITE_URL } from '@/lib/constants'
@@ -268,11 +269,11 @@ export default async function HomePage({
     <div className="min-h-screen bg-[var(--bg)]">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteStructuredData) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(websiteStructuredData) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationStructuredData) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(organizationStructuredData) }}
       />
       {/* ── Masthead Hero ──────────────────────────────────────────────────── */}
       <section className="bg-navy text-cream py-7 px-4 text-center border-b border-gold/25 relative overflow-hidden">

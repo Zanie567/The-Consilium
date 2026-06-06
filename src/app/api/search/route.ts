@@ -61,11 +61,12 @@ function getSnippet(content: string, tokens: string[], maxLen = 200): string {
 }
 
 export async function GET(req: NextRequest) {
-  const q = req.nextUrl.searchParams.get('q')?.trim() ?? ''
+  const q = (req.nextUrl.searchParams.get('q')?.trim() ?? '').slice(0, 200)
   if (q.length < 2) return NextResponse.json([])
 
-  // Tokenise: split on whitespace, keep meaningful tokens (3+ chars)
-  const tokens = q.toLowerCase().split(/\s+/).filter((t) => t.length >= 2)
+  // Tokenise: split on whitespace, keep meaningful tokens; cap the count so this
+  // public endpoint can't be forced into an unbounded OR-of-ILIKE full scan (DoS).
+  const tokens = q.toLowerCase().split(/\s+/).filter((t) => t.length >= 2).slice(0, 8)
   if (tokens.length === 0) return NextResponse.json([])
 
   try {

@@ -161,11 +161,17 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       // Only gate OAuth sign-ins here. The credentials provider handles its
       // own checks inside authorize above.
       if (account?.provider === 'google') {
         if (!user.email) return false
+
+        // Only trust Google's email for account lookup + auto-linking if Google
+        // says it is verified. Without this, a Google sign-in with an unverified
+        // address matching an existing password account would auto-link to it.
+        const googleProfile = profile as { email_verified?: boolean } | undefined
+        if (!googleProfile?.email_verified) return false
 
         const dbUser = await prisma.user.findUnique({
           where: { email: user.email },

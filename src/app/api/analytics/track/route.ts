@@ -28,6 +28,15 @@ export async function POST(req: NextRequest) {
     const sanitisedReferrer = typeof referrer === 'string' ? referrer.slice(0, 500) : null
 
     if (articleId && typeof articleId === 'string') {
+      // Only count views for genuinely published articles — stops anonymous
+      // callers inflating viewCount (and the trophy thresholds it feeds) on
+      // drafts or arbitrary ids.
+      const published = await prisma.article.findFirst({
+        where: { id: articleId, status: 'PUBLISHED', deletedAt: null },
+        select: { id: true },
+      })
+      if (!published) return NextResponse.json({ ok: true }) // silent drop
+
       const sessionHash = hashSession(sessionId, articleId, timeBucket)
 
       // Deduplicate: same session+article within 30 min = one view
