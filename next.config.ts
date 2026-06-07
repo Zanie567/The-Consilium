@@ -35,8 +35,19 @@ const nextConfig: NextConfig = {
     // Restrict server-side image fetches to Supabase Storage (where uploads live)
     // instead of any https host, closing the /_next/image SSRF + optimizer-DoS
     // surface. If cover images are ever served from another host, add it here.
+    // Allowlist of hosts the /_next/image optimizer may fetch from. Keep this in
+    // sync with the image hosts editors actually use for cover images and in-body
+    // figures — a host NOT listed here returns 400 from the optimizer and the
+    // image silently fails to render. Current usage (verified against the live DB):
+    //   *.supabase.co            — uploaded cover/figure images (Supabase Storage)
+    //   images.unsplash.com      — externally-sourced cover/figure images
+    //   lh3.googleusercontent.com — Google OAuth profile avatars
+    // If an editor needs a new external host, add it here (a specific hostname,
+    // never '**', which would re-open the optimizer SSRF/DoS surface).
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
     ],
   },
   experimental: {
