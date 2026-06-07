@@ -32,6 +32,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # This job only reads the repo (install/typecheck/test/build) and never
+          # pushes, so don't leave the GITHUB_TOKEN in .git/config after checkout.
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@v4
