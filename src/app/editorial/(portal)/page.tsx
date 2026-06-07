@@ -277,8 +277,6 @@ export default async function EditorialDashboard() {
                 ? streak.currentStreak
                 : 0
             }
-            longestStreak={streak?.longestStreak ?? 0}
-            intervalWeeks={streak?.intervalWeeks ?? STREAK_INTERVAL_WEEKS.DEFAULT}
           />
         )}
       </PortalSection>
