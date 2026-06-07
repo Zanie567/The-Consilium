@@ -16,6 +16,7 @@ export async function GET() {
       where: {
         userId: session.user.id,
         progress: { gt: 3, lt: 95 }, // only articles meaningfully started but not finished
+        article: { status: 'PUBLISHED', deletedAt: null },
       },
       orderBy: { updatedAt: 'desc' },
       take: 6,

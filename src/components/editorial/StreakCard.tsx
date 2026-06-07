@@ -29,7 +29,7 @@ export function StreakCard({
       {hasStreak ? (
         <>
           <p className="flex items-center gap-2">
-            <Flame className="text-gold" size={24} aria-hidden="true" />
+            <Flame className="text-gold w-6 h-6 sm:w-7 sm:h-7 shrink-0" aria-hidden="true" />
             <span
               className="text-2xl sm:text-3xl font-bold text-[var(--fg)]"
               style={{ fontFamily: 'var(--font-serif)' }}
