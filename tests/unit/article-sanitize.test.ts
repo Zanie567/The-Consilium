@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import sanitizeHtml from 'sanitize-html'
+import { sanitizeArticleHtml } from '@/lib/articleSanitize'
 
 /**
  * The article body is assembled by a hand-written TipTap->HTML serializer and then
@@ -8,37 +8,13 @@ import sanitizeHtml from 'sanitize-html'
  * sanitize-html is used instead of DOMPurify-on-jsdom because jsdom does not load
  * reliably inside the serverless function bundle the article Server Component runs
  * in (it works locally, then throws at request time in production). These tests
- * confirm the sanitiser strips XSS vectors AND preserves every tag/attribute the
- * renderer legitimately emits — a config that stripped figures/footnotes/pull
- * quotes would render every article with missing content.
- *
- * Keep this config identical to SANITIZE_OPTIONS in
- * src/app/articles/[slug]/page.tsx.
+ * exercise the REAL sanitizeArticleHtml (shared with the page) to confirm it
+ * strips XSS vectors AND preserves every tag/attribute the renderer legitimately
+ * emits — a config that stripped figures/footnotes/pull quotes would render every
+ * article with missing content.
  */
-const OPTIONS: sanitizeHtml.IOptions = {
-  allowedTags: [
-    'p', 'br', 'hr',
-    'strong', 'em', 'u', 'mark',
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    'ul', 'ol', 'li', 'blockquote',
-    'a', 'figure', 'figcaption', 'img', 'aside', 'sup',
-  ],
-  allowedAttributes: {
-    a: ['href', 'target', 'rel'],
-    img: ['src', 'alt'],
-    p: ['class'],
-    figure: ['class'],
-    figcaption: ['class'],
-    aside: ['class', 'data-type'],
-    sup: ['class', 'data-footnote', 'data-index', 'title'],
-  },
-  allowedSchemes: ['http', 'https', 'mailto'],
-  allowProtocolRelative: false,
-  disallowedTagsMode: 'discard',
-}
-
 describe('article HTML sanitization (sanitize-html, server-side)', () => {
-  const clean = (html: string) => sanitizeHtml(html, OPTIONS)
+  const clean = sanitizeArticleHtml
 
   it('strips <script> tags', () => {
     expect(clean('<p>hi</p><script>alert(1)</script>')).not.toContain('<script')
