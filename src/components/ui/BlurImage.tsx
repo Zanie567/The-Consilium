@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useReducedMotion } from 'framer-motion'
 
 interface BlurImageProps {
@@ -26,10 +26,20 @@ interface BlurImageProps {
 export function BlurImage({ src, alt, fill, className = '', priority, sizes }: BlurImageProps) {
   const [loaded, setLoaded] = useState(false)
   const reduced = useReducedMotion()
+  const imgRef = useRef<HTMLImageElement>(null)
+
+  // Priority/cached images frequently finish decoding *before* React attaches the
+  // onLoad handler, so the event never fires and the fade overlay would stay fully
+  // opaque — leaving the hero looking like a blank box. Check `complete` on mount
+  // (and after src changes) to clear the overlay in that race.
+  useEffect(() => {
+    if (imgRef.current?.complete) setLoaded(true)
+  }, [src])
 
   return (
     <>
       <Image
+        ref={imgRef}
         src={src}
         alt={alt}
         fill={fill}

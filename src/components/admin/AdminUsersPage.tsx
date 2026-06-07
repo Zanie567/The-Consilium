@@ -371,15 +371,24 @@ export function AdminUsersPage({ currentAdminId }: Props) {
 
   return (
     <div>
-      {/* Stats bar */}
-      {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-          <StatCard icon={<Users size={16} />}    value={stats.total}          label="Total Users" />
-          <StatCard icon={<Activity size={16} />} value={stats.activeThisWeek} label="Active This Week" />
-          <StatCard icon={<Ban size={16} />}       value={stats.banned}         label="Banned" />
-          <StatCard icon={<BookOpen size={16} />} value={stats.staffCount}     label="Writers & Above" />
-        </div>
-      )}
+      {/* Stats bar (skeleton placeholders while the counts load) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+        {stats ? (
+          <>
+            <StatCard icon={<Users size={16} />}    value={stats.total}          label="Total Users" />
+            <StatCard icon={<Activity size={16} />} value={stats.activeThisWeek} label="Active This Week" />
+            <StatCard icon={<Ban size={16} />}       value={stats.banned}         label="Banned" />
+            <StatCard icon={<BookOpen size={16} />} value={stats.staffCount}     label="Writers & Above" />
+          </>
+        ) : (
+          [0, 1, 2, 3].map((i) => (
+            <div key={i} className="bg-[var(--bg-elevated)] border border-[var(--border)] p-5 animate-pulse">
+              <div className="h-3 w-24 bg-[var(--border)] rounded mb-3" />
+              <div className="h-8 w-16 bg-[var(--border)] rounded" />
+            </div>
+          ))
+        )}
+      </div>
 
       {/* Main tab nav */}
       <div className="flex gap-0 border-b border-[var(--border)] mb-6">
