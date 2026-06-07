@@ -35,6 +35,18 @@ function isWithinCadence(earlierMs: number, laterMs: number, intervalWeeks: numb
 }
 
 /**
+ * Returns true if the streak deadline has not yet passed: the current ISO week
+ * is at most `intervalWeeks` ahead of the last publication's ISO week. Used by
+ * both the recalculation logic and the dashboard's live display.
+ */
+export function isStreakStillActive(lastPublishedAt: Date, intervalWeeks: number): boolean {
+  const nowMonday = startOfISOWeek(new Date()).getTime()
+  const lastPubMonday = startOfISOWeek(lastPublishedAt).getTime()
+  const weeksSinceLastPub = Math.round((nowMonday - lastPubMonday) / MS_PER_WEEK)
+  return weeksSinceLastPub <= intervalWeeks
+}
+
+/**
  * Reads the writer's configured streak cadence, defaulting to weekly. Guarded so a
  * missing intervalWeeks column (before its ALTER TABLE is applied) degrades to
  * weekly rather than aborting the whole recalculation.
@@ -109,9 +121,10 @@ export async function recalculateStreakForUser(userId: string): Promise<void> {
     }
 
     // Current streak: cadence-adjacent weeks counting back from the most recent
-    // publication week (per spec). Anchored to the latest publication, not "today",
-    // so the daily cron does not silently reset a streak just because the current
-    // period has no publication yet.
+    // publication week. Anchored to the latest publication, not "today", so the
+    // daily cron does not reset a streak just because the current period hasn't
+    // had a publication yet. The expiry check below handles the case where the
+    // deadline has already passed.
     let currentStreak = 1
     for (let i = weekStarts.length - 1; i > 0; i--) {
       if (isWithinCadence(weekStarts[i - 1], weekStarts[i], intervalWeeks)) {
@@ -122,6 +135,11 @@ export async function recalculateStreakForUser(userId: string): Promise<void> {
     }
 
     const lastPublishedAt = dates.reduce((latest, d) => (d > latest ? d : latest), dates[0])
+
+    // Expire the streak if the deadline for the next publication has already passed.
+    if (!isStreakStillActive(lastPublishedAt, intervalWeeks)) {
+      currentStreak = 0
+    }
 
     await upsertStreak(userId, { currentStreak, longestStreak, lastPublishedAt })
   } catch (err) {

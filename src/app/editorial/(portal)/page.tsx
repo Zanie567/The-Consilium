@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { format, formatDistanceToNow } from 'date-fns'
 import { ACHIEVEMENT_TYPES, COMMISSIONING_BRIEF_KEY, STREAK_INTERVAL_WEEKS } from '@/lib/constants'
+import { isStreakStillActive } from '@/lib/gamification/streaks'
 import { NotificationBell } from '@/components/editorial/NotificationBell'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
 import { DraftsSection } from '@/components/editorial/DraftsSection'
@@ -270,7 +271,12 @@ export default async function EditorialDashboard() {
         )}
         {isWriterOrAdmin && (
           <StreakCard
-            currentStreak={streak?.currentStreak ?? 0}
+            currentStreak={
+              streak?.currentStreak && streak.lastPublishedAt &&
+              isStreakStillActive(streak.lastPublishedAt, streak.intervalWeeks ?? STREAK_INTERVAL_WEEKS.DEFAULT)
+                ? streak.currentStreak
+                : 0
+            }
             longestStreak={streak?.longestStreak ?? 0}
             intervalWeeks={streak?.intervalWeeks ?? STREAK_INTERVAL_WEEKS.DEFAULT}
           />
