@@ -5,7 +5,7 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/lib/auth'
 import { escapeHtml as escHtml } from '@/lib/escapeHtml'
-import DOMPurify from 'isomorphic-dompurify'
+import { sanitizeArticleHtml } from '@/lib/articleSanitize'
 import { safeJsonLd } from '@/lib/jsonLd'
 import { format } from 'date-fns'
 import { Clock } from 'lucide-react'
@@ -264,23 +264,13 @@ function renderContent(content: string): { html: string; footnotes: { index: num
       const html = (parsed.content ?? []).map(nodeToHtml).join('')
       const footnotes = collectFootnotes(parsed)
       // Defense-in-depth: even though nodeToHtml escapes text and validates hrefs,
-      // run the assembled HTML through DOMPurify so any future renderer gap (a new
-      // node type, an unescaped attribute) cannot become stored XSS.
+      // run the assembled HTML through the sanitiser so any future renderer gap (a
+      // new node type, an unescaped attribute) cannot become stored XSS.
       return { html: sanitizeArticleHtml(html), footnotes }
     }
   } catch {}
   // Fallback: treat as plain text — escape to prevent XSS from raw stored strings
   return { html: escHtml(content), footnotes: [] }
-}
-
-// Sanitiser for the rendered article body. Keeps the structural tags/attributes
-// the renderer emits (figure/figcaption, sup[data-footnote], aside[data-type],
-// links with target/rel) while stripping scripts, event handlers and unsafe URLs.
-function sanitizeArticleHtml(html: string): string {
-  return DOMPurify.sanitize(html, {
-    ADD_ATTR: ['target'],
-    ADD_TAGS: ['figure', 'figcaption'],
-  })
 }
 
 export default async function ArticlePage({ params }: Props) {
