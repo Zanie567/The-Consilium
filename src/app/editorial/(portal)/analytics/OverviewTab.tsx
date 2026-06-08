@@ -132,9 +132,21 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
   }
 
   const { summary } = data
+  const hasViewData = data.trafficData.some((d) => d.views > 0)
+  const hasAnyData = summary.totalViews > 0 || summary.subscriberCount > 0
 
   return (
     <motion.div key="overview" variants={container} initial="hidden" animate="show" className="space-y-6">
+      {/* Getting-started hint for a brand-new site with no tracked activity yet,
+          so the all-zero overview reads as "nothing has happened yet" rather
+          than looking broken. */}
+      {!hasAnyData && (
+        <div className="bg-gold/5 border border-gold/30 px-5 py-4 text-sm text-[var(--fg-muted)]">
+          <span className="font-semibold text-[var(--fg)]">No analytics data yet.</span>{' '}
+          Views and subscriber numbers will appear here as readers visit the site and sign up.
+        </div>
+      )}
+
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <motion.div variants={fadeUp}>
@@ -189,7 +201,16 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
           <span className="text-xs text-[var(--fg-faint)]">{PERIOD_LABELS[period]}</span>
         </div>
         <div className="p-6">
-          <Line data={lineData} options={lineOptions} />
+          {hasViewData ? (
+            <Line data={lineData} options={lineOptions} />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-[var(--fg)] text-sm font-semibold mb-1">No views in {PERIOD_LABELS[period]}</p>
+              <p className="text-[var(--fg-faint)] text-sm max-w-xs">
+                The traffic chart fills in as readers view articles. Try a longer period or check back soon.
+              </p>
+            </div>
+          )}
         </div>
       </motion.div>
     </motion.div>

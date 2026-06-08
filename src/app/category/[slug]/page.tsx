@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
+import { publishedArticleWhere, ARTICLES_CACHE_TAG, ARTICLES_REVALIDATE_SECONDS } from '@/lib/articleQueries'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { ArticleCard } from '@/components/ui/ArticleCard'
 import type { Metadata } from 'next'
@@ -38,6 +40,22 @@ const SECTION_DESCRIPTIONS: Record<string, { icon: string; description: string }
   },
 }
 
+// Cached per category id. A burst of prefetch/navigation requests for the same
+// category is served from the Next data cache instead of re-querying Postgres
+// on every request (Priority 2). Busted immediately by revalidateTag on publish.
+const getCachedCategoryArticles = unstable_cache(
+  (categoryId: string) =>
+    prisma.article.findMany({
+      // Every published article in this category, INCLUDING debate articles.
+      // The old `isDebate: false` filter hid 6 of 7 published Opinion pieces.
+      where: publishedArticleWhere({ categoryId }),
+      orderBy: { publishedAt: 'desc' },
+      include: { author: true, category: true },
+    }),
+  ['category-articles'],
+  { revalidate: ARTICLES_REVALIDATE_SECONDS, tags: [ARTICLES_CACHE_TAG] },
+)
+
 export default async function CategoryPage({ params }: Props) {
   const { slug } = await params
 
@@ -56,11 +74,7 @@ export default async function CategoryPage({ params }: Props) {
 
   let articles: ArticleRow[] = []
   try {
-    articles = await prisma.article.findMany({
-      where: { status: 'PUBLISHED', categoryId: category.id, isDebate: false, deletedAt: null },
-      orderBy: { publishedAt: 'desc' },
-      include: { author: true, category: true },
-    })
+    articles = await getCachedCategoryArticles(category.id)
   } catch {
     articles = []
   }

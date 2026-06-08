@@ -159,53 +159,61 @@ async function main() {
     where: { name: { contains: 'Opinion', mode: 'insensitive' } },
   })
 
-  async function uniqueSlug(base: string): Promise<string> {
-    let slug = base
-    let i = 0
-    while (await prisma.article.findUnique({ where: { slug } })) {
-      i++
-      slug = `${base}-${i}`
+  // Idempotent article writer. Keyed on the (stable) slug so re-running this
+  // seed UPDATES the existing debate articles instead of creating fresh
+  // duplicates. The previous version used uniqueSlug()+create(), so every run
+  // inserted a new pair and orphaned the old one — that is exactly how the
+  // launch DB ended up with each debate article duplicated (Priority 4).
+  async function upsertDebateArticle(data: {
+    title: string
+    slug: string
+    content: string
+    excerpt: string
+    authorId: string
+    publishedAt: Date
+  }) {
+    const fields = {
+      title: data.title,
+      content: data.content,
+      excerpt: data.excerpt,
+      authorId: data.authorId,
+      categoryId: opinionCategory?.id ?? null,
+      status: 'PUBLISHED' as const,
+      publishedAt: data.publishedAt,
+      isDebate: true,
     }
-    return slug
+    return prisma.article.upsert({
+      where: { slug: data.slug },
+      // Revive a previously soft-deleted row and refresh its content.
+      update: { ...fields, deletedAt: null },
+      create: { ...fields, slug: data.slug },
+    })
   }
 
   // ── Debate 1: Minimum Wage ─────────────────────────────────────────────────
 
-  const mwForSlug = await uniqueSlug('raise-the-minimum-wage-the-economic-case')
-  const mwAgainstSlug = await uniqueSlug('against-higher-minimum-wage-economic-analysis')
-
   const [mwForArticle, mwAgainstArticle] = await Promise.all([
-    prisma.article.create({
-      data: {
-        title: 'Raise the Minimum Wage: The Economic Case',
-        slug: mwForSlug,
-        content: minWageForContent,
-        excerpt: 'Decades of evidence show that carefully implemented minimum wage increases lift incomes without the job destruction critics predict. The monopsony argument is compelling, and the distributional case is stronger than ever.',
-        authorId: admin.id,
-        categoryId: opinionCategory?.id ?? null,
-        status: 'PUBLISHED',
-        publishedAt: new Date('2026-03-10'),
-        isDebate: true,
-      },
+    upsertDebateArticle({
+      title: 'Raise the Minimum Wage: The Economic Case',
+      slug: 'raise-the-minimum-wage-the-economic-case',
+      content: minWageForContent,
+      excerpt: 'Decades of evidence show that carefully implemented minimum wage increases lift incomes without the job destruction critics predict. The monopsony argument is compelling, and the distributional case is stronger than ever.',
+      authorId: admin.id,
+      publishedAt: new Date('2026-03-10'),
     }),
-    prisma.article.create({
-      data: {
-        title: 'Against a Higher Minimum Wage: The Economic Case',
-        slug: mwAgainstSlug,
-        content: minWageAgainstContent,
-        excerpt: 'A higher minimum wage is not the most efficient tool for reducing poverty. Better-targeted instruments exist, and the employment costs, especially for vulnerable workers and small businesses, are higher than advocates admit.',
-        authorId: writer.id,
-        categoryId: opinionCategory?.id ?? null,
-        status: 'PUBLISHED',
-        publishedAt: new Date('2026-03-10'),
-        isDebate: true,
-      },
+    upsertDebateArticle({
+      title: 'Against a Higher Minimum Wage: The Economic Case',
+      slug: 'against-higher-minimum-wage-economic-analysis',
+      content: minWageAgainstContent,
+      excerpt: 'A higher minimum wage is not the most efficient tool for reducing poverty. Better-targeted instruments exist, and the employment costs, especially for vulnerable workers and small businesses, are higher than advocates admit.',
+      authorId: writer.id,
+      publishedAt: new Date('2026-03-10'),
     }),
   ])
 
   const debate1 = await prisma.debate.upsert({
     where: { id: 'seed-debate-minwage' },
-    update: {},
+    update: { forArticleId: mwForArticle.id, againstArticleId: mwAgainstArticle.id },
     create: {
       id: 'seed-debate-minwage',
       title: 'Should the UK raise the minimum wage?',
@@ -218,41 +226,28 @@ async function main() {
 
   // ── Debate 2: AI Regulation ────────────────────────────────────────────────
 
-  const aiForSlug = await uniqueSlug('ai-regulation-economic-imperative')
-  const aiAgainstSlug = await uniqueSlug('against-ai-regulation-innovation-cost')
-
   const [aiForArticle, aiAgainstArticle] = await Promise.all([
-    prisma.article.create({
-      data: {
-        title: 'Regulating Artificial Intelligence: An Economic Imperative',
-        slug: aiForSlug,
-        content: aiRegForContent,
-        excerpt: 'AI generates textbook market failures: negative externalities, information asymmetries, and competitive concentration. The economic case for regulation is strong, and the window for effective action is narrowing.',
-        authorId: writer.id,
-        categoryId: opinionCategory?.id ?? null,
-        status: 'PUBLISHED',
-        publishedAt: new Date('2026-03-20'),
-        isDebate: true,
-      },
+    upsertDebateArticle({
+      title: 'Regulating Artificial Intelligence: An Economic Imperative',
+      slug: 'ai-regulation-economic-imperative',
+      content: aiRegForContent,
+      excerpt: 'AI generates textbook market failures: negative externalities, information asymmetries, and competitive concentration. The economic case for regulation is strong, and the window for effective action is narrowing.',
+      authorId: writer.id,
+      publishedAt: new Date('2026-03-20'),
     }),
-    prisma.article.create({
-      data: {
-        title: 'Against AI Regulation: The Innovation Cost We Cannot Afford',
-        slug: aiAgainstSlug,
-        content: aiRegAgainstContent,
-        excerpt: 'Premature AI regulation will entrench incumbents, drive research offshore, and fail to address actual harms. Existing laws are sufficient; targeted enforcement is better than new frameworks.',
-        authorId: admin.id,
-        categoryId: opinionCategory?.id ?? null,
-        status: 'PUBLISHED',
-        publishedAt: new Date('2026-03-20'),
-        isDebate: true,
-      },
+    upsertDebateArticle({
+      title: 'Against AI Regulation: The Innovation Cost We Cannot Afford',
+      slug: 'against-ai-regulation-innovation-cost',
+      content: aiRegAgainstContent,
+      excerpt: 'Premature AI regulation will entrench incumbents, drive research offshore, and fail to address actual harms. Existing laws are sufficient; targeted enforcement is better than new frameworks.',
+      authorId: admin.id,
+      publishedAt: new Date('2026-03-20'),
     }),
   ])
 
   const debate2 = await prisma.debate.upsert({
     where: { id: 'seed-debate-aireg' },
-    update: {},
+    update: { forArticleId: aiForArticle.id, againstArticleId: aiAgainstArticle.id },
     create: {
       id: 'seed-debate-aireg',
       title: 'Should AI be broadly regulated?',
@@ -268,41 +263,28 @@ async function main() {
 
   // ── Debate 3: Free Trade ───────────────────────────────────────────────────
 
-  const ftForSlug = await uniqueSlug('in-defence-of-free-trade')
-  const ftAgainstSlug = await uniqueSlug('limits-of-free-trade-orthodoxy')
-
   const [ftForArticle, ftAgainstArticle] = await Promise.all([
-    prisma.article.create({
-      data: {
-        title: 'In Defence of Free Trade',
-        slug: ftForSlug,
-        content: freeTradeForContent,
-        excerpt: 'The empirical case for free trade remains strong. Its distributional consequences require management, but the answer is redistribution policy, not protectionism.',
-        authorId: admin.id,
-        categoryId: opinionCategory?.id ?? null,
-        status: 'PUBLISHED',
-        publishedAt: new Date('2026-02-15'),
-        isDebate: true,
-      },
+    upsertDebateArticle({
+      title: 'In Defence of Free Trade',
+      slug: 'in-defence-of-free-trade',
+      content: freeTradeForContent,
+      excerpt: 'The empirical case for free trade remains strong. Its distributional consequences require management, but the answer is redistribution policy, not protectionism.',
+      authorId: admin.id,
+      publishedAt: new Date('2026-02-15'),
     }),
-    prisma.article.create({
-      data: {
-        title: 'The Limits of Free Trade Orthodoxy',
-        slug: ftAgainstSlug,
-        content: freeTradeAgainstContent,
-        excerpt: 'The China Shock literature, the pandemic supply chain crisis, and the political backlash against liberalisation all point to the same conclusion: free trade orthodoxy is incomplete.',
-        authorId: writer.id,
-        categoryId: opinionCategory?.id ?? null,
-        status: 'PUBLISHED',
-        publishedAt: new Date('2026-02-15'),
-        isDebate: true,
-      },
+    upsertDebateArticle({
+      title: 'The Limits of Free Trade Orthodoxy',
+      slug: 'limits-of-free-trade-orthodoxy',
+      content: freeTradeAgainstContent,
+      excerpt: 'The China Shock literature, the pandemic supply chain crisis, and the political backlash against liberalisation all point to the same conclusion: free trade orthodoxy is incomplete.',
+      authorId: writer.id,
+      publishedAt: new Date('2026-02-15'),
     }),
   ])
 
   const debate3 = await prisma.debate.upsert({
     where: { id: 'seed-debate-freetrade' },
-    update: {},
+    update: { forArticleId: ftForArticle.id, againstArticleId: ftAgainstArticle.id },
     create: {
       id: 'seed-debate-freetrade',
       title: 'Does free trade do more harm than good?',

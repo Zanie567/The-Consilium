@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail, articleSubmittedEmail } from '@/lib/email'
 import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
 import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
+import { revalidateArticleLists } from '@/lib/revalidateArticles'
 import { PUBLIC_AUTHOR_SELECT } from '@/lib/publicUser'
 import type { ArticleStatus } from '@prisma/client'
 
@@ -264,6 +265,12 @@ export async function PUT(
       })
     }
 
+    // A publish, unpublish, category move or any edit to a live article can
+    // change the public lists — refresh their cache immediately.
+    if (wasPublished || wasUnpublished || existing.status === 'PUBLISHED' || finalStatus === 'PUBLISHED') {
+      revalidateArticleLists()
+    }
+
     // Sync tags
     if (Array.isArray(tags)) {
       // Upsert each tag, then replace article's tag associations
@@ -339,6 +346,7 @@ export async function DELETE(
 
     // Soft delete - move to trash; permanently removed after 30 days by the cron job
     await prisma.article.update({ where: { id }, data: { deletedAt: new Date() } })
+    if (existing.status === 'PUBLISHED') revalidateArticleLists()
     return NextResponse.json({ success: true })
   } catch {
     return NextResponse.json({ error: 'Failed to delete article' }, { status: 500 })

@@ -102,8 +102,12 @@ export default async function EditorialDashboard() {
             .then((r) => r._sum.viewCount ?? 0)
         : Promise.resolve(0),
 
+      // Single source of truth: total registered accounts — the same number the
+      // "Users" card links to on /editorial/users (GET /api/admin/stats → total).
+      // Previously this counted only ADMIN/EDITOR/WRITER, so the dashboard showed
+      // "7" while the users page showed "12" for the same data (Priority 4).
       isEditor
-        ? prisma.user.count({ where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] } } })
+        ? prisma.user.count()
         : Promise.resolve(0),
     ]).catch((err) => {
       console.error('[editorial/dashboard] DB error:', err)
