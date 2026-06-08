@@ -365,7 +365,10 @@ export default async function HomePage({
               </StaggerItem>
             ))}
           </StaggerContainer>
-        ) : (
+        ) : !showHero || heroExcludedArticles.length === 0 ? (
+          // Only an empty-state message when nothing is actually on screen. On the
+          // "All" view the hero + side column may already be showing published
+          // articles while the grid remainder is empty — don't claim there are none.
           <AnimateIn variant="fade-in">
             <div className="py-20 text-center">
               <p className="text-[var(--fg-faint)] text-xs uppercase tracking-widest">
@@ -375,7 +378,7 @@ export default async function HomePage({
               </p>
             </div>
           </AnimateIn>
-        )}
+        ) : null}
 
         {/* View all */}
         {articles.length >= 16 && (

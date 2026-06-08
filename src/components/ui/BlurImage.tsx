@@ -33,6 +33,10 @@ export function BlurImage({ src, alt, fill, className = '', priority, sizes }: B
   // opaque — leaving the hero looking like a blank box. Check `complete` on mount
   // (and after src changes) to clear the overlay in that race.
   useEffect(() => {
+    // Reset for the new src first (a reused instance would otherwise keep the
+    // previous image's `loaded`), then clear the overlay immediately if the new
+    // image is already cached. Normal loads still resolve via onLoad below.
+    setLoaded(false)
     if (imgRef.current?.complete) setLoaded(true)
   }, [src])
 
