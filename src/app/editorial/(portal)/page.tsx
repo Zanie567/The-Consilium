@@ -102,10 +102,10 @@ export default async function EditorialDashboard() {
             .then((r) => r._sum.viewCount ?? 0)
         : Promise.resolve(0),
 
-      // Total registered users — matches the "Total Users" figure on the User
-      // Management page (/editorial/users) that this card links to. Previously this
-      // counted only ADMIN/EDITOR/WRITER, so the dashboard ("7") disagreed with the
-      // management page ("11").
+      // Single source of truth: total registered accounts — the same number the
+      // "Users" card links to on /editorial/users (GET /api/admin/stats → total).
+      // Previously this counted only ADMIN/EDITOR/WRITER, so the dashboard showed
+      // "7" while the users page showed "12" for the same data (Priority 4).
       isEditor
         ? prisma.user.count()
         : Promise.resolve(0),

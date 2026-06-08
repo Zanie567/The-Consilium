@@ -33,8 +33,9 @@ export default function CommentsPage() {
   const [comments, setComments] = useState<CommentRow[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(0)
-  const [stats, setStats] = useState<Stats>({ total: 0, reported: 0, hidden: 0 })
+  const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const PER_PAGE = 30
 
   useEffect(() => {
@@ -45,14 +46,21 @@ export default function CommentsPage() {
 
   const fetchComments = useCallback(async () => {
     setLoading(true)
-    const res = await fetch(`/api/editorial/comments?tab=${tab}&page=${page}`)
-    if (res.ok) {
+    setError(false)
+    try {
+      const res = await fetch(`/api/editorial/comments?tab=${tab}&page=${page}`)
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`)
       const json = await res.json()
       setComments(json.comments)
       setTotal(json.total)
       setStats(json.stats)
+    } catch {
+      // Surface the failure instead of silently showing "0 total comments",
+      // which made a transient API error look like an empty comments table.
+      setError(true)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [tab, page])
 
   useEffect(() => { fetchComments() }, [fetchComments])
@@ -80,12 +88,19 @@ export default function CommentsPage() {
         </h1>
       </div>
 
+      {/* Surface load failures instead of silently rendering "0 total comments" */}
+      {error && (
+        <div className="mb-6 bg-red-500/10 border border-red-500/20 px-5 py-4 text-red-600 dark:text-red-400 text-sm">
+          Comment data could not be loaded. This is usually a temporary issue — please refresh.
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
         {[
-          { label: 'Total Comments', value: stats.total },
-          { label: 'Reported', value: stats.reported, warn: stats.reported > 0 },
-          { label: 'Hidden', value: stats.hidden },
+          { label: 'Total Comments', value: stats?.total, warn: false },
+          { label: 'Reported', value: stats?.reported, warn: (stats?.reported ?? 0) > 0 },
+          { label: 'Hidden', value: stats?.hidden, warn: false },
         ].map((s) => (
           <div
             key={s.label}
@@ -98,7 +113,7 @@ export default function CommentsPage() {
               className={`text-2xl font-bold ${s.warn ? 'text-red-500' : 'text-[var(--fg)]'}`}
               style={{ fontFamily: 'var(--font-serif)' }}
             >
-              {s.value.toLocaleString()}
+              {s.value === undefined ? '—' : s.value.toLocaleString()}
             </p>
           </div>
         ))}
@@ -116,7 +131,7 @@ export default function CommentsPage() {
                 : 'text-[var(--fg-faint)] border-transparent hover:text-[var(--fg)]'
             }`}
           >
-            {t === 'reported' ? `Reported (${stats.reported})` : t === 'hidden' ? `Hidden (${stats.hidden})` : 'Recent'}
+            {t === 'reported' ? `Reported (${stats?.reported ?? 0})` : t === 'hidden' ? `Hidden (${stats?.hidden ?? 0})` : 'Recent'}
           </button>
         ))}
       </div>

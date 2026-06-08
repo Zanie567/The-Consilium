@@ -5,6 +5,12 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
 import { PlusCircle } from 'lucide-react'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Debates | Editorial',
+  robots: { index: false, follow: false },
+}
 
 export const dynamic = 'force-dynamic'
 
