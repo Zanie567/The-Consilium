@@ -18,6 +18,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration/data-layer.test.ts",
+    "test:e2e": "playwright test",
+    "test:setup-db": "bash scripts/setup-test-db.sh",
+    "db:dedupe": "ts-node -P tsconfig.seed.json prisma/dedupe-articles.ts",
+    "db:seed-test": "ts-node -P tsconfig.seed.json prisma/seed-test-fixtures.ts",
     "audit:dead": "knip",
     "audit:dup": "jscpd src",
     "audit:types": "type-coverage --strict",
@@ -64,6 +70,7 @@
     "swr": "^2.4.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@prisma/config": "^7.8.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

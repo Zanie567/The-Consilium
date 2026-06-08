@@ -117,6 +117,14 @@ export function SeriesManager({ initialSeries, articles }: Props) {
       )}
 
       <div className="space-y-3">
+        {series.length === 0 && (
+          <div className="text-center py-16 border border-dashed border-[var(--border)]">
+            <p className="text-[var(--fg)] text-sm font-semibold mb-1">No series yet</p>
+            <p className="text-[var(--fg-faint)] text-sm">
+              Create a series above to group related articles into an ordered collection.
+            </p>
+          </div>
+        )}
         {series.map((s) => (
           <div key={s.id} className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden">
             <button

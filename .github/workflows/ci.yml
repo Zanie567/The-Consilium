@@ -67,3 +67,79 @@ jobs:
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci_dummy_anon_key
+
+  # End-to-end gate: seeds a real Postgres, builds, and runs the Playwright suite.
+  # A failing e2e test, a console error on any page, or any internal URL returning
+  # >= 400 (including ?_rsc= prefetch requests) fails this job and blocks merge.
+  e2e:
+    name: E2E (Playwright), data-layer & network checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: consilium
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/consilium
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/consilium
+      NEXTAUTH_SECRET: ci_dummy_secret_not_used_at_runtime
+      NEXTAUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci_dummy_anon_key
+      SUPABASE_ANON_KEY: ci_dummy_anon_key
+      SUPABASE_SERVICE_ROLE_KEY: ci_dummy_service_key
+      RESEND_API_KEY: re_ci_dummy
+      CRON_SECRET: ci_cron_secret
+      ADMIN_EMAILS: admin@theconsilium.com
+      USE_EXISTING_DB: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set up & seed test database
+        run: npm run test:setup-db
+
+      - name: Unit + integration tests (vitest, against seeded DB)
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E (console-error checks + network-status crawl + UI assertions)
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

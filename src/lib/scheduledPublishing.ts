@@ -1,6 +1,7 @@
 import { articlePublishedEmail, sendEmail } from '@/lib/email'
 import { prisma } from '@/lib/prisma'
 import { awardPublishAchievements } from '@/lib/gamification/achievements'
+import { revalidateArticleLists } from '@/lib/revalidateArticles'
 
 interface ScheduledPublishArticleResult {
   id: string
@@ -130,6 +131,9 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
   } catch {
     // Never let purge failure block publishing results
   }
+
+  // Newly-published or purged articles change the public lists — refresh cache.
+  if (published.length > 0 || purged > 0) revalidateArticleLists()
 
   return {
     ranAt: now.toISOString(),

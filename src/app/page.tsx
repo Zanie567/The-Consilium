@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import { cookies } from 'next/headers'
+import { unstable_cache } from 'next/cache'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
+import { publishedArticleWhere, ARTICLES_CACHE_TAG, ARTICLES_REVALIDATE_SECONDS } from '@/lib/articleQueries'
 import { authOptions } from '@/lib/auth'
 import { ClientDate } from '@/components/ui/ClientDate'
 import { NewsletterSignup } from '@/components/ui/NewsletterSignup'
@@ -19,26 +21,35 @@ import { SITE_NAME, SITE_URL } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
-async function getFeaturedArticle() {
+// The page stays dynamic (it reads the session/cookies for the personalised
+// debate panel), but every NON-personalised list below is wrapped in the Next
+// data cache. A burst of RSC navigations therefore renders from cache instead
+// of firing six Postgres queries per request — the root cause of the 503s when
+// the serverless pool is pinned to one connection (Priority 2).
+const PUBLIC_LIST_CACHE = { revalidate: ARTICLES_REVALIDATE_SECONDS, tags: [ARTICLES_CACHE_TAG] }
+
+const getFeaturedArticle = unstable_cache(async () => {
   try {
-    // First try explicitly featured, then fall back to most recent published
-    // Debate articles are excluded - they live on /opinion-debate
+    // First try explicitly featured, then fall back to most recent published.
+    // The single oversized hero slot intentionally skips debate articles
+    // (one side of a two-sided debate is a poor standalone lead) — they still
+    // appear in the grid below and on their category page.
     const featured = await prisma.article.findFirst({
-      where: { status: 'PUBLISHED', isFeatured: true, isDebate: false, deletedAt: null },
+      where: publishedArticleWhere({ isFeatured: true, isDebate: false }),
       include: { author: true, category: true },
     })
     if (featured) return featured
     return await prisma.article.findFirst({
-      where: { status: 'PUBLISHED', isDebate: false, deletedAt: null },
+      where: publishedArticleWhere({ isDebate: false }),
       orderBy: { publishedAt: 'desc' },
       include: { author: true, category: true },
     })
   } catch {
     return null
   }
-}
+}, ['home-featured'], PUBLIC_LIST_CACHE)
 
-async function getMostReadArticles() {
+const getMostReadArticles = unstable_cache(async () => {
   try {
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     const topIds = await prisma.articleView.groupBy({
@@ -50,7 +61,7 @@ async function getMostReadArticles() {
     })
     if (topIds.length === 0) {
       return prisma.article.findMany({
-        where: { status: 'PUBLISHED', isDebate: false, deletedAt: null },
+        where: publishedArticleWhere(),
         orderBy: { viewCount: 'desc' },
         take: 5,
         select: { id: true, title: true, slug: true, viewCount: true, author: { select: { name: true } }, category: { select: { name: true } } },
@@ -58,7 +69,7 @@ async function getMostReadArticles() {
     }
     const ids = topIds.map((r) => r.articleId)
     const articles = await prisma.article.findMany({
-      where: { id: { in: ids }, status: 'PUBLISHED', isDebate: false, deletedAt: null },
+      where: publishedArticleWhere({ id: { in: ids } }),
       select: { id: true, title: true, slug: true, viewCount: true, author: { select: { name: true } }, category: { select: { name: true } } },
     })
     // Sort by weekly views order
@@ -66,17 +77,15 @@ async function getMostReadArticles() {
   } catch {
     return []
   }
-}
+}, ['home-most-read'], PUBLIC_LIST_CACHE)
 
-async function getArticles(categorySlug?: string) {
+const getArticles = unstable_cache(async (categorySlug?: string) => {
   try {
     return await prisma.article.findMany({
-      where: {
-        status: 'PUBLISHED',
-        isDebate: false,
-        deletedAt: null,
-        ...(categorySlug ? { category: { slug: categorySlug } } : {}),
-      },
+      // Grid mirrors the category pages: all published articles, debates included.
+      where: publishedArticleWhere(
+        categorySlug ? { category: { slug: categorySlug } } : undefined,
+      ),
       orderBy: { publishedAt: 'desc' },
       take: 16,
       include: { author: true, category: true },
@@ -84,15 +93,15 @@ async function getArticles(categorySlug?: string) {
   } catch {
     return []
   }
-}
+}, ['home-grid'], PUBLIC_LIST_CACHE)
 
-async function getCategories() {
+const getCategories = unstable_cache(async () => {
   try {
     return await prisma.category.findMany({ orderBy: { name: 'asc' } })
   } catch {
     return []
   }
-}
+}, ['home-categories'], PUBLIC_LIST_CACHE)
 
 function estimateReadTime(content: string): string {
   try {
@@ -170,7 +179,7 @@ async function getActiveDebate(userId?: string, anonymousId?: string): Promise<D
   }
 }
 
-async function getTrendingTags() {
+const getTrendingTags = unstable_cache(async () => {
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     // Get tags on articles published in the last 30 days, ordered by view count
@@ -205,7 +214,7 @@ async function getTrendingTags() {
   } catch {
     return []
   }
-}
+}, ['home-trending-tags'], PUBLIC_LIST_CACHE)
 
 // Title is inherited from layout's default value.
 // Do not set a title here so the template does not double-wrap it.

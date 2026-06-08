@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
+import { publishedArticleWhere } from '@/lib/articleQueries'
 import { format } from 'date-fns'
 import type { Metadata } from 'next'
 import { AnimateIn } from '@/components/ui/AnimateIn'
@@ -17,10 +18,8 @@ interface Props {
 async function getArticles(q?: string, categorySlug?: string) {
   try {
     return await prisma.article.findMany({
-      where: {
-        status: 'PUBLISHED',
-        isDebate: false,
-        deletedAt: null,
+      // "View all" — the complete published set, debates included.
+      where: publishedArticleWhere({
         ...(q
           ? {
               OR: [
@@ -30,7 +29,7 @@ async function getArticles(q?: string, categorySlug?: string) {
             }
           : {}),
         ...(categorySlug ? { category: { slug: categorySlug } } : {}),
-      },
+      }),
       orderBy: { publishedAt: 'desc' },
       include: { author: true, category: true },
     })

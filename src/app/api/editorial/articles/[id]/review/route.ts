@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail, articleReturnedEmail, articlePublishedEmail } from '@/lib/email'
 import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
 import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
+import { revalidateArticleLists } from '@/lib/revalidateArticles'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -101,6 +102,7 @@ export async function PATCH(req: Request, { params }: Props) {
       }
       // No notification needed for correction notes
       const updated = await prisma.article.update({ where: { id }, data: updates })
+      revalidateArticleLists() // correction edits a live article
       return NextResponse.json(updated)
     }
     default:
@@ -108,6 +110,10 @@ export async function PATCH(req: Request, { params }: Props) {
   }
 
   const updated = await prisma.article.update({ where: { id }, data: updates })
+
+  // Approving publishes the article (and the other review actions move it
+  // between draft/scheduled states) — refresh the public list cache.
+  revalidateArticleLists()
 
   // Create in-app notification for the writer
   await prisma.notification.create({
