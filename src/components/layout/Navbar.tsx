@@ -120,7 +120,7 @@ export function Navbar() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-10" aria-label="Main navigation">
+          <nav className="hidden lg:flex items-center gap-6 xl:gap-8" aria-label="Main navigation">
             {navLinks.map((link) => (
               <NavLink
                 key={link.href}
@@ -132,7 +132,7 @@ export function Navbar() {
           </nav>
 
           {/* Desktop right actions */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-3 shrink-0">
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search"
@@ -188,8 +188,8 @@ export function Navbar() {
             )}
           </div>
 
-          {/* Mobile: search + theme + hamburger */}
-          <div className="md:hidden flex items-center gap-1">
+          {/* Mobile/tablet: search + theme + hamburger */}
+          <div className="lg:hidden flex items-center gap-1">
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search"
@@ -272,7 +272,7 @@ export function Navbar() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
-              className="md:hidden fixed inset-0 z-[55] bg-navy/60 backdrop-blur-sm"
+              className="lg:hidden fixed inset-0 z-[55] bg-navy/60 backdrop-blur-sm"
               aria-hidden
               onClick={() => setMobileOpen(false)}
             />
@@ -285,7 +285,7 @@ export function Navbar() {
               animate={{ x: 0 }}
               exit={prefersReducedMotion ? undefined : { x: '100%' }}
               transition={{ type: 'spring', stiffness: 300, damping: 35 }}
-              className="md:hidden fixed top-0 right-0 bottom-0 w-72 z-[60] bg-navy border-l border-gold/25 shadow-[-16px_0_40px_rgba(0,0,0,0.45)] overflow-y-auto flex flex-col"
+              className="lg:hidden fixed top-0 right-0 bottom-0 w-72 z-[60] bg-navy border-l border-gold/25 shadow-[-16px_0_40px_rgba(0,0,0,0.45)] overflow-y-auto flex flex-col"
             >
               {/* Drawer header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">

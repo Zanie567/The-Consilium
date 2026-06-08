@@ -113,11 +113,22 @@ async function getRelatedArticles(
       return { article: c, score }
     })
 
-    return scored
-      .filter((s) => s.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3)
-      .map((s) => s.article)
+    // Rank by score, then top up with the most recent remaining candidates so the
+    // row always shows up to 3 articles even when few share keywords/category.
+    const ranked = scored.sort((a, b) => b.score - a.score).map((s) => s.article)
+
+    // De-duplicate by id and defensively exclude the current article. A single
+    // findMany cannot return duplicates, but this guards against any future change
+    // (e.g. a join-based query) re-introducing them.
+    const seen = new Set<string>([currentId])
+    const unique: typeof candidates = []
+    for (const article of ranked) {
+      if (seen.has(article.id)) continue
+      seen.add(article.id)
+      unique.push(article)
+      if (unique.length === 3) break
+    }
+    return unique
   } catch { return [] }
 }
 
@@ -341,7 +352,7 @@ export default async function ArticlePage({ params }: Props) {
 
       {/* Cover Image */}
       {article.coverImage && (
-        <div className="relative h-[260px] md:h-[480px] w-full overflow-hidden no-print">
+        <div className="relative h-[260px] md:h-[480px] w-full overflow-hidden bg-navy/10 dark:bg-navy/20 no-print">
           <BlurImage
             src={article.coverImage}
             alt={article.title}

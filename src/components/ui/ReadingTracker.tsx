@@ -37,6 +37,15 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
   const lastSaved = useRef(0)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasScrolled = useRef(false)
+  // Mirror of the banner's saved scroll position so the scroll handler (whose
+  // closure is created once) can compare against it without being re-bound.
+  // Null when no banner is showing.
+  const restoreScrollY = useRef<number | null>(null)
+
+  const dismissBanner = useCallback(() => {
+    restoreScrollY.current = null
+    setRestoreBanner(null)
+  }, [])
 
   // ── Progress bar tracking ─────────────────────────────────────────────────
   const getProgress = useCallback(() => {
@@ -66,6 +75,13 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
       rawProgress.set(pct / 100)
       hasScrolled.current = true
 
+      // Once the reader scrolls past their saved position the "continue where you
+      // left off" banner is no longer useful, so dismiss it automatically. A small
+      // buffer avoids dismissing it the instant the page settles at the top.
+      if (restoreScrollY.current !== null && window.scrollY > restoreScrollY.current + 50) {
+        dismissBanner()
+      }
+
       const now = Date.now()
       if (now - lastSaved.current > 4000) {
         lastSaved.current = now
@@ -84,7 +100,7 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
       window.removeEventListener('scroll', onScroll)
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
-  }, [getProgress, persist, rawProgress])
+  }, [getProgress, persist, rawProgress, dismissBanner])
 
   // ── Load saved position on mount ──────────────────────────────────────────
   useEffect(() => {
@@ -93,6 +109,10 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
     const tryRestore = (saved: SavedProgress | null) => {
       if (cancelled) return
       if (saved && saved.progress > 5 && saved.scrollY > 200) {
+        // If the page was reloaded already scrolled past the saved spot, the banner
+        // is irrelevant — don't show it at all.
+        if (window.scrollY > saved.scrollY + 50) return
+        restoreScrollY.current = saved.scrollY
         setRestoreBanner(saved)
         // Guest nudge: show upgrade prompt once per session if not logged in
         if (!session?.user?.id) {
@@ -122,7 +142,7 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
 
   const scrollToSaved = (scrollY: number) => {
     window.scrollTo({ top: scrollY, behavior: 'smooth' })
-    setRestoreBanner(null)
+    dismissBanner()
   }
 
   return (
@@ -160,7 +180,7 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
                 Jump back
               </button>
               <button
-                onClick={() => setRestoreBanner(null)}
+                onClick={dismissBanner}
                 aria-label="Dismiss"
                 className="text-cream/40 hover:text-cream transition-colors"
               >

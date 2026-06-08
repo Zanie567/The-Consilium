@@ -322,14 +322,16 @@ export function AdminUsersPage({ currentAdminId }: Props) {
 
   // Panel
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [statsError, setStatsError] = useState(false)
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const loadStats = () => {
+    setStatsError(false)
     fetch('/api/admin/stats')
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('stats fetch failed'))))
       .then((d) => setStats(d))
-      .catch(() => {})
+      .catch(() => setStatsError(true))
   }
 
   const loadUsers = useCallback(() => {
@@ -371,13 +373,35 @@ export function AdminUsersPage({ currentAdminId }: Props) {
 
   return (
     <div>
-      {/* Stats bar */}
-      {stats && (
+      {/* Stats bar: real counts, an error fallback, or skeletons while loading.
+          statsError prevents the skeleton from pulsing forever when the fetch fails. */}
+      {statsError ? (
+        <div className="mb-6 sm:mb-8 bg-[var(--bg-elevated)] border border-[var(--border)] px-5 py-4 flex items-center justify-between gap-4">
+          <p className="text-[var(--fg-muted)] text-sm">Couldn’t load user statistics.</p>
+          <button
+            onClick={loadStats}
+            className="text-gold text-xs font-bold uppercase tracking-widest hover:underline shrink-0"
+          >
+            Retry
+          </button>
+        </div>
+      ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-          <StatCard icon={<Users size={16} />}    value={stats.total}          label="Total Users" />
-          <StatCard icon={<Activity size={16} />} value={stats.activeThisWeek} label="Active This Week" />
-          <StatCard icon={<Ban size={16} />}       value={stats.banned}         label="Banned" />
-          <StatCard icon={<BookOpen size={16} />} value={stats.staffCount}     label="Writers & Above" />
+          {stats ? (
+            <>
+              <StatCard icon={<Users size={16} />}    value={stats.total}          label="Total Users" />
+              <StatCard icon={<Activity size={16} />} value={stats.activeThisWeek} label="Active This Week" />
+              <StatCard icon={<Ban size={16} />}       value={stats.banned}         label="Banned" />
+              <StatCard icon={<BookOpen size={16} />} value={stats.staffCount}     label="Writers & Above" />
+            </>
+          ) : (
+            [0, 1, 2, 3].map((i) => (
+              <div key={i} className="bg-[var(--bg-elevated)] border border-[var(--border)] p-5 animate-pulse">
+                <div className="h-3 w-24 bg-[var(--border)] rounded mb-3" />
+                <div className="h-8 w-16 bg-[var(--border)] rounded" />
+              </div>
+            ))
+          )}
         </div>
       )}
 

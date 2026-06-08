@@ -253,12 +253,21 @@ export default async function HomePage({
     getActiveDebate(session?.user?.id, anonymousId),
   ])
 
-  const allGridArticles = featured
-    ? articles.filter((a) => a.id !== featured.id)
+  // The masthead hero (featured + side column) is only shown on the unfiltered
+  // "All" view. On a category-filtered view it must NOT be rendered, otherwise it
+  // would (a) show the global featured article that may not belong to the category
+  // and (b) consume the first five matching articles into its side column, leaving
+  // the grid below empty — which surfaced as "No articles in this category yet"
+  // even though matching articles existed.
+  const showHero = !categorySlug && !!featured
+  const heroExcludedArticles = showHero
+    ? articles.filter((a) => a.id !== featured!.id)
     : articles
-  // First 5 are shown in the hero side column; the main grid starts after them
-  const heroSideArticles = allGridArticles.slice(0, 5)
-  const articleGrid = allGridArticles.slice(5)
+  // On the hero view the first 5 fill the hero side column and the grid starts
+  // after them. On a category view there is no hero, so every matching article is
+  // shown in the grid.
+  const heroSideArticles = showHero ? heroExcludedArticles.slice(0, 5) : []
+  const articleGrid = showHero ? heroExcludedArticles.slice(5) : heroExcludedArticles
   const websiteStructuredData = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
@@ -328,9 +337,12 @@ export default async function HomePage({
       <EconomicTicker />
 
       {/* ── Hero Section (full-width, outside the constrained container) ──── */}
-      {featured ? (
-        <HeroSection featured={featured} sideArticles={heroSideArticles} />
-      ) : (
+      {/* Only rendered on the unfiltered "All" view. The empty-state placeholder
+          below is likewise only for that view; category views show their own empty
+          state inside the grid section. */}
+      {showHero ? (
+        <HeroSection featured={featured!} sideArticles={heroSideArticles} />
+      ) : !categorySlug ? (
         <AnimateIn variant="fade-up">
           <div className="py-20 text-center border-b border-dashed border-[var(--border)]">
             <p
@@ -344,7 +356,7 @@ export default async function HomePage({
             </p>
           </div>
         </AnimateIn>
-      )}
+      ) : null}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
@@ -362,7 +374,10 @@ export default async function HomePage({
               </StaggerItem>
             ))}
           </StaggerContainer>
-        ) : (
+        ) : !showHero || heroExcludedArticles.length === 0 ? (
+          // Only an empty-state message when nothing is actually on screen. On the
+          // "All" view the hero + side column may already be showing published
+          // articles while the grid remainder is empty — don't claim there are none.
           <AnimateIn variant="fade-in">
             <div className="py-20 text-center">
               <p className="text-[var(--fg-faint)] text-xs uppercase tracking-widest">
@@ -372,7 +387,7 @@ export default async function HomePage({
               </p>
             </div>
           </AnimateIn>
-        )}
+        ) : null}
 
         {/* View all */}
         {articles.length >= 16 && (
