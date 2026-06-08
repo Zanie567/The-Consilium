@@ -82,9 +82,15 @@ const getMostReadArticles = unstable_cache(async () => {
 const getArticles = unstable_cache(async (categorySlug?: string) => {
   try {
     return await prisma.article.findMany({
-      // Grid mirrors the category pages: all published articles, debates included.
+      // Homepage hero side column + grid: published articles EXCLUDING debates.
+      // Debate articles are surfaced on the homepage only through the dedicated
+      // DebatePanel (and the /opinion-debate experience); listing each side again
+      // in the general "all articles" feed was redundant and read as duplicates.
+      // They still appear on their category page and in the archive.
       where: publishedArticleWhere(
-        categorySlug ? { category: { slug: categorySlug } } : undefined,
+        categorySlug
+          ? { isDebate: false, category: { slug: categorySlug } }
+          : { isDebate: false },
       ),
       orderBy: { publishedAt: 'desc' },
       take: 16,

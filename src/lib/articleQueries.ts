@@ -26,14 +26,16 @@ export const ARTICLES_REVALIDATE_SECONDS = 30
  *
  * IMPORTANT — debate articles:
  *   Debate articles (`isDebate: true`) are ordinary published articles that
- *   belong to a category. They MUST appear on their category page, the archive
- *   and the homepage grid, in addition to the dedicated /opinion-debate
- *   experience. They are therefore NOT excluded here. The only place a debate
- *   article is intentionally suppressed is the single oversized "featured" hero
- *   slot on the homepage (one side of a two-sided debate makes a poor lead),
- *   and that caller opts out explicitly via `publishedArticleWhere({ isDebate: false })`.
- *   Excluding debates from category listings was the launch-blocker bug
- *   (Priority 1): /category/opinion showed 1 of 7 published articles.
+ *   belong to a category. They MUST still appear on their category page and in
+ *   the archive — excluding them from category listings was the launch-blocker
+ *   bug (Priority 1): /category/opinion showed 1 of 7 published articles. They
+ *   are therefore NOT excluded in this shared helper.
+ *   The homepage is the deliberate exception: both the oversized "featured" hero
+ *   slot AND the general article feed (hero side column + grid) opt out via
+ *   `publishedArticleWhere({ isDebate: false })`, because the homepage already
+ *   surfaces the live debate through its dedicated DebatePanel and the
+ *   /opinion-debate experience — listing each side again in the feed was
+ *   redundant and read as duplicate cards.
  */
 export const PUBLISHED_ARTICLE_WHERE = {
   status: 'PUBLISHED',
