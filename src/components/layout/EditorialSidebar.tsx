@@ -4,7 +4,9 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { CALENDAR_ACCESS_ROLES, isAllowedRole } from '@/lib/rbac'
 import {
+  CalendarDays,
   LayoutDashboard,
   FileText,
   PlusCircle,
@@ -108,6 +110,7 @@ export function EditorialSidebar({
             { href: '/editorial/articles/new', icon: PlusCircle, label: 'New Article', exact: true, show: true },
             { href: '/editorial/series', icon: BookOpen, label: 'Article Series', show: isEditor },
             { href: '/editorial/scheduled', icon: Clock, label: 'Scheduled', show: isEditor },
+            { href: '/editorial/calendar', icon: CalendarDays, label: 'Calendar', show: isAllowedRole(user.role, CALENDAR_ACCESS_ROLES) },
             { href: '/editorial/trash', icon: Trash2, label: 'Trash', exact: true, show: isEditor, badge: trashCount > 0 ? trashCount : undefined },
           ],
         },

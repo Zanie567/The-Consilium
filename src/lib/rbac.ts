@@ -7,6 +7,9 @@ export const ARTICLE_MUTATION_ROLES = ['ADMIN', 'EDITOR', 'WRITER'] as const sat
 export const ANALYTICS_ACCESS_ROLES = ['ADMIN', 'GROWTH'] as const satisfies readonly Role[]
 export const EDITORIAL_PORTAL_ROLES = ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH'] as const satisfies readonly Role[]
 export const EDITOR_USER_TARGET_ROLES = ['WRITER', 'READER'] as const satisfies readonly Role[]
+// Who can see the editorial calendar (nav link, page, and API all read this).
+// To open the calendar to editors later, add 'EDITOR' here and nothing else.
+export const CALENDAR_ACCESS_ROLES = ['ADMIN'] as const satisfies readonly Role[]
 
 export function isRole(value: unknown): value is Role {
   return typeof value === 'string' && (ALL_ROLES as readonly string[]).includes(value)
