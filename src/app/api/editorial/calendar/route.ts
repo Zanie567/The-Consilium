@@ -18,14 +18,19 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  let body: { articleId?: unknown; date?: unknown }
+  let parsed: unknown
   try {
-    body = await req.json()
+    parsed = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
+  // req.json() resolves for any valid JSON, including null, "x", or [].
+  // Destructuring null throws, so require a plain object before reading fields.
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
+  }
 
-  const { articleId, date } = body
+  const { articleId, date } = parsed as { articleId?: unknown; date?: unknown }
   if (typeof articleId !== 'string' || !articleId) {
     return NextResponse.json({ error: 'articleId is required.' }, { status: 400 })
   }
@@ -58,14 +63,28 @@ export async function PATCH(req: Request) {
     )
   }
 
-  const updated = await prisma.article.update({
-    where: { id: article.id },
+  // Compare-and-set: only write if the article is still the scheduled article
+  // the move was computed from. A concurrent publish, delete, or reschedule
+  // (for example the publish cron firing) makes this a no-op instead of
+  // overwriting the newer state with a time based on a stale read.
+  const { count } = await prisma.article.updateMany({
+    where: {
+      id: article.id,
+      status: 'SCHEDULED',
+      deletedAt: null,
+      scheduledAt: article.scheduledAt,
+    },
     data: { scheduledAt: nextScheduledAt },
-    select: { id: true, scheduledAt: true },
   })
+  if (count === 0) {
+    return NextResponse.json(
+      { error: 'The article changed while you were moving it. Refresh the calendar and try again.' },
+      { status: 409 },
+    )
+  }
 
   return NextResponse.json({
-    id: updated.id,
-    scheduledAt: updated.scheduledAt?.toISOString() ?? null,
+    id: article.id,
+    scheduledAt: nextScheduledAt.toISOString(),
   })
 }
