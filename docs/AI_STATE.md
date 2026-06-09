@@ -164,6 +164,52 @@ Review pass (CodeRabbit on PR #71):
 
 ## Recent Sessions
 
+### 2026-06-09: Policy copy edits — Corrections and Privacy (`claude/policy-copy-edit`)
+
+Copy-only task on two pages: remove sentences that read as AI-generated or
+marketing filler and replace them with plain, declarative policy statements. No
+layout, component, or structural changes; only the flagged sentences were
+touched. British spelling; no em/en dashes introduced. PR #86.
+
+**What changed:**
+- `src/app/corrections/page.tsx`:
+  1. Lede 2nd sentence: "we say so: clearly, promptly, and without qualification"
+     → "we correct it promptly and say what changed" (rule-of-three tricolon cut).
+  2. "Corrections are not embarrassments to be buried… We are committed to the
+     former." → "We do so openly: we do not quietly revise copy or leave a known
+     error to stand." (emotional framing / balanced antithesis removed).
+  3. Metadata description: dropped "The Consilium is committed to accuracy."
+  4. Section heading "Our commitment to accuracy" → "Accuracy".
+  5. Removed filler "simply" from "we will not issue a correction simply because…".
+- `src/app/privacy/page.tsx`:
+  6. Lede: dropped "We believe… without legal jargon" → plain scope statement
+     ("This policy sets out what data we collect, why we collect it, how long we
+     keep it, and what rights you have over it.").
+  7. Cookies: "We use cookies to improve your experience." → "We use a small
+     number of cookies."
+  8. Removed empty adjective "secure" before "PostgreSQL database".
+  9. "reputable providers with their own privacy commitments…" → "Each operates
+     under its own privacy policy and, where applicable, UK GDPR."
+- "We do not sell your data to anyone, ever." left unchanged, per instruction.
+
+**Dash sweep (both files, full):** no em dash (U+2014), no en dash (U+2013), no
+other dash-like Unicode. The only `--` occurrences are CSS custom-property
+references in JSX (`var(--bg)` etc.) — code, not copy — and were left untouched.
+No dashes in reader-facing copy, so none needed resolving.
+
+**Schema changes:** None.
+
+**New environment variables:** None.
+
+**Architectural decisions:** None.
+
+**Issues introduced:** None. `npx tsc --noEmit` clean (exit 0); `npm run build`
+clean (exit 0, "Compiled successfully"; `/corrections` and `/privacy` prerender
+static). This worktree was missing two already-declared deps (`@playwright/test`,
+`sanitize-html`) and a build-time `.env`; `npm install` and a gitignored local
+`.env.local` were used only to run the gate. No `package.json`, lockfile, or
+committed-env changes are in the PR.
+
 ### 2026-06-05: Sign-out reliability and EDITOR role over-privilege (`consilium/fix-signout-and-editor-ui`)
 
 **What changed:**
@@ -459,6 +505,7 @@ entry above and must be applied before the commissioning brief feature will work
 
 | PR | Branch | Status | Notes |
 |----|--------|--------|-------|
+| copy: tighten Corrections and Privacy policy prose (#86) | `claude/policy-copy-edit` | Open, awaiting review | Copy-only edits to two policy pages (9 string changes) + this AI_STATE log. No schema changes, no new env vars, no structural changes. Safe to merge immediately. |
 | fix: sign-out reliability and EDITOR role over-privilege | `consilium/fix-signout-and-editor-ui` | Open, awaiting review | No schema changes, no new env vars. Safe to merge immediately. |
 | feat: writer performance system - streaks, engagement scores, commendations, achievements, commissioning brief | `claude/writer-performance-system` | Open, awaiting review | Do not merge. Run two SQL statements in Supabase first: the `site_settings` CREATE TABLE (commissioning brief) and the `writer_streaks.intervalWeeks` ALTER TABLE (streak cadence). Both are in the verification reports above. `CRON_SECRET` reused (no new value). |
 | feat: writer gamification system - streaks, engagement scores, commendations, milestones (#71) | `claude/writer-gamification` | Merged (commit 373652f) | Superseded by the performance-system branch above. |
