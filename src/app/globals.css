@@ -1,10 +1,16 @@
 @import "tailwindcss";
 
-/* ─── View Transitions (native browser page transitions) ──────────────────── */
-@view-transition {
-  navigation: auto;
-}
-
+/* ─── View Transitions ─────────────────────────────────────────────────────
+ * These pseudo-element animations style the client-side (SPA) transitions that
+ * Next's `experimental.viewTransition` drives via document.startViewTransition.
+ *
+ * The cross-document `@view-transition { navigation: auto }` opt-in was removed
+ * deliberately: on a client-routed app it set up a browser MPA transition that
+ * raced Next's SPA transition on full page loads, throwing "InvalidStateError:
+ * Transition was aborted because of invalid state" and occasionally pinning a
+ * stale ::view-transition-old(root) snapshot of the previous page over the new
+ * one (the "wrong article / mismatched meta" symptom). See ViewTransitionGuard.
+ */
 ::view-transition-old(root) {
   animation: 200ms cubic-bezier(0.4, 0, 1, 1) both fade-out;
 }

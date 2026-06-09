@@ -121,4 +121,86 @@ describe('Priority 4 — duplicate / count reconciliation', () => {
     const sumPerUser = perUser.reduce((acc, u) => acc + u._count.comments, 0)
     expect(moderationTotal).toBe(sumPerUser)
   })
+
+  // ── Bug 6: per-user counts use the same "live/visible" definition everywhere ──
+
+  it('per-user article count (admin Users route) excludes soft-deleted articles', async () => {
+    if (!dbUp) return
+
+    // The admin Users routes now count `articles: { where: { deletedAt: null } }`.
+    // First: the route's definition must equal an independently-computed count.
+    const users = await prisma.user.findMany({
+      select: { id: true, _count: { select: { articles: { where: { deletedAt: null } } } } },
+    })
+    for (const u of users) {
+      const independent = await prisma.article.count({ where: { authorId: u.id, deletedAt: null } })
+      expect(u._count.articles, `articles count for ${u.id}`).toBe(independent)
+    }
+
+    // Second: a true regression guard that works on ANY seed (incl. a clean CI
+    // DB with no soft-deleted rows). Insert a soft-deleted article for a real
+    // author and assert the filtered _count does NOT move while the unfiltered
+    // total does — i.e. the `deletedAt: null` filter is genuinely doing work.
+    const author = await prisma.user.findFirst({ where: { articles: { some: {} } }, select: { id: true } })
+    if (!author) return
+    const filtered = () =>
+      prisma.user
+        .findUnique({ where: { id: author.id }, select: { _count: { select: { articles: { where: { deletedAt: null } } } } } })
+        .then((u) => u!._count.articles)
+
+    const before = await filtered()
+    const probe = await prisma.article.create({
+      data: {
+        title: `__softdel_probe_${Date.now()}`,
+        slug: `__softdel-probe-${Date.now()}`,
+        content: '',
+        status: 'PUBLISHED',
+        authorId: author.id,
+        deletedAt: new Date(),
+      },
+    })
+    try {
+      expect(await filtered(), 'soft-deleted probe must be excluded from the count').toBe(before)
+      const unfiltered = await prisma.article.count({ where: { authorId: author.id } })
+      expect(unfiltered, 'unfiltered total should include the probe').toBeGreaterThan(before)
+    } finally {
+      await prisma.article.delete({ where: { id: probe.id } }).catch(() => {})
+    }
+  })
+
+  it('per-user comment count matches the Profile definition (isHidden: false)', async () => {
+    if (!dbUp) return
+    // Admin Users routes now count `comments: { where: { isHidden: false } }`,
+    // the same definition the Profile "My Comments" tab and stats use.
+    const users = await prisma.user.findMany({
+      select: { id: true, _count: { select: { comments: { where: { isHidden: false } } } } },
+    })
+    for (const u of users) {
+      const visible = await prisma.comment.count({ where: { userId: u.id, isHidden: false } })
+      expect(u._count.comments, `visible comment count for ${u.id}`).toBe(visible)
+    }
+
+    // Regression guard (seed-independent): a hidden comment must NOT inflate the
+    // per-user count the admin Users page shows.
+    const user = await prisma.user.findFirst({ where: { comments: { some: {} } }, select: { id: true } })
+    const article = await prisma.article.findFirst({
+      where: { status: 'PUBLISHED', deletedAt: null },
+      select: { id: true },
+    })
+    if (!user || !article) return
+    const visibleCount = () =>
+      prisma.user
+        .findUnique({ where: { id: user.id }, select: { _count: { select: { comments: { where: { isHidden: false } } } } } })
+        .then((u) => u!._count.comments)
+
+    const before = await visibleCount()
+    const probe = await prisma.comment.create({
+      data: { userId: user.id, articleId: article.id, body: '__hidden_probe__', isHidden: true },
+    })
+    try {
+      expect(await visibleCount(), 'hidden comment must be excluded from the count').toBe(before)
+    } finally {
+      await prisma.comment.delete({ where: { id: probe.id } }).catch(() => {})
+    }
+  })
 })

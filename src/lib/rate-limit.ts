@@ -23,6 +23,13 @@ setInterval(() => {
  * @param windowMs Time window in milliseconds
  */
 export function checkRateLimit(key: string, limit: number, windowMs: number): boolean {
+  // Test affordance: the automated audit fires many requests per endpoint in
+  // quick succession, which the in-memory limiter would (correctly) start
+  // rejecting with 429. Set RATE_LIMIT_DISABLED=1 ONLY on the test server so
+  // functional assertions are deterministic; the limiter's own logic is covered
+  // by tests/unit/rate-limit.test.ts. Never set this in production.
+  if (process.env.RATE_LIMIT_DISABLED === '1') return true
+
   const now = Date.now()
   const entry = store.get(key)
 

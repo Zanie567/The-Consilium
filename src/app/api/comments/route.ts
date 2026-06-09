@@ -16,37 +16,48 @@ export async function GET(req: Request) {
   const articleId = searchParams.get('articleId')
   if (!articleId) return NextResponse.json({ error: 'articleId required' }, { status: 400 })
 
-  const session = await getServerSession(authOptions)
+  // Guard the DB work: under load the serverless pooler can fail to hand out a
+  // connection in time, and an unhandled throw here surfaced to users as a hard
+  // 503 with no body. Returning a structured payload (empty list + error flag)
+  // lets the client render an error/empty state instead of an infinite skeleton.
+  try {
+    const session = await getServerSession(authOptions)
 
-  const comments = await prisma.comment.findMany({
-    where: { articleId, isHidden: false, parentId: null },
-    orderBy: { createdAt: 'desc' },
-    take: 20,
-    include: {
-      user: { select: { id: true, name: true, image: true } },
-      replies: {
-        where: { isHidden: false },
-        orderBy: { createdAt: 'asc' },
+    const [comments, total] = await Promise.all([
+      prisma.comment.findMany({
+        where: { articleId, isHidden: false, parentId: null },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
         include: {
           user: { select: { id: true, name: true, image: true } },
+          replies: {
+            where: { isHidden: false },
+            orderBy: { createdAt: 'asc' },
+            include: {
+              user: { select: { id: true, name: true, image: true } },
+              upvotedBy: session?.user?.id
+                ? { where: { userId: session.user.id }, select: { id: true } }
+                : false,
+              _count: { select: { replies: true } },
+            },
+          },
           upvotedBy: session?.user?.id
             ? { where: { userId: session.user.id }, select: { id: true } }
             : false,
-          _count: { select: { replies: true } },
+          _count: { select: { replies: { where: { isHidden: false } } } },
         },
-      },
-      upvotedBy: session?.user?.id
-        ? { where: { userId: session.user.id }, select: { id: true } }
-        : false,
-      _count: { select: { replies: { where: { isHidden: false } } } },
-    },
-  })
+      }),
+      prisma.comment.count({ where: { articleId, isHidden: false } }),
+    ])
 
-  const total = await prisma.comment.count({
-    where: { articleId, isHidden: false },
-  })
-
-  return NextResponse.json({ comments, total })
+    return NextResponse.json({ comments, total })
+  } catch (err) {
+    console.error('GET /api/comments failed:', err)
+    return NextResponse.json(
+      { error: 'Failed to load comments', comments: [], total: 0 },
+      { status: 503 },
+    )
+  }
 }
 
 // ── POST /api/comments ───────────────────────────────────────────────────────

@@ -21,6 +21,7 @@
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration/data-layer.test.ts",
     "test:e2e": "playwright test",
+    "test:audit": "bash scripts/run-audit.sh",
     "test:setup-db": "bash scripts/setup-test-db.sh",
     "db:dedupe": "ts-node -P tsconfig.seed.json prisma/dedupe-articles.ts",
     "db:seed-test": "ts-node -P tsconfig.seed.json prisma/seed-test-fixtures.ts",
