@@ -121,4 +121,40 @@ describe('Priority 4 — duplicate / count reconciliation', () => {
     const sumPerUser = perUser.reduce((acc, u) => acc + u._count.comments, 0)
     expect(moderationTotal).toBe(sumPerUser)
   })
+
+  // ── Bug 6: per-user counts use the same "live/visible" definition everywhere ──
+
+  it('per-user article count (admin Users route) excludes soft-deleted articles', async () => {
+    if (!dbUp) return
+    // There must genuinely be soft-deleted rows, else the filter is a no-op and
+    // the test proves nothing.
+    const softDeleted = await prisma.article.count({ where: { deletedAt: { not: null } } })
+    expect(softDeleted, 'expected seeded soft-deleted duplicates').toBeGreaterThan(0)
+
+    // The admin Users routes now count `articles: { where: { deletedAt: null } }`.
+    const users = await prisma.user.findMany({
+      select: { id: true, _count: { select: { articles: { where: { deletedAt: null } } } } },
+    })
+    for (const u of users) {
+      const independent = await prisma.article.count({ where: { authorId: u.id, deletedAt: null } })
+      expect(u._count.articles, `articles count for ${u.id}`).toBe(independent)
+      // …and it must be strictly less than the unfiltered total for any author
+      // who owns a soft-deleted article (the pre-fix Users page over-counted).
+      const withDeleted = await prisma.article.count({ where: { authorId: u.id } })
+      expect(u._count.articles).toBeLessThanOrEqual(withDeleted)
+    }
+  })
+
+  it('per-user comment count matches the Profile definition (isHidden: false)', async () => {
+    if (!dbUp) return
+    // Admin Users routes now count `comments: { where: { isHidden: false } }`,
+    // the same definition the Profile "My Comments" tab and stats use.
+    const users = await prisma.user.findMany({
+      select: { id: true, _count: { select: { comments: { where: { isHidden: false } } } } },
+    })
+    for (const u of users) {
+      const visible = await prisma.comment.count({ where: { userId: u.id, isHidden: false } })
+      expect(u._count.comments, `visible comment count for ${u.id}`).toBe(visible)
+    }
+  })
 })

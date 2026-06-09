@@ -5,8 +5,15 @@
  * contamination we use unique key prefixes per describe block.
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
 import { checkRateLimit, retryAfterSeconds } from '@/lib/rate-limit'
+
+// The audit can run the server (and thus vitest) with RATE_LIMIT_DISABLED=1 to
+// keep functional HTTP tests deterministic. These unit tests exercise the
+// limiter's REAL logic, so make sure the bypass flag is off in this process.
+beforeAll(() => {
+  delete process.env.RATE_LIMIT_DISABLED
+})
 
 // ── checkRateLimit ────────────────────────────────────────────────────────────
 

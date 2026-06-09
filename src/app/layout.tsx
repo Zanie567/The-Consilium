@@ -10,6 +10,7 @@ import { SignupPrompt } from '@/components/ui/SignupPrompt'
 import { CookieConsentBanner } from '@/components/ui/CookieConsent'
 import { InstallBanner } from '@/components/ui/InstallBanner'
 import { FaviconSwitcher } from '@/components/ui/FaviconSwitcher'
+import { ViewTransitionGuard } from '@/components/ui/ViewTransitionGuard'
 import { SITE_URL } from '@/lib/constants'
 
 const playfair = Playfair_Display({
@@ -96,6 +97,7 @@ export default function RootLayout({
         </a>
         <ThemeProvider>
           <AuthProvider>
+            <ViewTransitionGuard />
             <ScrollIndicator />
             <Navbar />
             <main id="main-content" className="flex-1">{children}</main>

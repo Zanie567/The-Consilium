@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     case 'content':      return handleContent(now, since)
     case 'audience':     return handleAudience(now, since, prevSince)
     case 'engagement':   return handleEngagement(since, prevSince)
-    case 'leaderboard':  return handleLeaderboard(since)
+    case 'leaderboard':  return handleLeaderboard()
     case 'distribution': return handleDistribution()
     default:             return NextResponse.json({ error: 'Unknown tab' }, { status: 400 })
   }
@@ -508,13 +508,18 @@ async function handleEngagement(since: Date, prevSince: Date) {
   })
 }
 
-async function handleLeaderboard(since: Date) {
+async function handleLeaderboard() {
+  // The writer leaderboard ranks contributors by their full published body of
+  // work — like the all-time "top articles" list, NOT scoped to the selected
+  // analytics period. Scoping it to `publishedAt >= since` (default 30 days)
+  // was the bug: a publication that posts less than monthly showed "No
+  // writers…" even though every writer has recent published articles.
   const writers = await prisma.user.findMany({
     where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] } },
     select: {
       id: true, name: true, email: true,
       articles: {
-        where: { status: 'PUBLISHED', deletedAt: null, publishedAt: { gte: since } },
+        where: { status: 'PUBLISHED', deletedAt: null },
         select: {
           id: true, viewCount: true, content: true,
           _count: { select: { comments: { where: { isHidden: false } } } },

@@ -1,4 +1,4 @@
-import { test, expect, type APIRequestContext } from '@playwright/test'
+import { test, expect, type APIRequestContext, type Page } from '@playwright/test'
 
 /**
  * Crawls internal links and asserts no response (page OR RSC prefetch) returns
@@ -71,4 +71,38 @@ test('concurrent crawl: bursts of page + ?_rsc= requests stay < 500', async ({ r
   // Also assert no 4xx on these public GETs (would indicate a broken link/route).
   const clientErrors = results.filter((r) => r.status >= 400 && r.status < 500)
   expect(clientErrors, `4xx under load:\n${clientErrors.map((r) => `${r.url} -> ${r.status}`).join('\n')}`).toEqual([])
+})
+
+// ── Broken-image guard ───────────────────────────────────────────────────────
+
+async function brokenImagesOn(page: Page, path: string): Promise<string[]> {
+  const bad: string[] = []
+  page.on('response', (r) => {
+    if (r.request().resourceType() !== 'image') return
+    // Only hold the app accountable for images it serves (its own assets and the
+    // /_next/image optimizer); a flaky external CDN is not an app bug.
+    const sameOrigin = r.url().includes('/_next/image') || /^https?:\/\/localhost[:/]/.test(r.url())
+    if (sameOrigin && r.status() >= 400) bad.push(`${path}: ${r.url()} -> ${r.status()}`)
+  })
+  await page.goto(path, { waitUntil: 'networkidle' })
+  // Trigger lazy-loaded (below-the-fold) images.
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+  await page.waitForTimeout(700)
+  // Catch <img>s that resolved but failed to decode (e.g. 200 HTML masquerading
+  // as an image): complete but zero intrinsic size.
+  const decodeFailures = await page.locator('img').evaluateAll((nodes) =>
+    nodes
+      .map((n) => n as HTMLImageElement)
+      .filter((img) => img.currentSrc && img.complete && img.naturalWidth === 0)
+      .map((img) => img.currentSrc),
+  )
+  return [...bad, ...decodeFailures.map((s) => `${path}: decode-failed ${s}`)]
+}
+
+test('no broken images on key public pages', async ({ page }) => {
+  const broken: string[] = []
+  for (const path of ['/', '/category/opinion', '/opinion-debate', '/about', '/archive']) {
+    broken.push(...(await brokenImagesOn(page, path)))
+  }
+  expect(broken, `broken images:\n${broken.join('\n')}`).toEqual([])
 })

@@ -24,11 +24,16 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       adminNotes: true,
       _count: {
         select: {
-          articles: true, comments: true, warnings: true,
+          // Counts must match the lists below (and Profile): non-deleted
+          // articles, visible comments only.
+          articles: { where: { deletedAt: null } },
+          comments: { where: { isHidden: false } },
+          warnings: true,
           debateVotes: true, bookmarks: true, readingProgress: true,
         },
       },
       articles: {
+        where: { deletedAt: null },
         orderBy: { createdAt: 'desc' },
         select: {
           id: true, title: true, slug: true, status: true,

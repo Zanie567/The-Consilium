@@ -320,17 +320,25 @@ export function CommentSection({ articleId, currentUser }: Props) {
   const [comments, setComments] = useState<CommentItem[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   const fetchComments = useCallback(async () => {
+    setLoading(true)
+    setError(false)
     try {
       const res = await fetch(`/api/comments?articleId=${articleId}`)
-      if (res.ok) {
-        const json = await res.json()
-        setComments(json.comments)
-        setTotal(json.total)
+      if (!res.ok) {
+        // A failed fetch (e.g. a 503 from the pooler) must surface as an error
+        // state — not silently fall through to "No comments yet" or hang on the
+        // skeleton forever.
+        setError(true)
+        return
       }
+      const json = await res.json()
+      setComments(Array.isArray(json.comments) ? json.comments : [])
+      setTotal(json.total ?? 0)
     } catch {
-      // Network error - comments not loaded
+      setError(true)
     } finally {
       setLoading(false)
     }
@@ -401,6 +409,18 @@ export function CommentSection({ articleId, currentUser }: Props) {
               </div>
             </div>
           ))}
+        </div>
+      ) : error ? (
+        <div className="text-center py-8">
+          <p className="text-[var(--fg-muted)] text-sm mb-3">
+            Couldn&apos;t load the discussion. Please try again.
+          </p>
+          <button
+            onClick={fetchComments}
+            className="text-gold text-xs font-bold uppercase tracking-widest border border-gold/50 px-4 py-2 hover:bg-gold hover:text-navy transition-colors"
+          >
+            Retry
+          </button>
         </div>
       ) : comments.length === 0 ? (
         <p className="text-[var(--fg-faint)] text-sm text-center py-8">

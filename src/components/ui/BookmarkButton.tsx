@@ -1,27 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Bookmark } from 'lucide-react'
 import Link from 'next/link'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { useBookmarks } from '@/hooks/useBookmarks'
 
 export function BookmarkButton({ articleId }: { articleId: string }) {
   const { data: session } = useSession()
-  const [bookmarked, setBookmarked] = useState(false)
+  // Shared across every BookmarkButton on the page → one /api/bookmarks fetch,
+  // not one per card. See useBookmarks for why.
+  const { ids, isLoaded, toggle } = useBookmarks()
   const [loading, setLoading] = useState(false)
-  const [checked, setChecked] = useState(false)
 
-  useEffect(() => {
-    if (!session) return
-    fetch('/api/bookmarks')
-      .then((r) => r.json())
-      .then((ids: string[]) => {
-        if (Array.isArray(ids)) setBookmarked(ids.includes(articleId))
-        setChecked(true)
-      })
-      .catch(() => setChecked(true))
-  }, [session, articleId])
+  const bookmarked = ids.includes(articleId)
 
   if (!session) {
     return (
@@ -37,7 +30,7 @@ export function BookmarkButton({ articleId }: { articleId: string }) {
     )
   }
 
-  if (!checked) {
+  if (!isLoaded) {
     return (
       <div className="inline-flex items-center gap-1.5 text-xs opacity-0 pointer-events-none">
         <Bookmark size={16} />
@@ -48,15 +41,7 @@ export function BookmarkButton({ articleId }: { articleId: string }) {
 
   const handleToggle = async () => {
     setLoading(true)
-    const res = await fetch('/api/bookmarks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ articleId }),
-    })
-    if (res.ok) {
-      const data = await res.json()
-      setBookmarked(data.bookmarked)
-    }
+    await toggle(articleId)
     setLoading(false)
   }
 

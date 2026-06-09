@@ -64,8 +64,11 @@ export async function GET(request: NextRequest) {
         bannedReason: true,
         _count: {
           select: {
-            articles: true,
-            comments: true,
+            // Match the definitions used on Profile and every published-article
+            // count: exclude soft-deleted (Trash) articles and hidden comments
+            // so a user's tally is consistent across the app.
+            articles: { where: { deletedAt: null } },
+            comments: { where: { isHidden: false } },
             warnings: true,
             debateVotes: true,
           },

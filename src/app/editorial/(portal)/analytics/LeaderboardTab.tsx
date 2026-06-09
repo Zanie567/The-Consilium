@@ -23,13 +23,6 @@ export interface LeaderboardData {
 type SortCol = keyof Omit<WriterRow, 'id' | 'name'>
 type SortDir = 'asc' | 'desc'
 
-const PERIOD_LABELS: Record<Period, string> = {
-  '24h': 'last 24 hours',
-  '7d': 'last 7 days',
-  '30d': 'last 30 days',
-  '90d': 'last 90 days',
-}
-
 const fadeUp = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } }
 
 function SortBtn({ col, label, sortCol, sortDir, onSort }: {
@@ -54,10 +47,12 @@ function SortBtn({ col, label, sortCol, sortDir, onSort }: {
   )
 }
 
-export function LeaderboardTab({ data, loading, period }: {
+export function LeaderboardTab({ data, loading }: {
   data: LeaderboardData | null
   loading: boolean
-  period: Period
+  // Accepted for a consistent tab signature; the leaderboard ranks all-time
+  // contributions and is intentionally not scoped to the selected period.
+  period?: Period
 }) {
   const [sortCol, setSortCol] = useState<SortCol>('totalReadingMinutes')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -99,13 +94,13 @@ export function LeaderboardTab({ data, loading, period }: {
         <p className="text-xs text-[var(--fg-muted)] leading-relaxed">
           <strong className="text-[var(--fg)]">Rankings are based on reader engagement, not just view counts.</strong>{' '}
           A writer whose articles are read in full scores higher than one whose articles are opened but not read.
-          Period: <span className="text-gold">{PERIOD_LABELS[period]}</span>.
+          Based on <span className="text-gold">all published work</span>.
         </p>
       </motion.div>
 
       {sorted.length === 0 ? (
         <motion.div variants={fadeUp} className="bg-[var(--bg-elevated)] border border-[var(--border)] px-6 py-12 text-center text-[var(--fg-faint)] text-sm">
-          No writers have published articles in this period.
+          No writers have published articles yet.
         </motion.div>
       ) : (
         <motion.div variants={fadeUp} className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] overflow-hidden">

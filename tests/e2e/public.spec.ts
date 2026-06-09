@@ -89,6 +89,123 @@ test('search "carbon" returns the carbon article', async ({ page }) => {
   await expect(result.first()).toBeVisible({ timeout: 10_000 })
 })
 
+// ── Audit additions ──────────────────────────────────────────────────────────
+
+test('category pages have NO duplicate article titles and count matches unique articles', async ({ page }) => {
+  const expected = await expectedCategoryArticles()
+  for (const cat of expected.filter((c) => c.publishedCount > 0)) {
+    await page.goto(`/category/${cat.slug}`, { waitUntil: 'networkidle' })
+
+    // Unique article links === total article links → no card is rendered twice.
+    const hrefs = await countArticleLinks(page)
+    expect(new Set(hrefs).size, `duplicate article links on /category/${cat.slug}`).toBe(hrefs.length)
+    expect(hrefs.length, `/category/${cat.slug} count`).toBe(cat.publishedCount)
+
+    // Card titles must also be unique (catches same title under different slugs).
+    const titles = (await page.locator('main article h3').allInnerTexts()).map((t) => t.trim()).filter(Boolean)
+    expect(new Set(titles).size, `duplicate titles on /category/${cat.slug}: ${titles.join(' | ')}`).toBe(titles.length)
+
+    // The "N articles" header must equal the unique count.
+    const header = await page.locator('section p').filter({ hasText: /\barticles?\b/ }).first().textContent()
+    expect(header?.replace(/\D/g, '')).toBe(String(cat.publishedCount))
+  }
+})
+
+test('article page: correct title/meta, share, copy-link, save controls; reading progress advances on scroll', async ({ page }) => {
+  const article = (await allPublishedArticles())[0]
+  await page.goto(`/articles/${article.slug}`, { waitUntil: 'networkidle' })
+
+  // Bug 4 guard: the page's title AND Open-Graph meta must reflect THIS article
+  // (not a stale snapshot of a previously-viewed one).
+  await expect(page.locator('h1').first()).toContainText(article.title.slice(0, 24))
+  await expect(page).toHaveTitle(new RegExp(article.title.slice(0, 24).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+  const ogTitle = await page.locator('meta[property="og:title"]').getAttribute('content')
+  expect(ogTitle, 'og:title must match the article').toBe(article.title)
+
+  await expect(page.getByLabel('Share on X / Twitter')).toBeVisible()
+  await expect(page.getByLabel('Copy link')).toBeVisible()
+  // Signed-out "Save" affordance (links to /login) still renders.
+  await expect(page.getByText('Save', { exact: true }).first()).toBeVisible()
+
+  const barScaleX = () =>
+    page.locator('div.origin-left.bg-gold').first().evaluate((el) => {
+      const m = new DOMMatrixReadOnly(getComputedStyle(el).transform)
+      return m.a // scaleX
+    })
+  const before = await barScaleX()
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+  await page.waitForTimeout(700) // let the spring settle
+  const after = await barScaleX()
+  expect(after, `reading progress did not advance (before=${before}, after=${after})`).toBeGreaterThan(before)
+})
+
+test('debate hub: the vote flow is wired up (button → API → results)', async ({ page }) => {
+  await page.goto('/opinion-debate', { waitUntil: 'networkidle' })
+  await expect(page.getByLabel('Opinion debate').first()).toBeVisible()
+
+  const forBtn = page.getByLabel('Vote for the For side of this debate').first()
+  const hasButtons = (await forBtn.count()) > 0 && (await forBtn.isVisible().catch(() => false))
+
+  if (hasButtons) {
+    // Capture the actual vote API call so the test is deterministic regardless
+    // of whether this client/IP has voted before (200 = recorded, 409 = already
+    // voted). Either way the flow works and never 5xx's.
+    const votePromise = page.waitForResponse(
+      (r) => /\/api\/debates\/.+\/vote/.test(r.url()) && r.request().method() === 'POST',
+      { timeout: 8_000 },
+    )
+    await forBtn.click()
+    const voteRes = await votePromise
+    expect(voteRes.status(), 'vote endpoint must not 5xx').toBeLessThan(500)
+    expect([200, 409, 429]).toContain(voteRes.status())
+    if (voteRes.status() === 200) {
+      // A fresh vote flips the panel into its results view.
+      await expect(forBtn).toBeHidden({ timeout: 8_000 })
+    }
+  } else {
+    // Already in a results state (closed or previously voted) — totals show.
+    await expect(page.getByText(/\bvotes?\b/i).first()).toBeVisible()
+  }
+})
+
+test('search highlights matched terms with <mark>', async ({ page }) => {
+  await page.goto('/search?q=trade', { waitUntil: 'networkidle' })
+  const marks = page.locator('mark')
+  await expect(marks.first()).toBeVisible({ timeout: 10_000 })
+  expect(await marks.count()).toBeGreaterThan(0)
+})
+
+test('navigating across pages throws no InvalidStateError (view-transition guard)', async ({ page }) => {
+  const consoleErrors = collectConsoleErrors(page)
+  const invalidState: string[] = []
+  const watch = (text: string) => {
+    if (/InvalidStateError|Transition was aborted because of invalid state/i.test(text)) invalidState.push(text)
+  }
+  page.on('console', (m) => watch(m.text()))
+  page.on('pageerror', (e) => watch(`${e.name}: ${e.message}`))
+
+  // Full document loads (exercise the removed @view-transition navigation rule)…
+  for (const path of ['/', '/category/opinion', '/opinion-debate', '/category/news', '/about', '/']) {
+    await page.goto(path, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(150)
+  }
+  // …then rapid client-side navigations (exercise Next's SPA transitions). Use
+  // 'domcontentloaded', not 'networkidle' — the dev server's HMR socket keeps
+  // the network busy, so 'networkidle' never settles.
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
+  const links = page.locator('header a[href^="/category/"], main a[href^="/articles/"]')
+  const n = Math.min(await links.count(), 5)
+  for (let i = 0; i < n; i++) {
+    await links.nth(i).click({ timeout: 2000 }).catch(() => {})
+    await page.waitForTimeout(200)
+    await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => {})
+  }
+  await page.waitForTimeout(300)
+
+  expect(invalidState, `InvalidStateError fired:\n${invalidState.join('\n')}`).toEqual([])
+  expect(consoleErrors, `console errors:\n${consoleErrors.join('\n')}`).toEqual([])
+})
+
 test('dark-mode toggle switches theme', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   const html = page.locator('html')
