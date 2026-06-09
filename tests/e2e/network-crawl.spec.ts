@@ -75,14 +75,18 @@ test('concurrent crawl: bursts of page + ?_rsc= requests stay < 500', async ({ r
 
 // ── Broken-image guard ───────────────────────────────────────────────────────
 
+// Direct external-CDN images can flake (network/CDN) and are not the app's
+// responsibility. Everything else — the app's own assets and the /_next/image
+// optimizer (which itself proxies these CDNs) — must serve successfully, on any
+// host the audit runs against (localhost, 127.0.0.1, a preview deploy, …).
+const EXTERNAL_IMAGE_HOSTS = /(images\.unsplash\.com|lh3\.googleusercontent\.com|fonts\.gstatic\.com)/
+
 async function brokenImagesOn(page: Page, path: string): Promise<string[]> {
   const bad: string[] = []
   page.on('response', (r) => {
     if (r.request().resourceType() !== 'image') return
-    // Only hold the app accountable for images it serves (its own assets and the
-    // /_next/image optimizer); a flaky external CDN is not an app bug.
-    const sameOrigin = r.url().includes('/_next/image') || /^https?:\/\/localhost[:/]/.test(r.url())
-    if (sameOrigin && r.status() >= 400) bad.push(`${path}: ${r.url()} -> ${r.status()}`)
+    if (EXTERNAL_IMAGE_HOSTS.test(r.url())) return
+    if (r.status() >= 400) bad.push(`${path}: ${r.url()} -> ${r.status()}`)
   })
   await page.goto(path, { waitUntil: 'networkidle' })
   // Trigger lazy-loaded (below-the-fold) images.

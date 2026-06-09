@@ -40,21 +40,26 @@ export function useBookmarks() {
 
   const toggle = useCallback(
     async (articleId: string): Promise<boolean | null> => {
-      const res = await fetch(BOOKMARKS_KEY, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ articleId }),
-      })
-      if (!res.ok) return null
-      const { bookmarked } = (await res.json()) as { bookmarked: boolean }
-      await mutate(
-        (current = []) =>
-          bookmarked
-            ? Array.from(new Set([...current, articleId]))
-            : current.filter((id) => id !== articleId),
-        { revalidate: false },
-      )
-      return bookmarked
+      try {
+        const res = await fetch(BOOKMARKS_KEY, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ articleId }),
+        })
+        if (!res.ok) return null
+        const { bookmarked } = (await res.json()) as { bookmarked: boolean }
+        await mutate(
+          (current = []) =>
+            bookmarked
+              ? Array.from(new Set([...current, articleId]))
+              : current.filter((id) => id !== articleId),
+          { revalidate: false },
+        )
+        return bookmarked
+      } catch {
+        // Network failure (offline/DNS) — leave the shared cache unchanged.
+        return null
+      }
     },
     [mutate],
   )

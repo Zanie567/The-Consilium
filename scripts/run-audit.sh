@@ -16,7 +16,7 @@
 #   AUDIT_BASE_URL=http://localhost:3000 npm run test:audit   # reuse a running server
 #
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || { echo "✗ could not cd to project root"; exit 1; }
 
 PORT="${AUDIT_PORT:-3100}"
 BASE="${AUDIT_BASE_URL:-http://localhost:$PORT}"
