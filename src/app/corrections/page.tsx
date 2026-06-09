@@ -5,7 +5,7 @@ import { CONTACT_EMAIL } from '@/lib/constants'
 export const metadata: Metadata = {
   title: 'Corrections Policy',
   description:
-    'The Consilium is committed to accuracy. Learn how we handle corrections and how to report an error.',
+    'How The Consilium handles corrections, and how to report an error.',
 }
 
 export default function CorrectionsPage() {
@@ -25,15 +25,14 @@ export default function CorrectionsPage() {
           </h1>
           <p className="text-[var(--fg-muted)] text-lg leading-relaxed">
             The Consilium holds itself to the same standards of accuracy that we demand of the ideas
-            we scrutinise. When we get something wrong, we say so: clearly, promptly, and without
-            qualification.
+            we scrutinise. When we get something wrong, we correct it promptly and say what changed.
           </p>
         </div>
 
         <div className="prose-consilium space-y-10">
 
           <section>
-            <h2>Our commitment to accuracy</h2>
+            <h2>Accuracy</h2>
             <p>
               Every article published in The Consilium is reviewed by an editor before publication.
               We check facts, verify figures, and confirm the integrity of arguments. Despite these
@@ -41,10 +40,7 @@ export default function CorrectionsPage() {
               attribution of quotes, or in matters of interpretation. When they do, we correct them.
             </p>
             <p>
-              Corrections are not embarrassments to be buried. They are a mark of editorial
-              integrity. A publication that acknowledges its mistakes openly is more trustworthy
-              than one that silently revises its copy or lets errors stand unchallenged. We are
-              committed to the former.
+              We do so openly: we do not quietly revise copy or leave a known error to stand.
             </p>
           </section>
 
@@ -148,7 +144,7 @@ export default function CorrectionsPage() {
               We appreciate all correction requests, even those that turn out not to require a
               change. We will always explain our reasoning if we decide that a correction is not
               warranted. Factual disputes are different from differences of interpretation or
-              opinion: we will not issue a correction simply because a reader disagrees with an
+              opinion: we will not issue a correction because a reader disagrees with an
               author{"'"}s analysis or conclusions.
             </p>
           </section>

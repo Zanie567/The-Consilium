@@ -22,8 +22,8 @@ export default function PrivacyPage() {
             Privacy Policy
           </h1>
           <p className="text-[var(--fg-muted)] text-lg leading-relaxed">
-            We believe you have a right to know exactly what happens with your data. This policy
-            explains it plainly, without legal jargon.
+            This policy sets out what data we collect, why we collect it, how long we keep it, and
+            what rights you have over it.
           </p>
           <p className="text-[var(--fg-faint)] text-sm mt-4">Last updated: 6 April 2026</p>
         </div>
@@ -82,7 +82,7 @@ export default function PrivacyPage() {
 
             <h3>Cookies and visit tracking</h3>
             <p>
-              We use cookies to improve your experience. A visit counter cookie helps us decide when
+              We use a small number of cookies. A visit counter cookie helps us decide when
               to show you our account sign-up prompt. A session cookie is used to keep you logged in
               if you have an account. No advertising or tracking cookies are used.
             </p>
@@ -113,7 +113,7 @@ export default function PrivacyPage() {
           <section>
             <h2>Where your data is stored</h2>
             <p>
-              Your data is stored on a secure PostgreSQL database hosted by Supabase. Supabase servers
+              Your data is stored on a PostgreSQL database hosted by Supabase. Supabase servers
               are located in the European Union. All data is encrypted in transit and at rest.
             </p>
           </section>
@@ -140,8 +140,7 @@ export default function PrivacyPage() {
               </li>
             </ul>
             <p>
-              All three services are reputable providers with their own privacy commitments and,
-              where applicable, UK GDPR compliance.
+              Each operates under its own privacy policy and, where applicable, UK GDPR.
             </p>
           </section>
 
