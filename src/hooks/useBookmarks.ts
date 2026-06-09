@@ -56,8 +56,10 @@ export function useBookmarks() {
           { revalidate: false },
         )
         return bookmarked
-      } catch {
-        // Network failure (offline/DNS) — leave the shared cache unchanged.
+      } catch (err) {
+        // Network/parse failure (offline, DNS, malformed body) — log it and
+        // leave the shared cache unchanged; the caller gets null, not a throw.
+        console.error('Bookmark toggle failed:', err)
         return null
       }
     },
