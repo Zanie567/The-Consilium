@@ -454,12 +454,13 @@ describe('POST /api/publish-scheduled', () => {
     expect(res.status).toBe(401)
   })
 
-  it('?secret= query param is accepted (insecure — visible in logs)', async () => {
-    // BUG-CRON-LOG: secret visible in access logs when passed as query param
+  it('?secret= query param is rejected (BUG-CRON-LOG fixed — header auth only)', async () => {
+    // The old query-param auth leaked the secret into access logs; verifyCronAuth
+    // now only accepts the Authorization: Bearer or x-cron-secret headers.
     if (!up) return
     if (secret === 'test-not-set') return
     const res = await fetch(`${BASE}/api/publish-scheduled?secret=${secret}`, { method: 'POST' })
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(401)
   })
 
   it('GET method is also accepted (same handler)', async () => {
