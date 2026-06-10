@@ -2,10 +2,12 @@
  * GET /api/ticker/macro
  *
  * Returns macroeconomic indicator data for the economic ticker bar.
- * Upstream source: FRED (Federal Reserve Bank of St. Louis)
+ * Upstream sources: FRED (Federal Reserve Bank of St. Louis) and the
+ * Bank of England Database (IADB).
  *
  * Required environment variables:
  *   FRED_API_KEY - free key from https://fred.stlouisfed.org/docs/api/api_key.html
+ *   (the Bank of England endpoint needs no key)
  *
  * Rate limits: FRED free tier allows ~1000+ requests/day - no concern here.
  * Cache: 24 hours (all macro series update monthly or less frequently).
@@ -16,8 +18,13 @@
  *   UNRATE          - US Unemployment Rate (%)
  *   LRHUTTTTGBM156S - UK Unemployment Rate, 15-74, % (OECD)
  *   DFF             - US Effective Federal Funds Rate (%)
- *   BOEBR           - Bank of England Official Bank Rate (%)
  *   ECBDFR          - ECB Deposit Facility Rate (%)
+ *
+ * Bank of England IADB series used:
+ *   IUDBEDR - Official Bank Rate (%), daily
+ *   (FRED has no live BoE policy rate: BOERUKM/BOERUKQ/BOERUKA all ended in
+ *   2016-2017, and the previously configured id BOEBR never existed - FRED
+ *   returned 400 and the slot silently served its hardcoded fallback.)
  */
 
 import { NextResponse } from 'next/server'
@@ -37,6 +44,8 @@ interface SeriesConfig {
   label:    string
   seriesId: string
   unit:     'YOY' | '%'
+  /** Upstream API the seriesId belongs to (default 'fred') */
+  source?:  'fred' | 'boe'
   /** FRED units parameter - 'pc1' = percent change from year ago */
   fredUnits?: string
   fallback: number
@@ -47,8 +56,8 @@ const SERIES: SeriesConfig[] = [
   { label: 'UK CPI',          seriesId: 'GBRCPIALLMINMEI',  unit: 'YOY', fredUnits: 'pc1', fallback: 3.0  },
   { label: 'US UNEMPLOYMENT', seriesId: 'UNRATE',           unit: '%',                     fallback: 4.3  },
   { label: 'UK UNEMPLOYMENT', seriesId: 'LRHUTTTTGBM156S',  unit: '%',                     fallback: 5.2  },
-  { label: 'FEDERAL RESERVE', seriesId: 'DFF',              unit: '%',                     fallback: 3.75 },
-  { label: 'BANK OF ENGLAND', seriesId: 'BOEBR',            unit: '%',                     fallback: 3.75 },
+  { label: 'FEDERAL RESERVE', seriesId: 'DFF',              unit: '%',                     fallback: 3.6  },
+  { label: 'BANK OF ENGLAND', seriesId: 'IUDBEDR',          unit: '%', source: 'boe',      fallback: 3.75 },
   { label: 'ECB RATE',        seriesId: 'ECBDFR',           unit: '%',                     fallback: 2.00 },
 ]
 
@@ -73,7 +82,10 @@ async function fetchFredValue(cfg: SeriesConfig): Promise<FredResult | null> {
     const url = `${FRED_BASE}?${params}`
     const res = await fetch(url, {})
     if (!res.ok) {
-      console.error(`[ticker/macro] FRED ${cfg.seriesId} HTTP ${res.status}`)
+      // Include the body: FRED's 400 "The series does not exist" is a config
+      // bug, not a transient failure, and must be distinguishable in logs.
+      const body = await res.text().catch(() => '')
+      console.error(`[ticker/macro] FRED ${cfg.seriesId} HTTP ${res.status}: ${body.slice(0, 200)}`)
       return null
     }
     const json = await res.json()
@@ -96,11 +108,62 @@ async function fetchFredValue(cfg: SeriesConfig): Promise<FredResult | null> {
   }
 }
 
+// ── Bank of England helper ─────────────────────────────────────────────────
+
+const BOE_BASE = 'https://www.bankofengland.co.uk/boeapps/iadb/fromshowcolumns.asp'
+const BOE_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/**
+ * Fetches the latest two observations of a Bank of England IADB series as
+ * CSV (DATE,<code> header, ascending daily rows). No API key required.
+ */
+async function fetchBoeValue(cfg: SeriesConfig): Promise<FredResult | null> {
+  try {
+    // 60 days back guarantees multiple business-day observations.
+    const from = new Date(Date.now() - 60 * 86400_000)
+    const params = new URLSearchParams({
+      'csv.x':     'yes',
+      Datefrom:    `${String(from.getUTCDate()).padStart(2, '0')}/${BOE_MONTHS[from.getUTCMonth()]}/${from.getUTCFullYear()}`,
+      Dateto:      'now',
+      SeriesCodes: cfg.seriesId,
+      CSVF:        'TN',
+      UsingCodes:  'Y',
+      VPD:         'Y',
+      VFD:         'N',
+    })
+    const res = await fetch(`${BOE_BASE}?${params}`)
+    if (!res.ok) {
+      console.error(`[ticker/macro] BoE ${cfg.seriesId} HTTP ${res.status}`)
+      return null
+    }
+    const csv = await res.text()
+    const rows = csv.trim().split('\n').slice(1)        // drop "DATE,IUDBEDR" header
+    const values = rows
+      .map((row) => parseFloat(row.split(',')[1]))
+      .filter((v) => !isNaN(v))
+    if (values.length === 0) {
+      console.error(`[ticker/macro] BoE ${cfg.seriesId} no parseable rows:`, csv.slice(0, 120))
+      return null
+    }
+    return {
+      value:         values[values.length - 1],
+      previousValue: values.length > 1 ? values[values.length - 2] : null,
+    }
+  } catch (err) {
+    console.error(`[ticker/macro] BoE ${cfg.seriesId} error:`, err)
+    return null
+  }
+}
+
 // ── Route handler ──────────────────────────────────────────────────────────
+
+function fetchSeriesValue(cfg: SeriesConfig): Promise<FredResult | null> {
+  return cfg.source === 'boe' ? fetchBoeValue(cfg) : fetchFredValue(cfg)
+}
 
 export async function GET() {
   try {
-    const results = await Promise.all(SERIES.map(fetchFredValue))
+    const results = await Promise.all(SERIES.map(fetchSeriesValue))
 
     const data = SERIES.map((cfg, i) => {
       const res = results[i]
