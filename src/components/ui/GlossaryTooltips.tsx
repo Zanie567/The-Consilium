@@ -90,7 +90,10 @@ export function GlossaryTooltips({ containerSelector }: { containerSelector: str
     const show = (el: HTMLElement) => {
       cancelScheduledHide()
       if (current === el && !tip.hidden) return
-      if (current && current !== el) current.setAttribute('aria-expanded', 'false')
+      if (current && current !== el) {
+        current.setAttribute('aria-expanded', 'false')
+        current.removeAttribute('aria-describedby')
+      }
       current = el
       fill(el)
       // Measure invisibly first so the card never flashes at a stale position.

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
+import { Prisma } from '@prisma/client'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { GLOSSARY_MANAGE_ROLES } from '@/lib/rbac'
@@ -53,6 +54,14 @@ export async function POST(req: Request) {
     revalidateTag(GLOSSARY_CACHE_TAG, { expire: 0 })
     return NextResponse.json({ ok: true, id: created.id })
   } catch (err) {
+    // Two concurrent creates can both pass the check above; the unique index
+    // on term / lower(term) rejects the loser with P2002.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'A term with that name already exists.' },
+        { status: 409 }
+      )
+    }
     console.error('[glossary] POST error:', err instanceof Error ? err.message : String(err))
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
