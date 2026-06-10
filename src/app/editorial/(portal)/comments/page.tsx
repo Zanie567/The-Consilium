@@ -91,7 +91,7 @@ export default function CommentsPage() {
       {/* Surface load failures instead of silently rendering "0 total comments" */}
       {error && (
         <div className="mb-6 bg-red-500/10 border border-red-500/20 px-5 py-4 text-red-600 dark:text-red-400 text-sm">
-          Comment data could not be loaded. This is usually a temporary issue — please refresh.
+          We couldn&apos;t load the comments. Please refresh the page to try again.
         </div>
       )}
 

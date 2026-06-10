@@ -114,7 +114,7 @@ export default function GlobalError({
             margin: '0 0 40px',
           }}
         >
-          A server error stopped this page from loading. Please try again — if the
+          A server error stopped this page from loading. Please try again. If the
           problem continues, head back to the homepage.
           {error.digest && (
             <span
