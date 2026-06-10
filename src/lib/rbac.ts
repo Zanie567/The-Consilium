@@ -21,6 +21,9 @@ export const PREDICTIONS_MANAGE_ROLES = ['ADMIN'] as const satisfies readonly Ro
 // glossary API, and the site-wide linking switch all read this). To let
 // editors curate terms later, add 'EDITOR' here and nothing else.
 export const GLOSSARY_MANAGE_ROLES = ['ADMIN'] as const satisfies readonly Role[]
+// Who can open the read-through page (/editorial/readers and its API).
+// Everyone here sees their own articles only; ADMIN may view any author's.
+export const READ_THROUGH_ACCESS_ROLES = ['ADMIN', 'EDITOR', 'WRITER'] as const satisfies readonly Role[]
 
 export function isRole(value: unknown): value is Role {
   return typeof value === 'string' && (ALL_ROLES as readonly string[]).includes(value)
