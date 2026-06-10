@@ -16,13 +16,18 @@ import sanitizeHtml from 'sanitize-html'
  * the two cannot drift.
  */
 export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
-  // Exactly the tags nodeToHtml emits — anything else is discarded.
+  // Exactly the tags nodeToHtml emits — anything else is discarded. The one
+  // exception is `span`, allowed solely so the glossary linkifier's injected
+  // tooltip triggers (src/lib/glossary/linkify.ts) survive sanitisation if the
+  // pipeline is ever reordered to sanitise after linkifying. Its attribute and
+  // class allowlists below are deliberately minimal.
   allowedTags: [
     'p', 'br', 'hr',
     'strong', 'em', 'u', 'mark',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'ul', 'ol', 'li', 'blockquote',
     'a', 'figure', 'figcaption', 'img', 'aside', 'sup',
+    'span',
   ],
   allowedAttributes: {
     a: ['href', 'target', 'rel'],
@@ -32,6 +37,14 @@ export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     figcaption: ['class'],
     aside: ['class', 'data-type'],
     sup: ['class', 'data-footnote', 'data-index', 'title'],
+    // Glossary tooltip triggers only. data-gloss-* values are plain text the
+    // tooltip reads via getAttribute/textContent, never interpreted as HTML.
+    span: ['class', 'data-gloss-term', 'data-gloss-def', 'data-gloss-url'],
+  },
+  // A span may only carry the glossary trigger class; anything else (including
+  // a class-less span from pasted content) is stripped to its text.
+  allowedClasses: {
+    span: ['glossary-term'],
   },
   // Only safe URL schemes; relative/anchor hrefs (e.g. #correction-note) still pass.
   allowedSchemes: ['http', 'https', 'mailto'],

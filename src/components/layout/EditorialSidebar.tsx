@@ -4,7 +4,12 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
-import { CALENDAR_ACCESS_ROLES, PREDICTIONS_MANAGE_ROLES, isAllowedRole } from '@/lib/rbac'
+import {
+  CALENDAR_ACCESS_ROLES,
+  GLOSSARY_MANAGE_ROLES,
+  PREDICTIONS_MANAGE_ROLES,
+  isAllowedRole,
+} from '@/lib/rbac'
 import {
   CalendarDays,
   LayoutDashboard,
@@ -25,6 +30,7 @@ import {
   UserCheck,
   Trophy,
   Target,
+  BookMarked,
   BookOpenCheck,
 } from 'lucide-react'
 
@@ -130,6 +136,7 @@ export function EditorialSidebar({
             { href: '/editorial/users', icon: Users, label: 'Users', show: isAdmin },
             { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
             { href: '/editorial/predictions', icon: Target, label: 'Predictions', show: isAllowedRole(user.role, PREDICTIONS_MANAGE_ROLES) },
+            { href: '/editorial/glossary', icon: BookMarked, label: 'Glossary', show: isAllowedRole(user.role, GLOSSARY_MANAGE_ROLES) },
           ],
         },
         {

@@ -620,6 +620,32 @@ model Prediction {
   @@map("predictions")
 }
 
+// ── Economics glossary ───────────────────────────────────────────────────────
+// Table created manually in Supabase via SQL (see the glossary feature PR
+// summary for the exact statements). No migration is run; this model mirrors
+// the manually applied SQL so Prisma Client can read and write it.
+// Uniqueness of `term` is case-insensitive in practice: the SQL adds a unique
+// index on lower(term) and the API checks with mode: 'insensitive' before
+// writing, so "Inflation" and "inflation" cannot coexist.
+
+model GlossaryTerm {
+  id           String   @id @default(cuid())
+  term         String   @unique
+  // Alternative surface forms that link to the same definition, e.g. "QE"
+  // for "quantitative easing".
+  aliases      String[] @default([])
+  // Plain text, roughly one to three sentences. Escaped before it is placed
+  // in markup; never stored as HTML.
+  definition   String   @db.Text
+  learnMoreUrl String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("glossary_terms")
+}
+
 // ── Audit log ────────────────────────────────────────────────────────────────
 
 model AuditLog {

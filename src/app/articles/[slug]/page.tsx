@@ -14,6 +14,8 @@ import { BookmarkButton } from '@/components/ui/BookmarkButton'
 import { ReadingTracker } from '@/components/ui/ReadingTracker'
 import { ReadingProgress } from '@/components/ui/ReadingProgress'
 import { ArticleAnchorLinks } from '@/components/ui/ArticleAnchorLinks'
+import { GlossaryTooltips } from '@/components/ui/GlossaryTooltips'
+import { applyGlossaryLinks } from '@/lib/glossary/data'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { ViewCounter } from '@/components/ui/ViewCounter'
 import { PrintButton } from '@/components/ui/PrintButton'
@@ -304,6 +306,9 @@ export default async function ArticlePage({ params }: Props) {
     article.excerpt,
   )
   const { html: htmlContent, footnotes } = renderContent(article.content)
+  // Glossary term linking runs on the sanitized HTML and returns it untouched
+  // when the site-wide switch is off, so the page renders exactly as before.
+  const glossary = await applyGlossaryLinks(article.id, article.updatedAt, htmlContent)
 
   // Series info
   const seriesArticles = article.series?.articles ?? []
@@ -480,9 +485,10 @@ export default async function ArticlePage({ params }: Props) {
           <div
             id="article-body"
             className="prose-consilium"
-            dangerouslySetInnerHTML={{ __html: htmlContent }}
+            dangerouslySetInnerHTML={{ __html: glossary.html }}
           />
           <ArticleAnchorLinks containerSelector="#article-body" />
+          {glossary.hasLinks && <GlossaryTooltips containerSelector="#article-body" />}
         </AnimateIn>
 
         {/* Tags */}

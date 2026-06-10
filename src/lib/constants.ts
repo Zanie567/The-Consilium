@@ -110,6 +110,24 @@ export const COMMISSIONING_BRIEF_KEY = 'commissioning_brief'
 /** Maximum length of the commissioning brief, in characters after trimming. */
 export const COMMISSIONING_BRIEF_MAX_LENGTH = 1000
 
+/**
+ * site_settings.key holding the glossary linking switch. Value 'true' turns
+ * term linking on for published articles; any other value (or a missing row)
+ * means OFF, so the feature ships dark until an admin flips it on from
+ * /editorial/glossary.
+ */
+export const GLOSSARY_ENABLED_KEY = 'glossary_linking_enabled'
+
+/** Server-side validation bounds for glossary terms. */
+export const GLOSSARY_LIMITS = {
+  TERM_MAX: 80,
+  ALIAS_MAX: 60,
+  ALIASES_MAX_COUNT: 10,
+  DEFINITION_MIN: 10,
+  DEFINITION_MAX: 600,
+  URL_MAX: 300,
+} as const
+
 /** Role-gated editorial endpoints consumed by portal pages and editor controls. */
 export const EDITORIAL_API_ROUTES = {
   commissioningBrief: '/api/editorial/commissioning-brief',
