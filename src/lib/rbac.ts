@@ -17,6 +17,10 @@ export const PREDICTIONS_ACCESS_ROLES = ['ADMIN'] as const satisfies readonly Ro
 // Who can create, edit, close, cancel, and resolve prediction events in the
 // editorial portal. This stays admin-only even after the league opens up.
 export const PREDICTIONS_MANAGE_ROLES = ['ADMIN'] as const satisfies readonly Role[]
+// Who can manage the economics glossary (the /editorial/glossary page, the
+// glossary API, and the site-wide linking switch all read this). To let
+// editors curate terms later, add 'EDITOR' here and nothing else.
+export const GLOSSARY_MANAGE_ROLES = ['ADMIN'] as const satisfies readonly Role[]
 
 export function isRole(value: unknown): value is Role {
   return typeof value === 'string' && (ALL_ROLES as readonly string[]).includes(value)
