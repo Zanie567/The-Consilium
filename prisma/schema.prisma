@@ -70,6 +70,8 @@ model User {
   notes              AdminNote[]
   streakData         WriterStreak?
   achievements       WriterAchievement[]
+  predictionEvents   PredictionEvent[]
+  predictions        Prediction[]
 
   @@map("users")
 }
@@ -539,6 +541,82 @@ model SiteSetting {
   updatedBy String?
 
   @@map("site_settings")
+}
+
+// ── Reader predictions league ────────────────────────────────────────────────
+// Tables created manually in Supabase via SQL (see the predictions feature PR
+// summary for the exact statements). No migration is run; these models mirror
+// the manually applied SQL so Prisma Client can read and write them.
+
+enum PredictionEventType {
+  BOE_RATE
+  CPI_YOY
+  OTHER
+}
+
+enum PredictionEventStatus {
+  OPEN
+  CLOSED
+  RESOLVED
+  CANCELLED
+}
+
+model PredictionEvent {
+  id           String                @id @default(cuid())
+  title        String
+  description  String?               @db.Text
+  type         PredictionEventType   @default(OTHER)
+  // FRED series id used by the auto-scoring cron, e.g. BOEBR. Null means the
+  // event can only be resolved manually from the editorial portal.
+  fredSeriesId String?
+  unitLabel    String                @default("%")
+  deadline     DateTime
+  // Expected official release date. The cron only auto-resolves once FRED has
+  // an observation dated on or after this.
+  releaseDate  DateTime
+  // Admin-set sanity bounds for submissions, checked server-side.
+  minValue     Decimal               @db.Decimal(12, 4)
+  maxValue     Decimal               @db.Decimal(12, 4)
+  // Absolute error at which points scale linearly down to zero.
+  maxError     Decimal               @default(1.0) @db.Decimal(12, 4)
+  actualValue  Decimal?              @db.Decimal(12, 4)
+  resolvedAt   DateTime?
+  status       PredictionEventStatus @default(OPEN)
+  // Derived from the deadline via semesterKeyForDate in src/lib/predictions.ts,
+  // e.g. "2026-S1". Stored so leaderboards stay stable if the helper changes.
+  semesterKey  String
+  createdById  String
+  createdBy    User                  @relation(fields: [createdById], references: [id])
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  predictions Prediction[]
+
+  @@index([status, releaseDate])
+  @@index([semesterKey])
+  @@index([deadline])
+  @@map("prediction_events")
+}
+
+model Prediction {
+  id      String          @id @default(cuid())
+  eventId String
+  event   PredictionEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  value   Decimal         @db.Decimal(12, 4)
+  // Score fields, written once when the event resolves and nulled if it is
+  // reopened. Kept on the prediction row (rather than a separate score table)
+  // because scores are strictly one-per-prediction and written in one pass.
+  points   Decimal? @db.Decimal(8, 2)
+  absError Decimal? @db.Decimal(12, 4)
+  rank     Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, userId])
+  @@index([userId])
+  @@map("predictions")
 }
 
 // ── Audit log ────────────────────────────────────────────────────────────────
