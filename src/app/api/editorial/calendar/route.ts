@@ -63,6 +63,17 @@ export async function PATCH(req: Request) {
     )
   }
 
+  // Mirror the future-only rule enforced when an article is first scheduled:
+  // a move that lands in the past would make the publish cron fire on its
+  // next run and publish the article immediately, which is never what a
+  // drag on the calendar means.
+  if (nextScheduledAt <= new Date()) {
+    return NextResponse.json(
+      { error: 'That would schedule the article in the past. Pick a future day, or edit the article to publish it now.' },
+      { status: 400 },
+    )
+  }
+
   // Compare-and-set: only write if the article is still the scheduled article
   // the move was computed from. A concurrent publish, delete, or reschedule
   // (for example the publish cron firing) makes this a no-op instead of

@@ -174,6 +174,17 @@ export async function PUT(
       }
     }
 
+    // A SCHEDULED article must always carry a publish time: without one the
+    // publish cron never picks it up and it sits in limbo forever. Saving an
+    // already-scheduled article without resending the time keeps the existing
+    // one (the autosave path), so only reject when neither is available.
+    if (finalStatus === 'SCHEDULED' && !scheduledAt && !existing.scheduledAt) {
+      return NextResponse.json(
+        { error: 'A future publish date and time is required to schedule this article.' },
+        { status: 400 }
+      )
+    }
+
     const wasJustSubmitted =
       existing.status !== 'PENDING_REVIEW' && finalStatus === 'PENDING_REVIEW'
     const wasPublished =
