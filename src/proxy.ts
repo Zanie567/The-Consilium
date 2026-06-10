@@ -9,6 +9,10 @@ const PUBLIC_API_PREFIXES = [
   '/api/articles',
   '/api/comments',
   '/api/contact',
+  // Cron routes carry no session cookie; each one authenticates itself with a
+  // constant-time CRON_SECRET check (see src/lib/cronAuth.ts), like
+  // /api/publish-scheduled below.
+  '/api/cron',
   '/api/debates',
   '/api/editorial/setup',
   '/api/award-trophies',

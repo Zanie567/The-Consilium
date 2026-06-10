@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
-import { CALENDAR_ACCESS_ROLES, isAllowedRole } from '@/lib/rbac'
+import { CALENDAR_ACCESS_ROLES, PREDICTIONS_MANAGE_ROLES, isAllowedRole } from '@/lib/rbac'
 import {
   CalendarDays,
   LayoutDashboard,
@@ -24,6 +24,7 @@ import {
   Zap,
   UserCheck,
   Trophy,
+  Target,
 } from 'lucide-react'
 
 interface User {
@@ -127,6 +128,7 @@ export function EditorialSidebar({
           items: [
             { href: '/editorial/users', icon: Users, label: 'Users', show: isAdmin },
             { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
+            { href: '/editorial/predictions', icon: Target, label: 'Predictions', show: isAllowedRole(user.role, PREDICTIONS_MANAGE_ROLES) },
           ],
         },
         {
