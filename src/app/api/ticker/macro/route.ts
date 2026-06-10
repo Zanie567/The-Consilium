@@ -2,29 +2,35 @@
  * GET /api/ticker/macro
  *
  * Returns macroeconomic indicator data for the economic ticker bar.
- * Upstream sources: FRED (Federal Reserve Bank of St. Louis) and the
- * Bank of England Database (IADB).
+ * Upstream sources: FRED (Federal Reserve Bank of St. Louis), the
+ * Bank of England Database (IADB) and the ONS website CSV generator.
  *
  * Required environment variables:
  *   FRED_API_KEY - free key from https://fred.stlouisfed.org/docs/api/api_key.html
- *   (the Bank of England endpoint needs no key)
+ *   (the Bank of England and ONS endpoints need no key)
  *
  * Rate limits: FRED free tier allows ~1000+ requests/day - no concern here.
  * Cache: 24 hours (all macro series update monthly or less frequently).
  *
  * FRED series used:
- *   CPIAUCSL        - US CPI (All Urban Consumers, SA), units=pc1 -> YoY %
- *   GBRCPIALLMINMEI - UK CPI (OECD), units=pc1 -> YoY %
- *   UNRATE          - US Unemployment Rate (%)
- *   LRHUTTTTGBM156S - UK Unemployment Rate, 15-74, % (OECD)
- *   DFF             - US Effective Federal Funds Rate (%)
- *   ECBDFR          - ECB Deposit Facility Rate (%)
+ *   CPIAUCSL - US CPI (All Urban Consumers, SA), units=pc1 -> YoY %
+ *   UNRATE   - US Unemployment Rate (%)
+ *   DFF      - US Effective Federal Funds Rate (%)
+ *   ECBDFR   - ECB Deposit Facility Rate (%)
  *
  * Bank of England IADB series used:
  *   IUDBEDR - Official Bank Rate (%), daily
  *   (FRED has no live BoE policy rate: BOERUKM/BOERUKQ/BOERUKA all ended in
  *   2016-2017, and the previously configured id BOEBR never existed - FRED
  *   returned 400 and the slot silently served its hardcoded fallback.)
+ *
+ * ONS series used:
+ *   D7G7 (dataset MM23) - UK CPI annual rate, YoY %
+ *   MGSX (dataset LMS)  - UK Unemployment Rate, 16+, %
+ *   (FRED's OECD-sourced UK series GBRCPIALLMINMEI and LRHUTTTTGBM156S
+ *   stopped updating in 2025, so the slots silently served stale values.
+ *   The old api.ons.gov.uk timeseries API was decommissioned 25 Nov 2024;
+ *   the www.ons.gov.uk CSV generator is the keyless replacement.)
  */
 
 import { NextResponse } from 'next/server'
@@ -45,20 +51,24 @@ interface SeriesConfig {
   seriesId: string
   unit:     'YOY' | '%'
   /** Upstream API the seriesId belongs to (default 'fred') */
-  source?:  'fred' | 'boe'
+  source?:  'fred' | 'boe' | 'ons'
   /** FRED units parameter - 'pc1' = percent change from year ago */
   fredUnits?: string
+  /** ONS website uri for the series, e.g. /economy/.../timeseries/d7g7/mm23 */
+  onsUri?: string
   fallback: number
 }
 
 const SERIES: SeriesConfig[] = [
-  { label: 'US CPI',          seriesId: 'CPIAUCSL',         unit: 'YOY', fredUnits: 'pc1', fallback: 3.3  },
-  { label: 'UK CPI',          seriesId: 'GBRCPIALLMINMEI',  unit: 'YOY', fredUnits: 'pc1', fallback: 3.0  },
-  { label: 'US UNEMPLOYMENT', seriesId: 'UNRATE',           unit: '%',                     fallback: 4.3  },
-  { label: 'UK UNEMPLOYMENT', seriesId: 'LRHUTTTTGBM156S',  unit: '%',                     fallback: 5.2  },
-  { label: 'FEDERAL RESERVE', seriesId: 'DFF',              unit: '%',                     fallback: 3.6  },
-  { label: 'BANK OF ENGLAND', seriesId: 'IUDBEDR',          unit: '%', source: 'boe',      fallback: 3.75 },
-  { label: 'ECB RATE',        seriesId: 'ECBDFR',           unit: '%',                     fallback: 2.00 },
+  { label: 'US CPI',          seriesId: 'CPIAUCSL', unit: 'YOY', fredUnits: 'pc1', fallback: 3.8  },
+  { label: 'UK CPI',          seriesId: 'D7G7',     unit: 'YOY', source: 'ons',    fallback: 2.8,
+    onsUri: '/economy/inflationandpriceindices/timeseries/d7g7/mm23' },
+  { label: 'US UNEMPLOYMENT', seriesId: 'UNRATE',   unit: '%',                     fallback: 4.3  },
+  { label: 'UK UNEMPLOYMENT', seriesId: 'MGSX',     unit: '%',   source: 'ons',    fallback: 5.0,
+    onsUri: '/employmentandlabourmarket/peoplenotinwork/unemployment/timeseries/mgsx/lms' },
+  { label: 'FEDERAL RESERVE', seriesId: 'DFF',      unit: '%',                     fallback: 3.6  },
+  { label: 'BANK OF ENGLAND', seriesId: 'IUDBEDR',  unit: '%',   source: 'boe',    fallback: 3.75 },
+  { label: 'ECB RATE',        seriesId: 'ECBDFR',   unit: '%',                     fallback: 2.00 },
 ]
 
 // ── FRED helper ────────────────────────────────────────────────────────────
@@ -155,10 +165,53 @@ async function fetchBoeValue(cfg: SeriesConfig): Promise<FredResult | null> {
   }
 }
 
+// ── ONS helper ─────────────────────────────────────────────────────────────
+
+const ONS_BASE = 'https://www.ons.gov.uk/generator?format=csv&uri='
+
+/**
+ * Fetches the latest two monthly observations of an ONS time series via the
+ * www.ons.gov.uk CSV generator. No API key required. The CSV starts with
+ * metadata rows, then annual ("1989","5.2"), quarterly ("1994 Q2","2.0") and
+ * finally monthly ("2026 APR","2.8") observations - only monthly rows are
+ * used.
+ */
+async function fetchOnsValue(cfg: SeriesConfig): Promise<FredResult | null> {
+  if (!cfg.onsUri) return null
+  try {
+    const res = await fetch(`${ONS_BASE}${cfg.onsUri}`)
+    if (!res.ok) {
+      console.error(`[ticker/macro] ONS ${cfg.seriesId} HTTP ${res.status}`)
+      return null
+    }
+    const csv = await res.text()
+    const values = csv
+      .split('\n')
+      .filter((row) => /^"\d{4} [A-Z]{3}",/.test(row))
+      .map((row) => parseFloat(row.split(',')[1]?.replace(/"/g, '')))
+      .filter((v) => !isNaN(v))
+    if (values.length === 0) {
+      console.error(`[ticker/macro] ONS ${cfg.seriesId} no monthly rows:`, csv.slice(0, 120))
+      return null
+    }
+    return {
+      value:         values[values.length - 1],
+      previousValue: values.length > 1 ? values[values.length - 2] : null,
+    }
+  } catch (err) {
+    console.error(`[ticker/macro] ONS ${cfg.seriesId} error:`, err)
+    return null
+  }
+}
+
 // ── Route handler ──────────────────────────────────────────────────────────
 
 function fetchSeriesValue(cfg: SeriesConfig): Promise<FredResult | null> {
-  return cfg.source === 'boe' ? fetchBoeValue(cfg) : fetchFredValue(cfg)
+  switch (cfg.source) {
+    case 'boe': return fetchBoeValue(cfg)
+    case 'ons': return fetchOnsValue(cfg)
+    default:    return fetchFredValue(cfg)
+  }
 }
 
 export async function GET() {
