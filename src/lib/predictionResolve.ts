@@ -56,11 +56,26 @@ export async function resolvePredictionEvent(
       event.deadline
     )
 
-    for (const s of scores) {
-      await tx.prediction.update({
-        where: { id: s.id },
-        data: { points: s.points, absError: s.absError, rank: s.rank },
-      })
+    if (scores.length > 0) {
+      // One set-based statement instead of a round-trip per prediction, so a
+      // large event cannot push the transaction past its timeout. It also
+      // leaves updatedAt untouched, preserving the submission timestamp the
+      // late-entry guard reads.
+      const ids = scores.map((s) => s.id)
+      const points = scores.map((s) => s.points)
+      const absErrors = scores.map((s) => s.absError)
+      const ranks = scores.map((s) => s.rank)
+      await tx.$executeRaw`
+        UPDATE "predictions" AS p
+        SET "points" = d.points, "absError" = d.abs_error, "rank" = d.rank
+        FROM (
+          SELECT unnest(${ids}::text[])        AS id,
+                 unnest(${points}::numeric[])  AS points,
+                 unnest(${absErrors}::numeric[]) AS abs_error,
+                 unnest(${ranks}::int[])       AS rank
+        ) AS d
+        WHERE p.id = d.id
+      `
     }
 
     return { resolved: true, scored: scores.length } as const

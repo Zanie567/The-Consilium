@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 export interface PredictionEventFormValues {
@@ -9,7 +9,10 @@ export interface PredictionEventFormValues {
   type: 'BOE_RATE' | 'CPI_YOY' | 'OTHER'
   fredSeriesId: string
   unitLabel: string
-  /** datetime-local format, yyyy-MM-ddTHH:mm, in the admin's local time. */
+  /**
+   * In form state: datetime-local format (yyyy-MM-ddTHH:mm) in the admin's
+   * local time. In initialValues: an ISO string, converted after mount.
+   */
   deadline: string
   releaseDate: string
   minValue: string
@@ -21,6 +24,19 @@ interface Props {
   /** When set, the form edits an existing event instead of creating one. */
   eventId?: string
   initialValues?: PredictionEventFormValues
+}
+
+/**
+ * Converts an ISO timestamp to the datetime-local input format in the
+ * browser's timezone. Only called after mount: the server cannot know the
+ * admin's zone, so converting during render would mismatch hydration.
+ */
+function isoToLocalInput(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 const EMPTY: PredictionEventFormValues = {
@@ -50,9 +66,25 @@ const labelClass = 'block text-xs uppercase tracking-widest text-[var(--fg-muted
 
 export function PredictionEventForm({ eventId, initialValues }: Props) {
   const router = useRouter()
-  const [values, setValues] = useState<PredictionEventFormValues>(initialValues ?? EMPTY)
+  const [values, setValues] = useState<PredictionEventFormValues>(
+    initialValues ? { ...initialValues, deadline: '', releaseDate: '' } : EMPTY
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Fill the date inputs from the event's ISO timestamps once the browser's
+  // timezone is available (see isoToLocalInput above).
+  useEffect(() => {
+    if (initialValues) {
+      setValues((v) => ({
+        ...v,
+        deadline: isoToLocalInput(initialValues.deadline),
+        releaseDate: isoToLocalInput(initialValues.releaseDate),
+      }))
+    }
+    // initialValues comes from the server page and never changes in place.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function set<K extends keyof PredictionEventFormValues>(key: K, value: PredictionEventFormValues[K]) {
     setValues((v) => ({ ...v, [key]: value }))

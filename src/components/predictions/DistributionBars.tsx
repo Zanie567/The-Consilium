@@ -13,8 +13,14 @@ interface Bucket {
 }
 
 function buildBuckets(values: number[], actualValue: number | null): Bucket[] {
-  const min = Math.min(...values)
-  const max = Math.max(...values)
+  // Linear scan rather than Math.min(...values): spreading a very large array
+  // into arguments can blow the call stack.
+  let min = values[0]
+  let max = values[0]
+  for (const v of values) {
+    if (v < min) min = v
+    if (v > max) max = v
+  }
   if (min === max) {
     return [
       {

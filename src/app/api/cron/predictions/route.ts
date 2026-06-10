@@ -54,7 +54,10 @@ async function fetchLatestObservation(
       limit: '1',
       ...(eventType === 'CPI_YOY' ? { units: 'pc1' } : {}),
     })
-    const res = await fetch(`${FRED_BASE}?${params}`, {})
+    // Bound the upstream call so one hung FRED request cannot eat the cron's
+    // execution budget. A timeout aborts the fetch, which throws and lands in
+    // the catch below, so the rest of the run continues.
+    const res = await fetch(`${FRED_BASE}?${params}`, { signal: AbortSignal.timeout(10_000) })
     if (!res.ok) {
       console.error(`[cron/predictions] FRED ${seriesId} HTTP ${res.status}`)
       return null

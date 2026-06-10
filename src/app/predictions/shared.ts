@@ -2,7 +2,9 @@
  * Display helpers shared by the predictions pages.
  */
 
-export const EVENT_TYPE_LABELS: Record<string, string> = {
+import type { PredictionEventStatus, PredictionEventType } from '@prisma/client'
+
+export const EVENT_TYPE_LABELS: Record<PredictionEventType, string> = {
   BOE_RATE: 'Bank of England Rate',
   CPI_YOY: 'CPI Inflation',
   OTHER: 'Special Event',
@@ -16,7 +18,7 @@ export type EventDisplayState = 'Open' | 'Awaiting result' | 'Resolved' | 'Cance
  * or an admin resolves it.
  */
 export function eventDisplayState(
-  event: { status: string; deadline: Date },
+  event: { status: PredictionEventStatus; deadline: Date },
   now: Date = new Date()
 ): EventDisplayState {
   if (event.status === 'CANCELLED') return 'Cancelled'

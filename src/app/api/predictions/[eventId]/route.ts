@@ -77,6 +77,11 @@ export async function POST(req: Request, { params }: Props) {
     return NextResponse.json({ error: check.error }, { status: 400 })
   }
 
+  // The event is validated above without a row lock. A write racing an admin
+  // deadline change or a resolve can at worst land with updatedAt past the
+  // deadline, and scoring awards such rows zero points and no rank (see
+  // computeScores), so the race cannot affect outcomes and submissions never
+  // contend on the event row.
   const prediction = await prisma.prediction.upsert({
     where: { eventId_userId: { eventId, userId: user.id } },
     create: { eventId, userId: user.id, value: check.value },

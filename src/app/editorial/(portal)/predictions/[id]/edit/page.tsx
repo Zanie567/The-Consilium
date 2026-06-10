@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation'
-import { format } from 'date-fns'
 import type { Metadata } from 'next'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -58,11 +57,6 @@ export default async function EditPredictionEventPage({ params }: Props) {
     )
   }
 
-  // datetime-local inputs want local wall clock time without a timezone
-  // suffix; format() renders in the server's zone, which matches how the
-  // dates were entered for a single-admin workflow.
-  const toLocalInput = (d: Date) => format(d, "yyyy-MM-dd'T'HH:mm")
-
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
       <div className="mb-6 sm:mb-8 pl-10 md:pl-0">
@@ -79,8 +73,10 @@ export default async function EditPredictionEventPage({ params }: Props) {
           type: event.type,
           fredSeriesId: event.fredSeriesId ?? '',
           unitLabel: event.unitLabel,
-          deadline: toLocalInput(event.deadline),
-          releaseDate: toLocalInput(event.releaseDate),
+          // ISO strings; the form converts them to the admin's local time in
+          // the browser, where the timezone is actually known.
+          deadline: event.deadline.toISOString(),
+          releaseDate: event.releaseDate.toISOString(),
           minValue: String(Number(event.minValue)),
           maxValue: String(Number(event.maxValue)),
           maxError: String(Number(event.maxError)),

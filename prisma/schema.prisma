@@ -616,6 +616,7 @@ model Prediction {
 
   @@unique([eventId, userId])
   @@index([userId])
+  @@index([eventId, rank])
   @@map("predictions")
 }
 

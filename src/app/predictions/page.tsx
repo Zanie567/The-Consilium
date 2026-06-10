@@ -17,28 +17,30 @@ export const dynamic = 'force-dynamic'
 export default async function PredictionsPage() {
   const user = await requirePredictionsAccess('/predictions')
 
-  const [events, myPredictions] = await Promise.all([
-    prisma.predictionEvent.findMany({
-      where: { status: { not: 'CANCELLED' } },
-      orderBy: [{ deadline: 'desc' }],
-      take: 30,
-      select: {
-        id: true,
-        title: true,
-        type: true,
-        unitLabel: true,
-        deadline: true,
-        releaseDate: true,
-        status: true,
-        actualValue: true,
-        _count: { select: { predictions: true } },
-      },
-    }),
-    prisma.prediction.findMany({
-      where: { userId: user.id },
-      select: { eventId: true, value: true, points: true },
-    }),
-  ])
+  const events = await prisma.predictionEvent.findMany({
+    where: { status: { not: 'CANCELLED' } },
+    orderBy: [{ deadline: 'desc' }],
+    take: 30,
+    select: {
+      id: true,
+      title: true,
+      type: true,
+      unitLabel: true,
+      deadline: true,
+      releaseDate: true,
+      status: true,
+      actualValue: true,
+      _count: { select: { predictions: true } },
+    },
+  })
+  // Only the caller's predictions for the events on screen, not their whole
+  // history across semesters.
+  const myPredictions = events.length
+    ? await prisma.prediction.findMany({
+        where: { userId: user.id, eventId: { in: events.map((e) => e.id) } },
+        select: { eventId: true, value: true, points: true },
+      })
+    : []
 
   const mine = new Map(myPredictions.map((p) => [p.eventId, p]))
   const now = new Date()

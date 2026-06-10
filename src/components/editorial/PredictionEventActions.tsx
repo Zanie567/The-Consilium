@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 interface Props {
@@ -52,9 +53,9 @@ export function PredictionEventActions({ eventId, status, unitLabel }: Props) {
     <div className="shrink-0">
       <div className="flex flex-wrap items-center gap-2 justify-end">
         {(status === 'OPEN' || status === 'CLOSED') && (
-          <a href={`/editorial/predictions/${eventId}/edit`} className={buttonClass}>
+          <Link href={`/editorial/predictions/${eventId}/edit`} className={buttonClass}>
             Edit
-          </a>
+          </Link>
         )}
         {status === 'OPEN' && (
           <button disabled={busy} onClick={() => send({ action: 'close' })} className={buttonClass}>
