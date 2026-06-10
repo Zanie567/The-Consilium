@@ -17,6 +17,9 @@ export const PREDICTIONS_ACCESS_ROLES = ['ADMIN'] as const satisfies readonly Ro
 // Who can create, edit, close, cancel, and resolve prediction events in the
 // editorial portal. This stays admin-only even after the league opens up.
 export const PREDICTIONS_MANAGE_ROLES = ['ADMIN'] as const satisfies readonly Role[]
+// Who can open the read-through page (/editorial/readers and its API).
+// Everyone here sees their own articles only; ADMIN may view any author's.
+export const READ_THROUGH_ACCESS_ROLES = ['ADMIN', 'EDITOR', 'WRITER'] as const satisfies readonly Role[]
 
 export function isRole(value: unknown): value is Role {
   return typeof value === 'string' && (ALL_ROLES as readonly string[]).includes(value)
