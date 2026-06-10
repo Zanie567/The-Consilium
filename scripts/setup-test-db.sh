@@ -51,5 +51,6 @@ npm run db:seed
 npm run db:seed-debates
 npx ts-node -P tsconfig.seed.json prisma/dedupe-articles.ts
 npx ts-node -P tsconfig.seed.json prisma/seed-test-fixtures.ts
+npx ts-node -P tsconfig.seed.json prisma/seed-read-through.ts
 
 echo "✅ test database ready (port $PGPORT)"

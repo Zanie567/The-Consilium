@@ -25,6 +25,7 @@ import {
   UserCheck,
   Trophy,
   Target,
+  BookOpenCheck,
 } from 'lucide-react'
 
 interface User {
@@ -134,6 +135,7 @@ export function EditorialSidebar({
         {
           label: 'STANDINGS',
           items: [
+            { href: '/editorial/readers', icon: BookOpenCheck, label: 'Your Readers', show: true },
             { href: '/editorial/leaderboard', icon: Trophy, label: 'Leaderboard', exact: true, show: user.role === 'WRITER' },
           ],
         },
