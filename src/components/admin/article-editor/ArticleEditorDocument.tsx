@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import { useRef } from 'react'
 import { ImagePlus, X } from 'lucide-react'
 import type React from 'react'
+import type { Editor } from '@tiptap/react'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
 import type { ArticleEditorController, ArticleEditorRefs } from './types'
 
@@ -19,6 +20,8 @@ const TiptapEditor = dynamic(
     toolbarPortalRef?: React.RefObject<HTMLDivElement | null>
     noWrapper?: boolean
     darkMode?: boolean
+    onEditorReady?: (editor: Editor) => void
+    onCommentClick?: (commentId: string) => void
   } & React.RefAttributes<TiptapEditorHandle>
 >
 
@@ -28,9 +31,11 @@ interface ArticleEditorDocumentProps {
   excerptDomRef: ArticleEditorRefs['excerptDomRef']
   titleDomRef: ArticleEditorRefs['titleDomRef']
   toolbarPortalRef: ArticleEditorRefs['toolbarPortalRef']
+  onEditorReady?: (editor: Editor) => void
+  onCommentClick?: (commentId: string) => void
 }
 
-export function ArticleEditorDocument({ editor, editorRef, excerptDomRef, titleDomRef, toolbarPortalRef }: ArticleEditorDocumentProps) {
+export function ArticleEditorDocument({ editor, editorRef, excerptDomRef, titleDomRef, toolbarPortalRef, onEditorReady, onCommentClick }: ArticleEditorDocumentProps) {
   const { actions } = editor
 
   // Bug 4: Dedicated cover-image file input for the document-body button.
@@ -130,6 +135,8 @@ export function ArticleEditorDocument({ editor, editorRef, excerptDomRef, titleD
             toolbarPortalRef={toolbarPortalRef}
             noWrapper
             darkMode={editor.isDark}
+            onEditorReady={onEditorReady}
+            onCommentClick={onCommentClick}
           />
         </div>
       </div>

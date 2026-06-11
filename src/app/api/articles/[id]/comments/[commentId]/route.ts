@@ -1,84 +1,87 @@
 import { NextResponse } from 'next/server'
-import { getVerifiedSessionUser } from '@/lib/auth'
-import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
+import { checkArticleCommentAccess } from '@/lib/articleCommentAccess'
 
 interface Props {
   params: Promise<{ id: string; commentId: string }>
 }
 
-interface ArticleCommentRow {
-  id: string
-  articleId: string
-  authorId: string
-  commentText: string
-  resolved: boolean
-  createdAt: string
-  parentId: string | null
-  tiptapFrom: number | null
-  tiptapTo: number | null
-}
+const MAX_COMMENT_LENGTH = 5000
 
 export async function PATCH(req: Request, { params }: Props) {
-  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
-  if (!user) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
   const { id, commentId } = await params
-  const body = await req.json() as { resolved?: boolean; commentText?: string }
+  try {
+    const access = await checkArticleCommentAccess(id)
+    if (!access.ok) return access.response
+    const { user, isEditorial, isArticleAuthor } = access.grant
 
-  const article = await prisma.article.findUnique({ where: { id }, select: { id: true } })
-  if (!article) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    const body = (await req.json().catch(() => ({}))) as {
+      resolved?: unknown
+      commentText?: unknown
+    }
 
-  // Update only the fields that were provided, using separate safe queries.
-  // Both resolved and commentText can be updated in one combined query
-  // using CASE-based assignments to avoid dynamic SQL.
+    const comment = await prisma.articleComment.findUnique({
+      where: { id: commentId },
+      include: { author: { select: { name: true, email: true } } },
+    })
+    if (!comment || comment.articleId !== id) {
+      return NextResponse.json({ error: 'Comment not found' }, { status: 404 })
+    }
 
-  const newResolved = typeof body.resolved === 'boolean' ? body.resolved : null
-  const newText = body.commentText?.trim() ?? null
+    const newResolved = typeof body.resolved === 'boolean' ? body.resolved : null
+    const newText = typeof body.commentText === 'string' ? body.commentText.trim() : null
 
-  if (newResolved === null && newText === null) {
-    return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+    if (newResolved === null && newText === null) {
+      return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+    }
+
+    // Resolving and reopening is for editors and the article's author.
+    if (newResolved !== null && !isEditorial && !isArticleAuthor) {
+      return NextResponse.json(
+        { error: 'Only editors and the article author can resolve comments.' },
+        { status: 403 }
+      )
+    }
+
+    // Editing the text of a comment is for the person who wrote it.
+    if (newText !== null) {
+      if (comment.authorId !== user.id) {
+        return NextResponse.json(
+          { error: 'You can only edit your own comments.' },
+          { status: 403 }
+        )
+      }
+      if (!newText) {
+        return NextResponse.json({ error: 'A comment cannot be empty.' }, { status: 400 })
+      }
+      if (newText.length > MAX_COMMENT_LENGTH) {
+        return NextResponse.json({ error: 'That comment is too long.' }, { status: 400 })
+      }
+    }
+
+    const updated = await prisma.articleComment.update({
+      where: { id: commentId },
+      data: {
+        ...(newResolved !== null && { resolved: newResolved }),
+        ...(newText !== null && { commentText: newText }),
+      },
+    })
+
+    return NextResponse.json({
+      id: updated.id,
+      articleId: updated.articleId,
+      authorId: updated.authorId,
+      commentText: updated.commentText,
+      resolved: updated.resolved,
+      createdAt: updated.createdAt,
+      parentId: updated.parentId,
+      tiptapFrom: updated.tiptapFrom,
+      tiptapTo: updated.tiptapTo,
+      quotedText: updated.quotedText,
+      authorName: comment.author?.name ?? comment.author?.email ?? 'Unknown',
+    })
+  } catch (error) {
+    console.error('Update article comment error:', error)
+    return NextResponse.json({ error: 'Failed to update the comment.' }, { status: 500 })
   }
-
-  let rows: ArticleCommentRow[]
-
-  if (newResolved !== null && newText !== null) {
-    rows = await prisma.$queryRaw<ArticleCommentRow[]>`
-      UPDATE article_comments
-      SET resolved = ${newResolved}, comment_text = ${newText}
-      WHERE id = ${commentId} AND article_id = ${id}
-      RETURNING
-        id, article_id AS "articleId", author_id AS "authorId",
-        comment_text AS "commentText", resolved, created_at AS "createdAt",
-        parent_id AS "parentId", tiptap_from AS "tiptapFrom", tiptap_to AS "tiptapTo"
-    `
-  } else if (newResolved !== null) {
-    rows = await prisma.$queryRaw<ArticleCommentRow[]>`
-      UPDATE article_comments
-      SET resolved = ${newResolved}
-      WHERE id = ${commentId} AND article_id = ${id}
-      RETURNING
-        id, article_id AS "articleId", author_id AS "authorId",
-        comment_text AS "commentText", resolved, created_at AS "createdAt",
-        parent_id AS "parentId", tiptap_from AS "tiptapFrom", tiptap_to AS "tiptapTo"
-    `
-  } else {
-    rows = await prisma.$queryRaw<ArticleCommentRow[]>`
-      UPDATE article_comments
-      SET comment_text = ${newText}
-      WHERE id = ${commentId} AND article_id = ${id}
-      RETURNING
-        id, article_id AS "articleId", author_id AS "authorId",
-        comment_text AS "commentText", resolved, created_at AS "createdAt",
-        parent_id AS "parentId", tiptap_from AS "tiptapFrom", tiptap_to AS "tiptapTo"
-    `
-  }
-
-  if (rows.length === 0) {
-    return NextResponse.json({ error: 'Comment not found' }, { status: 404 })
-  }
-
-  return NextResponse.json(rows[0])
 }

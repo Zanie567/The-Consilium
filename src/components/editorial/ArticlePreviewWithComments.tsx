@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { MessageSquare } from 'lucide-react'
 import type { Editor } from '@tiptap/react'
 import type { ArticleComment } from '@/components/editorial/CommentsPanel'
+import { CommentSelectionPopover } from '@/components/editorial/CommentSelectionPopover'
+import { useCommentAnchors, type CommentAnchorMap } from '@/components/editorial/useCommentAnchors'
+import { scrollToCommentHighlight } from '@/components/editor/commentHighlight'
 
 const TiptapEditor = dynamic(
   () => import('@/components/editor/TiptapEditor').then((m) => m.TiptapEditor),
@@ -15,6 +16,7 @@ const TiptapEditor = dynamic(
   onChange: (v: string) => void
   editable?: boolean
   onEditorReady?: (editor: Editor) => void
+  onCommentClick?: (commentId: string) => void
 }>
 
 interface Props {
@@ -24,16 +26,8 @@ interface Props {
   activeCommentId: string | null
   onCommentCreated: (comment: ArticleComment) => void
   onSelectComment: (id: string | null) => void
-}
-
-interface FloatingButtonState {
-  visible: boolean
-  /** Viewport-relative left position for the portal-rendered UI */
-  vx: number
-  /** Viewport-relative top position for the portal-rendered UI */
-  vy: number
-  from: number
-  to: number
+  /** Reports each comment's anchor state so the panel can flag orphans. */
+  onAnchorsChange?: (anchors: CommentAnchorMap) => void
 }
 
 export function ArticlePreviewWithComments({
@@ -42,211 +36,41 @@ export function ArticlePreviewWithComments({
   comments,
   activeCommentId,
   onCommentCreated,
-  onSelectComment: _onSelectComment,
+  onSelectComment,
+  onAnchorsChange,
 }: Props) {
-  const editorRef = useRef<Editor | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const portalBtnRef = useRef<HTMLButtonElement>(null)
-  const portalFormRef = useRef<HTMLDivElement>(null)
-  const [floatingBtn, setFloatingBtn] = useState<FloatingButtonState>({ visible: false, vx: 0, vy: 0, from: 0, to: 0 })
-  const [commentFormOpen, setCommentFormOpen] = useState(false)
-  const [commentText, setCommentText] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [editor, setEditor] = useState<Editor | null>(null)
 
-  // Apply comment highlights when editor is ready or comments change
-  const applyHighlights = useCallback((editor: Editor) => {
-    if (!editor.isEditable) {
-      comments.forEach((c) => {
-        if (c.tiptapFrom !== null && c.tiptapTo !== null) {
-          editor.chain().setTextSelection({ from: c.tiptapFrom, to: c.tiptapTo })
-            .setMark('commentMark', { commentId: c.id, resolved: c.resolved })
-            .run()
-        }
-      })
-    }
-  }, [comments])
+  // Verify stored anchors against the document, re-anchor moved quotes, and
+  // keep the highlight decorations in sync.
+  const anchors = useCommentAnchors(editor, comments, activeCommentId)
 
-  const handleEditorReady = useCallback((editor: Editor) => {
-    editorRef.current = editor
-    applyHighlights(editor)
-  }, [applyHighlights])
-
-  // Show floating comment button on text selection
   useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
+    onAnchorsChange?.(anchors)
+  }, [anchors, onAnchorsChange])
 
-    const handleMouseUp = () => {
-      const editor = editorRef.current
-      if (!editor) return
-
-      const { from, to } = editor.state.selection
-      if (from === to) {
-        setFloatingBtn((s) => ({ ...s, visible: false }))
-        return
-      }
-
-      // Get the DOM selection to position the button
-      const domSel = window.getSelection()
-      if (!domSel || domSel.rangeCount === 0) return
-
-      const range = domSel.getRangeAt(0)
-      const rect = range.getBoundingClientRect()
-
-      setFloatingBtn({
-        visible: true,
-        vx: rect.left + rect.width / 2,
-        vy: rect.top - 8,
-        from,
-        to,
-      })
-    }
-
-    const handleMouseDown = (e: MouseEvent) => {
-      const target = e.target as Node
-      const inContainer = containerRef.current?.contains(target)
-      const inPortalBtn = portalBtnRef.current?.contains(target)
-      const inPortalForm = portalFormRef.current?.contains(target)
-      if (!inContainer && !inPortalBtn && !inPortalForm) {
-        setFloatingBtn((s) => ({ ...s, visible: false }))
-        setCommentFormOpen(false)
-      }
-    }
-
-    container.addEventListener('mouseup', handleMouseUp)
-    document.addEventListener('mousedown', handleMouseDown)
-    return () => {
-      container.removeEventListener('mouseup', handleMouseUp)
-      document.removeEventListener('mousedown', handleMouseDown)
-    }
-  }, [])
-
-  // Scroll active comment's highlight into view
+  // Scroll the active comment's highlight into view
   useEffect(() => {
-    if (!activeCommentId) return
-    const el = containerRef.current?.querySelector(`[data-comment-id="${activeCommentId}"]`)
-    el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  }, [activeCommentId])
-
-  const submitComment = async () => {
-    if (!commentText.trim() || submitting) return
-    setSubmitting(true)
-    setSubmitError(null)
-    try {
-      const res = await fetch(`/api/articles/${articleId}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          commentText,
-          tiptapFrom: floatingBtn.from,
-          tiptapTo: floatingBtn.to,
-        }),
-      })
-      if (res.ok) {
-        const newComment = await res.json() as ArticleComment
-
-        const editor = editorRef.current
-        if (editor) {
-          editor.chain()
-            .setTextSelection({ from: floatingBtn.from, to: floatingBtn.to })
-            .setMark('commentMark', { commentId: newComment.id, resolved: false })
-            .run()
-        }
-
-        onCommentCreated(newComment)
-        setCommentText('')
-        setCommentFormOpen(false)
-        setFloatingBtn((s) => ({ ...s, visible: false }))
-      } else {
-        const json = await res.json().catch(() => ({})) as { error?: string }
-        setSubmitError(json.error ?? 'Failed to save comment. Please try again.')
-      }
-    } catch {
-      setSubmitError('Network error. Please try again.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const portalContent = typeof document !== 'undefined' ? (
-    <>
-      {/* Floating "add comment" button - rendered via portal to escape overflow:hidden parents */}
-      {floatingBtn.visible && !commentFormOpen && (
-        <button
-          ref={portalBtnRef}
-          type="button"
-          onClick={() => { setCommentFormOpen(true); setCommentText('') }}
-          className="fixed z-[200] flex items-center gap-1.5 bg-gold text-navy text-xs font-bold px-2.5 py-1.5 rounded-full shadow-lg hover:bg-gold/90 transition-colors"
-          style={{
-            left: floatingBtn.vx,
-            top: floatingBtn.vy,
-            transform: 'translate(-50%, -100%)',
-          }}
-          aria-label="Add comment"
-        >
-          <MessageSquare size={13} />
-          Comment
-        </button>
-      )}
-
-      {/* Comment form popover - rendered via portal to escape overflow:hidden parents */}
-      {commentFormOpen && (
-        <div
-          ref={portalFormRef}
-          className="fixed z-[200] bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl shadow-2xl p-3 w-72"
-          style={{
-            left: Math.min(floatingBtn.vx, window.innerWidth - 296),
-            top: floatingBtn.vy,
-            transform: 'translateY(-100%) translateY(-8px)',
-          }}
-        >
-          <textarea
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void submitComment() }}
-            placeholder="Add a comment..."
-            rows={3}
-            autoFocus
-            className="w-full bg-[var(--bg)] border border-[var(--border)] text-[var(--fg)] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-gold resize-none placeholder:text-[var(--fg-faint)]"
-          />
-          {submitError && (
-            <p className="text-[11px] text-red-500 mt-2">{submitError}</p>
-          )}
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-[10px] text-[var(--fg-faint)]">Cmd+Enter to submit</span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setCommentFormOpen(false); setFloatingBtn((s) => ({ ...s, visible: false })) }}
-                className="text-xs text-[var(--fg-faint)] hover:text-[var(--fg)] transition-colors px-2 py-1"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => void submitComment()}
-                disabled={!commentText.trim() || submitting}
-                className="text-xs font-bold bg-navy text-gold px-3 py-1 rounded hover:bg-navy-dark transition-colors disabled:opacity-50"
-              >
-                {submitting ? 'Adding...' : 'Add comment'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  ) : null
+    if (!activeCommentId || !editor) return
+    scrollToCommentHighlight(editor, activeCommentId)
+  }, [activeCommentId, editor])
 
   return (
-    <div ref={containerRef} className="relative">
+    <div className="relative">
       {/* TipTap read-only preview */}
       <TiptapEditor
         content={content}
         onChange={() => {}}
         editable={false}
-        onEditorReady={handleEditorReady}
+        onEditorReady={setEditor}
+        onCommentClick={(id) => onSelectComment(id)}
       />
 
-      {portalContent && createPortal(portalContent, document.body)}
+      <CommentSelectionPopover
+        editor={editor}
+        articleId={articleId}
+        onCommentCreated={onCommentCreated}
+      />
     </div>
   )
 }
