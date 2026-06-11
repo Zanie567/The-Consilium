@@ -24,7 +24,8 @@ export default async function GlossaryAdminPage() {
   const [terms, setting] = await Promise.all([
     prisma.glossaryTerm
       .findMany({
-        orderBy: { term: 'asc' },
+        // Newest first so a freshly added term is always at the top of page 1.
+        orderBy: [{ createdAt: 'desc' }, { term: 'asc' }],
         select: {
           id: true,
           term: true,
