@@ -1,8 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { PlusCircle, Pencil, Trash2, Search } from 'lucide-react'
+import { PlusCircle, Pencil, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 
 /**
  * Admin CRUD for glossary terms plus the site-wide linking switch.
@@ -30,6 +30,23 @@ interface FormValues {
 
 const EMPTY_FORM: FormValues = { term: '', aliases: '', definition: '', learnMoreUrl: '' }
 
+const PAGE_SIZE = 10
+
+/**
+ * Page numbers to render between the chevrons: first, last, and a window
+ * around the current page, with nulls marking elided runs (drawn as "…").
+ */
+function pageNumbers(current: number, total: number): (number | null)[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  const wanted = new Set([1, 2, current - 1, current, current + 1, total - 1, total])
+  const out: (number | null)[] = []
+  for (let p = 1; p <= total; p++) {
+    if (wanted.has(p)) out.push(p)
+    else if (out[out.length - 1] !== null) out.push(null)
+  }
+  return out
+}
+
 const inputClass =
   'w-full rounded border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--fg)] focus:border-gold focus:outline-none'
 const labelClass = 'block text-xs uppercase tracking-widest text-[var(--fg-muted)] mb-1.5'
@@ -52,6 +69,7 @@ export function GlossaryManager({
 }) {
   const router = useRouter()
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
   const [enabled, setEnabled] = useState(initialEnabled)
   const [togglePending, setTogglePending] = useState(false)
   // 'new' opens the create form; a term id opens the edit form for that row.
@@ -71,6 +89,34 @@ export function GlossaryManager({
         t.definition.toLowerCase().includes(q)
     )
   }, [initialTerms, search])
+
+  // Terms arrive newest-first from the server; show them a page at a time.
+  // The page is clamped rather than reset so deleting the last row of the
+  // final page lands on the new final page instead of an empty one.
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
+  function goToPage(p: number) {
+    setPage(Math.min(Math.max(1, p), totalPages))
+  }
+
+  // Horizontal swipe on the list flips pages (touch devices). The vertical
+  // guard keeps ordinary scrolling from being mistaken for a swipe.
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
+  function onTouchStart(e: React.TouchEvent) {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    const start = touchStart.current
+    touchStart.current = null
+    if (!start) return
+    const dx = e.changedTouches[0].clientX - start.x
+    const dy = e.changedTouches[0].clientY - start.y
+    if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) {
+      goToPage(dx < 0 ? currentPage + 1 : currentPage - 1)
+    }
+  }
 
   function set<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -149,6 +195,8 @@ export function GlossaryManager({
         return
       }
       closeForm()
+      // New terms sort to the top of page 1; jump there so the row is visible.
+      if (editing === 'new') setPage(1)
       router.refresh()
     } catch {
       setError('Saving failed. Please try again.')
@@ -256,7 +304,10 @@ export function GlossaryManager({
           <input
             type="search"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
             placeholder="Search terms, aliases, definitions"
             aria-label="Search glossary terms"
             className={`${inputClass} pl-9`}
@@ -367,8 +418,8 @@ export function GlossaryManager({
           Nothing matches that search.
         </p>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((term) => (
+        <div className="space-y-3" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+          {paged.map((term) => (
             <div
               key={term.id}
               className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-4 sm:p-5"
@@ -434,6 +485,57 @@ export function GlossaryManager({
               </div>
             </div>
           ))}
+
+          {/* Pagination */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+            <p className="text-[var(--fg-faint)] text-xs">
+              Showing {(currentPage - 1) * PAGE_SIZE + 1} to{' '}
+              {Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length} terms
+            </p>
+            <div className="flex items-center gap-1" role="navigation" aria-label="Glossary pages">
+              <button
+                type="button"
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                aria-label="Previous page"
+                className="p-1.5 text-[var(--fg-faint)] hover:text-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              {pageNumbers(currentPage, totalPages).map((p, i) =>
+                p === null ? (
+                  <span key={`gap-${i}`} className="px-1 text-[var(--fg-faint)] text-xs">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => goToPage(p)}
+                    aria-label={`Page ${p}`}
+                    aria-current={p === currentPage ? 'page' : undefined}
+                    className={[
+                      'min-w-[28px] px-1.5 py-1 text-xs rounded transition-colors',
+                      p === currentPage
+                        ? 'bg-navy text-cream font-bold'
+                        : 'text-[var(--fg-muted)] hover:text-gold',
+                    ].join(' ')}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+              <button
+                type="button"
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                aria-label="Next page"
+                className="p-1.5 text-[var(--fg-faint)] hover:text-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
