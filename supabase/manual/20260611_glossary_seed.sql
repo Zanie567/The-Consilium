@@ -9,9 +9,10 @@
 -- "updatedAt" with no database default (Prisma fills it client-side, always
 -- UTC), and a bare CURRENT_TIMESTAMP would write session-local time, which
 -- breaks newest-first ordering against Prisma-written rows.
--- Idempotent: ON CONFLICT DO NOTHING means re-running it never duplicates or
--- overwrites terms (uniqueness is case-insensitive via the lower(term) index
--- from 20260610_glossary_terms.sql, which must be applied first).
+-- Idempotent: ON CONFLICT (lower("term")) DO NOTHING means re-running it never
+-- duplicates or overwrites terms; the arbiter is the case-insensitive
+-- lower(term) unique index from 20260610_glossary_terms.sql, which must be
+-- applied first.
 -- Terms edited later in the admin UI keep their edits; this file is the seed,
 -- not the source of truth.
 
@@ -103,4 +104,9 @@ VALUES
   ('caob53uoi7r3hayfskfg07svm', 'basis point', ARRAY['basis points']::text[], 'One hundredth of a percentage point. Financial markets quote changes in interest rates and yields in basis points to avoid ambiguity: a rise from 4.00% to 4.25% is 25 basis points.', 'https://www.investor.gov/introduction-investing/investing-basics/glossary/basis-point', true, (now() AT TIME ZONE 'utc'), (now() AT TIME ZONE 'utc')),
   ('cbomnk641vwjcx7h30yg7bt63', 'fractional reserve banking', '{}'::text[], 'The system in which banks keep only a fraction of deposits on hand and lend out the rest. It is how banks create credit and grow the economy, and also why they are vulnerable to runs if too many depositors want their cash at once.', 'https://www.bankofengland.co.uk/quarterly-bulletin/2014/q1/money-creation-in-the-modern-economy', true, (now() AT TIME ZONE 'utc'), (now() AT TIME ZONE 'utc')),
   ('cayeprztk36dmt3fxvbjl4sjt', 'velocity of money', '{}'::text[], 'How many times a typical unit of money changes hands in a year. When velocity falls, as it did after 2008, even a big increase in the money supply may not produce inflation.', 'https://fred.stlouisfed.org/series/M2V', true, (now() AT TIME ZONE 'utc'), (now() AT TIME ZONE 'utc'))
-ON CONFLICT DO NOTHING;
+-- Arbiter is the case-insensitive term identity (the glossary_terms_term_lower_key
+-- unique index): a row is skipped when its NAME is already taken, even if that
+-- term was created in the admin UI under a different id. Targeting (id) instead
+-- would make such re-runs fail with a unique violation on term. The inference
+-- form is required here — ON CONSTRAINT cannot name an expression index.
+ON CONFLICT (lower("term")) DO NOTHING;
