@@ -164,6 +164,46 @@ Review pass (CodeRabbit on PR #71):
 
 ## Recent Sessions
 
+### 2026-06-12: Scheduled date/time picker audit + label a11y fix (`claude/schedule-datetime-picker`)
+
+Task asked for a scheduled date/time picker in the article editor metadata
+panel. Reading first showed the picker already exists and is fully wired;
+only one accessibility gap was real. One file changed:
+`src/components/admin/article-editor/ArticleEditorMetadataPanel.tsx`.
+
+**What was already there (do not re-implement):**
+- A `datetime-local` input labelled "Publish At (UK time)" renders when
+  status is SCHEDULED, bound to `editor.scheduledAt` with
+  `actions.setScheduledAt`, with `min` = now + 1 minute in Europe/London
+  via `getEditorialScheduleMinInput()`. Landed in "Harden scheduled
+  article publishing" (1c8724b). The controller validates on save
+  (SCHEDULED + empty scheduledAt aborts with an error).
+- Gating is `!editor.isWriter`, which inside the editor is equivalent to
+  `editor.canPublish`: GROWTH is redirected off the edit pages and only
+  ADMIN/EDITOR/WRITER reach the component.
+
+**What changed:**
+- `FieldLabel` accepts an optional `htmlFor` prop; the scheduled input
+  now has a `useId()`-based `id` and the Publish At label points at it.
+  Previously the label was an unassociated sibling.
+- `useId()` rather than a hardcoded id because the panel is mounted twice
+  simultaneously (desktop sidebar + mobile settings sheet, both kept in
+  the DOM and toggled via CSS), so a fixed id would be duplicated.
+
+**Schema changes:** None.
+
+**New environment variables:** None. (Worktree note: `npm run build`
+page-data collection needs `NEXTAUTH_SECRET`; copying `.env` from the
+main checkout into the worktree fixes it.)
+
+**Architectural decisions:** Did not re-implement the picker, move it, or
+change its gating; the existing implementation already met the spec apart
+from label association. Other `FieldLabel` usages in the panel remain
+unassociated; same `htmlFor` pattern can be applied if wanted later.
+
+**Issues introduced:** None. `npm run build` exit 0 and
+`npx tsc --noEmit` exit 0 in this worktree.
+
 ### 2026-06-12: Sitemap excludes test accounts (`claude/sitemap-exclude-test-accounts`)
 
 Targeted one-line fix to `src/app/sitemap.ts`. No other files changed.
@@ -559,8 +599,9 @@ entry above and must be applied before the commissioning brief feature will work
 
 | PR | Branch | Status | Notes |
 |----|--------|--------|-------|
-| fix: exclude test accounts from public sitemap | `claude/sitemap-exclude-test-accounts` | Open, awaiting review | No schema changes, no new env vars. Safe to merge immediately. |
-| fix: correct og:description, add Twitter card, canonical tag, robots (#100) | `claude/seo-metadata-foundations` | Open, awaiting review | No schema changes. `NEXT_PUBLIC_SITE_URL` must be set in Vercel and a redeploy triggered for the canonical/og:url values to resolve correctly in production. Safe to merge once env var is confirmed. |
+| fix: associate Publish At label with scheduled date input in article editor | `claude/schedule-datetime-picker` | Open, awaiting review | One-file a11y fix + this AI_STATE log. No schema changes, no new env vars. Safe to merge immediately. |
+| fix: exclude test accounts from public sitemap | `claude/sitemap-exclude-test-accounts` | Merged (#101) | No schema changes, no new env vars. |
+| fix: correct og:description, add Twitter card, canonical tag, robots (#100) | `claude/seo-metadata-foundations` | Merged (commit 60610ec) | No schema changes. `NEXT_PUBLIC_SITE_URL` must be set in Vercel and a redeploy triggered for the canonical/og:url values to resolve correctly in production. |
 | copy: tighten Corrections and Privacy policy prose (#86) | `claude/policy-copy-edit` | Open, awaiting review | Copy-only edits to two policy pages (9 string changes) + this AI_STATE log. No schema changes, no new env vars, no structural changes. Safe to merge immediately. |
 | fix: sign-out reliability and EDITOR role over-privilege | `consilium/fix-signout-and-editor-ui` | Open, awaiting review | No schema changes, no new env vars. Safe to merge immediately. |
 | feat: writer performance system - streaks, engagement scores, commendations, achievements, commissioning brief | `claude/writer-performance-system` | Open, awaiting review | Do not merge. Run two SQL statements in Supabase first: the `site_settings` CREATE TABLE (commissioning brief) and the `writer_streaks.intervalWeeks` ALTER TABLE (streak cadence). Both are in the verification reports above. `CRON_SECRET` reused (no new value). |
