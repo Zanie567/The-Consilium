@@ -14,7 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     prisma.category.findMany({ select: { slug: true } }).catch(() => []),
     prisma.tag.findMany({ select: { slug: true } }).catch(() => []),
     prisma.user.findMany({
-      where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] }, slug: { not: null } },
+      where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] }, slug: { not: null }, NOT: { email: { startsWith: 'test-' } } },
       select: { slug: true },
     }).catch(() => []),
   ])
