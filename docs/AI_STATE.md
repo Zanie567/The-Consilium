@@ -539,7 +539,7 @@ entry above and must be applied before the commissioning brief feature will work
 
 | PR | Branch | Status | Notes |
 |----|--------|--------|-------|
-| fix: correct og:description, add Twitter card, canonical tag, robots (#TBD) | `claude/seo-metadata-foundations` | Open, awaiting review | No schema changes. `NEXT_PUBLIC_SITE_URL` must be set in Vercel and a redeploy triggered for the canonical/og:url values to resolve correctly in production. Safe to merge once env var is confirmed. |
+| fix: correct og:description, add Twitter card, canonical tag, robots (#100) | `claude/seo-metadata-foundations` | Open, awaiting review | No schema changes. `NEXT_PUBLIC_SITE_URL` must be set in Vercel and a redeploy triggered for the canonical/og:url values to resolve correctly in production. Safe to merge once env var is confirmed. |
 | copy: tighten Corrections and Privacy policy prose (#86) | `claude/policy-copy-edit` | Open, awaiting review | Copy-only edits to two policy pages (9 string changes) + this AI_STATE log. No schema changes, no new env vars, no structural changes. Safe to merge immediately. |
 | fix: sign-out reliability and EDITOR role over-privilege | `consilium/fix-signout-and-editor-ui` | Open, awaiting review | No schema changes, no new env vars. Safe to merge immediately. |
 | feat: writer performance system - streaks, engagement scores, commendations, achievements, commissioning brief | `claude/writer-performance-system` | Open, awaiting review | Do not merge. Run two SQL statements in Supabase first: the `site_settings` CREATE TABLE (commissioning brief) and the `writer_streaks.intervalWeeks` ALTER TABLE (streak cadence). Both are in the verification reports above. `CRON_SECRET` reused (no new value). |
