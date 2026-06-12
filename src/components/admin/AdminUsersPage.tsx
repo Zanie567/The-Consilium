@@ -435,19 +435,19 @@ export function AdminUsersPage({ currentAdminId }: Props) {
                 placeholder="Search name or email..."
                 defaultValue={search}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="flex-1 bg-transparent text-sm text-[var(--fg)] placeholder-[var(--fg-faint)] outline-none"
+                className="flex-1 bg-transparent text-base sm:text-sm text-[var(--fg)] placeholder-[var(--fg-faint)] outline-none"
               />
             </div>
 
             {/* Role tabs + status + sort */}
             <div className="flex flex-wrap items-center gap-3">
               {/* Role tabs */}
-              <div className="flex gap-0 border border-[var(--border)]">
+              <div className="flex gap-0 border border-[var(--border)] max-w-full overflow-x-auto">
                 {ROLE_TABS.map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setRoleTab(tab)}
-                    className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${
+                    className={`shrink-0 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${
                       roleTab === tab
                         ? 'bg-gold text-navy'
                         : 'text-[var(--fg-faint)] hover:text-[var(--fg)]'
@@ -462,7 +462,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--fg)] text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 outline-none"
+                className="bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--fg)] text-base sm:text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 outline-none"
               >
                 <option value="">All Status</option>
                 <option value="active">Active</option>
@@ -474,7 +474,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
-                className="bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--fg)] text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 outline-none"
+                className="bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--fg)] text-base sm:text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 outline-none"
               >
                 {SORT_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>

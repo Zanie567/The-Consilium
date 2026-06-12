@@ -68,7 +68,7 @@ export function ArticleEditorDocument({ editor, editorRef, excerptDomRef, titleD
               onError={(event) => { event.currentTarget.style.display = 'none' }}
             />
             {editor.canEdit && (
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+              <div className="absolute inset-0 bg-black/40 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                 <button
                   type="button"
                   onClick={() => docCoverInputRef.current?.click()}

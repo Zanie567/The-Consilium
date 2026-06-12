@@ -73,7 +73,7 @@ export function ContactForm() {
             value={form.name}
             onChange={handleChange}
             required
-            className="w-full border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-sm focus:outline-none focus:border-gold transition-colors bg-[var(--bg)]"
+            className="w-full border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-base sm:text-sm focus:outline-none focus:border-gold transition-colors bg-[var(--bg)]"
             placeholder="Your full name"
           />
         </div>
@@ -87,7 +87,7 @@ export function ContactForm() {
             value={form.email}
             onChange={handleChange}
             required
-            className="w-full border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-sm focus:outline-none focus:border-gold transition-colors bg-[var(--bg)]"
+            className="w-full border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-base sm:text-sm focus:outline-none focus:border-gold transition-colors bg-[var(--bg)]"
             placeholder="your@email.com"
           />
         </div>
@@ -102,7 +102,7 @@ export function ContactForm() {
           value={form.subject}
           onChange={handleChange}
           required
-          className="w-full border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-sm focus:outline-none focus:border-gold transition-colors bg-[var(--bg)]"
+          className="w-full border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-base sm:text-sm focus:outline-none focus:border-gold transition-colors bg-[var(--bg)]"
         >
           <option value="">Select a subject</option>
           <option value="writing">I&apos;d like to write for The Consilium</option>
@@ -123,7 +123,7 @@ export function ContactForm() {
           onChange={handleChange}
           required
           rows={6}
-          className="w-full border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-sm focus:outline-none focus:border-gold transition-colors bg-[var(--bg)] resize-none"
+          className="w-full border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-base sm:text-sm focus:outline-none focus:border-gold transition-colors bg-[var(--bg)] resize-none"
           placeholder="Your message..."
         />
       </div>

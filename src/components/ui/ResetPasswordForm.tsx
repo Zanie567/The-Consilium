@@ -64,13 +64,13 @@ export function ResetPasswordForm({ token, apiPath }: Props) {
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={8}
-            className="w-full bg-white/10 border border-cream/20 px-4 py-3 pr-11 text-cream text-sm placeholder:text-cream/30 focus:outline-none focus:border-gold transition-colors"
+            className="w-full bg-white/10 border border-cream/20 px-4 py-3 pr-11 text-cream text-base sm:text-sm placeholder:text-cream/30 focus:outline-none focus:border-gold transition-colors"
             placeholder="At least 8 characters"
           />
           <button
             type="button"
             onClick={() => setShow((s) => !s)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-cream/40 hover:text-cream/70 transition-colors"
+            className="absolute right-1 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center text-cream/40 hover:text-cream/70 transition-colors"
             aria-label={show ? 'Hide password' : 'Show password'}
           >
             {show ? <EyeOff size={16} /> : <Eye size={16} />}

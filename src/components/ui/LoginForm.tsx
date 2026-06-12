@@ -90,7 +90,7 @@ export function LoginForm({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full bg-white/10 border border-cream/20 px-4 py-3 text-cream text-sm placeholder:text-cream/30 focus:outline-none focus:border-gold transition-colors"
+            className="w-full bg-white/10 border border-cream/20 px-4 py-3 text-cream text-base sm:text-sm placeholder:text-cream/30 focus:outline-none focus:border-gold transition-colors"
             placeholder="editor@example.com"
           />
         </div>
@@ -113,13 +113,13 @@ export function LoginForm({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full bg-white/10 border border-cream/20 px-4 py-3 pr-11 text-cream text-sm placeholder:text-cream/30 focus:outline-none focus:border-gold transition-colors"
+              className="w-full bg-white/10 border border-cream/20 px-4 py-3 pr-11 text-cream text-base sm:text-sm placeholder:text-cream/30 focus:outline-none focus:border-gold transition-colors"
               placeholder="••••••••"
             />
             <button
               type="button"
               onClick={() => setShowPassword((s) => !s)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-cream/40 hover:text-cream/70 transition-colors"
+              className="absolute right-1 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center text-cream/40 hover:text-cream/70 transition-colors"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
