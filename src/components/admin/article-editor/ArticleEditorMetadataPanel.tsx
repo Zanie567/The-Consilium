@@ -1,6 +1,7 @@
 'use client'
 
 import type React from 'react'
+import { useId } from 'react'
 import Image from 'next/image'
 import { ChevronDown, Clock, ImagePlus, Tag, X } from 'lucide-react'
 import { EDITORIAL_TIME_ZONE_LABEL, getEditorialScheduleMinInput } from '@/lib/editorialSchedule'
@@ -15,6 +16,7 @@ interface ArticleEditorMetadataPanelProps {
 
 export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEditorMetadataPanelProps) {
   const { actions } = editor
+  const scheduledAtId = useId()
 
   return (
     <div className="space-y-0">
@@ -68,8 +70,9 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
 
       {!editor.isWriter && editor.status === 'SCHEDULED' && (
         <div>
-          <FieldLabel>Publish At ({EDITORIAL_TIME_ZONE_LABEL})</FieldLabel>
+          <FieldLabel htmlFor={scheduledAtId}>Publish At ({EDITORIAL_TIME_ZONE_LABEL})</FieldLabel>
           <input
+            id={scheduledAtId}
             type="datetime-local"
             value={editor.scheduledAt}
             min={getEditorialScheduleMinInput()}
@@ -234,9 +237,9 @@ function SelectField({ children, disabled, hidden, label, onChange, value }: Sel
   )
 }
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
+function FieldLabel({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
   return (
-    <label className="text-[10px] uppercase tracking-[0.08em] text-[var(--fg-faint)] mb-1 mt-3 flex items-center gap-1">
+    <label htmlFor={htmlFor} className="text-[10px] uppercase tracking-[0.08em] text-[var(--fg-faint)] mb-1 mt-3 flex items-center gap-1">
       {children}
     </label>
   )
