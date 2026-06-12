@@ -164,6 +164,26 @@ Review pass (CodeRabbit on PR #71):
 
 ## Recent Sessions
 
+### 2026-06-12: Sitemap excludes test accounts (`claude/sitemap-exclude-test-accounts`)
+
+Targeted one-line fix to `src/app/sitemap.ts`. No other files changed.
+
+**What changed:**
+- Added `NOT: { email: { startsWith: 'test-' } }` to the Prisma `user.findMany`
+  query that builds author sitemap entries. Test accounts (email pattern
+  `test-*@theconsilium.co.uk`) are now excluded from the public sitemap.
+
+**Schema changes:** None.
+
+**New environment variables:** None.
+
+**Architectural decisions:** None. The filter uses Prisma's built-in `NOT`
+operator and `startsWith` to keep the fix close to the existing query structure.
+
+**Issues introduced:** None. `npx tsc --noEmit` clean (exit 0). `npm run build`
+TypeScript phase passed cleanly; page-data collection aborted on
+NEXTAUTH\_SECRET not set in this worktree environment (pre-existing infra issue).
+
 ### 2026-06-12: SEO metadata foundations (`claude/seo-metadata-foundations`)
 
 Targeted fix to `src/app/layout.tsx` metadata export only. No layout, component,
@@ -539,6 +559,7 @@ entry above and must be applied before the commissioning brief feature will work
 
 | PR | Branch | Status | Notes |
 |----|--------|--------|-------|
+| fix: exclude test accounts from public sitemap | `claude/sitemap-exclude-test-accounts` | Open, awaiting review | No schema changes, no new env vars. Safe to merge immediately. |
 | fix: correct og:description, add Twitter card, canonical tag, robots (#100) | `claude/seo-metadata-foundations` | Open, awaiting review | No schema changes. `NEXT_PUBLIC_SITE_URL` must be set in Vercel and a redeploy triggered for the canonical/og:url values to resolve correctly in production. Safe to merge once env var is confirmed. |
 | copy: tighten Corrections and Privacy policy prose (#86) | `claude/policy-copy-edit` | Open, awaiting review | Copy-only edits to two policy pages (9 string changes) + this AI_STATE log. No schema changes, no new env vars, no structural changes. Safe to merge immediately. |
 | fix: sign-out reliability and EDITOR role over-privilege | `consilium/fix-signout-and-editor-ui` | Open, awaiting review | No schema changes, no new env vars. Safe to merge immediately. |
