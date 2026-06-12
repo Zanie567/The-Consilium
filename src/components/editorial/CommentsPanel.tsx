@@ -45,6 +45,9 @@ export function CommentsPanel({
   const [submitting, setSubmitting] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  // Guards against overlapping resolve/reopen PATCHes for the same comment
+  // (e.g. a double click), which could otherwise land out of order.
+  const resolvingComments = useRef<Set<string>>(new Set())
 
   const topLevel = comments.filter((c) => c.parentId === null)
   const visible = showResolved ? topLevel : topLevel.filter((c) => !c.resolved)
@@ -91,6 +94,8 @@ export function CommentsPanel({
   }
 
   const resolveComment = async (commentId: string, resolved: boolean) => {
+    if (resolvingComments.current.has(commentId)) return
+    resolvingComments.current.add(commentId)
     setActionError(null)
     try {
       const res = await fetch(`/api/articles/${articleId}/comments/${commentId}`, {
@@ -106,6 +111,8 @@ export function CommentsPanel({
       }
     } catch {
       setActionError('Network problem. Please try again.')
+    } finally {
+      resolvingComments.current.delete(commentId)
     }
   }
 

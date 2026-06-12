@@ -22,7 +22,7 @@ export async function PATCH(req: Request, { params }: Props) {
 
     const comment = await prisma.articleComment.findUnique({
       where: { id: commentId },
-      include: { author: { select: { name: true, email: true } } },
+      include: { author: { select: { name: true } } },
     })
     if (!comment || comment.articleId !== id) {
       return NextResponse.json({ error: 'Comment not found' }, { status: 404 })
@@ -78,7 +78,8 @@ export async function PATCH(req: Request, { params }: Props) {
       tiptapFrom: updated.tiptapFrom,
       tiptapTo: updated.tiptapTo,
       quotedText: updated.quotedText,
-      authorName: comment.author?.name ?? comment.author?.email ?? 'Unknown',
+      // Never return the author's email: the panel only needs a display name.
+      authorName: comment.author?.name ?? 'Unknown',
     })
   } catch (error) {
     console.error('Update article comment error:', error)

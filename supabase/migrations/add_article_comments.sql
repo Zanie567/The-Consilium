@@ -28,9 +28,20 @@ CREATE INDEX IF NOT EXISTS idx_article_comments_parent_id  ON article_comments(p
 -- can read/write; restrict public access.
 ALTER TABLE article_comments ENABLE ROW LEVEL SECURITY;
 
--- Allow the service role (used by Prisma) full access
-CREATE POLICY "service_role_all" ON article_comments
-  FOR ALL
-  TO service_role
-  USING (true)
-  WITH CHECK (true);
+-- Allow the service role (used by Prisma) full access. Guarded so re-running
+-- this migration does not error on an already-created policy.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'article_comments'
+      AND policyname = 'service_role_all'
+  ) THEN
+    CREATE POLICY "service_role_all" ON article_comments
+      FOR ALL
+      TO service_role
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END $$;

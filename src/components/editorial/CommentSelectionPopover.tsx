@@ -38,22 +38,25 @@ export function CommentSelectionPopover({ editor, articleId, onCommentCreated }:
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  // Show the floating comment button when a text selection is made
+  // Show the floating comment button when a text selection is made, whether by
+  // mouse or keyboard (shift+arrows). 'selectionchange' covers the keyboard
+  // case; both paths run the same logic.
   useEffect(() => {
     if (!editor || editor.isDestroyed) return
     const dom = editor.view.dom
 
-    const handleMouseUp = () => {
+    const updateButtonForSelection = () => {
       if (editor.isDestroyed) return
+      const domSel = window.getSelection()
+      // Only react to selections inside the editor: this keeps typing in the
+      // comment textarea (a different selection root) from moving the button.
+      if (!domSel || domSel.rangeCount === 0 || !dom.contains(domSel.anchorNode)) return
+
       const { from, to } = editor.state.selection
       if (from === to || !extractQuote(editor.state.doc, from, to)) {
         setFloatingBtn((s) => ({ ...s, visible: false }))
         return
       }
-
-      // Get the DOM selection to position the button
-      const domSel = window.getSelection()
-      if (!domSel || domSel.rangeCount === 0) return
 
       const range = domSel.getRangeAt(0)
       const rect = range.getBoundingClientRect()
@@ -78,10 +81,12 @@ export function CommentSelectionPopover({ editor, articleId, onCommentCreated }:
       }
     }
 
-    dom.addEventListener('mouseup', handleMouseUp)
+    dom.addEventListener('mouseup', updateButtonForSelection)
+    document.addEventListener('selectionchange', updateButtonForSelection)
     document.addEventListener('mousedown', handleMouseDown)
     return () => {
-      dom.removeEventListener('mouseup', handleMouseUp)
+      dom.removeEventListener('mouseup', updateButtonForSelection)
+      document.removeEventListener('selectionchange', updateButtonForSelection)
       document.removeEventListener('mousedown', handleMouseDown)
     }
   }, [editor])
@@ -167,7 +172,7 @@ export function CommentSelectionPopover({ editor, articleId, onCommentCreated }:
             <p className="text-[11px] text-red-500 mt-2">{submitError}</p>
           )}
           <div className="flex items-center justify-between mt-2">
-            <span className="text-[10px] text-[var(--fg-faint)]">Cmd+Enter to submit</span>
+            <span className="text-[10px] text-[var(--fg-faint)]">Cmd/Ctrl+Enter to submit</span>
             <div className="flex gap-2">
               <button
                 onClick={() => { setCommentFormOpen(false); setFloatingBtn((s) => ({ ...s, visible: false })) }}

@@ -48,7 +48,12 @@ export function useCommentAnchors(
     }
     setAnchors(map)
     setCommentHighlights(editor, ranges)
-  }, [editor, comments])
+    // editor.state.doc is in the deps so anchors re-resolve as the writer types:
+    // the plugin maps highlights through edits, but only re-resolving can detect
+    // a quote that was edited mid-span and orphan it instead of highlighting the
+    // now-wrong text. A highlights-only dispatch leaves the doc reference
+    // unchanged, so this does not loop.
+  }, [editor, comments, editor?.state.doc])
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return

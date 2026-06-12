@@ -194,6 +194,20 @@ describe('POST /api/articles/[id]/comments authorization and validation', () => 
     expect((await POST(jsonReq({ commentText: 'ok', tiptapFrom: 10, tiptapTo: 4 }), params())).status).toBe(400)
     expect((await POST(jsonReq({ commentText: 'ok', tiptapFrom: -2, tiptapTo: 4 }), params())).status).toBe(400)
   })
+
+  it('rejects a zero-length selection (to must be greater than from)', async () => {
+    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN)
+    const res = await POST(jsonReq({ commentText: 'ok', tiptapFrom: 5, tiptapTo: 5 }), params())
+    expect(res.status).toBe(400)
+    expect(prismaMock.articleComment.create).not.toHaveBeenCalled()
+  })
+
+  it('rejects non-integer selection positions', async () => {
+    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN)
+    const res = await POST(jsonReq({ commentText: 'ok', tiptapFrom: 1.5, tiptapTo: 4 }), params())
+    expect(res.status).toBe(400)
+    expect(prismaMock.articleComment.create).not.toHaveBeenCalled()
+  })
 })
 
 // ── POST: notifications ───────────────────────────────────────────────────────

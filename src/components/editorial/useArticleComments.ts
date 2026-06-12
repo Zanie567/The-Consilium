@@ -12,14 +12,19 @@ export function useArticleComments(articleId: string | undefined) {
   const [comments, setComments] = useState<ArticleComment[]>([])
 
   useEffect(() => {
+    // Clear immediately so a previous article's comments never linger while a
+    // new fetch is in flight (or when there is no article at all).
+    setComments([])
     if (!articleId) return
     let cancelled = false
     fetch(`/api/articles/${articleId}/comments`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data: ArticleComment[]) => {
-        if (!cancelled && Array.isArray(data)) setComments(data)
+        if (!cancelled) setComments(Array.isArray(data) ? data : [])
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled) setComments([])
+      })
     return () => { cancelled = true }
   }, [articleId])
 

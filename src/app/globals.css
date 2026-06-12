@@ -1276,9 +1276,10 @@ mark {
   background-color: rgba(201, 168, 76, 0.4);
 }
 .comment-highlight.comment-highlight-resolved {
+  /* Mute only the decoration, never the text: dimming via opacity would also
+     lower the contrast of the underlying article text. */
   background-color: transparent;
-  border-bottom-color: rgba(156, 163, 175, 0.4);
-  opacity: 0.5;
+  border-bottom-color: rgba(156, 163, 175, 0.25);
 }
 .comment-highlight.comment-highlight-active {
   background-color: rgba(201, 168, 76, 0.45);

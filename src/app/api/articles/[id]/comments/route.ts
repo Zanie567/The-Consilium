@@ -11,7 +11,7 @@ interface Props {
 const MAX_COMMENT_LENGTH = 5000
 const MAX_QUOTE_LENGTH = 5000
 
-function serialize(comment: ArticleComment & { author?: { name: string | null; email: string | null } }, fallbackName?: string | null) {
+function serialize(comment: ArticleComment & { author?: { name: string | null } }, fallbackName?: string | null) {
   return {
     id: comment.id,
     articleId: comment.articleId,
@@ -23,7 +23,8 @@ function serialize(comment: ArticleComment & { author?: { name: string | null; e
     tiptapFrom: comment.tiptapFrom,
     tiptapTo: comment.tiptapTo,
     quotedText: comment.quotedText,
-    authorName: comment.author?.name ?? comment.author?.email ?? fallbackName ?? 'Unknown',
+    // Never return the author's email: the panel only needs a display name.
+    authorName: comment.author?.name ?? fallbackName ?? 'Unknown',
   }
 }
 
@@ -35,7 +36,7 @@ export async function GET(_req: Request, { params }: Props) {
 
     const comments = await prisma.articleComment.findMany({
       where: { articleId: id },
-      include: { author: { select: { name: true, email: true } } },
+      include: { author: { select: { name: true } } },
       orderBy: { createdAt: 'asc' },
     })
 
@@ -126,7 +127,7 @@ export async function POST(req: Request, { params }: Props) {
       console.error('Comment notification error:', error)
     }
 
-    return NextResponse.json(serialize(created, user.name ?? user.email), { status: 201 })
+    return NextResponse.json(serialize(created, user.name), { status: 201 })
   } catch (error) {
     console.error('Create article comment error:', error)
     return NextResponse.json({ error: 'Failed to save the comment.' }, { status: 500 })
