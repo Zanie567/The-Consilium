@@ -79,10 +79,15 @@ export function FootnotePopovers({ containerSelector }: { containerSelector: str
       // the inflated layout width and the clamp would let the card hang off
       // the real (visual) viewport.
       const viewportWidth = document.documentElement.clientWidth
+      const viewportHeight = document.documentElement.clientHeight
       let left = rect.left + rect.width / 2 - width / 2
       left = Math.max(margin, Math.min(left, viewportWidth - width - margin))
       let top = rect.top - height - gap
       if (top < margin) top = rect.bottom + gap
+      // Clamp against the bottom edge too: a tall card near the bottom of a
+      // short viewport (e.g. a long footnote on a landscape phone) would
+      // otherwise hang off the bottom even after the flip-below branch.
+      top = Math.max(margin, Math.min(top, viewportHeight - height - margin))
       tip.style.left = `${Math.round(left)}px`
       tip.style.top = `${Math.round(top)}px`
     }

@@ -98,16 +98,21 @@ export async function upsertFootnoteTestArticle(): Promise<string> {
     ],
   })
 
+  // Fixed timestamp (not new Date()) so re-running the seed never reshuffles the
+  // fixture's recency relative to the other seeded articles, which would make
+  // recency-sensitive assertions flaky.
+  const publishedAt = new Date('2026-01-01T00:00:00.000Z')
+
   const article = await db().article.upsert({
     where: { slug: 'footnote-popover-test' },
-    update: { content, status: 'PUBLISHED', publishedAt: new Date(), deletedAt: null },
+    update: { content, status: 'PUBLISHED', publishedAt, deletedAt: null },
     create: {
       slug: 'footnote-popover-test',
       title: 'Footnote popover test article',
       excerpt: 'A test article exercising footnote markers, including stale indices and special characters.',
       content,
       status: 'PUBLISHED',
-      publishedAt: new Date(),
+      publishedAt,
       authorId: writer.id,
       categoryId: category?.id ?? null,
     },

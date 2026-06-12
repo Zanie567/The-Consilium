@@ -370,7 +370,11 @@ export default async function ArticlePage({ params }: Props) {
           />
           <ArticleAnchorLinks containerSelector="#article-body" />
           {glossary.hasLinks && <GlossaryTooltips containerSelector="#article-body" />}
-          {footnotes.length > 0 && <FootnotePopovers containerSelector="#article-body" />}
+          {/* Keyed on the article id so client-side navigation between two
+              footnoted articles remounts the effect and rebinds listeners to
+              the new #article-body markers (the div's innerHTML is swapped in
+              place, which would otherwise leave listeners on detached nodes). */}
+          {footnotes.length > 0 && <FootnotePopovers key={article.id} containerSelector="#article-body" />}
         </AnimateIn>
 
         {/* Tags */}
