@@ -34,7 +34,7 @@ describe('article HTML sanitization (sanitize-html, server-side)', () => {
       '<figcaption class="caption">cap</figcaption>' +
       '<p class="image-credit">Photo: x</p></figure>' +
       '<aside data-type="pull-quote" class="pull-quote">quote</aside>' +
-      '<sup class="footnote-ref" data-footnote="n" data-index="1" title="note">[1]</sup>' +
+      '<sup class="footnote-ref" id="fnref-1" data-footnote="n" data-index="1"><a href="#fn-1" aria-label="Footnote 1">[1]</a></sup>' +
       '<a href="https://example.com" target="_blank" rel="noopener">link</a>' +
       '<p><strong>b</strong><em>i</em><u>u</u><mark>h</mark></p>' +
       '<ol><li>one</li></ol><blockquote><p>q</p></blockquote><hr />'
@@ -46,6 +46,9 @@ describe('article HTML sanitization (sanitize-html, server-side)', () => {
     expect(out).toContain('data-type="pull-quote"')
     expect(out).toContain('data-footnote')
     expect(out).toContain('data-index="1"')
+    expect(out).toContain('id="fnref-1"')
+    expect(out).toContain('href="#fn-1"')
+    expect(out).toContain('aria-label="Footnote 1"')
     expect(out).toContain('href="https://example.com"')
     expect(out).toContain('target="_blank"')
     expect(out).toContain('<mark>')
@@ -54,5 +57,12 @@ describe('article HTML sanitization (sanitize-html, server-side)', () => {
 
   it('keeps relative anchor hrefs (footnote/correction links)', () => {
     expect(clean('<a href="#correction-note">see</a>')).toContain('href="#correction-note"')
+  })
+
+  it('strips the legacy title attribute from footnote markers', () => {
+    // The popover replaced the native tooltip, so title is no longer allowed.
+    const out = clean('<sup class="footnote-ref" data-index="1" title="note">[1]</sup>')
+    expect(out).not.toContain('title=')
+    expect(out).toContain('data-index="1"')
   })
 })

@@ -31,7 +31,7 @@ export default defineConfig({
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
       name: 'public',
-      testMatch: /(public|network-crawl)\.spec\.ts/,
+      testMatch: /(public|network-crawl|footnotes)\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
     {

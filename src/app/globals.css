@@ -818,6 +818,51 @@ body {
   text-decoration: none;
   font-weight: 700;
   padding: 0 1px;
+  /* Keep the marker visible below any floating chrome when a back-link
+     scrolls to it without JavaScript. */
+  scroll-margin-top: 6rem;
+}
+
+.prose-consilium sup.footnote-ref a {
+  color: inherit;
+  text-decoration: none;
+  font-weight: inherit;
+}
+
+.prose-consilium sup.footnote-ref a:focus-visible {
+  outline: 2px solid rgba(201, 162, 39, 0.6);
+  outline-offset: 2px;
+}
+
+.footnote-popover {
+  position: fixed;
+  z-index: 90;
+  /* Fixed width (not max-width) so the box measured for positioning cannot
+     grow later, e.g. when a webfont swaps in, and drift past the viewport
+     clamp. */
+  width: min(320px, calc(100vw - 16px));
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-shadow: var(--shadow-card-hover);
+  padding: 0.7rem 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--fg-muted);
+}
+
+.footnote-popover-label {
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #c9a227;
+  margin-bottom: 0.3rem;
+}
+
+.footnote-popover-text {
+  margin: 0;
+  overflow-wrap: break-word;
 }
 
 .prose-consilium .footnotes-section {
@@ -848,6 +893,43 @@ body {
 
 .dark .prose-consilium .footnotes-section ol {
   color: rgba(232,226,212,0.55);
+}
+
+.prose-consilium .footnotes-section li {
+  scroll-margin-top: 6rem;
+  border-radius: 2px;
+  transition: background-color 0.6s ease;
+  overflow-wrap: break-word;
+}
+
+.prose-consilium .footnotes-section li:focus {
+  outline: none;
+}
+
+.prose-consilium .footnotes-section li.footnote-flash {
+  background-color: rgba(201, 162, 39, 0.16);
+}
+
+.prose-consilium sup.footnote-ref.footnote-flash {
+  background-color: rgba(201, 162, 39, 0.25);
+  border-radius: 2px;
+  transition: background-color 0.6s ease;
+}
+
+.footnote-backlink {
+  color: #c9a227;
+  text-decoration: none;
+  font-size: 0.8rem;
+  padding: 0 2px;
+}
+
+.footnote-backlink:hover {
+  text-decoration: underline;
+}
+
+.footnote-backlink:focus-visible {
+  outline: 2px solid rgba(201, 162, 39, 0.6);
+  outline-offset: 2px;
 }
 
 /* ─── Charts ───────────────────────────────────────────────────────────────── */
@@ -903,6 +985,13 @@ mark {
   header, footer, nav,
   .no-print,
   [data-print-hidden] {
+    display: none !important;
+  }
+
+  /* Footnote markers print as plain numbers; the references list carries the
+     text, so the popover and the back-link arrows are screen-only. */
+  .footnote-popover,
+  .footnote-backlink {
     display: none !important;
   }
 

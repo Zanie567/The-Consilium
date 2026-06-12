@@ -24,7 +24,7 @@ import {
   Minus, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Undo, Redo, List, ListOrdered, Quote, Code2,
   Star, Printer, Type, Highlighter, Table as TableIcon,
-  Indent, Outdent,
+  Indent, Outdent, Superscript,
 } from 'lucide-react'
 import React, {
   useCallback, useRef, useState, useEffect, useImperativeHandle,
@@ -99,9 +99,15 @@ const FootnoteRef = Node.create({
         commands: SingleCommands
         state: import('@tiptap/pm/state').EditorState
       }) => {
-        let count = 0
-        state.doc.descendants((n) => { if (n.type.name === 'footnoteRef') count++ })
-        return commands.insertContent({ type: 'footnoteRef', attrs: { index: count + 1, content } })
+        // Use max existing index + 1, not count + 1: after a deletion the
+        // count can collide with a surviving footnote's number. Editor numbers
+        // may still show gaps after deletions; the public page renumbers all
+        // footnotes sequentially in document order at render time.
+        let max = 0
+        state.doc.descendants((n) => {
+          if (n.type.name === 'footnoteRef') max = Math.max(max, Number(n.attrs.index) || 0)
+        })
+        return commands.insertContent({ type: 'footnoteRef', attrs: { index: max + 1, content } })
       },
     }
   },
@@ -328,6 +334,22 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
       },
       immediatelyRender: false,
       editorProps: {
+        // Clicking a footnote marker opens its text for editing. Clearing the
+        // text removes the footnote; cancelling leaves it untouched.
+        handleClickOn(view, _pos, node, nodePos) {
+          if (node.type.name !== 'footnoteRef' || !view.editable) return false
+          const existing = String(node.attrs.content ?? '')
+          const next = window.prompt('Footnote text (clear it to remove this footnote):', existing)
+          if (next === null) return true
+          const tr = view.state.tr
+          if (next.trim() === '') {
+            tr.delete(nodePos, nodePos + node.nodeSize)
+          } else {
+            tr.setNodeMarkup(nodePos, undefined, { ...node.attrs, content: next.trim() })
+          }
+          view.dispatch(tr)
+          return true
+        },
         handlePaste(view, event) {
           const html = event.clipboardData?.getData('text/html')
           // If no HTML in clipboard, return false and let TipTap
@@ -914,6 +936,15 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
             </ToolbarBtn>
             <ToolbarBtn onClick={() => editor.chain().focus().togglePullQuote().run()} active={editor.isActive('pullQuote')} title="Pull quote">
               <Star size={15} />
+            </ToolbarBtn>
+            <ToolbarBtn
+              onClick={() => {
+                const text = window.prompt('Footnote text:')
+                if (text && text.trim()) editor.chain().focus().insertFootnote(text.trim()).run()
+              }}
+              title="Insert footnote"
+            >
+              <Superscript size={15} />
             </ToolbarBtn>
 
             {/* Save status indicator */}

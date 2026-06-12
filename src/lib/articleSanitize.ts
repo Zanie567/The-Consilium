@@ -30,13 +30,18 @@ export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     'span',
   ],
   allowedAttributes: {
-    a: ['href', 'target', 'rel'],
+    // aria-label carries the accessible name of footnote marker links.
+    a: ['href', 'target', 'rel', 'aria-label'],
     img: ['src', 'alt'],
     p: ['class'],
     figure: ['class'],
     figcaption: ['class'],
     aside: ['class', 'data-type'],
-    sup: ['class', 'data-footnote', 'data-index', 'title'],
+    // Footnote markers: id anchors the back-link target (always "fnref-<n>"
+    // with a renderer-generated n), data-footnote holds the URI-encoded note
+    // text the popover decodes and renders as plain text. The old title
+    // attribute is gone on purpose, the popover replaces the native tooltip.
+    sup: ['class', 'data-footnote', 'data-index', 'id'],
     // Glossary tooltip triggers only. data-gloss-* values are plain text the
     // tooltip reads via getAttribute/textContent, never interpreted as HTML.
     span: ['class', 'data-gloss-term', 'data-gloss-def', 'data-gloss-url'],
