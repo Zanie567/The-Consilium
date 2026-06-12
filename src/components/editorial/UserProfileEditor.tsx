@@ -120,9 +120,9 @@ function EditableField({
           <button
             onClick={() => { setDraft(value); setEditing(true) }}
             aria-label={`Edit ${label}`}
-            className="opacity-0 group-hover:opacity-100 p-1 text-[var(--fg-faint)] hover:text-gold transition-all"
+            className="flex h-8 w-8 shrink-0 items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-[var(--fg-faint)] hover:text-gold transition-all"
           >
-            <Pencil size={11} />
+            <Pencil size={13} />
           </button>
         </div>
       )}

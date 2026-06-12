@@ -80,14 +80,19 @@ export function Navbar() {
     }
   }
 
-  // Trap focus + close on Escape
+  // Close on Escape + lock background scroll while the drawer is open
   useEffect(() => {
     if (!mobileOpen) return
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setMobileOpen(false)
     }
     document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', handler)
+      document.body.style.overflow = prevOverflow
+    }
   }, [mobileOpen])
 
   // Editorial portal has its own navigation - don't render the public navbar there
@@ -230,7 +235,7 @@ export function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed top-14 sm:top-16 inset-x-0 z-40 bg-navy/[0.98] backdrop-blur-md border-b border-gold/30 shadow-[0_16px_32px_rgba(0,0,0,0.4)] py-4 px-4"
+            className="fixed top-16 inset-x-0 z-40 bg-navy/[0.98] backdrop-blur-md border-b border-gold/30 shadow-[0_16px_32px_rgba(0,0,0,0.4)] py-4 px-4"
           >
             <form onSubmit={handleSearch} className="max-w-2xl mx-auto flex items-center gap-3">
               <Search size={16} className="text-gold/60 shrink-0" />
@@ -241,7 +246,7 @@ export function Navbar() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search articles, authors, topics…"
                 autoComplete="off"
-                className="flex-1 bg-transparent text-cream placeholder-cream/35 text-sm outline-none"
+                className="flex-1 bg-transparent text-cream placeholder-cream/35 text-base sm:text-sm outline-none"
               />
               <button
                 type="submit"
@@ -272,7 +277,7 @@ export function Navbar() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
-              className="lg:hidden fixed inset-0 z-[55] bg-navy/60 backdrop-blur-sm"
+              className="lg:hidden fixed inset-0 z-[94] bg-navy/60 backdrop-blur-sm"
               aria-hidden
               onClick={() => setMobileOpen(false)}
             />
@@ -285,7 +290,7 @@ export function Navbar() {
               animate={{ x: 0 }}
               exit={prefersReducedMotion ? undefined : { x: '100%' }}
               transition={{ type: 'spring', stiffness: 300, damping: 35 }}
-              className="lg:hidden fixed top-0 right-0 bottom-0 w-72 z-[60] bg-navy border-l border-gold/25 shadow-[-16px_0_40px_rgba(0,0,0,0.45)] overflow-y-auto flex flex-col"
+              className="lg:hidden fixed top-0 right-0 bottom-0 w-72 z-[95] bg-navy border-l border-gold/25 shadow-[-16px_0_40px_rgba(0,0,0,0.45)] overflow-y-auto flex flex-col"
             >
               {/* Drawer header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">

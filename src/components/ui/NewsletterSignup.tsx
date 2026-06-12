@@ -99,7 +99,7 @@ export function NewsletterSignup() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Your email address"
                   required
-                  className="w-full bg-white/[0.06] border border-cream/20 text-cream placeholder:text-cream/35 px-4 py-3 text-sm focus:outline-none focus:border-gold/70 focus:bg-white/[0.09] transition-all duration-200"
+                  className="w-full bg-white/[0.06] border border-cream/20 text-cream placeholder:text-cream/35 px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-gold/70 focus:bg-white/[0.09] transition-all duration-200"
                 />
                 {/* Animated bottom border on focus */}
                 <span className="absolute bottom-0 left-0 h-px w-0 bg-gold group-focus-within:w-full transition-all duration-300 ease-out" />

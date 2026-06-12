@@ -12,6 +12,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
@@ -35,11 +36,26 @@ function setCookie(name: string, value: string, days: number) {
 
 export function SignupPrompt() {
   const { data: session, status } = useSession()
+  const pathname = usePathname()
   const [visible, setVisible] = useState(false)
+
+  // Redundant + obstructive on the auth pages (the card would cover the form's
+  // submit button on small screens), and on the editorial/admin portal.
+  const suppressed =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/signup') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/editorial') ||
+    pathname.startsWith('/admin')
 
   useEffect(() => {
     if (status === 'loading') return
     if (session) return // logged in - never show
+    if (suppressed) {
+      setVisible(false)
+      return
+    }
 
     // Only set tracking cookies if the user has accepted cookie consent
     if (getCookieConsent() !== 'accepted') return
@@ -61,7 +77,7 @@ export function SignupPrompt() {
       const timer = setTimeout(() => setVisible(true), 3500)
       return () => clearTimeout(timer)
     }
-  }, [session, status])
+  }, [session, status, suppressed])
 
   const dismiss = () => {
     setVisible(false)
@@ -88,9 +104,9 @@ export function SignupPrompt() {
             <button
               onClick={dismiss}
               aria-label="Dismiss"
-              className="absolute top-3 right-3 text-cream/30 hover:text-cream/70 transition-colors"
+              className="absolute top-1.5 right-1.5 flex h-9 w-9 items-center justify-center text-cream/30 hover:text-cream/70 transition-colors"
             >
-              <X size={14} />
+              <X size={16} />
             </button>
 
             {/* Masthead micro */}

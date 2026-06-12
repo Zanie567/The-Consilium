@@ -111,7 +111,7 @@ export function SignUpForm() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="w-full bg-[var(--bg)] border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-sm placeholder:text-[var(--fg-faint)] focus:outline-none focus:border-gold transition-colors"
+            className="w-full bg-[var(--bg)] border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-base sm:text-sm placeholder:text-[var(--fg-faint)] focus:outline-none focus:border-gold transition-colors"
             placeholder="Your name"
           />
         </div>
@@ -125,7 +125,7 @@ export function SignUpForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full bg-[var(--bg)] border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-sm placeholder:text-[var(--fg-faint)] focus:outline-none focus:border-gold transition-colors"
+            className="w-full bg-[var(--bg)] border border-[var(--border)] px-4 py-3 text-[var(--fg)] text-base sm:text-sm placeholder:text-[var(--fg-faint)] focus:outline-none focus:border-gold transition-colors"
             placeholder="you@example.com"
           />
         </div>
@@ -141,13 +141,13 @@ export function SignUpForm() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={8}
-              className="w-full bg-[var(--bg)] border border-[var(--border)] px-4 py-3 pr-11 text-[var(--fg)] text-sm placeholder:text-[var(--fg-faint)] focus:outline-none focus:border-gold transition-colors"
+              className="w-full bg-[var(--bg)] border border-[var(--border)] px-4 py-3 pr-11 text-[var(--fg)] text-base sm:text-sm placeholder:text-[var(--fg-faint)] focus:outline-none focus:border-gold transition-colors"
               placeholder="At least 8 characters"
             />
             <button
               type="button"
               onClick={() => setShowPassword((s) => !s)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--fg-faint)] hover:text-[var(--fg-muted)] transition-colors"
+              className="absolute right-1 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center text-[var(--fg-faint)] hover:text-[var(--fg-muted)] transition-colors"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}

@@ -105,10 +105,10 @@ export function DraftsSection({ drafts }: { drafts: Draft[] }) {
             ) : (
               <button
                 onClick={(e) => { e.preventDefault(); setConfirmId(draft.id) }}
-                className="text-[var(--fg-faint)] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 p-1"
+                className="flex h-8 w-8 items-center justify-center text-[var(--fg-faint)] hover:text-red-500 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                 aria-label="Delete draft"
               >
-                <Trash2 size={13} />
+                <Trash2 size={14} />
               </button>
             )}
           </div>

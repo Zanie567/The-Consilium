@@ -94,7 +94,7 @@ export function ScrollIndicator() {
   return (
     <div
       ref={trackRef}
-      className="fixed right-0 top-0 bottom-0 z-[60] w-[10px] cursor-pointer select-none"
+      className="hidden lg:block fixed right-0 top-0 bottom-0 z-[60] w-[10px] cursor-pointer select-none"
       onClick={handleTrackClick}
       aria-hidden="true"
     >

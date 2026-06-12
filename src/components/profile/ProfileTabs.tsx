@@ -336,10 +336,10 @@ function SavedArticlesTab() {
             <button
               onClick={() => handleRemove(article.id)}
               disabled={removing === article.id}
-              className="text-[var(--fg-faint)] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+              className="flex h-8 w-8 items-center justify-center text-[var(--fg-faint)] hover:text-red-500 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-50"
               aria-label="Remove bookmark"
             >
-              <Trash2 size={13} />
+              <Trash2 size={14} />
             </button>
           </div>
         </div>

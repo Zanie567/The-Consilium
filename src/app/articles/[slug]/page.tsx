@@ -471,7 +471,7 @@ export default async function ArticlePage({ params }: Props) {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3 no-print">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 no-print">
               <PrintButton />
               <SaveAsPdfButton title={article.title} />
               <ShareButtons title={article.title} />
