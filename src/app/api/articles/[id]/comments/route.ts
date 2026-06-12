@@ -1,104 +1,189 @@
 import { NextResponse } from 'next/server'
-import { getVerifiedSessionUser } from '@/lib/auth'
-import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
+import { checkArticleCommentAccess } from '@/lib/articleCommentAccess'
+import type { CommentAccessGrant } from '@/lib/articleCommentAccess'
+import type { ArticleComment } from '@prisma/client'
 
 interface Props {
   params: Promise<{ id: string }>
 }
 
-export async function GET(_req: Request, { params }: Props) {
-  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
-  if (!user) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+const MAX_COMMENT_LENGTH = 5000
+const MAX_QUOTE_LENGTH = 5000
+
+function serialize(comment: ArticleComment & { author?: { name: string | null } }, fallbackName?: string | null) {
+  return {
+    id: comment.id,
+    articleId: comment.articleId,
+    authorId: comment.authorId,
+    commentText: comment.commentText,
+    resolved: comment.resolved,
+    createdAt: comment.createdAt,
+    parentId: comment.parentId,
+    tiptapFrom: comment.tiptapFrom,
+    tiptapTo: comment.tiptapTo,
+    quotedText: comment.quotedText,
+    // Never return the author's email: the panel only needs a display name.
+    authorName: comment.author?.name ?? fallbackName ?? 'Unknown',
   }
+}
 
+export async function GET(_req: Request, { params }: Props) {
   const { id } = await params
+  try {
+    const access = await checkArticleCommentAccess(id)
+    if (!access.ok) return access.response
 
-  const article = await prisma.article.findUnique({ where: { id }, select: { id: true } })
-  if (!article) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    const comments = await prisma.articleComment.findMany({
+      where: { articleId: id },
+      include: { author: { select: { name: true } } },
+      orderBy: { createdAt: 'asc' },
+    })
 
-  // Raw query because article_comments is not in the Prisma schema yet.
-  // ACTION REQUIRED: run the SQL in supabase/migrations/add_article_comments.sql
-  // before deploying this route.
-  const comments = await prisma.$queryRaw<ArticleCommentRow[]>`
-    SELECT
-      c.id,
-      c.article_id  AS "articleId",
-      c.author_id   AS "authorId",
-      c.comment_text AS "commentText",
-      c.resolved,
-      c.created_at  AS "createdAt",
-      c.parent_id   AS "parentId",
-      c.tiptap_from AS "tiptapFrom",
-      c.tiptap_to   AS "tiptapTo",
-      u.name        AS "authorName"
-    FROM article_comments c
-    JOIN "User" u ON u.id = c.author_id
-    WHERE c.article_id = ${id}
-    ORDER BY c.created_at ASC
-  `
-
-  return NextResponse.json(comments)
+    return NextResponse.json(comments.map((c) => serialize(c)))
+  } catch (error) {
+    console.error('List article comments error:', error)
+    return NextResponse.json({ error: 'Failed to load comments.' }, { status: 500 })
+  }
 }
 
 export async function POST(req: Request, { params }: Props) {
-  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
-  if (!user) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
   const { id } = await params
-  const body = await req.json() as {
-    commentText?: string
-    parentId?: string | null
-    tiptapFrom?: number
-    tiptapTo?: number
+  try {
+    const access = await checkArticleCommentAccess(id)
+    if (!access.ok) return access.response
+    const { user, article } = access.grant
+
+    const body = (await req.json().catch(() => ({}))) as {
+      commentText?: unknown
+      parentId?: unknown
+      tiptapFrom?: unknown
+      tiptapTo?: unknown
+      quotedText?: unknown
+    }
+
+    const commentText = typeof body.commentText === 'string' ? body.commentText.trim() : ''
+    if (!commentText) {
+      return NextResponse.json({ error: 'A comment cannot be empty.' }, { status: 400 })
+    }
+    if (commentText.length > MAX_COMMENT_LENGTH) {
+      return NextResponse.json({ error: 'That comment is too long.' }, { status: 400 })
+    }
+
+    const parentId = typeof body.parentId === 'string' && body.parentId ? body.parentId : null
+
+    let parent: ArticleComment | null = null
+    if (parentId) {
+      parent = await prisma.articleComment.findUnique({ where: { id: parentId } })
+      if (!parent || parent.articleId !== id) {
+        return NextResponse.json({ error: 'That comment thread no longer exists.' }, { status: 400 })
+      }
+      if (parent.parentId) {
+        return NextResponse.json({ error: 'Replies can only be added to a top-level comment.' }, { status: 400 })
+      }
+    }
+
+    // Anchors only make sense on top-level comments; replies inherit the
+    // thread's anchor.
+    let tiptapFrom: number | null = null
+    let tiptapTo: number | null = null
+    let quotedText: string | null = null
+    if (!parentId) {
+      const from = body.tiptapFrom
+      const to = body.tiptapTo
+      if (typeof from === 'number' || typeof to === 'number') {
+        if (
+          typeof from !== 'number' || typeof to !== 'number' ||
+          !Number.isInteger(from) || !Number.isInteger(to) ||
+          from < 0 || to <= from
+        ) {
+          return NextResponse.json({ error: 'That text selection is not valid.' }, { status: 400 })
+        }
+        tiptapFrom = from
+        tiptapTo = to
+      }
+      if (typeof body.quotedText === 'string' && body.quotedText) {
+        quotedText = body.quotedText.slice(0, MAX_QUOTE_LENGTH)
+      }
+    }
+
+    const created = await prisma.articleComment.create({
+      data: {
+        articleId: id,
+        authorId: user.id,
+        commentText,
+        parentId,
+        tiptapFrom,
+        tiptapTo,
+        quotedText,
+      },
+    })
+
+    // Notifications follow the existing in-app Notification patterns. They are
+    // best effort: a notification hiccup must not lose the comment itself.
+    try {
+      await notifyAboutComment({ grant: access.grant, parent, article })
+    } catch (error) {
+      console.error('Comment notification error:', error)
+    }
+
+    return NextResponse.json(serialize(created, user.name), { status: 201 })
+  } catch (error) {
+    console.error('Create article comment error:', error)
+    return NextResponse.json({ error: 'Failed to save the comment.' }, { status: 500 })
   }
-
-  if (!body.commentText?.trim()) {
-    return NextResponse.json({ error: 'commentText required' }, { status: 400 })
-  }
-
-  const article = await prisma.article.findUnique({ where: { id }, select: { id: true } })
-  if (!article) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
-  const rows = await prisma.$queryRaw<ArticleCommentRow[]>`
-    INSERT INTO article_comments
-      (article_id, author_id, comment_text, parent_id, tiptap_from, tiptap_to)
-    VALUES (
-      ${id},
-      ${user.id},
-      ${body.commentText.trim()},
-      ${body.parentId ?? null},
-      ${body.tiptapFrom ?? null},
-      ${body.tiptapTo ?? null}
-    )
-    RETURNING
-      id,
-      article_id   AS "articleId",
-      author_id    AS "authorId",
-      comment_text AS "commentText",
-      resolved,
-      created_at   AS "createdAt",
-      parent_id    AS "parentId",
-      tiptap_from  AS "tiptapFrom",
-      tiptap_to    AS "tiptapTo"
-  `
-
-  const row = rows[0]
-  return NextResponse.json({ ...row, authorName: user.name ?? user.email }, { status: 201 })
 }
 
-interface ArticleCommentRow {
-  id: string
-  articleId: string
-  authorId: string
-  commentText: string
-  resolved: boolean
-  createdAt: string
-  parentId: string | null
-  tiptapFrom: number | null
-  tiptapTo: number | null
-  authorName?: string
+async function notifyAboutComment({
+  grant,
+  parent,
+  article,
+}: {
+  grant: CommentAccessGrant
+  parent: ArticleComment | null
+  article: { id: string; authorId: string; title: string }
+}) {
+  const { user } = grant
+  const commenterName = user.name ?? 'A colleague'
+
+  if (!parent) {
+    // New thread: tell the article's author, unless they wrote it themselves.
+    if (article.authorId === user.id) return
+    await prisma.notification.create({
+      data: {
+        userId: article.authorId,
+        type: 'comment',
+        title: 'New comment on your draft',
+        message: `${commenterName} left a comment on "${article.title}".`,
+        articleId: article.id,
+      },
+    })
+    return
+  }
+
+  // Reply: tell everyone in the thread plus the article's author, except the
+  // person replying. Resolved threads stop notifying.
+  if (parent.resolved) return
+
+  const replies = await prisma.articleComment.findMany({
+    where: { parentId: parent.id },
+    select: { authorId: true },
+  })
+  const recipients = new Set<string>([
+    parent.authorId,
+    article.authorId,
+    ...replies.map((r) => r.authorId),
+  ])
+  recipients.delete(user.id)
+  if (recipients.size === 0) return
+
+  await prisma.notification.createMany({
+    data: [...recipients].map((userId) => ({
+      userId,
+      type: 'comment_reply',
+      title: 'New reply to a comment',
+      message: `${commenterName} replied to a comment thread on "${article.title}".`,
+      articleId: article.id,
+    })),
+  })
 }

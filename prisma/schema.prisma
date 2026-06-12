@@ -72,6 +72,7 @@ model User {
   achievements       WriterAchievement[]
   predictionEvents   PredictionEvent[]
   predictions        Prediction[]
+  articleComments    ArticleComment[]
 
   @@map("users")
 }
@@ -205,6 +206,7 @@ model Article {
   forDebates      Debate[]      @relation("ForArticle")
   againstDebates  Debate[]      @relation("AgainstArticle")
   trophies        ArticleTrophy[]
+  articleComments ArticleComment[]
 
   @@index([authorId])
   @@index([categoryId])
@@ -212,6 +214,34 @@ model Article {
   @@index([publishedAt])
   @@index([scheduledAt])
   @@map("articles")
+}
+
+// Inline editorial review comments anchored to text selections in a draft.
+// The table was originally created manually in Supabase (see
+// supabase/migrations/add_article_comments.sql); this model maps onto that
+// exact shape so the comment routes can use the typed client instead of raw SQL.
+model ArticleComment {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  articleId   String   @map("article_id")
+  authorId    String   @map("author_id")
+  commentText String   @map("comment_text")
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  parentId    String?  @map("parent_id") @db.Uuid
+  tiptapFrom  Int?     @map("tiptap_from")
+  tiptapTo    Int?     @map("tiptap_to")
+  // Exact text of the selection at comment creation. Used to verify the stored
+  // positions and re-anchor the highlight after the draft is edited.
+  quotedText  String?  @map("quoted_text")
+
+  article Article          @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  author  User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent  ArticleComment?  @relation("ArticleCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies ArticleComment[] @relation("ArticleCommentReplies")
+
+  @@index([articleId])
+  @@index([parentId])
+  @@map("article_comments")
 }
 
 model Tag {

@@ -1265,7 +1265,7 @@ mark {
   .tap:active, .tap-icon:active { transform: none; }
 }
 
-/* ── Inline comment highlights (CommentMark TipTap extension) ── */
+/* ── Inline comment highlights (CommentHighlight TipTap decorations) ── */
 .comment-highlight {
   background-color: rgba(201, 168, 76, 0.25);
   border-bottom: 2px solid rgba(201, 168, 76, 0.8);
@@ -1275,8 +1275,20 @@ mark {
 .comment-highlight:hover {
   background-color: rgba(201, 168, 76, 0.4);
 }
-.comment-highlight.comment-resolved {
+.comment-highlight.comment-highlight-resolved {
+  /* Mute only the decoration, never the text: dimming via opacity would also
+     lower the contrast of the underlying article text. */
   background-color: transparent;
-  border-bottom-color: rgba(156, 163, 175, 0.4);
-  opacity: 0.5;
+  border-bottom-color: rgba(156, 163, 175, 0.25);
+}
+.comment-highlight.comment-highlight-active {
+  background-color: rgba(201, 168, 76, 0.45);
+  animation: comment-highlight-flash 1.2s ease-out 1;
+}
+@keyframes comment-highlight-flash {
+  0%   { background-color: rgba(201, 168, 76, 0.85); }
+  100% { background-color: rgba(201, 168, 76, 0.45); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .comment-highlight.comment-highlight-active { animation: none; }
 }

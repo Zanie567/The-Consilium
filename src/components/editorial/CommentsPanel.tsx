@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { format } from 'date-fns'
-import { MessageSquare, CheckCircle2, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
+import { MessageSquare, CheckCircle2, RotateCcw, ChevronDown, ChevronUp, Unlink } from 'lucide-react'
+import type { CommentAnchorMap } from '@/components/editorial/useCommentAnchors'
 
 export interface ArticleComment {
   id: string
@@ -15,6 +16,7 @@ export interface ArticleComment {
   parentId: string | null
   tiptapFrom: number | null
   tiptapTo: number | null
+  quotedText: string | null
 }
 
 interface Props {
@@ -24,6 +26,8 @@ interface Props {
   onCommentAdded: (comment: ArticleComment) => void
   activeCommentId: string | null
   onSelectComment: (commentId: string | null) => void
+  /** Per-comment anchor state; orphaned comments get flagged in the list. */
+  anchors?: CommentAnchorMap
 }
 
 export function CommentsPanel({
@@ -33,19 +37,40 @@ export function CommentsPanel({
   onCommentAdded,
   activeCommentId,
   onSelectComment,
+  anchors,
 }: Props) {
   const [showResolved, setShowResolved] = useState(false)
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyText, setReplyText] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  // Guards against overlapping resolve/reopen PATCHes for the same comment
+  // (e.g. a double click), which could otherwise land out of order.
+  const resolvingComments = useRef<Set<string>>(new Set())
 
   const topLevel = comments.filter((c) => c.parentId === null)
   const visible = showResolved ? topLevel : topLevel.filter((c) => !c.resolved)
   const resolvedCount = topLevel.filter((c) => c.resolved).length
 
+  // When a highlight is clicked in the document, bring its thread into view.
+  useEffect(() => {
+    if (!activeCommentId) return
+    itemRefs.current[activeCommentId]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [activeCommentId])
+
+  // A resolved comment selected from elsewhere should be visible even when
+  // the resolved section is collapsed.
+  useEffect(() => {
+    if (!activeCommentId) return
+    const selected = comments.find((c) => c.id === activeCommentId)
+    if (selected?.resolved) setShowResolved(true)
+  }, [activeCommentId, comments])
+
   const submitReply = async (parentId: string) => {
     if (!replyText.trim() || submitting) return
     setSubmitting(true)
+    setActionError(null)
     try {
       const res = await fetch(`/api/articles/${articleId}/comments`, {
         method: 'POST',
@@ -57,20 +82,37 @@ export function CommentsPanel({
         onCommentAdded(data)
         setReplyText('')
         setReplyingTo(null)
+      } else {
+        const data = await res.json().catch(() => ({})) as { error?: string }
+        setActionError(data.error ?? 'Could not post the reply. Please try again.')
       }
+    } catch {
+      setActionError('Network problem. Please try again.')
     } finally {
       setSubmitting(false)
     }
   }
 
   const resolveComment = async (commentId: string, resolved: boolean) => {
-    const res = await fetch(`/api/articles/${articleId}/comments/${commentId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resolved }),
-    })
-    if (res.ok) {
-      onCommentResolved(commentId, resolved)
+    if (resolvingComments.current.has(commentId)) return
+    resolvingComments.current.add(commentId)
+    setActionError(null)
+    try {
+      const res = await fetch(`/api/articles/${articleId}/comments/${commentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resolved }),
+      })
+      if (res.ok) {
+        onCommentResolved(commentId, resolved)
+      } else {
+        const data = await res.json().catch(() => ({})) as { error?: string }
+        setActionError(data.error ?? 'Could not update the comment. Please try again.')
+      }
+    } catch {
+      setActionError('Network problem. Please try again.')
+    } finally {
+      resolvingComments.current.delete(commentId)
     }
   }
 
@@ -105,16 +147,22 @@ export function CommentsPanel({
         )}
       </div>
 
+      {actionError && (
+        <p className="px-4 py-2 text-[11px] text-red-500 border-b border-[var(--border)]">{actionError}</p>
+      )}
+
       {/* Comment list */}
       <div className="overflow-y-auto flex-1 divide-y divide-[var(--border)]">
         {visible.map((comment) => {
           const replies = comments.filter((c) => c.parentId === comment.id)
           const isActive = activeCommentId === comment.id
+          const isOrphaned = anchors?.[comment.id]?.status === 'orphaned'
 
           return (
             <div
               key={comment.id}
-              className={`p-4 transition-colors ${isActive ? 'bg-gold/5 border-l-2 border-gold' : 'hover:bg-[var(--bg-subtle)] border-l-2 border-transparent'}`}
+              ref={(el) => { itemRefs.current[comment.id] = el }}
+              className={`p-4 transition-colors cursor-pointer ${isActive ? 'bg-gold/5 border-l-2 border-gold' : 'hover:bg-[var(--bg-subtle)] border-l-2 border-transparent'}`}
               onClick={() => onSelectComment(isActive ? null : comment.id)}
             >
               {/* Author + timestamp */}
@@ -126,6 +174,19 @@ export function CommentsPanel({
                   {format(new Date(comment.createdAt), 'd MMM, HH:mm')}
                 </span>
               </div>
+
+              {/* The text this comment was anchored to */}
+              {comment.quotedText && (
+                <blockquote className={`mb-1.5 pl-2 border-l-2 text-[11px] leading-snug line-clamp-2 ${isOrphaned ? 'border-[var(--border)] text-[var(--fg-faint)]' : 'border-gold/50 text-[var(--fg-muted)]'} italic`}>
+                  {comment.quotedText}
+                </blockquote>
+              )}
+              {isOrphaned && !comment.resolved && (
+                <p className="flex items-center gap-1 mb-1.5 text-[10px] text-amber-600 dark:text-amber-400">
+                  <Unlink size={10} />
+                  The quoted text has changed, so this comment is no longer highlighted in the draft.
+                </p>
+              )}
 
               {/* Comment text */}
               <p className={`text-sm text-[var(--fg-muted)] leading-relaxed ${comment.resolved ? 'line-through opacity-60' : ''}`}>

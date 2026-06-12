@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, nextFriday } from 'date-fns'
 import { ArrowLeft, Star, Pin, Clock, CheckCircle, RotateCcw, EyeOff, MessageSquare } from 'lucide-react'
@@ -11,8 +11,10 @@ import {
   formatEditorialScheduleInput,
   getEditorialScheduleMinInput,
 } from '@/lib/editorialSchedule'
-import { CommentsPanel, type ArticleComment } from '@/components/editorial/CommentsPanel'
+import { CommentsPanel } from '@/components/editorial/CommentsPanel'
 import { ArticlePreviewWithComments } from '@/components/editorial/ArticlePreviewWithComments'
+import type { CommentAnchorMap } from '@/components/editorial/useCommentAnchors'
+import { useArticleComments } from '@/components/editorial/useArticleComments'
 import { CommendationEditor } from '@/components/editorial/CommendationEditor'
 
 interface Note {
@@ -52,16 +54,10 @@ export function ReviewPanel({ article }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
   const [note, setNote] = useState('')
-  const [comments, setComments] = useState<ArticleComment[]>([])
+  const { comments, addComment, setCommentResolved } = useArticleComments(article.id)
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
+  const [commentAnchors, setCommentAnchors] = useState<CommentAnchorMap>({})
   const [commentsTab, setCommentsTab] = useState<'actions' | 'comments'>('actions')
-
-  useEffect(() => {
-    fetch(`/api/articles/${article.id}/comments`)
-      .then((r) => r.ok ? r.json() : [])
-      .then((data: ArticleComment[]) => setComments(data))
-      .catch(() => {})
-  }, [article.id])
 
   const [returnNote, setReturnNote] = useState(article.editorNote ?? '')
   const [scheduledAt, setScheduledAt] = useState(
@@ -177,10 +173,14 @@ export function ReviewPanel({ article }: Props) {
                 comments={comments}
                 activeCommentId={activeCommentId}
                 onCommentCreated={(c) => {
-                  setComments((prev) => [...prev, c])
+                  addComment(c)
                   setCommentsTab('comments')
                 }}
-                onSelectComment={setActiveCommentId}
+                onSelectComment={(id) => {
+                  setActiveCommentId(id)
+                  if (id) setCommentsTab('comments')
+                }}
+                onAnchorsChange={setCommentAnchors}
               />
             </div>
           </div>
@@ -214,12 +214,11 @@ export function ReviewPanel({ article }: Props) {
                 <CommentsPanel
                   articleId={article.id}
                   comments={comments}
-                  onCommentResolved={(id, resolved) => {
-                    setComments((prev) => prev.map((c) => c.id === id ? { ...c, resolved } : c))
-                  }}
-                  onCommentAdded={(c) => setComments((prev) => [...prev, c])}
+                  onCommentResolved={setCommentResolved}
+                  onCommentAdded={addComment}
                   activeCommentId={activeCommentId}
                   onSelectComment={setActiveCommentId}
+                  anchors={commentAnchors}
                 />
               </div>
             ) : (

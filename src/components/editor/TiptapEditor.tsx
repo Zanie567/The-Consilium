@@ -33,6 +33,7 @@ import React, {
 import { createPortal } from 'react-dom'
 import type { NodeViewProps } from '@tiptap/core'
 import { cleanPastedHTML } from '@/lib/editor/cleanPastedHTML'
+import { CommentHighlight } from './commentHighlight'
 
 // ── Module augmentations ─────────────────────────────────────────────────────
 declare module '@tiptap/core' {
@@ -187,6 +188,8 @@ interface TiptapEditorProps {
   onEditorReady?: (editor: Editor) => void
   noWrapper?: boolean
   darkMode?: boolean
+  /** Fired when a review-comment highlight is clicked (see commentHighlight.ts) */
+  onCommentClick?: (commentId: string) => void
 }
 
 // Google Docs 10x10 colour palette (row-major order)
@@ -215,7 +218,7 @@ const GOOGLE_DOCS_COLORS: string[] = [
 
 // ── Main component ────────────────────────────────────────────────────────────
 export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
-  function TiptapEditor({ content, onChange, editable = true, saveStatus, toolbarPortalRef, onEditorReady, noWrapper, darkMode }, ref) {
+  function TiptapEditor({ content, onChange, editable = true, saveStatus, toolbarPortalRef, onEditorReady, noWrapper, darkMode, onCommentClick }, ref) {
     const fileInputRef      = useRef<HTMLInputElement>(null)
     const linkInputRef      = useRef<HTMLInputElement>(null)
     const _fontSizeRef      = useRef<HTMLInputElement>(null)
@@ -271,6 +274,11 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
     uploadForPasteRef.current = uploadForPasteImage
 
+    // Keep the latest callback without recreating the editor: extension
+    // options are captured once at editor creation.
+    const onCommentClickRef = useRef(onCommentClick)
+    onCommentClickRef.current = onCommentClick
+
     const editor = useEditor({
       editable,
       extensions: [
@@ -301,6 +309,9 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         PullQuote,
         FootnoteRef,
         FigureNode,
+        CommentHighlight.configure({
+          onCommentClick: (id) => onCommentClickRef.current?.(id),
+        }),
       ],
       content: content ? tryParseContent(content) : '',
       onUpdate: ({ editor: ed }) => {
