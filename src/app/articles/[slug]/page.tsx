@@ -4,8 +4,7 @@ import Image from 'next/image'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/lib/auth'
-import { escapeHtml as escHtml } from '@/lib/escapeHtml'
-import { sanitizeArticleHtml } from '@/lib/articleSanitize'
+import { renderContent } from '@/lib/articleRender'
 import { safeJsonLd } from '@/lib/jsonLd'
 import { format } from 'date-fns'
 import { Clock } from 'lucide-react'
@@ -15,6 +14,7 @@ import { ReadingTracker } from '@/components/ui/ReadingTracker'
 import { ReadingProgress } from '@/components/ui/ReadingProgress'
 import { ArticleAnchorLinks } from '@/components/ui/ArticleAnchorLinks'
 import { GlossaryTooltips } from '@/components/ui/GlossaryTooltips'
+import { FootnotePopovers } from '@/components/ui/FootnotePopovers'
 import { applyGlossaryLinks } from '@/lib/glossary/data'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { ViewCounter } from '@/components/ui/ViewCounter'
@@ -165,126 +165,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-// ── Content rendering ────────────────────────────────────────────────────────
-
-function safeHref(href: string): string {
-  // Strip control characters (tab/newline/CR/null) that browsers ignore inside a
-  // URL scheme — otherwise `java\tscript:` would slip past a naive prefix check.
-  const cleaned = href.replace(/[\u0000-\u001f\u007f]/g, '').trim()
-  // If an explicit scheme is present, allow only safe ones; relative/anchor/
-  // protocol-relative URLs (no scheme) pass through.
-  const scheme = cleaned.match(/^([a-z][a-z0-9+.-]*):/i)
-  if (scheme && !['http', 'https', 'mailto'].includes(scheme[1].toLowerCase())) {
-    return '#'
-  }
-  return cleaned
-}
-
-interface TiptapMark {
-  type: string
-  attrs?: Record<string, string | number | boolean | null>
-}
-
-interface TiptapNode {
-  type: string
-  content?: TiptapNode[]
-  text?: string
-  marks?: TiptapMark[]
-  attrs?: Record<string, string | number | boolean | null>
-}
-
-function nodeToHtml(node: TiptapNode): string {
-  switch (node.type) {
-    case 'paragraph': {
-      const inner = node.content?.map(nodeToHtml).join('') ?? ''
-      if (!inner.trim()) return ''
-      return `<p>${inner}</p>`
-    }
-    case 'heading': {
-      // Clamp to a valid h1-h6: the level is interpolated into the tag name, so an
-      // unvalidated attribute (e.g. level = "1><img onerror=...>") would inject markup.
-      const raw = Number(node.attrs?.level)
-      const level = Number.isFinite(raw) ? Math.min(6, Math.max(1, Math.trunc(raw))) : 2
-      return `<h${level}>${node.content?.map(nodeToHtml).join('') ?? ''}</h${level}>`
-    }
-    case 'text': {
-      let text = escHtml(node.text ?? '')
-      if (node.marks) {
-        for (const mark of node.marks) {
-          if (mark.type === 'bold')      text = `<strong>${text}</strong>`
-          if (mark.type === 'italic')    text = `<em>${text}</em>`
-          if (mark.type === 'underline') text = `<u>${text}</u>`
-          if (mark.type === 'highlight') text = `<mark>${text}</mark>`
-          if (mark.type === 'link') {
-            const href = safeHref(String(mark.attrs?.href ?? '#'))
-            const target = escHtml(String(mark.attrs?.target ?? '_self'))
-            text = `<a href="${escHtml(href)}" target="${target}" rel="noopener">${text}</a>`
-          }
-        }
-      }
-      return text
-    }
-    case 'bulletList':    return `<ul>${node.content?.map(nodeToHtml).join('') ?? ''}</ul>`
-    case 'orderedList':   return `<ol>${node.content?.map(nodeToHtml).join('') ?? ''}</ol>`
-    case 'listItem':      return `<li>${node.content?.map(nodeToHtml).join('') ?? ''}</li>`
-    case 'blockquote':    return `<blockquote>${node.content?.map(nodeToHtml).join('') ?? ''}</blockquote>`
-    case 'horizontalRule': return `<hr />`
-    case 'image':
-      // Legacy plain image nodes (new content uses 'figure')
-      return `<figure class="article-figure"><img src="${escHtml(String(node.attrs?.src ?? ''))}" alt="${escHtml(String(node.attrs?.alt ?? ''))}" /></figure>`
-    case 'figure': {
-      const src = escHtml(String(node.attrs?.src ?? ''))
-      const alt = escHtml(String(node.attrs?.alt ?? ''))
-      const caption = escHtml(String(node.attrs?.caption ?? ''))
-      const credit = escHtml(String(node.attrs?.credit ?? ''))
-      let html = `<figure class="article-figure"><img src="${src}" alt="${alt}" />`
-      if (caption) html += `<figcaption class="caption">${caption}</figcaption>`
-      if (credit) html += `<p class="image-credit">${credit}</p>`
-      html += `</figure>`
-      return html
-    }
-    case 'hardBreak': return `<br />`
-    case 'pullQuote':
-      return `<aside data-type="pull-quote" class="pull-quote">${node.content?.map(nodeToHtml).join('') ?? ''}</aside>`
-    case 'footnoteRef':
-      return `<sup class="footnote-ref" data-footnote="${encodeURIComponent(String(node.attrs?.content ?? ''))}" data-index="${escHtml(String(node.attrs?.index ?? ''))}" title="${escHtml(String(node.attrs?.content ?? ''))}">[${escHtml(String(node.attrs?.index ?? ''))}]</sup>`
-    // chartNode: silently drop - data callout has been removed
-    case 'chartNode':
-      return ''
-    default:
-      return node.content?.map(nodeToHtml).join('') ?? ''
-  }
-}
-
-function collectFootnotes(doc: { content?: TiptapNode[] }): { index: number; content: string }[] {
-  const footnotes: { index: number; content: string }[] = []
-  const traverse = (nodes: TiptapNode[] = []) => {
-    for (const n of nodes) {
-      if (n.type === 'footnoteRef' && n.attrs?.content) {
-        footnotes.push({ index: Number(n.attrs.index), content: String(n.attrs.content) })
-      }
-      if (n.content) traverse(n.content)
-    }
-  }
-  traverse(doc.content)
-  return footnotes.sort((a, b) => a.index - b.index)
-}
-
-function renderContent(content: string): { html: string; footnotes: { index: number; content: string }[] } {
-  try {
-    const parsed = JSON.parse(content)
-    if (parsed?.type === 'doc') {
-      const html = (parsed.content ?? []).map(nodeToHtml).join('')
-      const footnotes = collectFootnotes(parsed)
-      // Defense-in-depth: even though nodeToHtml escapes text and validates hrefs,
-      // run the assembled HTML through the sanitiser so any future renderer gap (a
-      // new node type, an unescaped attribute) cannot become stored XSS.
-      return { html: sanitizeArticleHtml(html), footnotes }
-    }
-  } catch {}
-  // Fallback: treat as plain text — escape to prevent XSS from raw stored strings
-  return { html: escHtml(content), footnotes: [] }
-}
+// Content rendering lives in src/lib/articleRender.ts (shared with unit tests).
 
 export default async function ArticlePage({ params }: Props) {
   const { slug } = await params
@@ -489,6 +370,7 @@ export default async function ArticlePage({ params }: Props) {
           />
           <ArticleAnchorLinks containerSelector="#article-body" />
           {glossary.hasLinks && <GlossaryTooltips containerSelector="#article-body" />}
+          {footnotes.length > 0 && <FootnotePopovers containerSelector="#article-body" />}
         </AnimateIn>
 
         {/* Tags */}
@@ -514,7 +396,16 @@ export default async function ArticlePage({ params }: Props) {
               <h4>References</h4>
               <ol>
                 {footnotes.map((fn) => (
-                  <li key={fn.index}>{fn.content}</li>
+                  <li key={fn.index} id={`fn-${fn.index}`} tabIndex={-1}>
+                    {fn.content}{' '}
+                    <a
+                      href={`#fnref-${fn.index}`}
+                      className="footnote-backlink"
+                      aria-label={`Back to reference ${fn.index} in the text`}
+                    >
+                      ↩
+                    </a>
+                  </li>
                 ))}
               </ol>
             </div>
