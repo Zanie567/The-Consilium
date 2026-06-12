@@ -156,7 +156,7 @@ export function FootnotePopovers({ containerSelector }: { containerSelector: str
       if (!target) return false
       hide()
       target.scrollIntoView({
-        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+        behavior: 'auto',
         block: 'center',
       })
       flash(target)
