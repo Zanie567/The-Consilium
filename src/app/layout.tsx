@@ -11,7 +11,7 @@ import { CookieConsentBanner } from '@/components/ui/CookieConsent'
 import { InstallBanner } from '@/components/ui/InstallBanner'
 import { FaviconSwitcher } from '@/components/ui/FaviconSwitcher'
 import { ViewTransitionGuard } from '@/components/ui/ViewTransitionGuard'
-import { SITE_URL } from '@/lib/constants'
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -40,8 +40,7 @@ export const metadata: Metadata = {
     default: 'The Consilium | University of Edinburgh Economics Society',
     template: '%s | The Consilium',
   },
-  description:
-    'The Consilium is the official publication of the University of Edinburgh Economics Society, bringing you rigorous economic analysis, opinion, and commentary.',
+  description: SITE_DESCRIPTION,
   keywords: [
     'economics',
     'University of Edinburgh',
@@ -49,19 +48,28 @@ export const metadata: Metadata = {
     'economic analysis',
     'opinion',
   ],
+  robots: { index: true, follow: true },
   openGraph: {
     title: 'The Consilium',
-    description: 'Ratione et Consilio',
+    description: SITE_DESCRIPTION,
     type: 'website',
     locale: 'en_GB',
-    images: [{ url: '/logo.png', width: 512, height: 512 }],
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    images: [{ url: '/logo.png', width: 512, height: 512, alt: 'The Consilium logo' }],
+  },
+  twitter: {
+    card: 'summary',
+    title: 'The Consilium',
+    description: SITE_DESCRIPTION,
+    images: ['/logo.png'],
   },
   icons: {
     icon: [
-      // Light browser theme → dark navy emblem (high contrast on light tab bar)
+      // Light browser theme: dark navy emblem (high contrast on light tab bar)
       { url: '/favicon-navy-32.png', sizes: '32x32', type: 'image/png', media: '(prefers-color-scheme: light)' },
       { url: '/favicon-navy-16.png', sizes: '16x16', type: 'image/png', media: '(prefers-color-scheme: light)' },
-      // Dark browser theme → cream emblem (high contrast on dark tab bar)
+      // Dark browser theme: cream emblem (high contrast on dark tab bar)
       { url: '/favicon-cream-32.png', sizes: '32x32', type: 'image/png', media: '(prefers-color-scheme: dark)' },
       { url: '/favicon-cream-16.png', sizes: '16x16', type: 'image/png', media: '(prefers-color-scheme: dark)' },
       // Universal fallback for browsers that ignore media on <link rel="icon">
@@ -71,6 +79,7 @@ export const metadata: Metadata = {
     apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
   alternates: {
+    canonical: SITE_URL,
     types: {
       'application/rss+xml': `${SITE_URL}/feed.xml`,
     },

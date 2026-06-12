@@ -164,6 +164,40 @@ Review pass (CodeRabbit on PR #71):
 
 ## Recent Sessions
 
+### 2026-06-12: SEO metadata foundations (`claude/seo-metadata-foundations`)
+
+Targeted fix to `src/app/layout.tsx` metadata export only. No layout, component,
+or structural changes.
+
+**What changed:**
+- Imported `SITE_NAME` and `SITE_DESCRIPTION` from `@/lib/constants` alongside the
+  existing `SITE_URL` import.
+- `description`: was a hardcoded string; now uses `SITE_DESCRIPTION` constant.
+- `openGraph.description`: was `'Ratione et Consilio'` (the Latin motto); now
+  uses `SITE_DESCRIPTION` so social share previews show a real description.
+- `openGraph.url`: added `SITE_URL`.
+- `openGraph.siteName`: added `SITE_NAME`.
+- `openGraph.images[0].alt`: added `'The Consilium logo'`.
+- `robots`: added `{ index: true, follow: true }`.
+- `twitter`: new field with `card: 'summary'`, `title`, `description`
+  (`SITE_DESCRIPTION`), and `images: ['/logo.png']`.
+- `alternates.canonical`: added `SITE_URL`.
+
+**Schema changes:** None.
+
+**New environment variables:**
+- `NEXT_PUBLIC_SITE_URL` has been added to Vercel production
+  (value: `https://theconsilium.co.uk`). A redeploy is required for it to take
+  effect. This variable drives `SITE_URL` in `src/lib/constants.ts`, which is now
+  referenced in the canonical tag, `openGraph.url`, and the RSS link.
+
+**Architectural decisions:** None beyond using the existing constants pattern.
+
+**Issues introduced:** None. `npx tsc --noEmit` clean (exit 0). `npm run build`
+TypeScript phase passed cleanly; page-data collection aborted on
+NEXTAUTH\_SECRET not set in this worktree environment (pre-existing infra issue,
+not caused by these changes; the TypeScript gate is the relevant signal here).
+
 ### 2026-06-09: Policy copy edits — Corrections and Privacy (`claude/policy-copy-edit`)
 
 Copy-only task on two pages: remove sentences that read as AI-generated or
@@ -505,6 +539,7 @@ entry above and must be applied before the commissioning brief feature will work
 
 | PR | Branch | Status | Notes |
 |----|--------|--------|-------|
+| fix: correct og:description, add Twitter card, canonical tag, robots (#TBD) | `claude/seo-metadata-foundations` | Open, awaiting review | No schema changes. `NEXT_PUBLIC_SITE_URL` must be set in Vercel and a redeploy triggered for the canonical/og:url values to resolve correctly in production. Safe to merge once env var is confirmed. |
 | copy: tighten Corrections and Privacy policy prose (#86) | `claude/policy-copy-edit` | Open, awaiting review | Copy-only edits to two policy pages (9 string changes) + this AI_STATE log. No schema changes, no new env vars, no structural changes. Safe to merge immediately. |
 | fix: sign-out reliability and EDITOR role over-privilege | `consilium/fix-signout-and-editor-ui` | Open, awaiting review | No schema changes, no new env vars. Safe to merge immediately. |
 | feat: writer performance system - streaks, engagement scores, commendations, achievements, commissioning brief | `claude/writer-performance-system` | Open, awaiting review | Do not merge. Run two SQL statements in Supabase first: the `site_settings` CREATE TABLE (commissioning brief) and the `writer_streaks.intervalWeeks` ALTER TABLE (streak cadence). Both are in the verification reports above. `CRON_SECRET` reused (no new value). |
@@ -518,6 +553,7 @@ entry above and must be applied before the commissioning brief feature will work
 | Variable | Where | Purpose |
 |----------|-------|---------|
 | `CRON_SECRET` | Vercel + GitHub Actions secret | Shared secret for cron-triggered API routes (`/api/publish-scheduled`, `/api/award-trophies`, `/api/cron/recalculate-streaks`, `/api/cron/update-engagement-scores`) |
+| `NEXT_PUBLIC_SITE_URL` | Vercel production | Production origin (`https://theconsilium.co.uk`); read by `src/lib/constants.ts` as `SITE_URL`. Added to Vercel; a redeploy is required for it to take effect. |
 | `SITE_URL` | GitHub Actions secret | Production URL used by publish-scheduled workflow |
 | `DATABASE_URL` | Vercel | Supabase connection string |
 | `NEXTAUTH_SECRET` | Vercel | NextAuth session signing key |
