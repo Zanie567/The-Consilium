@@ -12,26 +12,42 @@ export const metadata: Metadata = {
 }
 
 interface Props {
-  searchParams: Promise<{ q?: string; category?: string }>
+  searchParams: Promise<{ q?: string; category?: string; page?: string }>
 }
 
-async function getArticles(q?: string, categorySlug?: string) {
+const PAGE_SIZE = 20
+
+function archiveWhere(q?: string, categorySlug?: string) {
+  // "View all" — the complete published set, debates included.
+  return publishedArticleWhere({
+    ...(q
+      ? {
+          OR: [
+            { title: { contains: q, mode: 'insensitive' } },
+            { excerpt: { contains: q, mode: 'insensitive' } },
+          ],
+        }
+      : {}),
+    ...(categorySlug ? { category: { slug: categorySlug } } : {}),
+  })
+}
+
+async function getArticleCount(q?: string, categorySlug?: string) {
+  try {
+    return await prisma.article.count({ where: archiveWhere(q, categorySlug) })
+  } catch {
+    return 0
+  }
+}
+
+async function getArticles(q: string | undefined, categorySlug: string | undefined, page: number) {
   try {
     return await prisma.article.findMany({
-      // "View all" — the complete published set, debates included.
-      where: publishedArticleWhere({
-        ...(q
-          ? {
-              OR: [
-                { title: { contains: q, mode: 'insensitive' } },
-                { excerpt: { contains: q, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
-        ...(categorySlug ? { category: { slug: categorySlug } } : {}),
-      }),
-      orderBy: { publishedAt: 'desc' },
+      where: archiveWhere(q, categorySlug),
+      orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
       include: { author: true, category: true },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
     })
   } catch {
     return []
@@ -46,14 +62,28 @@ async function getCategories() {
   }
 }
 
+function buildPageHref(pageNum: number, q?: string, categorySlug?: string) {
+  const sp = new URLSearchParams()
+  if (q) sp.set('q', q)
+  if (categorySlug) sp.set('category', categorySlug)
+  if (pageNum > 1) sp.set('page', String(pageNum))
+  const qs = sp.toString()
+  return qs ? `/archive?${qs}` : '/archive'
+}
+
 export default async function ArchivePage({ searchParams }: Props) {
   const params = await searchParams
   const { q, category: categorySlug } = params
+  const requestedPage = Math.max(1, Math.floor(Number(params.page)) || 1)
 
-  const [articles, categories] = await Promise.all([
-    getArticles(q, categorySlug),
+  const [total, categories] = await Promise.all([
+    getArticleCount(q, categorySlug),
     getCategories(),
   ])
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const page = Math.min(requestedPage, totalPages)
+  const articles = await getArticles(q, categorySlug, page)
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
@@ -107,8 +137,7 @@ export default async function ArchivePage({ searchParams }: Props) {
         {/* Results count */}
         <AnimateIn variant="fade-in" delay={0.1}>
           <p className="text-[var(--fg-faint)] text-xs uppercase tracking-widest mb-6">
-            {articles.length} article{articles.length !== 1 ? 's' : ''}{' '}
-            {q ? `matching "${q}"` : 'published'}
+            {total} article{total !== 1 ? 's' : ''} {q ? `matching "${q}"` : 'published'}
           </p>
         </AnimateIn>
 
@@ -162,6 +191,42 @@ export default async function ArchivePage({ searchParams }: Props) {
               </p>
             </div>
           </AnimateIn>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <nav
+            aria-label="Archive pagination"
+            className="flex items-center justify-between mt-10 pt-6 border-t border-[var(--border)]"
+          >
+            {page > 1 ? (
+              <Link
+                href={buildPageHref(page - 1, q, categorySlug)}
+                className="text-xs font-bold uppercase tracking-widest text-[var(--fg-muted)] hover:text-gold transition-colors"
+              >
+                ← Previous
+              </Link>
+            ) : (
+              <span className="text-xs font-bold uppercase tracking-widest text-[var(--fg-faint)] opacity-30">
+                ← Previous
+              </span>
+            )}
+            <span className="text-[var(--fg-faint)] text-xs uppercase tracking-widest">
+              Page {page} of {totalPages}
+            </span>
+            {page < totalPages ? (
+              <Link
+                href={buildPageHref(page + 1, q, categorySlug)}
+                className="text-xs font-bold uppercase tracking-widest text-[var(--fg-muted)] hover:text-gold transition-colors"
+              >
+                Next →
+              </Link>
+            ) : (
+              <span className="text-xs font-bold uppercase tracking-widest text-[var(--fg-faint)] opacity-30">
+                Next →
+              </span>
+            )}
+          </nav>
         )}
       </div>
     </div>
