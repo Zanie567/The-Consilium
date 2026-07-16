@@ -33,11 +33,7 @@ function archiveWhere(q?: string, categorySlug?: string) {
 }
 
 async function getArticleCount(q?: string, categorySlug?: string) {
-  try {
-    return await prisma.article.count({ where: archiveWhere(q, categorySlug) })
-  } catch {
-    return 0
-  }
+  return await prisma.article.count({ where: archiveWhere(q, categorySlug) })
 }
 
 async function getArticles(q: string | undefined, categorySlug: string | undefined, page: number) {
