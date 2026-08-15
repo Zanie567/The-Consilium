@@ -6,6 +6,7 @@ import {
   clampPage,
   escapeLikePattern,
   firstParam,
+  normaliseCategorySlug,
   normaliseSearchTerm,
   pageOffset,
   parsePageParam,
@@ -76,6 +77,37 @@ describe('normaliseSearchTerm', () => {
 
   it('collapses a repeated q parameter instead of passing an array on', () => {
     expect(normaliseSearchTerm(['first', 'second'])).toBe('first')
+  })
+
+  it('strips a NUL, which Postgres rejects outright in a text value', () => {
+    const nul = String.fromCharCode(0)
+    expect(normaliseSearchTerm(`a${nul}b`)).toBe('ab')
+    expect(normaliseSearchTerm(nul)).toBeUndefined()
+  })
+
+  it('strips the other control characters a search box cannot use', () => {
+    expect(normaliseSearchTerm(`gilt${String.fromCharCode(7)}s`)).toBe('gilts')
+    expect(normaliseSearchTerm(`a${String.fromCharCode(0x7f)}b`)).toBe('ab')
+  })
+
+  it('keeps ordinary punctuation and non-ASCII text intact', () => {
+    expect(normaliseSearchTerm('£sterling — Keynes’ "General Theory"')).toBe(
+      '£sterling — Keynes’ "General Theory"'
+    )
+  })
+})
+
+describe('normaliseCategorySlug', () => {
+  it('passes an ordinary slug through', () => {
+    expect(normaliseCategorySlug('opinion')).toBe('opinion')
+  })
+
+  it('collapses a repeated category parameter', () => {
+    expect(normaliseCategorySlug(['opinion', 'news'])).toBe('opinion')
+  })
+
+  it('strips a NUL so an equality filter cannot fail the query', () => {
+    expect(normaliseCategorySlug(`opinion${String.fromCharCode(0)}`)).toBe('opinion')
   })
 })
 

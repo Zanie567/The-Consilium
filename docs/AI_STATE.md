@@ -188,7 +188,19 @@ unit test.
   parameters, so this was never SQL injection.
 - **Capped and trimmed the search term** at 200 characters, mirroring the
   guard `src/app/api/search/route.ts` already applies to the other public
-  search surface.
+  search surface. The cap is what actually bounds the cost here: a long term
+  is expensive because `ILIKE '%…%'` scans unindexed `title`/`excerpt`, and
+  that cost tracks term length rather than wildcard content.
+- **Stripped control characters from both filters.** A NUL survives URL
+  decoding as an ordinary JS character and passes Prisma's validation, then
+  fails the query itself with `invalid byte sequence for encoding "UTF8":
+  0x00` — so `/archive?q=%00` was a second crafted-URL failure, distinct from
+  the array one. Confirmed against Postgres, and `?q=th%00e` now simply
+  searches for "the".
+- **Narrowed the author/category fetch to the names actually rendered.**
+  `include: { author: true }` pulled every user column — email, ban reason,
+  admin notes, lockout state — into the render for all 20 rows. None of it
+  reached the HTML, but none of it needed fetching.
 - **Restored degrade-to-200 on database failure.** Commit 3c29212 had removed
   the count's `try/catch` so an outage would not silently render "0 articles".
   That intent is kept, but a `null` sentinel and an explicit "we couldn't load

@@ -11,7 +11,7 @@ import {
   buildArchiveHref,
   clampPage,
   escapeLikePattern,
-  firstParam,
+  normaliseCategorySlug,
   normaliseSearchTerm,
   pageOffset,
   parsePageParam,
@@ -34,7 +34,7 @@ interface Props {
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const params = await searchParams
   const q = normaliseSearchTerm(params.q)
-  const categorySlug = firstParam(params.category)
+  const categorySlug = normaliseCategorySlug(params.category)
   const page = parsePageParam(params.page)
 
   return {
@@ -101,7 +101,11 @@ async function getArticles(q: string | undefined, categorySlug: string | undefin
       // article from pinning itself to the top of page 1, since Postgres sorts
       // NULLs first on DESC.
       orderBy: [{ publishedAt: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }],
-      include: { author: true, category: true },
+      // Only the names are rendered. `author: true` pulled every user column —
+      // email, ban reason, admin notes, lockout state — into the render for
+      // each of the 20 rows; none of it reached the HTML, but none of it needs
+      // to be fetched either.
+      include: { author: { select: { name: true } }, category: { select: { name: true } } },
       skip: pageOffset(page),
       take: ARCHIVE_PAGE_SIZE,
     })
@@ -121,7 +125,7 @@ async function getCategories() {
 export default async function ArchivePage({ searchParams }: Props) {
   const params = await searchParams
   const q = normaliseSearchTerm(params.q)
-  const categorySlug = firstParam(params.category)
+  const categorySlug = normaliseCategorySlug(params.category)
   const requestedPage = parsePageParam(params.page)
 
   const [total, categories] = await Promise.all([getArticleCount(q, categorySlug), getCategories()])

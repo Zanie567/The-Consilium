@@ -65,13 +65,49 @@ export function escapeLikePattern(value: string): string {
 }
 
 /**
- * Normalise the reader's search term: collapse repeats, trim, and cap the
- * length. Returns undefined when nothing searchable is left, so callers can
- * drop the `OR` filter entirely rather than search for an empty string.
+ * Strip the control characters a Postgres `text` value cannot carry.
+ *
+ * A NUL from the query string (`/archive?q=%00`) survives URL decoding as an
+ * ordinary JavaScript character and passes Prisma's validation, then fails the
+ * query itself with `invalid byte sequence for encoding "UTF8": 0x00` — so a
+ * crafted URL could break the page rather than simply find nothing. The rest of
+ * the C0 range and DEL are dropped with it; none of them is something a reader
+ * can meaningfully search for.
  */
+function stripControlCharacters(value: string): string {
+  let stripped = ''
+  for (const char of value) {
+    const code = char.codePointAt(0) ?? 0
+    if (code >= 0x20 && code !== 0x7f) stripped += char
+  }
+  return stripped
+}
+
+/**
+ * Normalise a filter value taken from the query string: collapse repeats, drop
+ * control characters, trim, and cap the length. Returns undefined when nothing
+ * usable is left, so callers can drop the filter rather than match on an empty
+ * string.
+ */
+function normaliseFilterValue(value: SearchParamValue, maxLength: number): string | undefined {
+  const raw = firstParam(value)
+  if (raw === undefined) return undefined
+  const cleaned = stripControlCharacters(raw).trim().slice(0, maxLength)
+  return cleaned ? cleaned : undefined
+}
+
+/** Normalise the reader's search term. */
 export function normaliseSearchTerm(value: SearchParamValue): string | undefined {
-  const term = firstParam(value)?.trim().slice(0, ARCHIVE_MAX_QUERY_LENGTH)
-  return term ? term : undefined
+  return normaliseFilterValue(value, ARCHIVE_MAX_QUERY_LENGTH)
+}
+
+/**
+ * Normalise the category slug. Slugs are matched for equality rather than
+ * scanned, but the same control-character and length hygiene applies — a NUL
+ * here fails the query exactly as it does in the search term.
+ */
+export function normaliseCategorySlug(value: SearchParamValue): string | undefined {
+  return normaliseFilterValue(value, ARCHIVE_MAX_QUERY_LENGTH)
 }
 
 /**
