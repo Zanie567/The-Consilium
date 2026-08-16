@@ -133,9 +133,6 @@ export function FootnotePopovers({ containerSelector }: { containerSelector: str
       hideTimer = window.setTimeout(hide, 150)
     }
 
-    const prefersReducedMotion = () =>
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
     const flash = (el: HTMLElement) => {
       if (flashTimer !== undefined) window.clearTimeout(flashTimer)
       flashed?.classList.remove('footnote-flash')

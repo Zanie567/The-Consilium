@@ -156,7 +156,7 @@ async function handleContent(now: Date, since: Date) {
       id: true, title: true, publishedAt: true, viewCount: true,
       author: { select: { name: true } },
     },
-    orderBy: { publishedAt: 'desc' },
+    orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
     take: 30,
   }).catch(() => [])
 
@@ -196,7 +196,7 @@ async function handleContent(now: Date, since: Date) {
       id: true, title: true, publishedAt: true,
       author: { select: { name: true } },
     },
-    orderBy: { publishedAt: 'desc' },
+    orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
     take: 10,
   }).catch(() => [])
 
@@ -571,7 +571,7 @@ async function handleDistribution() {
       .catch(() => [] as { source: string | null }[]),
     prisma.article.findMany({
       where: { status: 'PUBLISHED', deletedAt: null },
-      orderBy: { publishedAt: 'desc' },
+      orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
       take: 10,
       select: {
         id: true, title: true, publishedAt: true, viewCount: true,

@@ -7,6 +7,8 @@
  * `src/lib/articleRender.ts`.
  */
 
+import { firstParam, normaliseSearchText, type SearchParamValue } from '@/lib/searchText'
+
 /** Articles shown per archive page. */
 export const ARCHIVE_PAGE_SIZE = 20
 
@@ -18,87 +20,11 @@ export const ARCHIVE_PAGE_SIZE = 20
  */
 export const ARCHIVE_MAX_QUERY_LENGTH = 200
 
-/**
- * The real type of a single `searchParams` entry.
- *
- * Next resolves a repeated query parameter (`/archive?q=a&q=b`) to a string
- * array, so every value is `string | string[] | undefined` however narrowly a
- * page declares its props — see
- * `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/page.md`.
- */
-export type SearchParamValue = string | string[] | undefined
-
-/**
- * Collapse a `searchParams` entry to a single string.
- *
- * Repeated parameters used to reach Prisma as an array, which threw a
- * validation error the archive's count query turned into a 500 for anyone who
- * visited `/archive?q=a&q=b`. Taking the first value keeps that URL working
- * instead of failing.
- */
-export function firstParam(value: SearchParamValue): string | undefined {
-  const first = Array.isArray(value) ? value[0] : value
-  return typeof first === 'string' ? first : undefined
-}
-
-/**
- * Escape the characters Postgres treats as LIKE metacharacters.
- *
- * Prisma compiles `contains` to `ILIKE ('%' || $n || '%')` and exposes no
- * ESCAPE clause, so an unescaped `%` or `_` from the query string is read as a
- * wildcard: `/archive?q=%` matched — and reported a count for — every
- * published article, and a search for "100%" could never find a literal
- * percent sign. Backslash is Postgres' default LIKE escape character, so
- * escaping these three characters is sufficient. The value still travels as a
- * bound parameter and is never concatenated into SQL.
- *
- * Written as an explicit character walk rather than a pattern replacement so
- * that escaping the escape character itself stays obvious and order-independent.
- */
-export function escapeLikePattern(value: string): string {
-  let escaped = ''
-  for (const char of value) {
-    if (char === '\\' || char === '%' || char === '_') escaped += '\\'
-    escaped += char
-  }
-  return escaped
-}
-
-/**
- * Strip the control characters a Postgres `text` value cannot carry.
- *
- * A NUL from the query string (`/archive?q=%00`) survives URL decoding as an
- * ordinary JavaScript character and passes Prisma's validation, then fails the
- * query itself with `invalid byte sequence for encoding "UTF8": 0x00` — so a
- * crafted URL could break the page rather than simply find nothing. The rest of
- * the C0 range and DEL are dropped with it; none of them is something a reader
- * can meaningfully search for.
- */
-function stripControlCharacters(value: string): string {
-  let stripped = ''
-  for (const char of value) {
-    const code = char.codePointAt(0) ?? 0
-    if (code >= 0x20 && code !== 0x7f) stripped += char
-  }
-  return stripped
-}
-
-/**
- * Normalise a filter value taken from the query string: collapse repeats, drop
- * control characters, trim, and cap the length. Returns undefined when nothing
- * usable is left, so callers can drop the filter rather than match on an empty
- * string.
- */
-function normaliseFilterValue(value: SearchParamValue, maxLength: number): string | undefined {
-  const raw = firstParam(value)
-  if (raw === undefined) return undefined
-  const cleaned = stripControlCharacters(raw).trim().slice(0, maxLength)
-  return cleaned ? cleaned : undefined
-}
+export type { SearchParamValue } from '@/lib/searchText'
 
 /** Normalise the reader's search term. */
 export function normaliseSearchTerm(value: SearchParamValue): string | undefined {
-  return normaliseFilterValue(value, ARCHIVE_MAX_QUERY_LENGTH)
+  return normaliseSearchText(value, ARCHIVE_MAX_QUERY_LENGTH)
 }
 
 /**
@@ -107,7 +33,7 @@ export function normaliseSearchTerm(value: SearchParamValue): string | undefined
  * here fails the query exactly as it does in the search term.
  */
 export function normaliseCategorySlug(value: SearchParamValue): string | undefined {
-  return normaliseFilterValue(value, ARCHIVE_MAX_QUERY_LENGTH)
+  return normaliseSearchText(value, ARCHIVE_MAX_QUERY_LENGTH)
 }
 
 /**

@@ -21,7 +21,7 @@ export default async function SeriesPage() {
       include: {
         articles: {
           select: { id: true, title: true, slug: true, seriesOrder: true },
-          orderBy: { seriesOrder: 'asc' },
+          orderBy: { seriesOrder: { sort: 'asc', nulls: 'last' } },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -29,7 +29,7 @@ export default async function SeriesPage() {
     prisma.article.findMany({
       where: { status: 'PUBLISHED', deletedAt: null },
       select: { id: true, title: true, seriesId: true, seriesOrder: true },
-      orderBy: { publishedAt: 'desc' },
+      orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
     }),
   ])
 

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
 import { StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import type { Metadata } from 'next'
+import { canonicalAlternates } from '@/lib/seo'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -17,6 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: tag.name,
     description: `All articles tagged with "${tag.name}" in The Consilium.`,
+    alternates: canonicalAlternates(`/tag/${tag.slug}`),
   }
 }
 
@@ -28,7 +30,7 @@ export default async function TagPage({ params }: Props) {
     include: {
       articles: {
         where: { article: { status: 'PUBLISHED' } },
-        orderBy: { article: { publishedAt: 'desc' } },
+        orderBy: { article: { publishedAt: { sort: 'desc', nulls: 'last' } } },
         include: {
           article: {
             include: { author: true, category: true },

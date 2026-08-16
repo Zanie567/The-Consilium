@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { escapeLikePattern, normaliseSearchText } from '@/lib/searchText'
 
 // Extract plain text from Tiptap JSON content
 function extractText(content: string): string {
@@ -61,7 +62,7 @@ function getSnippet(content: string, tokens: string[], maxLen = 200): string {
 }
 
 export async function GET(req: NextRequest) {
-  const q = (req.nextUrl.searchParams.get('q')?.trim() ?? '').slice(0, 200)
+  const q = normaliseSearchText(req.nextUrl.searchParams.get('q') ?? undefined, 200) ?? ''
   if (q.length < 2) return NextResponse.json([])
 
   // Tokenise: split on whitespace, keep meaningful tokens; cap the count so this
@@ -69,13 +70,18 @@ export async function GET(req: NextRequest) {
   const tokens = q.toLowerCase().split(/\s+/).filter((t) => t.length >= 2).slice(0, 8)
   if (tokens.length === 0) return NextResponse.json([])
 
+  // Escaped copies for the database only. `tokens` stays raw because scoring and
+  // snippets match it with String.includes in JS, where a backslash added for
+  // Postgres' benefit would stop the token matching its own text.
+  const dbTokens = tokens.map(escapeLikePattern)
+
   try {
     // Broad fetch: any article matching at least one token across key fields
     const candidates = await prisma.article.findMany({
       where: {
         status: 'PUBLISHED',
         deletedAt: null,
-        OR: tokens.flatMap((token) => [
+        OR: dbTokens.flatMap((token) => [
           { title:   { contains: token, mode: 'insensitive' } },
           { excerpt: { contains: token, mode: 'insensitive' } },
           { content: { contains: token, mode: 'insensitive' } },
@@ -87,7 +93,7 @@ export async function GET(req: NextRequest) {
         author: { select: { id: true, name: true, slug: true, image: true } },
         category: true,
       },
-      orderBy: { publishedAt: 'desc' },
+      orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
       take: 50,
     })
 

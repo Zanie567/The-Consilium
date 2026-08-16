@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_ONLY, ALL_ROLES } from '@/lib/rbac'
+import { escapeLikePattern, normaliseSearchText } from '@/lib/searchText'
 
 // GET /api/admin/users
 // Paginated user list with search, role, status filters
@@ -10,20 +11,29 @@ export async function GET(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { searchParams } = new URL(request.url)
-  const page   = Math.max(1, parseInt(searchParams.get('page') ?? '1'))
-  const limit  = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '25')))
-  const search = searchParams.get('search')?.trim() ?? ''
-  const role   = searchParams.get('role')?.toUpperCase() ?? ''
+  // `|| N` absorbs NaN: Math.max(1, parseInt('abc')) is NaN, not 1, and a NaN
+  // skip/take makes Prisma throw — this route has no catch, so `?page=abc`
+  // was a 500.
+  const page = Math.max(1, Number.parseInt(searchParams.get('page') ?? '1', 10) || 1)
+  const limit = Math.min(
+    100,
+    Math.max(1, Number.parseInt(searchParams.get('limit') ?? '25', 10) || 25)
+  )
+  const search = normaliseSearchText(searchParams.get('search') ?? undefined, 200) ?? ''
+  const role = searchParams.get('role')?.toUpperCase() ?? ''
   const status = searchParams.get('status') ?? ''
-  const sort   = searchParams.get('sort') ?? 'createdAt'
+  const sort = searchParams.get('sort') ?? 'createdAt'
 
   // Build where clause
   const where: Record<string, unknown> = {}
 
   if (search) {
+    // Escaped so an admin searching for `%` gets literal matches rather than
+    // every user in the table.
+    const term = escapeLikePattern(search)
     where.OR = [
-      { name: { contains: search, mode: 'insensitive' } },
-      { email: { contains: search, mode: 'insensitive' } },
+      { name: { contains: term, mode: 'insensitive' } },
+      { email: { contains: term, mode: 'insensitive' } },
     ]
   }
 

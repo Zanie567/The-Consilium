@@ -1,12 +1,14 @@
 import { ContactForm } from '@/components/ui/ContactForm'
 import { Mail, MapPin } from 'lucide-react'
 import type { Metadata } from 'next'
+import { canonicalAlternates } from '@/lib/seo'
 import { AnimateIn } from '@/components/ui/AnimateIn'
 import { CONTACT_EMAIL, INSTAGRAM_URL, LINKEDIN_URL } from '@/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Contact',
   description: 'Get in touch with The Consilium editorial team.',
+  alternates: canonicalAlternates('/contact'),
 }
 
 function InstagramIcon() {

@@ -4,8 +4,6 @@ import {
   ARCHIVE_PAGE_SIZE,
   buildArchiveHref,
   clampPage,
-  escapeLikePattern,
-  firstParam,
   normaliseCategorySlug,
   normaliseSearchTerm,
   pageOffset,
@@ -24,40 +22,6 @@ import {
  *      unescaped `%` or `_` in the search box was interpreted as a wildcard:
  *      `?q=%` matched every published article and reported them as "matching".
  */
-describe('firstParam', () => {
-  it('passes a single string through', () => {
-    expect(firstParam('opinion')).toBe('opinion')
-  })
-
-  it('collapses a repeated parameter to its first value', () => {
-    expect(firstParam(['a', 'b'])).toBe('a')
-  })
-
-  it('returns undefined for an absent or empty parameter', () => {
-    expect(firstParam(undefined)).toBeUndefined()
-    expect(firstParam([])).toBeUndefined()
-  })
-})
-
-describe('escapeLikePattern', () => {
-  it('leaves ordinary search terms untouched', () => {
-    expect(escapeLikePattern('inflation')).toBe('inflation')
-  })
-
-  it('escapes the LIKE wildcards so they match literally', () => {
-    expect(escapeLikePattern('%')).toBe('\\%')
-    expect(escapeLikePattern('_')).toBe('\\_')
-    expect(escapeLikePattern('100%')).toBe('100\\%')
-  })
-
-  it('escapes the escape character itself', () => {
-    expect(escapeLikePattern('a\\b')).toBe('a\\\\b')
-  })
-
-  it('escapes every metacharacter in a hostile pattern', () => {
-    expect(escapeLikePattern('%_%_%')).toBe('\\%\\_\\%\\_\\%')
-  })
-})
 
 describe('normaliseSearchTerm', () => {
   it('trims surrounding whitespace', () => {

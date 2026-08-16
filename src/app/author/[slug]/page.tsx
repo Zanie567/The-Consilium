@@ -5,11 +5,13 @@ import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
 import { StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import type { Metadata } from 'next'
+import { canonicalAlternates } from '@/lib/seo'
+import { normaliseSearchText, type SearchParamValue } from '@/lib/searchText'
 import { getInitials } from '@/lib/authorUtils'
 
 interface Props {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ category?: string }>
+  searchParams: Promise<{ category?: SearchParamValue }>
 }
 
 async function getAuthor(slug: string) {
@@ -47,12 +49,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: author.name ?? 'Author',
     description: author.bio ?? `Articles by ${author.name ?? 'this author'} in The Consilium.`,
+    // Deliberately built from the author record, not the incoming param: the
+    // lookup falls back to matching on id, so /author/<id> and /author/<slug>
+    // render the same page. Both should point at the slug form.
+    alternates: canonicalAlternates(`/author/${author.slug ?? author.id}`),
   }
 }
 
 export default async function AuthorPage({ params, searchParams }: Props) {
   const { slug } = await params
-  const { category: categoryFilter } = await searchParams
+  const categoryFilter = normaliseSearchText((await searchParams).category, 200)
 
   const author = await getAuthor(slug)
   if (!author) notFound()
@@ -64,7 +70,7 @@ export default async function AuthorPage({ params, searchParams }: Props) {
       deletedAt: null,
       ...(categoryFilter ? { category: { slug: categoryFilter } } : {}),
     },
-    orderBy: { publishedAt: 'desc' },
+    orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
     include: { category: true },
   }).catch(() => [])
 

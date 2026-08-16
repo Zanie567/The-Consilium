@@ -25,6 +25,7 @@ import { CommentSection } from '@/components/ui/CommentSection'
 import { readTimeLabel } from '@/lib/readTime'
 import { getInitials, displayAuthorName } from '@/lib/authorUtils'
 import type { Metadata } from 'next'
+import { canonicalAlternates } from '@/lib/seo'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/constants'
 
 interface Props {
@@ -44,7 +45,7 @@ async function getArticle(slug: string) {
             articles: {
               where: { status: 'PUBLISHED', deletedAt: null },
               select: { id: true, title: true, slug: true, seriesOrder: true },
-              orderBy: { seriesOrder: 'asc' },
+              orderBy: { seriesOrder: { sort: 'asc', nulls: 'last' } },
             },
           },
         },
@@ -85,7 +86,7 @@ async function getRelatedArticles(
     const candidates = await prisma.article.findMany({
       where: { status: 'PUBLISHED', id: { not: currentId }, deletedAt: null },
       take: 40,
-      orderBy: { publishedAt: 'desc' },
+      orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
       include: { author: true, category: true },
     })
 
@@ -146,16 +147,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     description: article.excerpt ?? SITE_DESCRIPTION,
     authors: article.author.name ? [{ name: article.author.name }] : undefined,
+    alternates: canonicalAlternates(`/articles/${article.slug}`),
     openGraph: {
       title: article.title,
       description: article.excerpt ?? undefined,
       type: 'article',
       url: articleUrl,
+      // siteName/locale are spelled out because this object replaces the root
+      // layout's openGraph rather than merging into it, and an article without
+      // a cover image would otherwise ship no share image at all.
+      siteName: SITE_NAME,
+      locale: 'en_GB',
       publishedTime: article.publishedAt?.toISOString(),
       authors: article.author.name ? [article.author.name] : undefined,
       images: article.coverImage
         ? [{ url: article.coverImage }]
-        : undefined,
+        : [{ url: '/logo.png', width: 512, height: 512, alt: `${SITE_NAME} logo` }],
     },
     twitter: {
       card: 'summary_large_image',

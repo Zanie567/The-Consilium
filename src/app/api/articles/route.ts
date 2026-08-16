@@ -8,15 +8,25 @@ import { ARTICLE_MUTATION_ROLES, EDITORIAL_MANAGEMENT_ROLES, isAllowedRole } fro
 import { PUBLIC_AUTHOR_SELECT } from '@/lib/publicUser'
 import type { ArticleStatus } from '@prisma/client'
 
-const STAFF_ARTICLE_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'ARCHIVED', 'REJECTED', 'SCHEDULED'] as const satisfies readonly ArticleStatus[]
-const WRITER_CREATE_STATUSES = ['DRAFT', 'PENDING_REVIEW'] as const satisfies readonly ArticleStatus[]
+const STAFF_ARTICLE_STATUSES = [
+  'DRAFT',
+  'PENDING_REVIEW',
+  'PUBLISHED',
+  'ARCHIVED',
+  'REJECTED',
+  'SCHEDULED',
+] as const satisfies readonly ArticleStatus[]
+const WRITER_CREATE_STATUSES = [
+  'DRAFT',
+  'PENDING_REVIEW',
+] as const satisfies readonly ArticleStatus[]
 
 function computeWordCount(content: string): number {
   try {
     const parsed = JSON.parse(content)
     const extractText = (node: { type?: string; text?: string; content?: unknown[] }): string => {
       if (node.text) return node.text
-      if (node.content) return (node.content as typeof node[]).map(extractText).join(' ')
+      if (node.content) return (node.content as (typeof node)[]).map(extractText).join(' ')
       return ''
     }
     const text = extractText(parsed)
@@ -32,10 +42,15 @@ function computeWordCount(content: string): number {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
-  const status   = searchParams.get('status')
+  const status = searchParams.get('status')
   const category = searchParams.get('category')
-  const take     = parseInt(searchParams.get('take') ?? '20')
-  const mine     = searchParams.get('mine') === 'true'
+  // Bounded and NaN-safe: this is a public route, and an uncapped `take`
+  // returned every published article INCLUDING full article content.
+  const take = Math.min(
+    100,
+    Math.max(1, Number.parseInt(searchParams.get('take') ?? '20', 10) || 20)
+  )
+  const mine = searchParams.get('mine') === 'true'
   const session = await getServerSession(authOptions)
 
   if (session?.user.role === 'GROWTH') {
@@ -56,21 +71,21 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { updatedAt: 'desc' },
         select: {
-          id:        true,
-          title:     true,
-          excerpt:   true,
-          content:   true,
+          id: true,
+          title: true,
+          excerpt: true,
+          content: true,
           updatedAt: true,
-          category:  { select: { id: true, name: true } },
+          category: { select: { id: true, name: true } },
         },
       })
 
       const result = drafts.map((d) => ({
-        id:        d.id,
-        title:     d.title,
-        excerpt:   d.excerpt,
+        id: d.id,
+        title: d.title,
+        excerpt: d.excerpt,
         updatedAt: d.updatedAt,
-        category:  d.category,
+        category: d.category,
         wordCount: computeWordCount(d.content),
       }))
 
@@ -101,13 +116,15 @@ export async function GET(request: NextRequest) {
           ? { authorId: session.user.id }
           : {}),
       },
-      orderBy: { publishedAt: 'desc' },
+      orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
       take,
       include: { author: { select: PUBLIC_AUTHOR_SELECT }, category: true },
     })
     return NextResponse.json(articles)
   } catch {
-    return NextResponse.json({ error: 'Failed to fetch articles' }, { status: 500 })
+    // Public route: degrade to an empty list at 200 rather than a 500, matching
+    // the contract documented in src/lib/prisma.ts.
+    return NextResponse.json([])
   }
 }
 
@@ -119,17 +136,27 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { title, slug: rawSlug, content, excerpt, coverImage, categoryId, status, tags, authorId: bodyAuthorId } = body
+    const {
+      title,
+      slug: rawSlug,
+      content,
+      excerpt,
+      coverImage,
+      categoryId,
+      status,
+      tags,
+      authorId: bodyAuthorId,
+    } = body
 
     const isAdminOrEditorCreating = isAllowedRole(user.role, EDITORIAL_MANAGEMENT_ROLES)
-    const effectiveAuthorId = (isAdminOrEditorCreating && bodyAuthorId)
-      ? bodyAuthorId
-      : user.id
+    const effectiveAuthorId = isAdminOrEditorCreating && bodyAuthorId ? bodyAuthorId : user.id
 
     const requestedStatus = typeof status === 'string' ? status : 'DRAFT'
-    const allowedStatuses = isAdminOrEditorCreating ? STAFF_ARTICLE_STATUSES : WRITER_CREATE_STATUSES
+    const allowedStatuses = isAdminOrEditorCreating
+      ? STAFF_ARTICLE_STATUSES
+      : WRITER_CREATE_STATUSES
     const finalStatus = (allowedStatuses as readonly string[]).includes(requestedStatus)
-      ? requestedStatus as ArticleStatus
+      ? (requestedStatus as ArticleStatus)
       : 'DRAFT'
 
     // Title is optional for autosave - untitled drafts are valid
@@ -152,14 +179,14 @@ export async function POST(request: NextRequest) {
 
     const article = await prisma.article.create({
       data: {
-        title:      effectiveTitle,
+        title: effectiveTitle,
         slug,
-        content:    content ?? '',
-        excerpt:    excerpt ?? null,
+        content: content ?? '',
+        excerpt: excerpt ?? null,
         coverImage: coverImage ?? null,
         categoryId: categoryId ?? null,
-        authorId:   effectiveAuthorId,
-        status:     finalStatus,
+        authorId: effectiveAuthorId,
+        status: finalStatus,
         publishedAt: finalStatus === 'PUBLISHED' ? new Date() : null,
       },
     })
@@ -170,7 +197,10 @@ export async function POST(request: NextRequest) {
         tags.map((name: string) => {
           // Strip HTML from tag names before storage to prevent XSS
           const safeName = stripHtml(name).trim()
-          const tagSlug = safeName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+          const tagSlug = safeName
+            .toLowerCase()
+            .replace(/\s+/g, '-')
+            .replace(/[^a-z0-9-]/g, '')
           return prisma.tag.upsert({
             where: { slug: tagSlug },
             update: {},

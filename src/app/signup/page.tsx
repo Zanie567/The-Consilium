@@ -1,9 +1,11 @@
 import { SignUpForm } from '@/components/ui/SignUpForm'
 import type { Metadata } from 'next'
+import { NOINDEX_ROBOTS } from '@/lib/seo'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: 'Create Account',
+  robots: NOINDEX_ROBOTS,
 }
 
 export default function SignUpPage() {

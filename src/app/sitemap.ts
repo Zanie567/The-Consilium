@@ -9,7 +9,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     prisma.article.findMany({
       where: { status: 'PUBLISHED', deletedAt: null },
       select: { slug: true, updatedAt: true },
-      orderBy: { publishedAt: 'desc' },
+      orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
     }).catch(() => []),
     prisma.category.findMany({ select: { slug: true } }).catch(() => []),
     prisma.tag.findMany({ select: { slug: true } }).catch(() => []),
@@ -26,7 +26,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/contact`, changeFrequency: 'yearly', priority: 0.4 },
     { url: `${BASE}/corrections`, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${BASE}/archive`, changeFrequency: 'weekly', priority: 0.7 },
-    { url: `${BASE}/search`, changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${BASE}/opinion-debate`, changeFrequency: 'weekly', priority: 0.6 },
+    { url: `${BASE}/privacy`, changeFrequency: 'yearly', priority: 0.2 },
+    { url: `${BASE}/terms`, changeFrequency: 'yearly', priority: 0.2 },
+    // /search is deliberately absent: it is a client-rendered shell with no
+    // server HTML to index, and is marked noindex in src/app/search/layout.tsx.
+    // Listing a noindex URL here would just contradict the page itself.
   ]
 
   const articlePages: MetadataRoute.Sitemap = articles.map((a) => ({

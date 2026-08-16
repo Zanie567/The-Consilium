@@ -5,10 +5,14 @@ import Link from 'next/link'
 
 interface ErrorPageProps {
   error: Error & { digest?: string }
-  reset: () => void
+  // `unstable_retry` re-fetches and re-renders the boundary's children, unlike
+  // `reset`, which re-renders the same already-failed tree without re-fetching.
+  // Most errors that reach this page are failed data loads, so retrying without
+  // re-fetching would always land back here. Added in Next 16.2.
+  unstable_retry: () => void
 }
 
-export default function GlobalError({ error, reset }: ErrorPageProps) {
+export default function GlobalError({ error, unstable_retry }: ErrorPageProps) {
   useEffect(() => {
     // Only log errors that have a digest, those are server-side Next.js errors
     // worth surfacing to an error reporting service. Client-only errors (no digest)
@@ -44,7 +48,7 @@ export default function GlobalError({ error, reset }: ErrorPageProps) {
 
       <div className="flex flex-col sm:flex-row items-center gap-4">
         <button
-          onClick={reset}
+          onClick={() => unstable_retry()}
           className="inline-flex items-center gap-2 bg-navy text-gold border border-gold/40 px-8 py-3 text-xs font-bold uppercase tracking-widest hover:bg-navy/80 transition-colors duration-200"
         >
           Try again

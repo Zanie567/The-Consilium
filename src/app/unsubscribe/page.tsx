@@ -2,9 +2,16 @@ import { createHmac } from 'crypto'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import type { Metadata } from 'next'
+import { NOINDEX_NOFOLLOW_ROBOTS } from '@/lib/seo'
+import { normaliseSearchText, type SearchParamValue } from '@/lib/searchText'
 import { CONTACT_EMAIL } from '@/lib/constants'
 
-export const metadata: Metadata = { title: 'Unsubscribe' }
+// Never indexable: this page is reached through a tokenised email link and
+// renders the subscriber's own address, so it must not become a search result.
+export const metadata: Metadata = {
+  title: 'Unsubscribe',
+  robots: NOINDEX_NOFOLLOW_ROBOTS,
+}
 
 function verifyToken(email: string, token: string): boolean {
   const secret = process.env.NEXTAUTH_SECRET ?? 'consilium-unsubscribe'
@@ -15,9 +22,15 @@ function verifyToken(email: string, token: string): boolean {
 export default async function UnsubscribePage({
   searchParams,
 }: {
-  searchParams: Promise<{ email?: string; token?: string }>
+  // Repeated query parameters arrive as arrays, so these cannot be typed as
+  // plain strings: `?email=a&email=b` used to reach `email.toLowerCase()` and
+  // throw a TypeError before the try block below, turning a crafted link into
+  // an unauthenticated 500.
+  searchParams: Promise<{ email?: SearchParamValue; token?: SearchParamValue }>
 }) {
-  const { email, token } = await searchParams
+  const params = await searchParams
+  const email = normaliseSearchText(params.email, 320)
+  const token = normaliseSearchText(params.token, 128)
 
   if (!email || !token) {
     return <Result success={false} message="Invalid unsubscribe link." />
@@ -31,7 +44,9 @@ export default async function UnsubscribePage({
     await prisma.subscriber.deleteMany({ where: { email: email.toLowerCase() } })
     return <Result success={true} message={`${email} has been removed from our mailing list.`} />
   } catch {
-    return <Result success={false} message="Something went wrong. Please try again or contact us." />
+    return (
+      <Result success={false} message="Something went wrong. Please try again or contact us." />
+    )
   }
 }
 
@@ -76,7 +91,9 @@ function Result({ success, message }: { success: boolean; message: string }) {
           href="/"
           className="inline-flex items-center gap-2 text-gold text-xs font-bold uppercase tracking-widest hover:gap-3 transition-all duration-200 group"
         >
-          <span className="transition-transform duration-200 group-hover:-translate-x-1">&larr;</span>
+          <span className="transition-transform duration-200 group-hover:-translate-x-1">
+            &larr;
+          </span>
           Back to Homepage
         </Link>
       </div>

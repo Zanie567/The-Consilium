@@ -5,12 +5,10 @@ import { format } from 'date-fns'
 import type { Metadata } from 'next'
 import { AnimateIn } from '@/components/ui/AnimateIn'
 import { displayAuthorName } from '@/lib/authorUtils'
-import { SITE_URL } from '@/lib/constants'
 import {
   ARCHIVE_PAGE_SIZE,
   buildArchiveHref,
   clampPage,
-  escapeLikePattern,
   normaliseCategorySlug,
   normaliseSearchTerm,
   pageOffset,
@@ -18,6 +16,8 @@ import {
   totalPageCount,
   type SearchParamValue,
 } from '@/lib/archivePagination'
+import { escapeLikePattern } from '@/lib/searchText'
+import { canonicalAlternates } from '@/lib/seo'
 
 interface Props {
   // Each value is `string | string[] | undefined`, because Next resolves a
@@ -40,14 +40,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   return {
     title: page > 1 ? `Archive — Page ${page}` : 'Archive',
     description: 'Browse all published articles from The Consilium.',
-    alternates: {
-      // Self-referencing canonical. Metadata is merged shallowly, so without
-      // this every archive URL inherits the root layout's site-wide canonical
-      // and declares itself a duplicate of the homepage. Re-declare the RSS
-      // alternate here too, since setting `alternates` replaces it wholesale.
-      canonical: buildArchiveHref(page, q, categorySlug),
-      types: { 'application/rss+xml': `${SITE_URL}/feed.xml` },
-    },
+    alternates: canonicalAlternates(buildArchiveHref(page, q, categorySlug)),
     // Search and category permutations are unbounded crawl space, and page 2+
     // is a thin slice of the same listing. Keep them followable but unindexed.
     robots:

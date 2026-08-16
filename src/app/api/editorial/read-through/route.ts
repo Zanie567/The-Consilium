@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   try {
     const articles = await prisma.article.findMany({
       where: { authorId, status: 'PUBLISHED', deletedAt: null },
-      orderBy: { publishedAt: 'desc' },
+      orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
       select: { id: true, title: true, slug: true, publishedAt: true, viewCount: true },
     })
 

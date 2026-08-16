@@ -1,9 +1,13 @@
 import { LoginForm } from '@/components/ui/LoginForm'
+import { safeCallbackPath } from '@/lib/safeRedirect'
+import { firstParam, type SearchParamValue } from '@/lib/searchText'
 import type { Metadata } from 'next'
+import { NOINDEX_ROBOTS } from '@/lib/seo'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: 'Sign In',
+  robots: NOINDEX_ROBOTS,
 }
 
 const AUTH_ERRORS: Record<string, string> = {
@@ -15,10 +19,17 @@ const AUTH_ERRORS: Record<string, string> = {
   Default: 'Something went wrong. Please try again.',
 }
 
-type Props = { searchParams: Promise<{ callbackUrl?: string; error?: string }> }
+type Props = {
+  searchParams: Promise<{ callbackUrl?: SearchParamValue; error?: SearchParamValue }>
+}
 
 export default async function LoginPage({ searchParams }: Props) {
-  const { callbackUrl, error } = await searchParams
+  const params = await searchParams
+  // Validated here, on the server, so the form only ever receives a path on
+  // this site — it navigates with window.location.replace() itself rather
+  // than letting NextAuth's redirect callback vet the destination.
+  const callbackUrl = safeCallbackPath(params.callbackUrl)
+  const error = firstParam(params.error)
   const errorMessage = error ? (AUTH_ERRORS[error] ?? AUTH_ERRORS.Default) : undefined
 
   return (
@@ -32,12 +43,10 @@ export default async function LoginPage({ searchParams }: Props) {
           >
             The Consilium
           </Link>
-          <p className="text-cream/50 text-xs tracking-widest uppercase">
-            Sign in to your account
-          </p>
+          <p className="text-cream/50 text-xs tracking-widest uppercase">Sign in to your account</p>
         </div>
 
-        <LoginForm callbackUrl={callbackUrl ?? '/'} initialError={errorMessage} />
+        <LoginForm callbackUrl={callbackUrl} initialError={errorMessage} />
 
         <p className="text-center text-cream/40 text-xs mt-6">
           No account?{' '}

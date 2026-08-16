@@ -164,6 +164,87 @@ Review pass (CodeRabbit on PR #71):
 
 ## Recent Sessions
 
+### 2026-08-16: Site-wide sweep for the bug classes found on /archive (`claude/article-pagination-security-review-xr4g28`)
+
+Follow-up to the archive pagination review. That review found four defect
+classes on one page; this branch fixes every other instance of them, plus the
+site-wide SEO bug the review flagged but left alone. Branched from
+`claude/article-page-pagination-55a555` because it reuses that branch's helpers.
+
+**Two unauthenticated 500s of the same shape as the archive one:**
+- `/unsubscribe?email=a&email=b&token=x` — a repeated parameter arrives as an
+  array, and `email.toLowerCase()` ran before the try block, so a crafted link
+  was a TypeError. Also `%00` in either parameter.
+- `/api/auth/forgot-password` (public and CSRF-exempt) — a malformed body, a
+  non-string `token`, or a NUL in one all escaped as 500s rather than 400s.
+  The POST path additionally broke its own anti-enumeration guarantee, since
+  every other input returns an identical `{ ok: true }`.
+
+**An open redirect.** `/login?callbackUrl=https://evil.example` sent a
+freshly-authenticated user off-site: the credentials form calls
+`signIn(..., { redirect: false })` and then navigates itself with
+`window.location.replace()`, bypassing NextAuth's `redirect` callback, and
+nothing validated the value. `safeCallbackPath()` now reduces it to a path on
+this site, server-side, before the form ever receives it.
+
+**The site-wide canonical bug, and its mirror image.** Metadata merges
+shallowly, so the root layout's `alternates.canonical: SITE_URL` was inherited
+by every page that did not override it — the entire content library declared
+itself a duplicate of the homepage, contradicting every URL in the sitemap. The
+same merge rule bites in the other direction: the homepage and
+`/opinion-debate` set a partial `openGraph` and thereby dropped the site's
+og:image. Root now declares neither `canonical` nor `openGraph.url`; the 14
+public routes opt in via `canonicalAlternates()`.
+
+**Also fixed:**
+- `robots` gaps. `/unsubscribe` renders a subscriber's email address and was
+  indexable; `/login`, `/signup`, `/forgot-password`, `not-found` and `/search`
+  were too. `robots: { index: false }` is now declared once on the admin and
+  editorial-portal layouts so a new page under them cannot forget it.
+- LIKE-wildcard escaping on the last two unescaped `contains` sites
+  (`/api/search`, `/api/admin/users`) — `?search=%` matched every row.
+- `nulls: 'last'` on 16 orderings. A PUBLISHED article with no `publishedAt`
+  sorted to the top of every listing, including the homepage hero; nullable
+  `seriesOrder` had the same problem in series navigation.
+- `NaN` paging (`?page=abc` was a 500 on `/api/admin/users`) and an uncapped
+  `take` on the public `/api/articles`, which returned every published article
+  including full content.
+- `/api/debates/active` had no error handling at all on a public route the
+  homepage fetches.
+- Error boundaries use Next 16.2's `unstable_retry()` rather than `reset()`,
+  which re-renders the same failed tree without re-fetching.
+- Removed the unused binding in `FootnotePopovers.tsx` that made
+  `npm run lint` fail on main.
+
+**Schema changes:** None.
+
+**New environment variables:** None.
+
+**Architectural decisions:** Three new `src/lib` modules — `searchText.ts`
+(untrusted text bound for a Prisma text filter), `safeRedirect.ts`, `seo.ts` —
+exist so these fixes cannot drift back apart; `archivePagination.ts` now
+re-exports from `searchText` rather than keeping its own copies. Chose to
+remove the root canonical rather than override it everywhere: a page with no
+canonical is self-canonical by default, so a route added later fails safe
+instead of de-indexing itself. Deliberately did NOT add a composite article
+index: measured on 200k rows, neither the Prisma-declarable form nor an exact
+`DESC NULLS LAST` form removed the sort from the plan, and `prisma db push`
+drops any index not declared in the schema, so a SQL-only index would vanish on
+every `npm run test:setup-db`.
+
+**Issues introduced:** None known. `npx tsc --noEmit`, `npx eslint .` (now
+clean repo-wide), `npm test` (531 passing, 3 new suites), `npm run build`, and
+Playwright `public` 26/26 all pass. Canonicals, robots, og:image, both 500s and
+the open redirect were each verified against a seeded local build.
+
+**Still outstanding:** `/api/editorial/password-reset` is not in
+`PUBLIC_API_PREFIXES`, so `proxy.ts` returns 401 before a signed-out user can
+use the editorial reset flow — it looks broken for the case it exists to serve,
+but fixing it is an access-control change that wants a deliberate decision.
+`robots.ts` also `Disallow`s `/editorial/` and `/admin/`, which stops crawlers
+fetching those URLs and therefore reading their `noindex` — harmless today
+since nothing links to them publicly.
+
 ### 2026-08-15: Archive pagination — security + correctness review (`claude/article-page-pagination-55a555`)
 
 Review pass over the archive pagination PR. Two files changed
@@ -689,6 +770,7 @@ entry above and must be applied before the commissioning brief feature will work
 
 | PR | Branch | Status | Notes |
 |----|--------|--------|-------|
+| Site-wide sweep for the /archive bug classes | `claude/article-pagination-security-review-xr4g28` | Open, awaiting review | **Stacked on `claude/article-page-pagination-55a555` — merge that one first.** Fixes two more unauthenticated 500s, an open redirect on `/login`, the site-wide canonical bug, robots gaps on pages that expose a subscriber email, and a `nulls: 'last'` sweep. No schema changes, no new env vars. |
 | Paginate the archive page (#103) | `claude/article-page-pagination-55a555` | Open, awaiting review | Pagination plus a security/correctness pass over it. Closes a reachable 500 on `/archive?q=a&q=b` that the first two commits introduced, and escapes LIKE wildcards in the search term. No schema changes, no new env vars. Safe to merge. |
 | fix: associate Publish At label with scheduled date input in article editor | `claude/schedule-datetime-picker` | Open, awaiting review | One-file a11y fix + this AI_STATE log. No schema changes, no new env vars. Safe to merge immediately. |
 | fix: exclude test accounts from public sitemap | `claude/sitemap-exclude-test-accounts` | Merged (#101) | No schema changes, no new env vars. |

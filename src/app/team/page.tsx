@@ -2,6 +2,7 @@ import Image from 'next/image'
 import { prisma } from '@/lib/prisma'
 import { Mail } from 'lucide-react'
 import type { Metadata } from 'next'
+import { canonicalAlternates } from '@/lib/seo'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { getInitials } from '@/lib/authorUtils'
 
@@ -10,6 +11,7 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
   title: 'Our Team',
   description: 'Meet the team behind The Consilium, the publication of the University of Edinburgh Economics Society.',
+  alternates: canonicalAlternates('/team'),
 }
 
 async function getTeamMembers() {

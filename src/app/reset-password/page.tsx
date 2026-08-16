@@ -1,6 +1,7 @@
 import { ResetPasswordForm } from '@/components/ui/ResetPasswordForm'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { normaliseSearchText, type SearchParamValue } from '@/lib/searchText'
 
 export const metadata: Metadata = {
   title: 'Reset Password',
@@ -8,11 +9,11 @@ export const metadata: Metadata = {
 }
 
 interface Props {
-  searchParams: Promise<{ token?: string }>
+  searchParams: Promise<{ token?: SearchParamValue }>
 }
 
 export default async function ResetPasswordPage({ searchParams }: Props) {
-  const { token } = await searchParams
+  const token = normaliseSearchText((await searchParams).token, 128)
 
   return (
     <div className="min-h-screen bg-navy flex items-center justify-center px-4">

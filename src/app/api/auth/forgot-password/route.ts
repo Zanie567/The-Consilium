@@ -5,6 +5,7 @@ import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { checkRateLimit, getIp } from '@/lib/rate-limit'
 import { escapeHtml } from '@/lib/escapeHtml'
+import { stripControlCharacters } from '@/lib/searchText'
 
 // POST - request a password reset link (any user, not just editorial)
 export async function POST(req: NextRequest) {
@@ -24,9 +25,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true }) // silent to prevent enumeration
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: email.trim().toLowerCase() },
-  })
+  // Control characters are stripped rather than passed on: a NUL survives JSON
+  // decoding but Postgres cannot store one, so `?email=…%00…` failed the query
+  // and returned a 500 — which is itself an enumeration signal, since every
+  // other input to this endpoint answers with an identical `{ ok: true }`.
+  // The catch keeps that guarantee if the lookup fails for any other reason.
+  let user = null
+  try {
+    user = await prisma.user.findUnique({
+      where: { email: stripControlCharacters(email).trim().toLowerCase() },
+    })
+  } catch {
+    return NextResponse.json({ ok: true })
+  }
 
   // All token + email work runs AFTER the response is sent (Next's after()), so
   // the synchronous response path is identical whether or not the account exists
@@ -81,9 +92,19 @@ export async function POST(req: NextRequest) {
 
 // PATCH - set new password using token
 export async function PATCH(req: NextRequest) {
-  const { token, password } = await req.json()
+  // This route is public and CSRF-exempt, so every input is untrusted: a
+  // malformed body, a non-string token, or a NUL inside one all used to escape
+  // as a 500 rather than a 400.
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Missing fields.' }, { status: 400 })
+  }
 
-  if (!token || !password) {
+  const { token, password } = (body ?? {}) as { token?: unknown; password?: unknown }
+
+  if (typeof token !== 'string' || typeof password !== 'string' || !token || !password) {
     return NextResponse.json({ error: 'Missing fields.' }, { status: 400 })
   }
   if (password.length < 8) {
@@ -93,16 +114,36 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Password must be at most 128 characters.' }, { status: 400 })
   }
 
-  const record = await prisma.passwordResetToken.findUnique({ where: { token } })
-  if (!record || record.used || record.expires < new Date()) {
-    return NextResponse.json({ error: 'This link has expired or already been used.' }, { status: 400 })
+  const expired = NextResponse.json(
+    { error: 'This link has expired or already been used.' },
+    { status: 400 }
+  )
+
+  let record
+  try {
+    record = await prisma.passwordResetToken.findUnique({
+      where: { token: stripControlCharacters(token) },
+    })
+  } catch {
+    return expired
   }
+  if (!record || record.used || record.expires < new Date()) return expired
 
   const hashed = await bcrypt.hash(password, 10)
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: record.userId }, data: { password: hashed, failedLoginAttempts: 0, lockedUntil: null } }),
-    prisma.passwordResetToken.update({ where: { id: record.id }, data: { used: true } }),
-  ])
+  try {
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: record.userId },
+        data: { password: hashed, failedLoginAttempts: 0, lockedUntil: null },
+      }),
+      prisma.passwordResetToken.update({ where: { id: record.id }, data: { used: true } }),
+    ])
+  } catch {
+    return NextResponse.json(
+      { error: 'Could not reset the password. Please try again.' },
+      { status: 503 }
+    )
+  }
 
   return NextResponse.json({ ok: true })
 }

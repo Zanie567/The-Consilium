@@ -7,18 +7,37 @@ import { prisma } from '@/lib/prisma'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
+  try {
+    return await activeDebate()
+  } catch {
+    // Public endpoint fetched by the homepage DebatePanel. A pooler hiccup used
+    // to surface as an unauthenticated 500; `null` is the same shape the
+    // no-active-debate path already returns, and the client handles it.
+    return NextResponse.json(null)
+  }
+}
+
+async function activeDebate() {
   const debate = await prisma.debate.findFirst({
     where: { isActive: true },
     include: {
       forArticle: {
         select: {
-          id: true, title: true, slug: true, excerpt: true, content: true,
+          id: true,
+          title: true,
+          slug: true,
+          excerpt: true,
+          content: true,
           author: { select: { name: true } },
         },
       },
       againstArticle: {
         select: {
-          id: true, title: true, slug: true, excerpt: true, content: true,
+          id: true,
+          title: true,
+          slug: true,
+          excerpt: true,
+          content: true,
           author: { select: { name: true } },
         },
       },
