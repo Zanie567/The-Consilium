@@ -15,7 +15,7 @@ export async function GET() {
       articles: {
         where: { status: 'PUBLISHED' },
         select: { id: true, title: true, slug: true, seriesOrder: true },
-        orderBy: { seriesOrder: 'asc' },
+        orderBy: { seriesOrder: { sort: 'asc', nulls: 'last' } },
       },
     },
     orderBy: { createdAt: 'desc' },

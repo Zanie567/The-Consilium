@@ -1,10 +1,12 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { canonicalAlternates } from '@/lib/seo'
 import { CONTACT_EMAIL } from '@/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
   description: 'The terms governing use of The Consilium website.',
+  alternates: canonicalAlternates('/terms'),
 }
 
 export default function TermsPage() {

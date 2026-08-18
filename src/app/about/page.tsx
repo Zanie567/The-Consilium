@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { canonicalAlternates } from '@/lib/seo'
 import Link from 'next/link'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 
@@ -6,6 +7,7 @@ export const metadata: Metadata = {
   title: 'About',
   description:
     'Learn about The Consilium, the official publication of the University of Edinburgh Economics Society.',
+  alternates: canonicalAlternates('/about'),
 }
 
 const sections = [

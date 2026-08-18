@@ -6,6 +6,7 @@ import { publishedArticleWhere, ARTICLES_CACHE_TAG, ARTICLES_REVALIDATE_SECONDS 
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { ArticleCard } from '@/components/ui/ArticleCard'
 import type { Metadata } from 'next'
+import { canonicalAlternates } from '@/lib/seo'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -18,6 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: category.name,
     description: `Read all ${category.name} articles from The Consilium`,
+    alternates: canonicalAlternates(`/category/${category.slug}`),
   }
 }
 
@@ -49,7 +51,7 @@ const getCachedCategoryArticles = unstable_cache(
       // Every published article in this category, INCLUDING debate articles.
       // The old `isDebate: false` filter hid 6 of 7 published Opinion pieces.
       where: publishedArticleWhere({ categoryId }),
-      orderBy: { publishedAt: 'desc' },
+      orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
       include: { author: true, category: true },
     }),
   ['category-articles'],

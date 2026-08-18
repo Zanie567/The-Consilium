@@ -54,7 +54,10 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     type: 'website',
     locale: 'en_GB',
-    url: SITE_URL,
+    // Deliberately no `url` here. Metadata merges shallowly, so a fixed URL is
+    // inherited verbatim by every page that does not set its own `openGraph` —
+    // which had every article and category page reporting og:url as the
+    // homepage. Pages set their own via `pageOpenGraph()` in src/lib/seo.ts.
     siteName: SITE_NAME,
     images: [{ url: '/logo.png', width: 512, height: 512, alt: 'The Consilium logo' }],
   },
@@ -79,7 +82,12 @@ export const metadata: Metadata = {
     apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
   alternates: {
-    canonical: SITE_URL,
+    // Deliberately no `canonical` here. Metadata merges shallowly, so a
+    // canonical set at the root is inherited by every page that does not
+    // override it — which had the whole site declaring itself a duplicate of
+    // the homepage. A page with no canonical is self-canonical by default,
+    // which is the correct fallback; indexable pages opt in explicitly via
+    // `canonicalAlternates()` in src/lib/seo.ts.
     types: {
       'application/rss+xml': `${SITE_URL}/feed.xml`,
     },

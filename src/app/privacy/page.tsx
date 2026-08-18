@@ -1,10 +1,12 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { canonicalAlternates } from '@/lib/seo'
 import { CONTACT_EMAIL } from '@/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
   description: 'How The Consilium collects, uses, and protects your personal data.',
+  alternates: canonicalAlternates('/privacy'),
 }
 
 export default function PrivacyPage() {

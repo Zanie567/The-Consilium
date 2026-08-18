@@ -5,14 +5,17 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { EditorialSidebarWrapper } from '@/components/layout/EditorialSidebarWrapper'
 import { PortalTransition } from '@/components/editorial/PortalTransition'
+import type { Metadata } from 'next'
+import { NOINDEX_NOFOLLOW_ROBOTS } from '@/lib/seo'
 
 const EDITORIAL_ROLES = ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH']
 
-export default async function EditorialLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+// Everything under this layout is gated. Declaring it once here means a new
+// page cannot forget it — several already had, and were inheriting the root
+// layout's `index: true`. A page may still override this.
+export const metadata: Metadata = { robots: NOINDEX_NOFOLLOW_ROBOTS }
+
+export default async function EditorialLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions)
 
   if (!session) {
@@ -21,10 +24,12 @@ export default async function EditorialLayout({
 
   // Always read role from the database - never trust the JWT alone.
   // This ensures role changes and new accounts take effect immediately.
-  const dbUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true, isActive: true, name: true, email: true, image: true },
-  }).catch(() => null)
+  const dbUser = await prisma.user
+    .findUnique({
+      where: { id: session.user.id },
+      select: { role: true, isActive: true, name: true, email: true, image: true },
+    })
+    .catch(() => null)
 
   if (!dbUser || !dbUser.isActive || !EDITORIAL_ROLES.includes(dbUser.role)) {
     return (
@@ -62,7 +67,11 @@ export default async function EditorialLayout({
   return (
     <div className="min-h-screen bg-[var(--bg-subtle)] flex">
       {/* Sidebar: hidden on mobile (overlay via wrapper), always visible on desktop */}
-      <Suspense fallback={<div className="hidden md:block w-[220px] shrink-0" style={{ background: '#0F1623' }} />}>
+      <Suspense
+        fallback={
+          <div className="hidden md:block w-[220px] shrink-0" style={{ background: '#0F1623' }} />
+        }
+      >
         <EditorialSidebarWrapper user={verifiedUser} trashCount={trashCount} />
       </Suspense>
       {/* Main content wrapped in page-transition component */}

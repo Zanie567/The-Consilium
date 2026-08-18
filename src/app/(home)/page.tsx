@@ -18,6 +18,8 @@ import { safeJsonLd } from '@/lib/jsonLd'
 import { HeroSection } from '@/components/ui/HeroSection'
 import type { Metadata } from 'next'
 import { SITE_NAME, SITE_URL } from '@/lib/constants'
+import { canonicalAlternates, pageOpenGraph } from '@/lib/seo'
+import { normaliseSearchText, type SearchParamValue } from '@/lib/searchText'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,7 +43,7 @@ const getFeaturedArticle = unstable_cache(async () => {
     if (featured) return featured
     return await prisma.article.findFirst({
       where: publishedArticleWhere({ isDebate: false }),
-      orderBy: { publishedAt: 'desc' },
+      orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
       include: { author: true, category: true },
     })
   } catch {
@@ -92,7 +94,7 @@ const getArticles = unstable_cache(async (categorySlug?: string) => {
           ? { isDebate: false, category: { slug: categorySlug } }
           : { isDebate: false },
       ),
-      orderBy: { publishedAt: 'desc' },
+      orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
       take: 16,
       include: { author: true, category: true },
     })
@@ -226,10 +228,11 @@ const getTrendingTags = unstable_cache(async () => {
 // Do not set a title here so the template does not double-wrap it.
 export const metadata: Metadata = {
   description: 'Economics analysis, opinion, and research from the University of Edinburgh.',
-  openGraph: {
-    title: 'The Consilium',
-    description: 'Ratione et Consilio',
-  },
+  alternates: canonicalAlternates('/'),
+  // Built rather than written out: the previous partial object replaced the
+  // root layout's openGraph wholesale, so the homepage was shipping no
+  // og:image, siteName or locale at all.
+  openGraph: pageOpenGraph('/', { title: 'The Consilium', description: 'Ratione et Consilio' }),
   twitter: {
     card: 'summary',
     title: 'The Consilium',
@@ -240,10 +243,13 @@ export const metadata: Metadata = {
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string }>
+  // A repeated `?category=a&category=b` arrives as an array; unnormalised it
+  // reached Prisma (throwing, so the grid emptied) AND read as truthy, which
+  // suppressed the hero — a blank homepage from a crafted link.
+  searchParams: Promise<{ category?: SearchParamValue }>
 }) {
   const params = await searchParams
-  const categorySlug = params.category
+  const categorySlug = normaliseSearchText(params.category, 200)
 
   // Fetch debate server-side so it's in the HTML for SEO
   const session = await getServerSession(authOptions)

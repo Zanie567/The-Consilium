@@ -1,11 +1,13 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { canonicalAlternates } from '@/lib/seo'
 import { CONTACT_EMAIL } from '@/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Corrections Policy',
   description:
     'How The Consilium handles corrections, and how to report an error.',
+  alternates: canonicalAlternates('/corrections'),
 }
 
 export default function CorrectionsPage() {

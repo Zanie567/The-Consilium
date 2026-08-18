@@ -1,8 +1,12 @@
 import { ForgotPasswordForm } from '@/components/ui/ForgotPasswordForm'
 import type { Metadata } from 'next'
+import { NOINDEX_ROBOTS } from '@/lib/seo'
 import Link from 'next/link'
 
-export const metadata: Metadata = { title: 'Forgot Password' }
+export const metadata: Metadata = {
+  title: 'Forgot Password',
+  robots: NOINDEX_ROBOTS,
+}
 
 export default function ForgotPasswordPage() {
   return (

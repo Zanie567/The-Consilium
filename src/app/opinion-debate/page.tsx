@@ -5,16 +5,18 @@ import { authOptions } from '@/lib/auth'
 import { AnimateIn } from '@/components/ui/AnimateIn'
 import { DebatePanel, type DebateData } from '@/components/ui/DebatePanel'
 import type { Metadata } from 'next'
+import { canonicalAlternates, pageOpenGraph } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Opinion Debate',
   description: 'Read both sides of the argument, then cast your vote. The Consilium opinion debate series.',
-  openGraph: {
+  openGraph: pageOpenGraph('/opinion-debate', {
     title: 'Opinion Debate | The Consilium',
     description: 'Read both sides of the argument, then cast your vote.',
-  },
+  }),
+  alternates: canonicalAlternates('/opinion-debate'),
 }
 
 function estimateReadTime(content: string): string {
