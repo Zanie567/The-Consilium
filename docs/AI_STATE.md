@@ -164,6 +164,51 @@ Review pass (CodeRabbit on PR #71):
 
 ## Recent Sessions
 
+### 2026-08-20: Google Search Console indexing fixes (`claude/search-console-indexing-6z44i7`)
+
+Investigated a batch of GSC notifications (mid-June to early July) citing
+"Redirect error", "Page with redirect", "Not found (404)", "Duplicate without
+user-selected canonical" and "Alternative page with proper canonical tag".
+
+**Findings — mostly already fixed by the time this session ran.** PR #103
+(merged same day, just ahead of this session) had already root-caused and
+fixed the canonical bug (`canonicalAlternates()` / `pageOpenGraph()` in
+`src/lib/seo.ts`, root layout no longer pins a site-wide canonical), which
+accounts for the "Duplicate without user-selected canonical" and "Alternative
+page with proper canonical tag" reasons. The sitemap (`src/app/sitemap.ts`)
+already lists only `PUBLISHED`, non-soft-deleted articles and real
+category/tag/author rows, and `next.config.ts`'s `redirects()` array is a
+single hop each (`/news→/category/news`, `/opinion→/category/opinion`,
+`/analysis→/category/analysis`, `/interviews→/category/interviews`,
+`/debate→/opinion-debate`) with no chains or loops, so nothing there needed
+changing for "Redirect error" / "Page with redirect".
+
+**What was still missing, and is fixed this session:** the "Not found (404)"
+reason. PR #85 (`prisma/dedupe-articles.ts`) soft-deletes zero-engagement
+duplicate article rows sharing a title with a surviving canonical row — the
+right data fix, but it left no redirect behind, so any external link or stale
+Google index entry pointing at a soft-deleted duplicate's slug now 404s
+instead of reaching the article that replaced it. Notification timing (dedupe
+ran 2026-06-09; GSC 404 reports mid-June through early July) matches.
+
+- `src/app/articles/[slug]/page.tsx`: when a slug isn't found among published
+  articles, `findDuplicateRedirectTarget()` checks whether that slug belongs
+  to a soft-deleted row and, if so, looks up a live `PUBLISHED` article with
+  the same title (case-insensitive exact match) to `permanentRedirect()` to.
+  A slug that never existed at all still falls through to `notFound()` — only
+  genuine former duplicates get redirected, never an unrelated article.
+
+**Verification:** `npx tsc --noEmit` clean; `npx eslint` clean on the changed
+file; `npx vitest run` — 531 passed, 7 expected-fail, 18 skipped, no
+regressions. Could not run `npm run build`'s page-data collection or exercise
+the redirect against a live article/dedupe row (no DB connection available in
+this environment); re-verify against Search Console's indexing report a
+crawl cycle after redeploying.
+
+**Schema changes:** None. **New environment variables:** None.
+
+---
+
 ### 2026-08-16: Site-wide sweep for the bug classes found on /archive (`claude/article-pagination-security-review-xr4g28`)
 
 Follow-up to the archive pagination review. That review found four defect
