@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getServerSession } from 'next-auth'
@@ -56,6 +56,38 @@ async function getArticle(slug: string) {
 
 function getArticleUrl(slug: string): string {
   return `${SITE_URL.replace(/\/$/, '')}/articles/${slug}`
+}
+
+/**
+ * Slugs that 404 today can be legacy URLs for a duplicate article that
+ * prisma/dedupe-articles.ts soft-deleted (see PR #85) — Search Console kept
+ * indexed links to the removed copy, which now 404 instead of reaching the
+ * surviving canonical article. Only soft-deleted rows are eligible (a slug
+ * that never existed still 404s), and the match is by exact title against
+ * dedupe-articles.ts's own normalisation, so this can only ever point at the
+ * live replacement of a real former duplicate, never an unrelated article.
+ */
+async function findDuplicateRedirectTarget(slug: string): Promise<string | null> {
+  try {
+    const removed = await prisma.article.findUnique({
+      where: { slug },
+      select: { title: true, deletedAt: true },
+    })
+    if (!removed?.deletedAt) return null
+
+    const canonical = await prisma.article.findFirst({
+      where: {
+        status: 'PUBLISHED',
+        deletedAt: null,
+        title: { equals: removed.title, mode: 'insensitive' },
+      },
+      select: { slug: true },
+      orderBy: { publishedAt: 'desc' },
+    })
+    return canonical?.slug ?? null
+  } catch {
+    return null
+  }
 }
 
 // ── Relevance-scored related articles ────────────────────────────────────────
@@ -181,7 +213,11 @@ export default async function ArticlePage({ params }: Props) {
     getServerSession(authOptions),
   ])
 
-  if (!article) notFound()
+  if (!article) {
+    const target = await findDuplicateRedirectTarget(slug)
+    if (target) permanentRedirect(`/articles/${target}`)
+    notFound()
+  }
 
   const currentUser = session?.user
     ? { id: session.user.id, name: session.user.name, role: session.user.role }
