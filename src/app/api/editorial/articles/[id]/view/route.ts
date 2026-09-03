@@ -34,6 +34,17 @@ export async function POST(req: NextRequest, { params }: Props) {
     return NextResponse.json({ ok: true }) // silent - don't reveal the limit to clients
   }
 
+  // This endpoint is unauthenticated (see PUBLIC_API_PREFIXES in src/proxy.ts),
+  // so only count views for genuinely published articles. Without this check any
+  // anonymous caller can drive viewCount up on drafts, scheduled posts, or
+  // soft-deleted articles — and viewCount feeds the trophy thresholds awarded by
+  // /api/award-trophies. Mirrors the guard /api/analytics/track already applies.
+  const published = await prisma.article.findFirst({
+    where: { id, status: 'PUBLISHED', deletedAt: null },
+    select: { id: true },
+  })
+  if (!published) return NextResponse.json({ ok: true }) // silent drop
+
   const referer = req.headers.get('referer') ?? req.headers.get('referrer') ?? null
   const source = classifySource(referer)
 

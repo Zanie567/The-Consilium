@@ -284,8 +284,23 @@ export const authOptions: NextAuthOptions = {
     },
 
     async redirect({ url, baseUrl }) {
-      if (url.startsWith('/')) return `${baseUrl}${url}`
-      if (url.startsWith(baseUrl)) return url
+      // Compare parsed ORIGINS, never string prefixes. `url` is the raw
+      // callbackUrl parameter or cookie, which NextAuth hands to this callback
+      // without validating it first (core/lib/callback-url.js), so this is the
+      // only gate on the OAuth sign-in path. `url.startsWith(baseUrl)` accepts
+      // any host that merely begins with the base URL —
+      // `https://<base-host>.evil.example` and `https://<base-host>@evil.example`
+      // both pass a prefix test and both send the user to evil.example.
+      //
+      // Resolving against baseUrl keeps relative callbacks (`/editorial`)
+      // working while normalising host case and the default port, and rejects
+      // protocol-relative `//evil.example` outright.
+      try {
+        const target = new URL(url, baseUrl)
+        if (target.origin === new URL(baseUrl).origin) return target.toString()
+      } catch {
+        // Unparseable callback URL: fall through to baseUrl.
+      }
       return baseUrl
     },
   },
