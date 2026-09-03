@@ -84,7 +84,7 @@ const getMostReadArticles = unstable_cache(async () => {
 const getArticles = unstable_cache(async (categorySlug?: string) => {
   try {
     return await prisma.article.findMany({
-      // Homepage hero side column + grid: published articles EXCLUDING debates.
+      // Homepage hero + grid: published articles EXCLUDING debates.
       // Debate articles are surfaced on the homepage only through the dedicated
       // DebatePanel (and the /opinion-debate experience); listing each side again
       // in the general "all articles" feed was redundant and read as duplicates.
@@ -265,21 +265,15 @@ export default async function HomePage({
     getActiveDebate(session?.user?.id, anonymousId),
   ])
 
-  // The masthead hero (featured + side column) is only shown on the unfiltered
-  // "All" view. On a category-filtered view it must NOT be rendered, otherwise it
-  // would (a) show the global featured article that may not belong to the category
-  // and (b) consume the first five matching articles into its side column, leaving
-  // the grid below empty — which surfaced as "No articles in this category yet"
-  // even though matching articles existed.
+  // The featured hero is only shown on the unfiltered "All" view. On a
+  // category-filtered view it must NOT be rendered, otherwise it would show the
+  // global featured article that may not belong to the category.
   const showHero = !categorySlug && !!featured
-  const heroExcludedArticles = showHero
+  // The hero leads with one article; every other article continues into the grid
+  // below, so the lead is never repeated and nothing is dropped from the feed.
+  const articleGrid = showHero
     ? articles.filter((a) => a.id !== featured!.id)
     : articles
-  // On the hero view the first 5 fill the hero side column and the grid starts
-  // after them. On a category view there is no hero, so every matching article is
-  // shown in the grid.
-  const heroSideArticles = showHero ? heroExcludedArticles.slice(0, 5) : []
-  const articleGrid = showHero ? heroExcludedArticles.slice(5) : heroExcludedArticles
   const websiteStructuredData = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
@@ -348,29 +342,29 @@ export default async function HomePage({
       {/* ── Economic data ticker ───────────────────────────────────────────── */}
       <EconomicTicker />
 
-      {/* ── Hero Section (full-width, outside the constrained container) ──── */}
-      {/* Only rendered on the unfiltered "All" view. The empty-state placeholder
-          below is likewise only for that view; category views show their own empty
-          state inside the grid section. */}
-      {showHero ? (
-        <HeroSection featured={featured!} sideArticles={heroSideArticles} />
-      ) : !categorySlug ? (
-        <AnimateIn variant="fade-up">
-          <div className="py-20 text-center border-b border-dashed border-[var(--border)]">
-            <p
-              className="text-4xl font-bold text-[var(--fg-faint)] mb-3"
-              style={{ fontFamily: 'var(--font-serif)' }}
-            >
-              No articles yet
-            </p>
-            <p className="text-[var(--fg-faint)] text-sm">
-              Check back soon for our latest publications.
-            </p>
-          </div>
-        </AnimateIn>
-      ) : null}
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+
+        {/* ── Featured Article ─────────────────────────────────────────────── */}
+        {/* Only rendered on the unfiltered "All" view. The empty-state placeholder
+            is likewise only for that view; category views show their own empty
+            state inside the grid section. */}
+        {showHero ? (
+          <HeroSection featured={featured!} />
+        ) : !categorySlug ? (
+          <AnimateIn variant="fade-up" className="mb-14">
+            <div className="py-20 text-center border border-dashed border-[var(--border)]">
+              <p
+                className="text-4xl font-bold text-[var(--fg-faint)] mb-3"
+                style={{ fontFamily: 'var(--font-serif)' }}
+              >
+                No articles yet
+              </p>
+              <p className="text-[var(--fg-faint)] text-sm">
+                Check back soon for our latest publications.
+              </p>
+            </div>
+          </AnimateIn>
+        ) : null}
 
         {/* ── Category Tabs ────────────────────────────────────────────────── */}
         <AnimateIn variant="fade-in" delay={0.1}>
@@ -386,10 +380,10 @@ export default async function HomePage({
               </StaggerItem>
             ))}
           </StaggerContainer>
-        ) : !showHero || heroExcludedArticles.length === 0 ? (
+        ) : !showHero ? (
           // Only an empty-state message when nothing is actually on screen. On the
-          // "All" view the hero + side column may already be showing published
-          // articles while the grid remainder is empty — don't claim there are none.
+          // "All" view the hero may already be showing the sole published article —
+          // don't claim there are none.
           <AnimateIn variant="fade-in">
             <div className="py-20 text-center">
               <p className="text-[var(--fg-faint)] text-xs uppercase tracking-widest">
