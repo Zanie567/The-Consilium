@@ -36,7 +36,7 @@ export default defineConfig({
     },
     {
       name: 'editorial',
-      testMatch: /editorial\.spec\.ts/,
+      testMatch: /editorial(-layout)?\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'], storageState: ADMIN_STORAGE },
     },

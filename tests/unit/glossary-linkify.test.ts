@@ -94,6 +94,28 @@ describe('glossary linkifier', () => {
     expect(out).not.toContain('data-gloss-term="curve"')
   })
 
+  it('links several different terms in one paragraph, each in place', () => {
+    const out = linkify(
+      '<p>Higher inflation pushed the Bank Rate up, so the yield curve inverted.</p>',
+      [term('inflation'), term('Bank Rate'), term('yield curve')]
+    )
+    expect(out.match(/glossary-term/g)).toHaveLength(3)
+    for (const t of ['inflation', 'Bank Rate', 'yield curve']) {
+      expect(out).toContain(`data-gloss-term="${t}"`)
+      expect(out).toContain(`>${t}</span>`)
+    }
+    // Stripping the injected spans must give back the original prose exactly,
+    // proving nothing between the terms was disturbed.
+    expect(out.replace(/<span[^>]*>|<\/span>/g, '')).toBe(
+      '<p>Higher inflation pushed the Bank Rate up, so the yield curve inverted.</p>'
+    )
+  })
+
+  it('leaves the document alone when a term only occurs inside a skipped element', () => {
+    const html = '<h2>Quantitative easing explained</h2><p>The Bank acted.</p>'
+    expect(linkify(html, [term('quantitative easing')])).toBe(html)
+  })
+
   it('links only the first occurrence of a term', () => {
     const out = linkify('<p>Inflation rose. Inflation then fell. inflation again.</p>', [
       term('inflation'),
