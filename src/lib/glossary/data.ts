@@ -130,6 +130,40 @@ export interface GlossaryResult {
 }
 
 /**
+ * The active glossary snapshot. Exposed for the translation service, which
+ * needs the term list itself (to work out which terms occur in an article and
+ * translate those) rather than the linkified HTML.
+ */
+export async function getGlossarySnapshot(): Promise<GlossarySnapshot> {
+  return loadGlossarySnapshot()
+}
+
+/**
+ * Linkifies against an explicit term list rather than the site glossary.
+ *
+ * Used for translated articles, whose terms carry translated surface forms and
+ * definitions. `cacheKey` must already identify the article, locale and the
+ * content and glossary hashes it was built from, since this function cannot
+ * derive staleness itself.
+ */
+export function applyGlossaryLinksFromTerms(
+  cacheKey: string,
+  terms: GlossaryTermInput[],
+  sanitizedHtml: string
+): GlossaryResult {
+  if (terms.length === 0) return { html: sanitizedHtml, hasLinks: false }
+
+  const cached = cacheGet(cacheKey)
+  if (cached !== undefined) {
+    return { html: cached, hasLinks: cached !== sanitizedHtml }
+  }
+
+  const linkified = linkifyGlossaryTerms(sanitizedHtml, buildGlossaryMatcher(terms))
+  cacheSet(cacheKey, linkified)
+  return { html: linkified, hasLinks: linkified !== sanitizedHtml }
+}
+
+/**
  * Applies glossary term linking to a sanitized article body. Returns the
  * input HTML untouched when the feature is off, the glossary is empty, or
  * nothing matches.

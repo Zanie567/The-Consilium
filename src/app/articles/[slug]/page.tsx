@@ -1,3 +1,4 @@
+import { headers } from 'next/headers'
 import { notFound, permanentRedirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -15,7 +16,7 @@ import { ReadingProgress } from '@/components/ui/ReadingProgress'
 import { ArticleAnchorLinks } from '@/components/ui/ArticleAnchorLinks'
 import { GlossaryTooltips } from '@/components/ui/GlossaryTooltips'
 import { FootnotePopovers } from '@/components/ui/FootnotePopovers'
-import { applyGlossaryLinks } from '@/lib/glossary/data'
+import { applyGlossaryLinks, applyGlossaryLinksFromTerms } from '@/lib/glossary/data'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { ViewCounter } from '@/components/ui/ViewCounter'
 import { PrintButton } from '@/components/ui/PrintButton'
@@ -24,12 +25,19 @@ import { BlurImage } from '@/components/ui/BlurImage'
 import { CommentSection } from '@/components/ui/CommentSection'
 import { readTimeLabel } from '@/lib/readTime'
 import { getInitials, displayAuthorName } from '@/lib/authorUtils'
+import { getIp } from '@/lib/rate-limit'
 import type { Metadata } from 'next'
-import { canonicalAlternates } from '@/lib/seo'
+import { canonicalAlternates, NOINDEX_ROBOTS } from '@/lib/seo'
+import { ArticleLanguageSelector } from '@/components/ui/ArticleLanguageSelector'
+import { TranslationNotice } from '@/components/ui/TranslationNotice'
+import { resolveTargetLocale, SOURCE_LOCALE } from '@/lib/translation/locales'
+import { isTranslationConfigured } from '@/lib/translation/deepl'
+import { getArticleTranslation } from '@/lib/translation/service'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/constants'
 
 interface Props {
   params: Promise<{ slug: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 async function getArticle(slug: string) {
@@ -167,13 +175,23 @@ async function getRelatedArticles(
   } catch { return [] }
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
+  const [{ slug }, query] = await Promise.all([params, searchParams])
   const article = await getArticle(slug)
   if (!article) return {}
   const articleUrl = getArticleUrl(article.slug)
 
+  // A ?lang= view is a machine translation of this same article, so it is kept
+  // out of the index deliberately: publishing four generated URLs per article
+  // would be duplicate content, and the site has no locale routing or reviewed
+  // translations to justify indexing them. `canonical` already points at the
+  // query-less English URL, so any crawler that does reach one is sent to the
+  // canonical article. Metadata itself stays in English and never calls the
+  // translation provider, so ?lang= costs a crawler nothing.
+  const translated = resolveTargetLocale(query.lang) !== null && isTranslationConfigured()
+
   return {
+    ...(translated ? { robots: NOINDEX_ROBOTS } : {}),
     title: {
       absolute: `${article.title} | ${SITE_NAME}`,
     },
@@ -206,8 +224,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // Content rendering lives in src/lib/articleRender.ts (shared with unit tests).
 
-export default async function ArticlePage({ params }: Props) {
-  const { slug } = await params
+export default async function ArticlePage({ params, searchParams }: Props) {
+  const [{ slug }, query] = await Promise.all([params, searchParams])
   const [article, session] = await Promise.all([
     getArticle(slug),
     getServerSession(authOptions),
@@ -229,10 +247,47 @@ export default async function ArticlePage({ params }: Props) {
     article.title,
     article.excerpt,
   )
-  const { html: htmlContent, footnotes } = renderContent(article.content)
+  // ── Translation ────────────────────────────────────────────────────────────
+  // Everything below is inert for the English article: with no ?lang= (or with
+  // no provider key configured) `locale` is null, no translation code runs, and
+  // the render path is byte-for-byte the one that shipped before. An English
+  // page view never depends on the translation provider.
+  const translationConfigured = isTranslationConfigured()
+  const locale = translationConfigured ? resolveTargetLocale(query.lang) : null
+
+  const translation = locale
+    ? await getArticleTranslation({
+        articleId: article.id,
+        title: article.title,
+        excerpt: article.excerpt,
+        content: article.content,
+        locale,
+        clientKey: getIp({ headers: await headers() }),
+      })
+    : null
+
+  const showingTranslation = translation?.status === 'translated'
+  const displayLocale = showingTranslation && locale ? locale.code : SOURCE_LOCALE
+  const displayTitle = showingTranslation ? translation.translation.title : article.title
+  const displayExcerpt = showingTranslation
+    ? translation.translation.excerpt
+    : article.excerpt
+  const displayContent = showingTranslation
+    ? translation.translation.content
+    : article.content
+
+  const { html: htmlContent, footnotes } = renderContent(displayContent)
   // Glossary term linking runs on the sanitized HTML and returns it untouched
   // when the site-wide switch is off, so the page renders exactly as before.
-  const glossary = await applyGlossaryLinks(article.id, article.updatedAt, htmlContent)
+  // A translated body is linkified against the translated term list stored with
+  // the translation, using the same linkifier and the same tooltip component.
+  const glossary = showingTranslation
+    ? applyGlossaryLinksFromTerms(
+        `${article.id}:${displayLocale}:${translation.translation.sourceHash}:${translation.translation.glossaryHash}`,
+        translation.translation.glossaryTerms,
+        htmlContent
+      )
+    : await applyGlossaryLinks(article.id, article.updatedAt, htmlContent)
 
   // Series info
   const seriesArticles = article.series?.articles ?? []
@@ -265,10 +320,15 @@ export default async function ArticlePage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }}
-      />
+      {/* Structured data describes the canonical English article. A machine
+          translation is a noindex view of that same article, so it does not
+          re-assert the markup under a different URL. */}
+      {!showingTranslation && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }}
+        />
+      )}
       <ReadingProgress />
       <ReadingTracker articleId={article.id} />
       <ViewCounter articleId={article.id} />
@@ -299,6 +359,25 @@ export default async function ArticlePage({ params }: Props) {
       )}
 
       <div className="max-w-[680px] mx-auto px-6 sm:px-8 lg:px-12 py-12 print-article-wrapper">
+
+        {/* Language selector. Rendered only when a provider key is configured,
+            so an unconfigured deployment shows no control that cannot work. */}
+        {translationConfigured && (
+          <div className="mb-6">
+            <ArticleLanguageSelector slug={article.slug} current={displayLocale} />
+          </div>
+        )}
+
+        {locale && showingTranslation && (
+          <TranslationNotice state="machine" languageName={locale.englishName} slug={article.slug} />
+        )}
+        {locale && !showingTranslation && (
+          <TranslationNotice
+            state="unavailable"
+            languageName={locale.englishName}
+            slug={article.slug}
+          />
+        )}
 
         {/* Correction banner - above everything */}
         {article.corrected && (
@@ -344,6 +423,7 @@ export default async function ArticlePage({ params }: Props) {
         {/* Title */}
         <AnimateIn variant="fade-up" delay={0.05} duration={0.6}>
           <h1
+            lang={displayLocale}
             className="font-bold text-[var(--fg)] leading-tight mb-6 tracking-tight"
             style={{
               fontFamily: 'var(--font-serif)',
@@ -351,15 +431,18 @@ export default async function ArticlePage({ params }: Props) {
               fontWeight: 800,
             }}
           >
-            {article.title}
+            {displayTitle}
           </h1>
         </AnimateIn>
 
         {/* Excerpt */}
-        {article.excerpt && (
+        {displayExcerpt && (
           <AnimateIn variant="fade-up" delay={0.1} duration={0.55}>
-            <p className="text-[var(--fg-muted)] text-lg sm:text-xl leading-relaxed mb-8 border-l-[3px] border-gold pl-5 italic">
-              {article.excerpt}
+            <p
+              lang={displayLocale}
+              className="text-[var(--fg-muted)] text-lg sm:text-xl leading-relaxed mb-8 border-l-[3px] border-gold pl-5 italic"
+            >
+              {displayExcerpt}
             </p>
           </AnimateIn>
         )}
@@ -397,8 +480,8 @@ export default async function ArticlePage({ params }: Props) {
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 no-print">
               <PrintButton />
-              <SaveAsPdfButton title={article.title} />
-              <ShareButtons title={article.title} />
+              <SaveAsPdfButton title={displayTitle} />
+              <ShareButtons title={displayTitle} />
               <BookmarkButton articleId={article.id} />
             </div>
           </div>
@@ -408,6 +491,7 @@ export default async function ArticlePage({ params }: Props) {
         <AnimateIn variant="fade-up" delay={0.2} duration={0.6}>
           <div
             id="article-body"
+            lang={displayLocale}
             className="prose-consilium"
             dangerouslySetInnerHTML={{ __html: glossary.html }}
           />
@@ -439,7 +523,7 @@ export default async function ArticlePage({ params }: Props) {
         {/* Footnotes */}
         {footnotes.length > 0 && (
           <AnimateIn variant="fade-up" delay={0.05} className="mt-4">
-            <div className="footnotes-section">
+            <div className="footnotes-section" lang={displayLocale}>
               <h4>References</h4>
               <ol>
                 {footnotes.map((fn) => (

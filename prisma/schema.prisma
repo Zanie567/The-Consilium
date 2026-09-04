@@ -207,6 +207,7 @@ model Article {
   againstDebates  Debate[]      @relation("AgainstArticle")
   trophies        ArticleTrophy[]
   articleComments ArticleComment[]
+  translations    ArticleTranslation[]
 
   @@index([authorId])
   @@index([categoryId])
@@ -214,6 +215,44 @@ model Article {
   @@index([publishedAt])
   @@index([scheduledAt])
   @@map("articles")
+}
+
+/**
+ * Machine translations of a published article, one row per (article, locale).
+ *
+ * Derived content, never a source of truth: the English `articles` row remains
+ * canonical and is never written by the translation path. `sourceHash`
+ * fingerprints the exact strings that were sent to the provider, so a row whose
+ * hash no longer matches the article is known to be stale and is regenerated
+ * rather than served. `glossaryHash` does the same for the glossary terms that
+ * occur in the article, so a glossary edit refreshes the definitions without
+ * paying to retranslate the body.
+ */
+model ArticleTranslation {
+  id        String  @id @default(cuid())
+  articleId String  @map("article_id")
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  /** BCP 47 code from the application locale allowlist, e.g. "fr", "zh". */
+  locale    String
+  title     String
+  excerpt   String? @db.Text
+  /** Translated TipTap JSON, rendered by the same renderer as the English body. */
+  content   String  @db.Text
+  /** SHA-256 of the translatable strings this row was generated from. */
+  sourceHash   String @map("source_hash")
+  /** SHA-256 of the glossary terms this row's definitions were generated from. */
+  glossaryHash String @map("glossary_hash")
+  /** Translated glossary terms and definitions for this article. */
+  glossaryTerms Json  @default("[]") @map("glossary_terms")
+  /** Provider that produced the row, e.g. "deepl". */
+  provider  String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([articleId, locale])
+  @@index([articleId])
+  @@map("article_translations")
 }
 
 // Inline editorial review comments anchored to text selections in a draft.
