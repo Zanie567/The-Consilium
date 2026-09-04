@@ -16,6 +16,7 @@ import { EconomicTicker } from '@/components/ui/EconomicTicker'
 import { displayAuthorName } from '@/lib/authorUtils'
 import { safeJsonLd } from '@/lib/jsonLd'
 import { HeroSection } from '@/components/ui/HeroSection'
+import { selectHeroArticles } from '@/lib/heroArticles'
 import type { Metadata } from 'next'
 import { SITE_NAME, SITE_URL } from '@/lib/constants'
 import { canonicalAlternates, pageOpenGraph } from '@/lib/seo'
@@ -269,11 +270,14 @@ export default async function HomePage({
   // category-filtered view it must NOT be rendered, otherwise it would show the
   // global featured article that may not belong to the category.
   const showHero = !categorySlug && !!featured
-  // The hero leads with one article; every other article continues into the grid
-  // below, so the lead is never repeated and nothing is dropped from the feed.
-  const articleGrid = showHero
-    ? articles.filter((a) => a.id !== featured!.id)
-    : articles
+  // The hero rotates through the featured article and the newest published ones
+  // — ordered and capped by selectHeroArticles, never by anything hard-coded
+  // here. Whatever it takes is withheld from the grid, so no article the hero is
+  // currently showing is repeated as a card directly beneath it; the rest of the
+  // feed continues unchanged, and nothing leaves the page.
+  const heroArticles = showHero ? selectHeroArticles(featured, articles) : []
+  const heroIds = new Set(heroArticles.map((a) => a.id))
+  const articleGrid = showHero ? articles.filter((a) => !heroIds.has(a.id)) : articles
   const websiteStructuredData = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
@@ -349,7 +353,7 @@ export default async function HomePage({
             is likewise only for that view; category views show their own empty
             state inside the grid section. */}
         {showHero ? (
-          <HeroSection featured={featured!} />
+          <HeroSection articles={heroArticles} />
         ) : !categorySlug ? (
           <AnimateIn variant="fade-up" className="mb-14">
             <div className="py-20 text-center border border-dashed border-[var(--border)]">
