@@ -45,7 +45,18 @@ const TRANSLATION_CONTEXT =
   'An article from The Consilium, a university economics and public policy publication. ' +
   'Use formal journalistic register and standard economics terminology.'
 
-export function deeplApiBase(authKey: string): string {
+/**
+ * Chooses the API host for a key.
+ *
+ * DeepL documents that keys ending ":fx" belong to a free-tier account and must
+ * call api-free.deepl.com, while every other key calls api.deepl.com. That rule
+ * predates the Developer plan, so DEEPL_API_HOST exists as an explicit override
+ * for an account whose key does not follow it; scripts/verify-deepl.mjs probes
+ * both hosts and reports which one the key actually authenticates against.
+ */
+export function deeplApiBase(authKey: string, hostOverride?: string): string {
+  const override = (hostOverride ?? process.env.DEEPL_API_HOST)?.trim()
+  if (override) return override.replace(/\/$/, '')
   return authKey.trimEnd().endsWith(FREE_KEY_SUFFIX) ? FREE_API_BASE : PRO_API_BASE
 }
 

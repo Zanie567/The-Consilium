@@ -24,7 +24,45 @@ if (!KEY) {
   process.exit(1)
 }
 
-const BASE = KEY.endsWith(':fx') ? 'https://api-free.deepl.com' : 'https://api.deepl.com'
+/**
+ * Probes both hosts rather than trusting the ":fx" convention, which predates
+ * the Developer plan. Reports the host that actually authenticates so it can be
+ * pinned with DEEPL_API_HOST if it is not the one the convention would pick.
+ */
+async function resolveHost() {
+  const conventional = KEY.endsWith(':fx')
+    ? 'https://api-free.deepl.com'
+    : 'https://api.deepl.com'
+  const candidates = [conventional, 'https://api-free.deepl.com', 'https://api.deepl.com']
+  const tried = new Set()
+  for (const host of candidates) {
+    if (tried.has(host)) continue
+    tried.add(host)
+    try {
+      const response = await fetch(`${host}/v2/usage`, {
+        headers: { Authorization: `DeepL-Auth-Key ${KEY}` },
+      })
+      if (response.ok) {
+        if (host !== conventional) {
+          console.warn(
+            `NOTE: this key authenticates against ${host}, not the ${conventional} ` +
+              `implied by its suffix. Set DEEPL_API_HOST=${host} in the environment.`
+          )
+        }
+        return host
+      }
+      if (response.status !== 403 && response.status !== 401) {
+        throw new Error(`${host}/v2/usage responded ${response.status} ${response.statusText}`)
+      }
+    } catch (error) {
+      if (error instanceof TypeError) continue
+      throw error
+    }
+  }
+  throw new Error('The key was rejected by both api.deepl.com and api-free.deepl.com.')
+}
+
+const BASE = process.env.DEEPL_API_HOST?.trim() || (await resolveHost())
 
 /** Reads the allowlist out of the TypeScript source so the two cannot drift. */
 function expectedTargets() {
