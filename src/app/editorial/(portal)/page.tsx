@@ -49,13 +49,16 @@ export default async function EditorialDashboard() {
   let fetchError = false
   const [myArticles, pendingArticles, publishedCount, myDrafts, totalViews, userCount] =
     await Promise.all([
-      // Growth users don't need the articles table list
+      // Growth users don't need the articles table list.
+      // Five, not eight: this is the dashboard preview of the article table and
+      // it has a "View all" link. At eight rows it was the tallest block on the
+      // page by some way, and the full list one click away is paginated anyway.
       isGrowth
         ? Promise.resolve([])
         : prisma.article.findMany({
             where: role === 'WRITER' ? { authorId: userId, deletedAt: null } : { deletedAt: null },
             orderBy: { updatedAt: 'desc' },
-            take: 8,
+            take: 5,
             include: { category: true, author: true },
           }),
 
@@ -254,8 +257,14 @@ export default async function EditorialDashboard() {
         />
       )}
 
-      {/* Stats row */}
-      <PortalSection className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+      {/*
+       * Stats row. auto-fit rather than a fixed column count: the number of
+       * cards varies by role (three for a writer, six for an admin), and a
+       * fixed 4-column grid left an admin with a ragged 4 + 2 second row that
+       * cost a whole row of height. auto-fit packs whatever cards the role
+       * gets into as few full rows as will fit.
+       */}
+      <PortalSection className="grid gap-3 sm:gap-4 mb-6 sm:mb-8 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
         {!isGrowth && <StatCard label="My Drafts" value={myDrafts.length} />}
         <StatCard label="Published" value={publishedCount} accent="emerald" />
         {isEditor && (

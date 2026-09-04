@@ -150,7 +150,10 @@ export function EditorialSidebar({
 
   return (
     <aside
-      className="w-[220px] shrink-0 flex flex-col min-h-screen sticky top-0 h-screen overflow-y-auto overflow-x-hidden"
+      // h-full, not sticky + h-screen: the shell above is already pinned to
+      // the viewport, so the sidebar just fills it. h-screen (100vh) would
+      // overflow the 100dvh shell on mobile and clip the sign-out button.
+      className="w-[220px] shrink-0 flex flex-col h-full overflow-y-auto overflow-x-hidden"
       style={{ background: '#0F1623' }}
     >
       {/* Masthead */}

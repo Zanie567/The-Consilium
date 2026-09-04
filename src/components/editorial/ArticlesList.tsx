@@ -28,6 +28,10 @@ interface Props {
   emptyMessage?: React.ReactNode
 }
 
+// Rows per page. Keeps a page of the article table close to one screen inside
+// the portal's bounded scroll region.
+const PAGE_SIZE = 12
+
 const STATUS_STYLE: Record<string, string> = {
   DRAFT: 'bg-[var(--bg-subtle)] text-[var(--fg-faint)]',
   PENDING_REVIEW: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
@@ -40,6 +44,7 @@ const STATUS_STYLE: Record<string, string> = {
 export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter, emptyMessage }: Props) {
   const [articles, setArticles] = useState(initial)
   const [filter, setFilter] = useState<string>('all')
+  const [page, setPage] = useState(1)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -104,6 +109,15 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
   const statuses = ['all', ...Array.from(new Set(articles.map((a) => a.status)))]
   const filtered = filter === 'all' ? articles : articles.filter((a) => a.status === filter)
 
+  // Paginate. The page query returns up to 100 articles and every one of them
+  // used to render at once, so the list ran several viewports deep inside the
+  // portal's scroll region and grew without bound as the archive did.
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  // Clamp rather than store a corrected page: deleting the last row of the
+  // last page, or switching to a shorter filter, can leave `page` past the end.
+  const currentPage = Math.min(page, totalPages)
+  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
   return (
     <div>
       {error && (
@@ -116,7 +130,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
         {statuses.map((s) => (
           <button
             key={s}
-            onClick={() => setFilter(s)}
+            onClick={() => { setFilter(s); setPage(1) }}
             className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
               filter === s
                 ? 'bg-navy text-gold'
@@ -161,7 +175,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
-              {filtered.map((article) => (
+              {paged.map((article) => (
                 <tr key={article.id} className="hover:bg-[var(--bg-subtle)] transition-colors group">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">
@@ -305,6 +319,37 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
           </div>
         )}
       </div>
+
+      {filtered.length > PAGE_SIZE && (
+        <nav
+          className="flex items-center justify-between gap-4 mt-4"
+          aria-label="Article list pages"
+        >
+          <p className="text-xs text-[var(--fg-faint)]">
+            Showing {(currentPage - 1) * PAGE_SIZE + 1}&ndash;
+            {Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--fg-muted)] hover:border-gold hover:text-gold disabled:opacity-40 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--fg-muted)] transition-colors"
+            >
+              Previous
+            </button>
+            <span className="text-xs text-[var(--fg-faint)]" aria-live="polite">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--fg-muted)] hover:border-gold hover:text-gold disabled:opacity-40 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--fg-muted)] transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </nav>
+      )}
     </div>
   )
 }

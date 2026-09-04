@@ -294,6 +294,11 @@ interface Props {
   currentAdminId: string
 }
 
+// Rows per page. Fifteen rather than twenty-five so a page of users stays
+// close to one screen inside the portal's scroll region; the value is shared
+// by the request limit and the "showing x-y of n" range so they cannot drift.
+const PAGE_SIZE = 15
+
 const ROLE_TABS = ['All', 'Admin', 'Editor', 'Writer', 'Growth', 'Reader']
 const SORT_OPTIONS = [
   { value: 'createdAt',    label: 'Newest' },
@@ -338,7 +343,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
     setLoading(true)
     const params = new URLSearchParams({
       page: String(page),
-      limit: '25',
+      limit: String(PAGE_SIZE),
       sort,
       ...(search && { search }),
       ...(roleTab !== 'All' && { role: roleTab.toUpperCase() }),
@@ -368,8 +373,8 @@ export function AdminUsersPage({ currentAdminId }: Props) {
 
   const handleReload = () => { loadStats(); loadUsers() }
 
-  const start = (page - 1) * 25 + 1
-  const end = Math.min(page * 25, total)
+  const start = (page - 1) * PAGE_SIZE + 1
+  const end = Math.min(page * PAGE_SIZE, total)
 
   return (
     <div>

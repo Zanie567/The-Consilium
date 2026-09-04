@@ -6,6 +6,7 @@ import { Footer } from '@/components/layout/Footer'
 import { AuthProvider } from '@/components/layout/AuthProvider'
 import { ThemeProvider } from '@/providers/ThemeProvider'
 import { ScrollIndicator } from '@/components/ui/ScrollIndicator'
+import { SiteChrome } from '@/components/layout/SiteChrome'
 import { SignupPrompt } from '@/components/ui/SignupPrompt'
 import { CookieConsentBanner } from '@/components/ui/CookieConsent'
 import { InstallBanner } from '@/components/ui/InstallBanner'
@@ -115,10 +116,14 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <ViewTransitionGuard />
-            <ScrollIndicator />
+            <SiteChrome>
+              <ScrollIndicator />
+            </SiteChrome>
             <Navbar />
             <main id="main-content" className="flex-1">{children}</main>
-            <Footer />
+            <SiteChrome>
+              <Footer />
+            </SiteChrome>
             <SignupPrompt />
             <CookieConsentBanner />
             <InstallBanner />

@@ -30,7 +30,10 @@ interface FormValues {
 
 const EMPTY_FORM: FormValues = { term: '', aliases: '', definition: '', learnMoreUrl: '' }
 
-const PAGE_SIZE = 10
+// Six per page, not ten: each term renders as a full card carrying its
+// definition and learn-more link, so ten ran roughly two viewports deep inside
+// the portal's scroll region. Six keeps a page of terms close to one screen.
+const PAGE_SIZE = 6
 
 /**
  * Page numbers to render between the chevrons: first, last, and a window

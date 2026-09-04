@@ -65,7 +65,12 @@ export default async function EditorialLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-subtle)] flex">
+    // Bounded app shell. The portal is pinned to the viewport (100dvh, not
+    // 100vh, so mobile browser chrome cannot push the sign-out button off
+    // screen) and only the content region below scrolls. Previously the whole
+    // document scrolled, which carried the sidebar off the top of the screen
+    // on any page taller than the viewport.
+    <div className="h-[100dvh] bg-[var(--bg-subtle)] flex overflow-hidden">
       {/* Sidebar: hidden on mobile (overlay via wrapper), always visible on desktop */}
       <Suspense
         fallback={
@@ -74,10 +79,20 @@ export default async function EditorialLayout({ children }: { children: React.Re
       >
         <EditorialSidebarWrapper user={verifiedUser} trashCount={trashCount} />
       </Suspense>
-      {/* Main content wrapped in page-transition component */}
-      <main className="flex-1 min-w-0 overflow-auto">
+      {/*
+       * The portal's only scroll region. A plain div, not <main>: the root
+       * layout already renders <main id="main-content"> around all children,
+       * and nesting a second <main> is invalid and confuses screen readers.
+       *
+       * overflow-auto on both axes, deliberately. Bounding the height is the
+       * point of this change; the x axis stays `auto` (as it was) because a
+       * few pages still run a little wide at ~390px, and clipping that content
+       * would make it unreachable. A scrollbar inside this region is contained
+       * and never becomes a browser-level horizontal scrollbar.
+       */}
+      <div className="flex-1 min-w-0 overflow-auto">
         <PortalTransition>{children}</PortalTransition>
-      </main>
+      </div>
     </div>
   )
 }
