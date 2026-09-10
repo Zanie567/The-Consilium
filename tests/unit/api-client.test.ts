@@ -41,6 +41,32 @@ describe('apiRequest', () => {
     await expect(apiRequest('/api/article')).rejects.toMatchObject({ kind, status })
   })
 
+  it('keeps the route\'s own 401 wording, so "sign in" and "session expired" stay distinct', async () => {
+    // A 401 is as often "you were never signed in" as "your session expired",
+    // and only the route knows which. Assuming the latter told a logged-out
+    // reader their session had expired.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse(401, { error: 'You need to sign in to continue.', code: 'AUTH_REQUIRED' }),
+      ),
+    )
+
+    await expect(apiRequest('/api/comments')).rejects.toMatchObject({
+      kind: 'auth',
+      message: 'You need to sign in to continue.',
+    })
+  })
+
+  it('falls back to wording true of both cases when a 401 says nothing useful', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(401, { error: 'Unauthorized' })))
+
+    await expect(apiRequest('/api/comments')).rejects.toMatchObject({
+      kind: 'auth',
+      message: 'You need to sign in to continue.',
+    })
+  })
+
   it('distinguishes a reported database schema mismatch from other server errors', async () => {
     vi.stubGlobal(
       'fetch',

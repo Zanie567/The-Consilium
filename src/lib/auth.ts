@@ -349,10 +349,14 @@ export async function requireVerifiedSessionUser(
     }
   }
   if (!session?.user?.id) {
+    // No session cookie at all. This is indistinguishable from an expired one
+    // server-side, and the commonest case is a reader who simply never signed
+    // in — so the copy has to be true for both. "Your session has expired" is
+    // confusing to someone who never had one.
     return {
       ok: false,
       response: NextResponse.json(
-        { error: 'Your session has expired. Sign in again to continue.', code: 'AUTH_REQUIRED' },
+        { error: 'You need to sign in to continue.', code: 'AUTH_REQUIRED' },
         { status: 401 }
       ),
     }

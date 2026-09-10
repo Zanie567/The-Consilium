@@ -92,9 +92,16 @@ function errorForResponse(response: Response, bodyValue: unknown): ApiError {
   const options = { status, code, requestId }
 
   if (status === 401) {
+    // Defer to the server's wording when it says something specific, as the 403
+    // branch does: a 401 is equally often "you were never signed in" as it is
+    // "your session expired", and only the route knows which it meant. The
+    // fallback below is phrased to be true either way. Callers that need
+    // context-specific copy (the article editor, say) switch on `kind`.
     return new ApiError(
       'auth',
-      'Your session has expired. Sign in again, then retry the request.',
+      isGenericMessage(suppliedMessage)
+        ? 'You need to sign in to continue.'
+        : suppliedMessage!,
       options,
     )
   }
