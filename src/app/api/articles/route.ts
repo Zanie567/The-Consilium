@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession, requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import slugify from 'slugify'
-import { stripHtml } from '@/lib/content-filter'
+import { ARTICLE_SAVE_TIMEOUT_MS, normalizeArticleTags } from '@/lib/articleTags'
 import { ARTICLE_MUTATION_ROLES, EDITORIAL_MANAGEMENT_ROLES, isAllowedRole } from '@/lib/rbac'
 import { PUBLIC_AUTHOR_SELECT } from '@/lib/publicUser'
 import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
@@ -194,6 +194,10 @@ export async function POST(request: NextRequest) {
       slug = `${slug}-${Date.now()}`
     }
 
+    // Bounded and validated before the transaction opens, so the work inside it
+    // is a known quantity.
+    const normalizedTags = normalizeArticleTags(tags)
+
     const article = await prisma.$transaction(async (tx) => {
       const created = await tx.article.create({
         data: {
@@ -209,30 +213,24 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      if (Array.isArray(tags) && tags.length > 0) {
+      if (normalizedTags.length > 0) {
         const tagRecords = []
-        for (const name of tags) {
-          if (typeof name !== 'string') continue
-          const safeName = stripHtml(name).trim()
-          const tagSlug = safeName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-          if (!safeName || !tagSlug) continue
+        for (const { name, slug: tagSlug } of normalizedTags) {
           const tag = await tx.tag.upsert({
             where: { slug: tagSlug },
             update: {},
-            create: { name: safeName, slug: tagSlug },
+            create: { name, slug: tagSlug },
           })
           tagRecords.push(tag)
         }
-        if (tagRecords.length > 0) {
-          await tx.articleTag.createMany({
-            data: tagRecords.map((tag) => ({ articleId: created.id, tagId: tag.id })),
-            skipDuplicates: true,
-          })
-        }
+        await tx.articleTag.createMany({
+          data: tagRecords.map((tag) => ({ articleId: created.id, tagId: tag.id })),
+          skipDuplicates: true,
+        })
       }
 
       return created
-    })
+    }, { timeout: ARTICLE_SAVE_TIMEOUT_MS })
 
     return NextResponse.json(article, {
       status: 201,

@@ -63,8 +63,23 @@ ALTER TABLE site_views           ENABLE ROW LEVEL SECURITY;
 -- Added after this file was first drafted. Both already report
 -- relrowsecurity = true on the project; listed here so a rebuild from these
 -- migrations alone reaches the same posture as production.
-ALTER TABLE article_translations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE glossary_terms       ENABLE ROW LEVEL SECURITY;
+
+-- `article_translations` exists on the project but has no Prisma model yet (it
+-- belongs to unmerged translation work), so `prisma db push` does NOT create it
+-- on a fresh database. A bare ALTER would abort this file during a rebuild.
+-- Guarded so it hardens the table where it exists and is a no-op where it does
+-- not; when the model lands, move this up with the others.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'article_translations'
+      AND relnamespace = 'public'::regnamespace
+  ) THEN
+    EXECUTE 'ALTER TABLE article_translations ENABLE ROW LEVEL SECURITY';
+  END IF;
+END $$;
 
 
 -- =============================================================================

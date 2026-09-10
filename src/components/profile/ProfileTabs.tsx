@@ -149,12 +149,16 @@ function ReadingHistoryTab() {
   const [pages, setPages] = useState(1)
 
   useEffect(() => {
+    // Paging quickly can leave an earlier request in flight; whichever settles
+    // last would otherwise win, showing the wrong page or a stale error.
+    let cancelled = false
     setLoading(true)
     setLoadError('')
     apiRequest<{ items?: ReadingHistoryItem[]; pages?: number }>(`/api/profile/reading-history?page=${page}`)
-      .then((d) => { setItems(d.items ?? []); setPages(d.pages ?? 1) })
-      .catch((reason) => setLoadError(asApiError(reason).message))
-      .finally(() => setLoading(false))
+      .then((d) => { if (cancelled) return; setItems(d.items ?? []); setPages(d.pages ?? 1) })
+      .catch((reason) => { if (!cancelled) setLoadError(asApiError(reason).message) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [page])
 
   if (loading) return <TabLoader />

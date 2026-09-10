@@ -10,7 +10,7 @@ import { PUBLIC_AUTHOR_SELECT } from '@/lib/publicUser'
 import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 import { apiError, articleMutationErrorResponse } from '@/lib/apiResponse'
-import { stripHtml } from '@/lib/content-filter'
+import { ARTICLE_SAVE_TIMEOUT_MS, normalizeArticleTags } from '@/lib/articleTags'
 import type { ArticleStatus } from '@prisma/client'
 
 const STAFF_ARTICLE_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'ARCHIVED', 'REJECTED', 'SCHEDULED'] as const satisfies readonly ArticleStatus[]
@@ -191,6 +191,10 @@ export async function PUT(
     const wasUnpublished =
       existing.status === 'PUBLISHED' && finalStatus !== 'PUBLISHED'
 
+    // Bounded and validated before the transaction opens, so the work inside it
+    // is a known quantity.
+    const normalizedTags = normalizeArticleTags(tags)
+
     const updated = await prisma.$transaction(async (tx) => {
       const savedArticle = await tx.article.update({
         where: { id },
@@ -223,18 +227,15 @@ export async function PUT(
 
       // Article fields and tag associations are one save operation. Keeping
       // them in the same transaction prevents a 500 after a partial update.
+      // `tags` absent means "leave them alone"; an empty array means "clear them".
       if (Array.isArray(tags)) {
         await tx.articleTag.deleteMany({ where: { articleId: id } })
         const tagRecords: Array<{ id: string }> = []
-        for (const name of tags) {
-          if (typeof name !== 'string') continue
-          const safeName = stripHtml(name).trim()
-          const tagSlug = safeName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-          if (!safeName || !tagSlug) continue
+        for (const { name, slug: tagSlug } of normalizedTags) {
           const tag = await tx.tag.upsert({
             where: { slug: tagSlug },
             update: {},
-            create: { name: safeName, slug: tagSlug },
+            create: { name, slug: tagSlug },
           })
           tagRecords.push(tag)
         }
@@ -247,7 +248,7 @@ export async function PUT(
       }
 
       return savedArticle
-    })
+    }, { timeout: ARTICLE_SAVE_TIMEOUT_MS })
 
     // Notify category editors when submitted
     if (wasJustSubmitted) {

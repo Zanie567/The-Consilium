@@ -97,6 +97,17 @@ export function articleMutationErrorResponse(
     return apiError('The request body is not valid JSON.', 400, 'INVALID_JSON', requestId)
   }
 
+  // Matches apiServerErrorResponse: a connection failure is retryable and must
+  // not be reported as a generic article-save error.
+  if (error instanceof Prisma.PrismaClientInitializationError) {
+    return apiError(
+      'The database is temporarily unavailable. Try again in a moment.',
+      503,
+      'DATABASE_UNAVAILABLE',
+      requestId
+    )
+  }
+
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === 'P2002') {
       return apiError(

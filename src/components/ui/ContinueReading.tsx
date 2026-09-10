@@ -53,17 +53,21 @@ export function ContinueReading() {
 
   useEffect(() => {
     if (status === 'loading') return
+    let cancelled = false
     setLoaded(false)
     setItems([])
     setError(null)
 
     if (session?.user?.id) {
+      // A sign-out (or a session change) while this is in flight must not leave
+      // the previous session's items or error on screen.
       apiRequest<ProgressItem[]>('/api/reading-progress')
         .then((data: ProgressItem[]) => {
+          if (cancelled) return
           if (Array.isArray(data)) setItems(data)
         })
-        .catch((loadError) => setError(asApiError(loadError).message))
-        .finally(() => setLoaded(true))
+        .catch((loadError) => { if (!cancelled) setError(asApiError(loadError).message) })
+        .finally(() => { if (!cancelled) setLoaded(true) })
     } else {
       // Guests - we only have IDs in localStorage, not full article data
       // Just show a generic invite if they have any saved progress
@@ -73,6 +77,8 @@ export function ContinueReading() {
       }
       setLoaded(true)
     }
+
+    return () => { cancelled = true }
   }, [session, status])
 
   if (!loaded || (items.length === 0 && !error)) return null

@@ -168,7 +168,7 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
     if (session?.user?.id) {
       apiRequest<SavedProgress | null>(`/api/reading-progress/${articleId}`)
         .then((data) => tryRestore(data))
-        .catch(() => noteSyncFailure())
+        .catch(() => { if (!cancelled) noteSyncFailure() })
     } else {
       try {
         const raw = localStorage.getItem(LS_KEY(articleId))

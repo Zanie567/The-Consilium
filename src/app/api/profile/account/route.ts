@@ -17,6 +17,12 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'The request body is not valid JSON.' }, { status: 400 })
   }
 
+  // `null` is valid JSON, and destructuring it throws — which would surface as a
+  // 500 rather than the 400 this is.
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    return NextResponse.json({ error: 'The request body must be a JSON object.' }, { status: 400 })
+  }
+
   const { name, bio } = body
   if (name !== undefined && typeof name !== 'string') {
     return NextResponse.json({ error: 'name must be a string' }, { status: 400 })

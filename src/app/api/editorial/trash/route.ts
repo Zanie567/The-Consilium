@@ -11,11 +11,14 @@ export async function GET() {
   if (!auth.ok) return auth.response
   const user = auth.user
   const isWriter = user.role === 'WRITER'
-  const editorScope = user.role === 'EDITOR'
-    ? await loadEditorCategoryScope(user.id)
-    : null
 
   try {
+    // Inside the try: this is a database read, and a failure here should give the
+    // same controlled response as a failure of the query below.
+    const editorScope = user.role === 'EDITOR'
+      ? await loadEditorCategoryScope(user.id)
+      : null
+
     const articles = await prisma.article.findMany({
       where: {
         deletedAt: { not: null },
