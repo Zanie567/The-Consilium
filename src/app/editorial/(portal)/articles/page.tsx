@@ -5,6 +5,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArticlesList } from '@/components/editorial/ArticlesList'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
+import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
+import { articleWhereForEditorScope, type EditorCategoryScope } from '@/lib/articleCategoryScope'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -30,13 +32,9 @@ export default async function EditorialArticlesPage({
   // "My Drafts" mode: filter to current user's drafts regardless of role
   const myDraftsMode = mineParam === 'true' && statusParam === 'DRAFT'
 
-  let assignedCategoryIds: string[] | null = null
+  let editorScope: EditorCategoryScope | null = null
   if (role === 'EDITOR' && !myDraftsMode) {
-    const assignments = await prisma.categoryEditor.findMany({
-      where: { userId },
-      select: { categoryId: true },
-    })
-    assignedCategoryIds = assignments.map((a) => a.categoryId)
+    editorScope = await loadEditorCategoryScope(userId)
   }
 
   // Surface DB errors rather than silently rendering an empty list
@@ -48,9 +46,7 @@ export default async function EditorialArticlesPage({
         ? { authorId: userId, status: 'DRAFT' }
         : {
             ...(role === 'WRITER' ? { authorId: userId } : {}),
-            ...(assignedCategoryIds && assignedCategoryIds.length > 0
-              ? { categoryId: { in: assignedCategoryIds } }
-              : {}),
+            ...(editorScope ? articleWhereForEditorScope(editorScope) : {}),
           }),
     },
     orderBy: { updatedAt: 'desc' },

@@ -10,8 +10,10 @@
  *   GROWTH / READER / no user   no access
  */
 import { NextResponse } from 'next/server'
-import { getVerifiedSessionUser } from '@/lib/auth'
+import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
+import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 import type { Role } from '@prisma/client'
 
 export interface CommentAccessGrant {
@@ -27,13 +29,9 @@ export type CommentAccessResult =
   | { ok: false; response: NextResponse }
 
 export async function checkArticleCommentAccess(articleId: string): Promise<CommentAccessResult> {
-  const user = await getVerifiedSessionUser()
-  if (!user) {
-    return {
-      ok: false,
-      response: NextResponse.json({ error: 'You need to sign in to do that.' }, { status: 401 }),
-    }
-  }
+  const auth = await requireVerifiedSessionUser()
+  if (!auth.ok) return { ok: false, response: auth.response }
+  const user = auth.user
 
   const article = await prisma.article.findUnique({
     where: { id: articleId },
@@ -61,20 +59,8 @@ export async function checkArticleCommentAccess(articleId: string): Promise<Comm
   if (user.role === 'ADMIN') return grant(true)
 
   if (user.role === 'EDITOR') {
-    // Editors are scoped to assigned categories, mirroring the review routes.
-    let inScope = true
-    if (article.categoryId) {
-      const assignment = await prisma.categoryEditor.findFirst({
-        where: { userId: user.id, categoryId: article.categoryId },
-      })
-      inScope = Boolean(assignment)
-    } else {
-      const anyAssignment = await prisma.categoryEditor.findFirst({
-        where: { userId: user.id },
-      })
-      inScope = !anyAssignment
-    }
-    if (inScope) return grant(true)
+    const scope = await loadEditorCategoryScope(user.id)
+    if (editorCanAccessCategory(scope, article.categoryId)) return grant(true)
     if (isArticleAuthor) return grant(false)
     return forbidden('This article is outside your assigned categories.')
   }

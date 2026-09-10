@@ -1,20 +1,27 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions, getVerifiedSessionUser } from '@/lib/auth'
+import { authOptions, requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ALL_ROLES } from '@/lib/rbac'
 
 // GET /api/reading-progress - fetch in-progress articles for the current user
 export async function GET() {
   const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json([], { status: 200 })
+  if (!session?.user?.id) return NextResponse.json([], { status: 200 })
+
+  // This endpoint is guest-friendly, but a presented session must still be
+  // checked against the current database role/status. Otherwise deleted,
+  // banned, or demoted users continue to receive data until their JWT expires.
+  const auth = await requireVerifiedSessionUser(ALL_ROLES)
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
   // Propagate DB failures so the client knows something went wrong
   // rather than receiving an empty array indistinguishable from "no progress".
   try {
     const rows = await prisma.readingProgress.findMany({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         progress: { gt: 3, lt: 95 }, // only articles meaningfully started but not finished
         article: { status: 'PUBLISHED', deletedAt: null },
       },
@@ -39,8 +46,9 @@ export async function GET() {
 
 // POST /api/reading-progress - upsert progress for an article
 export async function POST(req: Request) {
-  const user = await getVerifiedSessionUser(ALL_ROLES)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireVerifiedSessionUser(ALL_ROLES)
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
   const { articleId, progress, scrollY } = await req.json()
   if (!articleId || typeof progress !== 'number') {

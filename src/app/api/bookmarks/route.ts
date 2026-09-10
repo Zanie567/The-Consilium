@@ -1,18 +1,16 @@
 import { NextResponse, NextRequest } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions, getVerifiedSessionUser, requireActiveSession } from '@/lib/auth'
+import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ALL_ROLES } from '@/lib/rbac'
 
 // GET /api/bookmarks - returns all bookmarked article IDs for the current user
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  const authError = requireActiveSession(session)
-  if (authError) return authError
+  const auth = await requireVerifiedSessionUser(ALL_ROLES)
+  if (!auth.ok) return auth.response
 
   try {
     const bookmarks = await prisma.bookmark.findMany({
-      where: { userId: session!.user.id },
+      where: { userId: auth.user.id },
       select: { articleId: true },
     })
     return NextResponse.json(bookmarks.map((b) => b.articleId))
@@ -23,8 +21,9 @@ export async function GET() {
 
 // POST /api/bookmarks - toggle a bookmark (add if missing, remove if present)
 export async function POST(request: NextRequest) {
-  const user = await getVerifiedSessionUser(ALL_ROLES)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireVerifiedSessionUser(ALL_ROLES)
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
   try {
     const { articleId } = await request.json()

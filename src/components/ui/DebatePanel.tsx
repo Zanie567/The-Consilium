@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 export interface DebateData {
   id: string
@@ -48,27 +49,32 @@ export function DebatePanel({ initialData, compact = false }: Props) {
   async function vote(side: 'FOR' | 'AGAINST') {
     setError(null)
     startTransition(async () => {
-      const res = await fetch(`/api/debates/${data.id}/vote`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ side }),
-        credentials: 'include',
-      })
-      const json = await res.json()
-      if (!res.ok) {
-        setError(json.error ?? 'Something went wrong. Please try again.')
-        return
+      try {
+        const result = await apiRequest<{
+          totalVotes: number
+          forCount: number
+          againstCount: number
+          forPct: number
+          againstPct: number
+        }>(`/api/debates/${data.id}/vote`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ side }),
+          credentials: 'include',
+        })
+        setData((prev) => ({
+          ...prev,
+          hasVoted: true,
+          userSide: side,
+          totalVotes: result.totalVotes,
+          forCount: result.forCount,
+          againstCount: result.againstCount,
+          forPct: result.forPct,
+          againstPct: result.againstPct,
+        }))
+      } catch (voteError) {
+        setError(asApiError(voteError).message)
       }
-      setData((prev) => ({
-        ...prev,
-        hasVoted: true,
-        userSide: side,
-        totalVotes: json.totalVotes,
-        forCount: json.forCount,
-        againstCount: json.againstCount,
-        forPct: json.forPct,
-        againstPct: json.againstPct,
-      }))
     })
   }
 

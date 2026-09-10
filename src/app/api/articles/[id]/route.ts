@@ -1,12 +1,16 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions, getVerifiedSessionUser, requireActiveSession } from '@/lib/auth'
+import { authOptions, requireActiveSession, requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, articleSubmittedEmail } from '@/lib/email'
 import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
 import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 import { revalidateArticleLists } from '@/lib/revalidateArticles'
 import { PUBLIC_AUTHOR_SELECT } from '@/lib/publicUser'
+import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
+import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
+import { apiError, articleMutationErrorResponse } from '@/lib/apiResponse'
+import { stripHtml } from '@/lib/content-filter'
 import type { ArticleStatus } from '@prisma/client'
 
 const STAFF_ARTICLE_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'ARCHIVED', 'REJECTED', 'SCHEDULED'] as const satisfies readonly ArticleStatus[]
@@ -54,20 +58,13 @@ export async function GET(
     }
 
     if (isEditor) {
-      if (article.categoryId) {
-        const assignment = await prisma.categoryEditor.findFirst({
-          where: { userId: session!.user.id, categoryId: article.categoryId },
-        })
-        if (!assignment) {
-          return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-        }
-      } else {
-        const anyAssignment = await prisma.categoryEditor.findFirst({
-          where: { userId: session!.user.id },
-        })
-        if (anyAssignment) {
-          return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-        }
+      const scope = await loadEditorCategoryScope(session!.user.id)
+      if (!editorCanAccessCategory(scope, article.categoryId)) {
+        return apiError(
+          'This article is outside your assigned categories.',
+          403,
+          'CATEGORY_SCOPE_DENIED'
+        )
       }
     }
 
@@ -96,15 +93,15 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
-  if (!user) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  const { id } = await params
-  const isAdminOrEditor = user.role === 'ADMIN' || user.role === 'EDITOR'
+  const requestId = crypto.randomUUID()
 
   try {
+    const auth = await requireVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
+    if (!auth.ok) return auth.response
+    const user = auth.user
+    const { id } = await params
+    const isAdminOrEditor = user.role === 'ADMIN' || user.role === 'EDITOR'
+
     const existing = await prisma.article.findUnique({
       where: { id },
       include: { author: true, category: true },
@@ -114,27 +111,6 @@ export async function PUT(
     // Writers can only edit their own articles
     if (!isAdminOrEditor && existing.authorId !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    // Editors are scoped to their assigned categories. Mirror the same
-    // category-assignment check that the GET handler applies to reads.
-    if (user.role === 'EDITOR') {
-      if (existing.categoryId) {
-        const assignment = await prisma.categoryEditor.findFirst({
-          where: { userId: user.id, categoryId: existing.categoryId },
-        })
-        if (!assignment) {
-          return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-        }
-      } else {
-        // Uncategorized article: scoped editors (those with any assignment) are blocked.
-        const anyAssignment = await prisma.categoryEditor.findFirst({
-          where: { userId: user.id },
-        })
-        if (anyAssignment) {
-          return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-        }
-      }
     }
 
     // Writers cannot edit articles that are pending/published (unless editor returned them)
@@ -157,6 +133,29 @@ export async function PUT(
     } = body
 
     const nextCategoryId = categoryId !== undefined ? (categoryId || null) : existing.categoryId
+
+    // Zero assignments means a global editor. Once assignments exist, enforce
+    // both the article's current category and its requested destination so an
+    // editor cannot move a document out of scope and lock themselves out.
+    if (user.role === 'EDITOR') {
+      const scope = await loadEditorCategoryScope(user.id)
+      if (!editorCanAccessCategory(scope, existing.categoryId)) {
+        return apiError(
+          'This article is outside your assigned categories.',
+          403,
+          'CATEGORY_SCOPE_DENIED',
+          requestId
+        )
+      }
+      if (!editorCanAccessCategory(scope, nextCategoryId)) {
+        return apiError(
+          'You cannot move this article outside your assigned categories.',
+          403,
+          'CATEGORY_SCOPE_DENIED',
+          requestId
+        )
+      }
+    }
 
     let finalStatus = existing.status
     if (typeof status === 'string') {
@@ -192,122 +191,136 @@ export async function PUT(
     const wasUnpublished =
       existing.status === 'PUBLISHED' && finalStatus !== 'PUBLISHED'
 
-    const updated = await prisma.article.update({
-      where: { id },
-      data: {
-        ...(title !== undefined && { title }),
-        ...(slug !== undefined && { slug }),
-        ...(content !== undefined && { content }),
-        ...(excerpt !== undefined && { excerpt }),
-        ...(coverImage !== undefined && { coverImage: coverImage || null }),
-        ...(categoryId !== undefined && { categoryId: categoryId || null }),
-        ...(isAdminOrEditor && bodyAuthorId && { authorId: bodyAuthorId }),
-        ...(isAdminOrEditor && corrected !== undefined && { corrected }),
-        ...(isAdminOrEditor && correctionNote !== undefined && { correctionNote }),
-        ...(isAdminOrEditor && seriesId !== undefined && { seriesId: seriesId || null }),
-        ...(isAdminOrEditor && seriesOrder !== undefined && { seriesOrder }),
-        ...(wasJustSubmitted && { editorNote: null }),
-        status: finalStatus,
-        scheduledAt: finalStatus === 'SCHEDULED' && scheduledAt
-          ? parseEditorialScheduleInput(scheduledAt)
-          : finalStatus !== 'SCHEDULED'
-          ? null
-          : existing.scheduledAt,
-        publishedAt: wasPublished
-          ? new Date()
-          : wasUnpublished
-          ? null
-          : existing.publishedAt,
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      const savedArticle = await tx.article.update({
+        where: { id },
+        data: {
+          ...(title !== undefined && { title }),
+          ...(slug !== undefined && { slug }),
+          ...(content !== undefined && { content }),
+          ...(excerpt !== undefined && { excerpt }),
+          ...(coverImage !== undefined && { coverImage: coverImage || null }),
+          ...(categoryId !== undefined && { categoryId: categoryId || null }),
+          ...(isAdminOrEditor && bodyAuthorId && { authorId: bodyAuthorId }),
+          ...(isAdminOrEditor && corrected !== undefined && { corrected }),
+          ...(isAdminOrEditor && correctionNote !== undefined && { correctionNote }),
+          ...(isAdminOrEditor && seriesId !== undefined && { seriesId: seriesId || null }),
+          ...(isAdminOrEditor && seriesOrder !== undefined && { seriesOrder }),
+          ...(wasJustSubmitted && { editorNote: null }),
+          status: finalStatus,
+          scheduledAt: finalStatus === 'SCHEDULED' && scheduledAt
+            ? parseEditorialScheduleInput(scheduledAt)
+            : finalStatus !== 'SCHEDULED'
+            ? null
+            : existing.scheduledAt,
+          publishedAt: wasPublished
+            ? new Date()
+            : wasUnpublished
+            ? null
+            : existing.publishedAt,
+        },
+      })
+
+      // Article fields and tag associations are one save operation. Keeping
+      // them in the same transaction prevents a 500 after a partial update.
+      if (Array.isArray(tags)) {
+        await tx.articleTag.deleteMany({ where: { articleId: id } })
+        const tagRecords: Array<{ id: string }> = []
+        for (const name of tags) {
+          if (typeof name !== 'string') continue
+          const safeName = stripHtml(name).trim()
+          const tagSlug = safeName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+          if (!safeName || !tagSlug) continue
+          const tag = await tx.tag.upsert({
+            where: { slug: tagSlug },
+            update: {},
+            create: { name: safeName, slug: tagSlug },
+          })
+          tagRecords.push(tag)
+        }
+        if (tagRecords.length > 0) {
+          await tx.articleTag.createMany({
+            data: tagRecords.map((tag) => ({ articleId: id, tagId: tag.id })),
+            skipDuplicates: true,
+          })
+        }
+      }
+
+      return savedArticle
     })
 
     // Notify category editors when submitted
     if (wasJustSubmitted) {
-      let editorIds: string[] = []
+      try {
+        let editorIds: string[] = []
 
-      if (nextCategoryId) {
-        const assignments = await prisma.categoryEditor.findMany({
-          where: { categoryId: nextCategoryId },
-          select: { userId: true, user: { select: { email: true, name: true } } },
-        })
-        editorIds = assignments.map((a) => a.userId)
+        if (nextCategoryId) {
+          const assignments = await prisma.categoryEditor.findMany({
+            where: { categoryId: nextCategoryId },
+            select: { userId: true, user: { select: { email: true, name: true } } },
+          })
+          editorIds = assignments.map((assignment) => assignment.userId)
 
-        // Email each assigned editor
-        for (const a of assignments) {
-          if (a.user.email) {
-            const { subject, html } = articleSubmittedEmail(
-              existing.author.name ?? 'Unknown',
-              updated.title,
-              existing.id
-            )
-            await sendEmail({ to: a.user.email, subject, html })
+          for (const assignment of assignments) {
+            if (assignment.user.email) {
+              const { subject, html } = articleSubmittedEmail(
+                existing.author.name ?? 'Unknown',
+                updated.title,
+                existing.id
+              )
+              await sendEmail({ to: assignment.user.email, subject, html })
+            }
           }
         }
-      }
 
-      // If no assigned editors, notify all EDITOR + ADMIN users
-      if (editorIds.length === 0) {
-        const allEditors = await prisma.user.findMany({
-          where: { role: { in: ['ADMIN', 'EDITOR'] } },
-          select: { id: true, email: true },
-        })
-        editorIds = allEditors.map((e) => e.id)
-        for (const e of allEditors) {
-          if (e.email) {
-            const { subject, html } = articleSubmittedEmail(
-              existing.author.name ?? 'Unknown',
-              updated.title,
-              existing.id
-            )
-            await sendEmail({ to: e.email, subject, html })
+        // With no category-specific recipients, global editors and admins own
+        // the queue. Notification failures must not turn a committed save into
+        // a false "Save failed" response.
+        if (editorIds.length === 0) {
+          const allEditors = await prisma.user.findMany({
+            where: { role: { in: ['ADMIN', 'EDITOR'] } },
+            select: { id: true, email: true },
+          })
+          editorIds = allEditors.map((editor) => editor.id)
+          for (const editor of allEditors) {
+            if (editor.email) {
+              const { subject, html } = articleSubmittedEmail(
+                existing.author.name ?? 'Unknown',
+                updated.title,
+                existing.id
+              )
+              await sendEmail({ to: editor.email, subject, html })
+            }
           }
         }
-      }
 
-      // In-app notifications
-      await prisma.notification.createMany({
-        data: editorIds.map((uid) => ({
-          userId: uid,
-          type: 'article_submitted',
-          title: 'New article for review',
-          message: `"${updated.title}" by ${existing.author.name ?? 'Unknown'} is ready for review.`,
-          articleId: existing.id,
-        })),
-      })
+        await prisma.notification.createMany({
+          data: editorIds.map((userId) => ({
+            userId,
+            type: 'article_submitted',
+            title: 'New article for review',
+            message: `"${updated.title}" by ${existing.author.name ?? 'Unknown'} is ready for review.`,
+            articleId: existing.id,
+          })),
+        })
+      } catch (notificationError) {
+        console.error('[api/articles:update:notifications]', { requestId, notificationError })
+      }
     }
 
     // A publish, unpublish, category move or any edit to a live article can
     // change the public lists — refresh their cache immediately.
     if (wasPublished || wasUnpublished || existing.status === 'PUBLISHED' || finalStatus === 'PUBLISHED') {
-      revalidateArticleLists()
-    }
-
-    // Sync tags
-    if (Array.isArray(tags)) {
-      // Upsert each tag, then replace article's tag associations
-      await prisma.articleTag.deleteMany({ where: { articleId: id } })
-      if (tags.length > 0) {
-        const tagRecords = await Promise.all(
-          tags.map((name: string) => {
-            const tagSlug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-            return prisma.tag.upsert({
-              where: { slug: tagSlug },
-              update: {},
-              create: { name, slug: tagSlug },
-            })
-          })
-        )
-        await prisma.articleTag.createMany({
-          data: tagRecords.map((t) => ({ articleId: id, tagId: t.id })),
-          skipDuplicates: true,
-        })
+      try {
+        revalidateArticleLists()
+      } catch (revalidationError) {
+        console.error('[api/articles:update:revalidation]', { requestId, revalidationError })
       }
     }
 
-    return NextResponse.json(updated)
+    return NextResponse.json(updated, { headers: { 'x-request-id': requestId } })
   } catch (error) {
-    console.error('Update article error:', error)
-    return NextResponse.json({ error: 'Failed to update article' }, { status: 500 })
+    return articleMutationErrorResponse(error, 'update', requestId)
   }
 }
 
@@ -318,15 +331,15 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
-  if (!user) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  const { id } = await params
-  const isAdminOrEditor = user.role === 'ADMIN' || user.role === 'EDITOR'
+  const requestId = crypto.randomUUID()
 
   try {
+    const auth = await requireVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
+    if (!auth.ok) return auth.response
+    const user = auth.user
+    const { id } = await params
+    const isAdminOrEditor = user.role === 'ADMIN' || user.role === 'EDITOR'
+
     const existing = await prisma.article.findUnique({ where: { id } })
     if (!existing || existing.deletedAt) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -334,32 +347,26 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Editors are scoped to their assigned categories for deletion too. Mirror the
-    // same category-assignment check the GET and PUT handlers apply, so a scoped
-    // editor cannot trash articles outside their remit.
     if (user.role === 'EDITOR') {
-      if (existing.categoryId) {
-        const assignment = await prisma.categoryEditor.findFirst({
-          where: { userId: user.id, categoryId: existing.categoryId },
-        })
-        if (!assignment) {
-          return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-        }
-      } else {
-        const anyAssignment = await prisma.categoryEditor.findFirst({
-          where: { userId: user.id },
-        })
-        if (anyAssignment) {
-          return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-        }
+      const scope = await loadEditorCategoryScope(user.id)
+      if (!editorCanAccessCategory(scope, existing.categoryId)) {
+        return apiError(
+          'This article is outside your assigned categories.',
+          403,
+          'CATEGORY_SCOPE_DENIED',
+          requestId
+        )
       }
     }
 
     // Soft delete - move to trash; permanently removed after 30 days by the cron job
     await prisma.article.update({ where: { id }, data: { deletedAt: new Date() } })
     if (existing.status === 'PUBLISHED') revalidateArticleLists()
-    return NextResponse.json({ success: true })
-  } catch {
-    return NextResponse.json({ error: 'Failed to delete article' }, { status: 500 })
+    return NextResponse.json(
+      { success: true },
+      { headers: { 'x-request-id': requestId } }
+    )
+  } catch (error) {
+    return articleMutationErrorResponse(error, 'delete', requestId)
   }
 }

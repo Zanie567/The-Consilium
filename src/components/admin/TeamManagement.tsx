@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { PlusCircle, Trash2, Edit, Check, X, Upload } from 'lucide-react'
 import Image from 'next/image'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 interface TeamMember {
   id: string
@@ -38,6 +39,7 @@ export function TeamManagement({ initialMembers }: TeamManagementProps) {
   const [form, setForm] = useState(emptyMember)
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const startEdit = (member: TeamMember) => {
@@ -56,15 +58,16 @@ export function TeamManagement({ initialMembers }: TeamManagementProps) {
 
   const handleSave = async () => {
     setLoading(true)
+    setError(null)
     try {
       if (editId) {
-        await fetch(`/api/team/${editId}`, {
+        await apiRequest(`/api/team/${editId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form),
         })
       } else {
-        await fetch('/api/team', {
+        await apiRequest('/api/team', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form),
@@ -74,6 +77,8 @@ export function TeamManagement({ initialMembers }: TeamManagementProps) {
       setEditId(null)
       setForm(emptyMember)
       router.refresh()
+    } catch (reason) {
+      setError(asApiError(reason).message)
     } finally {
       setLoading(false)
     }
@@ -83,23 +88,35 @@ export function TeamManagement({ initialMembers }: TeamManagementProps) {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(true)
+    setError(null)
     const data = new FormData()
     data.append('file', file)
     data.append('bucket', 'team-photos')
-    const res = await fetch('/api/upload', { method: 'POST', body: data })
-    if (res.ok) {
-      const { url } = await res.json()
+    try {
+      const { url } = await apiRequest<{ url?: string }>('/api/upload', { method: 'POST', body: data })
+      if (!url) {
+        setError('The upload completed without returning an image URL.')
+        return
+      }
       setForm((f) => ({ ...f, image: url }))
+    } catch (reason) {
+      setError(asApiError(reason).message)
+    } finally {
+      setUploading(false)
+      e.currentTarget.value = ''
     }
-    setUploading(false)
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this team member?')) return
     setLoading(true)
+    setError(null)
     try {
-      await fetch(`/api/team/${id}`, { method: 'DELETE' })
+      await apiRequest(`/api/team/${id}`, { method: 'DELETE' })
       setMembers((m) => m.filter((x) => x.id !== id))
+      router.refresh()
+    } catch (reason) {
+      setError(asApiError(reason).message)
     } finally {
       setLoading(false)
     }
@@ -107,6 +124,11 @@ export function TeamManagement({ initialMembers }: TeamManagementProps) {
 
   return (
     <div>
+      {error && (
+        <div role="alert" className="mb-4 border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
       <div className="mb-6">
         <button
           onClick={() => {

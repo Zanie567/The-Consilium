@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useSession } from 'next-auth/react'
 import { BookOpen } from 'lucide-react'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 interface ProgressItem {
   progress: number
@@ -48,17 +49,20 @@ export function ContinueReading() {
   const { data: session, status } = useSession()
   const [items, setItems] = useState<ProgressItem[]>([])
   const [loaded, setLoaded] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === 'loading') return
+    setLoaded(false)
+    setItems([])
+    setError(null)
 
     if (session?.user?.id) {
-      fetch('/api/reading-progress')
-        .then((r) => r.json())
+      apiRequest<ProgressItem[]>('/api/reading-progress')
         .then((data: ProgressItem[]) => {
           if (Array.isArray(data)) setItems(data)
         })
-        .catch(() => {})
+        .catch((loadError) => setError(asApiError(loadError).message))
         .finally(() => setLoaded(true))
     } else {
       // Guests - we only have IDs in localStorage, not full article data
@@ -71,7 +75,7 @@ export function ContinueReading() {
     }
   }, [session, status])
 
-  if (!loaded || items.length === 0) return null
+  if (!loaded || (items.length === 0 && !error)) return null
 
   return (
     <div className="border-t border-[var(--border)] pt-10 mt-14">
@@ -81,7 +85,11 @@ export function ContinueReading() {
         <div className="flex-1 h-px bg-[var(--border)]" />
       </div>
 
-      {session?.user?.id ? (
+      {error ? (
+        <div role="alert" className="bg-red-500/10 border border-red-500/25 p-4">
+          <p className="text-red-600 text-sm">Reading progress could not be loaded: {error}</p>
+        </div>
+      ) : session?.user?.id ? (
         <div className="space-y-3">
           {items.map((item) => (
             <Link

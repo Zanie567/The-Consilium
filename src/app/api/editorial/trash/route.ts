@@ -1,19 +1,27 @@
 import { NextResponse } from 'next/server'
-import { getVerifiedSessionUser } from '@/lib/auth'
+import { requireVerifiedSessionUser } from '@/lib/auth'
 import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
+import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
+import { articleWhereForEditorScope } from '@/lib/articleCategoryScope'
 
 // GET /api/editorial/trash - list all soft-deleted articles, most recently deleted first
 export async function GET() {
-  const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
-  if (!user) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const auth = await requireVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
+  if (!auth.ok) return auth.response
+  const user = auth.user
   const isWriter = user.role === 'WRITER'
+  const editorScope = user.role === 'EDITOR'
+    ? await loadEditorCategoryScope(user.id)
+    : null
 
   try {
     const articles = await prisma.article.findMany({
-      where: { deletedAt: { not: null }, ...(isWriter ? { authorId: user.id } : {}) },
+      where: {
+        deletedAt: { not: null },
+        ...(isWriter ? { authorId: user.id } : {}),
+        ...(editorScope ? articleWhereForEditorScope(editorScope) : {}),
+      },
       orderBy: { deletedAt: 'desc' },
       select: {
         id: true,

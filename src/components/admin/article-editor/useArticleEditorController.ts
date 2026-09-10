@@ -6,7 +6,98 @@ import { useTheme } from 'next-themes'
 import slugify from 'slugify'
 import { mutate as globalMutate } from 'swr'
 import { DRAFTS_SWR_KEY } from '@/components/editorial/DraftsSection'
-import type { ArticleEditorController, ArticleEditorHookProps, SaveStatus, UserOption } from './types'
+import { ApiError, apiRequest, asApiError } from '@/lib/apiClient'
+import type {
+  ArticleEditorController,
+  ArticleEditorError,
+  ArticleEditorHookProps,
+  SaveStatus,
+  UserOption,
+} from './types'
+
+interface SavedArticleResponse {
+  id?: string
+}
+
+function localEditorError(message: string): ArticleEditorError {
+  return { kind: 'editor-validation', label: 'Check article details', message }
+}
+
+function articleSaveError(reason: unknown): ArticleEditorError {
+  const error = asApiError(reason)
+  const base = { kind: error.kind, requestId: error.requestId }
+
+  switch (error.kind) {
+    case 'auth':
+      return {
+        ...base,
+        label: 'Session expired',
+        message: 'Your session has expired. Sign in again in a new tab, then retry saving. Your unsaved changes are still in this tab.',
+      }
+    case 'permission':
+      if (error.code === 'CATEGORY_SCOPE_DENIED') {
+        return {
+          ...base,
+          label: 'Category access denied',
+          message: `${error.message} Ask an administrator to update your category assignment if you should be able to edit it.`,
+        }
+      }
+      if (error.code === 'ACCOUNT_INACTIVE' || error.code === 'ACCOUNT_SUSPENDED') {
+        return {
+          ...base,
+          label: error.code === 'ACCOUNT_SUSPENDED' ? 'Account suspended' : 'Account inactive',
+          message: `${error.message} Contact an administrator before retrying.`,
+        }
+      }
+      return {
+        ...base,
+        label: 'Permission denied',
+        message: `${error.message} Ask an administrator for access if you believe this is incorrect.`,
+      }
+    case 'validation':
+      return {
+        ...base,
+        label: 'Check article details',
+        message: `The article could not be saved: ${error.message}`,
+      }
+    case 'conflict':
+      return {
+        ...base,
+        label: 'Save conflict',
+        message: `${error.message} Your unsaved changes remain in this tab.`,
+      }
+    case 'schema':
+      return {
+        ...base,
+        label: 'Database schema mismatch',
+        message: `${error.message} Your unsaved changes remain in this tab; contact an administrator before retrying.`,
+      }
+    case 'server':
+      return {
+        ...base,
+        label: 'Server/database error',
+        message: `${error.message} Your unsaved changes remain in this tab; try again shortly.`,
+      }
+    case 'timeout':
+      return {
+        ...base,
+        label: 'Save timed out',
+        message: 'Saving took longer than 15 seconds. Check your connection, then retry. Your unsaved changes remain in this tab.',
+      }
+    case 'network':
+      return {
+        ...base,
+        label: 'Network error',
+        message: 'The server could not be reached. Check your connection, then retry saving. Your unsaved changes remain in this tab.',
+      }
+    default:
+      return {
+        ...base,
+        label: 'Save failed',
+        message: `${error.message} Your unsaved changes remain in this tab.`,
+      }
+  }
+}
 
 export function useArticleEditorController({
   articleId,
@@ -38,14 +129,18 @@ export function useArticleEditorController({
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [savedVisible, setSavedVisible] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<ArticleEditorError | null>(null)
   const [coverError, setCoverError] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [tutorialOpen, setTutorialOpen] = useState(false)
 
   const articleIdRef = useRef<string | undefined>(articleId)
-  const isCreatingRef = useRef(false)
   const isDirtyRef = useRef(false)
+  const editVersionRef = useRef(0)
+  const statusIntentVersionRef = useRef(0)
+  const saveRequestRef = useRef(0)
+  const latestSaveRequestRef = useRef(0)
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const savedFadeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -101,89 +196,157 @@ export function useArticleEditorController({
     element.style.height = `${element.scrollHeight}px`
   }, [excerpt, excerptDomRef])
 
-  const performSave = useCallback(async (overrideStatus?: string) => {
-    const currentId = articleIdRef.current
-    const finalStatus = overrideStatus ?? statusRef.current
+  const performSave = useCallback((overrideStatus?: string): Promise<boolean> => {
+    const requestedStatus = overrideStatus ?? statusRef.current
+    const requestNumber = ++saveRequestRef.current
+    latestSaveRequestRef.current = requestNumber
 
-    if (finalStatus === 'SCHEDULED' && !scheduledAtRef.current) {
-      setError('Please pick a future date and time to schedule this article.')
-      return false
+    if (requestedStatus === 'SCHEDULED' && !scheduledAtRef.current) {
+      setError(localEditorError('Please pick a future date and time to schedule this article.'))
+      setSaveStatus('error')
+      return Promise.resolve(false)
     }
 
+    // A status button is an intent of its own. Remember its sequence so an
+    // older publish/submit response cannot overwrite a newer status selection.
+    const statusIntentVersion = overrideStatus
+      ? ++statusIntentVersionRef.current
+      : statusIntentVersionRef.current
+
+    clearTimeout(savedFadeTimer.current)
+    clearTimeout(savedTimeoutRef.current)
     setSaveStatus('saving')
     setSavedVisible(false)
+    setError(null)
 
-    const body = {
-      title: titleRef.current,
-      slug: slugRef.current,
-      content: contentRef.current,
-      excerpt: excerptRef.current,
-      coverImage: coverImageRef.current || null,
-      categoryId: categoryIdRef.current || null,
-      authorId: selectedAuthorIdRef.current,
-      status: finalStatus,
-      tags: tagsRef.current,
-      ...(finalStatus === 'SCHEDULED' && scheduledAtRef.current
-        ? { scheduledAt: scheduledAtRef.current }
-        : {}),
-    }
+    const execute = async (): Promise<boolean> => {
+      try {
+        // Snapshot only when this queued save begins. This means a normal
+        // autosave queued behind a status transition observes whether that
+        // transition succeeded, instead of accidentally reverting it with the
+        // status that was visible while the earlier request was in flight.
+        const finalStatus = overrideStatus ?? statusRef.current
+        if (finalStatus === 'SCHEDULED' && !scheduledAtRef.current) {
+          throw new ApiError(
+            'validation',
+            'Please pick a future date and time to schedule this article.',
+          )
+        }
+        const editVersion = editVersionRef.current
+        const body = {
+          title: titleRef.current,
+          slug: slugRef.current,
+          content: contentRef.current,
+          excerpt: excerptRef.current,
+          coverImage: coverImageRef.current || null,
+          categoryId: categoryIdRef.current || null,
+          authorId: selectedAuthorIdRef.current,
+          status: finalStatus,
+          tags: tagsRef.current,
+          ...(finalStatus === 'SCHEDULED' && scheduledAtRef.current
+            ? { scheduledAt: scheduledAtRef.current }
+            : {}),
+        }
 
-    try {
-      let response: Response
+        // Resolve the id only when this queued task begins. If an earlier queued
+        // POST created the draft, every later task becomes a PUT instead of
+        // creating a duplicate article.
+        const currentId = articleIdRef.current
+        let saved: SavedArticleResponse
+        if (currentId) {
+          saved = await apiRequest<SavedArticleResponse>(`/api/articles/${currentId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            })
+        } else {
+          // Creation remains a draft first so a requested publish/submit uses
+          // the normal PUT transition path (including review notifications and
+          // publication cache invalidation). If that second mutation fails, the
+          // created id is retained so retrying cannot create a duplicate.
+          saved = await apiRequest<SavedArticleResponse>('/api/articles', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...body, status: 'DRAFT' }),
+            })
+          if (!saved?.id) {
+            throw new ApiError(
+              'server',
+              'The server created no identifiable article. This may indicate a schema error.',
+            )
+          }
+          articleIdRef.current = saved.id
+          router.replace(`/editorial/articles/${saved.id}/edit`)
 
-      if (currentId) {
-        response = await fetch(`/api/articles/${currentId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        })
-      } else {
-        if (isCreatingRef.current) return false
-        isCreatingRef.current = true
-        response = await fetch('/api/articles', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...body, status: 'DRAFT' }),
-        })
-      }
+          if (finalStatus !== 'DRAFT') {
+            saved = await apiRequest<SavedArticleResponse>(`/api/articles/${saved.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            })
+          }
+        }
 
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        setError(data.error ?? 'Failed to save.')
-        setSaveStatus('error')
+        if (overrideStatus && statusIntentVersion === statusIntentVersionRef.current) {
+          setStatusState(overrideStatus)
+          statusRef.current = overrideStatus
+        }
+
+        // A response only acknowledges the exact snapshot it sent. Edits made
+        // while this request was in flight stay dirty until their own queued save
+        // succeeds.
+        if (editVersion === editVersionRef.current) isDirtyRef.current = false
+
+        void globalMutate(DRAFTS_SWR_KEY)
+
+        // Older queued responses must not replace the status/error belonging to
+        // a newer queued request.
+        if (requestNumber === latestSaveRequestRef.current) {
+          setError(null)
+          if (editVersion === editVersionRef.current) {
+            setSaveStatus('saved')
+            setSavedVisible(true)
+            savedFadeTimer.current = setTimeout(() => {
+              if (requestNumber === latestSaveRequestRef.current && !isDirtyRef.current) {
+                setSavedVisible(false)
+              }
+            }, 3000)
+            savedTimeoutRef.current = setTimeout(() => {
+              if (requestNumber === latestSaveRequestRef.current && !isDirtyRef.current) {
+                setSaveStatus('idle')
+              }
+            }, 4200)
+          } else {
+            setSaveStatus('idle')
+          }
+        }
+
+        return true
+      } catch (reason) {
+        if (requestNumber === latestSaveRequestRef.current) {
+          setError(articleSaveError(reason))
+          setSaveStatus('error')
+          setSavedVisible(false)
+        }
         return false
       }
-
-      const saved = await response.json()
-      setSaveStatus('saved')
-      setSavedVisible(true)
-      isDirtyRef.current = false
-
-      if (!currentId && saved.id) {
-        articleIdRef.current = saved.id
-        isCreatingRef.current = false
-        router.replace(`/editorial/articles/${saved.id}/edit`)
-      }
-
-      if (overrideStatus) setStatusState(overrideStatus)
-      globalMutate(DRAFTS_SWR_KEY)
-
-      clearTimeout(savedFadeTimer.current)
-      savedFadeTimer.current = setTimeout(() => setSavedVisible(false), 3000)
-      clearTimeout(savedTimeoutRef.current)
-      savedTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 4200)
-
-      return true
-    } catch {
-      isCreatingRef.current = false
-      setSaveStatus('error')
-      return false
     }
+
+    // Serialize every mutation. There are deliberately no automatic retries:
+    // POST and status transitions are not generally safe to replay without an
+    // idempotency key.
+    const result = saveQueueRef.current.then(execute, execute)
+    saveQueueRef.current = result.then(() => undefined, () => undefined)
+    return result
   }, [router])
 
   const scheduleAutosave = useCallback(() => {
     if (!canEdit) return
+    editVersionRef.current += 1
     isDirtyRef.current = true
+    clearTimeout(savedFadeTimer.current)
+    clearTimeout(savedTimeoutRef.current)
+    setSavedVisible(false)
     clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => {
       void performSave()
@@ -199,9 +362,11 @@ export function useArticleEditorController({
     }
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!isDirtyRef.current) return
+      // Browsers do not wait for asynchronous fetches started during
+      // beforeunload. Keep the tab open with the native warning instead of
+      // pretending an unreliable last-second save was attempted.
       event.preventDefault()
       event.returnValue = ''
-      void performSave()
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
     window.addEventListener('beforeunload', handleBeforeUnload)
@@ -219,6 +384,7 @@ export function useArticleEditorController({
 
   const updateTitle = (value: string) => {
     setTitle(value)
+    titleRef.current = value
     if (!articleIdRef.current) {
       const nextSlug = slugify(value, { lower: true, strict: true, trim: true })
       setSlugState(nextSlug)
@@ -229,27 +395,31 @@ export function useArticleEditorController({
 
   const handleContentChange = useCallback((nextContent: string) => {
     setContent(nextContent)
+    contentRef.current = nextContent
     scheduleAutosave()
   }, [scheduleAutosave])
 
   const handleSave = async (overrideStatus?: string) => {
     if (overrideStatus && overrideStatus !== 'DRAFT' && !titleRef.current.trim()) {
-      setError('A title is required before publishing or submitting.')
+      setError(localEditorError('A title is required before publishing or submitting.'))
+      setSaveStatus('error')
       return
     }
     clearTimeout(autoSaveTimer.current)
-    setError('')
-    isCreatingRef.current = false
-    await performSave(overrideStatus)
+    setError(null)
+    const saved = await performSave(overrideStatus)
 
-    if (!articleIdRef.current) return
+    if (!saved || !articleIdRef.current) return
     if (overrideStatus && articleId) router.refresh()
   }
 
   const handleBack = async () => {
     if (isDirtyRef.current && canEdit) {
       clearTimeout(autoSaveTimer.current)
-      await performSave()
+      const saved = await performSave()
+      // Stay in the editor if saving failed or if another edit was made while
+      // the queued request was in flight.
+      if (!saved || isDirtyRef.current) return
     }
     router.push(returnUrl ?? '/editorial')
   }
@@ -293,17 +463,18 @@ export function useArticleEditorController({
     form.append('file', file)
     form.append('bucket', 'article-images')
     try {
-      const response = await fetch('/api/upload', { method: 'POST', body: form })
-      const data = await response.json()
-      if (response.ok) {
-        setCoverImageState(data.url)
-        coverImageRef.current = data.url
-        scheduleAutosave()
-      } else {
-        setCoverError(data.error ?? 'Upload failed.')
+      const data = await apiRequest<{ url?: string }>('/api/upload', {
+        method: 'POST',
+        body: form,
+      })
+      if (!data.url) {
+        throw new ApiError('server', 'The upload completed without returning an image URL.')
       }
-    } catch {
-      setCoverError('Upload failed. Check your connection.')
+      setCoverImageState(data.url)
+      coverImageRef.current = data.url
+      scheduleAutosave()
+    } catch (reason) {
+      setCoverError(asApiError(reason).message)
     } finally {
       setUploading(false)
     }
@@ -317,6 +488,7 @@ export function useArticleEditorController({
   }
 
   const setStatus = (value: string) => {
+    statusIntentVersionRef.current += 1
     setStatusState(value)
     statusRef.current = value
     scheduleAutosave()

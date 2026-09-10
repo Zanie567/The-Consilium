@@ -19,6 +19,7 @@ import { motion, useMotionValue, useSpring, AnimatePresence } from 'framer-motio
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { BookOpen, X } from 'lucide-react'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 const LS_KEY = (id: string) => `consilium_rp_${id}`
 
@@ -34,6 +35,7 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
 
   const [restoreBanner, setRestoreBanner] = useState<{ scrollY: number; progress: number } | null>(null)
   const [guestNudge, setGuestNudge] = useState(false)
+  const [syncError, setSyncError] = useState<string | null>(null)
   const lastSaved = useRef(0)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasScrolled = useRef(false)
@@ -56,11 +58,13 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
   // ── Persist progress ──────────────────────────────────────────────────────
   const persist = useCallback((pct: number, scrollY: number) => {
     if (session?.user?.id) {
-      fetch('/api/reading-progress', {
+      void apiRequest('/api/reading-progress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ articleId, progress: pct, scrollY }),
-      }).catch(() => {})
+      })
+        .then(() => setSyncError(null))
+        .catch((saveError) => setSyncError(asApiError(saveError).message))
     } else {
       try {
         localStorage.setItem(LS_KEY(articleId), JSON.stringify({ progress: pct, scrollY }))
@@ -126,10 +130,9 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
     }
 
     if (session?.user?.id) {
-      fetch(`/api/reading-progress/${articleId}`)
-        .then((r) => r.json())
+      apiRequest<SavedProgress | null>(`/api/reading-progress/${articleId}`)
         .then((data) => tryRestore(data))
-        .catch(() => {})
+        .catch((loadError) => setSyncError(asApiError(loadError).message))
     } else {
       try {
         const raw = localStorage.getItem(LS_KEY(articleId))
@@ -152,6 +155,15 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
         className="fixed top-0 left-0 right-0 z-[70] h-[3px] bg-gold origin-left pointer-events-none"
         style={{ scaleX }}
       />
+
+      {syncError && session?.user?.id && (
+        <div
+          role="status"
+          className="fixed bottom-4 left-4 z-[60] max-w-sm bg-red-950 text-red-100 border border-red-400/30 px-4 py-3 text-xs shadow-xl"
+        >
+          Reading progress is not syncing: {syncError}
+        </div>
+      )}
 
       {/* Restore banner */}
       <AnimatePresence>

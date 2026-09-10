@@ -6,6 +6,7 @@ import { MessageSquare } from 'lucide-react'
 import type { Editor } from '@tiptap/react'
 import { extractQuote } from '@/lib/editor/commentAnchors'
 import type { ArticleComment } from '@/components/editorial/CommentsPanel'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 interface Props {
   editor: Editor | null
@@ -97,7 +98,7 @@ export function CommentSelectionPopover({ editor, articleId, onCommentCreated }:
     setSubmitError(null)
     try {
       const quotedText = extractQuote(editor.state.doc, floatingBtn.from, floatingBtn.to)
-      const res = await fetch(`/api/articles/${articleId}/comments`, {
+      const newComment = await apiRequest<ArticleComment>(`/api/articles/${articleId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -107,18 +108,12 @@ export function CommentSelectionPopover({ editor, articleId, onCommentCreated }:
           quotedText,
         }),
       })
-      if (res.ok) {
-        const newComment = await res.json() as ArticleComment
-        onCommentCreated(newComment)
-        setCommentText('')
-        setCommentFormOpen(false)
-        setFloatingBtn((s) => ({ ...s, visible: false }))
-      } else {
-        const json = await res.json().catch(() => ({})) as { error?: string }
-        setSubmitError(json.error ?? 'Could not save the comment. Please try again.')
-      }
-    } catch {
-      setSubmitError('Network problem. Please try again.')
+      onCommentCreated(newComment)
+      setCommentText('')
+      setCommentFormOpen(false)
+      setFloatingBtn((s) => ({ ...s, visible: false }))
+    } catch (reason) {
+      setSubmitError(asApiError(reason).message)
     } finally {
       setSubmitting(false)
     }

@@ -35,7 +35,7 @@ export function ArticleEditor(props: ArticleEditorProps) {
   const [liveEditor, setLiveEditor] = useState<Editor | null>(null)
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
   const [commentsDrawerOpen, setCommentsDrawerOpen] = useState(false)
-  const { comments, addComment, setCommentResolved } = useArticleComments(editor.articleId)
+  const { comments, error: commentsError, addComment, setCommentResolved } = useArticleComments(editor.articleId)
   const commentAnchors = useCommentAnchors(liveEditor, comments, activeCommentId)
   const openThreadCount = comments.filter((c) => !c.parentId && !c.resolved).length
 
@@ -62,6 +62,7 @@ export function ArticleEditor(props: ArticleEditorProps) {
       activeCommentId={activeCommentId}
       onSelectComment={selectComment}
       anchors={commentAnchors}
+      loadError={commentsError}
     />
   )
 
@@ -89,7 +90,7 @@ export function ArticleEditor(props: ArticleEditorProps) {
           />
 
           <aside className="hidden min-[1100px]:block flex-none w-[280px] sticky top-24 space-y-4">
-            {showComments && comments.length > 0 && (
+            {showComments && (comments.length > 0 || commentsError) && (
               <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg overflow-hidden shadow-[var(--shadow-card)] max-h-[45vh] overflow-y-auto">
                 {commentsPanel}
               </div>
@@ -102,7 +103,7 @@ export function ArticleEditor(props: ArticleEditorProps) {
       </div>
 
       {/* Comments on narrow screens: floating toggle plus a slide-over drawer */}
-      {showComments && comments.length > 0 && (
+      {showComments && (comments.length > 0 || commentsError) && (
         <>
           <button
             type="button"
@@ -178,9 +179,29 @@ function EditorBanners({ editor }: EditorBannersProps) {
       )}
 
       {editor.error && (
-        <div className="flex items-start gap-2 bg-red-500/8 border border-red-500/20 px-4 py-3 rounded text-red-500 text-sm">
+        <div
+          role="alert"
+          className="flex items-start gap-2 bg-red-500/8 border border-red-500/20 px-4 py-3 rounded text-red-500 text-sm"
+        >
           <AlertCircle size={14} className="mt-0.5 shrink-0" />
-          {editor.error}
+          <div>
+            <p>{editor.error.message}</p>
+            {editor.error.kind === 'auth' && (
+              <a
+                href="/editorial/login"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-block font-semibold underline underline-offset-2 hover:text-red-600"
+              >
+                Sign in again in a new tab
+              </a>
+            )}
+            {editor.error.requestId && (
+              <p className="mt-1 text-[11px] text-red-400">
+                Support reference: {editor.error.requestId}
+              </p>
+            )}
+          </div>
         </div>
       )}
 

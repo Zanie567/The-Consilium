@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
-import { getVerifiedSessionUser } from '@/lib/auth'
+import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
+import { editorCanAccessArticleCategory } from '@/lib/articleCategoryAccess'
+import { apiError } from '@/lib/apiResponse'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -17,10 +19,9 @@ const MAX_LENGTH = 200
  * most 200 characters; null or an empty string clears the commendation.
  */
 export async function PATCH(req: Request, { params }: Props) {
-  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
-  if (!user) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const auth = await requireVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
   const { id } = await params
 
@@ -47,9 +48,22 @@ export async function PATCH(req: Request, { params }: Props) {
   }
 
   try {
-    const article = await prisma.article.findUnique({ where: { id }, select: { id: true } })
-    if (!article) {
+    const article = await prisma.article.findUnique({
+      where: { id },
+      select: { id: true, categoryId: true, deletedAt: true },
+    })
+    if (!article || article.deletedAt) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+    if (
+      user.role === 'EDITOR' &&
+      !(await editorCanAccessArticleCategory(user.id, article.categoryId))
+    ) {
+      return apiError(
+        'This article is outside your assigned categories.',
+        403,
+        'CATEGORY_SCOPE_DENIED'
+      )
     }
 
     const updated = await prisma.article.update({

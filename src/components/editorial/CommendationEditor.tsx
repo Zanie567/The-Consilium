@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Award } from 'lucide-react'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 const MAX_LENGTH = 200
 
@@ -20,29 +21,30 @@ export function CommendationEditor({
   const [savedValue, setSavedValue] = useState(initialValue ?? '')
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<'idle' | 'saved' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState('')
 
   const dirty = value.trim() !== savedValue.trim()
 
   const save = async () => {
     setSaving(true)
     setStatus('idle')
+    setErrorMessage('')
     try {
-      const res = await fetch(`/api/editorial/articles/${articleId}/commendation`, {
+      const data = await apiRequest<{ editorialCommendation: string | null }>(
+        `/api/editorial/articles/${articleId}/commendation`,
+        {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ commendation: value.trim() === '' ? null : value.trim() }),
-      })
-      if (!res.ok) {
-        setStatus('error')
-        return
-      }
-      const data = (await res.json()) as { editorialCommendation: string | null }
+        }
+      )
       const next = data.editorialCommendation ?? ''
       setValue(next)
       setSavedValue(next)
       setStatus('saved')
-    } catch {
+    } catch (reason) {
       setStatus('error')
+      setErrorMessage(asApiError(reason).message)
     } finally {
       setSaving(false)
     }
@@ -71,7 +73,7 @@ export function CommendationEditor({
       />
       <div className="mt-1 flex items-center justify-between text-[10px] text-[var(--fg-faint)]">
         <span aria-live="polite">
-          {status === 'saved' ? 'Saved.' : status === 'error' ? 'Could not save. Try again.' : ''}
+          {status === 'saved' ? 'Saved.' : status === 'error' ? errorMessage : ''}
         </span>
         <span>
           {value.length}/{MAX_LENGTH}

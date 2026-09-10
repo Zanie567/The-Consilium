@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { checkArticleCommentAccess } from '@/lib/articleCommentAccess'
 import type { CommentAccessGrant } from '@/lib/articleCommentAccess'
 import type { ArticleComment } from '@prisma/client'
+import { apiError, isPrismaSchemaMismatch } from '@/lib/apiResponse'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -43,6 +44,13 @@ export async function GET(_req: Request, { params }: Props) {
     return NextResponse.json(comments.map((c) => serialize(c)))
   } catch (error) {
     console.error('List article comments error:', error)
+    if (isPrismaSchemaMismatch(error)) {
+      return apiError(
+        'Inline comments are unavailable because the database migration has not been applied.',
+        503,
+        'SCHEMA_MISMATCH'
+      )
+    }
     return NextResponse.json({ error: 'Failed to load comments.' }, { status: 500 })
   }
 }
@@ -130,6 +138,13 @@ export async function POST(req: Request, { params }: Props) {
     return NextResponse.json(serialize(created, user.name), { status: 201 })
   } catch (error) {
     console.error('Create article comment error:', error)
+    if (isPrismaSchemaMismatch(error)) {
+      return apiError(
+        'Inline comments are unavailable because the database migration has not been applied.',
+        503,
+        'SCHEMA_MISMATCH'
+      )
+    }
     return NextResponse.json({ error: 'Failed to save the comment.' }, { status: 500 })
   }
 }

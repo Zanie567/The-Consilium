@@ -1,13 +1,18 @@
 import { NextResponse } from 'next/server'
-import { getVerifiedSessionUser } from '@/lib/auth'
+import { getServerSession } from 'next-auth'
+import { authOptions, requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 interface Props { params: Promise<{ articleId: string }> }
 
 // GET - fetch saved progress for a specific article
 export async function GET(_req: Request, { params }: Props) {
-  const user = await getVerifiedSessionUser()
-  if (!user) return NextResponse.json(null)
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return NextResponse.json(null)
+
+  const auth = await requireVerifiedSessionUser()
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
   const { articleId } = await params
 

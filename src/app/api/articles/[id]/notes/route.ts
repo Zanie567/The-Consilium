@@ -1,17 +1,19 @@
 import { NextResponse } from 'next/server'
-import { getVerifiedSessionUser } from '@/lib/auth'
+import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
+import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
+import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
+import { apiError } from '@/lib/apiResponse'
 
 interface Props {
   params: Promise<{ id: string }>
 }
 
 export async function POST(req: Request, { params }: Props) {
-  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
-  if (!user) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const auth = await requireVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
   const { id } = await params
   const { content, isPrivate } = await req.json()
@@ -28,20 +30,13 @@ export async function POST(req: Request, { params }: Props) {
   }
 
   if (user.role === 'EDITOR') {
-    if (article.categoryId) {
-      const assignment = await prisma.categoryEditor.findFirst({
-          where: { userId: user.id, categoryId: article.categoryId },
-      })
-      if (!assignment) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    } else {
-      const anyAssignment = await prisma.categoryEditor.findFirst({
-        where: { userId: user.id },
-      })
-      if (anyAssignment) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
+    const scope = await loadEditorCategoryScope(user.id)
+    if (!editorCanAccessCategory(scope, article.categoryId)) {
+      return apiError(
+        'This article is outside your assigned categories.',
+        403,
+        'CATEGORY_SCOPE_DENIED'
+      )
     }
   }
 

@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions, requireActiveSession } from '@/lib/auth'
+import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { apiServerErrorResponse } from '@/lib/apiResponse'
 
 // GET /api/profile/stats - aggregate reading stats for the user
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  const authError = requireActiveSession(session)
-  if (authError) return authError
+  const auth = await requireVerifiedSessionUser()
+  if (!auth.ok) return auth.response
+  const userId = auth.user.id
 
   try {
     const [
@@ -19,20 +19,20 @@ export async function GET() {
       progressRows,
       categoryRows,
     ] = await Promise.all([
-      prisma.readingProgress.count({ where: { userId: session!.user.id, completed: true } }),
-      prisma.readingProgress.count({ where: { userId: session!.user.id, completed: false, progress: { gt: 3 } } }),
-      prisma.debateVote.count({ where: { userId: session!.user.id } }),
-      prisma.comment.count({ where: { userId: session!.user.id, isHidden: false } }),
-      prisma.bookmark.count({ where: { userId: session!.user.id } }),
+      prisma.readingProgress.count({ where: { userId, completed: true } }),
+      prisma.readingProgress.count({ where: { userId, completed: false, progress: { gt: 3 } } }),
+      prisma.debateVote.count({ where: { userId } }),
+      prisma.comment.count({ where: { userId, isHidden: false } }),
+      prisma.bookmark.count({ where: { userId } }),
       // For reading streak: get dates of completed reads
       prisma.readingProgress.findMany({
-        where: { userId: session!.user.id, completed: true },
+        where: { userId, completed: true },
         select: { updatedAt: true },
         orderBy: { updatedAt: 'desc' },
       }),
       // For favourite category: join through articles
       prisma.readingProgress.findMany({
-        where: { userId: session!.user.id, completed: true },
+        where: { userId, completed: true },
         include: {
           article: {
             select: { category: { select: { name: true } } },
@@ -74,7 +74,11 @@ export async function GET() {
       favouriteCategory,
       readingTimeSavedMins: totalRead * 5, // rough estimate: 5 min average
     })
-  } catch {
-    return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 })
+  } catch (error) {
+    return apiServerErrorResponse(error, {
+      operation: 'profile/stats:load',
+      userMessage: 'Your profile statistics could not be loaded because of a server error.',
+      code: 'PROFILE_STATS_LOAD_FAILED',
+    })
   }
 }

@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ReviewPanel } from '@/components/editorial/ReviewPanel'
 import type { Metadata } from 'next'
+import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
+import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 
 export const metadata: Metadata = {
   title: 'Review Article | Editorial',
@@ -37,18 +39,8 @@ export default async function ReviewPage({ params }: Props) {
   // Editors are scoped to assigned categories. Verify access before rendering
   // any article content to the client component.
   if (session.user.role === 'EDITOR') {
-    if (article.categoryId) {
-      const assignment = await prisma.categoryEditor.findFirst({
-        where: { userId: session.user.id, categoryId: article.categoryId },
-      })
-      if (!assignment) notFound()
-    } else {
-      // Uncategorized article: block editors who have any category assignment (scoped editors).
-      const anyAssignment = await prisma.categoryEditor.findFirst({
-        where: { userId: session.user.id },
-      })
-      if (anyAssignment) notFound()
-    }
+    const scope = await loadEditorCategoryScope(session.user.id)
+    if (!editorCanAccessCategory(scope, article.categoryId)) notFound()
   }
 
   // Serialize Prisma Date objects for client component

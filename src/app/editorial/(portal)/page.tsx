@@ -16,6 +16,8 @@ import { SeriesCompleteBadges } from '@/components/editorial/SeriesCompleteBadge
 import { CommissioningBriefEditor } from '@/components/editorial/CommissioningBriefEditor'
 import { ReadQualityBadge } from '@/components/editorial/ReadQualityBadge'
 import type { Metadata } from 'next'
+import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
+import { articleWhereForEditorScope, type EditorCategoryScope } from '@/lib/articleCategoryScope'
 
 export const metadata: Metadata = {
   title: 'Dashboard | Editorial',
@@ -35,13 +37,9 @@ export default async function EditorialDashboard() {
   // Streaks, achievement banners and the streak card are for authors only.
   const isWriterOrAdmin = isWriter || isAdmin
 
-  let assignedCategoryIds: string[] | null = null
+  let editorScope: EditorCategoryScope | null = null
   if (role === 'EDITOR') {
-    const assignments = await prisma.categoryEditor.findMany({
-      where: { userId },
-      select: { categoryId: true },
-    })
-    assignedCategoryIds = assignments.map((a) => a.categoryId)
+    editorScope = await loadEditorCategoryScope(userId)
   }
 
   // Wrap all DB queries so a failure surfaces as an error banner rather
@@ -56,7 +54,11 @@ export default async function EditorialDashboard() {
       isGrowth
         ? Promise.resolve([])
         : prisma.article.findMany({
-            where: role === 'WRITER' ? { authorId: userId, deletedAt: null } : { deletedAt: null },
+            where: {
+              deletedAt: null,
+              ...(role === 'WRITER' ? { authorId: userId } : {}),
+              ...(editorScope ? articleWhereForEditorScope(editorScope) : {}),
+            },
             orderBy: { updatedAt: 'desc' },
             take: 5,
             include: { category: true, author: true },
@@ -67,7 +69,7 @@ export default async function EditorialDashboard() {
             where: {
               status: 'PENDING_REVIEW',
               deletedAt: null,
-              ...(assignedCategoryIds ? { categoryId: { in: assignedCategoryIds } } : {}),
+              ...(editorScope ? articleWhereForEditorScope(editorScope) : {}),
             },
             orderBy: { updatedAt: 'asc' },
             take: 10,
@@ -80,6 +82,7 @@ export default async function EditorialDashboard() {
           status: 'PUBLISHED',
           deletedAt: null,
           ...(role === 'WRITER' ? { authorId: userId } : {}),
+          ...(editorScope ? articleWhereForEditorScope(editorScope) : {}),
         },
       }),
 
@@ -101,7 +104,13 @@ export default async function EditorialDashboard() {
 
       // Growth users also see total views
       isEditor || isGrowth
-        ? prisma.article.aggregate({ where: { deletedAt: null }, _sum: { viewCount: true } })
+        ? prisma.article.aggregate({
+            where: {
+              deletedAt: null,
+              ...(editorScope ? articleWhereForEditorScope(editorScope) : {}),
+            },
+            _sum: { viewCount: true },
+          })
             .then((r) => r._sum.viewCount ?? 0)
         : Promise.resolve(0),
 

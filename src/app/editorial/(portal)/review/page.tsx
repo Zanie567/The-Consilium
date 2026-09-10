@@ -5,6 +5,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
+import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
+import { articleWhereForEditorScope, type EditorCategoryScope } from '@/lib/articleCategoryScope'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -19,20 +21,16 @@ export default async function ReviewQueuePage() {
     redirect('/editorial')
   }
 
-  let assignedCategoryIds: string[] | null = null
+  let editorScope: EditorCategoryScope | null = null
   if (session.user.role === 'EDITOR') {
-    const assignments = await prisma.categoryEditor.findMany({
-      where: { userId: session.user.id },
-      select: { categoryId: true },
-    })
-    assignedCategoryIds = assignments.map((a) => a.categoryId)
+    editorScope = await loadEditorCategoryScope(session.user.id)
   }
 
   const articles = await prisma.article.findMany({
     where: {
       status: 'PENDING_REVIEW',
       deletedAt: null,
-      ...(assignedCategoryIds ? { categoryId: { in: assignedCategoryIds } } : {}),
+      ...(editorScope ? articleWhereForEditorScope(editorScope) : {}),
     },
     orderBy: { updatedAt: 'asc' },
     include: { author: true, category: true },

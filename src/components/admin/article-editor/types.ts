@@ -1,6 +1,7 @@
 import type React from 'react'
 import type { KeyboardEvent } from 'react'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
+import type { ApiErrorKind } from '@/lib/apiClient'
 
 interface Category {
   id: string
@@ -42,6 +43,15 @@ export interface ArticleEditorHookProps extends ArticleEditorProps {
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
+export interface ArticleEditorError {
+  kind: ApiErrorKind | 'editor-validation'
+  /** Short text for compact toolbar save indicators. */
+  label: string
+  /** Actionable explanation rendered in the editor banner. */
+  message: string
+  requestId?: string
+}
+
 export interface ArticleEditorRefs {
   coverFileRef: React.RefObject<HTMLInputElement | null>
   editorRef: React.RefObject<TiptapEditorHandle | null>
@@ -60,7 +70,7 @@ export interface ArticleEditorController {
   coverError: string
   coverImage: string
   currentStatus: string
-  error: string
+  error: ArticleEditorError | null
   excerpt: string
   initialEditorNote?: string | null
   isDark: boolean

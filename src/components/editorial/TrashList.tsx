@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { Trash2, RotateCcw } from 'lucide-react'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 export interface TrashedArticle {
   id: string
@@ -36,12 +37,11 @@ export function TrashList({ initialArticles }: { initialArticles: TrashedArticle
   async function restore(id: string) {
     setBusy(id)
     try {
-      const res = await fetch(`/api/editorial/trash/${id}`, { method: 'PATCH' })
-      if (!res.ok) throw new Error()
+      await apiRequest(`/api/editorial/trash/${id}`, { method: 'PATCH' })
       setArticles((prev) => prev.filter((a) => a.id !== id))
       showToast('Article restored successfully.')
-    } catch {
-      showToast('Failed to restore article.')
+    } catch (reason) {
+      showToast(asApiError(reason).message)
     } finally {
       setBusy(null)
     }
@@ -51,12 +51,11 @@ export function TrashList({ initialArticles }: { initialArticles: TrashedArticle
     setBusy(id)
     setConfirmId(null)
     try {
-      const res = await fetch(`/api/editorial/trash/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error()
+      await apiRequest(`/api/editorial/trash/${id}`, { method: 'DELETE' })
       setArticles((prev) => prev.filter((a) => a.id !== id))
       showToast('Article permanently deleted.')
-    } catch {
-      showToast('Failed to permanently delete article.')
+    } catch (reason) {
+      showToast(asApiError(reason).message)
     } finally {
       setBusy(null)
     }

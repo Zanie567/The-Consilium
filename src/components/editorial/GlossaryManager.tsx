@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PlusCircle, Pencil, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 /**
  * Admin CRUD for glossary terms plus the site-wide linking switch.
@@ -148,20 +149,15 @@ export function GlossaryManager({
     setError(null)
     const next = !enabled
     try {
-      const res = await fetch('/api/editorial/glossary/settings', {
+      await apiRequest('/api/editorial/glossary/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: next }),
       })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setError(typeof json.error === 'string' ? json.error : 'Updating the switch failed.')
-        return
-      }
       setEnabled(next)
       router.refresh()
-    } catch {
-      setError('Updating the switch failed. Please try again.')
+    } catch (reason) {
+      setError(asApiError(reason).message)
     } finally {
       setTogglePending(false)
     }
@@ -184,7 +180,7 @@ export function GlossaryManager({
         learnMoreUrl: form.learnMoreUrl.trim() === '' ? null : form.learnMoreUrl.trim(),
         isActive: existing ? existing.isActive : true,
       }
-      const res = await fetch(
+      await apiRequest(
         editing === 'new' ? '/api/editorial/glossary' : `/api/editorial/glossary/${editing}`,
         {
           method: editing === 'new' ? 'POST' : 'PATCH',
@@ -192,17 +188,12 @@ export function GlossaryManager({
           body: JSON.stringify(payload),
         }
       )
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setError(typeof json.error === 'string' ? json.error : 'Saving failed. Please try again.')
-        return
-      }
       closeForm()
       // New terms sort to the top of page 1; jump there so the row is visible.
       if (editing === 'new') setPage(1)
       router.refresh()
-    } catch {
-      setError('Saving failed. Please try again.')
+    } catch (reason) {
+      setError(asApiError(reason).message)
     } finally {
       setSaving(false)
     }
@@ -212,7 +203,7 @@ export function GlossaryManager({
     setBusyId(term.id)
     setError(null)
     try {
-      const res = await fetch(`/api/editorial/glossary/${term.id}`, {
+      await apiRequest(`/api/editorial/glossary/${term.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -223,14 +214,9 @@ export function GlossaryManager({
           isActive,
         }),
       })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setError(typeof json.error === 'string' ? json.error : 'Updating the term failed.')
-        return
-      }
       router.refresh()
-    } catch {
-      setError('Updating the term failed. Please try again.')
+    } catch (reason) {
+      setError(asApiError(reason).message)
     } finally {
       setBusyId(null)
     }
@@ -247,16 +233,11 @@ export function GlossaryManager({
     setBusyId(term.id)
     setError(null)
     try {
-      const res = await fetch(`/api/editorial/glossary/${term.id}`, { method: 'DELETE' })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setError(typeof json.error === 'string' ? json.error : 'Deleting the term failed.')
-        return
-      }
+      await apiRequest(`/api/editorial/glossary/${term.id}`, { method: 'DELETE' })
       if (editing === term.id) closeForm()
       router.refresh()
-    } catch {
-      setError('Deleting the term failed. Please try again.')
+    } catch (reason) {
+      setError(asApiError(reason).message)
     } finally {
       setBusyId(null)
     }
@@ -327,7 +308,7 @@ export function GlossaryManager({
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
 
       {/* Create / edit form */}
       {editing !== null && (

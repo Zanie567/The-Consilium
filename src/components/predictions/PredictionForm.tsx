@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 interface Props {
   eventId: string
@@ -28,20 +29,15 @@ export function PredictionForm({ eventId, unitLabel, minValue, maxValue, current
     setError(null)
     setSaved(false)
     try {
-      const res = await fetch(`/api/predictions/${eventId}`, {
+      await apiRequest(`/api/predictions/${eventId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: value.trim() }),
       })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setError(typeof json.error === 'string' ? json.error : 'Something went wrong. Please try again.')
-        return
-      }
       setSaved(true)
       router.refresh()
-    } catch {
-      setError('Something went wrong. Please try again.')
+    } catch (reason) {
+      setError(asApiError(reason).message)
     } finally {
       setSaving(false)
     }

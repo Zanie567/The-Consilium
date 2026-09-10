@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions, getVerifiedSessionUser } from '@/lib/auth'
+import { authOptions, requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { filterComment, stripHtml } from '@/lib/content-filter'
 import { checkRateLimit } from '@/lib/rate-limit'
@@ -63,8 +63,9 @@ export async function GET(req: Request) {
 // ── POST /api/comments ───────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
-  const user = await getVerifiedSessionUser(ALL_ROLES)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireVerifiedSessionUser(ALL_ROLES)
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
   if (!checkRateLimit(`comment:${user.id}`, 5, 60 * 1000)) {
     return NextResponse.json(
@@ -145,20 +146,36 @@ export async function POST(req: Request) {
 
   // Email admin if comment was flagged
   if (filterResult.flagForReview) {
-    const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map((e) => e.trim()).filter(Boolean)
-    const admins = await prisma.user.findMany({
-      where: { role: 'ADMIN', isActive: true },
-      select: { email: true },
-    })
-    const targets = [...adminEmails, ...admins.map((a) => a.email)].filter(Boolean)
-    for (const to of targets) {
-      const tpl = commentFlaggedEmail(
+    try {
+      const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map((e) => e.trim()).filter(Boolean)
+      const admins = await prisma.user.findMany({
+        where: { role: 'ADMIN', isActive: true },
+        select: { email: true },
+      })
+      const targets = [...adminEmails, ...admins.map((admin) => admin.email)].filter(Boolean)
+      const template = commentFlaggedEmail(
         article.title,
         article.id,
         cleanBody,
         filterResult.flagReason ?? 'unknown',
       )
-      await sendEmail({ to, ...tpl })
+      const deliveries = await Promise.allSettled(
+        targets.map((to) => sendEmail({ to, ...template }))
+      )
+      const failed = deliveries.filter((delivery) => delivery.status === 'rejected')
+      if (failed.length > 0) {
+        console.error('[comments:flag-notification] Delivery failures', {
+          commentId: comment.id,
+          failed: failed.length,
+        })
+      }
+    } catch (notificationError) {
+      // The comment is already committed. Auxiliary notification failure must
+      // not make the client retry and create a duplicate comment.
+      console.error('[comments:flag-notification] Setup failure', {
+        commentId: comment.id,
+        notificationError,
+      })
     }
   }
 

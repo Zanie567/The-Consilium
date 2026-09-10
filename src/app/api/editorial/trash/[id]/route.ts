@@ -1,36 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getVerifiedSessionUser } from '@/lib/auth'
+import { requireVerifiedSessionUser } from '@/lib/auth'
 import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
+import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
+import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
+import { apiError } from '@/lib/apiResponse'
 
 interface Props {
   params: Promise<{ id: string }>
 }
 
-// Editors are scoped to their assigned categories. Mirrors the same guard the
-// articles/[id] PUT/DELETE and review handlers apply, so a category-restricted
-// editor cannot restore or permanently delete articles outside their remit.
-async function editorCategoryScope(
-  user: { id: string; role: string },
-  article: { categoryId: string | null }
-): Promise<NextResponse | null> {
-  if (user.role !== 'EDITOR') return null
-  if (article.categoryId) {
-    const assignment = await prisma.categoryEditor.findFirst({
-      where: { userId: user.id, categoryId: article.categoryId },
-    })
-    return assignment ? null : NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-  const anyAssignment = await prisma.categoryEditor.findFirst({ where: { userId: user.id } })
-  return anyAssignment ? NextResponse.json({ error: 'Forbidden' }, { status: 403 }) : null
-}
-
 // PATCH /api/editorial/trash/[id] - restore a soft-deleted article
 export async function PATCH(_req: NextRequest, { params }: Props) {
-  const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
-  if (!user) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const auth = await requireVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
   const { id } = await params
 
@@ -46,8 +30,12 @@ export async function PATCH(_req: NextRequest, { params }: Props) {
       if (user.role === 'WRITER' && article.authorId !== user.id) {
         return { error: 'Forbidden', status: 403 } as const
       }
-      const scopeError = await editorCategoryScope(user, article)
-      if (scopeError) return { scopeError } as const
+      if (user.role === 'EDITOR') {
+        const scope = await loadEditorCategoryScope(user.id, tx)
+        if (!editorCanAccessCategory(scope, article.categoryId)) {
+          return { scopeDenied: true } as const
+        }
+      }
 
       const res = await tx.article.updateMany({
         where: { id, deletedAt: { not: null } },
@@ -58,7 +46,13 @@ export async function PATCH(_req: NextRequest, { params }: Props) {
       return { restored } as const
     })
 
-    if ('scopeError' in result) return result.scopeError
+    if ('scopeDenied' in result) {
+      return apiError(
+        'This article is outside your assigned categories.',
+        403,
+        'CATEGORY_SCOPE_DENIED'
+      )
+    }
     if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status })
     return NextResponse.json(result.restored)
   } catch {
@@ -68,10 +62,9 @@ export async function PATCH(_req: NextRequest, { params }: Props) {
 
 // DELETE /api/editorial/trash/[id] - permanently delete a trashed article
 export async function DELETE(_req: NextRequest, { params }: Props) {
-  const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
-  if (!user) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const auth = await requireVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
   const { id } = await params
 
@@ -87,8 +80,12 @@ export async function DELETE(_req: NextRequest, { params }: Props) {
       if (user.role === 'WRITER' && article.authorId !== user.id) {
         return { error: 'Forbidden', status: 403 } as const
       }
-      const scopeError = await editorCategoryScope(user, article)
-      if (scopeError) return { scopeError } as const
+      if (user.role === 'EDITOR') {
+        const scope = await loadEditorCategoryScope(user.id, tx)
+        if (!editorCanAccessCategory(scope, article.categoryId)) {
+          return { scopeDenied: true } as const
+        }
+      }
 
       const res = await tx.article.deleteMany({ where: { id, deletedAt: { not: null } } })
       if (res.count === 0) return { error: 'Not found in trash', status: 404 } as const
@@ -105,7 +102,13 @@ export async function DELETE(_req: NextRequest, { params }: Props) {
       return { success: true } as const
     })
 
-    if ('scopeError' in result) return result.scopeError
+    if ('scopeDenied' in result) {
+      return apiError(
+        'This article is outside your assigned categories.',
+        403,
+        'CATEGORY_SCOPE_DENIED'
+      )
+    }
     if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status })
     return NextResponse.json({ success: true })
   } catch {

@@ -5,6 +5,8 @@ import { ArticleEditor } from '@/components/admin/ArticleEditor'
 import { formatEditorialScheduleInput } from '@/lib/editorialSchedule'
 import { notFound, redirect } from 'next/navigation'
 import type { Metadata } from 'next'
+import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
+import { categoryWhereForEditorScope, editorCanAccessCategory } from '@/lib/articleCategoryScope'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -34,7 +36,15 @@ export default async function EditorialEditArticlePage({ params }: Props) {
 
   if (!article) notFound()
 
-  const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } }).catch(() => [])
+  const editorScope = session.user.role === 'EDITOR'
+    ? await loadEditorCategoryScope(session.user.id)
+    : null
+  if (editorScope && !editorCanAccessCategory(editorScope, article.categoryId)) notFound()
+
+  const categories = await prisma.category.findMany({
+    where: editorScope ? categoryWhereForEditorScope(editorScope) : {},
+    orderBy: { name: 'asc' },
+  }).catch(() => [])
 
   return (
     <ArticleEditor

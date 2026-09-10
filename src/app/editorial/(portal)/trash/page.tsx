@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { TrashList } from '@/components/editorial/TrashList'
 import type { Metadata } from 'next'
+import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
+import { articleWhereForEditorScope } from '@/lib/articleCategoryScope'
 
 export const metadata: Metadata = {
   title: 'Trash | Editorial',
@@ -18,9 +20,14 @@ export default async function TrashPage() {
   }
   const { role, id: userId } = session.user
   const isWriter = role === 'WRITER'
+  const editorScope = role === 'EDITOR' ? await loadEditorCategoryScope(userId) : null
 
   const articles = await prisma.article.findMany({
-    where: { deletedAt: { not: null }, ...(isWriter ? { authorId: userId } : {}) },
+    where: {
+      deletedAt: { not: null },
+      ...(isWriter ? { authorId: userId } : {}),
+      ...(editorScope ? articleWhereForEditorScope(editorScope) : {}),
+    },
     orderBy: { deletedAt: 'desc' },
     select: {
       id: true,

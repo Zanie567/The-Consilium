@@ -1,11 +1,14 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions, getVerifiedSessionUser, requireActiveSession } from '@/lib/auth'
+import { authOptions, requireActiveSession, requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import slugify from 'slugify'
 import { stripHtml } from '@/lib/content-filter'
 import { ARTICLE_MUTATION_ROLES, EDITORIAL_MANAGEMENT_ROLES, isAllowedRole } from '@/lib/rbac'
 import { PUBLIC_AUTHOR_SELECT } from '@/lib/publicUser'
+import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
+import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
+import { apiError, articleMutationErrorResponse } from '@/lib/apiResponse'
 import type { ArticleStatus } from '@prisma/client'
 
 const STAFF_ARTICLE_STATUSES = [
@@ -129,12 +132,13 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
-  if (!user) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const requestId = crypto.randomUUID()
 
   try {
+    const auth = await requireVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
+    if (!auth.ok) return auth.response
+    const user = auth.user
+
     const body = await request.json()
     const {
       title,
@@ -159,6 +163,19 @@ export async function POST(request: NextRequest) {
       ? (requestedStatus as ArticleStatus)
       : 'DRAFT'
 
+    const effectiveCategoryId = categoryId || null
+    if (user.role === 'EDITOR') {
+      const scope = await loadEditorCategoryScope(user.id)
+      if (!editorCanAccessCategory(scope, effectiveCategoryId)) {
+        return apiError(
+          'You cannot create an article outside your assigned categories.',
+          403,
+          'CATEGORY_SCOPE_DENIED',
+          requestId
+        )
+      }
+    }
+
     // Title is optional for autosave - untitled drafts are valid
     const effectiveTitle = title ?? ''
 
@@ -177,46 +194,51 @@ export async function POST(request: NextRequest) {
       slug = `${slug}-${Date.now()}`
     }
 
-    const article = await prisma.article.create({
-      data: {
-        title: effectiveTitle,
-        slug,
-        content: content ?? '',
-        excerpt: excerpt ?? null,
-        coverImage: coverImage ?? null,
-        categoryId: categoryId ?? null,
-        authorId: effectiveAuthorId,
-        status: finalStatus,
-        publishedAt: finalStatus === 'PUBLISHED' ? new Date() : null,
-      },
-    })
+    const article = await prisma.$transaction(async (tx) => {
+      const created = await tx.article.create({
+        data: {
+          title: effectiveTitle,
+          slug,
+          content: content ?? '',
+          excerpt: excerpt ?? null,
+          coverImage: coverImage ?? null,
+          categoryId: effectiveCategoryId,
+          authorId: effectiveAuthorId,
+          status: finalStatus,
+          publishedAt: finalStatus === 'PUBLISHED' ? new Date() : null,
+        },
+      })
 
-    // Handle tags if provided
-    if (Array.isArray(tags) && tags.length > 0) {
-      const tagRecords = await Promise.all(
-        tags.map((name: string) => {
-          // Strip HTML from tag names before storage to prevent XSS
+      if (Array.isArray(tags) && tags.length > 0) {
+        const tagRecords = []
+        for (const name of tags) {
+          if (typeof name !== 'string') continue
           const safeName = stripHtml(name).trim()
-          const tagSlug = safeName
-            .toLowerCase()
-            .replace(/\s+/g, '-')
-            .replace(/[^a-z0-9-]/g, '')
-          return prisma.tag.upsert({
+          const tagSlug = safeName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+          if (!safeName || !tagSlug) continue
+          const tag = await tx.tag.upsert({
             where: { slug: tagSlug },
             update: {},
             create: { name: safeName, slug: tagSlug },
           })
-        })
-      )
-      await prisma.articleTag.createMany({
-        data: tagRecords.map((t) => ({ articleId: article.id, tagId: t.id })),
-        skipDuplicates: true,
-      })
-    }
+          tagRecords.push(tag)
+        }
+        if (tagRecords.length > 0) {
+          await tx.articleTag.createMany({
+            data: tagRecords.map((tag) => ({ articleId: created.id, tagId: tag.id })),
+            skipDuplicates: true,
+          })
+        }
+      }
 
-    return NextResponse.json(article, { status: 201 })
+      return created
+    })
+
+    return NextResponse.json(article, {
+      status: 201,
+      headers: { 'x-request-id': requestId },
+    })
   } catch (error) {
-    console.error('Create article error:', error)
-    return NextResponse.json({ error: 'Failed to create article' }, { status: 500 })
+    return articleMutationErrorResponse(error, 'create', requestId)
   }
 }

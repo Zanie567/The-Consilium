@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Plus, ChevronDown, ChevronUp } from 'lucide-react'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 interface SeriesArticle {
   id: string
@@ -36,38 +37,49 @@ export function SeriesManager({ initialSeries, articles }: Props) {
   const [showCreate, setShowCreate] = useState(false)
   const [newSeries, setNewSeries] = useState({ title: '', description: '' })
   const [loading, setLoading] = useState(false)
+  const [assigningId, setAssigningId] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   const createSeries = async () => {
     if (!newSeries.title.trim()) { setError('Title is required.'); return }
     setLoading(true)
-    const res = await fetch('/api/editorial/series', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newSeries),
-    })
-    const data = await res.json()
-    setLoading(false)
-    if (!res.ok) { setError(data.error ?? 'Failed.'); return }
-    setSeries((prev) => [{ ...data, articles: [] }, ...prev])
-    setNewSeries({ title: '', description: '' })
-    setShowCreate(false)
     setError('')
+    try {
+      const data = await apiRequest<Omit<SeriesRecord, 'articles'>>('/api/editorial/series', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSeries),
+      })
+      setSeries((prev) => [{ ...data, articles: [] }, ...prev])
+      setNewSeries({ title: '', description: '' })
+      setShowCreate(false)
+    } catch (reason) {
+      setError(asApiError(reason).message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const assignArticle = async (articleId: string, seriesId: string, order: number) => {
-    await fetch(`/api/articles/${articleId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ seriesId, seriesOrder: order }),
-    })
-    window.location.reload()
+    setAssigningId(articleId)
+    setError('')
+    try {
+      await apiRequest(`/api/articles/${articleId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seriesId, seriesOrder: order }),
+      })
+      window.location.reload()
+    } catch (reason) {
+      setError(asApiError(reason).message)
+      setAssigningId(null)
+    }
   }
 
   return (
     <div className="space-y-5">
       {error && (
-        <p className="text-red-500 text-sm bg-red-500/10 border border-red-500/20 px-4 py-3">{error}</p>
+        <p role="alert" className="text-red-500 text-sm bg-red-500/10 border border-red-500/20 px-4 py-3">{error}</p>
       )}
 
       <div className="flex justify-between items-center">
@@ -182,9 +194,10 @@ export function SeriesManager({ initialSeries, articles }: Props) {
                         if (!sel.value) return
                         assignArticle(sel.value, s.id, s.articles.length + 1)
                       }}
-                      className="bg-navy text-gold px-4 py-2 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors"
+                      disabled={assigningId !== null}
+                      className="bg-navy text-gold px-4 py-2 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors disabled:opacity-50"
                     >
-                      Add
+                      {assigningId ? 'Adding…' : 'Add'}
                     </button>
                   </div>
                 </div>

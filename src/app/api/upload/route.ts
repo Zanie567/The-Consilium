@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server'
-import { getVerifiedSessionUser } from '@/lib/auth'
+import { requireVerifiedSessionUser } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 
@@ -53,13 +53,8 @@ function detectImageMimeType(buf: Uint8Array): string | null {
 }
 
 export async function POST(request: NextRequest) {
-  const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
-  if (!user) {
-    return NextResponse.json(
-      { error: 'Only writers and editors may upload files.' },
-      { status: 403 }
-    )
-  }
+  const auth = await requireVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
+  if (!auth.ok) return auth.response
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey =

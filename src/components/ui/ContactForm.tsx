@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 export function ContactForm() {
   const [form, setForm] = useState({
@@ -10,6 +11,7 @@ export function ContactForm() {
     message: '',
   })
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -20,15 +22,16 @@ export function ContactForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setStatus('loading')
+    setErrorMessage(null)
     try {
-      const res = await fetch('/api/contact', {
+      await apiRequest('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
-      if (!res.ok) throw new Error()
       setStatus('success')
-    } catch {
+    } catch (submitError) {
+      setErrorMessage(asApiError(submitError).message)
       setStatus('error')
     }
   }
@@ -59,7 +62,7 @@ export function ContactForm() {
     >
       {status === 'error' && (
         <p className="text-sm text-red-500 bg-red-500/10 border border-red-500/20 px-4 py-3">
-          Something went wrong. Please try again or email us directly.
+          {errorMessage ?? 'The message could not be sent. Please try again or email us directly.'}
         </p>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

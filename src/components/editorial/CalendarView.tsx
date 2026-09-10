@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 import { ChevronLeft, ChevronRight, Inbox } from 'lucide-react'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
 import { addMonths, monthLabel, type CalendarDay } from '@/lib/editorialCalendar'
@@ -170,25 +171,19 @@ export function CalendarView({
     setPendingIds((prev) => new Set(prev).add(id))
     setError(null)
     try {
-      const res = await fetch('/api/editorial/calendar', {
+      await apiRequest('/api/editorial/calendar', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ articleId: id, date: targetKey }),
       })
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        throw new Error(
-          (data as { error?: string } | null)?.error ?? 'The article could not be moved.',
-        )
-      }
       router.refresh()
-    } catch (err) {
+    } catch (reason) {
       setMoves((prev) => {
         const next = { ...prev }
         delete next[id]
         return next
       })
-      setError(err instanceof Error ? err.message : 'The article could not be moved.')
+      setError(asApiError(reason).message)
     } finally {
       setPendingIds((prev) => {
         const next = new Set(prev)

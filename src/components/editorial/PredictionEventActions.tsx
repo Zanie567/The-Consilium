@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 interface Props {
   eventId: string
@@ -27,20 +28,15 @@ export function PredictionEventActions({ eventId, status, unitLabel }: Props) {
     setBusy(true)
     setError(null)
     try {
-      const res = await fetch(`/api/editorial/predictions/${eventId}`, {
+      await apiRequest(`/api/editorial/predictions/${eventId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setError(typeof json.error === 'string' ? json.error : 'Request failed.')
-        return
-      }
       setResolving(false)
       router.refresh()
-    } catch {
-      setError('Request failed.')
+    } catch (reason) {
+      setError(asApiError(reason).message)
     } finally {
       setBusy(false)
     }
@@ -123,7 +119,7 @@ export function PredictionEventActions({ eventId, status, unitLabel }: Props) {
         </form>
       )}
 
-      {error && <p className="text-xs text-red-500 mt-2 text-right">{error}</p>}
+      {error && <p role="alert" className="text-xs text-red-500 mt-2 text-right">{error}</p>}
     </div>
   )
 }
