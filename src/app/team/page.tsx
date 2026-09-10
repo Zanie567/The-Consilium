@@ -1,10 +1,9 @@
-import Image from 'next/image'
 import { prisma } from '@/lib/prisma'
-import { Mail } from 'lucide-react'
 import type { Metadata } from 'next'
-import { canonicalAlternates } from '@/lib/seo'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
-import { getInitials } from '@/lib/authorUtils'
+import { TeamMemberCard } from '@/components/team/TeamMemberCard'
+import { buildTeamMasthead } from '@/lib/teamHierarchy'
+import { canonicalAlternates } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,6 +26,9 @@ async function getTeamMembers() {
 
 export default async function TeamPage() {
   const members = await getTeamMembers()
+  // Tiers are derived from each member's free-text role, so a person added
+  // through /admin/team is placed without any code change here.
+  const sections = buildTeamMasthead(members)
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
@@ -50,66 +52,51 @@ export default async function TeamPage() {
         </AnimateIn>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-        {members.length > 0 ? (
-          <StaggerContainer
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
-            staggerDelay={0.08}
-            delayChildren={0.05}
-          >
-            {members.map((member) => (
-              <StaggerItem key={member.id}>
-                <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-6 flex flex-col items-center text-center h-full hover:border-gold/40 transition-colors duration-300">
-                  {/* Avatar */}
-                  <div className="relative w-24 h-24 mb-4 overflow-hidden rounded-full bg-navy">
-                    {member.image ? (
-                      <Image
-                        src={member.image}
-                        alt={member.name}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <span
-                          className="text-gold text-2xl font-bold"
-                          style={{ fontFamily: 'var(--font-serif)' }}
-                        >
-                          {getInitials(member.name)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <h3
-                    className="text-[var(--fg)] font-bold text-lg mb-1"
-                    style={{ fontFamily: 'var(--font-serif)' }}
-                  >
-                    {member.name}
-                  </h3>
-                  <p className="text-gold text-xs font-bold uppercase tracking-widest mb-3">
-                    {member.role}
-                  </p>
-
-                  {member.bio && (
-                    <p className="text-[var(--fg-muted)] text-sm leading-relaxed mb-4">
-                      {member.bio}
-                    </p>
-                  )}
-
-                  {member.email && (
-                    <a
-                      href={`mailto:${member.email}`}
-                      className="inline-flex items-center gap-2 text-[var(--fg-faint)] hover:text-gold transition-colors text-xs mt-auto"
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+        {sections.length > 0 ? (
+          sections.map((section, sectionIndex) => (
+            <section
+              key={section.id}
+              aria-labelledby={`team-${section.id}`}
+              className={sectionIndex > 0 ? 'mt-14 sm:mt-20' : ''}
+            >
+              {section.labelVisible ? (
+                <AnimateIn variant="fade-in" duration={0.4}>
+                  <div className="flex items-center gap-5 mb-9 sm:mb-11">
+                    <span aria-hidden="true" className="h-px flex-1 bg-[var(--border-strong)]" />
+                    <h2
+                      id={`team-${section.id}`}
+                      className="text-[0.7rem] font-bold uppercase tracking-[0.3em] text-[var(--fg-faint)]"
                     >
-                      <Mail size={14} />
-                      {member.email}
-                    </a>
-                  )}
-                </div>
-              </StaggerItem>
-            ))}
-          </StaggerContainer>
+                      {section.label}
+                    </h2>
+                    <span aria-hidden="true" className="h-px flex-1 bg-[var(--border-strong)]" />
+                  </div>
+                </AnimateIn>
+              ) : (
+                <h2 id={`team-${section.id}`} className="sr-only">
+                  {section.label}
+                </h2>
+              )}
+
+              {section.rows.map((row, rowIndex) => (
+                <StaggerContainer
+                  key={row.tier}
+                  className={`flex flex-wrap justify-center gap-5 sm:gap-6 ${
+                    rowIndex > 0 ? 'mt-6 sm:mt-8' : ''
+                  }`}
+                  staggerDelay={0.06}
+                  delayChildren={0.04}
+                >
+                  {row.members.map((member) => (
+                    <StaggerItem key={member.id} className="w-full sm:w-auto">
+                      <TeamMemberCard member={member} variant={row.variant} />
+                    </StaggerItem>
+                  ))}
+                </StaggerContainer>
+              ))}
+            </section>
+          ))
         ) : (
           <AnimateIn variant="fade-up" className="py-24 text-center">
             <p

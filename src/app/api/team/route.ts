@@ -25,14 +25,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { name, role, bio, image, email, order, isActive } = body
 
-    if (!name || !role) {
-      return NextResponse.json({ error: 'Name and role required' }, { status: 400 })
+    if (!name) {
+      return NextResponse.json({ error: 'Name required' }, { status: 400 })
     }
 
     const member = await prisma.teamMember.create({
       data: {
         name,
-        role,
+        // Role is optional: a member may sit on the masthead without a formal
+        // title, and the public page renders no role line in that case. The
+        // column is non-nullable, so "no role" is stored as an empty string.
+        role: role ?? '',
         bio: bio || null,
         image: image || null,
         email: email || null,

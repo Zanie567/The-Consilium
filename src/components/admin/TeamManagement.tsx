@@ -141,12 +141,13 @@ export function TeamManagement({ initialMembers }: TeamManagementProps) {
             </div>
             <div>
               <label className="block text-navy text-xs font-bold uppercase tracking-widest mb-1">
-                Role *
+                Role
               </label>
               <input
                 type="text"
                 value={form.role}
                 onChange={(e) => setForm({ ...form, role: e.target.value })}
+                placeholder="Optional - leave blank for no title"
                 className="w-full border border-navy/20 px-3 py-2 text-sm focus:outline-none focus:border-gold bg-cream"
               />
             </div>
@@ -238,7 +239,7 @@ export function TeamManagement({ initialMembers }: TeamManagementProps) {
           </div>
           <button
             onClick={handleSave}
-            disabled={loading || !form.name || !form.role}
+            disabled={loading || !form.name}
             className="inline-flex items-center gap-2 bg-navy text-gold px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors disabled:opacity-50"
           >
             <Check size={14} />
@@ -272,7 +273,11 @@ export function TeamManagement({ initialMembers }: TeamManagementProps) {
                     <p className="text-navy font-medium">{member.name}</p>
                   </td>
                   <td className="px-4 py-3 text-navy/60 hidden sm:table-cell">
-                    {member.role}
+                    {member.role?.trim() ? (
+                      member.role
+                    ) : (
+                      <span className="italic text-navy/35">No title</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     <span

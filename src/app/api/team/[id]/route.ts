@@ -21,7 +21,8 @@ export async function PUT(
       where: { id },
       data: {
         name,
-        role,
+        // See POST /api/team: an absent role is stored as an empty string.
+        role: role ?? '',
         bio: bio || null,
         image: image || null,
         email: email || null,
