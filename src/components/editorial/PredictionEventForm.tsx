@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 export interface PredictionEventFormValues {
   title: string
@@ -114,7 +115,7 @@ export function PredictionEventForm({ eventId, initialValues }: Props) {
         maxValue: values.maxValue,
         maxError: values.maxError,
       }
-      const res = await fetch(
+      await apiRequest(
         eventId ? `/api/editorial/predictions/${eventId}` : '/api/editorial/predictions',
         {
           method: eventId ? 'PATCH' : 'POST',
@@ -122,15 +123,10 @@ export function PredictionEventForm({ eventId, initialValues }: Props) {
           body: JSON.stringify(payload),
         }
       )
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setError(typeof json.error === 'string' ? json.error : 'Saving failed. Please try again.')
-        return
-      }
       router.push('/editorial/predictions')
       router.refresh()
-    } catch {
-      setError('Saving failed. Please try again.')
+    } catch (reason) {
+      setError(asApiError(reason).message)
     } finally {
       setSaving(false)
     }
@@ -277,7 +273,7 @@ export function PredictionEventForm({ eventId, initialValues }: Props) {
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
 
       <div className="flex items-center gap-3 pt-2">
         <button

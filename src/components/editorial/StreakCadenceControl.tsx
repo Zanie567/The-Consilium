@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { GAMIFICATION_API_ROUTES, STREAK_INTERVAL_WEEKS } from '@/lib/constants'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 const OPTIONS = Array.from(
   { length: STREAK_INTERVAL_WEEKS.MAX - STREAK_INTERVAL_WEEKS.MIN + 1 },
@@ -23,29 +24,27 @@ export function StreakCadenceControl({ initialIntervalWeeks }: { initialInterval
   const [intervalWeeks, setIntervalWeeks] = useState(initialIntervalWeeks)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<'idle' | 'saved' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState('')
 
   const onChange = async (next: number) => {
     const previous = intervalWeeks
     setIntervalWeeks(next)
     setSaving(true)
     setStatus('idle')
+    setErrorMessage('')
     try {
-      const res = await fetch(GAMIFICATION_API_ROUTES.streak, {
+      await apiRequest(GAMIFICATION_API_ROUTES.streak, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ intervalWeeks: next }),
       })
-      if (!res.ok) {
-        setIntervalWeeks(previous)
-        setStatus('error')
-        return
-      }
       setStatus('saved')
       // Re-render the server component tree so the streak card reflects the recompute.
       router.refresh()
-    } catch {
+    } catch (reason) {
       setIntervalWeeks(previous)
       setStatus('error')
+      setErrorMessage(asApiError(reason).message)
     } finally {
       setSaving(false)
     }
@@ -66,7 +65,7 @@ export function StreakCadenceControl({ initialIntervalWeeks }: { initialInterval
       </div>
       <div className="flex items-center gap-3">
         <span aria-live="polite" className="text-[10px] text-[var(--fg-faint)]">
-          {status === 'saved' ? 'Saved.' : status === 'error' ? 'Could not save.' : ''}
+          {status === 'saved' ? 'Saved.' : status === 'error' ? errorMessage : ''}
         </span>
         <select
           id="streak-cadence"

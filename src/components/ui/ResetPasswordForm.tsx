@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 interface Props {
   token: string
@@ -22,19 +23,19 @@ export function ResetPasswordForm({ token, apiPath }: Props) {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const res = await fetch(apiPath, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, password }),
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      setError(data.error ?? 'Something went wrong.')
+    try {
+      await apiRequest(apiPath, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password }),
+      })
+      setDone(true)
+      setTimeout(() => router.push('/login'), 2000)
+    } catch (reason) {
+      setError(asApiError(reason).message)
+    } finally {
       setLoading(false)
-      return
     }
-    setDone(true)
-    setTimeout(() => router.push('/login'), 2000)
   }
 
   if (done) {

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { readTimeLabel } from '@/lib/readTime'
 import { getInitials } from '@/lib/authorUtils'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -130,24 +131,38 @@ function TabLoader() {
   )
 }
 
+function TabError({ message }: { message: string }) {
+  return (
+    <div role="alert" className="border border-red-500/20 bg-red-500/10 px-4 py-5 text-sm text-red-500">
+      {message}
+    </div>
+  )
+}
+
 // ─── Tab content panels ───────────────────────────────────────────────────────
 
 function ReadingHistoryTab() {
   const [items, setItems] = useState<ReadingHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [page, setPage] = useState(1)
   const [pages, setPages] = useState(1)
 
   useEffect(() => {
+    // Paging quickly can leave an earlier request in flight; whichever settles
+    // last would otherwise win, showing the wrong page or a stale error.
+    let cancelled = false
     setLoading(true)
-    fetch(`/api/profile/reading-history?page=${page}`)
-      .then((r) => r.json())
-      .then((d) => { setItems(d.items ?? []); setPages(d.pages ?? 1) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    setLoadError('')
+    apiRequest<{ items?: ReadingHistoryItem[]; pages?: number }>(`/api/profile/reading-history?page=${page}`)
+      .then((d) => { if (cancelled) return; setItems(d.items ?? []); setPages(d.pages ?? 1) })
+      .catch((reason) => { if (!cancelled) setLoadError(asApiError(reason).message) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [page])
 
   if (loading) return <TabLoader />
+  if (loadError) return <TabError message={loadError} />
   if (items.length === 0) {
     return (
       <EmptyState
@@ -217,17 +232,19 @@ function ReadingHistoryTab() {
 function CurrentlyReadingTab() {
   const [items, setItems] = useState<ReadingHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     setLoading(true)
-    fetch('/api/reading-progress')
-      .then((r) => r.json())
+    setLoadError('')
+    apiRequest<ReadingHistoryItem[]>('/api/reading-progress')
       .then((data) => { if (Array.isArray(data)) setItems(data) })
-      .catch(() => {})
+      .catch((reason) => setLoadError(asApiError(reason).message))
       .finally(() => setLoading(false))
   }, [])
 
   if (loading) return <TabLoader />
+  if (loadError) return <TabError message={loadError} />
   if (items.length === 0) {
     return (
       <EmptyState
@@ -277,13 +294,14 @@ function SavedArticlesTab() {
   const [items, setItems] = useState<SavedArticleItem[]>([])
   const [loading, setLoading] = useState(true)
   const [removing, setRemoving] = useState<string | null>(null)
+  const [actionError, setActionError] = useState('')
 
   const load = useCallback(() => {
     setLoading(true)
-    fetch('/api/profile/saved-articles')
-      .then((r) => r.json())
+    setActionError('')
+    apiRequest<SavedArticleItem[]>('/api/profile/saved-articles')
       .then((data) => { if (Array.isArray(data)) setItems(data) })
-      .catch(() => {})
+      .catch((reason) => setActionError(asApiError(reason).message))
       .finally(() => setLoading(false))
   }, [])
 
@@ -291,12 +309,19 @@ function SavedArticlesTab() {
 
   const handleRemove = async (articleId: string) => {
     setRemoving(articleId)
-    await fetch(`/api/profile/saved-articles?articleId=${articleId}`, { method: 'DELETE' })
-    setItems((prev) => prev.filter((i) => i.article.id !== articleId))
-    setRemoving(null)
+    setActionError('')
+    try {
+      await apiRequest(`/api/profile/saved-articles?articleId=${articleId}`, { method: 'DELETE' })
+      setItems((prev) => prev.filter((item) => item.article.id !== articleId))
+    } catch (reason) {
+      setActionError(asApiError(reason).message)
+    } finally {
+      setRemoving(null)
+    }
   }
 
   if (loading) return <TabLoader />
+  if (actionError && items.length === 0) return <TabError message={actionError} />
   if (items.length === 0) {
     return (
       <EmptyState
@@ -314,6 +339,7 @@ function SavedArticlesTab() {
 
   return (
     <div className="space-y-3">
+      {actionError && <TabError message={actionError} />}
       {items.map(({ id, createdAt, article }) => (
         <div key={id} className="flex items-center gap-4 p-3 bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-gold/40 transition-colors group">
           <ArticleThumbnail src={article.coverImage} title={article.title} />
@@ -351,17 +377,19 @@ function SavedArticlesTab() {
 function DebateVotesTab() {
   const [items, setItems] = useState<DebateVoteItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     setLoading(true)
-    fetch('/api/profile/debate-votes')
-      .then((r) => r.json())
+    setLoadError('')
+    apiRequest<DebateVoteItem[]>('/api/profile/debate-votes')
       .then((data) => { if (Array.isArray(data)) setItems(data) })
-      .catch(() => {})
+      .catch((reason) => setLoadError(asApiError(reason).message))
       .finally(() => setLoading(false))
   }, [])
 
   if (loading) return <TabLoader />
+  if (loadError) return <TabError message={loadError} />
   if (items.length === 0) {
     return (
       <EmptyState
@@ -425,17 +453,19 @@ function DebateVotesTab() {
 function MyCommentsTab() {
   const [items, setItems] = useState<CommentItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     setLoading(true)
-    fetch('/api/profile/comments')
-      .then((r) => r.json())
+    setLoadError('')
+    apiRequest<CommentItem[]>('/api/profile/comments')
       .then((data) => { if (Array.isArray(data)) setItems(data) })
-      .catch(() => {})
+      .catch((reason) => setLoadError(asApiError(reason).message))
       .finally(() => setLoading(false))
   }, [])
 
   if (loading) return <TabLoader />
+  if (loadError) return <TabError message={loadError} />
   if (items.length === 0) {
     return (
       <EmptyState
@@ -505,18 +535,16 @@ function AccountSettingsTab({
     setSaving(true)
     setSaveError('')
     try {
-      const res = await fetch('/api/profile/account', {
+      const data = await apiRequest<{ name?: string | null }>('/api/profile/account', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, bio }),
       })
-      if (!res.ok) throw new Error('Save failed')
-      const data = await res.json()
       onNameChange(data.name ?? name)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
-    } catch {
-      setSaveError('Failed to save changes. Please try again.')
+    } catch (reason) {
+      setSaveError(asApiError(reason).message)
     } finally {
       setSaving(false)
     }
@@ -526,19 +554,15 @@ function AccountSettingsTab({
     setDeleting(true)
     setDeleteError('')
     try {
-      const res = await fetch('/api/profile/account', {
+      await apiRequest('/api/profile/account', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ confirmEmail }),
       })
-      if (!res.ok) {
-        const d = await res.json()
-        throw new Error(d.error ?? 'Delete failed')
-      }
       await signOut({ redirect: false })
       router.push('/?deleted=true')
-    } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : 'Delete failed')
+    } catch (reason) {
+      setDeleteError(asApiError(reason).message)
     } finally {
       setDeleting(false)
     }
@@ -705,12 +729,12 @@ export function ProfileTabs({ initialName, initialBio, email, image, createdAt, 
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'history')
   const [displayName, setDisplayName] = useState(initialName)
   const [stats, setStats] = useState<Stats | null>(null)
+  const [statsError, setStatsError] = useState('')
 
   useEffect(() => {
-    fetch('/api/profile/stats')
-      .then((r) => r.json())
+    apiRequest<Stats>('/api/profile/stats')
       .then((d) => setStats(d))
-      .catch(() => {})
+      .catch((reason) => setStatsError(asApiError(reason).message))
   }, [])
 
   const handleTabChange = (tab: TabId) => {
@@ -771,6 +795,11 @@ export function ProfileTabs({ initialName, initialBio, email, image, createdAt, 
                 <StatPill icon={<Clock size={14} />} value={stats.readingTimeSavedMins >= 60 ? `${Math.round(stats.readingTimeSavedMins / 60)}h` : `${stats.readingTimeSavedMins}m`} label="Reading time" />
               )}
             </div>
+          )}
+          {statsError && (
+            <p role="alert" className="mt-3 text-xs text-red-300">
+              Profile statistics could not be loaded: {statsError}
+            </p>
           )}
         </div>
       </section>

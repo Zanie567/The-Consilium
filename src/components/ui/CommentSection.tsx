@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { formatDistanceToNow, format, isAfter, subDays } from 'date-fns'
 import { ThumbsUp, Reply, Trash2, Flag, ChevronDown } from 'lucide-react'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -84,20 +85,15 @@ function Composer({ articleId, parentId, onSuccess, onCancel, autoFocus }: Compo
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/comments', {
+      const comment = await apiRequest<CommentItem>('/api/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ articleId, body, parentId }),
       })
-      const json = await res.json()
-      if (!res.ok) {
-        setError(json.error ?? 'Failed to post comment.')
-        return
-      }
       setBody('')
-      onSuccess(json)
-    } catch {
-      setError('Failed to post comment. Please try again.')
+      onSuccess(comment)
+    } catch (submitError) {
+      setError(asApiError(submitError).message)
     } finally {
       setLoading(false)
     }
@@ -164,36 +160,50 @@ function SingleComment({
   const [showReply, setShowReply] = useState(false)
   const [reported, setReported] = useState(false)
   const [showReplies, setShowReplies] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [actionPending, setActionPending] = useState(false)
 
   async function toggleUpvote() {
     if (!currentUser) return
+    setActionError(null)
+    setActionPending(true)
     try {
-      const res = await fetch(`/api/comments/${comment.id}/upvote`, { method: 'POST' })
-      if (res.ok) {
-        const json = await res.json()
-        setUpvotes(json.upvotes)
-        setUpvoted(json.upvoted)
-      }
-    } catch {
-      // Network error - upvote state unchanged
+      const result = await apiRequest<{ upvotes: number; upvoted: boolean }>(
+        `/api/comments/${comment.id}/upvote`,
+        { method: 'POST' },
+      )
+      setUpvotes(result.upvotes)
+      setUpvoted(result.upvoted)
+    } catch (upvoteError) {
+      setActionError(asApiError(upvoteError).message)
+    } finally {
+      setActionPending(false)
     }
   }
 
   async function handleDelete() {
+    setActionError(null)
+    setActionPending(true)
     try {
-      const res = await fetch(`/api/comments/${comment.id}`, { method: 'DELETE' })
-      if (res.ok) onDelete(comment.id)
-    } catch {
-      // Network error - comment not deleted
+      await apiRequest(`/api/comments/${comment.id}`, { method: 'DELETE' })
+      onDelete(comment.id)
+    } catch (deleteError) {
+      setActionError(asApiError(deleteError).message)
+    } finally {
+      setActionPending(false)
     }
   }
 
   async function handleReport() {
+    setActionError(null)
+    setActionPending(true)
     try {
-      const res = await fetch(`/api/comments/${comment.id}/report`, { method: 'POST' })
-      if (res.ok) setReported(true)
-    } catch {
-      // Network error - report not submitted
+      await apiRequest(`/api/comments/${comment.id}/report`, { method: 'POST' })
+      setReported(true)
+    } catch (reportError) {
+      setActionError(asApiError(reportError).message)
+    } finally {
+      setActionPending(false)
     }
   }
 
@@ -215,7 +225,7 @@ function SingleComment({
         <div className="flex items-center gap-3 mt-2">
           <button
             onClick={toggleUpvote}
-            disabled={!currentUser}
+            disabled={!currentUser || actionPending}
             className={`flex items-center gap-1 text-[10px] font-semibold transition-colors ${
               upvoted ? 'text-gold' : 'text-[var(--fg-faint)] hover:text-gold'
             }`}
@@ -239,6 +249,7 @@ function SingleComment({
           {(isOwner || isAdmin) && (
             <button
               onClick={handleDelete}
+              disabled={actionPending}
               className="flex items-center gap-1 text-[10px] font-semibold text-[var(--fg-faint)] hover:text-red-500 transition-colors"
             >
               <Trash2 size={11} />
@@ -248,7 +259,7 @@ function SingleComment({
           {currentUser && !isOwner && (
             <button
               onClick={handleReport}
-              disabled={reported}
+              disabled={reported || actionPending}
               className={`flex items-center gap-1 text-[10px] font-semibold transition-colors ${
                 reported ? 'text-gold' : 'text-[var(--fg-faint)] hover:text-[var(--fg)]'
               }`}
@@ -258,6 +269,9 @@ function SingleComment({
             </button>
           )}
         </div>
+        {actionError && (
+          <p role="alert" className="text-red-600 text-xs mt-2">{actionError}</p>
+        )}
 
         {/* Reply composer */}
         {showReply && (
@@ -320,25 +334,19 @@ export function CommentSection({ articleId, currentUser }: Props) {
   const [comments, setComments] = useState<CommentItem[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchComments = useCallback(async () => {
     setLoading(true)
-    setError(false)
+    setError(null)
     try {
-      const res = await fetch(`/api/comments?articleId=${articleId}`)
-      if (!res.ok) {
-        // A failed fetch (e.g. a 503 from the pooler) must surface as an error
-        // state — not silently fall through to "No comments yet" or hang on the
-        // skeleton forever.
-        setError(true)
-        return
-      }
-      const json = await res.json()
-      setComments(Array.isArray(json.comments) ? json.comments : [])
-      setTotal(json.total ?? 0)
-    } catch {
-      setError(true)
+      const result = await apiRequest<{ comments: CommentItem[]; total: number }>(
+        `/api/comments?articleId=${encodeURIComponent(articleId)}`,
+      )
+      setComments(Array.isArray(result.comments) ? result.comments : [])
+      setTotal(result.total ?? 0)
+    } catch (loadError) {
+      setError(asApiError(loadError).message)
     } finally {
       setLoading(false)
     }
@@ -413,7 +421,7 @@ export function CommentSection({ articleId, currentUser }: Props) {
       ) : error ? (
         <div className="text-center py-8">
           <p className="text-[var(--fg-muted)] text-sm mb-3">
-            Couldn&apos;t load the discussion. Please try again.
+            {error}
           </p>
           <button
             onClick={fetchComments}

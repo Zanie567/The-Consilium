@@ -5,6 +5,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 function GoogleIcon() {
   return (
@@ -32,39 +33,42 @@ export function SignUpForm() {
     e.preventDefault()
     setLoading(true)
     setError('')
+    try {
+      await apiRequest('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password, agreed }),
+      })
 
-    const res = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password, agreed }),
-    })
+      // Auto sign-in after successful registration
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      })
 
-    if (!res.ok) {
-      const data = await res.json()
-      setError(data.error ?? 'Something went wrong.')
-      setLoading(false)
-      return
-    }
-
-    // Auto sign-in after successful registration
-    const result = await signIn('credentials', {
-      email,
-      password,
-      redirect: false,
-    })
-
-    if (result?.error) {
-      setError('Account created but sign-in failed. Please sign in manually.')
-      setLoading(false)
-    } else {
+      if (result?.error || !result?.ok) {
+        setError('Account created but sign-in failed. Please sign in manually.')
+        return
+      }
       router.push('/')
+    } catch (reason) {
+      setError(asApiError(reason).message)
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleGoogleSignUp = async () => {
     setGoogleLoading(true)
-    await signIn('google', { callbackUrl: '/' })
-    setGoogleLoading(false)
+    setError('')
+    try {
+      await signIn('google', { callbackUrl: '/' })
+    } catch {
+      setError('Google sign-in could not be started. Check your connection and try again.')
+    } finally {
+      setGoogleLoading(false)
+    }
   }
 
   return (

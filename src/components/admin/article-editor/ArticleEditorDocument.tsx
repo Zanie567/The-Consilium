@@ -17,6 +17,7 @@ const TiptapEditor = dynamic(
     onChange: (content: string) => void
     editable?: boolean
     saveStatus?: 'idle' | 'saving' | 'saved' | 'error'
+    saveError?: string
     toolbarPortalRef?: React.RefObject<HTMLDivElement | null>
     noWrapper?: boolean
     darkMode?: boolean
@@ -132,6 +133,7 @@ export function ArticleEditorDocument({ editor, editorRef, excerptDomRef, titleD
             onChange={actions.handleContentChange}
             editable={editor.canEdit}
             saveStatus={editor.saveStatus}
+            saveError={editor.error?.label}
             toolbarPortalRef={toolbarPortalRef}
             noWrapper
             darkMode={editor.isDark}

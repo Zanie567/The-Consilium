@@ -17,7 +17,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 const { prismaMock, authMock } = vi.hoisted(() => ({
   prismaMock: {
     article: { findUnique: vi.fn() },
-    categoryEditor: { findFirst: vi.fn() },
+    categoryEditor: { findMany: vi.fn() },
     articleComment: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
@@ -26,7 +26,7 @@ const { prismaMock, authMock } = vi.hoisted(() => ({
     },
     notification: { create: vi.fn(), createMany: vi.fn() },
   },
-  authMock: { getVerifiedSessionUser: vi.fn(), authOptions: {} },
+  authMock: { requireVerifiedSessionUser: vi.fn(), authOptions: {} },
 }))
 
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }))
@@ -49,6 +49,10 @@ const OWNER_WRITER = { id: 'writer-1', role: 'WRITER', name: 'Wren', email: 'wre
 const OTHER_WRITER = { id: 'writer-2', role: 'WRITER', name: 'Other', email: 'other@test' }
 const READER = { id: 'reader-1', role: 'READER', name: 'Reader', email: 'reader@test' }
 const GROWTH = { id: 'growth-1', role: 'GROWTH', name: 'Growth', email: 'growth@test' }
+
+function authenticate(user: typeof ADMIN) {
+  authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user })
+}
 
 const params = () => ({ params: Promise.resolve({ id: 'article-1' }) })
 const patchParams = () =>
@@ -77,7 +81,7 @@ const baseComment = {
 beforeEach(() => {
   vi.clearAllMocks()
   prismaMock.article.findUnique.mockResolvedValue(ARTICLE)
-  prismaMock.categoryEditor.findFirst.mockResolvedValue(null)
+  prismaMock.categoryEditor.findMany.mockResolvedValue([])
   prismaMock.articleComment.findMany.mockResolvedValue([])
   prismaMock.articleComment.create.mockResolvedValue(baseComment)
   prismaMock.notification.create.mockResolvedValue({})
@@ -88,58 +92,61 @@ beforeEach(() => {
 
 describe('GET /api/articles/[id]/comments authorization', () => {
   it('allows a writer to read comments on their own article', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(OWNER_WRITER)
+    authenticate(OWNER_WRITER)
     const res = await GET(new Request('http://localhost'), params())
     expect(res.status).toBe(200)
   })
 
   it('denies a writer reading another writer\'s article comments', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(OTHER_WRITER)
+    authenticate(OTHER_WRITER)
     const res = await GET(new Request('http://localhost'), params())
     expect(res.status).toBe(403)
     expect(prismaMock.articleComment.findMany).not.toHaveBeenCalled()
   })
 
   it('denies unauthenticated access', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(null)
+    authMock.requireVerifiedSessionUser.mockResolvedValue({
+      ok: false,
+      response: Response.json({ error: 'Sign in again.', code: 'AUTH_REQUIRED' }, { status: 401 }),
+    })
     const res = await GET(new Request('http://localhost'), params())
     expect(res.status).toBe(401)
     expect(prismaMock.articleComment.findMany).not.toHaveBeenCalled()
   })
 
   it('denies the reader role', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(READER)
+    authenticate(READER)
     const res = await GET(new Request('http://localhost'), params())
     expect(res.status).toBe(403)
   })
 
   it('denies the growth role', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(GROWTH)
+    authenticate(GROWTH)
     const res = await GET(new Request('http://localhost'), params())
     expect(res.status).toBe(403)
   })
 
   it('allows admins on any article', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN)
+    authenticate(ADMIN)
     const res = await GET(new Request('http://localhost'), params())
     expect(res.status).toBe(200)
   })
 
   it('allows an unscoped editor, blocks a category-scoped editor on an out-of-scope article', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(EDITOR)
-    // Unscoped editor (no category assignments) on an uncategorised article.
+    authenticate(EDITOR)
+    // An editor with no assignments is global, including for categorised work.
+    prismaMock.article.findUnique.mockResolvedValue({ ...ARTICLE, categoryId: 'cat-1' })
     const ok = await GET(new Request('http://localhost'), params())
     expect(ok.status).toBe(200)
 
-    // Scoped editor, article in a category they are not assigned to.
-    prismaMock.article.findUnique.mockResolvedValue({ ...ARTICLE, categoryId: 'cat-1' })
-    prismaMock.categoryEditor.findFirst.mockResolvedValue(null)
+    // Once the editor has assignments, an unmatched category is out of scope.
+    prismaMock.categoryEditor.findMany.mockResolvedValue([{ categoryId: 'cat-other' }])
     const blocked = await GET(new Request('http://localhost'), params())
     expect(blocked.status).toBe(403)
   })
 
   it('404s for a missing or deleted article', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN)
+    authenticate(ADMIN)
     prismaMock.article.findUnique.mockResolvedValue(null)
     const res = await GET(new Request('http://localhost'), params())
     expect(res.status).toBe(404)
@@ -152,13 +159,13 @@ describe('POST /api/articles/[id]/comments authorization and validation', () => 
   it('lets a writer start a top-level comment thread on their own article', async () => {
     // Documented decision: writers may open threads on their own drafts (for
     // questions to editors), not just reply.
-    authMock.getVerifiedSessionUser.mockResolvedValue(OWNER_WRITER)
+    authenticate(OWNER_WRITER)
     const res = await POST(jsonReq({ commentText: 'Is this section too long?' }), params())
     expect(res.status).toBe(201)
   })
 
   it('lets a writer reply on their own article', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(OWNER_WRITER)
+    authenticate(OWNER_WRITER)
     prismaMock.articleComment.findUnique.mockResolvedValue(baseComment)
     const res = await POST(
       jsonReq({ commentText: 'Will fix, thanks.', parentId: 'comment-1' }),
@@ -168,42 +175,42 @@ describe('POST /api/articles/[id]/comments authorization and validation', () => 
   })
 
   it('blocks a writer from commenting on someone else\'s article', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(OTHER_WRITER)
+    authenticate(OTHER_WRITER)
     const res = await POST(jsonReq({ commentText: 'Sneaky' }), params())
     expect(res.status).toBe(403)
     expect(prismaMock.articleComment.create).not.toHaveBeenCalled()
   })
 
   it('rejects replying to a reply (threads stay one level deep)', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN)
+    authenticate(ADMIN)
     prismaMock.articleComment.findUnique.mockResolvedValue({ ...baseComment, parentId: 'root-1' })
     const res = await POST(jsonReq({ commentText: 'Nested', parentId: 'comment-1' }), params())
     expect(res.status).toBe(400)
   })
 
   it('rejects a parent comment that belongs to a different article', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN)
+    authenticate(ADMIN)
     prismaMock.articleComment.findUnique.mockResolvedValue({ ...baseComment, articleId: 'article-other' })
     const res = await POST(jsonReq({ commentText: 'Cross-wired', parentId: 'comment-1' }), params())
     expect(res.status).toBe(400)
   })
 
   it('rejects empty comments and invalid selections', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN)
+    authenticate(ADMIN)
     expect((await POST(jsonReq({ commentText: '   ' }), params())).status).toBe(400)
     expect((await POST(jsonReq({ commentText: 'ok', tiptapFrom: 10, tiptapTo: 4 }), params())).status).toBe(400)
     expect((await POST(jsonReq({ commentText: 'ok', tiptapFrom: -2, tiptapTo: 4 }), params())).status).toBe(400)
   })
 
   it('rejects a zero-length selection (to must be greater than from)', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN)
+    authenticate(ADMIN)
     const res = await POST(jsonReq({ commentText: 'ok', tiptapFrom: 5, tiptapTo: 5 }), params())
     expect(res.status).toBe(400)
     expect(prismaMock.articleComment.create).not.toHaveBeenCalled()
   })
 
   it('rejects non-integer selection positions', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN)
+    authenticate(ADMIN)
     const res = await POST(jsonReq({ commentText: 'ok', tiptapFrom: 1.5, tiptapTo: 4 }), params())
     expect(res.status).toBe(400)
     expect(prismaMock.articleComment.create).not.toHaveBeenCalled()
@@ -214,7 +221,7 @@ describe('POST /api/articles/[id]/comments authorization and validation', () => 
 
 describe('comment notifications', () => {
   it('notifies the article author when an editor opens a new thread', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(EDITOR)
+    authenticate(EDITOR)
     await POST(jsonReq({ commentText: 'Please revise the intro.' }), params())
     expect(prismaMock.notification.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -224,14 +231,14 @@ describe('comment notifications', () => {
   })
 
   it('does not notify anyone of their own actions', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(OWNER_WRITER)
+    authenticate(OWNER_WRITER)
     await POST(jsonReq({ commentText: 'Note to self' }), params())
     expect(prismaMock.notification.create).not.toHaveBeenCalled()
     expect(prismaMock.notification.createMany).not.toHaveBeenCalled()
   })
 
   it('notifies thread participants of a reply, excluding the replier', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(OWNER_WRITER)
+    authenticate(OWNER_WRITER)
     prismaMock.articleComment.findUnique.mockResolvedValue(baseComment) // root by editor-1
     prismaMock.articleComment.findMany.mockResolvedValue([{ authorId: 'admin-1' }])
     await POST(jsonReq({ commentText: 'Done.', parentId: 'comment-1' }), params())
@@ -243,7 +250,7 @@ describe('comment notifications', () => {
   })
 
   it('stops notifying once the thread is resolved', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(OWNER_WRITER)
+    authenticate(OWNER_WRITER)
     prismaMock.articleComment.findUnique.mockResolvedValue({ ...baseComment, resolved: true })
     const res = await POST(jsonReq({ commentText: 'Late reply', parentId: 'comment-1' }), params())
     expect(res.status).toBe(201)
@@ -271,25 +278,25 @@ describe('PATCH /api/articles/[id]/comments/[commentId] permissions', () => {
     })
 
   it('lets the article author (writer) resolve and reopen threads', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(OWNER_WRITER)
+    authenticate(OWNER_WRITER)
     const res = await PATCH(patchReq({ resolved: true }), patchParams())
     expect(res.status).toBe(200)
   })
 
   it('lets editors resolve threads', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(EDITOR)
+    authenticate(EDITOR)
     const res = await PATCH(patchReq({ resolved: true }), patchParams())
     expect(res.status).toBe(200)
   })
 
   it('blocks editing someone else\'s comment text', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN) // comment author is editor-1
+    authenticate(ADMIN) // comment author is editor-1
     const res = await PATCH(patchReq({ commentText: 'Rewritten' }), patchParams())
     expect(res.status).toBe(403)
   })
 
   it('404s when the comment belongs to a different article', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN)
+    authenticate(ADMIN)
     prismaMock.articleComment.findUnique.mockResolvedValue({
       ...baseComment,
       articleId: 'article-other',
@@ -300,7 +307,7 @@ describe('PATCH /api/articles/[id]/comments/[commentId] permissions', () => {
   })
 
   it('denies writers who do not own the article', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(OTHER_WRITER)
+    authenticate(OTHER_WRITER)
     const res = await PATCH(patchReq({ resolved: true }), patchParams())
     expect(res.status).toBe(403)
   })

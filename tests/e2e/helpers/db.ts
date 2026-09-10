@@ -119,3 +119,14 @@ export async function upsertFootnoteTestArticle(): Promise<string> {
   })
   return article.slug
 }
+
+/**
+ * A published article in the given category, for the editor-scope tests. They
+ * save it back unchanged, so the fixture data stays stable across runs.
+ */
+export async function findPublishedInCategory(categorySlug: string) {
+  return db().article.findFirst({
+    where: { status: 'PUBLISHED', deletedAt: null, category: { slug: categorySlug } },
+    select: { id: true, title: true, content: true, slug: true, excerpt: true },
+  })
+}

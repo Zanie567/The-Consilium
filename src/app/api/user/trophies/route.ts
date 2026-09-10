@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server'
-import { getVerifiedSessionUser } from '@/lib/auth'
+import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const user = await getVerifiedSessionUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const auth = await requireVerifiedSessionUser()
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
   try {
     const trophies = await prisma.articleTrophy.findMany({

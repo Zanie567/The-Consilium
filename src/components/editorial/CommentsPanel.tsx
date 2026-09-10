@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { MessageSquare, CheckCircle2, RotateCcw, ChevronDown, ChevronUp, Unlink } from 'lucide-react'
 import type { CommentAnchorMap } from '@/components/editorial/useCommentAnchors'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 export interface ArticleComment {
   id: string
@@ -28,6 +29,7 @@ interface Props {
   onSelectComment: (commentId: string | null) => void
   /** Per-comment anchor state; orphaned comments get flagged in the list. */
   anchors?: CommentAnchorMap
+  loadError?: string | null
 }
 
 export function CommentsPanel({
@@ -38,6 +40,7 @@ export function CommentsPanel({
   activeCommentId,
   onSelectComment,
   anchors,
+  loadError,
 }: Props) {
   const [showResolved, setShowResolved] = useState(false)
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
@@ -72,22 +75,16 @@ export function CommentsPanel({
     setSubmitting(true)
     setActionError(null)
     try {
-      const res = await fetch(`/api/articles/${articleId}/comments`, {
+      const data = await apiRequest<ArticleComment>(`/api/articles/${articleId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ commentText: replyText, parentId }),
       })
-      if (res.ok) {
-        const data = await res.json() as ArticleComment
-        onCommentAdded(data)
-        setReplyText('')
-        setReplyingTo(null)
-      } else {
-        const data = await res.json().catch(() => ({})) as { error?: string }
-        setActionError(data.error ?? 'Could not post the reply. Please try again.')
-      }
-    } catch {
-      setActionError('Network problem. Please try again.')
+      onCommentAdded(data)
+      setReplyText('')
+      setReplyingTo(null)
+    } catch (reason) {
+      setActionError(asApiError(reason).message)
     } finally {
       setSubmitting(false)
     }
@@ -98,22 +95,25 @@ export function CommentsPanel({
     resolvingComments.current.add(commentId)
     setActionError(null)
     try {
-      const res = await fetch(`/api/articles/${articleId}/comments/${commentId}`, {
+      await apiRequest(`/api/articles/${articleId}/comments/${commentId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resolved }),
       })
-      if (res.ok) {
-        onCommentResolved(commentId, resolved)
-      } else {
-        const data = await res.json().catch(() => ({})) as { error?: string }
-        setActionError(data.error ?? 'Could not update the comment. Please try again.')
-      }
-    } catch {
-      setActionError('Network problem. Please try again.')
+      onCommentResolved(commentId, resolved)
+    } catch (reason) {
+      setActionError(asApiError(reason).message)
     } finally {
       resolvingComments.current.delete(commentId)
     }
+  }
+
+  if (loadError) {
+    return (
+      <div role="alert" className="px-4 py-5 text-sm text-red-500">
+        Comments could not be loaded: {loadError}
+      </div>
+    )
   }
 
   if (comments.length === 0) {

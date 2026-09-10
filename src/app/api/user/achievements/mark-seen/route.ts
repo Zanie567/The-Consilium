@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server'
-import { getVerifiedSessionUser } from '@/lib/auth'
+import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 /** PATCH /api/user/achievements/mark-seen: marks the given achievements seen. */
 export async function PATCH(req: Request) {
-  const user = await getVerifiedSessionUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const auth = await requireVerifiedSessionUser()
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
   let ids: string[]
   try {

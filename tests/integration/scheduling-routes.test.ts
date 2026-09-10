@@ -28,10 +28,12 @@ const { prismaMock, authMock } = vi.hoisted(() => {
       tag: { upsert: vi.fn() },
       notification: { create: vi.fn(), createMany: vi.fn() },
       user: { findMany: vi.fn() },
+      $transaction: vi.fn(),
     },
     authMock: {
       authOptions: {},
       getVerifiedSessionUser: vi.fn(),
+      requireVerifiedSessionUser: vi.fn(),
       requireActiveSession: vi.fn(),
     },
   }
@@ -92,11 +94,14 @@ beforeEach(() => {
   prismaMock.article.update.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
     Promise.resolve({ ...baseArticle, ...data })
   )
+  prismaMock.$transaction.mockImplementation(
+    (callback: (tx: typeof prismaMock) => Promise<unknown>) => callback(prismaMock)
+  )
 })
 
 describe('PUT /api/articles/[id] scheduling validation', () => {
   it('rejects SCHEDULED with no scheduledAt and none stored (limbo guard)', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN)
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: ADMIN })
     prismaMock.article.findUnique.mockResolvedValue({ ...baseArticle })
 
     const res = await articlePUT(putRequest({ status: 'SCHEDULED' }), articleParams())
@@ -107,7 +112,7 @@ describe('PUT /api/articles/[id] scheduling validation', () => {
   })
 
   it('rejects SCHEDULED with a past scheduledAt', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN)
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: ADMIN })
     prismaMock.article.findUnique.mockResolvedValue({ ...baseArticle })
 
     const res = await articlePUT(
@@ -119,7 +124,7 @@ describe('PUT /api/articles/[id] scheduling validation', () => {
   })
 
   it('rejects SCHEDULED with an unparseable scheduledAt', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN)
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: ADMIN })
     prismaMock.article.findUnique.mockResolvedValue({ ...baseArticle })
 
     const res = await articlePUT(
@@ -130,7 +135,7 @@ describe('PUT /api/articles/[id] scheduling validation', () => {
   })
 
   it('accepts SCHEDULED with a valid future scheduledAt', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN)
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: ADMIN })
     prismaMock.article.findUnique.mockResolvedValue({ ...baseArticle })
 
     const res = await articlePUT(
@@ -146,7 +151,7 @@ describe('PUT /api/articles/[id] scheduling validation', () => {
 
   it('keeps the stored schedule when SCHEDULED is re-saved without scheduledAt (autosave)', async () => {
     const stored = new Date('2099-06-15T08:00:00.000Z')
-    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN)
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: ADMIN })
     prismaMock.article.findUnique.mockResolvedValue({
       ...baseArticle,
       status: 'SCHEDULED',
@@ -160,7 +165,7 @@ describe('PUT /api/articles/[id] scheduling validation', () => {
   })
 
   it('clears scheduledAt when a scheduled article is moved back to DRAFT', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(ADMIN)
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: ADMIN })
     prismaMock.article.findUnique.mockResolvedValue({
       ...baseArticle,
       status: 'SCHEDULED',
@@ -175,7 +180,7 @@ describe('PUT /api/articles/[id] scheduling validation', () => {
   })
 
   it('ignores a WRITER attempt to set status=SCHEDULED on their own draft', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(WRITER)
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: WRITER })
     prismaMock.article.findUnique.mockResolvedValue({ ...baseArticle })
 
     const res = await articlePUT(

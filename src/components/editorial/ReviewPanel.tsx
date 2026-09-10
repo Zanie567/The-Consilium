@@ -16,6 +16,7 @@ import { ArticlePreviewWithComments } from '@/components/editorial/ArticlePrevie
 import type { CommentAnchorMap } from '@/components/editorial/useCommentAnchors'
 import { useArticleComments } from '@/components/editorial/useArticleComments'
 import { CommendationEditor } from '@/components/editorial/CommendationEditor'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 interface Note {
   id: string
@@ -54,7 +55,7 @@ export function ReviewPanel({ article }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
   const [note, setNote] = useState('')
-  const { comments, addComment, setCommentResolved } = useArticleComments(article.id)
+  const { comments, error: commentsError, addComment, setCommentResolved } = useArticleComments(article.id)
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
   const [commentAnchors, setCommentAnchors] = useState<CommentAnchorMap>({})
   const [commentsTab, setCommentsTab] = useState<'actions' | 'comments'>('actions')
@@ -74,49 +75,65 @@ export function ReviewPanel({ article }: Props) {
   const act = async (action: string, extra?: Record<string, unknown>) => {
     setLoading(action)
     setError('')
-    const res = await fetch(`/api/editorial/articles/${article.id}/review`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, ...extra }),
-    })
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({ error: 'Action failed.' }))
-      setError(typeof d.error === 'string' ? d.error : 'Action failed.')
+    try {
+      const data = await apiRequest<{ status?: string }>(
+        `/api/editorial/articles/${article.id}/review`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, ...extra }),
+        }
+      )
+      if (data.status) setStatus(data.status)
+      if (action === 'approve' || action === 'schedule' || action === 'unpublish') {
+        router.push('/editorial')
+      }
+    } catch (reason) {
+      setError(asApiError(reason).message)
+    } finally {
       setLoading(null)
-      return
     }
-    const data = (await res.json()) as { status?: string }
-    if (data.status) setStatus(data.status)
-    setLoading(null)
-    if (action === 'approve' || action === 'schedule' || action === 'unpublish') router.push('/editorial')
   }
 
   const addNote = async () => {
     if (!note.trim()) return
     setLoading('note')
-    const res = await fetch(`/api/articles/${article.id}/notes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: note }),
-    })
-    if (res.ok) {
-      const data = (await res.json()) as Note
+    setError('')
+    try {
+      const data = await apiRequest<Note>(`/api/articles/${article.id}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: note }),
+      })
       setNotes((prev) => [...prev, data])
       setNote('')
+    } catch (reason) {
+      setError(asApiError(reason).message)
+    } finally {
+      setLoading(null)
     }
-    setLoading(null)
   }
 
   const toggleFeature = async () => {
     const method = isFeatured ? 'DELETE' : 'POST'
-    const res = await fetch(`/api/editorial/articles/${article.id}/feature`, { method })
-    if (res.ok) setIsFeatured(!isFeatured)
+    setError('')
+    try {
+      await apiRequest(`/api/editorial/articles/${article.id}/feature`, { method })
+      setIsFeatured(!isFeatured)
+    } catch (reason) {
+      setError(asApiError(reason).message)
+    }
   }
 
   const togglePin = async () => {
     const method = isPinned ? 'DELETE' : 'POST'
-    const res = await fetch(`/api/editorial/articles/${article.id}/pin`, { method })
-    if (res.ok) setIsPinned(!isPinned)
+    setError('')
+    try {
+      await apiRequest(`/api/editorial/articles/${article.id}/pin`, { method })
+      setIsPinned(!isPinned)
+    } catch (reason) {
+      setError(asApiError(reason).message)
+    }
   }
 
   return (
@@ -219,6 +236,7 @@ export function ReviewPanel({ article }: Props) {
                   activeCommentId={activeCommentId}
                   onSelectComment={setActiveCommentId}
                   anchors={commentAnchors}
+                  loadError={commentsError}
                 />
               </div>
             ) : (

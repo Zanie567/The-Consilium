@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
-import { getVerifiedSessionUser } from '@/lib/auth'
+import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, articleReturnedEmail, articlePublishedEmail } from '@/lib/email'
 import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
 import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 import { revalidateArticleLists } from '@/lib/revalidateArticles'
+import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
+import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
+import { apiError } from '@/lib/apiResponse'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -13,10 +16,9 @@ interface Props {
 // PATCH - editor action on a submitted article
 // action: 'approve' | 'reject' | 'schedule' | 'return' | 'unpublish'
 export async function PATCH(req: Request, { params }: Props) {
-  const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
-  if (!user) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const auth = await requireVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
   const { id } = await params
   const { action, note, scheduledAt, corrected, correctionNote } = await req.json()
@@ -31,22 +33,13 @@ export async function PATCH(req: Request, { params }: Props) {
   // The guard must apply even when the article has no category so that
   // category-restricted editors cannot review uncategorised articles.
   if (user.role === 'EDITOR') {
-    if (article.categoryId) {
-      const assignment = await prisma.categoryEditor.findFirst({
-          where: { userId: user.id, categoryId: article.categoryId },
-      })
-      if (!assignment) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    } else {
-      // Uncategorised article: an editor who has category restrictions cannot
-      // review it because there is no matching assignment to grant access.
-      const anyAssignment = await prisma.categoryEditor.findFirst({
-        where: { userId: user.id },
-      })
-      if (anyAssignment) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
+    const scope = await loadEditorCategoryScope(user.id)
+    if (!editorCanAccessCategory(scope, article.categoryId)) {
+      return apiError(
+        'This article is outside your assigned categories.',
+        403,
+        'CATEGORY_SCOPE_DENIED'
+      )
     }
   }
 

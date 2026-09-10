@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { checkArticleCommentAccess } from '@/lib/articleCommentAccess'
+import { apiError, isPrismaSchemaMismatch } from '@/lib/apiResponse'
 
 interface Props {
   params: Promise<{ id: string; commentId: string }>
@@ -83,6 +84,13 @@ export async function PATCH(req: Request, { params }: Props) {
     })
   } catch (error) {
     console.error('Update article comment error:', error)
+    if (isPrismaSchemaMismatch(error)) {
+      return apiError(
+        'Inline comments are unavailable because the database migration has not been applied.',
+        503,
+        'SCHEMA_MISMATCH'
+      )
+    }
     return NextResponse.json({ error: 'Failed to update the comment.' }, { status: 500 })
   }
 }

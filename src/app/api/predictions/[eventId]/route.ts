@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions, getVerifiedSessionUser } from '@/lib/auth'
+import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { PREDICTIONS_ACCESS_ROLES } from '@/lib/rbac'
+import { PREDICTIONS_ACCESS_ROLES, isAllowedRole } from '@/lib/rbac'
 import { validateSubmission } from '@/lib/predictions'
 
 export const dynamic = 'force-dynamic'
@@ -23,16 +22,18 @@ interface Props {
 export async function POST(req: Request, { params }: Props) {
   const { eventId } = await params
 
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Sign in to submit a prediction.' }, { status: 401 })
-  }
-
   // Visibility gate: re-verified against the database, never trusted from the
-  // JWT. The allowed roles live in PREDICTIONS_ACCESS_ROLES in src/lib/rbac.ts.
-  // This also rejects inactive and banned accounts.
-  const user = await getVerifiedSessionUser(PREDICTIONS_ACCESS_ROLES)
-  if (!user) {
+  // JWT. This also rejects inactive and banned accounts.
+  //
+  // The role check is deliberately NOT delegated to requireVerifiedSessionUser:
+  // predictions are an admin-only trial, and a 403 would confirm the feature
+  // exists to anyone signed in. A role mismatch is reported as 404, exactly as
+  // an unknown event would be. Authentication failures keep their own 401.
+  const auth = await requireVerifiedSessionUser()
+  if (!auth.ok) return auth.response
+  const user = auth.user
+
+  if (!isAllowedRole(user.role, PREDICTIONS_ACCESS_ROLES)) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 export function NewsletterSignup() {
   const [email, setEmail] = useState('')
@@ -12,23 +13,17 @@ export function NewsletterSignup() {
     e.preventDefault()
     setStatus('loading')
     try {
-      const res = await fetch('/api/subscribe', {
+      await apiRequest('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       })
-      const data = await res.json()
-      if (res.ok) {
-        setStatus('success')
-        setMessage('Thank you for subscribing to The Consilium.')
-        setEmail('')
-      } else {
-        setStatus('error')
-        setMessage(data.error || 'Something went wrong. Please try again.')
-      }
-    } catch {
+      setStatus('success')
+      setMessage('Thank you for subscribing to The Consilium.')
+      setEmail('')
+    } catch (reason) {
       setStatus('error')
-      setMessage('Something went wrong. Please try again.')
+      setMessage(asApiError(reason).message)
     }
   }
 

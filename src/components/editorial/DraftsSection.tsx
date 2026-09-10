@@ -7,6 +7,7 @@ import { useState } from 'react'
 export const DRAFTS_SWR_KEY = '/api/editorial/articles?mine=true&status=DRAFT'
 import { formatDistanceToNow } from 'date-fns'
 import { Trash2 } from 'lucide-react'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 interface Draft {
   id: string
@@ -27,17 +28,10 @@ export function DraftsSection({ drafts }: { drafts: Draft[] }) {
     setDeleting(id)
     setDeleteError(null)
     try {
-      const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' })
-      if (!res.ok) {
-        // Revert the UI and show an error instead of silently refreshing
-        const data = await res.json().catch(() => ({}))
-        setDeleteError(data.error ?? `Could not delete draft (${res.status}). Please try again.`)
-        return
-      }
+      await apiRequest(`/api/articles/${id}`, { method: 'DELETE' })
       router.refresh()
-    } catch {
-      // Network error - revert and inform the user
-      setDeleteError('Could not reach the server. Check your connection and try again.')
+    } catch (reason) {
+      setDeleteError(asApiError(reason).message)
     } finally {
       setDeleting(null)
       setConfirmId(null)
@@ -50,7 +44,7 @@ export function DraftsSection({ drafts }: { drafts: Draft[] }) {
     <div>
       {/* Show delete errors so the user knows the draft was not removed */}
       {deleteError && (
-        <div className="mb-3 bg-red-500/10 border border-red-500/20 px-4 py-3 text-red-600 dark:text-red-400 text-xs flex items-center justify-between gap-3">
+        <div role="alert" className="mb-3 bg-red-500/10 border border-red-500/20 px-4 py-3 text-red-600 dark:text-red-400 text-xs flex items-center justify-between gap-3">
           <span>{deleteError}</span>
           <button
             onClick={() => setDeleteError(null)}

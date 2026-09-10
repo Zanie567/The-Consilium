@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { COMMISSIONING_BRIEF_MAX_LENGTH, EDITORIAL_API_ROUTES } from '@/lib/constants'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 /**
  * Admin/Growth control for the commissioning brief shown to writers on their
@@ -20,6 +21,7 @@ export function CommissioningBriefEditor({
   const [savedValue, setSavedValue] = useState(initialBrief ?? '')
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<'idle' | 'saved' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState('')
 
   // Only ADMIN and GROWTH may edit the brief; everyone else sees nothing here.
   if (userRole !== 'ADMIN' && userRole !== 'GROWTH') return null
@@ -29,23 +31,20 @@ export function CommissioningBriefEditor({
   const save = async () => {
     setSaving(true)
     setStatus('idle')
+    setErrorMessage('')
     try {
-      const res = await fetch(EDITORIAL_API_ROUTES.commissioningBrief, {
+      const data = await apiRequest<{ brief: string | null }>(EDITORIAL_API_ROUTES.commissioningBrief, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ brief: value.trim() === '' ? null : value.trim() }),
       })
-      if (!res.ok) {
-        setStatus('error')
-        return
-      }
-      const data = (await res.json()) as { brief: string | null }
       const next = data.brief ?? ''
       setValue(next)
       setSavedValue(next)
       setStatus('saved')
-    } catch {
+    } catch (reason) {
       setStatus('error')
+      setErrorMessage(asApiError(reason).message)
     } finally {
       setSaving(false)
     }
@@ -79,7 +78,7 @@ export function CommissioningBriefEditor({
           {status === 'saved'
             ? 'Brief saved.'
             : status === 'error'
-              ? 'Could not save. Try again.'
+              ? errorMessage
               : ''}
         </span>
         <span>

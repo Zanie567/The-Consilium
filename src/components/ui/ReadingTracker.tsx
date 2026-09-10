@@ -19,8 +19,14 @@ import { motion, useMotionValue, useSpring, AnimatePresence } from 'framer-motio
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { BookOpen, X } from 'lucide-react'
+import { apiRequest } from '@/lib/apiClient'
 
 const LS_KEY = (id: string) => `consilium_rp_${id}`
+
+/** Consecutive sync failures before a problem is worth a reader's attention. */
+const FAILURES_BEFORE_NOTICE = 3
+/** How long that notice stays up if nothing succeeds in the meantime. */
+const NOTICE_TIMEOUT_MS = 10_000
 
 interface SavedProgress {
   progress: number
@@ -34,8 +40,17 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
 
   const [restoreBanner, setRestoreBanner] = useState<{ scrollY: number; progress: number } | null>(null)
   const [guestNudge, setGuestNudge] = useState(false)
+  // Whether progress sync is currently failing. Only a flag: the reader is told
+  // what it means for them, not shown the underlying error text.
+  const [syncFailing, setSyncFailing] = useState(false)
   const lastSaved = useRef(0)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Reading-progress sync is a background nicety, and the site is known to
+  // return the occasional 503 under prefetch bursts (see src/lib/prisma.ts).
+  // Telling a reader about a single blip is noise, so only surface a problem
+  // once it looks persistent, and take the notice away again on its own.
+  const consecutiveFailures = useRef(0)
+  const syncErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasScrolled = useRef(false)
   // Mirror of the banner's saved scroll position so the scroll handler (whose
   // closure is created once) can compare against it without being re-bound.
@@ -47,6 +62,29 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
     setRestoreBanner(null)
   }, [])
 
+  const noteSyncFailure = useCallback(() => {
+    consecutiveFailures.current += 1
+    if (consecutiveFailures.current < FAILURES_BEFORE_NOTICE) return
+
+    setSyncFailing(true)
+    if (syncErrorTimer.current) clearTimeout(syncErrorTimer.current)
+    syncErrorTimer.current = setTimeout(() => setSyncFailing(false), NOTICE_TIMEOUT_MS)
+  }, [])
+
+  const noteSyncSuccess = useCallback(() => {
+    consecutiveFailures.current = 0
+    if (syncErrorTimer.current) {
+      clearTimeout(syncErrorTimer.current)
+      syncErrorTimer.current = null
+    }
+    setSyncFailing(false)
+  }, [])
+
+  // Never leave a pending dismissal behind on unmount.
+  useEffect(() => () => {
+    if (syncErrorTimer.current) clearTimeout(syncErrorTimer.current)
+  }, [])
+
   // ── Progress bar tracking ─────────────────────────────────────────────────
   const getProgress = useCallback(() => {
     const docH = document.documentElement.scrollHeight - window.innerHeight
@@ -56,17 +94,19 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
   // ── Persist progress ──────────────────────────────────────────────────────
   const persist = useCallback((pct: number, scrollY: number) => {
     if (session?.user?.id) {
-      fetch('/api/reading-progress', {
+      void apiRequest('/api/reading-progress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ articleId, progress: pct, scrollY }),
-      }).catch(() => {})
+      })
+        .then(() => noteSyncSuccess())
+        .catch(() => noteSyncFailure())
     } else {
       try {
         localStorage.setItem(LS_KEY(articleId), JSON.stringify({ progress: pct, scrollY }))
       } catch {}
     }
-  }, [articleId, session])
+  }, [articleId, session, noteSyncSuccess, noteSyncFailure])
 
   // ── Scroll handler ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -126,10 +166,9 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
     }
 
     if (session?.user?.id) {
-      fetch(`/api/reading-progress/${articleId}`)
-        .then((r) => r.json())
+      apiRequest<SavedProgress | null>(`/api/reading-progress/${articleId}`)
         .then((data) => tryRestore(data))
-        .catch(() => {})
+        .catch(() => { if (!cancelled) noteSyncFailure() })
     } else {
       try {
         const raw = localStorage.getItem(LS_KEY(articleId))
@@ -138,7 +177,7 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
     }
 
     return () => { cancelled = true }
-  }, [articleId, session])
+  }, [articleId, session, noteSyncFailure])
 
   const scrollToSaved = (scrollY: number) => {
     window.scrollTo({ top: scrollY, behavior: 'smooth' })
@@ -152,6 +191,17 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
         className="fixed top-0 left-0 right-0 z-[70] h-[3px] bg-gold origin-left pointer-events-none"
         style={{ scaleX }}
       />
+
+      {syncFailing && session?.user?.id && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-4 left-4 z-[60] max-w-xs border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-3.5 py-2.5 text-xs text-[var(--fg-muted)] shadow-lg"
+        >
+          Your reading position isn&rsquo;t saving right now. You can keep reading — we&rsquo;ll
+          retry automatically.
+        </div>
+      )}
 
       {/* Restore banner */}
       <AnimatePresence>

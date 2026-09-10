@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { NextAuthOptions } from 'next-auth'
+import { NextAuthOptions, type Session } from 'next-auth'
 import { getServerSession } from 'next-auth'
 import { PrismaAdapter } from '@auth/prisma-adapter'
 import CredentialsProvider from 'next-auth/providers/credentials'
@@ -8,6 +8,7 @@ import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 import { sendEmail } from './email'
 import { escapeHtml } from './escapeHtml'
+import { apiServerErrorResponse } from './apiResponse'
 import type { Role, PrismaClient } from '@prisma/client'
 
 if (!process.env.NEXTAUTH_SECRET) {
@@ -309,31 +310,139 @@ export const authOptions: NextAuthOptions = {
 export async function getVerifiedSessionUser(
   allowedRoles?: readonly Role[]
 ): Promise<{ id: string; role: Role; name: string | null; email: string | null } | null> {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id) return null
+  const result = await requireVerifiedSessionUser(allowedRoles)
+  return result.ok ? result.user : null
+}
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { id: true, role: true, name: true, email: true, isActive: true, isBanned: true },
-  })
+export type VerifiedSessionUser = {
+  id: string
+  role: Role
+  name: string | null
+  email: string | null
+}
 
-  if (!user || !user.isActive || user.isBanned) return null
-  if (allowedRoles && !allowedRoles.includes(user.role)) return null
+export type VerifiedSessionUserResult =
+  | { ok: true; user: VerifiedSessionUser }
+  | { ok: false; response: NextResponse }
 
-  return { id: user.id, role: user.role, name: user.name, email: user.email }
+/**
+ * Authentication and authorization for mutation route handlers.
+ *
+ * Unlike the legacy nullable helper, this preserves the reason verification
+ * failed so an expired session is a 401 rather than an indistinguishable 403.
+ */
+export async function requireVerifiedSessionUser(
+  allowedRoles?: readonly Role[]
+): Promise<VerifiedSessionUserResult> {
+  let session: Session | null
+  try {
+    session = await getServerSession(authOptions)
+  } catch (error) {
+    return {
+      ok: false,
+      response: apiServerErrorResponse(error, {
+        operation: 'auth:read-session',
+        userMessage: 'Your session could not be verified because the authentication service is unavailable. Try again.',
+        code: 'AUTH_VERIFICATION_UNAVAILABLE',
+        status: 503,
+      }),
+    }
+  }
+  if (!session?.user?.id) {
+    // No session cookie at all. This is indistinguishable from an expired one
+    // server-side, and the commonest case is a reader who simply never signed
+    // in — so the copy has to be true for both. "Your session has expired" is
+    // confusing to someone who never had one.
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: 'You need to sign in to continue.', code: 'AUTH_REQUIRED' },
+        { status: 401 }
+      ),
+    }
+  }
+
+  let user: (VerifiedSessionUser & { isActive: boolean; isBanned: boolean }) | null
+  try {
+    user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, role: true, name: true, email: true, isActive: true, isBanned: true },
+    })
+  } catch (error) {
+    return {
+      ok: false,
+      response: apiServerErrorResponse(error, {
+        operation: 'auth:verify-user',
+        userMessage: 'Your session could not be verified because the account service is unavailable. Try again.',
+        code: 'AUTH_VERIFICATION_UNAVAILABLE',
+        status: 503,
+      }),
+    }
+  }
+
+  if (!user) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: 'Your session is no longer valid. Sign in again to continue.', code: 'AUTH_REQUIRED' },
+        { status: 401 }
+      ),
+    }
+  }
+  if (!user.isActive) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: 'Your account is inactive.', code: 'ACCOUNT_INACTIVE' },
+        { status: 403 }
+      ),
+    }
+  }
+  if (user.isBanned) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: 'Your account has been suspended.', code: 'ACCOUNT_SUSPENDED' },
+        { status: 403 }
+      ),
+    }
+  }
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: 'You do not have permission to perform this action.', code: 'PERMISSION_DENIED' },
+        { status: 403 }
+      ),
+    }
+  }
+
+  return {
+    ok: true,
+    user: { id: user.id, role: user.role, name: user.name, email: user.email },
+  }
 }
 
 export function requireActiveSession(
   session: { user?: { isBanned?: boolean; isActive?: boolean } | null } | null
 ): Response | null {
   if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json(
+      { error: 'Your session has expired. Sign in again to continue.', code: 'AUTH_REQUIRED' },
+      { status: 401 }
+    )
   }
   if (session.user.isActive === false) {
-    return NextResponse.json({ error: 'Your account is inactive.' }, { status: 403 })
+    return NextResponse.json(
+      { error: 'Your account is inactive.', code: 'ACCOUNT_INACTIVE' },
+      { status: 403 }
+    )
   }
   if (session.user.isBanned) {
-    return NextResponse.json({ error: 'Your account has been suspended.' }, { status: 403 })
+    return NextResponse.json(
+      { error: 'Your account has been suspended.', code: 'ACCOUNT_SUSPENDED' },
+      { status: 403 }
+    )
   }
   return null
 }

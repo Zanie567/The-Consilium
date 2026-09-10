@@ -33,6 +33,7 @@ import React, {
 import { createPortal } from 'react-dom'
 import type { NodeViewProps } from '@tiptap/core'
 import { cleanPastedHTML } from '@/lib/editor/cleanPastedHTML'
+import { ApiError, apiRequest, asApiError } from '@/lib/apiClient'
 import { CommentHighlight } from './commentHighlight'
 
 // ── Module augmentations ─────────────────────────────────────────────────────
@@ -190,6 +191,7 @@ interface TiptapEditorProps {
   onChange: (content: string) => void
   editable?: boolean
   saveStatus?: 'idle' | 'saving' | 'saved' | 'error'
+  saveError?: string
   toolbarPortalRef?: React.RefObject<HTMLDivElement | null>
   onEditorReady?: (editor: Editor) => void
   noWrapper?: boolean
@@ -224,7 +226,7 @@ const GOOGLE_DOCS_COLORS: string[] = [
 
 // ── Main component ────────────────────────────────────────────────────────────
 export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
-  function TiptapEditor({ content, onChange, editable = true, saveStatus, toolbarPortalRef, onEditorReady, noWrapper, darkMode, onCommentClick }, ref) {
+  function TiptapEditor({ content, onChange, editable = true, saveStatus, saveError, toolbarPortalRef, onEditorReady, noWrapper, darkMode, onCommentClick }, ref) {
     const fileInputRef      = useRef<HTMLInputElement>(null)
     const linkInputRef      = useRef<HTMLInputElement>(null)
     const _fontSizeRef      = useRef<HTMLInputElement>(null)
@@ -263,13 +265,16 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
           const form = new FormData()
           form.append('file', file)
           form.append('bucket', 'article-images')
-          const uploadRes = await fetch('/api/upload', { method: 'POST', body: form })
-          const data = await uploadRes.json()
-          if (uploadRes.ok) return data.url as string
-          setUploadError(data.error ?? 'Paste image upload failed.')
-          return null
-        } catch {
-          setUploadError('Paste image upload failed. Check your connection.')
+          const data = await apiRequest<{ url?: string }>('/api/upload', {
+            method: 'POST',
+            body: form,
+          })
+          if (!data.url) {
+            throw new ApiError('server', 'The upload completed without returning an image URL.')
+          }
+          return data.url
+        } catch (reason) {
+          setUploadError(asApiError(reason).message)
           return null
         } finally {
           setUploading(false)
@@ -448,15 +453,16 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         const form = new FormData()
         form.append('file', file)
         form.append('bucket', 'article-images')
-        const res = await fetch('/api/upload', { method: 'POST', body: form })
-        const data = await res.json()
-        if (res.ok) {
-          editor.chain().focus().insertFigure({ src: data.url }).run()
-        } else {
-          setUploadError(data.error ?? 'Upload failed. Check storage configuration.')
+        const data = await apiRequest<{ url?: string }>('/api/upload', {
+          method: 'POST',
+          body: form,
+        })
+        if (!data.url) {
+          throw new ApiError('server', 'The upload completed without returning an image URL.')
         }
-      } catch {
-        setUploadError('Upload failed. Check your connection and try again.')
+        editor.chain().focus().insertFigure({ src: data.url }).run()
+      } catch (reason) {
+        setUploadError(asApiError(reason).message)
       } finally {
         setUploading(false)
       }
@@ -952,7 +958,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
               <div className="ml-auto pr-1 flex items-center gap-1.5 text-xs">
                 {saveStatus === 'saving' && <span className="text-[#999]">Saving…</span>}
                 {saveStatus === 'saved'  && <span className="text-emerald-600 dark:text-emerald-400">Saved</span>}
-                {saveStatus === 'error'  && <span className="text-red-500">Save failed</span>}
+                {saveStatus === 'error'  && <span className="text-red-500">{saveError ?? 'Save failed'}</span>}
               </div>
             )}
           </div>

@@ -1,22 +1,30 @@
 'use client'
 
 import { useState } from 'react'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    await fetch('/api/auth/forgot-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    })
-    setLoading(false)
-    setSubmitted(true)
+    setError('')
+    try {
+      await apiRequest('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      setSubmitted(true)
+    } catch (reason) {
+      setError(asApiError(reason).message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (submitted) {
@@ -34,6 +42,8 @@ export function ForgotPasswordForm() {
       <p className="text-cream/60 text-sm">
         Enter your email and we&apos;ll send you a link to reset your password.
       </p>
+
+      {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
 
       <div>
         <label className="block text-cream/70 text-xs font-bold uppercase tracking-widest mb-2">

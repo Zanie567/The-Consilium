@@ -52,7 +52,12 @@ export function ArticleEditorTopBar({ editor }: ArticleEditorTopBarProps) {
         {editor.saveStatus === 'error' && (
           <>
             <AlertCircle size={11} className="text-red-400" />
-            <span className="text-[11px] text-red-400 hidden sm:inline">Save failed</span>
+            <span
+              className="text-[11px] text-red-400 hidden sm:inline max-w-[150px] truncate"
+              title={editor.error?.message}
+            >
+              {editor.error?.label ?? 'Save failed'}
+            </span>
           </>
         )}
       </div>

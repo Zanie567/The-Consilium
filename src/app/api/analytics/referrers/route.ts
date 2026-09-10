@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server'
-import { getVerifiedSessionUser } from '@/lib/auth'
+import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ANALYTICS_ACCESS_ROLES } from '@/lib/rbac'
-
-async function requireAdmin(): Promise<boolean> {
-  return !!(await getVerifiedSessionUser(ANALYTICS_ACCESS_ROLES))
-}
 
 function classifyReferrer(referrer: string | null): string {
   if (!referrer) return 'Direct'
@@ -23,9 +19,8 @@ function classifyReferrer(referrer: string | null): string {
 }
 
 export async function GET(req: Request) {
-  if (!(await requireAdmin())) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const auth = await requireVerifiedSessionUser(ANALYTICS_ACCESS_ROLES)
+  if (!auth.ok) return auth.response
 
   const { searchParams } = new URL(req.url)
   const days = parseInt(searchParams.get('days') ?? '30', 10) || 30

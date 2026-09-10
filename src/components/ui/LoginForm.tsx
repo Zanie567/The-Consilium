@@ -46,27 +46,38 @@ export function LoginForm({
     e.preventDefault()
     setLoading(true)
     setError('')
-    const result = await signIn('credentials', {
-      email,
-      password,
-      redirect: false,
-    })
-    if (result?.error) {
-      setError('Invalid email or password.')
-      setLoading(false)
-    } else {
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      })
+      if (result?.error || !result?.ok) {
+        setError('Invalid email or password.')
+        return
+      }
       // Hard navigation bypasses the Next.js router cache so the dashboard
       // always loads fresh with the new session.
       window.location.replace(callbackUrl)
+    } catch {
+      setError('Sign-in could not reach the server. Check your connection and try again.')
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true)
+    setError('')
     // OAuth sign-in redirects the page entirely. The loading state resets
     // on the rare chance the redirect does not happen.
-    await signIn('google', { callbackUrl })
-    setGoogleLoading(false)
+    try {
+      await signIn('google', { callbackUrl })
+    } catch {
+      setError('Google sign-in could not be started. Check your connection and try again.')
+    } finally {
+      setGoogleLoading(false)
+    }
   }
 
   return (

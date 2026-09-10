@@ -1,23 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions, requireActiveSession } from '@/lib/auth'
+import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { apiServerErrorResponse } from '@/lib/apiResponse'
 
 // GET /api/profile/reading-history?page=1
 // Returns paginated completed articles (progress >= 90)
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  const authError = requireActiveSession(session)
-  if (authError) return authError
+  const auth = await requireVerifiedSessionUser()
+  if (!auth.ok) return auth.response
+  const userId = auth.user.id
 
   const { searchParams } = new URL(request.url)
-  const page = Math.max(1, parseInt(searchParams.get('page') ?? '1'))
+  const requestedPage = Number.parseInt(searchParams.get('page') ?? '1', 10)
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1
   const pageSize = 20
 
   try {
     const [rows, total] = await Promise.all([
       prisma.readingProgress.findMany({
-        where: { userId: session!.user.id, completed: true },
+        where: { userId, completed: true },
         orderBy: { updatedAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
         },
       }),
       prisma.readingProgress.count({
-        where: { userId: session!.user.id, completed: true },
+        where: { userId, completed: true },
       }),
     ])
 
@@ -48,7 +49,11 @@ export async function GET(request: NextRequest) {
       page,
       pages: Math.ceil(total / pageSize),
     })
-  } catch {
-    return NextResponse.json({ error: 'Failed to fetch reading history' }, { status: 500 })
+  } catch (error) {
+    return apiServerErrorResponse(error, {
+      operation: 'profile/reading-history:load',
+      userMessage: 'Your reading history could not be loaded because of a server error.',
+      code: 'READING_HISTORY_LOAD_FAILED',
+    })
   }
 }

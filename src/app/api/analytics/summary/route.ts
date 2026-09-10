@@ -1,16 +1,11 @@
 import { NextResponse } from 'next/server'
-import { getVerifiedSessionUser } from '@/lib/auth'
+import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ANALYTICS_ACCESS_ROLES } from '@/lib/rbac'
 
-async function requireAdmin(): Promise<string | null> {
-  const user = await getVerifiedSessionUser(ANALYTICS_ACCESS_ROLES)
-  return user?.id ?? null
-}
-
 export async function GET() {
-  const userId = await requireAdmin()
-  if (!userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const auth = await requireVerifiedSessionUser(ANALYTICS_ACCESS_ROLES)
+  if (!auth.ok) return auth.response
 
   const now = new Date()
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())

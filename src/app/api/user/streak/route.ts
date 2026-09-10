@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getVerifiedSessionUser } from '@/lib/auth'
+import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { STREAK_INTERVAL_WEEKS } from '@/lib/constants'
 import { recalculateStreakForUser } from '@/lib/gamification/streaks'
@@ -8,10 +8,9 @@ export const dynamic = 'force-dynamic'
 
 /** GET /api/user/streak: the current user's writer streak, or a zero-state. */
 export async function GET() {
-  const user = await getVerifiedSessionUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const auth = await requireVerifiedSessionUser()
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
   try {
     const streak = await prisma.writerStreak.findUnique({
@@ -36,10 +35,9 @@ export async function GET() {
  * sees the updated figures immediately.
  */
 export async function PATCH(req: Request) {
-  const user = await getVerifiedSessionUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const auth = await requireVerifiedSessionUser()
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
   let intervalWeeks: number
   try {

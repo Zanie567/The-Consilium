@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import type { ArticleComment } from '@/components/editorial/CommentsPanel'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 /**
  * Loads and holds the inline review comments for an article. Shared by the
@@ -10,20 +11,24 @@ import type { ArticleComment } from '@/components/editorial/CommentsPanel'
  */
 export function useArticleComments(articleId: string | undefined) {
   const [comments, setComments] = useState<ArticleComment[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     // Clear immediately so a previous article's comments never linger while a
     // new fetch is in flight (or when there is no article at all).
     setComments([])
+    setError(null)
     if (!articleId) return
     let cancelled = false
-    fetch(`/api/articles/${articleId}/comments`)
-      .then((r) => (r.ok ? r.json() : []))
+    apiRequest<ArticleComment[]>(`/api/articles/${articleId}/comments`)
       .then((data: ArticleComment[]) => {
         if (!cancelled) setComments(Array.isArray(data) ? data : [])
       })
-      .catch(() => {
-        if (!cancelled) setComments([])
+      .catch((reason) => {
+        if (!cancelled) {
+          setComments([])
+          setError(asApiError(reason).message)
+        }
       })
     return () => { cancelled = true }
   }, [articleId])
@@ -36,5 +41,5 @@ export function useArticleComments(articleId: string | undefined) {
     setComments((prev) => prev.map((c) => (c.id === commentId ? { ...c, resolved } : c)))
   }, [])
 
-  return { comments, addComment, setCommentResolved }
+  return { comments, error, addComment, setCommentResolved }
 }

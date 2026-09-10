@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Star, Pin, Trash2, ExternalLink } from 'lucide-react'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { formatEditorialScheduleDisplay } from '@/lib/editorialSchedule'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 interface ArticleItem {
   id: string
@@ -60,48 +61,52 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
   }
 
   const featureArticle = async (id: string, current: boolean) => {
+    setError(null)
     try {
       const method = current ? 'DELETE' : 'POST'
-      const res = await fetch(`/api/editorial/articles/${id}/feature`, { method })
-      if (res.ok) toggle(id, 'isFeatured', !current)
-    } catch {
-      setError('Failed to update featured status.')
+      await apiRequest(`/api/editorial/articles/${id}/feature`, { method })
+      toggle(id, 'isFeatured', !current)
+    } catch (reason) {
+      setError(asApiError(reason).message)
     }
   }
 
   const pinArticle = async (id: string, current: boolean) => {
+    setError(null)
     try {
       const method = current ? 'DELETE' : 'POST'
-      const res = await fetch(`/api/editorial/articles/${id}/pin`, { method })
-      if (res.ok) toggle(id, 'isPinned', !current)
-    } catch {
-      setError('Failed to update pinned status.')
+      await apiRequest(`/api/editorial/articles/${id}/pin`, { method })
+      toggle(id, 'isPinned', !current)
+    } catch (reason) {
+      setError(asApiError(reason).message)
     }
   }
 
   const deleteArticle = async (id: string) => {
-    if (!confirm('Delete this article? This cannot be undone.')) return
+    if (!confirm('Move this article to trash? It can be restored for 30 days.')) return
+    setError(null)
     try {
-      const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' })
-      if (res.ok) setArticles((prev) => prev.filter((a) => a.id !== id))
-    } catch {
-      setError('Failed to delete article.')
+      await apiRequest(`/api/articles/${id}`, { method: 'DELETE' })
+      setArticles((prev) => prev.filter((article) => article.id !== id))
+    } catch (reason) {
+      setError(asApiError(reason).message)
     }
   }
 
   const publishArticle = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED'
+    setError(null)
     try {
-      const res = await fetch(`/api/articles/${id}`, {
+      await apiRequest(`/api/articles/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       })
-      if (res.ok) {
-        setArticles((prev) => prev.map((a) => a.id === id ? { ...a, status: newStatus } : a))
-      }
-    } catch {
-      setError('Failed to update article status.')
+      setArticles((prev) => prev.map((article) => (
+        article.id === id ? { ...article, status: newStatus } : article
+      )))
+    } catch (reason) {
+      setError(asApiError(reason).message)
     }
   }
 

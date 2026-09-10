@@ -24,7 +24,7 @@ const { prismaMock, authMock } = vi.hoisted(() => {
       auditLog: { create: vi.fn(resolved) },
       article: { findMany: vi.fn() },
     },
-    authMock: { getVerifiedSessionUser: vi.fn() },
+    authMock: { getVerifiedSessionUser: vi.fn(), requireVerifiedSessionUser: vi.fn() },
   }
 })
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }))
@@ -181,10 +181,17 @@ describe('GET /api/editorial/analytics', () => {
 // ── upload: auth guard ────────────────────────────────────────────────────────
 
 describe('POST /api/upload', () => {
-  it('returns 403 for a caller without article-mutation rights', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(null)
+  it('preserves a 401 response when the session has expired', async () => {
+    authMock.requireVerifiedSessionUser.mockResolvedValue({
+      ok: false,
+      response: Response.json(
+        { error: 'Your session has expired.', code: 'AUTH_REQUIRED' },
+        { status: 401 }
+      ),
+    })
     const res = await uploadPOST(nextJsonRequest('http://localhost/api/upload', 'POST'))
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(401)
+    expect(await res.json()).toMatchObject({ code: 'AUTH_REQUIRED' })
   })
 })
 
@@ -192,13 +199,19 @@ describe('POST /api/upload', () => {
 
 describe('/api/user/streak', () => {
   it('GET returns 401 when unauthenticated', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(null)
+    authMock.requireVerifiedSessionUser.mockResolvedValue({
+      ok: false,
+      response: Response.json(
+        { error: 'Your session has expired.', code: 'AUTH_REQUIRED' },
+        { status: 401 }
+      ),
+    })
     const res = await streakGET()
     expect(res.status).toBe(401)
   })
 
   it('GET returns a zero-state for a user with no streak row', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(WRITER)
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: WRITER })
     prismaMock.writerStreak.findUnique.mockResolvedValue(null)
     const res = await streakGET()
     expect(res.status).toBe(200)
@@ -208,7 +221,7 @@ describe('/api/user/streak', () => {
   })
 
   it('PATCH rejects a non-integer intervalWeeks → 400', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(WRITER)
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: WRITER })
     const res = await streakPATCH(
       jsonRequest('http://localhost/api/user/streak', 'PATCH', { intervalWeeks: 'three' })
     )
@@ -217,7 +230,7 @@ describe('/api/user/streak', () => {
   })
 
   it('PATCH rejects an out-of-range intervalWeeks → 400', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(WRITER)
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: WRITER })
     const res = await streakPATCH(
       jsonRequest('http://localhost/api/user/streak', 'PATCH', { intervalWeeks: 99 })
     )
@@ -226,7 +239,7 @@ describe('/api/user/streak', () => {
   })
 
   it('PATCH persists a valid cadence and recomputes → 200', async () => {
-    authMock.getVerifiedSessionUser.mockResolvedValue(WRITER)
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: WRITER })
     prismaMock.writerStreak.upsert.mockResolvedValue({ id: 's1' })
     prismaMock.writerStreak.findUnique.mockResolvedValue({
       currentStreak: 3,

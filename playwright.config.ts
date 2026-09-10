@@ -1,9 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
-import path from 'path'
+import { ADMIN_STORAGE, EDITOR_GLOBAL_STORAGE } from './tests/e2e/helpers/authStorage'
 
 const PORT = process.env.E2E_PORT ?? '3000'
 const BASE_URL = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`
-const ADMIN_STORAGE = path.join(__dirname, 'tests/e2e/.auth/admin.json')
 
 /**
  * E2E config. Tests run against a production server (`next start`) so caching and
@@ -39,6 +38,14 @@ export default defineConfig({
       testMatch: /editorial(-layout)?\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'], storageState: ADMIN_STORAGE },
+    },
+    {
+      // Runs as an EDITOR rather than the admin; the spec overrides the state
+      // per describe block for the scoped and unscoped editors.
+      name: 'editor',
+      testMatch: /editor-scope\.spec\.ts/,
+      dependencies: ['setup'],
+      use: { ...devices['Desktop Chrome'], storageState: EDITOR_GLOBAL_STORAGE },
     },
   ],
   webServer: process.env.E2E_BASE_URL
