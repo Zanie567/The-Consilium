@@ -10,6 +10,10 @@
  *     is exercised (Priority 4).
  *   - A scheduled (future) and an archived article, so "published only" filters
  *     are exercised against neighbouring statuses.
+ *   - Two EDITOR accounts, one with no category assignments and one confined to
+ *     Opinion. The suite had no EDITOR at all, which is how a 403 on every
+ *     editor save of a categorised article reached production with CI green.
+ *     `editor-scope.spec.ts` exercises both states.
  *
  * Idempotent: users are upserted by email; comments are only created if the
  * reader has none yet. Safe to run repeatedly.
@@ -36,6 +40,50 @@ const READERS: Record<string, number> = {
 
 async function main() {
   const password = await bcrypt.hash('reader1234', 10)
+  const editorPassword = await bcrypt.hash('editor1234', 10)
+
+  // Editor with NO category assignments — the state every EDITOR on production
+  // is in. Their scope is "all categories"; saving a categorised article must
+  // succeed rather than 403.
+  await prisma.user.upsert({
+    where: { email: 'editor.global@consilium.test' },
+    update: { role: 'EDITOR', password: editorPassword, isActive: true, isBanned: false },
+    create: {
+      email: 'editor.global@consilium.test',
+      name: 'Global Editor',
+      role: 'EDITOR',
+      password: editorPassword,
+      slug: 'global-editor',
+    },
+  })
+
+  // Editor confined to Opinion, so the negative half of the scope rule is
+  // covered too: they may save an Opinion article and nothing else.
+  const scopedEditor = await prisma.user.upsert({
+    where: { email: 'editor.opinion@consilium.test' },
+    update: { role: 'EDITOR', password: editorPassword, isActive: true, isBanned: false },
+    create: {
+      email: 'editor.opinion@consilium.test',
+      name: 'Opinion Editor',
+      role: 'EDITOR',
+      password: editorPassword,
+      slug: 'opinion-editor',
+    },
+  })
+  const opinion = await prisma.category.findFirst({ where: { slug: 'opinion' }, select: { id: true } })
+  if (!opinion) throw new Error('No "opinion" category found — run the main seeds first.')
+  // The assignment is what makes this editor scoped; keep it to exactly one.
+  await prisma.categoryEditor.deleteMany({
+    where: { userId: scopedEditor.id, NOT: { categoryId: opinion.id } },
+  })
+  const existingAssignment = await prisma.categoryEditor.findFirst({
+    where: { userId: scopedEditor.id, categoryId: opinion.id },
+  })
+  if (!existingAssignment) {
+    await prisma.categoryEditor.create({
+      data: { userId: scopedEditor.id, categoryId: opinion.id },
+    })
+  }
 
   // Growth account (counts toward total users but not staff-article counts)
   await prisma.user.upsert({
@@ -113,6 +161,7 @@ async function main() {
     prisma.user.count(),
     prisma.comment.count(),
   ])
+  console.log('   Editors: editor.global (unscoped), editor.opinion (Opinion only)')
   console.log(`✅ Test fixtures ready. Created ${createdComments} comment(s).`)
   console.log(`   Total users: ${totalUsers}, total comments: ${totalComments}`)
 }
