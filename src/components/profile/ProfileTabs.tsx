@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -14,7 +14,7 @@ import {
 import { readTimeLabel } from '@/lib/readTime'
 import { getInitials } from '@/lib/authorUtils'
 import { apiRequest, asApiError } from '@/lib/apiClient'
-import { MAX_BIO_LENGTH } from '@/lib/constants'
+import { MAX_AVATAR_BYTES, MAX_BIO_LENGTH } from '@/lib/constants'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -510,17 +510,27 @@ function MyCommentsTab() {
 function AccountSettingsTab({
   initialName,
   initialBio,
+  initialImage,
   email,
+  role,
   onNameChange,
+  onImageChange,
 }: {
   initialName: string | null
   initialBio: string | null
+  initialImage: string | null
   email: string
+  role: string
   onNameChange: (name: string) => void
+  onImageChange: (image: string | null) => void
 }) {
   const router = useRouter()
   const [name, setName] = useState(initialName ?? '')
   const [bio, setBio] = useState(initialBio ?? '')
+  const [image, setImage] = useState(initialImage)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [imageError, setImageError] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -531,6 +541,68 @@ function AccountSettingsTab({
   const [deleteError, setDeleteError] = useState('')
 
   const [copied, setCopied] = useState(false)
+
+  // Saving the avatar is two steps: upload the file, then store the URL it
+  // returns. The URL is never typed by the user — the account route only accepts
+  // files from our own avatars bucket.
+  const persistImage = async (nextImage: string | null) => {
+    await apiRequest('/api/profile/account', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: nextImage ?? '' }),
+    })
+    setImage(nextImage)
+    onImageChange(nextImage)
+    // The header avatar and any server-rendered copy of it come from the session.
+    router.refresh()
+  }
+
+  const handleImageSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    // Clear the input straight away so picking the same file twice still fires.
+    event.target.value = ''
+    if (!file) return
+
+    setImageError('')
+    if (!file.type.startsWith('image/')) {
+      setImageError('Choose an image file (JPEG, PNG, GIF, WebP or AVIF).')
+      return
+    }
+    // Mirrors the server cap for the avatars bucket, so an oversized file fails
+    // here instead of after a long upload.
+    if (file.size > MAX_AVATAR_BYTES) {
+      setImageError(`That image is too large (max ${MAX_AVATAR_BYTES / (1024 * 1024)} MB).`)
+      return
+    }
+
+    setUploading(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      form.append('bucket', 'avatars')
+      const { url } = await apiRequest<{ url: string }>('/api/upload', {
+        method: 'POST',
+        body: form,
+      })
+      await persistImage(url)
+    } catch (reason) {
+      setImageError(asApiError(reason).message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleRemoveImage = async () => {
+    setImageError('')
+    setUploading(true)
+    try {
+      await persistImage(null)
+    } catch (reason) {
+      setImageError(asApiError(reason).message)
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -584,6 +656,58 @@ function AccountSettingsTab({
         <h3 className="text-[var(--fg)] font-bold text-sm uppercase tracking-widest mb-4">Profile Details</h3>
         <div className="space-y-4">
           <div>
+            <span className="block text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-widest mb-1.5">
+              Profile Photo
+            </span>
+            <div className="flex items-center gap-4">
+              {image ? (
+                <Image
+                  src={image}
+                  alt=""
+                  width={64}
+                  height={64}
+                  className="h-16 w-16 rounded-full object-cover ring-2 ring-gold/30 shrink-0"
+                />
+              ) : (
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gold/20 text-xl font-bold text-gold">
+                  {getInitials(name || email)}
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
+                  className="sr-only"
+                  onChange={handleImageSelected}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="border border-[var(--border-strong)] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[var(--fg)] transition-colors hover:border-gold hover:text-gold disabled:opacity-60"
+                >
+                  {uploading ? 'Uploading…' : image ? 'Change Photo' : 'Upload Photo'}
+                </button>
+                {image && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    disabled={uploading}
+                    className="px-2 py-2 text-xs font-semibold uppercase tracking-widest text-[var(--fg-faint)] transition-colors hover:text-red-500 disabled:opacity-60"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+            {imageError && <p className="mt-2 text-xs text-red-500">{imageError}</p>}
+            <p className="mt-2 text-[10px] leading-relaxed text-[var(--fg-faint)]">
+              JPEG, PNG, GIF, WebP or AVIF, up to {MAX_AVATAR_BYTES / (1024 * 1024)} MB. Saved as
+              soon as you choose it.
+            </p>
+          </div>
+          <div>
             <label className="block text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-widest mb-1.5">
               Display Name
             </label>
@@ -629,6 +753,20 @@ function AccountSettingsTab({
               className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--fg-faint)] text-sm px-3 py-2 opacity-60 cursor-not-allowed"
             />
             <p className="text-[var(--fg-faint)] text-[10px] mt-1">Email address cannot be changed here.</p>
+          </div>
+          <div>
+            <label className="block text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-widest mb-1.5">
+              Role
+            </label>
+            <input
+              type="text"
+              value={role}
+              disabled
+              className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--fg-faint)] text-sm px-3 py-2 opacity-60 cursor-not-allowed"
+            />
+            <p className="text-[var(--fg-faint)] text-[10px] mt-1">
+              Only an administrator can change your role.
+            </p>
           </div>
           {saveError && <p className="text-red-500 text-xs">{saveError}</p>}
           <button
@@ -737,6 +875,8 @@ export function ProfileTabs({ initialName, initialBio, email, image, createdAt, 
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'history')
   const [displayName, setDisplayName] = useState(initialName)
+  // Mirrors the saved avatar so the header updates the moment it changes.
+  const [avatar, setAvatar] = useState(image)
   const [stats, setStats] = useState<Stats | null>(null)
   const [statsError, setStatsError] = useState('')
 
@@ -761,8 +901,8 @@ export function ProfileTabs({ initialName, initialBio, email, image, createdAt, 
       <section className="bg-navy py-12 px-4 border-b border-gold/25">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-5 mb-6">
-            {image ? (
-              <Image src={image} alt={displayName ?? ''} width={72} height={72} className="rounded-full object-cover ring-2 ring-gold/30 shrink-0" />
+            {avatar ? (
+              <Image src={avatar} alt={displayName ?? ''} width={72} height={72} className="rounded-full object-cover ring-2 ring-gold/30 shrink-0" />
             ) : (
               <div className="w-16 h-16 rounded-full bg-gold/20 flex items-center justify-center text-gold text-2xl font-bold shrink-0">
                 {initials}
@@ -846,8 +986,11 @@ export function ProfileTabs({ initialName, initialBio, email, image, createdAt, 
           <AccountSettingsTab
             initialName={initialName}
             initialBio={initialBio}
+            initialImage={image}
             email={email}
+            role={role}
             onNameChange={setDisplayName}
+            onImageChange={setAvatar}
           />
         )}
       </div>
