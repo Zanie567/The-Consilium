@@ -14,6 +14,7 @@ import {
 import { readTimeLabel } from '@/lib/readTime'
 import { getInitials } from '@/lib/authorUtils'
 import { apiRequest, asApiError } from '@/lib/apiClient'
+import { MAX_BIO_LENGTH } from '@/lib/constants'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -603,11 +604,19 @@ function AccountSettingsTab({
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               placeholder="Tell us a little about yourself..."
-              maxLength={300}
-              rows={3}
+              maxLength={MAX_BIO_LENGTH}
+              rows={5}
               className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--fg)] text-sm px-3 py-2 outline-none focus:border-gold/60 transition-colors resize-none"
             />
-            <p className="text-[var(--fg-faint)] text-[10px] mt-1 text-right">{bio.length}/300</p>
+            <div className="mt-1 flex items-start justify-between gap-3">
+              <p className="text-[var(--fg-faint)] text-[10px] leading-relaxed">
+                Shown on your author page, under your articles, and on your Meet the
+                Team card if you are on the team. Write whatever you like.
+              </p>
+              <p className="text-[var(--fg-faint)] text-[10px] shrink-0">
+                {bio.length}/{MAX_BIO_LENGTH}
+              </p>
+            </div>
           </div>
           <div>
             <label className="block text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-widest mb-1.5">

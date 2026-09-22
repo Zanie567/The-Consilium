@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
 import { StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
+import { ArticleEmptyState } from '@/components/ui/ArticleEmptyState'
+import { getTagEmptyState } from '@/lib/sectionEmptyStates'
 import type { Metadata } from 'next'
 import { canonicalAlternates } from '@/lib/seo'
 
@@ -62,7 +64,10 @@ export default async function TagPage({ params }: Props) {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {articles.length === 0 ? (
-          <p className="text-center text-[var(--fg-faint)] text-sm py-20">No published articles yet.</p>
+          <ArticleEmptyState
+            state={getTagEmptyState(tag.name)}
+            action={{ href: '/archive', label: '← Browse the Archive' }}
+          />
         ) : (
           <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {articles.map((article) => (

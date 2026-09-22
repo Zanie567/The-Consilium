@@ -8,6 +8,8 @@ import type { Metadata } from 'next'
 import { canonicalAlternates } from '@/lib/seo'
 import { normaliseSearchText, type SearchParamValue } from '@/lib/searchText'
 import { getInitials } from '@/lib/authorUtils'
+import { ArticleEmptyState } from '@/components/ui/ArticleEmptyState'
+import { getAuthorEmptyState } from '@/lib/sectionEmptyStates'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -165,11 +167,14 @@ export default async function AuthorPage({ params, searchParams }: Props) {
         )}
 
         {articles.length === 0 ? (
-          <div className="py-20 text-center">
-            <p className="text-[var(--fg-faint)] text-sm">
-              {categoryFilter ? 'No articles in this category.' : 'No published articles yet.'}
-            </p>
-          </div>
+          <ArticleEmptyState
+            state={getAuthorEmptyState(Boolean(categoryFilter))}
+            action={
+              categoryFilter
+                ? { href: `/author/${slug}`, label: '← All Their Articles' }
+                : undefined
+            }
+          />
         ) : (
           <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {articles.map((article) => (

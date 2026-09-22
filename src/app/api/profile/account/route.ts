@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ALL_ROLES } from '@/lib/rbac'
+import { MAX_BIO_LENGTH } from '@/lib/constants'
 import { apiServerErrorResponse } from '@/lib/apiResponse'
 
 // PATCH /api/profile/account - update display name and bio
@@ -29,6 +30,14 @@ export async function PATCH(request: NextRequest) {
   }
   if (bio !== undefined && typeof bio !== 'string') {
     return NextResponse.json({ error: 'bio must be a string' }, { status: 400 })
+  }
+  // The form caps the field, but a client can send anything. The bio renders on
+  // public pages, so the limit is enforced here too.
+  if (typeof bio === 'string' && bio.trim().length > MAX_BIO_LENGTH) {
+    return NextResponse.json(
+      { error: `Your bio must be ${MAX_BIO_LENGTH} characters or fewer.` },
+      { status: 400 },
+    )
   }
 
   try {

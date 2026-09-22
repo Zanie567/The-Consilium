@@ -16,6 +16,8 @@ import { EconomicTicker } from '@/components/ui/EconomicTicker'
 import { displayAuthorName } from '@/lib/authorUtils'
 import { safeJsonLd } from '@/lib/jsonLd'
 import { HeroSection } from '@/components/ui/HeroSection'
+import { ArticleEmptyState } from '@/components/ui/ArticleEmptyState'
+import { getSectionEmptyState, siteEmptyState } from '@/lib/sectionEmptyStates'
 import { selectHeroArticles } from '@/lib/heroArticles'
 import type { Metadata } from 'next'
 import { SITE_NAME, SITE_URL } from '@/lib/constants'
@@ -278,6 +280,23 @@ export default async function HomePage({
   const heroArticles = showHero ? selectHeroArticles(featured, articles) : []
   const heroIds = new Set(heroArticles.map((a) => a.id))
   const articleGrid = showHero ? articles.filter((a) => !heroIds.has(a.id)) : articles
+  // Empty-state copy for the grid. On a category tab it names the section ("News
+  // Coming Soon"); on the unfiltered view it speaks for the whole publication. A
+  // slug with no matching category (a hand-edited URL) still gets section-shaped
+  // copy rather than claiming the site has published nothing.
+  const activeCategory = categorySlug
+    ? categories.find((c) => c.slug === categorySlug)
+    : undefined
+  const gridEmptyState = categorySlug
+    ? getSectionEmptyState(categorySlug, activeCategory?.name ?? 'This Section')
+    : siteEmptyState
+  // The site-level "nothing published yet" block, shown where the hero would be.
+  // It requires a genuinely empty page, not merely a missing hero: `featured` is
+  // also null when every published article is a debate, or when that query failed
+  // and was swallowed — and announcing "our first articles are on the way" above a
+  // full grid of articles would be plainly wrong. When it renders, the grid's own
+  // empty state is suppressed so the same block does not appear twice.
+  const showSiteEmptyState = !categorySlug && !showHero && articles.length === 0
   const websiteStructuredData = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
@@ -354,20 +373,11 @@ export default async function HomePage({
             state inside the grid section. */}
         {showHero ? (
           <HeroSection articles={heroArticles} />
-        ) : !categorySlug ? (
-          <AnimateIn variant="fade-up" className="mb-14">
-            <div className="py-20 text-center border border-dashed border-[var(--border)]">
-              <p
-                className="text-4xl font-bold text-[var(--fg-faint)] mb-3"
-                style={{ fontFamily: 'var(--font-serif)' }}
-              >
-                No articles yet
-              </p>
-              <p className="text-[var(--fg-faint)] text-sm">
-                Check back soon for our latest publications.
-              </p>
-            </div>
-          </AnimateIn>
+        ) : showSiteEmptyState ? (
+          <ArticleEmptyState
+            state={siteEmptyState}
+            className="mb-14 border border-dashed border-[var(--border)]"
+          />
         ) : null}
 
         {/* ── Category Tabs ────────────────────────────────────────────────── */}
@@ -384,19 +394,15 @@ export default async function HomePage({
               </StaggerItem>
             ))}
           </StaggerContainer>
-        ) : !showHero ? (
+        ) : !showHero && !showSiteEmptyState ? (
           // Only an empty-state message when nothing is actually on screen. On the
           // "All" view the hero may already be showing the sole published article —
-          // don't claim there are none.
-          <AnimateIn variant="fade-in">
-            <div className="py-20 text-center">
-              <p className="text-[var(--fg-faint)] text-xs uppercase tracking-widest">
-                {categorySlug
-                  ? 'No articles in this category yet'
-                  : 'No articles published yet'}
-              </p>
-            </div>
-          </AnimateIn>
+          // don't claim there are none. `showSiteEmptyState` means the block above
+          // already said it once.
+          <ArticleEmptyState
+            state={gridEmptyState}
+            action={categorySlug ? { href: '/', label: '← All Sections' } : undefined}
+          />
         ) : null}
 
         {/* View all */}
