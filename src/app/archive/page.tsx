@@ -4,6 +4,8 @@ import { publishedArticleWhere } from '@/lib/articleQueries'
 import { format } from 'date-fns'
 import type { Metadata } from 'next'
 import { AnimateIn } from '@/components/ui/AnimateIn'
+import { ArticleEmptyState } from '@/components/ui/ArticleEmptyState'
+import { getSectionEmptyState, noResultsEmptyState, siteEmptyState } from '@/lib/sectionEmptyStates'
 import { displayAuthorName } from '@/lib/authorUtils'
 import {
   ARCHIVE_PAGE_SIZE,
@@ -128,6 +130,19 @@ export default async function ArchivePage({ searchParams }: Props) {
   const articles = total === null ? null : await getArticles(q, categorySlug, page)
   const loadFailed = total === null || articles === null
 
+  // An archive emptied by a search or a category filter is NOT "more coming soon"
+  // — the reader narrowed it themselves, so offer a way to widen it again. Only a
+  // genuinely empty archive promises more is on the way.
+  const isFiltered = Boolean(q) || Boolean(categorySlug)
+  const filteredCategory = categorySlug
+    ? categories.find((c) => c.slug === categorySlug)
+    : undefined
+  const emptyState = q
+    ? noResultsEmptyState
+    : categorySlug
+      ? getSectionEmptyState(categorySlug, filteredCategory?.name ?? 'This Section')
+      : siteEmptyState
+
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Header */}
@@ -241,13 +256,10 @@ export default async function ArchivePage({ searchParams }: Props) {
                 ))}
               </div>
             ) : (
-              <AnimateIn variant="fade-up">
-                <div className="py-20 text-center">
-                  <p className="text-[var(--fg-faint)] text-sm uppercase tracking-widest">
-                    No articles found
-                  </p>
-                </div>
-              </AnimateIn>
+              <ArticleEmptyState
+                state={emptyState}
+                action={isFiltered ? { href: '/archive', label: '← Clear Filters' } : undefined}
+              />
             )}
 
             {/* Pagination */}

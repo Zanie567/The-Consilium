@@ -4,6 +4,7 @@ import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/Animat
 import { TeamMemberCard } from '@/components/team/TeamMemberCard'
 import { buildTeamMasthead } from '@/lib/teamHierarchy'
 import { canonicalAlternates } from '@/lib/seo'
+import { resolveTeamMemberBios, teamMemberEmails } from '@/lib/teamProfiles'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,10 +16,34 @@ export const metadata: Metadata = {
 
 async function getTeamMembers() {
   try {
-    return await prisma.teamMember.findMany({
+    const members = await prisma.teamMember.findMany({
       where: { isActive: true },
       orderBy: { order: 'asc' },
     })
+
+    // Prefer each person's self-maintained account bio over the admin-entered
+    // one, matched on email. A failure here must not cost us the whole team page,
+    // so it degrades to the admin bios.
+    const emails = teamMemberEmails(members)
+    if (emails.length === 0) return resolveTeamMemberBios(members, [])
+
+    const accounts = await prisma.user.findMany({
+      // Matched case-insensitively per address, NOT `email: { in: emails }` —
+      // Postgres compares that exactly, so an account stored as "J.Smith@ed.ac.uk"
+      // would never match the lower-cased team email and the member would silently
+      // keep the admin bio. `resolveTeamMemberBios` promises case-insensitive
+      // matching; this is the half of that promise the database has to keep.
+      where: {
+        OR: emails.map((email) => ({ email: { equals: email, mode: 'insensitive' as const } })),
+        // Banned or deactivated accounts keep the admin-entered bio: self-authored
+        // text from a suspended account must not surface on a public page.
+        isActive: true,
+        isBanned: false,
+      },
+      select: { email: true, bio: true, slug: true },
+    })
+
+    return resolveTeamMemberBios(members, accounts)
   } catch {
     return []
   }

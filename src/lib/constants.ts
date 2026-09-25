@@ -102,6 +102,26 @@ export const WRITER_AT_RISK = {
   MAX_DAYS_SINCE_PUBLISH: 30,
 } as const
 
+/**
+ * Maximum length of a user's self-edited bio.
+ *
+ * Enforced BOTH in the account form and in PATCH /api/profile/account — the form
+ * limit alone is a hint, not a guarantee, and this text renders on public pages
+ * (author page, article bylines, the Meet the Team card and its dialog). Raised
+ * from the form's original 300 when the team dialog began showing bios in full.
+ */
+export const MAX_BIO_LENGTH = 600
+
+/**
+ * Maximum size of a user-uploaded profile photo, in bytes.
+ *
+ * Smaller than the article-image allowance: an avatar renders at 128px at most,
+ * and unlike article images this bucket is writable by every account. Enforced in
+ * POST /api/upload and mirrored in the account form so an oversized file fails
+ * before the upload rather than after it.
+ */
+export const MAX_AVATAR_BYTES = 5 * 1024 * 1024
+
 // ── Site settings (key-value) ─────────────────────────────────────────────────
 
 /** site_settings.key holding the editorial commissioning brief. */
