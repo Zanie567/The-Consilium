@@ -19,6 +19,7 @@ import { resolve } from 'path'
 config({ path: resolve(__dirname, '../../.env.local') })
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { assertSafeTestDatabaseHost } from '../../scripts/lib/assertSafeTestDatabaseHost'
 
 // Imported dynamically so @/lib/prisma initialises after .env.local is loaded.
 const { prisma } = await import('@/lib/prisma')
@@ -41,6 +42,9 @@ const ids: Record<keyof typeof SLUGS, string> = {
 
 beforeAll(async () => {
   try {
+    // Same host-safety reasoning as data-layer.test.ts: an unsafe/production
+    // host must be treated as "unreachable" and skipped, not queried.
+    assertSafeTestDatabaseHost(process.env.DATABASE_URL, 'DATABASE_URL')
     const slugs = Object.values(SLUGS)
     const articles = await prisma.article.findMany({
       where: { slug: { in: slugs } },

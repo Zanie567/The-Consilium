@@ -3,6 +3,7 @@ import {
   ADMIN_STORAGE,
   EDITOR_GLOBAL_STORAGE,
   EDITOR_SCOPED_STORAGE,
+  WRITER_STORAGE,
 } from './helpers/authStorage'
 
 /**
@@ -52,4 +53,22 @@ setup('authenticate as an editor with no category assignments', async ({ page })
 
 setup('authenticate as an editor scoped to Opinion', async ({ page }) => {
   await authenticateEditor(page, 'editor.opinion@consilium.test', EDITOR_SCOPED_STORAGE)
+})
+
+/**
+ * Writer session for publication-lifecycle.spec.ts (draft/submit/edit steps).
+ * Credentials come from prisma/seed.ts; override with E2E_WRITER_*.
+ */
+setup('authenticate as the seeded writer', async ({ page }) => {
+  const email = process.env.E2E_WRITER_EMAIL ?? 'writer@theconsilium.com'
+  const password = process.env.E2E_WRITER_PASSWORD ?? 'writer2024'
+
+  await page.goto('/editorial/login')
+  await page.locator('input[type="email"]').fill(email)
+  await page.locator('input[type="password"]').fill(password)
+  await page.locator('button[type="submit"]').click()
+
+  await page.waitForURL(/\/editorial(\/|$|\?)/, { timeout: 20_000 })
+  await expect(page).not.toHaveURL(/\/editorial\/login/)
+  await page.context().storageState({ path: WRITER_STORAGE })
 })

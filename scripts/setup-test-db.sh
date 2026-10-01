@@ -8,8 +8,17 @@
 #   dedupe     -> collapse any duplicate articles (no-op once clean)
 #   fixtures   -> reader/growth accounts + comments + scheduled/archived rows
 #
-# Re-runnable. Honours an existing DATABASE_URL/DIRECT_URL if you want to point
-# at your own Postgres instead (set USE_EXISTING_DB=1).
+# Re-runnable. USE_EXISTING_DB=1 points this at a database you supply via
+# DATABASE_URL/DIRECT_URL instead of starting a local cluster (e.g. a CI
+# service container) — that database is still required to pass the
+# fail-closed host check below.
+#
+# Safety: this script NEVER trusts .env.local for where to connect. It
+# resolves DATABASE_URL/DIRECT_URL itself (to the local cluster it just
+# started, or to the caller-supplied values under USE_EXISTING_DB=1),
+# exports them before any prisma/seed command runs, and refuses to proceed
+# if the resolved host isn't localhost/127.0.0.1 or an explicitly
+# allow-listed CI host — see scripts/lib/assertSafeTestDatabaseHost.ts.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -34,13 +43,22 @@ if [ "${USE_EXISTING_DB:-0}" != "1" ]; then
   fi
   createdb -h "$PGSOCK" -p "$PGPORT" -U postgres consilium 2>/dev/null || true
 
-  # .env.local must already point at this DB (committed example values do).
-  if [ ! -f .env.local ]; then
-    echo "✗ .env.local not found — create it with DATABASE_URL/DIRECT_URL pointing at" >&2
-    echo "  postgresql://postgres@localhost:$PGPORT/consilium" >&2
-    exit 1
-  fi
+  # Resolve to the local cluster we just started/verified — explicitly, so
+  # nothing downstream can fall back to whatever .env.local happens to say.
+  export DATABASE_URL="postgresql://postgres@localhost:${PGPORT}/consilium"
+  export DIRECT_URL="postgresql://postgres@localhost:${PGPORT}/consilium"
+else
+  : "${DATABASE_URL:?USE_EXISTING_DB=1 requires DATABASE_URL to be set}"
+  : "${DIRECT_URL:?USE_EXISTING_DB=1 requires DIRECT_URL to be set}"
 fi
+
+# Marks every seed/dedupe script's own in-process safety check as active —
+# see scripts/lib/assertSafeTestDatabaseHost.ts — so the check holds even if
+# one of them is ever invoked outside this script with a stale env.
+export TEST_HARNESS=1
+
+echo "→ verifying resolved database host is safe for the test harness"
+npx ts-node -P tsconfig.seed.json scripts/assert-safe-test-db.ts
 
 echo "→ prisma generate + db push"
 npx prisma generate >/dev/null

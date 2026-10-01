@@ -5,6 +5,13 @@ config({ path: resolve(__dirname, '../.env.local') })
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { randomUUID } from 'crypto'
+import { assertSafeTestDatabaseHost } from '../scripts/lib/assertSafeTestDatabaseHost'
+
+// See prisma/seed.ts: only active under the test harness, which sets this
+// and exports DATABASE_URL/DIRECT_URL itself before this script runs.
+if (process.env.TEST_HARNESS === '1') {
+  assertSafeTestDatabaseHost(process.env.DIRECT_URL, 'DIRECT_URL')
+}
 
 const adapter = new PrismaPg({ connectionString: process.env.DIRECT_URL! })
 const prisma = new PrismaClient({ adapter })

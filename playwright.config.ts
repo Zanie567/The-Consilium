@@ -47,6 +47,15 @@ export default defineConfig({
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'], storageState: EDITOR_GLOBAL_STORAGE },
     },
+    {
+      // Drives the full article lifecycle across writer/editor/public roles
+      // within a single test, so it manages its own per-role API contexts
+      // rather than using one project-level storageState.
+      name: 'lifecycle',
+      testMatch: /publication-lifecycle\.spec\.ts/,
+      dependencies: ['setup'],
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
   webServer: process.env.E2E_BASE_URL
     ? undefined
