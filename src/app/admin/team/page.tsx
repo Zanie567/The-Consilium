@@ -15,6 +15,14 @@ export default async function AdminTeamPage() {
 
   const members = await prisma.teamMember.findMany({ orderBy: { order: 'asc' } }).catch(() => [])
 
+  const accounts = await prisma.user
+    .findMany({
+      where: { role: { in: ['WRITER', 'EDITOR', 'GROWTH'] }, isActive: true, isBanned: false },
+      select: { id: true, name: true, email: true, role: true },
+      orderBy: [{ name: 'asc' }, { email: 'asc' }],
+    })
+    .catch(() => [])
+
   return (
     <div>
       <div className="mb-8">
@@ -28,7 +36,7 @@ export default async function AdminTeamPage() {
           Manage team members displayed on the website
         </p>
       </div>
-      <TeamManagement initialMembers={members} />
+      <TeamManagement initialMembers={members} accounts={accounts} />
     </div>
   )
 }

@@ -3,7 +3,9 @@
   "ignore": [
     "prisma/schema.prisma",
     "prisma/migrate-em-dashes.ts",
-    "scripts/test-db-env.ts"
+    "scripts/test-db-env.ts",
+    "tests/e2e/helpers/fake-storage-server.ts",
+    "scripts/assert-safe-test-db.ts"
   ],
   "ignoreDependencies": [
     "pg"

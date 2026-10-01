@@ -34,6 +34,18 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
+    // Opt-in (scripts/run-team-profile-e2e.sh sets E2E_TEAM_PROFILE=1): it needs a
+    // local storage server and a build pointed at it, which the default CI e2e job
+    // does not have.
+    ...(process.env.E2E_TEAM_PROFILE === '1'
+      ? [
+          {
+            name: 'team-profile',
+            testMatch: /team-profile(-lifecycle)?\.spec\.ts/,
+            use: { ...devices['Desktop Chrome'] },
+          },
+        ]
+      : []),
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
       name: 'public',

@@ -30,8 +30,22 @@ const securityHeaders = [
   },
 ]
 
+// Test-only escape hatch so the E2E suite can render images from a LOCAL storage
+// server through the real /_next/image pipeline. Needs an explicit switch AND a
+// loopback storage URL, so it cannot be enabled by accident or for a real host.
+const localStorage = (() => {
+  if (process.env.NEXT_IMAGE_ALLOW_LOCAL_STORAGE !== '1') return null
+  try {
+    const url = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
+    return ['127.0.0.1', 'localhost'].includes(url.hostname) ? url : null
+  } catch {
+    return null
+  }
+})()
+
 const nextConfig: NextConfig = {
   images: {
+    dangerouslyAllowLocalIP: localStorage !== null,
     // Restrict server-side image fetches to Supabase Storage (where uploads live)
     // instead of any https host, closing the /_next/image SSRF + optimizer-DoS
     // surface. If cover images are ever served from another host, add it here.
@@ -48,6 +62,9 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '*.supabase.co' },
       { protocol: 'https', hostname: 'images.unsplash.com' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      ...(localStorage
+        ? [{ protocol: 'http' as const, hostname: localStorage.hostname, port: localStorage.port }]
+        : []),
     ],
   },
   experimental: {

@@ -60,7 +60,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   }).catch(() => {})
 
   // Email the user about role change
-  const promoted = ['WRITER', 'EDITOR', 'ADMIN'].includes(role) && !['WRITER', 'EDITOR', 'ADMIN'].includes(oldRole)
+  const STAFF = ['WRITER', 'EDITOR', 'GROWTH', 'ADMIN']
+  const promoted = STAFF.includes(role) && !STAFF.includes(oldRole)
   const emailContent = roleChangedEmail(target.name, role, promoted)
   sendEmail({ to: target.email, ...emailContent }).catch(() => {})
 

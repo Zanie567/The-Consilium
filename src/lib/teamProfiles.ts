@@ -12,6 +12,8 @@
  * own at any time.
  */
 
+import type { MemberTeam } from '@/lib/teamHierarchy'
+
 export interface TeamMemberRow {
   id: string
   name: string
@@ -70,4 +72,135 @@ export function resolveTeamMemberBios(
       authorSlug: account?.slug ?? null,
     }
   })
+}
+
+// ── Account-linked profiles ──────────────────────────────────────────────────
+//
+// A member can own one card, created from their portal. It is tied to their
+// account by `TeamMember.userId` (unique), and its team is NEVER stored or taken
+// from a request: it is derived from the account's role by `teamForRole`.
+
+/** Roles that may own a team profile. ADMIN and READER have none. */
+export const TEAM_PROFILE_ROLES = ['WRITER', 'EDITOR', 'GROWTH'] as const
+type TeamProfileRole = (typeof TEAM_PROFILE_ROLES)[number]
+
+const ROLE_TEAM: Record<TeamProfileRole, MemberTeam> = {
+  WRITER: 'writing',
+  EDITOR: 'editorial',
+  GROWTH: 'growth',
+}
+
+export const TEAM_LABEL: Record<MemberTeam, string> = {
+  writing: 'Writing',
+  editorial: 'Editorial',
+  growth: 'Growth & Communications',
+}
+
+/** The fixed role → team mapping. `null` means the role cannot own a profile. */
+export function teamForRole(role: string | null | undefined): MemberTeam | null {
+  return typeof role === 'string' && Object.hasOwn(ROLE_TEAM, role)
+    ? ROLE_TEAM[role as TeamProfileRole]
+    : null
+}
+
+export type BioResult = { ok: true; bio: string | null } | { ok: false; error: string }
+
+/**
+ * Trims a submitted bio and enforces the length cap. Empty means "no bio". Bios
+ * are plain text and rendered through React, never as HTML, so no sanitising is
+ * needed here — only a bound on size.
+ */
+export function validateTeamBio(value: unknown, maxLength: number): BioResult {
+  if (value === undefined || value === null) return { ok: true, bio: null }
+  if (typeof value !== 'string') return { ok: false, error: 'bio must be a string' }
+  const bio = value.trim()
+  if (bio.length > maxLength) {
+    return { ok: false, error: `Your description must be ${maxLength} characters or fewer.` }
+  }
+  return { ok: true, bio: bio || null }
+}
+
+/** A team row together with the account it is linked to, if any. */
+export interface TeamRowWithAccount extends TeamMemberRow {
+  user: {
+    email: string
+    name: string | null
+    role: string
+    bio: string | null
+    slug: string | null
+    isActive: boolean
+    isBanned: boolean
+  } | null
+}
+
+export interface RosterMember extends ResolvedTeamMember {
+  team: MemberTeam | null
+}
+
+/**
+ * Builds the public roster from every active team row.
+ *
+ * - Linked card: shown only while its account is active, not banned and still in
+ *   a team role (WRITER / EDITOR / GROWTH). The name comes from the account, so a rename is reflected
+ *   without touching the card. The card's own bio wins, falling back to the
+ *   account bio. The team comes from the account's current role.
+ * - Legacy card (no account link): the existing email-matched bio behaviour.
+ * - A legacy card whose email belongs to an account that already has a linked
+ *   card is dropped, so nobody can appear twice while old and new data coexist.
+ */
+export function buildPublicRoster(
+  rows: TeamRowWithAccount[],
+  emailAccounts: LinkedAccount[],
+): RosterMember[] {
+  const linkedEmails = new Set<string>()
+  const roster: RosterMember[] = []
+  const legacy: TeamMemberRow[] = []
+
+  for (const { user, ...row } of rows) {
+    if (!user) {
+      legacy.push(row)
+      continue
+    }
+    linkedEmails.add(user.email.trim().toLowerCase())
+    if (!user.isActive || user.isBanned) continue
+    // Internal test accounts (the sitemap and author pages exclude them too) must
+    // never surface publicly, even if one of them creates a card.
+    if (isTestAccountEmail(user.email)) continue
+    // The team is the account's role. No role-derived team (ADMIN, READER, or a
+    // demoted account) means no public card: there is no exception for titles.
+    const team = teamForRole(user.role)
+    if (!team) continue
+    roster.push({
+      ...row,
+      name: user.name?.trim() || row.name,
+      role: row.role.trim() || null,
+      bio: row.bio?.trim() || user.bio?.trim() || null,
+      authorSlug: user.slug,
+      team,
+    })
+  }
+
+  const unlinked = legacy.filter((row) => {
+    const email = row.email?.trim().toLowerCase()
+    return !email || !linkedEmails.has(email)
+  })
+  for (const member of resolveTeamMemberBios(unlinked, emailAccounts)) {
+    roster.push({ ...member, team: null })
+  }
+  return roster
+}
+
+/** Accounts created for testing; excluded from every public listing. */
+function isTestAccountEmail(email: string): boolean {
+  return email.trim().toLowerCase().startsWith('test-')
+}
+
+/**
+ * Case- and whitespace-insensitive form of a name. Used ONLY to refuse creating a
+ * second card for someone who may already have one — never to link or adopt a
+ * card. A name is user-editable, so letting it grant ownership would let anyone
+ * rename their account and take over somebody else's card.
+ */
+export function normalizePersonName(name: string): string {
+  return name.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase()
 }

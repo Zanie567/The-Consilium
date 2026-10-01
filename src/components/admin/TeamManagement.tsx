@@ -15,10 +15,19 @@ interface TeamMember {
   email: string | null
   order: number
   isActive: boolean
+  userId: string | null
+}
+
+export interface LinkableAccount {
+  id: string
+  name: string | null
+  email: string
+  role: string
 }
 
 interface TeamManagementProps {
   initialMembers: TeamMember[]
+  accounts: LinkableAccount[]
 }
 
 const emptyMember = {
@@ -29,9 +38,10 @@ const emptyMember = {
   email: '',
   order: 0,
   isActive: true,
+  userId: '',
 }
 
-export function TeamManagement({ initialMembers }: TeamManagementProps) {
+export function TeamManagement({ initialMembers, accounts }: TeamManagementProps) {
   const router = useRouter()
   const [members, setMembers] = useState(initialMembers)
   const [showForm, setShowForm] = useState(false)
@@ -41,6 +51,10 @@ export function TeamManagement({ initialMembers }: TeamManagementProps) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const takenAccountIds = new Set(
+    members.filter((m) => m.userId && m.id !== editId).map((m) => m.userId as string),
+  )
 
   const startEdit = (member: TeamMember) => {
     setEditId(member.id)
@@ -52,6 +66,7 @@ export function TeamManagement({ initialMembers }: TeamManagementProps) {
       email: member.email ?? '',
       order: member.order,
       isActive: member.isActive,
+      userId: member.userId ?? '',
     })
     setShowForm(true)
   }
@@ -172,6 +187,35 @@ export function TeamManagement({ initialMembers }: TeamManagementProps) {
                 placeholder="Optional - leave blank for no title"
                 className="w-full border border-navy/20 px-3 py-2 text-sm focus:outline-none focus:border-gold bg-cream"
               />
+            </div>
+            <div className="sm:col-span-2">
+              <label
+                htmlFor="tm-account"
+                className="block text-navy text-xs font-bold uppercase tracking-widest mb-1"
+              >
+                Linked account
+              </label>
+              <select
+                id="tm-account"
+                value={form.userId}
+                onChange={(e) => setForm({ ...form, userId: e.target.value })}
+                className="w-full border border-navy/20 px-3 py-2 text-sm focus:outline-none focus:border-gold bg-cream"
+              >
+                <option value="">Not linked (legacy card)</option>
+                {accounts
+                  .filter((a) => !takenAccountIds.has(a.id) || a.id === form.userId)
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name ?? '(no name)'}, {a.email} ({a.role})
+                    </option>
+                  ))}
+              </select>
+              <p className="text-navy/50 text-xs mt-1">
+                Link a card to its owner&apos;s Writer, Editor or Growth account so they edit it from their portal
+                instead of creating a second one. The account&apos;s role alone decides the team (Writing, Editorial,
+                Growth &amp; Communications); the title and order above only affect how the card is shown within
+                that team.
+              </p>
             </div>
             <div>
               <label className="block text-navy text-xs font-bold uppercase tracking-widest mb-1">
@@ -316,12 +360,14 @@ export function TeamManagement({ initialMembers }: TeamManagementProps) {
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => startEdit(member)}
+                        aria-label={`Edit ${member.name}`}
                         className="text-navy/60 hover:text-navy p-1 transition-colors"
                       >
                         <Edit size={15} />
                       </button>
                       <button
                         onClick={() => handleDelete(member.id)}
+                        aria-label={`Delete ${member.name}`}
                         className="text-red-400 hover:text-red-600 p-1 transition-colors"
                       >
                         <Trash2 size={15} />

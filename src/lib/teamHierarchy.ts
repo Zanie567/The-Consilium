@@ -22,12 +22,20 @@ export type TeamTierId =
   | 'editor'
   | 'junior_editor'
   | 'writer'
+  | 'growth'
   | 'other'
 
 /** Card prominence. The masthead narrows as it descends. */
 export type TeamCardVariant = 'lead' | 'feature' | 'standard' | 'compact'
 
-export type TeamSectionId = 'masthead' | 'editorial' | 'writers' | 'wider'
+export type TeamSectionId = 'masthead' | 'editorial' | 'writers' | 'growth' | 'wider'
+
+/**
+ * The team an account-linked card belongs to, derived from the account's role
+ * (see `teamForRole` in teamProfiles.ts). Absent for legacy cards typed in by an
+ * admin, which are placed by their free-text title as before.
+ */
+export type MemberTeam = 'writing' | 'editorial' | 'growth'
 
 /** Minimal shape the hierarchy needs; the Prisma `TeamMember` satisfies it. */
 export interface TeamMemberLike {
@@ -35,6 +43,14 @@ export interface TeamMemberLike {
   name: string
   role: string | null
   order: number
+  /**
+   * When set, the card is in this team's section. Always. The title and `order`
+   * only affect prominence and position WITHIN that team; nothing — not
+   * "Editor-in-Chief", "Chief", "Head" or "Director" — can move a card to another
+   * team. A wrongly-roled account is fixed by changing its role, not by a
+   * rendering exception.
+   */
+  team?: MemberTeam | null
 }
 
 export interface TeamRow<T extends TeamMemberLike> {
@@ -59,6 +75,7 @@ const TIER_SECTION: Record<TeamTierId, TeamSectionId> = {
   editor: 'editorial',
   junior_editor: 'editorial',
   writer: 'writers',
+  growth: 'growth',
   other: 'wider',
 }
 
@@ -69,6 +86,7 @@ const TIER_VARIANT: Record<TeamTierId, TeamCardVariant> = {
   editor: 'standard',
   junior_editor: 'standard',
   writer: 'compact',
+  growth: 'compact',
   other: 'compact',
 }
 
@@ -80,10 +98,11 @@ export const TEAM_TIER_ORDER: readonly TeamTierId[] = [
   'editor',
   'junior_editor',
   'writer',
+  'growth',
   'other',
 ]
 
-const SECTION_ORDER: readonly TeamSectionId[] = ['masthead', 'editorial', 'writers', 'wider']
+const SECTION_ORDER: readonly TeamSectionId[] = ['masthead', 'editorial', 'writers', 'growth', 'wider']
 
 const SECTION_META: Record<TeamSectionId, { label: string; labelVisible: boolean }> = {
   // The two masthead rows read as a hierarchy on their own; a visible label
@@ -91,6 +110,7 @@ const SECTION_META: Record<TeamSectionId, { label: string; labelVisible: boolean
   masthead: { label: 'Masthead', labelVisible: false },
   editorial: { label: 'Editorial', labelVisible: true },
   writers: { label: 'Writers', labelVisible: true },
+  growth: { label: 'Growth & Communications', labelVisible: true },
   wider: { label: 'Wider Team', labelVisible: true },
 }
 
@@ -143,7 +163,9 @@ export function resolveTeamTier(role: string | null | undefined): TeamTierId {
   }
 
   // Social media, growth, digital operations and anything else an admin adds
-  // later: still rendered, in its own section, with its real title.
+  // later: still rendered, in its own section, with its real title. The Growth &
+  // Communications section is populated only by account-linked cards (see
+  // `MemberTeam`); legacy free-text titles are deliberately not reinterpreted.
   return 'other'
 }
 
@@ -169,15 +191,35 @@ function normalizeName(name: string): string {
   return name.toLowerCase().replace(/\s+/g, ' ').trim()
 }
 
+interface Placement {
+  section: TeamSectionId
+  tier: TeamTierId
+}
+
 /**
- * The tier a member is rendered in: their role's tier, unless they are an
- * untitled member listed in `UNTITLED_MASTHEAD_MEMBERS`.
+ * Where a card is rendered.
+ *
+ * Account-linked card (`team` set): the SECTION is fixed by the team. The title
+ * chooses the prominence row inside that section — Editorial has the full ladder
+ * (Editor-in-Chief, leadership, Senior, Editor, Junior); Writing and Growth &
+ * Communications have one row each.
+ *
+ * Legacy card (no linked account, so no role to derive a team from): placed by its
+ * free-text title as before, including the untitled-masthead pin.
  */
-function resolveMemberTier(member: TeamMemberLike): TeamTierId {
-  if (!hasDisplayableRole(member.role) && UNTITLED_MASTHEAD_MEMBERS.has(normalizeName(member.name))) {
-    return 'leadership'
+function placeMember(member: TeamMemberLike): Placement {
+  if (member.team === 'writing') return { section: 'writers', tier: 'writer' }
+  if (member.team === 'growth') return { section: 'growth', tier: 'growth' }
+  if (member.team === 'editorial') {
+    const tier = resolveTeamTier(member.role)
+    const ladder: TeamTierId[] = ['editor_in_chief', 'leadership', 'senior_editor', 'junior_editor']
+    return { section: 'editorial', tier: ladder.includes(tier) ? tier : 'editor' }
   }
-  return resolveTeamTier(member.role)
+  const tier =
+    !hasDisplayableRole(member.role) && UNTITLED_MASTHEAD_MEMBERS.has(normalizeName(member.name))
+      ? 'leadership'
+      : resolveTeamTier(member.role)
+  return { section: TIER_SECTION[tier], tier }
 }
 
 /** `order` asc, roleless members last within their tier, then name for stability. */
@@ -193,39 +235,38 @@ function compareMembers(a: TeamMemberLike, b: TeamMemberLike): number {
  * Groups a roster into masthead sections and rows.
  *
  * Only one Editor-in-Chief is ever shown at the top: if the data contains more
- * than one, the lowest `order` keeps the position and the rest fall to the
- * leadership tier. Empty rows and empty sections are omitted.
+ * than one, the lowest `order` keeps the position and the rest drop to the
+ * leadership row of their own section. Empty rows and empty sections are omitted.
  */
 export function buildTeamMasthead<T extends TeamMemberLike>(members: T[]): TeamSection<T>[] {
-  const byTier = new Map<TeamTierId, T[]>()
-  const editorsInChief: T[] = []
-
-  for (const member of members) {
-    const tier = resolveMemberTier(member)
-    if (tier === 'editor_in_chief') {
-      editorsInChief.push(member)
-      continue
-    }
-    const bucket = byTier.get(tier)
+  const buckets = new Map<string, T[]>()
+  const key = (section: TeamSectionId, tier: TeamTierId) => `${section}:${tier}`
+  const add = (section: TeamSectionId, tier: TeamTierId, member: T) => {
+    const bucket = buckets.get(key(section, tier))
     if (bucket) bucket.push(member)
-    else byTier.set(tier, [member])
+    else buckets.set(key(section, tier), [member])
   }
 
-  if (editorsInChief.length > 0) {
-    editorsInChief.sort(compareMembers)
-    const [chief, ...rest] = editorsInChief
-    byTier.set('editor_in_chief', [chief])
-    if (rest.length > 0) {
-      byTier.set('leadership', [...(byTier.get('leadership') ?? []), ...rest])
-    }
+  const chiefs: { member: T; section: TeamSectionId }[] = []
+  for (const member of members) {
+    const { section, tier } = placeMember(member)
+    if (tier === 'editor_in_chief') chiefs.push({ member, section })
+    else add(section, tier, member)
   }
 
-  for (const bucket of byTier.values()) bucket.sort(compareMembers)
+  chiefs.sort((a, b) => compareMembers(a.member, b.member))
+  chiefs.forEach(({ member, section }, index) => {
+    add(section, index === 0 ? 'editor_in_chief' : 'leadership', member)
+  })
+
+  for (const bucket of buckets.values()) bucket.sort(compareMembers)
 
   return SECTION_ORDER.flatMap<TeamSection<T>>((sectionId) => {
-    const rows = TEAM_TIER_ORDER.filter((tier) => TIER_SECTION[tier] === sectionId)
-      .map((tier) => ({ tier, variant: TIER_VARIANT[tier], members: byTier.get(tier) ?? [] }))
-      .filter((row) => row.members.length > 0)
+    const rows = TEAM_TIER_ORDER.map((tier) => ({
+      tier,
+      variant: TIER_VARIANT[tier],
+      members: buckets.get(key(sectionId, tier)) ?? [],
+    })).filter((row) => row.members.length > 0)
 
     if (rows.length === 0) return []
     return [{ id: sectionId, ...SECTION_META[sectionId], rows }]
