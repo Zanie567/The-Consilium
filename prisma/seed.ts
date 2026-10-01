@@ -5,6 +5,16 @@ config({ path: resolve(__dirname, '../.env.local') })
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
+import { assertSafeTestDatabaseHost } from '../scripts/lib/assertSafeTestDatabaseHost'
+
+// Run by the test harness (scripts/setup-test-db.sh, which sets TEST_HARNESS=1
+// and exports DATABASE_URL/DIRECT_URL itself) as well as by hand for one-off
+// dev/staging seeding. The guard only activates for the former: it must never
+// let the harness silently reseed a hosted/production database, without
+// blocking a deliberate manual seed of a real environment.
+if (process.env.TEST_HARNESS === '1') {
+  assertSafeTestDatabaseHost(process.env.DIRECT_URL, 'DIRECT_URL')
+}
 
 const adapter = new PrismaPg({ connectionString: process.env.DIRECT_URL! })
 const prisma = new PrismaClient({ adapter })

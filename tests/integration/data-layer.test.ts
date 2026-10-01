@@ -19,6 +19,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { publishedArticleWhere } from '@/lib/articleQueries'
+import { assertSafeTestDatabaseHost } from '../../scripts/lib/assertSafeTestDatabaseHost'
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL ?? '' }),
@@ -27,10 +28,19 @@ const prisma = new PrismaClient({
 let dbUp = false
 beforeAll(async () => {
   try {
+    // This suite writes and deletes probe rows (below). A plain `vitest run`
+    // with no local test DB set up previously fell through to whatever
+    // DATABASE_URL happened to be in .env.local — which can be a real
+    // Supabase project. Treat an unsafe host exactly like "DB unreachable":
+    // skip rather than connect.
+    assertSafeTestDatabaseHost(process.env.DATABASE_URL, 'DATABASE_URL')
     await prisma.$queryRaw`SELECT 1`
     dbUp = true
-  } catch {
-    console.warn('[data-layer] DB unreachable — skipping. Run scripts/setup-test-db.sh first.')
+  } catch (err) {
+    console.warn(
+      '[data-layer] DB unreachable or unsafe — skipping. Run scripts/setup-test-db.sh first.',
+      err instanceof Error ? err.message : err
+    )
   }
 })
 afterAll(async () => {

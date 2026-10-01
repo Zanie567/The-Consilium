@@ -9,10 +9,15 @@ config({ path: resolve(__dirname, '../../../.env.local') })
 
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { assertSafeTestDatabaseHost } from '../../../scripts/lib/assertSafeTestDatabaseHost'
 
 let prisma: PrismaClient | null = null
 function db(): PrismaClient {
   if (!prisma) {
+    // Unlike the vitest DB suites, e2e assertions depend on this data being
+    // the real seeded fixture set — an unsafe host should fail loudly, not
+    // skip silently.
+    assertSafeTestDatabaseHost(process.env.DATABASE_URL, 'DATABASE_URL')
     prisma = new PrismaClient({
       adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL ?? '' }),
     })
