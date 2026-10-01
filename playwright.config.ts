@@ -1,8 +1,15 @@
 import { defineConfig, devices } from '@playwright/test'
 import { ADMIN_STORAGE, EDITOR_GLOBAL_STORAGE } from './tests/e2e/helpers/authStorage'
+import { applyTestDatabaseEnv, resolveTestBaseUrl } from './scripts/lib/testDatabase'
+
+// SAFETY: E2E signs in with seeded credentials and writes data, and the e2e DB
+// helpers read DATABASE_URL. Pin both the process and the server it starts to the
+// verified local test database (never .env.local = production), and refuse a remote
+// base URL. Runs in every Playwright worker too, since each re-imports this config.
+applyTestDatabaseEnv()
 
 const PORT = process.env.E2E_PORT ?? '3000'
-const BASE_URL = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`
+const BASE_URL = resolveTestBaseUrl(process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`)
 
 /**
  * E2E config. Tests run against a production server (`next start`) so caching and

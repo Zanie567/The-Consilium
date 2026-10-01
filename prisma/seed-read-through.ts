@@ -28,11 +28,10 @@ config({ path: resolve(__dirname, '../.env.local') })
 
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
-import { assertSafeTestDatabaseHost } from '../scripts/lib/assertSafeTestDatabaseHost'
+import { assertSeedTargetIsSafe } from '../scripts/lib/assertSafeTestDatabaseHost'
 
-// TEST-ONLY fixture (see file header) — this guard is unconditional, unlike
-// prisma/seed.ts, because this script has no legitimate real-environment use.
-assertSafeTestDatabaseHost(process.env.DIRECT_URL, 'DIRECT_URL')
+// Seeds known-password fixture users and synthetic data: only ever against a test database.
+assertSeedTargetIsSafe('prisma/seed-read-through.ts', { fixtureOnly: true })
 
 const adapter = new PrismaPg({ connectionString: process.env.DIRECT_URL! })
 const prisma = new PrismaClient({ adapter })

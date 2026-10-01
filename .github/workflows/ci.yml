@@ -92,6 +92,11 @@ jobs:
           --health-retries 5
 
     env:
+      # TEST_DATABASE_URL is the single source of truth for tests: the tooling ignores
+      # DATABASE_URL/DIRECT_URL and overwrites them with it. localhost passes the guard
+      # (scripts/lib/assertSafeTestDatabaseHost.ts); a non-local CI database needs
+      # TEST_DB_ALLOW_HOST set to its exact host.
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/consilium
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/consilium
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/consilium
       NEXTAUTH_SECRET: ci_dummy_secret_not_used_at_runtime

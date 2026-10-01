@@ -1,5 +1,12 @@
 import { defineConfig } from 'vitest/config'
 import path from 'path'
+import { resolveTestBaseUrl, testDatabaseEnv } from './scripts/lib/testDatabase'
+
+// Fail closed, before any test is collected: tests only ever get a verified local
+// database, never DATABASE_URL / .env.local (production). The rules live in
+// scripts/lib/assertSafeTestDatabaseHost.ts; scripts/lib/testDatabase.ts picks the URL.
+const testDatabase = testDatabaseEnv()
+const baseUrl = resolveTestBaseUrl(process.env.BASE_URL)
 
 export default defineConfig({
   test: {
@@ -11,8 +18,10 @@ export default defineConfig({
     // workers. Read here in the main process — where an inline `BASE_URL=…`
     // prefix is reliably visible — so integration specs can reach the server
     // regardless of how vitest pools/forks workers.
+    setupFiles: ['./tests/setup/db-guard.ts'],
     env: {
-      BASE_URL: process.env.BASE_URL ?? 'http://localhost:3000',
+      ...testDatabase,
+      BASE_URL: baseUrl,
       ...(process.env.E2E_ADMIN_EMAIL ? { E2E_ADMIN_EMAIL: process.env.E2E_ADMIN_EMAIL } : {}),
       ...(process.env.E2E_ADMIN_PASSWORD ? { E2E_ADMIN_PASSWORD: process.env.E2E_ADMIN_PASSWORD } : {}),
       ...(process.env.CRON_SECRET ? { CRON_SECRET: process.env.CRON_SECRET } : {}),

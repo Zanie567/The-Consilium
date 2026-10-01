@@ -9,16 +9,18 @@
 #   fixtures   -> reader/growth accounts + comments + scheduled/archived rows
 #
 # Re-runnable. USE_EXISTING_DB=1 points this at a database you supply via
-# DATABASE_URL/DIRECT_URL instead of starting a local cluster (e.g. a CI
-# service container) — that database is still required to pass the
-# fail-closed host check below.
+# TEST_DATABASE_URL instead of starting a local cluster (e.g. a CI service
+# container) — that database is still required to pass the fail-closed host
+# check below.
 #
-# Safety: this script NEVER trusts .env.local for where to connect. It
-# resolves DATABASE_URL/DIRECT_URL itself (to the local cluster it just
-# started, or to the caller-supplied values under USE_EXISTING_DB=1),
-# exports them before any prisma/seed command runs, and refuses to proceed
-# if the resolved host isn't localhost/127.0.0.1 or an explicitly
-# allow-listed CI host — see scripts/lib/assertSafeTestDatabaseHost.ts.
+# Safety: TEST_DATABASE_URL is the single source of truth for which database
+# tests use. This script NEVER trusts .env.local (production) or an inherited
+# DATABASE_URL/DIRECT_URL for where to connect: it resolves TEST_DATABASE_URL
+# itself (the local cluster it just started, or the caller-supplied value under
+# USE_EXISTING_DB=1), overwrites DATABASE_URL/DIRECT_URL with it before any
+# prisma/seed command runs, and refuses to proceed if the host isn't localhost/
+# 127.0.0.1 or the exact host allow-listed via TEST_DB_ALLOW_HOST — see
+# scripts/lib/assertSafeTestDatabaseHost.ts, the one policy for all of this.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -43,14 +45,15 @@ if [ "${USE_EXISTING_DB:-0}" != "1" ]; then
   fi
   createdb -h "$PGSOCK" -p "$PGPORT" -U postgres consilium 2>/dev/null || true
 
-  # Resolve to the local cluster we just started/verified — explicitly, so
-  # nothing downstream can fall back to whatever .env.local happens to say.
-  export DATABASE_URL="postgresql://postgres@localhost:${PGPORT}/consilium"
-  export DIRECT_URL="postgresql://postgres@localhost:${PGPORT}/consilium"
+  # The local cluster we just started/verified — explicitly, so nothing
+  # downstream can fall back to whatever .env.local happens to say.
+  export TEST_DATABASE_URL="postgresql://postgres@localhost:${PGPORT}/consilium"
 else
-  : "${DATABASE_URL:?USE_EXISTING_DB=1 requires DATABASE_URL to be set}"
-  : "${DIRECT_URL:?USE_EXISTING_DB=1 requires DIRECT_URL to be set}"
+  : "${TEST_DATABASE_URL:?USE_EXISTING_DB=1 requires TEST_DATABASE_URL to be set}"
 fi
+# One database for everything below, whatever the environment carried in.
+export DATABASE_URL="$TEST_DATABASE_URL"
+export DIRECT_URL="$TEST_DATABASE_URL"
 
 # Marks every seed/dedupe script's own in-process safety check as active —
 # see scripts/lib/assertSafeTestDatabaseHost.ts — so the check holds even if
