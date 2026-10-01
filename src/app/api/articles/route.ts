@@ -4,6 +4,7 @@ import { authOptions, requireActiveSession, requireVerifiedSessionUser } from '@
 import { prisma } from '@/lib/prisma'
 import slugify from 'slugify'
 import { ARTICLE_SAVE_TIMEOUT_MS, normalizeArticleTags } from '@/lib/articleTags'
+import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
 import { ARTICLE_MUTATION_ROLES, EDITORIAL_MANAGEMENT_ROLES, isAllowedRole } from '@/lib/rbac'
 import { PUBLIC_AUTHOR_SELECT } from '@/lib/publicUser'
 import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
@@ -148,6 +149,7 @@ export async function POST(request: NextRequest) {
       coverImage,
       categoryId,
       status,
+      scheduledAt,
       tags,
       authorId: bodyAuthorId,
     } = body
@@ -162,6 +164,22 @@ export async function POST(request: NextRequest) {
     const finalStatus = (allowedStatuses as readonly string[]).includes(requestedStatus)
       ? (requestedStatus as ArticleStatus)
       : 'DRAFT'
+
+    // A SCHEDULED article must always carry a future publish time: without
+    // one the publish cron never picks it up and it sits in limbo forever.
+    // Unlike PUT (which can fall back to an already-stored scheduledAt on
+    // autosave), creation has no prior value to fall back to.
+    let effectiveScheduledAt: Date | null = null
+    if (finalStatus === 'SCHEDULED') {
+      const scheduledDate = parseEditorialScheduleInput(scheduledAt)
+      if (!scheduledDate || scheduledDate <= new Date()) {
+        return NextResponse.json(
+          { error: 'A future publish date and time is required to schedule this article.' },
+          { status: 400 }
+        )
+      }
+      effectiveScheduledAt = scheduledDate
+    }
 
     const effectiveCategoryId = categoryId || null
     if (user.role === 'EDITOR') {
@@ -210,6 +228,7 @@ export async function POST(request: NextRequest) {
           authorId: effectiveAuthorId,
           status: finalStatus,
           publishedAt: finalStatus === 'PUBLISHED' ? new Date() : null,
+          scheduledAt: effectiveScheduledAt,
         },
       })
 
