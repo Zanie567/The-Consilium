@@ -2,6 +2,8 @@ import { NextResponse, NextRequest } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_ONLY } from '@/lib/rbac'
+import { isUniqueViolation } from '@/lib/prismaErrors'
+import { parseLinkTarget } from '../linkTarget'
 
 export async function PUT(
   request: NextRequest,
@@ -15,11 +17,16 @@ export async function PUT(
   const { id } = await params
   try {
     const body = await request.json()
-    const { name, role, bio, image, email, order, isActive } = body
+    const { name, role, bio, image, email, order, isActive, userId } = body
+
+    const link = await parseLinkTarget(userId)
+    if (!link.ok) return link.response
 
     const member = await prisma.teamMember.update({
       where: { id },
       data: {
+        // Absent leaves the link as it is; null unlinks; an id links.
+        ...(link.userId !== undefined ? { userId: link.userId } : {}),
         name,
         // See POST /api/team: an absent role is stored as an empty string.
         role: role ?? '',
@@ -31,7 +38,10 @@ export async function PUT(
       },
     })
     return NextResponse.json(member)
-  } catch {
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return NextResponse.json({ error: 'That account already has a team card.' }, { status: 409 })
+    }
     return NextResponse.json({ error: 'Failed to update team member' }, { status: 500 })
   }
 }

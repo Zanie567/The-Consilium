@@ -45,6 +45,9 @@ export default async function EditorialLayout({ children }: { children: React.Re
           <p className="text-cream/50 text-sm leading-relaxed">
             You do not have permission to access the editorial system.
           </p>
+          <p className="text-cream/35 text-xs leading-relaxed mt-3">
+            Just been given access? Reload this page — you don&apos;t need to sign in again.
+          </p>
         </div>
       </div>
     )

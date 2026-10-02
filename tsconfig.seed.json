@@ -13,6 +13,9 @@
     "prisma/seed-test-fixtures.ts",
     "prisma/seed-read-through.ts",
     "scripts/assert-safe-test-db.ts",
-    "scripts/lib/assertSafeTestDatabaseHost.ts"
+    "scripts/lib/assertSafeTestDatabaseHost.ts",
+    "scripts/test-db-env.ts",
+    "scripts/lib/testDatabase.ts",
+    "tests/e2e/helpers/fake-storage-server.ts"
   ]
 }

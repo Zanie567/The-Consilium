@@ -18,6 +18,13 @@
 set -uo pipefail
 cd "$(dirname "$0")/.." || { echo "✗ could not cd to project root"; exit 1; }
 
+# SAFETY: the server this script starts, and every seed it runs, must use the
+# verified test database (TEST_DATABASE_URL or the local default) — never the
+# production one in .env.local. Exporting these here means `next start` below
+# inherits them (Next never overrides an already-set variable with .env.local).
+# Aborts on an unsafe URL; the rules live in scripts/lib/assertSafeTestDatabaseHost.ts.
+eval "$(npx ts-node -P tsconfig.seed.json scripts/test-db-env.ts)" || { echo "✗ refusing: unsafe test database"; exit 1; }
+
 PORT="${AUDIT_PORT:-3100}"
 BASE="${AUDIT_BASE_URL:-http://localhost:$PORT}"
 SERVER_PID=""

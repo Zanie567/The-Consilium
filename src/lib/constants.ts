@@ -153,3 +153,10 @@ export const EDITORIAL_API_ROUTES = {
   commissioningBrief: '/api/editorial/commissioning-brief',
   writerActivity: '/api/editorial/growth/writer-activity',
 } as const
+
+/**
+ * Maximum size of a Meet the Team photo, in bytes. Set under Vercel's 4.5 MB
+ * function request-body limit: a larger multipart upload would be cut off by the
+ * platform with an unhelpful error before the route could reject it by name.
+ */
+export const MAX_TEAM_PHOTO_BYTES = 4 * 1024 * 1024

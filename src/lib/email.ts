@@ -136,7 +136,10 @@ export function roleChangedEmail(userName: string | null, newRole: string, promo
         ? `<p>You have been granted <strong>${normalised}</strong> access on The Consilium. You can now ${description}.</p>`
         : `<p>Your role on The Consilium has been updated to <strong>${normalised}</strong>.</p>`
       }
-      <p>Your new permissions will take effect the next time you sign in.</p>
+      <p>The change applies straight away: reload the page and you're in. You don't need to sign in again.</p>
+      ${['WRITER', 'EDITOR', 'GROWTH'].includes(newRole)
+        ? `<p>You can now create your public Meet the Team profile from the editorial dashboard (Team Profile in the menu).</p>`
+        : ''}
       <p><a href="${process.env.NEXTAUTH_URL}/editorial">Go to the editorial dashboard →</a></p>
       <p>The Consilium</p>
     `,

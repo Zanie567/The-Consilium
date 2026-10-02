@@ -73,6 +73,7 @@ model User {
   predictionEvents   PredictionEvent[]
   predictions        Prediction[]
   articleComments    ArticleComment[]
+  teamProfile        TeamMember?
 
   @@map("users")
 }
@@ -390,6 +391,15 @@ model LoginAttempt {
 
 model TeamMember {
   id       String  @id @default(cuid())
+  // The account that owns this card, when it has one. @unique is the database's
+  // guarantee of "one Meet the Team profile per account": a concurrent or repeated
+  // create cannot produce a second row. Nullable because legacy cards were typed in
+  // by an admin with no account; Postgres allows any number of NULLs under UNIQUE.
+  // There is deliberately NO team column: a linked card's team is derived from
+  // user.role at read time (see src/lib/teamProfiles.ts), so it cannot be forged
+  // or drift out of step with the account's role.
+  userId   String? @unique
+  user     User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   name     String
   role     String
   bio      String? @db.Text
