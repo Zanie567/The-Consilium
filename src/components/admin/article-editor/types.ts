@@ -29,6 +29,8 @@ export interface ArticleEditorProps {
     editorNote?: string | null
     tags?: string[]
     authorId?: string
+    /** Fingerprint of the article as loaded; sent back with each save (see articleVersion.ts). */
+    version?: string
   }
   categories: Category[]
   authorId: string
@@ -50,6 +52,8 @@ export interface ArticleEditorError {
   /** Actionable explanation rendered in the editor banner. */
   message: string
   requestId?: string
+  /** Server error code, e.g. ARTICLE_CONFLICT, so the banner can offer the right actions. */
+  code?: string
 }
 
 export interface ArticleEditorRefs {
@@ -95,6 +99,10 @@ export interface ArticleEditorController {
     handleContentChange: (content: string) => void
     handleCoverUpload: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>
     handleSave: (overrideStatus?: string) => Promise<void>
+    /** After a conflict: save this tab's version over the newer one, on purpose. */
+    keepMyVersion: () => void
+    /** After a conflict: discard this tab's unsaved changes and load the newer version. */
+    reloadLatest: () => void
     handleTagKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void
     openCoverPicker: () => void
     removeCoverImage: () => void

@@ -186,6 +186,24 @@ function EditorBanners({ editor }: EditorBannersProps) {
           <AlertCircle size={14} className="mt-0.5 shrink-0" />
           <div>
             <p>{editor.error.message}</p>
+            {editor.error.code === 'ARTICLE_CONFLICT' && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={editor.actions.keepMyVersion}
+                  className="rounded border border-red-500/40 px-3 py-1 text-xs font-semibold hover:bg-red-500/10"
+                >
+                  Keep my version
+                </button>
+                <button
+                  type="button"
+                  onClick={editor.actions.reloadLatest}
+                  className="rounded border border-red-500/40 px-3 py-1 text-xs font-semibold hover:bg-red-500/10"
+                >
+                  Discard mine and reload
+                </button>
+              </div>
+            )}
             {editor.error.kind === 'auth' && (
               <a
                 href="/editorial/login"
@@ -207,7 +225,9 @@ function EditorBanners({ editor }: EditorBannersProps) {
 
       {!editor.canEdit && (
         <div className="bg-[var(--bg-elevated)] border border-[var(--border)] px-4 py-3 rounded text-[var(--fg-muted)] text-sm">
-          This article is under review and cannot be edited until an editor responds.
+          {editor.currentStatus === 'PENDING_REVIEW'
+            ? 'This article is under review and cannot be edited until an editor responds.'
+            : 'This article is no longer a draft, so it cannot be edited by its writer. Ask an editor to unpublish or return it.'}
         </div>
       )}
     </div>

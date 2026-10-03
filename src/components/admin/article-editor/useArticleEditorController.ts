@@ -17,6 +17,9 @@ import type {
 
 interface SavedArticleResponse {
   id?: string
+  status?: string
+  /** Server-computed fingerprint of the saved fields (see src/lib/articleVersion.ts). */
+  version?: string
 }
 
 function localEditorError(message: string): ArticleEditorError {
@@ -25,7 +28,7 @@ function localEditorError(message: string): ArticleEditorError {
 
 function articleSaveError(reason: unknown): ArticleEditorError {
   const error = asApiError(reason)
-  const base = { kind: error.kind, requestId: error.requestId }
+  const base = { kind: error.kind, requestId: error.requestId, code: error.code }
 
   switch (error.kind) {
     case 'auth':
@@ -61,6 +64,13 @@ function articleSaveError(reason: unknown): ArticleEditorError {
         message: `The article could not be saved: ${error.message}`,
       }
     case 'conflict':
+      if (error.code === 'ARTICLE_CONFLICT') {
+        return {
+          ...base,
+          label: 'Changed elsewhere',
+          message: `${error.message} Nothing was saved. Your changes are still in this tab: keep them to replace the newer version, or reload to discard them and see what changed.`,
+        }
+      }
       return {
         ...base,
         label: 'Save conflict',
@@ -120,6 +130,9 @@ export function useArticleEditorController({
   const [coverImage, setCoverImageState] = useState(initialData?.coverImage ?? '')
   const [categoryId, setCategoryIdState] = useState(initialData?.categoryId ?? '')
   const [status, setStatusState] = useState(initialData?.status ?? 'DRAFT')
+  // The status the SERVER holds: moves only when a save succeeds. Drives what the page lets
+  // the writer do (a submitted article is locked) without needing a reload.
+  const [currentStatus, setCurrentStatus] = useState(initialData?.status ?? 'DRAFT')
   const [scheduledAt, setScheduledAtState] = useState(initialData?.scheduledAt ?? '')
   const [tags, setTags] = useState<string[]>(initialData?.tags ?? [])
   const [tagInput, setTagInput] = useState('')
@@ -135,6 +148,8 @@ export function useArticleEditorController({
   const [tutorialOpen, setTutorialOpen] = useState(false)
 
   const articleIdRef = useRef<string | undefined>(articleId)
+  // Fingerprint of the article as this tab last saw it; sent so a stale tab is refused.
+  const versionRef = useRef<string | undefined>(initialData?.version)
   const isDirtyRef = useRef(false)
   const editVersionRef = useRef(0)
   const statusIntentVersionRef = useRef(0)
@@ -156,7 +171,6 @@ export function useArticleEditorController({
   const tagsRef = useRef(tags)
   const selectedAuthorIdRef = useRef(selectedAuthorId)
 
-  const currentStatus = initialData?.status ?? 'DRAFT'
   const canEdit = !isWriter || currentStatus === 'DRAFT' || currentStatus === 'REJECTED'
 
   useEffect(() => setThemeMounted(true), [])
@@ -243,6 +257,7 @@ export function useArticleEditorController({
           authorId: selectedAuthorIdRef.current,
           status: finalStatus,
           tags: tagsRef.current,
+          ...(versionRef.current ? { baseVersion: versionRef.current } : {}),
           ...(finalStatus === 'SCHEDULED' && scheduledAtRef.current
             ? { scheduledAt: scheduledAtRef.current }
             : {}),
@@ -276,16 +291,22 @@ export function useArticleEditorController({
             )
           }
           articleIdRef.current = saved.id
-          router.replace(`/editorial/articles/${saved.id}/edit`)
+          if (saved.version) versionRef.current = saved.version
+          // Put the article's own URL in the address bar WITHOUT navigating. A router
+          // navigation here re-mounted the whole editor (new route segment), and any
+          // keystroke typed between the save and the re-mount was silently discarded.
+          window.history.replaceState(window.history.state, '', `/editorial/articles/${saved.id}/edit`)
 
           if (finalStatus !== 'DRAFT') {
             saved = await apiRequest<SavedArticleResponse>(`/api/articles/${saved.id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body),
+              body: JSON.stringify({ ...body, ...(versionRef.current ? { baseVersion: versionRef.current } : {}) }),
             })
           }
         }
+        if (saved.version) versionRef.current = saved.version
+        if (saved.status) setCurrentStatus(saved.status)
 
         if (overrideStatus && statusIntentVersion === statusIntentVersionRef.current) {
           setStatusState(overrideStatus)
@@ -414,6 +435,17 @@ export function useArticleEditorController({
 
     if (!saved || !articleIdRef.current) return
     if (overrideStatus && articleId) router.refresh()
+  }
+
+  const keepMyVersion = () => {
+    // The user has seen the conflict and chosen their text: save without the version check.
+    versionRef.current = undefined
+    void handleSave()
+  }
+
+  const reloadLatest = () => {
+    isDirtyRef.current = false // otherwise the browser asks "leave site?" for text being discarded
+    window.location.reload()
   }
 
   const handleBack = async () => {
@@ -571,6 +603,8 @@ export function useArticleEditorController({
       handleContentChange,
       handleCoverUpload,
       handleSave,
+      keepMyVersion,
+      reloadLatest,
       handleTagKeyDown,
       openCoverPicker,
       removeCoverImage,

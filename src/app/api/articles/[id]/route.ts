@@ -11,6 +11,7 @@ import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 import { apiError, articleMutationErrorResponse } from '@/lib/apiResponse'
 import { ARTICLE_SAVE_TIMEOUT_MS, normalizeArticleTags } from '@/lib/articleTags'
+import { articleVersion } from '@/lib/articleVersion'
 import type { ArticleStatus } from '@prisma/client'
 
 const STAFF_ARTICLE_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'ARCHIVED', 'REJECTED', 'SCHEDULED'] as const satisfies readonly ArticleStatus[]
@@ -104,7 +105,7 @@ export async function PUT(
 
     const existing = await prisma.article.findUnique({
       where: { id },
-      include: { author: true, category: true },
+      include: { author: true, category: true, tags: { include: { tag: true } } },
     })
     if (!existing || existing.deletedAt) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -130,7 +131,23 @@ export async function PUT(
       title, slug, content, excerpt, coverImage, categoryId, status,
       corrected, correctionNote, seriesId, seriesOrder, tags, scheduledAt,
       authorId: bodyAuthorId,
+      baseVersion,
     } = body
+
+    // Optimistic concurrency: a client that says which version it was editing is refused
+    // when the article has changed since (another tab, another person, a review action).
+    // Clients that send no baseVersion (scripts, older pages) are not checked.
+    if (typeof baseVersion === 'string' && baseVersion) {
+      const currentVersion = articleVersion(existing, existing.tags.map((t) => t.tag.name))
+      if (baseVersion !== currentVersion) {
+        return apiError(
+          'This article was changed in another tab or by someone else since you opened it.',
+          409,
+          'ARTICLE_CONFLICT',
+          requestId
+        )
+      }
+    }
 
     const nextCategoryId = categoryId !== undefined ? (categoryId || null) : existing.categoryId
 
@@ -319,7 +336,13 @@ export async function PUT(
       }
     }
 
-    return NextResponse.json(updated, { headers: { 'x-request-id': requestId } })
+    const savedTagNames = Array.isArray(tags)
+      ? normalizedTags.map((t) => t.name)
+      : existing.tags.map((t) => t.tag.name)
+    return NextResponse.json(
+      { ...updated, version: articleVersion(updated, savedTagNames) },
+      { headers: { 'x-request-id': requestId } }
+    )
   } catch (error) {
     return articleMutationErrorResponse(error, 'update', requestId)
   }

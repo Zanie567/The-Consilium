@@ -30,8 +30,12 @@ export async function signedIn(browser: Browser, who: SessionName | null): Promi
   return browser.newContext(who ? { storageState: SESSIONS[who] } : {})
 }
 
+/** Titles this worker generated; only these are removed afterwards, never another worker's. */
+const created: string[] = []
 export function uniqueTitle(label: string) {
-  return `WF ${label} ${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+  const title = `WF ${label} ${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+  created.push(title)
+  return title
 }
 
 // ── Database (test DB only; read-back + fixture cleanup) ────────────────────────────
@@ -53,7 +57,17 @@ export function articleByTitle(title: string) {
   return db().article.findFirst({ where: { title }, include: { author: true, tags: { include: { tag: true } } } })
 }
 
-/** Removes every article a spec created, whatever state it ended in. */
+/**
+ * Removes the articles THIS worker created through uniqueTitle() (and anything whose title
+ * extends one of them, e.g. an edited headline), whatever state they ended in. Scoped to
+ * the worker on purpose: specs run in parallel, and a prefix-wide delete from one worker
+ * removed articles another was still using.
+ */
+export async function removeMyArticles() {
+  for (const title of created) await removeArticlesTitled(title)
+}
+
+/** Removes every article whose title starts with `prefix`, whatever state it ended in. */
 export async function removeArticlesTitled(prefix: string) {
   const rows = await db().article.findMany({ where: { title: { startsWith: prefix } }, select: { id: true } })
   const ids = rows.map((r) => r.id)

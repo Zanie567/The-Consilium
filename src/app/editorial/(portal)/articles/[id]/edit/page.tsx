@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { ArticleEditor } from '@/components/admin/ArticleEditor'
 import { formatEditorialScheduleInput } from '@/lib/editorialSchedule'
 import { notFound, redirect } from 'next/navigation'
+import { articleVersion } from '@/lib/articleVersion'
 import type { Metadata } from 'next'
 import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { categoryWhereForEditorScope, editorCanAccessCategory } from '@/lib/articleCategoryScope'
@@ -60,6 +61,7 @@ export default async function EditorialEditArticlePage({ params }: Props) {
         scheduledAt: formatEditorialScheduleInput(article.scheduledAt),
         editorNote: article.editorNote,
         tags: article.tags.map((t) => t.tag.name),
+        version: articleVersion(article, article.tags.map((t) => t.tag.name)),
         // Pass the article's actual author so the dropdown defaults to the right person
         authorId: article.authorId,
       }}

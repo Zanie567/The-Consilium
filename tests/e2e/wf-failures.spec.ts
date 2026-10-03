@@ -1,0 +1,321 @@
+import { test, expect, type BrowserContext, type Page, type Route } from '@playwright/test'
+import { ArticleEditorPage, articleByTitle, closeDb, db, removeMyArticles, signedIn, uniqueTitle } from './helpers/workflow'
+
+/**
+ * What the editor does when saving goes wrong, and whether work survives. Failures are
+ * injected at the network boundary (page.route) so the app's real client code reacts to
+ * them; the typing, clicking and saving are all real UI actions.
+ *
+ * Every test asserts the same three things: the failure is VISIBLE to the user, the text
+ * they typed is STILL IN THE EDITOR, and after the fault clears a normal save puts it in
+ * the database.
+ */
+/** The editor's error banner (Next's route announcer is also role=alert, so exclude it). */
+const alertOf = (p: Page) => p.locator('[role="alert"]:not(#__next-route-announcer__)')
+const isArticleWrite = (route: Route) =>
+  /\/api\/articles\/[^/?]+$/.test(route.request().url()) && ['PUT', 'PATCH'].includes(route.request().method())
+
+test.afterAll(async () => {
+  await removeMyArticles()
+  await closeDb()
+})
+
+/** A saved draft opened in the editor, as the writer. */
+async function openDraft(browser: import('@playwright/test').Browser, label: string, who: 'writer' | 'editor' = 'writer') {
+  const ctx = await signedIn(browser, who)
+  const page = await ctx.newPage()
+  const ed = new ArticleEditorPage(page)
+  const title = uniqueTitle(label)
+  await ed.openNew()
+  await ed.title().fill(title)
+  await ed.typeBody('Original text.')
+  const { id } = await ed.saveNow()
+  // The first save moves the page to the article's own /edit URL, which re-mounts the
+  // editor. Settle there before the test starts typing or injecting faults.
+  await page.waitForURL(new RegExp(`/editorial/articles/${id}/edit$`))
+  await page.waitForLoadState('networkidle')
+  await expect(ed.body()).toContainText('Original text.')
+  return { ctx, page, ed, title, id }
+}
+
+const body = async (title: string) => (await articleByTitle(title))!.content
+
+test.describe('a failed save is visible, loses nothing, and recovers', () => {
+  test('server error (500)', async ({ browser }) => {
+    const { ctx, page, ed, title } = await openDraft(browser, 'e500')
+    await page.route('**/api/articles/*', (route) =>
+      isArticleWrite(route) ? route.fulfill({ status: 500, json: { error: 'Internal Server Error' } }) : route.continue())
+
+    await ed.moveToEnd()
+    await page.keyboard.type(' Typed while the server is failing.')
+    await expect(alertOf(page)).toContainText('unsaved changes remain', { timeout: 10_000 })
+    await expect(page.getByText('Server/database error').first()).toBeVisible()
+    await expect(ed.body()).toContainText('Typed while the server is failing.')
+    expect(await body(title)).not.toContain('Typed while the server')
+
+    await page.unroute('**/api/articles/*')
+    await ed.saveNow()
+    await expect(alertOf(page)).toHaveCount(0)
+    expect(await body(title)).toContain('Typed while the server is failing.')
+    await ctx.close()
+  })
+
+  test('network failure', async ({ browser }) => {
+    const { ctx, page, ed, title } = await openDraft(browser, 'net')
+    await page.route('**/api/articles/*', (route) => (isArticleWrite(route) ? route.abort('failed') : route.continue()))
+    await ed.moveToEnd()
+    await page.keyboard.type(' Offline words.')
+    await expect(alertOf(page)).toContainText('could not be reached', { timeout: 10_000 })
+    await expect(ed.body()).toContainText('Offline words.')
+    await page.unroute('**/api/articles/*')
+    await ed.saveNow()
+    expect(await body(title)).toContain('Offline words.')
+    await ctx.close()
+  })
+
+  test('a save that never answers times out visibly after 15 seconds', async ({ browser }) => {
+    test.setTimeout(75_000)
+    const { ctx, page, ed, title } = await openDraft(browser, 'hang')
+    await page.route('**/api/articles/*', (route) => (isArticleWrite(route) ? new Promise<void>(() => {}) : route.continue()))
+    await ed.moveToEnd()
+    await page.keyboard.type(' Hanging words.')
+    await expect(alertOf(page)).toContainText('longer than 15 seconds', { timeout: 30_000 })
+    await expect(ed.body()).toContainText('Hanging words.')
+    await page.unroute('**/api/articles/*')
+    await ed.saveNow()
+    expect(await body(title)).toContain('Hanging words.')
+    await ctx.close()
+  })
+
+  test('validation error from the server (400) is shown with its reason', async ({ browser }) => {
+    const { ctx, page, ed } = await openDraft(browser, 'e400')
+    await page.route('**/api/articles/*', (route) =>
+      isArticleWrite(route) ? route.fulfill({ status: 400, json: { error: 'Title is too long.' } }) : route.continue())
+    await ed.moveToEnd()
+    await page.keyboard.type(' x')
+    await expect(alertOf(page)).toContainText('Title is too long.', { timeout: 10_000 })
+    await ctx.close()
+  })
+})
+
+test('typing keeps flowing across the first autosave of a new article (no keystroke lost to the page change)', async ({ browser }) => {
+  const ctx = await signedIn(browser, 'writer')
+  const page = await ctx.newPage()
+  const ed = new ArticleEditorPage(page)
+  await ed.openNew()
+  const title = uniqueTitle('firstsave')
+  await ed.title().fill(title)
+  await ed.body().click()
+  // Part one, a pause just long enough for the autosave to fire, then keep typing
+  // while that first save (a POST, followed by a page change) is happening.
+  await page.keyboard.type('Part one of the text.', { delay: 20 })
+  await page.waitForTimeout(2_050)
+  await page.keyboard.type(' Part two keeps going while the first save lands.', { delay: 40 })
+  await page.keyboard.type(' Part three too.', { delay: 40 })
+
+  await expect.poll(async () => (await articleByTitle(title))?.content ?? '', { timeout: 20_000 })
+    .toContain('Part three too.')
+  const saved = (await articleByTitle(title))!.content
+  expect(saved).toContain('Part one of the text.')
+  expect(saved).toContain('Part two keeps going while the first save lands.')
+  // And what is on screen is the same text.
+  await expect(ed.body()).toContainText('Part three too.')
+  await ctx.close()
+})
+
+test('a slow save shows progress, locks the Save button, and completes', async ({ browser }) => {
+  const { ctx, page, ed, title } = await openDraft(browser, 'slow')
+  let writes = 0
+  await page.route('**/api/articles/*', async (route) => {
+    if (!isArticleWrite(route)) return route.continue()
+    writes++
+    await new Promise((r) => setTimeout(r, 3_500))
+    return route.continue()
+  })
+  await ed.moveToEnd()
+  await page.keyboard.type(' Slow words.')
+  const save = ed.saveDraftButton()
+  await save.click()
+  await expect(page.getByText('Saving...').first()).toBeVisible()
+  await expect(save).toBeDisabled()
+  await save.click({ force: true, trial: false }).catch(() => {}) // a second click while saving must not start another write
+  await expect(page.getByText('Saved').first()).toBeVisible({ timeout: 15_000 })
+  expect(writes, 'one save for one click, however impatient').toBe(1)
+  expect(await body(title)).toContain('Slow words.')
+  await ctx.close()
+})
+
+test('typing while a save is in flight is not lost', async ({ browser }) => {
+  const { ctx, page, ed, title } = await openDraft(browser, 'inflight')
+  await page.route('**/api/articles/*', async (route) => {
+    if (isArticleWrite(route)) await new Promise((r) => setTimeout(r, 2_500))
+    return route.continue()
+  })
+  await ed.moveToEnd()
+  await page.keyboard.type(' First burst.')
+  const first = ed.saving(() => ed.saveDraftButton().click())
+  await expect(page.getByText('Saving...').first()).toBeVisible()
+  await ed.moveToEnd() // clicking Save moved focus to the button; a person clicks back into the text
+  await page.keyboard.type(' Second burst, typed during the save.')
+  expect((await first).ok()).toBe(true)
+
+  // The edit made during the save is saved by its own follow-up request.
+  await expect.poll(async () => body(title), { timeout: 20_000 }).toContain('Second burst, typed during the save.')
+  expect(await body(title)).toContain('First burst.')
+  await ctx.close()
+})
+
+test('Submit pressed twice submits once and shows no error', async ({ browser }) => {
+  const { ctx, page, ed, title } = await openDraft(browser, 'dbl')
+  const writes: string[] = []
+  page.on('request', (r) => {
+    if (r.method() === 'PUT' && /\/api\/articles\/[^/?]+$/.test(r.url())) writes.push(r.postData() ?? '')
+  })
+  await page.getByRole('button', { name: 'Submit' }).dblclick()
+  await expect.poll(async () => (await articleByTitle(title))!.status).toBe('PENDING_REVIEW')
+  await page.waitForTimeout(1_500)
+  expect(writes.filter((w) => w.includes('"PENDING_REVIEW"')).length, 'one submit request').toBe(1)
+  await expect(alertOf(page)).toHaveCount(0)
+  void ed
+  await ctx.close()
+})
+
+test('Save draft pressed twice before the first response creates one article', async ({ browser }) => {
+  const ctx = await signedIn(browser, 'writer')
+  const page = await ctx.newPage()
+  const ed = new ArticleEditorPage(page)
+  await ed.openNew()
+  const title = uniqueTitle('twice')
+  await ed.title().fill(title)
+  await ed.saveDraftButton().dblclick()
+  await expect(page.getByText('Saved').first()).toBeVisible({ timeout: 15_000 })
+  await page.waitForTimeout(1_000)
+  expect(await db().article.count({ where: { title } })).toBe(1)
+  await ctx.close()
+})
+
+test('an expired session is reported, keeps the text, and recovers after signing in again in another tab', async ({ browser }) => {
+  const { ctx, page, ed, title } = await openDraft(browser, 'expired')
+  await ctx.clearCookies() // what an expired session looks like to the browser
+  await ed.moveToEnd()
+  await page.keyboard.type(' Words typed after the session ended.')
+  await expect(alertOf(page)).toContainText('session has expired', { timeout: 10_000 })
+  await expect(page.getByRole('link', { name: 'Sign in again in a new tab' })).toBeVisible()
+  await expect(ed.body()).toContainText('Words typed after the session ended.')
+  expect(await body(title)).not.toContain('Words typed after')
+
+  // Sign in again, as the page tells the user to, in a second tab of the same browser.
+  const login = await ctx.newPage()
+  await login.goto('/editorial/login')
+  await login.locator('input[type="email"]').fill('writer@theconsilium.com')
+  await login.locator('input[type="password"]').fill('writer2024')
+  await login.locator('button[type="submit"]').click()
+  await login.waitForURL((url) => !url.pathname.includes('/login'))
+  await login.close()
+
+  await page.bringToFront()
+  await ed.saveNow()
+  await expect(alertOf(page)).toHaveCount(0)
+  expect(await body(title)).toContain('Words typed after the session ended.')
+  await ctx.close()
+})
+
+test('a revoked account is refused with its reason and keeps the text', async ({ browser }) => {
+  const { ctx, page, ed } = await openDraft(browser, 'perm')
+  await page.route('**/api/articles/*', (route) =>
+    isArticleWrite(route) ? route.fulfill({ status: 403, json: { error: 'Your account is suspended.', code: 'ACCOUNT_SUSPENDED' } }) : route.continue())
+  await ed.moveToEnd()
+  await page.keyboard.type(' y')
+  await expect(alertOf(page)).toContainText('Contact an administrator', { timeout: 10_000 })
+  await expect(ed.body()).toContainText('Original text. y')
+  await ctx.close()
+})
+
+test.describe('the same article in two tabs', () => {
+  async function twoTabs(browser: import('@playwright/test').Browser) {
+    const first = await openDraft(browser, 'twotabs')
+    const secondPage = await first.ctx.newPage()
+    const second = new ArticleEditorPage(secondPage)
+    await second.openExisting(first.id)
+    return { ...first, secondPage, second }
+  }
+
+  test('a stale tab cannot silently overwrite newer work', async ({ browser }) => {
+    const t = await twoTabs(browser)
+
+    // Tab 1 changes the headline and saves.
+    const newTitle = `${t.title} edited in tab one`
+    await t.page.bringToFront()
+    await t.ed.title().fill(newTitle)
+    await t.ed.saveNow()
+    expect((await articleByTitle(newTitle))!.id).toBe(t.id)
+
+    // Tab 2 still holds the old version. It adds a sentence and saves.
+    await t.secondPage.bringToFront()
+    await t.second.moveToEnd()
+    await t.secondPage.keyboard.type(' Sentence from tab two.')
+    const res = await t.second.saving(() => t.second.saveDraftButton().click())
+
+    // Either the save is refused with a visible conflict, or the headline survives. It
+    // must never be reverted without a word.
+    const row = await db().article.findUnique({ where: { id: t.id } })
+    expect(res.status(), 'a stale save must be refused, not accepted').toBe(409)
+    expect(row!.title, 'tab one\'s headline must survive').toBe(newTitle)
+    await expect(alertOf(t.secondPage)).toContainText(/changed/i)
+    await expect(t.second.body()).toContainText('Sentence from tab two.') // their work is still on screen
+    await t.ctx.close()
+  })
+
+  test('after a conflict the user can keep their version deliberately', async ({ browser }) => {
+    const t = await twoTabs(browser)
+    await t.page.bringToFront()
+    await t.ed.moveToEnd()
+    await t.page.keyboard.type(' Tab one sentence.')
+    await t.ed.saveNow()
+
+    await t.secondPage.bringToFront()
+    await t.second.moveToEnd()
+    await t.secondPage.keyboard.type(' Tab two sentence.')
+    await t.second.saving(() => t.second.saveDraftButton().click())
+    await expect(alertOf(t.secondPage)).toContainText(/changed/i)
+
+    const keep = t.secondPage.getByRole('button', { name: 'Keep my version' })
+    const res = await t.second.saving(() => keep.click())
+    expect(res.status()).toBe(200)
+    await expect(alertOf(t.secondPage)).toHaveCount(0)
+    const saved = await body(t.title)
+    expect(saved).toContain('Tab two sentence.')
+    await t.ctx.close()
+  })
+})
+
+test('a failed publish never leaves the article public, and a later autosave does not publish it', async ({ browser }) => {
+  const ctx: BrowserContext = await signedIn(browser, 'editor')
+  const page: Page = await ctx.newPage()
+  const ed = new ArticleEditorPage(page)
+  await ed.openNew()
+  const title = uniqueTitle('nopub')
+  await ed.title().fill(title)
+  await ed.typeBody('Not ready for readers.')
+  await ed.saveNow()
+
+  let fail = true
+  await page.route('**/api/articles/*', (route) =>
+    fail && isArticleWrite(route) ? route.fulfill({ status: 500, json: { error: 'boom' } }) : route.continue())
+  await page.getByRole('button', { name: 'Publish', exact: true }).click()
+  await expect(alertOf(page)).toBeVisible()
+  expect((await articleByTitle(title))!.status).toBe('DRAFT')
+
+  // The fault clears and the editor keeps typing; the autosave that follows must not publish.
+  fail = false
+  await ed.moveToEnd()
+  const res = await ed.saving(() => page.keyboard.type(' More words.'), { timeout: 15_000 })
+  expect(res.ok()).toBe(true)
+  expect((await articleByTitle(title))!.status, 'autosave must not publish').toBe('DRAFT')
+
+  const anon = await signedIn(browser, null)
+  const row = await articleByTitle(title)
+  expect((await anon.request.get(`/articles/${row!.slug}`)).status()).toBe(404)
+  await anon.close()
+  await ctx.close()
+})

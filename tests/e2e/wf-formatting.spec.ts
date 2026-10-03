@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import {
-  ArticleEditorPage, articleByTitle, closeDb, docTypes, removeArticlesTitled, signedIn, uniqueTitle,
+  ArticleEditorPage, articleByTitle, closeDb, docTypes, removeMyArticles, signedIn, uniqueTitle,
 } from './helpers/workflow'
 import { makePng } from './helpers/e2eUtils'
 import { collectConsoleErrors } from './helpers/console'
@@ -15,7 +15,6 @@ import { collectConsoleErrors } from './helpers/console'
  */
 test.describe.configure({ mode: 'serial' })
 
-const PREFIX = 'WF format'
 const TITLE = uniqueTitle('format')
 const EXCERPT = 'A summary typed into the excerpt box.'
 const CAPTION = 'A caption typed under the figure'
@@ -27,7 +26,7 @@ let articleId = ''
 let slug = ''
 
 test.afterAll(async () => {
-  await removeArticlesTitled(PREFIX)
+  await removeMyArticles()
   await closeDb()
 })
 
