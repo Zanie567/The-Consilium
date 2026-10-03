@@ -303,7 +303,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                           </button>
                         </Tooltip>
                       )}
-                      <Tooltip content="Permanently delete this article. This cannot be undone." variant="editorial" side="top" maxWidth={240}>
+                      <Tooltip content="Move this article to the trash. It can be restored for 30 days." variant="editorial" side="top" maxWidth={240}>
                         <button
                           onClick={() => deleteArticle(article.id)}
                           aria-label="Delete article"

@@ -1,0 +1,136 @@
+# Coverage inventory
+
+What each kind of account can open and do, and which automated test exercises it.
+
+- **Observed** means the control list was read from the rendered page by `wf-roles.spec.ts`
+  (run with `E2E_INVENTORY_DIR=/some/dir` to regenerate the JSON), not only from source.
+- **Browser** = Playwright clicking the real control. **API/unit** = no browser.
+- Status: ✅ covered · 🟡 partly · ❌ not covered · ⛔ intentionally unavailable · 🚧 blocked in the test environment.
+
+Test files are in `tests/e2e/` unless a path says otherwise.
+
+## 1. Accounts and who can open what
+
+Menu per role is asserted exactly by `wf-roles.spec.ts` ("the menu is exactly the documented one"),
+every entry is opened ("every menu entry opens"), and pages outside the role must be refused
+("editorial pages outside the role are refused").
+
+| Page | Writer | Editor | Admin | Growth | Reader |
+|---|---|---|---|---|---|
+| Dashboard `/editorial` | ✅ | ✅ | ✅ | ✅ | ⛔ Access Denied |
+| Team Profile | ✅ | ✅ | explanation only | ✅ | ⛔ |
+| All/My Articles, My Drafts, New Article | ✅ | ✅ | ✅ | ⛔ redirect | ⛔ |
+| Article Series, Scheduled | ⛔ | ✅ | ✅ | ⛔ | ⛔ |
+| Trash | own articles only (no menu link) | ✅ | ✅ | ⛔ | ⛔ |
+| Review Queue, review screen | ⛔ | ✅ | ✅ | ⛔ | ⛔ |
+| Debates, Comments | ⛔ | ✅ | ✅ | ⛔ (comments API readable by Growth by design) | ⛔ |
+| Calendar | ⛔ | ⛔ | ✅ (`CALENDAR_ACCESS_ROLES`) | ⛔ | ⛔ |
+| Users, Predictions, Glossary | ⛔ | ⛔ | ✅ | ⛔ | ⛔ |
+| Analytics | ⛔ | ⛔ | ✅ | ✅ | ⛔ |
+| Subscribers, Engagement, Writer activity | ⛔ | ⛔ | ✅ | ✅ | ⛔ |
+| Your Readers | ✅ own | ✅ own | ✅ any | ⛔ | ⛔ |
+| Leaderboard | ✅ menu | by URL | by URL | by URL | ⛔ |
+| Public site, `/profile` | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+## 2. Article workflow
+
+| Action | Writer | Editor/Admin | Test |
+|---|---|---|---|
+| Create, autosave, Save draft | ✅ | ✅ | `wf-lifecycle`, `wf-failures`, `editorial.spec` (autosave + reopen) |
+| Title, excerpt, category, tags, cover URL | ✅ | ✅ | `wf-formatting`, `wf-upload`, `wf-mobile` |
+| Slug, author, status dropdown | ⛔ hidden | 🟡 slug/author/status dropdown present, not exercised | — |
+| Submit for review | ✅ | n/a | `wf-lifecycle`, `wf-formatting`, `wf-mobile` |
+| Editor notified (email captured + in-app) | | ✅ email; 🟡 in-app bell not clicked | `wf-lifecycle` |
+| Internal note on review screen | | ✅ | `wf-lifecycle` |
+| Return to writer with feedback | | ✅ | `wf-lifecycle` (button disabled without text; email carries the note) |
+| Writer sees feedback, revises, resubmits | ✅ | | `wf-lifecycle` (note cleared on resubmit) |
+| Publish Now (review screen) | | ✅ | `wf-lifecycle`, `wf-formatting`, `wf-mobile` |
+| Schedule (review screen) | | ✅ future time; scheduler publishes | `wf-lifecycle` (cron call is a fixture) |
+| Unpublish (review screen) | | ✅ | `wf-lifecycle` |
+| Publish / Unpublish from the article list | | ✅ | `wf-articles` |
+| Publish / Schedule / Unpublish buttons inside the editor | | 🟡 Publish click with a failing server only | `wf-failures` |
+| Mark corrected + correction note, Feature, Pin, Commendation | | ❌ | — |
+| Move to Trash, Restore, Delete Forever | ✅ own (not run) | ✅ | `wf-articles` (editor) |
+| Inline review comments (select text → comment) | | ❌ browser; API 🟡 | `publication-lifecycle.spec` (API only) |
+| Locked after submit / publish, with explanation | ✅ | | `wf-formatting`, `wf-lifecycle` |
+| Public visibility at each state | | | `wf-lifecycle`, `wf-articles`, `wf-failures` |
+
+## 3. Editor controls (`TiptapEditor.tsx`)
+
+All exercised in `wf-formatting.spec.ts`, then checked in editor → reopened → review preview → published page.
+
+| Control | Editor | Reopen | Preview | Published |
+|---|---|---|---|---|
+| Undo, Redo | ✅ | | | |
+| Print | ✅ (stubbed `window.print` was called) | | | 🚧 real print dialog |
+| Bold, Italic, Underline | ✅ | ✅ | ✅ | ✅ |
+| Strikethrough | ✅ | ✅ | ✅ | ✅ (fixed) |
+| Text colour (palette, hex, remove) | ✅ | ✅ | | ⛔ stripped by decision |
+| Highlight (palette, hex, none) | ✅ | ✅ | ✅ | ✅ as site `<mark>` (colour not kept) |
+| Link (apply, cancel, remove) | ✅ | ✅ | ✅ | ✅ |
+| Image upload → figure, caption, credit | ✅ | ✅ | ✅ | ✅ |
+| Table (grid picker; row above/below, column left/right, delete row/column) | ✅ | ✅ | ✅ | ✅ (fixed) |
+| Delete table | ❌ | | | |
+| Horizontal rule | ✅ | ✅ | | ✅ |
+| Bullet list, Numbered list, Indent, Outdent | ✅ | ✅ | | ✅ |
+| Align left / centre / right / justify | ✅ | ✅ | | ⛔ stripped by decision |
+| Line spacing (4 options) | 🟡 one option | ✅ | | ⛔ stripped by decision |
+| Block quote, Code block (⌘/Ctrl+Enter to leave) | ✅ | ✅ | ✅ pre | ✅ (code fixed) |
+| Pull quote, Footnote | ✅ | ✅ | | ✅ |
+| Headings (`## `, `### ` shortcut) | ✅ | ✅ | ✅ | ✅ |
+| Paste with images | ✅ (synthetic paste event) | | | |
+| Footnote edit/remove by clicking the marker | ❌ | | | |
+| Dark mode toggle, tutorial | ✅ tutorial open/close on phone; dark mode ✅ `public.spec` | | | |
+| Word count / reading time panel | ❌ | | | |
+| ⛔ Font size / font family | no control: `applyFontSize` is unused code; only reachable by pasting | | | |
+| ⛔ Heading button | none; the tutorial now says so | | | |
+
+## 4. Uploads (`wf-upload.spec.ts`)
+
+Figure, cover from the document body, cover from the settings panel, cover URL, pasted image ✅.
+Invalid file (image name, text bytes), over 10 MB, storage 500, expired session ✅, with
+nothing stored on failure. Who may upload (signed out 401, reader/growth 403, unknown bucket 400) ✅.
+Avatar upload: `team-profile.spec` and `tests/integration/team-profile-storage.test.ts`.
+🚧 Supabase bucket policies and size/type limits on the real service.
+
+## 5. Failure and data-protection scenarios (`wf-failures.spec.ts`)
+
+500, 400, 403 with code, network abort, a request that never answers (15 s timeout), slow
+save, edit during an in-flight save, Save draft ×2, Submit ×2, first autosave while typing,
+expired session and recovery in a second tab, stale second tab (409 + keep/discard), failed
+publish followed by autosave ✅. Dropped connection *during* upload and browser crash/close
+with unsaved text (only the `beforeunload` warning exists) ❌.
+
+## 6. Other portal areas
+
+| Area | Status |
+|---|---|
+| Analytics tabs (Overview…Distribution) | ✅ load + Writers data `editorial.spec`; filters/range ❌ |
+| Users: list, filters, actions menu (role, ban, warn, delete) | 🟡 page loads; actions ❌ browser; role email unit-tested; `team-profile-lifecycle.spec` covers role grants via UI |
+| Debates (create/edit/vote), Series, Glossary, Predictions, Calendar | 🟡 load + console only; create/edit ❌ |
+| Comments moderation tabs | ✅ load/tabs/stats `editorial.spec`; hide/restore ❌ |
+| Subscribers search/export | 🟡 page loads; export ❌ |
+| Notifications bell | 🟡 count seen; open/clear ❌ |
+| Team Profile (create, edit, photo, roles, admin link) | ✅ `team-profile*.spec` — now in every run |
+| Dashboard: streak cadence, commissioning brief, dismiss banners, delete draft | ❌ |
+| Your Readers / Leaderboard | 🟡 load only; calculations in vitest |
+
+## 7. Reader / public (`wf-reader.spec.ts`, `public.spec.ts`, `footnotes.spec.ts`, `network-crawl.spec.ts`)
+
+Sign up, sign in/out, delete account, comment (min length), save/unsave article, profile tabs
+(history, currently reading, saved, debate votes, comments, settings), rename ✅.
+Home, category counts, article page, search + highlight, debate vote, dark mode, contact
+validation, footnote popovers, link crawl ✅.
+❌ Forgot/reset password end to end (email captured but link not followed), newsletter signup,
+unsubscribe, share buttons, PDF export, avatar upload by a reader, reply to a comment,
+report a comment, ban screen. 🚧 Google sign-in.
+
+## 8. Browsers and screens
+
+| | Chromium | WebKit |
+|---|---|---|
+| Desktop workflow specs | ✅ | ✅ |
+| Phone (Pixel 7 / iPhone 14) | ✅ | ✅ |
+| Layout 1100–1920 px | ✅ | ✅ |
+| Existing public/editorial/team-profile specs | ✅ | ❌ chromium only |
+| Firefox | ❌ not configured |

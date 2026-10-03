@@ -39,6 +39,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f tests/e2e/helpers/local-storage-sc
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/migrations/20261001_team_member_user_link.sql 2>&1 | grep -v NOTICE
 
 : > "$EMAIL_CAPTURE_FILE"
+npx ts-node -P tsconfig.seed.json scripts/clean-e2e-fixtures.ts || exit 1
 
 npx ts-node -P tsconfig.seed.json tests/e2e/helpers/fake-storage-server.ts & PIDS+=($!)
 
