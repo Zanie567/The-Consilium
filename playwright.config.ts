@@ -32,6 +32,8 @@ const BASE_URL = resolveTestBaseUrl(process.env.E2E_BASE_URL)
 // from everything else (E2E_PHASE=main). Unset = every project, for explicit
 // `--project=...` selections.
 const phase = process.env.E2E_PHASE
+const resultsDir = process.env.E2E_RESULTS_DIR ?? 'test-results'
+const reportDir = `playwright-report/${process.env.E2E_RUN_ID ?? 'manual'}`
 const isWorkflow = (name: string) => name.startsWith('wf-')
 const inPhase = (name: string) => {
   if (phase === 'team-profile') return name === 'team-profile'
@@ -45,8 +47,13 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 2 : undefined,
-  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  workers: 2,
+  outputDir: `${resultsDir}/${phase ?? 'selected'}`,
+  reporter: [
+    ['list'],
+    ['html', { open: 'never', outputFolder: `${reportDir}/${phase ?? 'selected'}` }],
+    ['json', { outputFile: `${resultsDir}/${phase ?? 'selected'}/results.json` }],
+  ],
   timeout: 30_000,
   expect: { timeout: 10_000 },
   use: {
@@ -55,8 +62,8 @@ export default defineConfig({
     actionTimeout: 10_000,
     baseURL: BASE_URL,
     // A failure in CI must leave evidence: a trace (DOM snapshots, network, console) and a
-    // screenshot of the failing step. Locally traces are taken on retry only.
-    trace: process.env.CI ? 'retain-on-failure' : 'on-first-retry',
+    // screenshot of the failing step, including a first local failure.
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   projects: ([
@@ -78,16 +85,9 @@ export default defineConfig({
       // The public pages on the WebKit engine (Safari). network-crawl is browser-independent
       // (plain HTTP), so it stays on the Chromium project only.
       //
-      // NOT run here, and recorded as open findings rather than hidden (see
-      // docs/testing/coverage-inventory.md, section 8):
-      //  - footnotes.spec: Tab does not focus links in Safari by default, a tap outside the
-      //    popover does not dismiss it under WebKit touch emulation, and one assertion
-      //    compares page heights to the pixel (WebKit rounds differently).
-      //  - the InvalidStateError test: on http://localhost WebKit rejects Next's RSC prefetch
-      //    fetches ("due to access control checks") although the server answers 200.
+      // Keep footnotes and view-transition checks enabled: failures retain evidence.
       name: 'public-webkit',
-      testMatch: /public\.spec\.ts/,
-      grepInvert: /view-transition guard/,
+      testMatch: /(public|footnotes)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
     {
@@ -120,13 +120,13 @@ export default defineConfig({
     // and unpublish articles, which the public count assertions must not race with.
     {
       name: 'wf-chromium',
-      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles)\.spec\.ts/,
+      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles|controls)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'wf-webkit',
-      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles)\.spec\.ts/,
+      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles|controls)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Safari'] },
     },

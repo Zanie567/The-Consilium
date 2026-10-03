@@ -187,7 +187,7 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
 
   // Full document loads (exercise the removed @view-transition navigation rule)…
   for (const path of ['/', '/category/opinion', '/opinion-debate', '/category/news', '/about', '/']) {
-    await page.goto(path, { waitUntil: 'domcontentloaded' })
+    expect((await page.goto(path, { waitUntil: 'domcontentloaded' }))?.status()).toBe(200)
     await page.waitForTimeout(150)
   }
   // …then rapid client-side navigations (exercise Next's SPA transitions). Use
@@ -195,11 +195,14 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
   // the network busy, so 'networkidle' never settles.
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   const links = page.locator('header a[href^="/category/"], main a[href^="/articles/"]')
-  const n = Math.min(await links.count(), 5)
-  for (let i = 0; i < n; i++) {
-    await links.nth(i).click({ timeout: 2000 }).catch(() => {})
+  const targets = (await links.evaluateAll(elements => elements.map(el => el.getAttribute('href')!))).slice(0, 5)
+  expect(targets.length).toBeGreaterThan(0)
+  for (const href of targets) {
+    await page.locator(`a[href="${href}"]`).first().click({ timeout: 2000 })
+    await expect(page).toHaveURL(new RegExp(`${href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
     await page.waitForTimeout(200)
-    await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => {})
+    await page.goBack({ waitUntil: 'domcontentloaded' })
+    await expect(page).toHaveURL(/\/$/)
   }
   await page.waitForTimeout(300)
 

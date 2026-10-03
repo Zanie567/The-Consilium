@@ -222,3 +222,28 @@ test.describe('who may upload (permission checks on the upload endpoint)', () =>
     await ctx.close()
   })
 })
+
+
+test('an interrupted image upload is visible and retry saves a single figure that reopens', async ({ browser }) => {
+  const t = await newArticle(browser)
+  const name = `interrupted-${Date.now()}-${Math.random().toString(36).slice(2)}.png`
+  await t.page.route('**/api/upload', route => route.abort('connectionreset'))
+  await chooseFileVia(t.page, () => t.ed.tool('Insert image').click(), { name, mimeType: 'image/png', buffer: makePng(32) })
+  await expect(t.page.getByText('Upload failed:')).toBeVisible()
+  await expect(t.ed.body()).toContainText('Text before the image.')
+  await expect(t.ed.body().locator('figure')).toHaveCount(0)
+  expect(await storedNamed(name)).toHaveLength(0)
+  await t.page.unroute('**/api/upload')
+  const response = t.page.waitForResponse(r => r.url().endsWith('/api/upload') && r.request().method() === 'POST')
+  await chooseFileVia(t.page, () => t.ed.tool('Insert image').click(), { name, mimeType: 'image/png', buffer: makePng(32) })
+  expect((await response).status()).toBe(201)
+  await expect(t.ed.body().locator('figure img')).toBeVisible()
+  const src = await t.ed.body().locator('figure img').getAttribute('src')
+  const { id } = await t.ed.saveNow()
+  await t.ed.openExisting(id)
+  await expect(t.ed.body().locator('figure img')).toHaveAttribute('src', src!)
+  await expect(t.ed.body()).toContainText('Text before the image.')
+  expect(await storedNamed(name)).toHaveLength(1)
+  expect((await articleByTitle(t.title))!.status).toBe('DRAFT')
+  await t.ctx.close()
+})

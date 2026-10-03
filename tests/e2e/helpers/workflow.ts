@@ -137,7 +137,8 @@ export class ArticleEditorPage {
   /** Clicks "Save draft" and requires a successful response. */
   async saveNow(): Promise<{ id: string; status: number }> {
     const res = await this.saving(() => this.saveDraftButton().click())
-    expect(res.ok(), `save returned ${res.status()}: ${await res.text().catch(() => '')}`).toBe(true)
+    const expected = res.request().method() === 'POST' ? 201 : 200
+    expect(res.status(), `save returned ${res.status()}: ${await res.text().catch(() => '')}`).toBe(expected)
     const json = (await res.json()) as { id: string }
     return { id: json.id, status: res.status() }
   }

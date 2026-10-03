@@ -10,6 +10,7 @@ try {
   const services = isolatedServiceEnv({
     appPort: Number(process.env.E2E_APP_PORT ?? 3200),
     storagePort: Number(process.env.FAKE_STORAGE_PORT ?? 54321),
+    distDir: process.env.E2E_DIST_DIR,
     emailCaptureFile: process.env.EMAIL_CAPTURE_FILE ?? '/tmp/consilium-e2e-outbox.jsonl',
   })
   const env = { ...testDatabaseEnv(), ...services }

@@ -58,6 +58,11 @@ const localStorage = (() => {
 })()
 
 const nextConfig: NextConfig = {
+  // Next adds generated type directories to the selected tsconfig during builds.
+  // Keep isolated builds from editing the shared development configuration.
+  ...(process.env.E2E_ISOLATED === '1' && process.env.NEXT_DIST_DIR
+    ? { typescript: { tsconfigPath: `${process.env.NEXT_DIST_DIR}.tsconfig.json` } }
+    : {}),
   // The isolated E2E stack builds into its own directory so a build made with
   // production env values (which Next inlines for NEXT_PUBLIC_*) can never be
   // served by the test launcher, and the test build never clobbers `next dev`.

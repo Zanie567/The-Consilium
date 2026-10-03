@@ -13,7 +13,7 @@
 # Usage:
 #   npm run test:e2e                         # every project
 #   npm run test:e2e -- --project=editor-workflow
-#   SKIP_BUILD=1 npm run test:e2e            # reuse .next-e2e (only if built by this script)
+#   RUN_VITEST=1 npm run test:e2e           # run live-server Vitest checks as well
 #
 # Playwright's own config refuses to start unless this script has set E2E_ISOLATED=1.
 set -uo pipefail
@@ -22,50 +22,87 @@ cd "$(dirname "$0")/.."
 export E2E_APP_PORT="${E2E_APP_PORT:-3200}"
 export FAKE_STORAGE_PORT="${FAKE_STORAGE_PORT:-54321}"
 export EMAIL_CAPTURE_FILE="${EMAIL_CAPTURE_FILE:-/tmp/consilium-e2e-outbox.jsonl}"
+# Each invocation owns its build; another audit cannot replace its manifests.
+export E2E_DIST_DIR=".next-e2e-${E2E_APP_PORT}-$$"
+export E2E_RUN_ID="${E2E_DIST_DIR#.}"
+export E2E_RESULTS_DIR="test-results/$E2E_RUN_ID"
 
-eval "$(npx ts-node -P tsconfig.seed.json scripts/e2e-env.ts)" || { echo "✗ refusing: environment is not isolated"; exit 1; }
+# eval of an empty command succeeds, even when $(...) failed. Check the generator
+# separately, before cleanup, SQL, builds or service startup can happen.
+E2E_EXPORTS="$(npx ts-node -P tsconfig.seed.json scripts/e2e-env.ts)" || { echo "✗ refusing: environment is not isolated" >&2; exit 1; }
+eval "$E2E_EXPORTS" || exit 1
+if [ -n "${AUDIT_BASE_URL:-}" ]; then
+  echo "✗ refusing an existing server: its database, storage and email cannot be attested" >&2
+  exit 1
+fi
 echo "→ test database : $(node -e 'console.log(new URL(process.env.TEST_DATABASE_URL).host)')"
 echo "→ storage       : $NEXT_PUBLIC_SUPABASE_URL (local fake)"
 echo "→ email         : captured to $EMAIL_CAPTURE_FILE (nothing is sent)"
+echo "→ run evidence  : $E2E_RESULTS_DIR"
+mkdir -p "$E2E_RESULTS_DIR"
 
 PORT="$E2E_APP_PORT"
 PIDS=()
-cleanup() { for p in "${PIDS[@]:-}"; do [ -n "$p" ] && kill "$p" 2>/dev/null; done; lsof -ti tcp:"$PORT" 2>/dev/null | xargs kill 2>/dev/null || true; lsof -ti tcp:"$FAKE_STORAGE_PORT" 2>/dev/null | xargs kill 2>/dev/null || true; }
+cleanup() {
+  for p in "${PIDS[@]:-}"; do
+    [ -n "$p" ] && kill "$p" 2>/dev/null || true
+  done
+  for p in "${PIDS[@]:-}"; do
+    [ -n "$p" ] && wait "$p" 2>/dev/null || true
+  done
+}
 trap cleanup EXIT
-cleanup # a leftover server from a previous run would silently serve the wrong env
+# Never kill or reuse an unknown listener (including another audit).
+for SERVICE_PORT in "$PORT" "$FAKE_STORAGE_PORT"; do
+  if lsof -nP -iTCP:"$SERVICE_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "✗ port $SERVICE_PORT already occupied; select unused test ports" >&2
+    exit 1
+  fi
+done
 
 PGBIN="${PGBIN:-/opt/homebrew/opt/postgresql@16/bin}"; [ -d "$PGBIN" ] && export PATH="$PGBIN:$PATH"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f tests/e2e/helpers/local-storage-schema.sql || exit 1
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/migrations/20261001_team_member_user_link.sql 2>&1 | grep -v NOTICE
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/migrations/20261001_team_member_user_link.sql || exit 1
 
 : > "$EMAIL_CAPTURE_FILE"
 npx ts-node -P tsconfig.seed.json scripts/clean-e2e-fixtures.ts || exit 1
 
-npx ts-node -P tsconfig.seed.json tests/e2e/helpers/fake-storage-server.ts & PIDS+=($!)
+node node_modules/ts-node/dist/bin.js -P tsconfig.seed.json tests/e2e/helpers/fake-storage-server.ts & PIDS+=($!)
 
-MARKER=".next-e2e/.isolated-build"
-if [ "${SKIP_BUILD:-0}" != "1" ] || [ ! -f "$MARKER" ] || [ "$(cat "$MARKER")" != "$NEXT_PUBLIC_SUPABASE_URL" ]; then
-  echo "→ building (isolated env) into ${NEXT_DIST_DIR}..."
-  rm -rf "$NEXT_DIST_DIR"
-  npm run build >/tmp/consilium-e2e-build.log 2>&1 || { tail -40 /tmp/consilium-e2e-build.log; exit 1; }
-  echo "$NEXT_PUBLIC_SUPABASE_URL" > "$MARKER"
-fi
+# A storage URL alone cannot attest all credentials/source in a cached build.
+echo "→ building (isolated env) into ${NEXT_DIST_DIR}..."
+cp tsconfig.json "${NEXT_DIST_DIR}.tsconfig.json"
+npm run build >"$E2E_RESULTS_DIR/build.log" 2>&1 || { tail -40 "$E2E_RESULTS_DIR/build.log"; exit 1; }
 
-npm run start -- -p "$PORT" >/tmp/consilium-e2e-server.log 2>&1 & PIDS+=($!)
-for i in $(seq 1 60); do curl -sf "http://localhost:$PORT/api/articles" >/dev/null 2>&1 && break; sleep 1; [ "$i" = 60 ] && { tail -20 /tmp/consilium-e2e-server.log; exit 1; }; done
+node node_modules/next/dist/bin/next start -p "$PORT" >"$E2E_RESULTS_DIR/server.log" 2>&1 &
+SERVER_PID=$!
+PIDS+=("$SERVER_PID")
+for i in $(seq 1 60); do
+  kill -0 "$SERVER_PID" 2>/dev/null || { tail -20 "$E2E_RESULTS_DIR/server.log"; exit 1; }
+  curl -sf "http://localhost:$PORT/editorial/login" >/dev/null 2>&1 && break
+  sleep 1
+  [ "$i" = 60 ] && { tail -20 "$E2E_RESULTS_DIR/server.log"; exit 1; }
+done
 
 export E2E_BASE_URL="http://localhost:$PORT"
+
+STATUS=0
+if [ "${RUN_VITEST:-0}" = "1" ]; then
+  mkdir -p test-results
+  BASE_URL="$E2E_BASE_URL" AUDIT_NO_RATE_LIMIT=1 npx vitest run --reporter=default --reporter=json --outputFile="$E2E_RESULTS_DIR/vitest.json" || STATUS=1
+fi
 
 if [ "$#" -gt 0 ]; then
   # Explicit selection: pass it straight through, one invocation.
   npx playwright test "$@"
-  exit $?
+  BROWSER_STATUS=$?
+  [ "$BROWSER_STATUS" = "0" ] || STATUS=1
+  exit "$STATUS"
 fi
 
-# Full run, in two phases. The team-profile specs assert on the contents of the one
+# Full run, in three phases. The team-profile specs assert on the contents of the one
 # shared storage server, so they must not overlap with anything else that uploads
 # (the article-upload specs) and they run on a single worker.
-STATUS=0
 E2E_PHASE=main npx playwright test || STATUS=1
 E2E_PHASE=workflow npx playwright test || STATUS=1
 E2E_PHASE=team-profile npx playwright test --workers=1 || STATUS=1

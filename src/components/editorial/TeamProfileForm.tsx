@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { Check, AlertCircle, Loader2, Upload, X } from 'lucide-react'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 import { getInitials } from '@/lib/authorUtils'
+import { detectImageMimeType } from '@/lib/imageSniff'
 
 interface SavedProfile {
   bio: string | null
@@ -15,7 +16,7 @@ interface SavedProfile {
 interface TeamProfileFormProps {
   /** Account name; read-only here, edited in account settings. */
   name: string
-  /** Display label of the team derived from the account's role. Read-only. */
+  /** Trusted public appointment label. Read-only. */
   teamLabel: string
   profile: SavedProfile | null
   maxBioLength: number
@@ -48,9 +49,21 @@ export function TeamProfileForm({
 
   useEffect(() => {
     if (!file) return
-    const url = URL.createObjectURL(file)
-    setPreview(url)
-    return () => URL.revokeObjectURL(url)
+    let active = true
+    let url: string | undefined
+    // Never ask the browser to decode arbitrary bytes as a preview. Keep the file
+    // for authoritative server validation, but preview only a recognised image.
+    void file.slice(0, 32).arrayBuffer().then(bytes => {
+      if (!active || !detectImageMimeType(new Uint8Array(bytes))) return
+      url = URL.createObjectURL(file)
+      setPreview(url)
+    }).catch(() => {
+      if (active) setStatus({ ok: false, message: 'Could not read that photo. Please choose it again.' })
+    })
+    return () => {
+      active = false
+      if (url) URL.revokeObjectURL(url)
+    }
   }, [file])
 
   const chooseFile = (next: File | null) => {
@@ -62,6 +75,7 @@ export function TeamProfileForm({
       return
     }
     setFile(next)
+    setPreview(null)
     setRemoveImage(false)
   }
 
@@ -170,7 +184,7 @@ export function TeamProfileForm({
         <div>
           <span className={labelClass}>Team</span>
           <p className="rounded border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2 text-sm text-[var(--fg)]">{teamLabel}</p>
-          <p className="mt-1 text-xs text-[var(--fg-faint)]">Set by your role. It can&apos;t be changed here.</p>
+          <p className="mt-1 text-xs text-[var(--fg-faint)]">Set by an administrator. It can&apos;t be changed here.</p>
         </div>
       </div>
 
