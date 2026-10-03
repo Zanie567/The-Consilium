@@ -67,6 +67,8 @@ const baseArticle = {
   editorNote: null,
   author: { id: WRITER.id, name: 'Wes', email: WRITER.email },
   category: null,
+  // The route now loads tags to compute the article version it returns.
+  tags: [] as { tag: { name: string } }[],
 }
 
 function putRequest(body: unknown): NextRequest {
