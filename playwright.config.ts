@@ -102,13 +102,13 @@ export default defineConfig({
     // and unpublish articles, which the public count assertions must not race with.
     {
       name: 'wf-chromium',
-      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout)\.spec\.ts/,
+      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'wf-webkit',
-      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout)\.spec\.ts/,
+      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Safari'] },
     },
