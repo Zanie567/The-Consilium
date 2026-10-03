@@ -7,6 +7,7 @@ import slugify from 'slugify'
 import { mutate as globalMutate } from 'swr'
 import { DRAFTS_SWR_KEY } from '@/components/editorial/DraftsSection'
 import { ApiError, apiRequest, asApiError } from '@/lib/apiClient'
+import { ARTICLE_IMAGE_TOO_LARGE_MESSAGE, MAX_ARTICLE_IMAGE_BYTES } from '@/lib/constants'
 import type {
   ArticleEditorController,
   ArticleEditorError,
@@ -492,8 +493,12 @@ export function useArticleEditorController({
   }
 
   const uploadCoverFile = async (file: File) => {
-    setUploading(true)
     setCoverError('')
+    if (file.size > MAX_ARTICLE_IMAGE_BYTES) {
+      setCoverError(ARTICLE_IMAGE_TOO_LARGE_MESSAGE)
+      return
+    }
+    setUploading(true)
     const form = new FormData()
     form.append('file', file)
     form.append('bucket', 'article-images')

@@ -33,6 +33,8 @@ import React, {
 import { createPortal } from 'react-dom'
 import type { NodeViewProps } from '@tiptap/core'
 import { cleanPastedHTML } from '@/lib/editor/cleanPastedHTML'
+import { dataUrlToFile } from '@/lib/editor/dataUrl'
+import { ARTICLE_IMAGE_TOO_LARGE_MESSAGE, MAX_ARTICLE_IMAGE_BYTES } from '@/lib/constants'
 import { ApiError, apiRequest, asApiError } from '@/lib/apiClient'
 import { CommentHighlight } from './commentHighlight'
 
@@ -302,13 +304,13 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
     >(() => Promise.resolve(null))
 
     const uploadForPasteImage = useCallback(
-      async (dataUrl: string, mimeType: string, filename: string): Promise<string | null> => {
+      async (dataUrl: string, _mimeType: string, filename: string): Promise<string | null> => {
         try {
           setUploading(true)
-          // Convert base64 data URI to Blob then to File
-          const res = await fetch(dataUrl)
-          const blob = await res.blob()
-          const file = new File([blob], filename, { type: mimeType })
+          // Decode the data URI directly: fetch(dataUrl) is blocked by the CSP.
+          const file = dataUrlToFile(dataUrl, filename)
+          if (!file) throw new ApiError('validation', 'The pasted image could not be read.')
+          if (file.size > MAX_ARTICLE_IMAGE_BYTES) throw new ApiError('validation', ARTICLE_IMAGE_TOO_LARGE_MESSAGE)
           const form = new FormData()
           form.append('file', file)
           form.append('bucket', 'article-images')
@@ -472,13 +474,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
       if (editor && onEditorReady) onEditorReady(editor)
     }, [editor]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Clear upload error after 4s
-    useEffect(() => {
-      if (!uploadError) return
-      const t = setTimeout(() => setUploadError(''), 4000)
-      return () => clearTimeout(t)
-    }, [uploadError])
-
     // Close dropdowns when clicking outside
     useEffect(() => {
       const handler = (e: MouseEvent) => {
@@ -494,8 +489,12 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
     const uploadImage = useCallback(async (file: File) => {
       if (!editor) return
-      setUploading(true)
       setUploadError('')
+      if (file.size > MAX_ARTICLE_IMAGE_BYTES) {
+        setUploadError(ARTICLE_IMAGE_TOO_LARGE_MESSAGE)
+        return
+      }
+      setUploading(true)
       try {
         const form = new FormData()
         form.append('file', file)
@@ -579,13 +578,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
     return (
       <div style={{ isolation: 'isolate' }}>
 
-        {/* Upload error */}
-        {uploadError && (
-          <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-2 text-red-500 text-xs flex items-center gap-2">
-            <span className="font-semibold">Upload failed:</span> {uploadError}
-          </div>
-        )}
-
         {/* Link bar */}
         {linkBarOpen && editable && (
           <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-3 py-2 flex items-center gap-2">
@@ -634,6 +626,18 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         {editable && (() => {
           const toolbarContent = (
             <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-4 py-1.5 flex flex-wrap gap-1 items-center w-full h-full">
+
+            {/* Upload error. Lives in the pinned toolbar, not above the document, so it is
+                on screen wherever the writer has scrolled, and it stays until dismissed
+                or the next upload starts: a message that vanishes after a few seconds is
+                easy to miss. */}
+            {uploadError && (
+              <div role="alert" className="basis-full flex items-center gap-2 bg-red-500/10 border border-red-500/25 rounded px-3 py-1.5 text-red-600 dark:text-red-400 text-xs">
+                <span className="font-semibold">Upload failed:</span>
+                <span className="flex-1">{uploadError}</span>
+                <button type="button" onClick={() => setUploadError('')} aria-label="Dismiss upload error" className="font-semibold underline underline-offset-2">Dismiss</button>
+              </div>
+            )}
 
             {/* Group 1: History */}
             <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo (Ctrl+Z)">

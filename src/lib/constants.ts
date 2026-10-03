@@ -122,6 +122,17 @@ export const MAX_BIO_LENGTH = 600
  */
 export const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 
+/**
+ * Largest article/cover image POST /api/upload accepts. The editor checks it before
+ * sending: the request body limit in front of the route (10 MB for the whole multipart
+ * body) rejects an oversized file with an opaque "Failed to parse body as FormData"
+ * before this limit is ever reached.
+ */
+export const MAX_ARTICLE_IMAGE_BYTES = 10 * 1024 * 1024
+
+/** Human-readable message for an image over MAX_ARTICLE_IMAGE_BYTES. */
+export const ARTICLE_IMAGE_TOO_LARGE_MESSAGE = `File too large (max ${MAX_ARTICLE_IMAGE_BYTES / (1024 * 1024)} MB).`
+
 // ── Site settings (key-value) ─────────────────────────────────────────────────
 
 /** site_settings.key holding the editorial commissioning brief. */

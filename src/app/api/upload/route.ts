@@ -3,7 +3,7 @@ import { requireVerifiedSessionUser } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import { ALL_ROLES, ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 import type { Role } from '@prisma/client'
-import { MAX_AVATAR_BYTES } from '@/lib/constants'
+import { MAX_ARTICLE_IMAGE_BYTES, MAX_AVATAR_BYTES } from '@/lib/constants'
 import { detectImageMimeType } from '@/lib/imageSniff'
 
 // Explicit allowlist of buckets callers may upload to.
@@ -28,7 +28,7 @@ const BUCKET_ROLES = {
  * by every account, which makes it the one worth keeping tight.
  */
 const BUCKET_MAX_BYTES: Record<string, number> = {
-  'article-images': 10 * 1024 * 1024,
+  'article-images': MAX_ARTICLE_IMAGE_BYTES,
   avatars: MAX_AVATAR_BYTES,
 }
 
