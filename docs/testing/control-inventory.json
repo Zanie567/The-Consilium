@@ -745,7 +745,6 @@
       "candidateTestFiles": [
         "tests/e2e/team-profile-lifecycle.spec.ts",
         "tests/e2e/team-profile.spec.ts",
-        "tests/e2e/wf-roles.spec.ts",
         "tests/integration/proxy.test.ts",
         "tests/integration/route-handlers.test.ts",
         "tests/integration/team-profile-db.test.ts"
@@ -11838,7 +11837,8 @@
       "candidateTests": [
         "tests/e2e/network-crawl.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
-        "tests/e2e/wf-lifecycle.spec.ts"
+        "tests/e2e/wf-lifecycle.spec.ts",
+        "tests/e2e/wf-roles.spec.ts"
       ],
       "groupTestFiles": [
         "tests/e2e/wf-formatting.spec.ts",

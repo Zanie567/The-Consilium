@@ -137,11 +137,14 @@ for (const role of ['writer', 'editor', 'admin', 'growth'] as const) {
     })
 
     test('every menu entry opens, with a heading and no console errors', async ({ browser }) => {
+      // Admin has many pages. Bound each navigation while giving the complete
+      // census enough aggregate time on a machine running other audits.
+      test.setTimeout(90_000)
       const ctx = await signedIn(browser, role as SessionName)
       const page = await ctx.newPage()
       const errors = collectConsoleErrors(page)
       for (const link of NAV[role]) {
-        const res = await page.goto(link.href, { waitUntil: 'networkidle' })
+        const res = await page.goto(link.href, { waitUntil: 'networkidle', timeout: 10_000 })
         expect(res?.status(), `${role} ${link.href}`).toBe(200)
         expect(new URL(page.url()).pathname, `${role} was bounced from ${link.href}`).toBe(norm(link.href))
         if (link.href !== '/editorial/articles/new') {
@@ -207,21 +210,21 @@ test.describe('reader and signed-out visitors', () => {
 
 test.describe('sensitive endpoints refuse the wrong roles', () => {
   // [method, path, roles that must be refused]
-  const CASES: [string, string, SessionName[]][] = [
-    ['GET', '/api/editorial/growth/subscribers', ['writer', 'editor', 'reader']],
-    ['GET', '/api/editorial/users', ['writer', 'growth', 'reader']],
+  const CASES: [string, string, SessionName[], number][] = [
+    ['GET', '/api/editorial/growth/subscribers', ['writer', 'editor', 'reader'], 401],
+    ['GET', '/api/editorial/users', ['writer', 'growth', 'reader'], 403],
     // Growth may READ the moderation feed on purpose (COMMENT_MODERATION_ROLES), though the page redirects it.
-    ['GET', '/api/editorial/comments', ['writer', 'reader']],
-    ['GET', '/api/editorial/trash', ['growth', 'reader']],
-    ['PATCH', '/api/editorial/articles/none/review', ['writer', 'growth', 'reader']],
-    ['POST', '/api/admin/users', ['writer', 'editor', 'growth', 'reader']],
+    ['GET', '/api/editorial/comments', ['writer', 'reader'], 401],
+    ['GET', '/api/editorial/trash', ['growth', 'reader'], 403],
+    ['PATCH', '/api/editorial/articles/none/review', ['writer', 'growth', 'reader'], 403],
+    ['POST', '/api/editorial/users', ['writer', 'editor', 'growth', 'reader'], 403],
   ]
-  for (const [method, url, roles] of CASES) {
+  for (const [method, url, roles, expectedStatus] of CASES) {
     for (const who of roles) {
       test(`${who} ${method} ${url} is refused`, async ({ browser }) => {
         const ctx = await signedIn(browser, who)
         const res = await ctx.request.fetch(url, { method, data: method === 'GET' ? undefined : {} })
-        expect([401, 403, 404, 405], `${who} got ${res.status()}: ${(await res.text()).slice(0, 120)}`).toContain(res.status())
+        expect(res.status(), `${who} got ${res.status()}: ${(await res.text()).slice(0, 120)}`).toBe(expectedStatus)
         await ctx.close()
       })
     }

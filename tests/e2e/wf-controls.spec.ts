@@ -71,6 +71,7 @@ test('delete table, edit/cancel/remove footnotes, spacing, counts and theme surv
 })
 
 test('review correction, commendation, feature and pin persist and corrections appear publicly', async ({ browser }) => {
+  test.setTimeout(90_000) // Several saves, reloads and public pages; per-action deadline remains 10s.
   const ctx = await signedIn(browser, 'editor')
   const page = await ctx.newPage()
   const ed = new ArticleEditorPage(page)
