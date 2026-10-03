@@ -1,24 +1,40 @@
 import { defineConfig, devices } from '@playwright/test'
 import { ADMIN_STORAGE, EDITOR_GLOBAL_STORAGE } from './tests/e2e/helpers/authStorage'
 import { applyTestDatabaseEnv, resolveTestBaseUrl } from './scripts/lib/testDatabase'
+import { assertIsolatedServiceEnv } from './scripts/lib/testServices'
 
 // SAFETY: E2E signs in with seeded credentials and writes data, and the e2e DB
 // helpers read DATABASE_URL. Pin both the process and the server it starts to the
 // verified local test database (never .env.local = production), and refuse a remote
 // base URL. Runs in every Playwright worker too, since each re-imports this config.
 applyTestDatabaseEnv()
+// Storage, email and OAuth are just as dangerous as the database: `next build` and
+// `next start` read .env.local (production keys) for anything not set explicitly.
+// scripts/run-e2e.sh sets every one of them to a local stand-in; refuse to run
+// without it. Re-checked in each worker, which re-imports this file.
+assertIsolatedServiceEnv()
 
-const PORT = process.env.E2E_PORT ?? '3000'
-const BASE_URL = resolveTestBaseUrl(process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`)
+if (!process.env.E2E_BASE_URL) {
+  throw new Error('E2E_BASE_URL is not set. Run the suite with `npm run test:e2e` (scripts/run-e2e.sh).')
+}
+const BASE_URL = resolveTestBaseUrl(process.env.E2E_BASE_URL)
 
 /**
  * E2E config. Tests run against a production server (`next start`) so caching and
  * RSC behaviour match the real deployment (relevant to the Priority 2 prefetch
  * tests). The DB must be seeded first — `npm run test:setup-db`.
  *
- * By default Playwright starts the server itself; set E2E_BASE_URL to point at an
- * already-running server and the webServer block is skipped.
+ * The server is started by scripts/run-e2e.sh, not by Playwright: only that script
+ * builds the app with the isolated storage/email environment, and a server started
+ * any other way could carry production keys from .env.local.
  */
+// scripts/run-e2e.sh runs the team-profile specs separately (E2E_PHASE=team-profile)
+// from everything else (E2E_PHASE=main). Unset = every project, for explicit
+// `--project=...` selections.
+const phase = process.env.E2E_PHASE
+const inPhase = (name: string) =>
+  phase === 'main' ? name !== 'team-profile' : phase === 'team-profile' ? name === 'team-profile' : true
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -33,19 +49,15 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
-  projects: [
-    // Opt-in (scripts/run-team-profile-e2e.sh sets E2E_TEAM_PROFILE=1): it needs a
-    // local storage server and a build pointed at it, which the default CI e2e job
-    // does not have.
-    ...(process.env.E2E_TEAM_PROFILE === '1'
-      ? [
-          {
-            name: 'team-profile',
-            testMatch: /team-profile(-lifecycle)?\.spec\.ts/,
-            use: { ...devices['Desktop Chrome'] },
-          },
-        ]
-      : []),
+  projects: ([
+    // Part of every run now: scripts/run-e2e.sh always provides the local storage
+    // server and a build pointed at it. The specs share that one server and assert on
+    // its contents, so they run serially (see `workers` in the project's spec files).
+    {
+      name: 'team-profile',
+      testMatch: /team-profile(-lifecycle)?\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
       name: 'public',
@@ -75,15 +87,5 @@ export default defineConfig({
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },
-  ],
-  webServer: process.env.E2E_BASE_URL
-    ? undefined
-    : {
-        command: 'npm run start -- -p ' + PORT,
-        url: BASE_URL,
-        reuseExistingServer: !process.env.CI,
-        timeout: 120_000,
-        stdout: 'ignore',
-        stderr: 'pipe',
-      },
+  ]).filter((project) => inPhase(project.name)),
 })

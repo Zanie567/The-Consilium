@@ -44,6 +44,10 @@ const localStorage = (() => {
 })()
 
 const nextConfig: NextConfig = {
+  // The isolated E2E stack builds into its own directory so a build made with
+  // production env values (which Next inlines for NEXT_PUBLIC_*) can never be
+  // served by the test launcher, and the test build never clobbers `next dev`.
+  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
   images: {
     dangerouslyAllowLocalIP: localStorage !== null,
     // Restrict server-side image fetches to Supabase Storage (where uploads live)

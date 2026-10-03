@@ -13,6 +13,20 @@ export async function sendEmail({
   subject: string
   html: string
 }) {
+  // Test isolation: with EMAIL_TRANSPORT=capture nothing is ever sent. The message
+  // is appended (as one JSON line) to EMAIL_CAPTURE_FILE so tests can assert what
+  // would have gone out. Checked before RESEND_API_KEY so a real key in the
+  // environment cannot override it.
+  if (process.env.EMAIL_TRANSPORT === 'capture') {
+    const file = process.env.EMAIL_CAPTURE_FILE
+    if (!file) {
+      console.error('[email] EMAIL_TRANSPORT=capture requires EMAIL_CAPTURE_FILE - email dropped')
+      return
+    }
+    const { appendFile } = await import('node:fs/promises')
+    await appendFile(file, JSON.stringify({ to, subject, html, at: new Date().toISOString() }) + '\n')
+    return
+  }
   if (!process.env.RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY not set - email not sent to', to)
     return
