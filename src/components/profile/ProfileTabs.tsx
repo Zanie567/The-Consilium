@@ -541,6 +541,10 @@ function AccountSettingsTab({
   const [deleteError, setDeleteError] = useState('')
 
   const [copied, setCopied] = useState(false)
+  // Read after mount: rendering window.location.origin directly made the server HTML ('')
+  // differ from the first client render, a hydration error (React #418) in production.
+  const [origin, setOrigin] = useState('')
+  useEffect(() => setOrigin(window.location.origin), [])
 
   // Saving the avatar is two steps: upload the file, then store the URL it
   // returns. The URL is never typed by the user — the account route only accepts
@@ -783,7 +787,7 @@ function AccountSettingsTab({
       <section>
         <h3 className="text-[var(--fg)] font-bold text-sm uppercase tracking-widest mb-4">Share Your Profile</h3>
         <div className="flex items-center gap-3 p-3 bg-[var(--bg-elevated)] border border-[var(--border)]">
-          <p className="flex-1 text-[var(--fg-faint)] text-xs truncate">{typeof window !== 'undefined' ? window.location.origin : ''}/profile</p>
+          <p className="flex-1 text-[var(--fg-faint)] text-xs truncate">{origin}/profile</p>
           <button
             onClick={handleCopyProfile}
             className="shrink-0 flex items-center gap-1.5 text-[var(--fg-faint)] hover:text-gold text-xs font-semibold transition-colors"
