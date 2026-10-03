@@ -14,7 +14,7 @@ type Env = Record<string, string | undefined>
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
 
-export interface IsolatedServiceOptions {
+interface IsolatedServiceOptions {
   appPort: number
   storagePort: number
   /** JSONL file the app's email transport appends to instead of sending. */

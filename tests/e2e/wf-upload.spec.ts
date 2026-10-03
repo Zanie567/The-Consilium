@@ -17,7 +17,6 @@ const storageBase = () => process.env.NEXT_PUBLIC_SUPABASE_URL!
 const articleImages = async () => (await storedObjects()).filter((o) => o.key.startsWith('article-images/'))
 /** Stored objects whose name contains `needle`: specs run in parallel and share the storage server, so count by file name, never by total. */
 const storedNamed = async (needle: string) => (await articleImages()).filter((o) => o.key.includes(needle))
-const alertOf = (p: Page) => p.locator('[role="alert"]:not(#__next-route-announcer__)')
 
 async function newArticle(browser: import('@playwright/test').Browser, who: 'writer' | 'editor' = 'writer') {
   const ctx = await signedIn(browser, who)

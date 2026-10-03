@@ -3,7 +3,7 @@
  * a person does (click, type, upload); the database and storage helpers only READ state
  * back for assertions, or remove the fixtures a spec created.
  */
-import { expect, type Browser, type BrowserContext, type Locator, type Page, type Response } from '@playwright/test'
+import { expect, type Browser, type BrowserContext, type Page, type Response } from '@playwright/test'
 import fs from 'node:fs'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
@@ -16,7 +16,7 @@ import {
   WRITER_STORAGE,
 } from './authStorage'
 
-export const SESSIONS = {
+const SESSIONS = {
   writer: WRITER_STORAGE,
   editor: EDITOR_GLOBAL_STORAGE,
   admin: ADMIN_STORAGE,
@@ -68,7 +68,7 @@ export async function removeMyArticles() {
 }
 
 /** Removes every article whose title starts with `prefix`, whatever state it ended in. */
-export async function removeArticlesTitled(prefix: string) {
+async function removeArticlesTitled(prefix: string) {
   const rows = await db().article.findMany({ where: { title: { startsWith: prefix } }, select: { id: true } })
   const ids = rows.map((r) => r.id)
   if (!ids.length) return
@@ -211,5 +211,3 @@ export function docTypes(doc: unknown): { nodes: Set<string>; marks: Set<string>
   walk(doc as never)
   return { nodes, marks }
 }
-
-export const visible = (l: Locator) => expect(l).toBeVisible()

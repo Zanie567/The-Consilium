@@ -106,7 +106,7 @@ jobs:
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ci_dummy_anon_key
       SUPABASE_ANON_KEY: ci_dummy_anon_key
       SUPABASE_SERVICE_ROLE_KEY: ci_dummy_service_key
-      RESEND_API_KEY: re_ci_dummy
+      # No RESEND_API_KEY on purpose: this job must never be able to send real email.
       CRON_SECRET: ci_cron_secret
       ADMIN_EMAILS: admin@theconsilium.com
       USE_EXISTING_DB: "1"
@@ -132,13 +132,18 @@ jobs:
       - name: Unit + integration tests (vitest, against seeded DB)
         run: npm test
 
-      - name: Production build
-        run: npm run build
+      # Chromium and WebKit: the browser workflow suites run on both (plus phone
+      # emulations of each). WebKit needs its system libraries, hence --with-deps.
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
 
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
-
-      - name: E2E (console-error checks + network-status crawl + UI assertions)
+      # scripts/run-e2e.sh is the only supported entry point. It builds the app itself
+      # into .next-e2e with storage, email and OAuth pinned to local stand-ins (a local
+      # Supabase-Storage-compatible server, captured email, no Google), so nothing in this
+      # job can reach a real service even if a secret were present. The Playwright config
+      # refuses to start without that isolation. Phases: main, workflow (browser
+      # workflow suites), team-profile.
+      - name: E2E (browser workflows on Chromium + WebKit, console/network checks, team profile)
         run: npm run test:e2e
 
       - name: Upload Playwright report
@@ -146,5 +151,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            test-results/
           retention-days: 7

@@ -33,6 +33,7 @@ vi.mock('@/lib/email', () => ({
 vi.mock('@/lib/revalidateArticles', () => ({ revalidateArticleLists: vi.fn() }))
 
 import { PUT } from '@/app/api/articles/[id]/route'
+import { articleVersion } from '@/lib/articleVersion'
 
 const ADMIN = { id: 'admin-1', role: 'ADMIN', name: 'Admin', email: 'admin@test' }
 const EDITOR = { id: 'editor-1', role: 'EDITOR', name: 'Editor', email: 'editor@test' }
@@ -53,6 +54,7 @@ const existing = {
   deletedAt: null,
   author: { id: 'writer-1', name: 'Writer' },
   category: { id: 'analysis', name: 'Analysis' },
+  tags: [] as { tag: { name: string } }[],
 }
 
 function request(body: Record<string, unknown> = {}) {
@@ -154,5 +156,40 @@ describe('PUT /api/articles/[id] editor saves', () => {
 
     expect(response.status).toBe(400)
     expect(prismaMock.article.update).not.toHaveBeenCalled()
+  })
+})
+
+describe('PUT /api/articles/[id] optimistic concurrency (baseVersion)', () => {
+  const currentVersion = () => articleVersion(existing, existing.tags.map((t) => t.tag.name))
+
+  beforeEach(() => {
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: ADMIN })
+  })
+
+  it('saves when the client was editing the current version, and returns the new version', async () => {
+    const response = await PUT(request({ baseVersion: currentVersion() }), params)
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(typeof body.version).toBe('string')
+    expect(body.version).toHaveLength(24)
+  })
+
+  it('refuses a stale version with 409 ARTICLE_CONFLICT and writes nothing', async () => {
+    const response = await PUT(request({ baseVersion: 'stale-version-from-another-tab' }), params)
+    expect(response.status).toBe(409)
+    expect((await response.json()).code).toBe('ARTICLE_CONFLICT')
+    expect(prismaMock.article.update).not.toHaveBeenCalled()
+  })
+
+  it('does not check clients that send no baseVersion (scripts, older pages)', async () => {
+    const response = await PUT(request(), params)
+    expect(response.status).toBe(200)
+  })
+
+  it('treats a tag change by someone else as a conflict', async () => {
+    const stale = currentVersion()
+    prismaMock.article.findUnique.mockResolvedValue({ ...existing, tags: [{ tag: { name: 'added-elsewhere' } }] })
+    const response = await PUT(request({ baseVersion: stale }), params)
+    expect(response.status).toBe(409)
   })
 })

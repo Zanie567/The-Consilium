@@ -23,14 +23,24 @@ cd "$(dirname "$0")/.." || { echo "✗ could not cd to project root"; exit 1; }
 # production one in .env.local. Exporting these here means `next start` below
 # inherits them (Next never overrides an already-set variable with .env.local).
 # Aborts on an unsafe URL; the rules live in scripts/lib/assertSafeTestDatabaseHost.ts.
-eval "$(npx ts-node -P tsconfig.seed.json scripts/test-db-env.ts)" || { echo "✗ refusing: unsafe test database"; exit 1; }
-
 PORT="${AUDIT_PORT:-3100}"
+# Database AND storage/email/OAuth: the server built and started here reads .env.local
+# (production keys) for anything not set, so scripts/e2e-env.ts pins every service to a
+# local stand-in, exactly as scripts/run-e2e.sh does.
+export E2E_APP_PORT="$PORT" FAKE_STORAGE_PORT="${FAKE_STORAGE_PORT:-54321}" EMAIL_CAPTURE_FILE="${EMAIL_CAPTURE_FILE:-/tmp/consilium-audit-outbox.jsonl}"
+eval "$(npx ts-node -P tsconfig.seed.json scripts/e2e-env.ts)" || { echo "✗ refusing: environment is not isolated"; exit 1; }
+: > "$EMAIL_CAPTURE_FILE"
+PGBIN="${PGBIN:-/opt/homebrew/opt/postgresql@16/bin}"; [ -d "$PGBIN" ] && export PATH="$PGBIN:$PATH"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f tests/e2e/helpers/local-storage-schema.sql >/dev/null 2>&1 || true
+npx ts-node -P tsconfig.seed.json tests/e2e/helpers/fake-storage-server.ts >/tmp/audit-storage.log 2>&1 &
+STORAGE_PID=$!
+
 BASE="${AUDIT_BASE_URL:-http://localhost:$PORT}"
 SERVER_PID=""
 
 cleanup() {
   [ -n "$SERVER_PID" ] && kill "$SERVER_PID" 2>/dev/null
+  [ -n "${STORAGE_PID:-}" ] && kill "$STORAGE_PID" 2>/dev/null
   # Backstop: free the port if next-server outlived its npm parent.
   if [ -z "${AUDIT_BASE_URL:-}" ]; then
     lsof -ti tcp:"$PORT" 2>/dev/null | xargs kill 2>/dev/null || true
@@ -50,9 +60,14 @@ fi
 
 if [ -z "${AUDIT_BASE_URL:-}" ]; then
   # 2. Production build.
-  if [ "${SKIP_BUILD:-0}" != "1" ]; then
-    echo "→ [2/4] Building production server…"
+  # Next inlines NEXT_PUBLIC_* at build time, so a build is only reusable if it was made
+  # with this same isolated storage URL (the marker records it).
+  MARKER="${NEXT_DIST_DIR}/.isolated-build"
+  if [ "${SKIP_BUILD:-0}" != "1" ] || [ ! -f "$MARKER" ] || [ "$(cat "$MARKER")" != "$NEXT_PUBLIC_SUPABASE_URL" ]; then
+    echo "→ [2/4] Building production server (isolated env, ${NEXT_DIST_DIR})…"
+    rm -rf "$NEXT_DIST_DIR"
     npm run build || { echo "✗ build failed"; exit 1; }
+    echo "$NEXT_PUBLIC_SUPABASE_URL" > "$MARKER"
   fi
 
   # 3. Boot the server with the rate limiter disabled.
@@ -78,7 +93,10 @@ BASE_URL="$BASE" AUDIT_NO_RATE_LIMIT=1 npx vitest run || FAILED=1
 
 echo
 echo "─── playwright (E2E + link-crawler) ─────────────────────────"
-E2E_BASE_URL="$BASE" npx playwright test || FAILED=1
+export E2E_BASE_URL="$BASE"
+E2E_PHASE=main npx playwright test || FAILED=1
+E2E_PHASE=workflow npx playwright test || FAILED=1
+E2E_PHASE=team-profile npx playwright test --workers=1 || FAILED=1
 
 echo
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

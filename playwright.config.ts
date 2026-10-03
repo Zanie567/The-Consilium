@@ -54,7 +54,9 @@ export default defineConfig({
     // sit for the rest of the test timeout.
     actionTimeout: 10_000,
     baseURL: BASE_URL,
-    trace: 'on-first-retry',
+    // A failure in CI must leave evidence: a trace (DOM snapshots, network, console) and a
+    // screenshot of the failing step. Locally traces are taken on retry only.
+    trace: process.env.CI ? 'retain-on-failure' : 'on-first-retry',
     screenshot: 'only-on-failure',
   },
   projects: ([

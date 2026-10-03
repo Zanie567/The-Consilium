@@ -360,7 +360,7 @@ export function useArticleEditorController({
     const result = saveQueueRef.current.then(execute, execute)
     saveQueueRef.current = result.then(() => undefined, () => undefined)
     return result
-  }, [router])
+  }, [])
 
   const scheduleAutosave = useCallback(() => {
     if (!canEdit) return
