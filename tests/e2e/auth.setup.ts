@@ -1,4 +1,12 @@
 import { test as setup, expect } from '@playwright/test'
+
+/**
+ * "Signed in" means the browser has LEFT the login page. The old pattern,
+ * /\/editorial(\/|$|\?)/, also matched /editorial/login itself, so it returned at once and
+ * the assertion after it raced the sign-in: it failed whenever sign-in took longer than
+ * the assertion timeout, and a genuinely failed sign-in could look like success.
+ */
+const leftLoginPage = (url: URL) => !url.pathname.includes('/login')
 import {
   ADMIN_STORAGE,
   EDITOR_GLOBAL_STORAGE,
@@ -22,7 +30,7 @@ setup('authenticate as admin', async ({ page }) => {
   await page.locator('button[type="submit"]').click()
 
   // Land on the dashboard (not bounced back to /login).
-  await page.waitForURL(/\/editorial(\/|$|\?)/, { timeout: 20_000 })
+  await page.waitForURL(leftLoginPage, { timeout: 30_000 })
   await expect(page).not.toHaveURL(/\/editorial\/login/)
   await page.context().storageState({ path: ADMIN_STORAGE })
 })
@@ -44,7 +52,7 @@ async function authenticateEditor(
   )
   await page.locator('button[type="submit"]').click()
 
-  await page.waitForURL(/\/editorial(\/|$|\?)/, { timeout: 20_000 })
+  await page.waitForURL(leftLoginPage, { timeout: 30_000 })
   await expect(page).not.toHaveURL(/\/editorial\/login/)
   await page.context().storageState({ path: storagePath })
 }
@@ -70,7 +78,7 @@ setup('authenticate as the seeded writer', async ({ page }) => {
   await page.locator('input[type="password"]').fill(password)
   await page.locator('button[type="submit"]').click()
 
-  await page.waitForURL(/\/editorial(\/|$|\?)/, { timeout: 20_000 })
+  await page.waitForURL(leftLoginPage, { timeout: 30_000 })
   await expect(page).not.toHaveURL(/\/editorial\/login/)
   await page.context().storageState({ path: WRITER_STORAGE })
 })
@@ -85,7 +93,7 @@ setup('authenticate as growth', async ({ page }) => {
   await page.locator('input[type="email"]').fill('growth@consilium.test')
   await page.locator('input[type="password"]').fill('reader1234')
   await page.locator('button[type="submit"]').click()
-  await page.waitForURL(/\/editorial(\/|$|\?)/, { timeout: 20_000 })
+  await page.waitForURL(leftLoginPage, { timeout: 30_000 })
   await expect(page).not.toHaveURL(/\/editorial\/login/)
   await page.context().storageState({ path: GROWTH_STORAGE })
 })
