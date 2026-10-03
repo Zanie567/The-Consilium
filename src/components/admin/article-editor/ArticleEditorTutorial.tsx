@@ -33,8 +33,8 @@ export function ArticleEditorTutorial({ editor }: ArticleEditorTutorialProps) {
 
   return (
     <>
-      <div className="fixed inset-0 z-[70] bg-black/40" onClick={() => editor.actions.setTutorialOpen(false)} />
-      <div className="fixed inset-0 z-[71] flex items-center justify-center p-4 pointer-events-none">
+      <div className="fixed inset-0 z-[210] bg-black/40" onClick={() => editor.actions.setTutorialOpen(false)} />
+      <div className="fixed inset-0 z-[211] flex items-center justify-center p-4 pointer-events-none">
         <div
           className="pointer-events-auto w-full max-w-[680px] max-h-[80vh] bg-[var(--bg-elevated)] rounded-2xl shadow-2xl flex flex-col border border-[var(--border)]"
           onClick={(event) => event.stopPropagation()}

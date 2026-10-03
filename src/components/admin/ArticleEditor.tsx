@@ -121,12 +121,12 @@ export function ArticleEditor(props: ArticleEditorProps) {
           </button>
 
           <div
-            className={`min-[1100px]:hidden fixed inset-0 z-[64] bg-black/40 transition-opacity duration-300 ${commentsDrawerOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+            className={`min-[1100px]:hidden fixed inset-0 z-[205] bg-black/40 transition-opacity duration-300 ${commentsDrawerOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
             onClick={() => setCommentsDrawerOpen(false)}
             aria-hidden
           />
           <div
-            className={`min-[1100px]:hidden fixed inset-y-0 right-0 z-[65] w-[340px] max-w-[92vw] bg-[var(--bg-elevated)] shadow-2xl flex flex-col transition-transform duration-300 ease-out ${commentsDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
+            className={`min-[1100px]:hidden fixed inset-y-0 right-0 z-[206] w-[340px] max-w-[92vw] bg-[var(--bg-elevated)] shadow-2xl flex flex-col transition-transform duration-300 ease-out ${commentsDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
             aria-hidden={!commentsDrawerOpen}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] shrink-0">
