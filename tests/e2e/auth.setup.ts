@@ -3,6 +3,8 @@ import {
   ADMIN_STORAGE,
   EDITOR_GLOBAL_STORAGE,
   EDITOR_SCOPED_STORAGE,
+  GROWTH_STORAGE,
+  READER_STORAGE,
   WRITER_STORAGE,
 } from './helpers/authStorage'
 
@@ -71,4 +73,28 @@ setup('authenticate as the seeded writer', async ({ page }) => {
   await page.waitForURL(/\/editorial(\/|$|\?)/, { timeout: 20_000 })
   await expect(page).not.toHaveURL(/\/editorial\/login/)
   await page.context().storageState({ path: WRITER_STORAGE })
+})
+
+/**
+ * Growth and reader sessions for the role-matrix specs. Both accounts come from
+ * seed-test-fixtures.ts. A reader signs in through the public form (/login) and has
+ * no portal access; growth signs in through the editorial form.
+ */
+setup('authenticate as growth', async ({ page }) => {
+  await page.goto('/editorial/login')
+  await page.locator('input[type="email"]').fill('growth@consilium.test')
+  await page.locator('input[type="password"]').fill('reader1234')
+  await page.locator('button[type="submit"]').click()
+  await page.waitForURL(/\/editorial(\/|$|\?)/, { timeout: 20_000 })
+  await expect(page).not.toHaveURL(/\/editorial\/login/)
+  await page.context().storageState({ path: GROWTH_STORAGE })
+})
+
+setup('authenticate as a reader', async ({ page }) => {
+  await page.goto('/login')
+  await page.locator('input[type="email"]').fill('reader.alice@consilium.test')
+  await page.locator('input[type="password"]').fill('reader1234')
+  await page.locator('button[type="submit"]').click()
+  await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 20_000 })
+  await page.context().storageState({ path: READER_STORAGE })
 })

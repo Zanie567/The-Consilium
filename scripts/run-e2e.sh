@@ -66,5 +66,6 @@ fi
 # (the article-upload specs) and they run on a single worker.
 STATUS=0
 E2E_PHASE=main npx playwright test || STATUS=1
+E2E_PHASE=workflow npx playwright test || STATUS=1
 E2E_PHASE=team-profile npx playwright test --workers=1 || STATUS=1
 exit $STATUS

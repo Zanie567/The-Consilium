@@ -224,6 +224,53 @@ const GOOGLE_DOCS_COLORS: string[] = [
   '#fff8f8','#fffaf5','#fefef5','#f8fbf5','#f5fcfd','#f8faff','#f8f8ff','#fbf8ff','#fdf8fb','#fff8fb',
 ]
 
+// ── Toolbar primitives ────────────────────────────────────────────────────────
+// Defined at module level, NOT inside TiptapEditor. A component declared inside the
+// render function gets a new identity on every render, so React unmounts and remounts
+// every toolbar button whenever editor state changes. The picker buttons (table, line
+// spacing) open a dropdown on mousedown; that state change re-rendered the editor, the
+// button the user pressed was replaced, and the document-level "click outside closes
+// the dropdown" listener then saw a detached event target and closed it again straight
+// away - so those two pickers never opened.
+const ToolbarDarkContext = React.createContext(false)
+
+function ToolbarBtn({
+  onClick, active, title, disabled: dis, children, style,
+}: {
+  onClick: (e: React.MouseEvent) => void
+  active?: boolean
+  title: string
+  disabled?: boolean
+  children: ReactNode
+  style?: React.CSSProperties
+}) {
+  const darkMode = React.useContext(ToolbarDarkContext)
+  return (
+    <button
+      type="button"
+      onMouseDown={(e) => { e.preventDefault(); onClick(e) }}
+      title={title}
+      disabled={dis}
+      style={style}
+      className={`p-2 rounded min-w-[30px] h-8 flex items-center justify-center ${
+        active
+          ? darkMode
+            ? 'bg-white/20 text-white ring-1 ring-white/30'
+            : 'bg-[#1a2744]/20 text-[#1a2744] ring-1 ring-[#1a2744]/30 font-semibold'
+          : darkMode
+            ? 'text-white/70 hover:bg-white/8 transition-colors duration-100'
+            : 'text-[#444] hover:bg-black/8 transition-colors duration-100'
+      } disabled:opacity-30`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function Sep() {
+  return <div className="w-px mx-2.5 self-stretch bg-black/10 dark:bg-white/10" />
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
   function TiptapEditor({ content, onChange, editable = true, saveStatus, saveError, toolbarPortalRef, onEditorReady, noWrapper, darkMode, onCommentClick }, ref) {
@@ -529,41 +576,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
     const wordCount    = editor.storage.characterCount.words()
     const readingTime  = Math.max(1, Math.round(wordCount / 200))
 
-    // ── Sub-components ───────────────────────────────────────────────────────
-    const ToolbarBtn = ({
-      onClick, active, title, disabled: dis, children, style,
-    }: {
-      onClick: (e: React.MouseEvent) => void
-      active?: boolean
-      title: string
-      disabled?: boolean
-      children: ReactNode
-      style?: React.CSSProperties
-    }) => (
-      <button
-        type="button"
-        onMouseDown={(e) => { e.preventDefault(); onClick(e) }}
-        title={title}
-        disabled={dis}
-        style={style}
-        className={`p-2 rounded min-w-[30px] h-8 flex items-center justify-center ${
-          active
-            ? darkMode
-              ? 'bg-white/20 text-white ring-1 ring-white/30'
-              : 'bg-[#1a2744]/20 text-[#1a2744] ring-1 ring-[#1a2744]/30 font-semibold'
-            : darkMode
-              ? 'text-white/70 hover:bg-white/8 transition-colors duration-100'
-              : 'text-[#444] hover:bg-black/8 transition-colors duration-100'
-        } disabled:opacity-30`}
-      >
-        {children}
-      </button>
-    )
-
-    const Sep = () => (
-      <div className="w-px mx-2.5 self-stretch bg-black/10 dark:bg-white/10" />
-    )
-
     return (
       <div style={{ isolation: 'isolate' }}>
 
@@ -693,6 +705,10 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                       className={`w-16 text-xs border rounded px-1 py-0.5 outline-none ${darkMode ? 'bg-[#333] border-white/15 text-white placeholder:text-white/30' : 'bg-white border-black/15 text-[#333]'}`}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
+                          // Without this, WebKit applies the Enter keypress to the editor that
+                          // setColor/toggleHighlight refocuses below: it replaced the selected
+                          // text with a paragraph break instead of colouring it.
+                          e.preventDefault()
                           const val = (e.target as HTMLInputElement).value
                           const hex = val.startsWith('#') ? val : `#${val}`
                           if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
@@ -760,6 +776,10 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                       className={`w-16 text-xs border rounded px-1 py-0.5 outline-none ${darkMode ? 'bg-[#333] border-white/15 text-white placeholder:text-white/30' : 'bg-white border-black/15 text-[#333]'}`}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
+                          // Without this, WebKit applies the Enter keypress to the editor that
+                          // setColor/toggleHighlight refocuses below: it replaced the selected
+                          // text with a paragraph break instead of colouring it.
+                          e.preventDefault()
                           const val = (e.target as HTMLInputElement).value
                           const hex = val.startsWith('#') ? val : `#${val}`
                           if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
@@ -964,11 +984,14 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
           </div>
           )
           if (toolbarPortalRef?.current) {
-            return createPortal(toolbarContent, toolbarPortalRef.current)
+            return createPortal(
+              <ToolbarDarkContext.Provider value={!!darkMode}>{toolbarContent}</ToolbarDarkContext.Provider>,
+              toolbarPortalRef.current,
+            )
           }
           return (
             <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 sticky top-0 z-30">
-              {toolbarContent}
+              <ToolbarDarkContext.Provider value={!!darkMode}>{toolbarContent}</ToolbarDarkContext.Provider>
             </div>
           )
         })()}

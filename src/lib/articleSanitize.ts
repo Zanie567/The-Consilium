@@ -23,7 +23,8 @@ export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   // class allowlists below are deliberately minimal.
   allowedTags: [
     'p', 'br', 'hr',
-    'strong', 'em', 'u', 'mark',
+    'strong', 'em', 'u', 's', 'mark', 'code', 'pre',
+    'table', 'tbody', 'tr', 'th', 'td',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'ul', 'ol', 'li', 'blockquote',
     'a', 'figure', 'figcaption', 'img', 'aside', 'sup',
@@ -33,6 +34,8 @@ export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     // aria-label carries the accessible name of footnote marker links.
     a: ['href', 'target', 'rel', 'aria-label'],
     img: ['src', 'alt'],
+    th: ['colspan', 'rowspan'],
+    td: ['colspan', 'rowspan'],
     p: ['class'],
     figure: ['class'],
     figcaption: ['class'],

@@ -32,8 +32,13 @@ const BASE_URL = resolveTestBaseUrl(process.env.E2E_BASE_URL)
 // from everything else (E2E_PHASE=main). Unset = every project, for explicit
 // `--project=...` selections.
 const phase = process.env.E2E_PHASE
-const inPhase = (name: string) =>
-  phase === 'main' ? name !== 'team-profile' : phase === 'team-profile' ? name === 'team-profile' : true
+const isWorkflow = (name: string) => name.startsWith('wf-')
+const inPhase = (name: string) => {
+  if (phase === 'team-profile') return name === 'team-profile'
+  if (phase === 'workflow') return name === 'setup' || isWorkflow(name)
+  if (phase === 'main') return name !== 'team-profile' && !isWorkflow(name)
+  return true
+}
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -45,6 +50,9 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 10_000 },
   use: {
+    // A control that cannot be clicked within 10s is a defect to report, not a reason to
+    // sit for the rest of the test timeout.
+    actionTimeout: 10_000,
     baseURL: BASE_URL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
@@ -86,6 +94,35 @@ export default defineConfig({
       testMatch: /publication-lifecycle\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
+    },
+    // ── Browser workflow suites (real clicks; see tests/e2e/wf-*.spec.ts) ────────────
+    // Desktop Chromium and WebKit run the full set; the mobile projects run the
+    // layout-sensitive subset. Each spec opens its own per-role contexts, so there is
+    // no project-level storageState. They run as their own phase because they publish
+    // and unpublish articles, which the public count assertions must not race with.
+    {
+      name: 'wf-chromium',
+      testMatch: /wf-(formatting|lifecycle|failures|upload|roles)\.spec\.ts/,
+      dependencies: ['setup'],
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'wf-webkit',
+      testMatch: /wf-(formatting|lifecycle|failures|upload|roles)\.spec\.ts/,
+      dependencies: ['setup'],
+      use: { ...devices['Desktop Safari'] },
+    },
+    {
+      name: 'wf-mobile-chromium',
+      testMatch: /wf-mobile\.spec\.ts/,
+      dependencies: ['setup'],
+      use: { ...devices['Pixel 7'] },
+    },
+    {
+      name: 'wf-mobile-webkit',
+      testMatch: /wf-mobile\.spec\.ts/,
+      dependencies: ['setup'],
+      use: { ...devices['iPhone 14'] },
     },
   ]).filter((project) => inPhase(project.name)),
 })

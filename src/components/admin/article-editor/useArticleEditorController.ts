@@ -394,9 +394,12 @@ export function useArticleEditorController({
   }
 
   const handleContentChange = useCallback((nextContent: string) => {
-    setContent(nextContent)
+    // Record the edit and schedule its save BEFORE asking React to re-render. If the
+    // re-render throws (React's nested-update limit can, under sustained typing), the
+    // edit must still reach the autosave; the save reads contentRef, not state.
     contentRef.current = nextContent
     scheduleAutosave()
+    setContent(nextContent)
   }, [scheduleAutosave])
 
   const handleSave = async (overrideStatus?: string) => {

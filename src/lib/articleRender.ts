@@ -32,6 +32,12 @@ function safeHref(href: string): string {
   return cleaned
 }
 
+/** A colspan/rowspan attribute, emitted only as a plain integer above 1. */
+function spanAttr(name: 'colspan' | 'rowspan', value: unknown): string {
+  const n = Number(value)
+  return Number.isInteger(n) && n > 1 && n <= 1000 ? ` ${name}="${n}"` : ''
+}
+
 interface TiptapMark {
   type: string
   attrs?: Record<string, string | number | boolean | null>
@@ -75,6 +81,8 @@ function nodeToHtml(node: TiptapNode, state: RenderState): string {
           if (mark.type === 'bold')      text = `<strong>${text}</strong>`
           if (mark.type === 'italic')    text = `<em>${text}</em>`
           if (mark.type === 'underline') text = `<u>${text}</u>`
+          if (mark.type === 'strike')    text = `<s>${text}</s>`
+          if (mark.type === 'code')      text = `<code>${text}</code>`
           if (mark.type === 'highlight') text = `<mark>${text}</mark>`
           if (mark.type === 'link') {
             const href = safeHref(String(mark.attrs?.href ?? '#'))
@@ -90,6 +98,18 @@ function nodeToHtml(node: TiptapNode, state: RenderState): string {
     case 'listItem':      return `<li>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</li>`
     case 'blockquote':    return `<blockquote>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</blockquote>`
     case 'horizontalRule': return `<hr />`
+    // Code block: plain text only. Marks inside a code block are ignored on purpose.
+    case 'codeBlock':
+      return `<pre><code>${escHtml((node.content ?? []).map((n) => n.text ?? '').join(''))}</code></pre>`
+    // Tables. Semantic content, so it is published; column widths are presentation and
+    // are not (the house table style in globals.css lays the columns out).
+    case 'table':         return `<table><tbody>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</tbody></table>`
+    case 'tableRow':      return `<tr>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</tr>`
+    case 'tableHeader':
+    case 'tableCell': {
+      const tag = node.type === 'tableHeader' ? 'th' : 'td'
+      return `<${tag}${spanAttr('colspan', node.attrs?.colspan)}${spanAttr('rowspan', node.attrs?.rowspan)}>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</${tag}>`
+    }
     case 'image':
       // Legacy plain image nodes (new content uses 'figure')
       return `<figure class="article-figure"><img src="${escHtml(String(node.attrs?.src ?? ''))}" alt="${escHtml(String(node.attrs?.alt ?? ''))}" /></figure>`
