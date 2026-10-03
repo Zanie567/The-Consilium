@@ -39,6 +39,7 @@ Real clicks and typing. Databases and APIs are used only to prepare or read back
 
 | Spec | Covers |
 |---|---|
+| `wf-cache` | warm category/archive/home pages, publish and unpublish through the UI, require immediate public-list freshness |
 | `wf-controls` | remaining table/footnote actions, all spacing options, counts/theme, correction/commendation/feature/pin, slug/author/status and editor publication controls |
 | `wf-formatting` | one article using every editor control; checked in the editor, after save + reopen, in the review preview, and published |
 | `wf-lifecycle` | writer and editor sessions: create, save, submit, feedback, revise, schedule, publish, unpublish, with permissions and public visibility at each step |

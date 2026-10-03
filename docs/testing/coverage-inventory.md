@@ -53,7 +53,7 @@ every entry is opened ("every menu entry opens"), and pages outside the role mus
 | Move to Trash, Restore, Delete Forever | ✅ own (not run) | ✅ | `wf-articles` (editor) |
 | Inline review comments (select text → comment) | | ❌ browser; API 🟡 | `publication-lifecycle.spec` (API only) |
 | Locked after submit / publish, with explanation | ✅ | | `wf-formatting`, `wf-lifecycle` |
-| Public visibility at each state | | | `wf-lifecycle`, `wf-articles`, `wf-failures` |
+| Public visibility at each state, including warmed public-page caches | | | `wf-lifecycle`, `wf-articles`, `wf-failures`, `wf-cache` |
 
 ## 3. Editor controls (`TiptapEditor.tsx`)
 
@@ -192,3 +192,5 @@ Published typography policy is already recorded in
 house style for colours/alignment/line spacing/fonts. The audit preserves that policy.
 Font family/size have no available toolbar control; dormant callbacks/pasted attributes
 are inspection findings. This is not new owner confirmation in this session.
+
+Source access nuance: legacy `/editorial/debates/[debateId]` and its edit page inherit the portal shell without a manager-only page guard. Their APIs gate actions to Editor/Admin. The source census records that distinction; direct Writer/Growth navigation to those dynamic pages has not been browser-tested.

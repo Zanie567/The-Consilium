@@ -16,6 +16,14 @@ const controlFiles = new Map<string, string[]>()
 const tags = new Set(['button', 'a', 'Link', 'input', 'select', 'option', 'textarea', 'form', 'dialog', 'ToolbarBtn', 'IconToggle', 'SelectField'])
 const dynamicFamilies: { file: string; line: number; source: string }[] = []
 const nativeDialogs: { file: string; line: number; source: string }[] = []
+function groupTests(file: string): string[] {
+  if (file.includes('components/editor/TiptapEditor')) return ['wf-formatting', 'wf-controls', 'wf-upload', 'wf-mobile']
+  if (file.includes('components/admin/article-editor/')) return ['wf-formatting', 'wf-controls', 'wf-failures', 'wf-lifecycle', 'wf-mobile']
+  if (file.includes('ReviewPanel')) return ['wf-formatting', 'wf-controls', 'wf-lifecycle', 'wf-mobile']
+  if (/TeamProfileForm|TeamManagement/.test(file)) return ['team-profile', 'team-profile-lifecycle']
+  if (/ArticleList|Trash/.test(file)) return ['wf-articles']
+  return []
+}
 
 for (const file of files) {
   const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
@@ -63,7 +71,8 @@ for (const file of files) {
         const candidates = literal ? testText.filter(t => t.text.includes(literal)).map(t => t.file) : []
         controls.push({ id, file, line, tag, label, href: attrs.href ?? null, type: attrs.type ?? null,
           disabledWhen: attrs.disabled ?? null, expectedFromSource: Object.keys(events).length ? events : attrs.href ? `Navigate to ${attrs.href}` : 'Input/container; inspect enclosing handler',
-          candidateTests: candidates, evidence: 'CODE_INSPECTION', coverage: candidates.length ? 'Test references label; behaviour requires matching run evidence' : 'UNCOVERED: no direct label reference; group coverage may exist',
+          candidateTests: candidates, groupTestFiles: groupTests(file).map(name => `tests/e2e/${name}.spec.ts`),
+          evidence: 'CODE_INSPECTION', coverage: candidates.length ? 'Test references label; behaviour requires matching run evidence' : 'UNCOVERED: no direct label reference; partial group coverage may exist',
         })
         ids.push(id)
       }
@@ -90,6 +99,9 @@ function rolesFor(route: string): string[] {
   if (route.startsWith('/admin')) return ['ADMIN', 'EDITOR', 'WRITER']
   if (/^\/editorial\/(login|reset-password|setup)$/.test(route)) return ['ALL: unauthenticated forms; setup only when no admin exists']
   if (route.startsWith('/editorial')) {
+    // These legacy client pages inherit the portal shell and rely on their API
+    // to refuse non-managers. This is page-shell access, not mutation permission.
+    if (route.startsWith('/editorial/debates/[debateId]')) return ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH (API actions remain manager-only)']
     if (/^\/editorial\/(calendar|users|predictions|glossary)(\/|$)/.test(route)) return ['ADMIN']
     if (/^\/editorial\/(analytics|growth)(\/|$)/.test(route)) return ['ADMIN', 'GROWTH']
     if (/^\/editorial\/(review|scheduled|series|debates|comments)(\/|$)/.test(route)) return ['ADMIN', 'EDITOR']
@@ -102,7 +114,9 @@ const routes = files.filter(f => f.endsWith('/page.tsx')).map(file => {
   const route = '/' + file.replace(/^src\/app\//, '').replace(/\/page\.tsx$/, '').split('/').filter(p => !/^\(.*\)$/.test(p)).join('/')
   const layouts = files.filter(f => f.endsWith('/layout.tsx') && file.startsWith(path.dirname(f) + '/'))
   const dependencies = new Set([...reachable(file), ...layouts.flatMap(f => [...reachable(f)])])
+  const literalPath = route.replace(/\/\[.*$/, '')
   return { route, file, rolesFromInspection: rolesFor(route), accessEvidence: 'CODE_INSPECTION: see coverage-inventory.md role matrix and route guards; rendered refusals in wf-roles',
+    candidateTestFiles: literalPath.length > 1 ? testText.filter(t => t.text.includes(literalPath)).map(t => t.file) : [],
     guardSource: [...dependencies].filter(f => f === file || layouts.includes(f)).flatMap(f => fs.readFileSync(f, 'utf8').split('\n').filter(l => /getVerifiedSessionUser|session\.user\.role|redirect\(|ALLOWED_ROLES/.test(l)).map(l => `${f}: ${clean(l)}`)),
     controls: [...dependencies].flatMap(f => controlFiles.get(f) ?? []),
     dynamicFamilies: dynamicFamilies.filter(f => dependencies.has(f.file)), nativeDialogs: nativeDialogs.filter(f => dependencies.has(f.file)),

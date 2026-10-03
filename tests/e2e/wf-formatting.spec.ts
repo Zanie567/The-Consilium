@@ -399,6 +399,7 @@ test('the editor sees every feature in the review preview, then publishes from i
   await expect(body.locator('pre')).toContainText('const answer = 42')
   await expect(body.locator('figure img')).toBeVisible()
   await expect(body.locator('figure figcaption')).toHaveText(CAPTION)
+  await test.info().attach('representative-article-preview', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' })
 
   // Nothing public yet.
   const anon = await signedIn(browser, null)
@@ -462,5 +463,7 @@ test('the published article shows the content, semantic formatting kept, house s
   expect(styled, 'published body must carry no inline styles').toBe(0)
 
   expect(errors, `console errors on the published article:\n${errors.join('\n')}`).toEqual([])
+  await new ArticleEditorPage(page).dismissCookieBanner()
+  await test.info().attach('representative-article-published', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' })
   await ctx.close()
 })
