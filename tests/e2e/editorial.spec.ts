@@ -53,7 +53,8 @@ test('Analytics: every tab loads with no console errors, and Writers shows data'
   const errors = collectConsoleErrors(page)
   await page.goto('/editorial/analytics', { waitUntil: 'networkidle' })
 
-  for (const label of ['Overview', 'Content', 'Audience', 'Engagement', 'Writers', 'Distribution']) {
+  // Writers is opened separately below, where its data request is awaited.
+  for (const label of ['Overview', 'Content', 'Audience', 'Engagement', 'Distribution']) {
     const tab = page.getByRole('button', { name: label, exact: true })
     if (await tab.count()) {
       await tab.first().click()
@@ -67,7 +68,7 @@ test('Analytics: every tab loads with no console errors, and Writers shows data'
   const analyticsResp = page.waitForResponse(
     (r) => r.url().includes('tab=leaderboard') && r.ok(),
     { timeout: 10_000 },
-  ).catch(() => null)
+  )
   await writersTab.first().click()
   await analyticsResp
   await expect(page.getByText('No writers have published articles')).toHaveCount(0)
@@ -103,15 +104,22 @@ test('New Article editor autosaves a draft', async ({ page }) => {
   const headline = page.getByPlaceholder(/Untitled document|headline/i).first()
   await expect(headline).toBeVisible()
 
-  // Typing should trigger autosave (POST/PATCH /api/articles) and a "Saved" state.
+  // Typing should trigger autosave (POST /api/articles) and a "Saved" state.
   const saved = page.waitForResponse(
     (r) => r.url().includes('/api/articles') && ['POST', 'PATCH', 'PUT'].includes(r.request().method()),
     { timeout: 15_000 },
   )
-  await headline.fill(`E2E autosave draft ${Date.now()}`)
+  const title = `E2E autosave draft ${Date.now()}`
+  await headline.fill(title)
   const res = await saved
-  expect(res.status(), 'autosave request must not 5xx').toBeLessThan(500)
+  // A successful save must be a 201 (create) / 200 (update); "not a 5xx" also passed 4xx.
+  expect(res.status(), await res.text()).toBe(201)
+  const { id } = (await res.json()) as { id: string }
   await expect(page.getByText(/^Saved$/).first()).toBeVisible({ timeout: 15_000 })
+
+  // Reopen it: the draft must really be stored, not just acknowledged.
+  await page.goto(`/editorial/articles/${id}/edit`, { waitUntil: 'networkidle' })
+  await expect(page.getByPlaceholder(/Your headline here/)).toHaveValue(title)
 })
 
 test('bookmarks are fetched ONCE per page, not once per card (Bug 7)', async ({ page }) => {

@@ -576,7 +576,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
     const readingTime  = Math.max(1, Math.round(wordCount / 200))
 
     return (
-      <div style={{ isolation: 'isolate' }}>
+      <div style={{ isolation: 'isolate', position: 'relative', zIndex: 1 }}>
 
         {/* Link bar */}
         {linkBarOpen && editable && (
@@ -608,6 +608,10 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
             shouldShow={({ editor: ed }) => ed.isActive('table')}
             options={{ placement: 'top-start', offset: 8 }}
           >
+            {/* The menu is wider than a narrow document and runs over the settings panel
+                beside it. That panel painted on top and swallowed clicks, because this whole
+                editor is an isolated stacking context at z-index auto; the root now has
+                z-index 1 so everything inside, the menu included, sits above the panel. */}
             <div className={`flex items-center gap-0.5 border shadow-xl px-1.5 py-1 rounded text-[11px] font-medium ${darkMode ? 'bg-[#242424] border-white/15 text-white/80' : 'bg-white border-black/10 text-[#444]'}`}>
               <span className={`text-[9px] uppercase tracking-widest mr-1 ${darkMode ? 'text-white/30' : 'text-[#aaa]'}`}>Table</span>
               <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowBefore().run() }} className={`px-1.5 py-0.5 rounded ${darkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`} title="Add row above">+row above</button>

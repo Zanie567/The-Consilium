@@ -156,8 +156,9 @@ test('debate hub: the vote flow is wired up (button → API → results)', async
     )
     await forBtn.click()
     const voteRes = await votePromise
-    expect(voteRes.status(), 'vote endpoint must not 5xx').toBeLessThan(500)
-    expect([200, 409, 429]).toContain(voteRes.status())
+    // 200 = recorded, 409 = this client already voted. The rate limiter is off in the e2e
+    // stack, so a 429 here would be a real problem rather than an expected answer.
+    expect([200, 409]).toContain(voteRes.status())
     if (voteRes.status() === 200) {
       // A fresh vote flips the panel into its results view.
       await expect(forBtn).toBeHidden({ timeout: 8_000 })
