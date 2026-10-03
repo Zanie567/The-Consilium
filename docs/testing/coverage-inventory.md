@@ -80,7 +80,8 @@ All exercised in `wf-formatting.spec.ts`, then checked in editor → reopened �
 | Headings (`## `, `### ` shortcut) | ✅ | ✅ | ✅ | ✅ |
 | Paste with images | ✅ (synthetic paste event) | | | |
 | Footnote edit/remove by clicking the marker | ❌ | | | |
-| Dark mode toggle, tutorial | ✅ tutorial open/close on phone; dark mode ✅ `public.spec` | | | |
+| Tutorial dialog | ✅ open/close on a phone (`wf-mobile`) | | | |
+| Dark-mode toggle in the editor bar | ❌ (the public site toggle is ✅ in `public.spec`) | | | |
 | Word count / reading time panel | ❌ | | | |
 | ⛔ Font size / font family | no control: `applyFontSize` is unused code; only reachable by pasting | | | |
 | ⛔ Heading button | none; the tutorial now says so | | | |
@@ -132,5 +133,19 @@ report a comment, ban screen. 🚧 Google sign-in.
 | Desktop workflow specs | ✅ | ✅ |
 | Phone (Pixel 7 / iPhone 14) | ✅ | ✅ |
 | Layout 1100–1920 px | ✅ | ✅ |
-| Existing public/editorial/team-profile specs | ✅ | ❌ chromium only |
+| `public` spec | ✅ | ✅ (`public-webkit`), except the view-transition test 🚧 |
+| `footnotes` spec | ✅ | 🚧 3 failures under WebKit not yet triaged |
+| `editorial`, `editor-scope`, `team-profile` specs | ✅ | ❌ chromium only |
 | Firefox | ❌ not configured |
+
+### Open WebKit findings (not fixed, not hidden)
+
+1. `public.spec` "navigating across pages throws no InvalidStateError": under WebKit on
+   `http://localhost`, every Next RSC prefetch `fetch()` rejects with "due to access control
+   checks" although the server answers 200 with `text/x-component`. Probably specific to
+   plain-HTTP localhost; needs a check on a real HTTPS preview in Safari before it is called
+   a production problem.
+2. `footnotes.spec` under WebKit: (a) keyboard Tab does not reach the footnote link (Safari
+   skips links in the tab order unless the user enables it, so the popover is not
+   keyboard-reachable there by default); (b) a tap outside the open popover does not close it
+   under WebKit touch emulation; (c) a page-height equality assertion is 1 px off.

@@ -75,6 +75,22 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     {
+      // The public pages on the WebKit engine (Safari). network-crawl is browser-independent
+      // (plain HTTP), so it stays on the Chromium project only.
+      //
+      // NOT run here, and recorded as open findings rather than hidden (see
+      // docs/testing/coverage-inventory.md, section 8):
+      //  - footnotes.spec: Tab does not focus links in Safari by default, a tap outside the
+      //    popover does not dismiss it under WebKit touch emulation, and one assertion
+      //    compares page heights to the pixel (WebKit rounds differently).
+      //  - the InvalidStateError test: on http://localhost WebKit rejects Next's RSC prefetch
+      //    fetches ("due to access control checks") although the server answers 200.
+      name: 'public-webkit',
+      testMatch: /public\.spec\.ts/,
+      grepInvert: /view-transition guard/,
+      use: { ...devices['Desktop Safari'] },
+    },
+    {
       name: 'editorial',
       testMatch: /editorial(-layout)?\.spec\.ts/,
       dependencies: ['setup'],
