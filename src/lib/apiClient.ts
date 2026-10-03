@@ -121,6 +121,14 @@ function errorForResponse(response: Response, bodyValue: unknown): ApiError {
       options,
     )
   }
+  if (status === 413) {
+    // Also what Vercel answers (with a non-JSON body) when a request exceeds its 4.5 MB limit.
+    return new ApiError(
+      'validation',
+      suppliedMessage ?? 'That upload is too large for the server. Use a smaller file.',
+      options,
+    )
+  }
   if (status === 409) {
     return new ApiError(
       'conflict',
