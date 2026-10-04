@@ -1,7 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import {
-  ArticleEditorPage, articleByTitle, closeDb, docTypes, removeMyArticles, signedIn, uniqueTitle,
-} from './helpers/workflow'
+  ArticleEditorPage, articleByTitle, closeDb, docTypes, removeMyArticles, signedIn, uniqueTitle, confirmPublicChange } from './helpers/workflow'
 import { makePng } from './helpers/e2eUtils'
 import { collectConsoleErrors } from './helpers/console'
 
@@ -408,6 +407,7 @@ test('the editor sees every feature in the review preview, then publishes from i
 
   const publish = page.waitForResponse((r) => r.url().includes(`/api/editorial/articles/${articleId}/review`) && r.request().method() === 'PATCH')
   await page.getByRole('button', { name: 'Publish Now' }).click()
+  await confirmPublicChange(page, 'Publish now')
   const res = await publish
   expect(res.status(), await res.text()).toBe(200)
   expect((await res.json()).status).toBe('PUBLISHED')

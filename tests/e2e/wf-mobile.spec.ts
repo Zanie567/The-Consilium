@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { ArticleEditorPage, articleByTitle, closeDb, removeMyArticles, signedIn, uniqueTitle } from './helpers/workflow'
+import { ArticleEditorPage, articleByTitle, closeDb, removeMyArticles, signedIn, uniqueTitle, confirmPublicChange } from './helpers/workflow'
 import { collectConsoleErrors } from './helpers/console'
 
 /**
@@ -86,6 +86,7 @@ test('an editor reviews and publishes on a phone', async ({ browser }) => {
   await noSidewaysScroll(page, 'the review page')
   const res = page.waitForResponse((r) => r.url().includes('/review') && r.request().method() === 'PATCH')
   await page.getByRole('button', { name: 'Publish Now' }).click()
+  await confirmPublicChange(page, 'Publish now')
   expect((await res).status()).toBe(200)
   expect((await articleByTitle(TITLE))!.status).toBe('PUBLISHED')
   await ctx.close()

@@ -93,6 +93,14 @@ export async function storedObjects(): Promise<{ key: string; type: string; size
 }
 
 // ── The article editor page ───────────────────────────────────────────────────────────
+/** The confirmation shown before anything that changes what the public sees. */
+export const confirmDialog = (page: Page) => page.getByRole('alertdialog')
+export async function confirmPublicChange(page: Page, button: string | RegExp) {
+  const dialog = confirmDialog(page)
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: button }).click()
+}
+
 export class ArticleEditorPage {
   constructor(readonly page: Page) {}
 

@@ -11,6 +11,7 @@ import { ArticleEditorTutorial } from './article-editor/ArticleEditorTutorial'
 import { useArticleEditorController } from './article-editor/useArticleEditorController'
 import type { ArticleEditorController, ArticleEditorProps } from './article-editor/types'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { CommentsPanel } from '@/components/editorial/CommentsPanel'
 import { CommentSelectionPopover } from '@/components/editorial/CommentSelectionPopover'
 import { useArticleComments } from '@/components/editorial/useArticleComments'
@@ -156,10 +157,34 @@ export function ArticleEditor(props: ArticleEditorProps) {
         />
       )}
 
+      <ConfirmDialog
+        open={editor.pendingStatus !== null}
+        title={confirmCopy(editor.currentStatus, editor.pendingStatus, editor.scheduledAt).title}
+        message={confirmCopy(editor.currentStatus, editor.pendingStatus, editor.scheduledAt).message}
+        confirmLabel={confirmCopy(editor.currentStatus, editor.pendingStatus, editor.scheduledAt).confirm}
+        tone={editor.pendingStatus && !['PUBLISHED', 'SCHEDULED'].includes(editor.pendingStatus) ? 'danger' : 'default'}
+        busy={editor.saveStatus === 'saving'}
+        onConfirm={() => void editor.actions.confirmStatusChange()}
+        onCancel={editor.actions.cancelStatusChange}
+      />
+
       <ArticleEditorMobileSettings editor={editor} coverFileRef={coverFileRef} />
       <ArticleEditorTutorial editor={editor} />
     </div>
   )
+}
+
+function confirmCopy(current: string, target: string | null, scheduledAt: string) {
+  if (target === 'PUBLISHED') {
+    return { title: 'Publish this article?', message: 'It goes live on the public site immediately, visible to every reader.', confirm: 'Publish now' }
+  }
+  if (target === 'SCHEDULED') {
+    return { title: 'Schedule this article?', message: `It will be published automatically at ${scheduledAt.replace('T', ' ')} (UK editorial time).`, confirm: 'Schedule' }
+  }
+  if (current === 'PUBLISHED' || current === 'SCHEDULED') {
+    return { title: 'Take this article down?', message: 'It disappears from the public site immediately. Nothing is deleted.', confirm: 'Unpublish' }
+  }
+  return { title: 'Change status?', message: '', confirm: 'Confirm' }
 }
 
 interface EditorBannersProps {

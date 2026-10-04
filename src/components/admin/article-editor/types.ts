@@ -64,8 +64,20 @@ export interface ArticleEditorRefs {
   toolbarPortalRef: React.RefObject<HTMLDivElement | null>
 }
 
+/** The button that applies the staged status (see useArticleEditorController). */
+export interface StatusAction {
+  label: string
+  /** The status the button asks the server for. */
+  target: string
+  tone: 'publish' | 'unpublish' | 'schedule' | 'set'
+}
+
 export interface ArticleEditorController {
   articleId?: string
+  statusAction: StatusAction | null
+  /** Target status awaiting the user's confirmation, or null when no dialog is open. */
+  pendingStatus: string | null
+  scheduledAtForDialog: string
   categories: Category[]
   canEdit: boolean
   canPublish: boolean
@@ -94,6 +106,10 @@ export interface ArticleEditorController {
   uploading: boolean
   users: UserOption[]
   actions: {
+    /** Ask for a status change; opens a confirmation first when it alters public visibility. */
+    requestStatusChange: (target: string) => void
+    confirmStatusChange: () => Promise<void>
+    cancelStatusChange: () => void
     addTag: (raw: string) => void
     handleBack: () => Promise<void>
     handleContentChange: (content: string) => void

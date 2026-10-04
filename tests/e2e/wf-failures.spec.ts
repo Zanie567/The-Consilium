@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext, type Page, type Route } from '@playwright/test'
-import { ArticleEditorPage, articleByTitle, closeDb, db, removeMyArticles, signedIn, uniqueTitle } from './helpers/workflow'
+import { ArticleEditorPage, articleByTitle, closeDb, confirmPublicChange, db, removeMyArticles, signedIn, uniqueTitle } from './helpers/workflow'
 
 /**
  * What the editor does when saving goes wrong, and whether work survives. Failures are
@@ -315,6 +315,7 @@ test('a failed publish never leaves the article public, and a later autosave doe
   await page.route('**/api/articles/*', (route) =>
     fail && isArticleWrite(route) ? route.fulfill({ status: 500, json: { error: 'boom' } }) : route.continue())
   await page.getByRole('button', { name: 'Publish', exact: true }).click()
+  await confirmPublicChange(page, 'Publish now')
   await expect(alertOf(page)).toBeVisible()
   expect((await articleByTitle(title))!.status).toBe('DRAFT')
 
