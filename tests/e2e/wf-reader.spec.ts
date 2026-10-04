@@ -91,7 +91,7 @@ test('the reader saves the article and finds it under Saved Articles, then remov
   const save = page.getByRole('button', { name: 'Save article', exact: true }).first()
   const res = page.waitForResponse((r) => r.url().includes('/api/bookmarks') && r.request().method() === 'POST')
   await save.click()
-  expect((await res).status()).toBeLessThan(300)
+  expect((await res).status()).toBe(200)
   await expect(page.getByRole('button', { name: 'Remove bookmark' }).first()).toBeVisible()
 
   await page.goto('/profile', { waitUntil: 'networkidle' })
@@ -120,7 +120,7 @@ test('every profile tab opens without errors, and the display name can be change
   await page.getByPlaceholder('Your name').fill(newName)
   const res = page.waitForResponse((r) => /\/api\/(profile|users|account)/.test(r.url()) && ['PUT', 'PATCH', 'POST'].includes(r.request().method()))
   await page.getByRole('button', { name: /Save Changes/i }).click()
-  expect((await res).status()).toBeLessThan(300)
+  expect((await res).status()).toBe(200)
   await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeVisible()
   await page.reload({ waitUntil: 'networkidle' })
   await page.getByRole('button', { name: 'ACCOUNT SETTINGS' }).click()
@@ -156,7 +156,7 @@ test('the reader deletes their account; they can no longer sign in', async ({ br
   await page.getByPlaceholder(`Type "${EMAIL}" to confirm`).fill(EMAIL)
   const res = page.waitForResponse((r) => r.request().method() === 'DELETE' && /api\//.test(r.url()))
   await page.getByRole('button', { name: /Delete|Confirm/i }).last().click()
-  expect((await res).status()).toBeLessThan(300)
+  expect((await res).status()).toBe(200)
   expect(await db().user.findUnique({ where: { email: EMAIL } })).toBeNull()
   await ctx.close()
 

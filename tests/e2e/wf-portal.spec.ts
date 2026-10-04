@@ -21,8 +21,8 @@ async function mutation(
   )
   await act()
   const response = await waiting
-  expect(response.status(), await response.text()).toBe(status)
-  return response.json()
+  expect(response.status(),`${method} ${path}`).toBe(status)
+  return method==='POST'?response.json():null
 }
 test.afterAll(async () => {
   await removeMyArticles()
@@ -108,7 +108,7 @@ test('glossary creates, edits, searches, toggles, cancels and deletes a term', a
   await expect(page.getByText('The revised definition persists after reopening.')).toBeVisible()
   for (const label of ['Deactivate', 'Activate'])
     await mutation(page, `/api/editorial/glossary/${row.id}`, 'PATCH', 200, () =>
-      page.getByRole('button', { name: label, exact: true }).click()
+      page.getByRole('button', { name: label, exact: true }).last().click()
     )
   const linking = page.getByRole('switch', { name: 'Term linking on articles' })
   const initial = await linking.getAttribute('aria-checked')
@@ -184,18 +184,18 @@ test('inline review comments are created, replied to, resolved and reopened by s
     ep.getByRole('button', { name: 'Add comment', exact: true }).click()
   )
   await wp.reload({ waitUntil: 'networkidle' })
-  await expect(wp.getByText('Please provide the source for this sentence.')).toBeVisible()
-  await wp.getByPlaceholder('Reply...').fill('Source added in my revision.')
+  await expect(wp.getByText('Please provide the source for this sentence.').filter({visible:true})).toBeVisible()
+  await wp.getByPlaceholder('Reply...').filter({visible:true}).fill('Source added in my revision.')
   await mutation(wp, `/api/articles/${id}/comments`, 'POST', 201, () =>
-    wp.getByRole('button', { name: 'Reply', exact: true }).click()
+    wp.getByRole('button', { name: 'Reply', exact: true }).filter({visible:true}).click()
   )
   await ep.reload({ waitUntil: 'networkidle' })
-  await expect(ep.getByText('Source added in my revision.')).toBeVisible()
+  await expect(ep.getByText('Source added in my revision.').filter({visible:true})).toBeVisible()
   const thread = await db().articleComment.findFirstOrThrow({
     where: { articleId: id, parentId: null },
   })
   await mutation(ep, `/api/articles/${id}/comments/${thread.id}`, 'PATCH', 200, () =>
-    ep.getByRole('button', { name: 'Resolve', exact: true }).click()
+    ep.getByRole('button', { name: 'Resolve', exact: true }).filter({visible:true}).click()
   )
   await expect
     .poll(
@@ -206,7 +206,7 @@ test('inline review comments are created, replied to, resolved and reopened by s
     )
     .toBe(1)
   await mutation(ep, `/api/articles/${id}/comments/${thread.id}`, 'PATCH', 200, () =>
-    ep.getByRole('button', { name: 'Reopen', exact: true }).click()
+    ep.getByRole('button', { name: 'Reopen', exact: true }).filter({visible:true}).click()
   )
   await expect
     .poll(
@@ -357,7 +357,7 @@ test('Growth analytics requests exact date ranges and every tab through the UI',
     const request = page.waitForResponse((r) =>
       r.url().includes(`/api/editorial/analytics?period=${value}&tab=overview`)
     )
-    await page.getByRole('button', { name: label, exact: true }).click()
+    await page.getByRole('button', { name: label, exact: true }).last().click()
     expect((await request).status()).toBe(200)
     current = label
   }
@@ -371,7 +371,7 @@ test('Growth analytics requests exact date ranges and every tab through the UI',
     const response = page.waitForResponse((r) =>
       r.url().includes(`/api/editorial/analytics?period=30d&tab=${tab}`)
     )
-    await page.getByRole('button', { name: label, exact: true }).click()
+    await page.getByRole('button', { name: label, exact: true }).last().click()
     expect((await response).status()).toBe(200)
   }
   await ctx.close()

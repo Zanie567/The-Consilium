@@ -22,20 +22,20 @@ test('publication and unpublication immediately refresh already visited public l
     await ed.saveNow()
     // Warm real public page caches before the mutation, through the browser.
     for (const path of ['/category/opinion', '/archive', '/']) {
-      expect((await publicPage.goto(path, { waitUntil: 'networkidle' }))?.status()).toBe(200)
+      expect((await publicPage.goto(path, { waitUntil: 'domcontentloaded' }))?.status()).toBe(200)
       await expect(publicPage.getByRole('heading', { name: title, exact: true })).toHaveCount(0)
     }
     expect((await ed.saving(async () => { await page.getByRole('button', { name: 'Publish', exact: true }).click(); await confirmPublicChange(page, 'Publish now') })).status()).toBe(200)
     await expect(page.getByRole('button', { name: 'Unpublish', exact: true })).toBeVisible()
     for (const path of ['/category/opinion', '/archive', '/']) {
-      expect((await publicPage.goto(path, { waitUntil: 'networkidle' }))?.status()).toBe(200)
+      expect((await publicPage.goto(path, { waitUntil: 'domcontentloaded' }))?.status()).toBe(200)
       // Archive link names also contain the date/category/author. The visible
       // title heading is the same public contract on all three listing layouts.
       await expect(publicPage.getByRole('heading', { name: title, exact: true }).first()).toBeVisible()
     }
     expect((await ed.saving(async () => { await page.getByRole('button', { name: 'Unpublish', exact: true }).click(); await confirmPublicChange(page, 'Unpublish') })).status()).toBe(200)
     for (const path of ['/category/opinion', '/archive', '/']) {
-      expect((await publicPage.goto(path, { waitUntil: 'networkidle' }))?.status()).toBe(200)
+      expect((await publicPage.goto(path, { waitUntil: 'domcontentloaded' }))?.status()).toBe(200)
       await expect(publicPage.getByRole('heading', { name: title, exact: true })).toHaveCount(0)
     }
   } finally {

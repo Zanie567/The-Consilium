@@ -8,7 +8,7 @@
 #   - app       : a production build in .next-e2e, built with the isolated env above
 #                 (Next inlines NEXT_PUBLIC_* at build time, so the build itself must be isolated)
 #
-# Prerequisite: a seeded test DB - `npm run test:setup-db`.
+# Prerequisite: a disposable Postgres cluster. Every run creates, seeds and drops its own database.
 #
 # Usage:
 #   npm run test:e2e                         # every project
@@ -119,6 +119,7 @@ fi
 # shared storage server, so they must not overlap with anything else that uploads
 # (the article-upload specs) and they run on a single worker.
 E2E_PHASE=main npx playwright test || STATUS=1
-E2E_PHASE=workflow npx playwright test || STATUS=1
+# Workflow scenarios share commissioning/glossary settings; serialize these stateful actions.
+E2E_PHASE=workflow npx playwright test --workers=1 || STATUS=1
 E2E_PHASE=team-profile npx playwright test --workers=1 || STATUS=1
 exit $STATUS

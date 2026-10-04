@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -33,7 +33,7 @@ export function DraftRecoveryList({ userId }: { userId: string }) {
     link.click()
     URL.revokeObjectURL(url)
   }
-  const recreate = (draft: LocalDraft) => {
+  const recreate = useCallback((draft: LocalDraft) => {
     if (Date.now() - draft.at > RECOVERY_MAX_AGE) {
       setError('This copy has expired. Download it to keep the content.')
       return
@@ -51,7 +51,7 @@ export function DraftRecoveryList({ userId }: { userId: string }) {
     } catch {
       setError('Could not prepare a local copy. Download the content to keep it.')
     }
-  }
+  }, [router,userId])
   const discard = (draft: LocalDraft) => {
     if (
       !window.confirm(

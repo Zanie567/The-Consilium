@@ -53,6 +53,7 @@ export function isolatedServiceEnv(opts: IsolatedServiceOptions): Record<string,
     CRON_SECRET: 'local_e2e_cron_secret',
     ADMIN_EMAILS: 'admin@theconsilium.com',
     // Third-party market-data APIs: no keys, so no outbound calls on their behalf.
+    TEST_MARKET_DATA: 'empty',
     FRED_API_KEY: '',
     ALPHA_VANTAGE_API_KEY: '',
     RATE_LIMIT_DISABLED: '1',
@@ -81,6 +82,7 @@ export function assertIsolatedServiceEnv(env: Env = process.env): void {
   if (env.EMAIL_TRANSPORT !== 'capture' || !env.EMAIL_CAPTURE_FILE) {
     problems.push('EMAIL_TRANSPORT=capture with EMAIL_CAPTURE_FILE is required')
   }
+  if (env.TEST_MARKET_DATA !== 'empty') problems.push('TEST_MARKET_DATA=empty is required to disable external data requests')
   if (env.RESEND_API_KEY) problems.push('RESEND_API_KEY must be empty')
   if (env.GOOGLE_CLIENT_ID || env.GOOGLE_CLIENT_SECRET) problems.push('Google OAuth credentials must be empty')
 

@@ -22,6 +22,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
   writer: [
     { label: 'Dashboard', href: '/editorial' },
     { label: 'Team Profile', href: '/editorial/team-profile' },
+    { label: 'Local draft recovery', href: '/editorial/recovery' },
     { label: 'My Articles', href: '/editorial/articles' },
     { label: 'My Drafts', href: '/editorial/articles?mine=true&status=DRAFT' },
     { label: 'New Article', href: '/editorial/articles/new' },
@@ -31,6 +32,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
   editor: [
     { label: 'Dashboard', href: '/editorial' },
     { label: 'Team Profile', href: '/editorial/team-profile' },
+    { label: 'Local draft recovery', href: '/editorial/recovery' },
     { label: 'All Articles', href: '/editorial/articles' },
     { label: 'My Drafts', href: '/editorial/articles?mine=true&status=DRAFT' },
     { label: 'New Article', href: '/editorial/articles/new' },
@@ -44,6 +46,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
   ],
   admin: [
     { label: 'Dashboard', href: '/editorial' },
+    { label: 'Local draft recovery', href: '/editorial/recovery' },
     { label: 'All Articles', href: '/editorial/articles' },
     { label: 'My Drafts', href: '/editorial/articles?mine=true&status=DRAFT' },
     { label: 'New Article', href: '/editorial/articles/new' },
@@ -71,7 +74,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
 
 /** Every top-level editorial page, for the "not in my menu means refused" check. */
 const ALL_PAGES = [
-  '/editorial/articles', '/editorial/articles/new', '/editorial/series', '/editorial/scheduled',
+  '/editorial/recovery', '/editorial/articles', '/editorial/articles/new', '/editorial/series', '/editorial/scheduled',
   '/editorial/calendar', '/editorial/trash', '/editorial/review', '/editorial/debates',
   '/editorial/debates/new', '/editorial/comments', '/editorial/users', '/editorial/analytics',
   '/editorial/predictions', '/editorial/predictions/new', '/editorial/glossary', '/editorial/readers',

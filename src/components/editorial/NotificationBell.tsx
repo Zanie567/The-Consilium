@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Bell } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
+import { apiRequest,asApiError } from '@/lib/apiClient'
 import { Tooltip } from '@/components/ui/Tooltip'
 
 interface Notification {
@@ -21,14 +22,17 @@ export function NotificationBell() {
   const [notifs, setNotifs] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const [error,setError]=useState('')
+  const [marking,setMarking]=useState(false)
+  const markingRef=useRef(false)
 
   useEffect(() => {
     fetch('/api/editorial/notifications')
-      .then((r) => r.json())
+      .then((r) => {if(r.status!==200)throw new Error('Notifications could not be loaded.');return r.json()})
       .then((data) => {
         if (Array.isArray(data)) setNotifs(data)
       })
-      .catch(() => {})
+      .catch(()=>setError('Notifications could not be loaded. Reload this page to try again.'))
   }, [])
 
   // Close on outside click
@@ -45,12 +49,14 @@ export function NotificationBell() {
   // Bug 8: optimistically mark all notifications as read in local state and
   // persist to the server.  Using the functional setState form guarantees we
   // always operate on the latest state, avoiding any stale-closure issues.
-  const markAllRead = () => {
-    // Optimistic UI update – happens synchronously before the network round-trip
-    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })))
-    // Fire-and-forget server sync; errors are silently ignored because the
-    // optimistic update already gives the user immediate feedback.
-    fetch('/api/editorial/notifications', { method: 'PATCH' }).catch(() => {})
+  const markAllRead = async () => {
+    if(markingRef.current)return
+    markingRef.current=true;setMarking(true);setError('')
+    const unreadIds=new Set(notifs.filter(n=>!n.read).map(n=>n.id))
+    setNotifs(prev=>prev.map(n=>({...n,read:true})))
+    try {await apiRequest('/api/editorial/notifications',{method:'PATCH'})}
+    catch(reason){setNotifs(prev=>prev.map(n=>unreadIds.has(n.id)?{...n,read:false}:n));setError(asApiError(reason).message)}
+    finally{markingRef.current=false;setMarking(false)}
   }
 
   return (
@@ -63,7 +69,7 @@ export function NotificationBell() {
       <button
         onClick={() => {
           setOpen((o) => !o)
-          if (!open && unread > 0) markAllRead()
+          if (!open && unread > 0) void markAllRead()
         }}
         className="relative p-2 text-[var(--fg-muted)] hover:text-gold transition-colors"
         aria-label={unread > 0 ? `${unread} unread notifications` : 'Notifications'}
@@ -87,13 +93,15 @@ export function NotificationBell() {
                 notifications so clicking it always produces a visible change */}
             {unread > 0 && (
               <button
-                onClick={markAllRead}
+                onClick={()=>void markAllRead()}
+                disabled={marking}
                 className="text-xs text-gold hover:underline"
               >
                 Mark all read
               </button>
             )}
           </div>
+          {error&&<p role="alert" className="px-4 py-3 text-red-500 text-sm">{error}</p>}
           {notifs.length === 0 ? (
             <p className="px-4 py-8 text-center text-[var(--fg-faint)] text-xs">
               No notifications

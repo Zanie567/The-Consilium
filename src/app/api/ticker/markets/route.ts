@@ -15,6 +15,10 @@ import { fetchMarketQuotes } from '@/lib/marketData'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
+  // Test transport deliberately models unavailable data; never contacts providers.
+  if (process.env.E2E_ISOLATED === '1' && process.env.TEST_MARKET_DATA === 'empty') {
+    return NextResponse.json({ quotes: [], fetchedAt: new Date().toISOString() }, { headers: { 'Cache-Control': 'no-store' } })
+  }
   const quotes = await fetchMarketQuotes()
   return NextResponse.json(
     { quotes, fetchedAt: new Date().toISOString() },

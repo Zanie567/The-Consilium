@@ -78,7 +78,7 @@ test.describe('series (editor)', () => {
   test('a writer cannot create a series', async ({ browser }) => {
     const ctx = await signedIn(browser, 'writer')
     const res = await ctx.request.post('/api/editorial/series', { data: { title: `WF nope ${stamp}`, description: '' } })
-    expect([401, 403]).toContain(res.status())
+    expect(res.status()).toBe(403)
     await ctx.close()
   })
 })
@@ -100,7 +100,7 @@ test.describe('glossary (admin)', () => {
     await page.getByPlaceholder(/bankofengland/).fill('https://example.org/learn-more')
     const saved = page.waitForResponse((r) => r.url().includes('/api/editorial/glossary') && r.request().method() === 'POST')
     await page.getByRole('button', { name: 'Add term' }).click()
-    expect((await saved).status()).toBeLessThan(300)
+    expect((await saved).status()).toBe(200)
     await expect(page.getByText(term, { exact: true }).first()).toBeVisible()
 
     // Switch term linking on for the whole site.
@@ -136,7 +136,7 @@ test.describe('glossary (admin)', () => {
     for (const who of ['editor', 'writer', 'growth', 'reader'] as const) {
       const ctx = await signedIn(browser, who)
       const res = await ctx.request.post('/api/editorial/glossary', { data: { term: `wfterm${stamp}x`, definition: 'x'.repeat(30) } })
-      expect([401, 403], `${who} -> ${res.status()}`).toContain(res.status())
+      expect(res.status(), who).toBe(403)
       await ctx.close()
     }
     expect(await db().glossaryTerm.count({ where: { term: `wfterm${stamp}x` } })).toBe(0)
@@ -171,7 +171,7 @@ test.describe('debates (editor)', () => {
     await page.keyboard.type('The case against.')
     const created = page.waitForResponse((r) => /\/api\/editorial\/debates/.test(r.url()) && r.request().method() === 'POST')
     await page.getByRole('button', { name: 'Create Debate' }).click()
-    expect((await created).status()).toBeLessThan(300)
+    expect((await created).status()).toBe(201)
     await page.waitForURL('**/editorial/debates')
     await expect(page.getByText(title).first()).toBeVisible()
 
@@ -187,7 +187,7 @@ test.describe('debates (editor)', () => {
     for (const who of ['writer', 'reader', 'growth'] as const) {
       const ctx = await signedIn(browser, who)
       const res = await ctx.request.post('/api/editorial/debates', { data: { title: `WF nope ${who} ${stamp}` } })
-      expect([401, 403], `${who} -> ${res.status()}`).toContain(res.status())
+      expect(res.status(), who).toBe(401)
       await ctx.close()
     }
   })
@@ -207,7 +207,7 @@ test.describe('predictions (admin)', () => {
     await page.locator('#ev-release').fill('2031-06-02T10:00')
     const created = page.waitForResponse((r) => r.url().endsWith('/api/editorial/predictions') && r.request().method() === 'POST')
     await page.getByRole('button', { name: 'Create event' }).click()
-    expect((await created).status()).toBeLessThan(300)
+    expect((await created).status()).toBe(200)
     await page.waitForURL('**/editorial/predictions')
     const card = page.locator('div', { hasText: title }).filter({ has: page.getByRole('button', { name: 'Close early' }) }).last()
     await expect(card).toBeVisible()
@@ -227,7 +227,7 @@ test.describe('predictions (admin)', () => {
     for (const who of ['editor', 'writer', 'growth', 'reader'] as const) {
       const other = await signedIn(browser, who)
       const res = await other.request.post('/api/editorial/predictions', { data: { title: `WF nope ${who}` } })
-      expect([401, 403], `${who} -> ${res.status()}`).toContain(res.status())
+      expect(res.status(), who).toBe(403)
       await other.close()
     }
     await ctx.close()
@@ -252,7 +252,7 @@ test.describe('comment moderation (editor, with a real reader reporting)', () =>
     await report.scrollIntoViewIfNeeded()
     const reported = rp.waitForResponse((r) => r.url().includes(`/api/comments/${comment.id}/report`))
     await report.click()
-    expect((await reported).status()).toBeLessThan(300)
+    expect((await reported).status()).toBe(200)
     await expect(rp.getByRole('button', { name: 'Comment reported' })).toBeVisible()
     expect((await db().comment.findUnique({ where: { id: comment.id } }))!.isReported).toBe(true)
 
@@ -313,7 +313,7 @@ test.describe('subscribers (growth, admin)', () => {
       await box.fill(email)
       const res = p.waitForResponse((r) => r.url().includes('/api/subscribe'))
       await p.locator('form', { has: box }).locator('button[type="submit"]').click()
-      expect((await res).status()).toBeLessThan(300)
+      expect((await res).status()).toBe(201)
       await p.close()
     }
     await anon.close()
@@ -343,7 +343,7 @@ test.describe('subscribers (growth, admin)', () => {
 
     for (const who of ['editor', 'writer', 'reader'] as const) {
       const ctx = await signedIn(browser, who)
-      expect([401, 403], who).toContain((await ctx.request.get('/api/editorial/growth/subscribers')).status())
+      expect((await ctx.request.get('/api/editorial/growth/subscribers')).status(), who).toBe(403)
       await ctx.close()
     }
   })

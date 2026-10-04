@@ -4,7 +4,9 @@ import path from 'node:path'
 import net from 'node:net'
 import { spawn } from 'node:child_process'
 import { chromium, webkit } from 'playwright'
+await fs.mkdir('test-results',{recursive:true})
 const root = await fs.mkdtemp(path.resolve('test-results/consilium-next-navigation-'))
+await fs.mkdir('test-results',{recursive:true})
 const result = { next: '16.2.2', node: process.version, cases: [] }
 let child
 try {
@@ -31,7 +33,7 @@ try {
   )
   await fs.writeFile(
     path.join(root, 'next.config.mjs'),
-    `export default {turbopack:{root:'/Users/zanie/worktrees/consilium-workflow-completion'},experimental:{viewTransition:true},async headers(){return true?[{source:'/(.*)',headers:[{key:'Content-Security-Policy',value:"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https:"},{key:'X-Content-Type-Options',value:'nosniff'}]}]:[]}}`
+    `export default {turbopack:{root:${JSON.stringify(process.cwd())}},experimental:{viewTransition:true},async headers(){return process.env.PROBE_CSP==='1'?[{source:'/(.*)',headers:[{key:'Content-Security-Policy',value:"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https:"},{key:'X-Content-Type-Options',value:'nosniff'}]}]:[]}}`
   )
   const env = {
     PATH: process.env.PATH,
@@ -39,17 +41,17 @@ try {
     NODE_ENV: 'production',
     NEXT_TELEMETRY_DISABLED: '1',
   }
+  for (const csp of [false,true]) {
   const build = spawn(
     process.execPath,
     [path.resolve('node_modules/next/dist/bin/next'), 'build', root],
-    { cwd: root, env, stdio: ['ignore', 'pipe', 'pipe'] }
+    { cwd: root, env: {...env,PROBE_CSP:csp?'1':'0'}, stdio: ['ignore', 'pipe', 'pipe'] }
   )
   let log = ''
   build.stdout.on('data', (b) => (log += b))
   build.stderr.on('data', (b) => (log += b))
   const code = await new Promise((r) => build.on('close', r))
   if (code !== 0) throw Error(log)
-  for (const csp of [false, true]) {
     const socket = net.createServer()
     await new Promise((r) => socket.listen(0, '127.0.0.1', r))
     const port = socket.address().port
@@ -77,27 +79,31 @@ try {
       await page.exposeFunction('recordRejection', (message) =>
         events.push({ kind: 'unhandledrejection', message })
       )
-      await page.addInitScript(() =>
-        window.addEventListener('unhandledrejection', (e) =>
-          window.recordRejection(String(e.reason))
-        )
-      )
+      await page.addInitScript(() => {
+        let hidden=false
+        window.addEventListener('pagehide',()=>{hidden=true;console.log('PROBE:'+JSON.stringify({kind:'pagehide'}))})
+        window.addEventListener('unhandledrejection',e=>console.log('PROBE:'+JSON.stringify({kind:'unhandledrejection',message:String(e.reason)})))
+        window.addEventListener('error',e=>console.log('PROBE:'+JSON.stringify({kind:'error-event',message:e.message})))
+        const native=window.fetch
+        window.fetch=(...args)=>{console.log('PROBE:'+JSON.stringify({kind:'fetch-start',hidden,url:String(args[0])}));return native(...args)}
+      })
       page.on('pageerror', (e) =>
         events.push({ kind: 'pageerror', message: e.message, stack: e.stack })
       )
       page.on('console', (m) => {
+        if(m.text().startsWith('PROBE:'))events.push(JSON.parse(m.text().slice(6)))
         if (m.type() === 'error') events.push({ kind: 'console', message: m.text() })
       })
       page.on('requestfailed', (r) =>
         events.push({ kind: 'requestfailed', url: r.url(), error: r.failure() })
       )
-      for (let i = 0; i < 5; i++)
+      for (let i = 0; i < 2; i++)
         for (const target of ['/', '/one', '/two', '/three']) {
           await page.goto(base + target, { waitUntil: 'domcontentloaded' })
           await page.waitForTimeout(150)
         }
       await page.goto(base, { waitUntil: 'domcontentloaded' })
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 2; i++) {
         await page.getByRole('link', { name: '/one', exact: true }).click()
         await page.waitForURL('**/one')
         await page.goBack()

@@ -32,7 +32,7 @@ export default async function EditorialEditArticlePage({ params }: Props) {
     include: { tags: { include: { tag: true } } },
   }).catch(() => null)
 
-  if (!article) notFound()
+  if (!article || article.deletedAt) notFound()
 
   const editorScope = session.user.role === 'EDITOR'
     ? await loadEditorCategoryScope(session.user.id)

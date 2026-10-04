@@ -198,8 +198,8 @@ test.describe('"Keep my version" never bypasses a lock, a ban, a demotion or a c
     expect(await content(t.id)).toBe(before)
 
     await adminChangesRole(browser, editor, 'EDITOR')
-    const again = await t.ed1.saving(() => t.tab1.getByRole('button', { name: 'Keep my version' }).click().catch(() => t.ed1.saveDraftButton().click()))
-    expect([200, 409]).toContain(again.status())
+    const again = await t.ed1.saving(() => t.ed1.saveDraftButton().click())
+    expect(again.status()).toBe(200)
     await t.ctx.close()
   })
 
@@ -220,7 +220,7 @@ test.describe('"Keep my version" never bypasses a lock, a ban, a demotion or a c
 
     await adminBans(browser, writer, 'unban')
     const ok = await t.ed1.saving(() => t.ed1.saveDraftButton().click())
-    expect([200, 409]).toContain(ok.status())
+    expect(ok.status()).toBe(200)
     await t.ctx.close()
   })
 

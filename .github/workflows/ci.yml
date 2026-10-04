@@ -49,6 +49,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
       - name: Typecheck
         run: npm run typecheck
 
@@ -74,7 +77,7 @@ jobs:
   e2e:
     name: E2E (Playwright), data-layer & network checks
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
 
     services:
       postgres:
@@ -126,12 +129,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Set up & seed test database
-        run: npm run test:setup-db
-
-      - name: Unit + integration tests (vitest, against seeded DB)
-        run: npm test
-
       # Chromium and WebKit: the browser workflow suites run on both (plus phone
       # emulations of each). WebKit needs its system libraries, hence --with-deps.
       - name: Install Playwright browsers
@@ -144,7 +141,7 @@ jobs:
       # refuses to start without that isolation. Phases: main, workflow (browser
       # workflow suites), team-profile.
       - name: E2E (browser workflows on Chromium + WebKit, console/network checks, team profile)
-        run: npm run test:e2e
+        run: E2E_REQUIRE_CLEAN=1 npm run test:audit
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}

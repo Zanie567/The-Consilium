@@ -145,7 +145,9 @@ test('a slow save shows progress, locks the Save button, and completes', async (
   await save.click()
   await expect(page.getByText('Saving...').first()).toBeVisible()
   await expect(save).toBeDisabled()
-  await save.click({ force: true, trial: false }).catch(() => {}) // a second click while saving must not start another write
+  await expect(save).toBeDisabled()
+  const bounds=await save.boundingBox();expect(bounds).toBeTruthy()
+  await page.mouse.click(bounds!.x+bounds!.width/2,bounds!.y+bounds!.height/2) // real repeated click on the disabled control
   await expect(page.getByText('Saved').first()).toBeVisible({ timeout: 15_000 })
   expect(writes, 'one save for one click, however impatient').toBe(1)
   expect(await body(title)).toContain('Slow words.')

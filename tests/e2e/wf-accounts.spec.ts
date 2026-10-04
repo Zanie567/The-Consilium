@@ -118,11 +118,12 @@ test('newsletter signup, duplicate, subscriber search/export and signed unsubscr
   for (const status of [201, 200]) {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     await new ArticleEditorPage(page).dismissCookieBanner()
-    await page.getByPlaceholder('Your email address').fill(address)
+    const form=page.locator('form').filter({has:page.getByPlaceholder('Your email address')}).first()
+    await form.getByPlaceholder('Your email address').fill(address)
     const response = page.waitForResponse(
       (r) => r.url().endsWith('/api/subscribe') && r.request().method() === 'POST'
     )
-    await page.getByRole('button', { name: 'Subscribe', exact: true }).click()
+    await form.getByRole('button', { name: 'Subscribe', exact: true }).click()
     expect((await response).status()).toBe(status)
     await expect(page.getByText('Thank you for subscribing to The Consilium.')).toBeVisible()
   }
@@ -178,7 +179,7 @@ test('reader avatar upload persists on fresh page and can be removed', async ({ 
   await page.locator('button[type=submit]').click()
   await page.waitForURL((u) => u.pathname !== '/login')
   await page.goto('/profile', { waitUntil: 'networkidle' })
-  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.getByRole('button', { name: 'Account Settings', exact: true }).click()
   const upload = page.waitForResponse(
     (r) => r.url().endsWith('/api/upload') && r.request().method() === 'POST'
   )
@@ -191,7 +192,7 @@ test('reader avatar upload persists on fresh page and can be removed', async ({ 
     .toContain('/avatars/')
   const fresh = await ctx.newPage()
   await fresh.goto('/profile', { waitUntil: 'networkidle' })
-  await fresh.getByRole('button', { name: 'Settings', exact: true }).click()
+  await fresh.getByRole('button', { name: 'Account Settings', exact: true }).click()
   await expect(fresh.getByRole('button', { name: 'Change Photo' })).toBeVisible()
   const remove = fresh.waitForResponse(
     (r) => r.url().endsWith('/api/profile/account') && r.request().method() === 'PATCH'
