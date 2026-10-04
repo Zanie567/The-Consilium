@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { randomBytes, pbkdf2Sync, createHmac, createHash } from 'node:crypto'
 import bcrypt from 'bcryptjs'
-import { HOSTED_TEST_WORKSPACE as w } from '../src/lib/hostedTestingWorkspace'
+import { HOSTED_TEST_WORKSPACE as w, hostedBucketSql } from '../src/lib/hostedTestingWorkspace'
 
 async function main() {
   if (process.env.TEST_HARNESS === '1' || process.env.TEST_DATABASE_URL || process.env.E2E_ISOLATED === '1') throw new Error('Hosted provisioning is separate from the automated test harness.')
@@ -68,6 +68,7 @@ INSERT INTO team_members (id,name,role,email,"userId","order","isActive",bio) VA
 INSERT INTO articles (id,title,slug,content,"authorId","categoryId",status,"updatedAt") VALUES
  (${quote(id('assigned-article'))},'Hosted fixture: assigned Opinion review','hosted-fixture-assigned-review',${quote(body)},${quote(id('writer'))},${quote(id('opinion'))},'PENDING_REVIEW',now()),
  (${quote(id('unassigned-article'))},'Hosted fixture: other writer and unassigned category','hosted-fixture-unassigned-review',${quote(body)},${quote(id('writer-other'))},${quote(id('economics'))},'PENDING_REVIEW',now()) ON CONFLICT(id) DO NOTHING;
+${hostedBucketSql()}
 INSERT INTO site_settings (key,value) VALUES ('testing-workspace',${quote(w.workspaceId)}),('testing-hosted-project',${quote(JSON.stringify(w))}) ON CONFLICT(key) DO NOTHING;
 COMMIT;
 `

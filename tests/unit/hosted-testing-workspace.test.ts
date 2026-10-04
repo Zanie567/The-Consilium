@@ -1,6 +1,7 @@
 import { databaseConnection, SUPABASE_DATABASE_CA } from '@/lib/hostedDatabaseConnection'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { HOSTED_TEST_WORKSPACE as w, hostedTestingConfigurationError } from '@/lib/hostedTestingWorkspace'
+import { HOSTED_TEST_WORKSPACE as w, HOSTED_TEST_BUCKETS, hostedBucketSql, hostedTestingConfigurationError } from '@/lib/hostedTestingWorkspace'
+import fs from 'node:fs'
 const mocks = vi.hoisted(() => ({ findUnique: vi.fn(), query: vi.fn(), execute: vi.fn(), send: vi.fn() }))
 vi.mock('@/lib/prisma', () => ({ prisma: { siteSetting: { findUnique: mocks.findUnique }, $queryRaw: mocks.query, $executeRaw: mocks.execute } }))
 vi.mock('resend', () => ({ Resend: class { emails = { send: mocks.send } } }))
@@ -76,5 +77,22 @@ describe('reviewed hosted interactive workspace', () => {
     attest(); mocks.execute.mockRejectedValue(new Error('capture unavailable'))
     await expect(sendEmail({ to: 'test@example.com', subject: 'x', html: 'x' })).rejects.toThrow('capture unavailable')
     expect(mocks.send).not.toHaveBeenCalled()
+  })
+})
+
+describe('hosted storage buckets are provisioned from committed code', () => {
+  it('creates both public buckets with the reviewed limits, additively', () => {
+    const sql = hostedBucketSql()
+    expect(sql).toContain("('article-images','article-images',true,10485760,ARRAY['image/jpeg','image/png','image/gif','image/webp','image/avif']::text[])")
+    expect(sql).toContain("('avatars','avatars',true,5242880,ARRAY['image/jpeg','image/png','image/gif','image/webp','image/avif']::text[])")
+    expect(sql).toMatch(/ON CONFLICT \(id\) DO NOTHING;$/)
+    expect(sql).not.toMatch(/\b(DELETE|DROP|UPDATE|TRUNCATE)\b/i)
+  })
+  it('keeps the avatar limit equal to the readiness check and the upload route', () => {
+    expect(HOSTED_TEST_BUCKETS.find(b => b.id === 'avatars')?.fileSizeLimit).toBe(5_242_880)
+    expect(fs.readFileSync('src/lib/deploymentReadiness.ts', 'utf8')).toContain('5242880')
+  })
+  it('is part of the operator plan', () => {
+    expect(fs.readFileSync('scripts/prepare-hosted-testing-plan.ts', 'utf8')).toContain('${hostedBucketSql()}')
   })
 })

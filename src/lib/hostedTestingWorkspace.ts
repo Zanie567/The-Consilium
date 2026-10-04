@@ -8,6 +8,24 @@ export const HOSTED_TEST_WORKSPACE = {
   workspaceId: 'consilium-testing-zrieajoqosgzyesfatta',
 } as const
 
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'] as const
+
+/**
+ * Public storage buckets the hosted workspace needs, with the limits it was provisioned with.
+ * `deploymentReadiness` checks presence (and the avatar limits) after the fact; the operator plan
+ * creates them from this list so a recreated project does not depend on hand-made configuration.
+ */
+export const HOSTED_TEST_BUCKETS = [
+  { id: 'article-images', fileSizeLimit: 10_485_760, mimeTypes: IMAGE_TYPES },
+  { id: 'avatars', fileSizeLimit: 5_242_880, mimeTypes: IMAGE_TYPES },
+] as const
+
+/** Idempotent, additive SQL: creates a missing bucket, never alters or removes an existing one. */
+export function hostedBucketSql(): string {
+  const rows = HOSTED_TEST_BUCKETS.map(b => `('${b.id}','${b.id}',true,${b.fileSizeLimit},ARRAY[${b.mimeTypes.map(t => `'${t}'`).join(',')}]::text[])`).join(',\n ')
+  return `INSERT INTO storage.buckets (id,name,public,file_size_limit,allowed_mime_types) VALUES\n ${rows}\nON CONFLICT (id) DO NOTHING;`
+}
+
 export function hostedTestingConfigurationError(env: Record<string, string | undefined>): string | null {
   const w = HOSTED_TEST_WORKSPACE
   if (env.TEST_HARNESS === '1' || env.E2E_ISOLATED === '1' || env.TEST_DATABASE_URL) return 'Hosted interactive testing cannot use the automated test harness.'
