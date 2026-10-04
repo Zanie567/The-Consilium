@@ -66,13 +66,22 @@ export default function CommentsPage() {
   useEffect(() => { fetchComments() }, [fetchComments])
   useEffect(() => { setPage(0) }, [tab])
 
-  async function handleAction(commentId: string, action: 'approve' | 'hide') {
-    const res = await fetch(`/api/editorial/comments/${commentId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action }),
-    })
-    if (res.ok) fetchComments()
+  const [actionError, setActionError] = useState('')
+
+  async function handleAction(commentId: string, action: 'approve' | 'hide' | 'unhide') {
+    setActionError('')
+    try {
+      const res = await fetch(`/api/editorial/comments/${commentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      if (res.ok) fetchComments()
+      // A refused or failed moderation action used to do nothing at all.
+      else setActionError(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `The action failed (${res.status}).`)
+    } catch {
+      setActionError('The server could not be reached. The comment was not changed.')
+    }
   }
 
   const totalPages = Math.ceil(total / PER_PAGE)
@@ -88,6 +97,9 @@ export default function CommentsPage() {
         </h1>
       </div>
 
+      {actionError && (
+        <div role="alert" className="mb-4 bg-red-500/10 border border-red-500/20 px-5 py-3 text-red-600 dark:text-red-400 text-sm">{actionError}</div>
+      )}
       {/* Surface load failures instead of silently rendering "0 total comments" */}
       {error && (
         <div className="mb-6 bg-red-500/10 border border-red-500/20 px-5 py-4 text-red-600 dark:text-red-400 text-sm">
@@ -194,6 +206,14 @@ export default function CommentsPage() {
                       className="flex items-center gap-1 text-[10px] font-bold text-green-600 hover:text-green-700 transition-colors"
                     >
                       <CheckCircle size={11} /> Approve
+                    </button>
+                  )}
+                  {comment.isHidden && (
+                    <button
+                      onClick={() => handleAction(comment.id, 'unhide')}
+                      className="flex items-center gap-1 text-[10px] font-bold text-green-600 hover:text-green-700 transition-colors"
+                    >
+                      <CheckCircle size={11} /> Restore
                     </button>
                   )}
                   {!comment.isHidden && (

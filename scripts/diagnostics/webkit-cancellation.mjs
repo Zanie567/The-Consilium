@@ -19,6 +19,7 @@ const server = http.createServer((req, res) => {
     window.rejections=[];window.addEventListener('unhandledrejection',e=>window.rejections.push(String(e.reason)));
     // Explicitly handle the rejection. An engine console error here cannot be an app's uncaught promise.
     fetch('/slow').then(r=>r.text()).catch(()=>{window.caught=true});
+    window.addEventListener('pagehide',()=>queueMicrotask(()=>{fetch('/slow?unloading').then(r=>r.text()).catch(()=>{})}));
   </script>`)
 })
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))

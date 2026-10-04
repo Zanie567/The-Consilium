@@ -53,13 +53,12 @@ export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     // tooltip reads via getAttribute/textContent, never interpreted as HTML.
     span: ['style', 'class', 'data-gloss-term', 'data-gloss-def', 'data-gloss-url'],
   },
-  // A span may only carry the glossary trigger class; anything else (including
-  // a class-less span from pasted content) is stripped to its text.
+  // Preserve safe editor text styles and the glossary trigger class.
   allowedClasses: {
     span: ['glossary-term'],
   },
   allowedStyles: {
-    col: { width: [/^(?:[2-9]\d|[1-9]\d{2}|1\d{3}|2000)px$/] },
+    col: { width: [/^(?:2[5-9]|[3-9]\d|[1-9]\d{2}|1\d{3}|2000)px$/] },
     '*': { color: [SAFE_COLOUR], 'background-color': [SAFE_COLOUR],
       'font-size': [SAFE_FONT_SIZE], 'font-family': [SAFE_FONT_FAMILY],
       'line-height': [SAFE_LINE_HEIGHT], 'text-align': [SAFE_ALIGNMENT] },
