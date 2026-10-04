@@ -457,6 +457,9 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
           {deleteOpen && (
             <div className="mt-3 space-y-2 bg-red-500/5 border border-red-500/20 p-3">
               <p className="text-red-500 text-xs font-semibold">Permanently delete this account</p>
+              <p className="text-red-500 text-[11px]" data-testid="delete-consequence">
+                This also permanently deletes all {user._count.articles} of their articles, including any that are published (they leave the public site and cannot be restored from Trash).
+              </p>
               <p className="text-[var(--fg-faint)] text-[10px]">Type <span className="font-mono text-red-400">{user.email}</span> to confirm</p>
               <input
                 type="email"

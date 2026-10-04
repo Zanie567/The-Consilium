@@ -266,6 +266,49 @@ test.describe('"Keep my version" never bypasses a lock, a ban, a demotion or a c
   })
 })
 
+test.describe('deleting an account', () => {
+  test('the confirmation says their articles go too; deleting needs the typed email, removes a published article from the site, and ends their access', async ({ browser }) => {
+    test.setTimeout(120_000)
+    const writer = await createAccount('WRITER', 'doomed')
+    const ctx = await signInAs(browser, writer)
+    const page = await ctx.newPage()
+    const ed = new ArticleEditorPage(page)
+    await ed.openNew()
+    const title = uniqueTitle('doomed')
+    await ed.title().fill(title)
+    await ed.typeBody('Published by an account that will be deleted.')
+    const { id } = await ed.saveNow()
+    await db().article.update({ where: { id }, data: { status: 'PUBLISHED', publishedAt: new Date() } })
+    const slug = (await db().article.findUnique({ where: { id } }))!.slug
+    const anon = await signedIn(browser, null)
+    expect((await anon.request.get(`/articles/${slug}`)).status()).toBe(200)
+
+    const admin = await signedIn(browser, 'admin')
+    const { page: ap, row } = await openUser(admin, writer)
+    await row.click()
+    await ap.getByRole('button', { name: 'Delete', exact: true }).click()
+    await expect(ap.getByTestId('delete-consequence')).toContainText('1 of their articles')
+    await expect(ap.getByTestId('delete-consequence')).toContainText('published')
+    const confirm = ap.getByRole('button', { name: 'Delete Account' })
+    await expect(confirm, 'disabled until the email is typed').toBeDisabled()
+    await ap.getByPlaceholder(writer.email).fill('someone.else@example.com')
+    await expect(confirm).toBeDisabled()
+    await ap.getByPlaceholder(writer.email).fill(writer.email)
+    const res = ap.waitForResponse((r) => r.url().includes(`/api/admin/users/${writer.id}`) && r.request().method() === 'DELETE')
+    await confirm.click()
+    expect((await res).status()).toBe(200)
+    await admin.close()
+
+    expect(await db().user.findUnique({ where: { id: writer.id } })).toBeNull()
+    expect((await anon.request.get(`/articles/${slug}`)).status(), 'their published article is gone from the site').toBe(404)
+    // The deleted person's open session no longer works.
+    const api = await ctx.request.post('/api/articles', { data: { title: uniqueTitle('ghost'), content: '{}', status: 'DRAFT' } })
+    expect([401, 403]).toContain(api.status())
+    await anon.close()
+    await ctx.close()
+  })
+})
+
 test.describe('deletion and restoration', () => {
   test('a writer trashes and restores their own draft; no one else can touch it', async ({ browser }) => {
     const owner = await createAccount('WRITER', 'owner')
