@@ -45,8 +45,13 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 2 : undefined,
-  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  workers: 2,
+  outputDir: `test-results/${phase ?? 'selected'}`,
+  reporter: [
+    ['list'],
+    ['html', { open: 'never', outputFolder: `playwright-report/${phase ?? 'selected'}` }],
+    ['json', { outputFile: `test-results/${phase ?? 'selected'}/results.json` }],
+  ],
   timeout: 30_000,
   expect: { timeout: 10_000 },
   use: {
@@ -56,7 +61,7 @@ export default defineConfig({
     baseURL: BASE_URL,
     // A failure in CI must leave evidence: a trace (DOM snapshots, network, console) and a
     // screenshot of the failing step. Locally traces are taken on retry only.
-    trace: process.env.CI ? 'retain-on-failure' : 'on-first-retry',
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   projects: ([
@@ -86,8 +91,7 @@ export default defineConfig({
       //  - the InvalidStateError test: on http://localhost WebKit rejects Next's RSC prefetch
       //    fetches ("due to access control checks") although the server answers 200.
       name: 'public-webkit',
-      testMatch: /public\.spec\.ts/,
-      grepInvert: /view-transition guard/,
+      testMatch: /(public|footnotes)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
     {
@@ -120,13 +124,13 @@ export default defineConfig({
     // and unpublish articles, which the public count assertions must not race with.
     {
       name: 'wf-chromium',
-      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles)\.spec\.ts/,
+      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles|controls)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'wf-webkit',
-      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles)\.spec\.ts/,
+      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles|controls)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Safari'] },
     },

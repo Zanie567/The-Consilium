@@ -399,7 +399,7 @@ function Panel({ title, icon, children }: { title: string; icon?: ReactNode; chi
 function IconToggle({ active, label, icon, onClick }: { active: boolean; label: string; icon: ReactNode; onClick: () => void }) {
   return (
     <Tooltip content={label} variant="editorial" side="bottom">
-      <button onClick={onClick} className={`flex min-h-[44px] min-w-[44px] items-center justify-center border ${active ? 'border-gold bg-gold/10 text-gold' : 'border-[var(--border)] text-[var(--fg-faint)] hover:text-gold'}`}>
+      <button onClick={onClick} aria-label={label} aria-pressed={active} className={`flex min-h-[44px] min-w-[44px] items-center justify-center border ${active ? 'border-gold bg-gold/10 text-gold' : 'border-[var(--border)] text-[var(--fg-faint)] hover:text-gold'}`}>
         {icon}
       </button>
     </Tooltip>

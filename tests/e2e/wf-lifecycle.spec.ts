@@ -34,7 +34,8 @@ async function publicStatus(browser: import('@playwright/test').Browser) {
   try {
     const res = await anon.request.get(`/articles/${slug}`)
     const list = await anon.request.get('/api/articles')
-    const listed = list.ok() ? (await list.text()).includes(TITLE) : false
+    expect(list.status(), 'public listing must succeed before checking absence').toBe(200)
+    const listed = (await list.text()).includes(TITLE)
     return { page: res.status(), listed }
   } finally {
     await anon.close()

@@ -2,17 +2,9 @@ import type { Page, ConsoleMessage } from '@playwright/test'
 
 /**
  * Collects real console errors + uncaught page exceptions while a page is used.
- * Filters out noise that does not indicate an app bug (missing favicon, aborted
- * navigations, external image/font hiccups) so "0 console errors" stays
- * meaningful rather than flaky.
+ * Only third-party image/font resource failures are excluded. Application errors,
+ * including favicon, ResizeObserver and aborted API failures, remain evidence.
  */
-const IGNORE = [
-  /favicon\.ico/i,
-  /ResizeObserver loop/i,
-  /net::ERR_ABORTED/i, // a navigation or prefetch cancelled by the next click
-  /Download the React DevTools/i,
-]
-
 /**
  * "Failed to load resource" is Chrome's one-line log for ANY 4xx/5xx, including the
  * app's own API calls, so it must not be ignored wholesale (it used to be, which hid
@@ -35,12 +27,11 @@ export function collectConsoleErrors(page: Page): string[] {
   const onConsole = (msg: ConsoleMessage) => {
     if (msg.type() !== 'error') return
     const text = msg.text()
-    if (IGNORE.some((re) => re.test(text)) || isThirdPartyResourceFailure(msg)) return
+    if (isThirdPartyResourceFailure(msg)) return
     errors.push(`${text} @ ${msg.location().url}`)
   }
   page.on('console', onConsole)
   page.on('pageerror', (err) => {
-    if (IGNORE.some((re) => re.test(err.message))) return
     errors.push(`pageerror: ${err.message}`)
   })
   return errors

@@ -97,7 +97,7 @@ test.describe('desktop', () => {
     await expect(page.locator(POPOVER)).toBeHidden()
   })
 
-  test('keyboard: Tab focus shows it, Escape dismisses, focus stays put', async ({ page }) => {
+  test('keyboard: Tab focus shows it, Escape dismisses, focus stays put', async ({ page, browserName }) => {
     await prep(page)
     // Park focus on a probe button immediately before the first marker, then Tab
     // so the marker link gains focus from a real keyboard interaction
@@ -110,7 +110,9 @@ test.describe('desktop', () => {
       sup.parentElement!.insertBefore(probe, sup)
       probe.focus()
     })
-    await page.keyboard.press('Tab')
+    // Safari uses Option-Tab to include links in its default tab order:
+    // https://support.apple.com/en-gb/guide/safari/cpsh003/mac
+    await page.keyboard.press(browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab')
 
     const link = page.locator('#fnref-1 a')
     await expect(link).toBeFocused()
@@ -173,7 +175,11 @@ test.describe('mobile touch', () => {
     // A tap on a marker must not navigate-jump the page like a plain anchor
     expect(new URL(page.url()).hash).toBe('')
 
-    await page.touchscreen.tap(20, 400)
+    // Choose a point demonstrably outside the card. A fixed (20,400) can be
+    // INSIDE a differently sized WebKit card, which tests the opposite action.
+    const outside = { x: 2, y: 2 }
+    expect(outside.x < box.x || outside.y < box.y).toBe(true)
+    await page.touchscreen.tap(outside.x, outside.y)
     await expect(page.locator(POPOVER)).toBeHidden()
   })
 

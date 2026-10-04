@@ -108,16 +108,17 @@ async function outcome(page: Page, url: string) {
 async function dumpControls(page: Page, role: string, url: string) {
   const dir = process.env.E2E_INVENTORY_DIR
   if (!dir) return
-  fs.mkdirSync(dir, { recursive: true })
+  const browserDir = path.join(dir, page.context().browser()?.browserType().name() ?? 'unknown')
+  fs.mkdirSync(browserDir, { recursive: true })
   const controls = await page.evaluate(() => {
     const label = (el: Element) =>
       (el.getAttribute('aria-label') || el.getAttribute('title') || (el as HTMLElement).innerText || el.getAttribute('placeholder') || el.getAttribute('name') || '').trim().replace(/\s+/g, ' ').slice(0, 80)
     const visible = (el: Element) => !!(el as HTMLElement).offsetParent || getComputedStyle(el).position === 'fixed'
     return [...document.querySelectorAll('button, a[href], input, select, textarea, [role="tab"], [role="switch"]')]
       .filter(visible)
-      .map((el) => ({ tag: el.tagName.toLowerCase(), type: (el as HTMLInputElement).type || '', label: label(el), href: el.getAttribute('href') || '' }))
+      .map((el) => ({ tag: el.tagName.toLowerCase(), type: (el as HTMLInputElement).type || '', label: label(el), href: el.getAttribute('href') || '', disabled: (el as HTMLButtonElement).disabled ?? false, role: el.getAttribute('role'), expanded: el.getAttribute('aria-expanded') }))
   })
-  const file = path.join(dir, `${role}.json`)
+  const file = path.join(browserDir, `${role}.json`)
   const existing = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {}
   existing[url] = controls
   fs.writeFileSync(file, JSON.stringify(existing, null, 1))
@@ -141,7 +142,7 @@ for (const role of ['writer', 'editor', 'admin', 'growth'] as const) {
       const errors = collectConsoleErrors(page)
       for (const link of NAV[role]) {
         const res = await page.goto(link.href, { waitUntil: 'networkidle' })
-        expect(res?.status(), `${role} ${link.href}`).toBeLessThan(400)
+        expect(res?.status(), `${role} ${link.href}`).toBe(200)
         expect(new URL(page.url()).pathname, `${role} was bounced from ${link.href}`).toBe(norm(link.href))
         if (link.href !== '/editorial/articles/new') {
           await expect(page.locator('h1').first(), `${link.href} has a heading`).toBeVisible()

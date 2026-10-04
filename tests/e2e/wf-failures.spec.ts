@@ -57,6 +57,9 @@ test.describe('a failed save is visible, loses nothing, and recovers', () => {
     await ed.saveNow()
     await expect(alertOf(page)).toHaveCount(0)
     expect(await body(title)).toContain('Typed while the server is failing.')
+    const row = (await articleByTitle(title))!
+    await ed.openExisting(row.id)
+    await expect(ed.body()).toContainText('Typed while the server is failing.')
     await ctx.close()
   })
 
@@ -70,6 +73,8 @@ test.describe('a failed save is visible, loses nothing, and recovers', () => {
     await page.unroute('**/api/articles/*')
     await ed.saveNow()
     expect(await body(title)).toContain('Offline words.')
+    await ed.openExisting((await articleByTitle(title))!.id)
+    await expect(ed.body()).toContainText('Offline words.')
     await ctx.close()
   })
 
@@ -84,6 +89,8 @@ test.describe('a failed save is visible, loses nothing, and recovers', () => {
     await page.unroute('**/api/articles/*')
     await ed.saveNow()
     expect(await body(title)).toContain('Hanging words.')
+    await ed.openExisting((await articleByTitle(title))!.id)
+    await expect(ed.body()).toContainText('Hanging words.')
     await ctx.close()
   })
 
@@ -157,7 +164,7 @@ test('typing while a save is in flight is not lost', async ({ browser }) => {
   await expect(page.getByText('Saving...').first()).toBeVisible()
   await ed.moveToEnd() // clicking Save moved focus to the button; a person clicks back into the text
   await page.keyboard.type(' Second burst, typed during the save.')
-  expect((await first).ok()).toBe(true)
+  expect((await first).status()).toBe(200)
 
   // The edit made during the save is saved by its own follow-up request.
   await expect.poll(async () => body(title), { timeout: 20_000 }).toContain('Second burst, typed during the save.')
@@ -217,6 +224,8 @@ test('an expired session is reported, keeps the text, and recovers after signing
   await ed.saveNow()
   await expect(alertOf(page)).toHaveCount(0)
   expect(await body(title)).toContain('Words typed after the session ended.')
+  await ed.openExisting((await articleByTitle(title))!.id)
+  await expect(ed.body()).toContainText('Words typed after the session ended.')
   await ctx.close()
 })
 
@@ -285,6 +294,9 @@ test.describe('the same article in two tabs', () => {
     await expect(alertOf(t.secondPage)).toHaveCount(0)
     const saved = await body(t.title)
     expect(saved).toContain('Tab two sentence.')
+    await t.second.openExisting(t.id)
+    await expect(t.second.body()).toContainText('Tab two sentence.')
+    await expect(t.second.body()).not.toContainText('Tab one sentence.')
     await t.ctx.close()
   })
 })
@@ -310,7 +322,7 @@ test('a failed publish never leaves the article public, and a later autosave doe
   fail = false
   await ed.moveToEnd()
   const res = await ed.saving(() => page.keyboard.type(' More words.'), { timeout: 15_000 })
-  expect(res.ok()).toBe(true)
+  expect(res.status()).toBe(200)
   expect((await articleByTitle(title))!.status, 'autosave must not publish').toBe('DRAFT')
 
   const anon = await signedIn(browser, null)
@@ -318,4 +330,46 @@ test('a failed publish never leaves the article public, and a later autosave doe
   expect((await anon.request.get(`/articles/${row!.slug}`)).status()).toBe(404)
   await anon.close()
   await ctx.close()
+})
+
+
+test('after a conflict Reload latest discards only the stale tab changes', async ({ browser }) => {
+  const t = await openDraft(browser, 'discard')
+  const otherPage = await t.ctx.newPage()
+  const other = new ArticleEditorPage(otherPage)
+  await other.openExisting(t.id)
+  await t.ed.moveToEnd()
+  await t.page.keyboard.type(' New authoritative sentence.')
+  await t.ed.saveNow()
+  await other.moveToEnd()
+  await otherPage.keyboard.type(' Stale local sentence.')
+  expect((await other.saving(() => other.saveDraftButton().click())).status()).toBe(409)
+  await expect(alertOf(otherPage)).toContainText('changed in another tab')
+  await otherPage.getByRole('button', { name: 'Discard mine and reload' }).click()
+  await expect(other.body()).toContainText('New authoritative sentence.')
+  await expect(other.body()).not.toContainText('Stale local sentence.')
+  await expect(alertOf(otherPage)).toHaveCount(0)
+  expect(await body(t.title)).not.toContain('Stale local sentence.')
+  await t.ctx.close()
+})
+
+test('Back to articles stays in the editor when saving fails, then saves and leaves on retry', async ({ browser }) => {
+  const t = await openDraft(browser, 'back')
+  await t.page.route('**/api/articles/*', route => isArticleWrite(route)
+    ? route.fulfill({ status: 500, json: { error: 'Database unavailable' } }) : route.continue())
+  await t.ed.moveToEnd()
+  await t.page.keyboard.type(' Keep these unsaved words.')
+  const failed = await t.ed.saving(() => t.page.getByRole('button', { name: 'Back to articles' }).click())
+  expect(failed.status()).toBe(500)
+  await expect(t.page).toHaveURL(new RegExp(`/articles/${t.id}/edit$`))
+  await expect(alertOf(t.page)).toContainText('unsaved changes remain')
+  await expect(t.ed.body()).toContainText('Keep these unsaved words.')
+  expect(await body(t.title)).not.toContain('Keep these unsaved words.')
+  await t.page.unroute('**/api/articles/*')
+  expect((await t.ed.saving(() => t.page.getByRole('button', { name: 'Back to articles' }).click())).status()).toBe(200)
+  await expect(t.page).not.toHaveURL(new RegExp(`/articles/${t.id}/edit$`))
+  await t.ed.openExisting(t.id)
+  await expect(t.ed.body()).toContainText('Keep these unsaved words.')
+  expect((await articleByTitle(t.title))!.status).toBe('DRAFT')
+  await t.ctx.close()
 })
