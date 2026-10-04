@@ -4,6 +4,7 @@ import {
   buildPublicRoster,
   teamForRole,
   validateTeamBio,
+  visiblePublicAppointmentLabel,
   type TeamRowWithAccount,
 } from '@/lib/teamProfiles'
 import { buildTeamMasthead } from '@/lib/teamHierarchy'
@@ -39,7 +40,7 @@ function row(overrides: Partial<TeamRowWithAccount> = {}): TeamRowWithAccount {
   }
 }
 
-describe('teamForRole — the fixed role → team mapping', () => {
+describe('teamForRole — ordinary creation defaults only', () => {
   it('maps Writer → Writing, Editor → Editorial, Growth → Growth & Communications', () => {
     expect(teamForRole('WRITER')).toBe('writing')
     expect(teamForRole('EDITOR')).toBe('editorial')
@@ -53,8 +54,27 @@ describe('teamForRole — the fixed role → team mapping', () => {
     },
   )
 
-  it('is defined for exactly the roles allowed to own a profile', () => {
+  it('allows ADMIN ownership without granting an automatic public appointment', () => {
     expect([...TEAM_PROFILE_ROLES].sort()).toEqual(['ADMIN', 'EDITOR', 'GROWTH', 'WRITER'])
+  })
+})
+
+describe('public author appointment labels', () => {
+  it.each(['ADMIN', 'WRITER', 'EDITOR', 'GROWTH'])('keeps the assigned chief title with %s website permissions', role => {
+    const author = { ...account({ role }), teamProfile: { role: 'Editor-in-Chief', publicTier: null, isActive: true } }
+    expect(visiblePublicAppointmentLabel(author)).toBe('Editor-in-Chief')
+    expect(visiblePublicAppointmentLabel({ ...author, teamProfile: { role: 'Chief Designer', isActive: true } })).toBe('Chief Designer')
+  })
+
+  it('does not confer public leadership from ADMIN permission or a user-edited name', () => {
+    expect(visiblePublicAppointmentLabel({ ...account({ role: 'ADMIN', name: 'Editor-in-Chief' }), teamProfile: null })).toBeNull()
+  })
+
+  it('respects public visibility, account suspension and bans', () => {
+    const author = { ...account(), teamProfile: { role: 'Editor-in-Chief', isActive: true } }
+    expect(visiblePublicAppointmentLabel({ ...author, isActive: false })).toBeNull()
+    expect(visiblePublicAppointmentLabel({ ...author, isBanned: true })).toBeNull()
+    expect(visiblePublicAppointmentLabel({ ...author, teamProfile: { ...author.teamProfile, isActive: false } })).toBeNull()
   })
 })
 

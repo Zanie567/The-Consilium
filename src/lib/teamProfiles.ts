@@ -197,3 +197,13 @@ export function defaultPublicAppointment(role: string) {
 export function publicAppointmentLabel(card: { role?: string | null; publicTier?: string | null }) {
   return card.role?.trim() || ({ editor_in_chief: 'Editor-in-Chief', leadership: 'Leadership', senior_editor: 'Senior Editor', editor: 'Editor', junior_editor: 'Junior Editor', writer: 'Writer', growth: 'Growth & Communications', other: 'Wider Team' } as Record<string, string>)[card.publicTier ?? 'other'] || 'Wider Team'
 }
+
+/** Public author labels follow the same owned, visible appointment as the masthead. */
+export function visiblePublicAppointmentLabel(account: {
+  isActive: boolean
+  isBanned: boolean
+  teamProfile: { role: string; publicTier?: string | null; isActive: boolean } | null
+}): string | null {
+  if (!account.isActive || account.isBanned || !account.teamProfile?.isActive) return null
+  return publicAppointmentLabel(account.teamProfile)
+}

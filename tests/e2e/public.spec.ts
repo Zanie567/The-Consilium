@@ -199,10 +199,14 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
   // …then client-side navigations, followed promptly by Back after the target
   // actually finishes loading. Neither clicks nor failed navigation are swallowed.
   await page.goto('/', { waitUntil: 'networkidle' })
-  const links = page.locator('header a[href^="/category/"], main a[href^="/articles/"]')
+  // The hero keeps inactive slides mounted with aria-hidden/inert. A raw CSS
+  // nth-link can click one of those noninteractive anchors after Back. Select
+  // links offered to readers, then hover to pause the implemented carousel.
+  const links = page.getByRole('link').and(page.locator('header a[href^="/category/"], main a[href^="/articles/"]'))
   const n = Math.min(await links.count(), 5)
   expect(n).toBeGreaterThan(0)
   for (let i = 0; i < n; i++) {
+    await links.nth(i).hover({ timeout: 2000 })
     const href = await links.nth(i).getAttribute('href')
     expect(href).toBeTruthy()
     await links.nth(i).click({ timeout: 2000 })

@@ -589,6 +589,35 @@ test.describe('public Our Team page', () => {
     expect(rows.length).toBeGreaterThan(10)
     for (const row of rows) expect(row).not.toHaveProperty('userId')
   })
+
+  test('public author labels use assigned appointments, never website permissions', async ({ browser }) => {
+    const anon = await browser.newContext({ baseURL: process.env.E2E_BASE_URL })
+    const page = await anon.newPage()
+    const original = await db().user.findUniqueOrThrow({ where: { id: ids.mismatch } })
+    const card = await db().teamMember.findUniqueOrThrow({ where: { userId: ids.mismatch } })
+    const unappointed = await db().user.create({ data: { email: email('unappointed-admin'), name: 'Unappointed Administrator', role: 'ADMIN', emailVerified: new Date() } })
+    const label = page.locator('main .bg-navy p').first()
+    try {
+      for (const role of ['ADMIN', 'WRITER', 'EDITOR', 'GROWTH'] as const) {
+        await db().user.update({ where: { id: original.id }, data: { role } })
+        await page.goto(`/author/${original.id}`, { waitUntil: 'networkidle' })
+        await expect(label).toHaveText('Editor-in-Chief')
+      }
+      await page.goto(`/author/${unappointed.id}`, { waitUntil: 'networkidle' })
+      await expect(label).toHaveText('Contributor')
+      await db().teamMember.update({ where: { id: card.id }, data: { role: 'Chief Designer' } })
+      await page.goto(`/author/${original.id}`, { waitUntil: 'networkidle' })
+      await expect(label).toHaveText('Chief Designer')
+      await db().teamMember.update({ where: { id: card.id }, data: { isActive: false } })
+      await page.goto(`/author/${original.id}`, { waitUntil: 'networkidle' })
+      await expect(label).toHaveText('Contributor')
+    } finally {
+      await db().user.update({ where: { id: original.id }, data: { role: original.role } })
+      await db().teamMember.update({ where: { id: card.id }, data: { role: card.role, isActive: card.isActive } })
+      await db().user.delete({ where: { id: unappointed.id } })
+      await anon.close()
+    }
+  })
 })
 
 // ── layout ────────────────────────────────────────────────────────────────────
