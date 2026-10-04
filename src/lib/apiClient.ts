@@ -170,16 +170,27 @@ export async function apiRequest<T>(
   if (init.signal?.aborted) forwardAbort()
   else init.signal?.addEventListener('abort', forwardAbort, { once: true })
 
-  const timer = setTimeout(() => {
-    timedOut = true
-    controller.abort()
-  }, timeoutMs)
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      timedOut = true
+      // Abort the transport, but enforce the deadline independently: an
+      // intercepted or stalled transport may not settle when aborted.
+      controller.abort()
+      reject(new ApiError('timeout', `The request timed out after ${Math.round(timeoutMs / 1000)} seconds. Check your connection and try again.`))
+    }, timeoutMs)
+  })
 
   try {
-    const response = await fetch(input, { ...init, signal: controller.signal })
-    const body = await parseBody(response)
-    if (!response.ok) throw errorForResponse(response, body)
-    return body as T
+    return await Promise.race([
+      (async () => {
+        const response = await fetch(input, { ...init, signal: controller.signal })
+        const body = await parseBody(response)
+        if (!response.ok) throw errorForResponse(response, body)
+        return body as T
+      })(),
+      deadline,
+    ])
   } catch (error) {
     if (error instanceof ApiError) throw error
     if (timedOut) {

@@ -1,10 +1,11 @@
 /** Read-only gate. Explicit target only; never loads dotenv or applies migrations. */
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { databaseConnection } from '../src/lib/hostedDatabaseConnection'
 import { deploymentReadiness } from '../src/lib/deploymentReadiness'
 async function main() {
   if (!process.env.DIRECT_URL) throw new Error('Explicit DIRECT_URL is required.')
-  const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DIRECT_URL }) })
+  const db = new PrismaClient({ adapter: new PrismaPg(databaseConnection(process.env, process.env.DIRECT_URL)) })
   try {
     const result = await deploymentReadiness(db)
     console.log(JSON.stringify(result, null, 2))

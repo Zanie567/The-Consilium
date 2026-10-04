@@ -147,14 +147,98 @@ jobs:
       # job can reach a real service even if a secret were present. The Playwright config
       # refuses to start without that isolation. Phases: main, workflow (browser
       # workflow suites), team-profile.
-      - name: E2E (browser workflows on Chromium + WebKit, console/network checks, team profile)
-        run: npm run test:e2e
+      - name: Public pages, network crawl and mobile browser workflows
+        run: npm run test:e2e -- --project=public --project=public-webkit --project=wf-mobile-chromium --project=wf-mobile-webkit --workers=1
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  # Separate status for the changed role/profile suites; all prior projects remain
+  # enabled in the two browser jobs. Each runner owns its DB, storage and mail.
+  role-workflows:
+    name: Critical roles, profiles and testing mode
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: consilium
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # TEST_DATABASE_URL is the single source of truth for tests: the tooling ignores
+      # DATABASE_URL/DIRECT_URL and overwrites them with it. localhost passes the guard
+      # (scripts/lib/assertSafeTestDatabaseHost.ts); a non-local CI database needs
+      # TEST_DB_ALLOW_HOST set to its exact host.
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/consilium
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/consilium
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/consilium
+      NEXTAUTH_SECRET: ci_dummy_secret_not_used_at_runtime
+      NEXTAUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci_dummy_anon_key
+      SUPABASE_ANON_KEY: ci_dummy_anon_key
+      SUPABASE_SERVICE_ROLE_KEY: ci_dummy_service_key
+      # No RESEND_API_KEY on purpose: this job must never be able to send real email.
+      CRON_SECRET: ci_cron_secret
+      ADMIN_EMAILS: admin@theconsilium.com
+      USE_EXISTING_DB: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set up & seed test database
+        run: npm run test:setup-db
+
+      # Chromium and WebKit: the browser workflow suites run on both (plus phone
+      # emulations of each). WebKit needs its system libraries, hence --with-deps.
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      # scripts/run-e2e.sh is the only supported entry point. It builds the app itself
+      # into .next-e2e with storage, email and OAuth pinned to local stand-ins (a local
+      # Supabase-Storage-compatible server, captured email, no Google), so nothing in this
+      # job can reach a real service even if a secret were present. The Playwright config
+      # refuses to start without that isolation. Phases: main, workflow (browser
+      # workflow suites), team-profile.
+      - name: Ordinary and simulated workflows, ownership, review scope, publication and profiles
+        run: npm run test:e2e -- --project=editorial --project=editor --project=lifecycle --project=wf-chromium --project=wf-webkit --project=simulator-chromium --project=testing-mode --project=team-profile --workers=1
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: critical-role-playwright-report
           path: |
             playwright-report/
             test-results/

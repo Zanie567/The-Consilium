@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { databaseConnection } from './hostedDatabaseConnection'
 
 // Typed as the configured client (which carries the User.password omit) rather
 // than a bare PrismaClient, so the omit propagates to every consumer of `prisma`.
@@ -19,7 +20,7 @@ function createPrismaClient() {
   //     503. A thrown error is caught by each page's try/catch and degrades to
   //     empty data (HTTP 200) rather than a hard 503.
   const adapter = new PrismaPg({
-    connectionString,
+    ...databaseConnection(process.env, connectionString),
     max: Number(process.env.DB_POOL_MAX ?? 10),
     connectionTimeoutMillis: Number(process.env.DB_POOL_CONNECTION_TIMEOUT_MS ?? 8000),
     idleTimeoutMillis: Number(process.env.DB_POOL_IDLE_TIMEOUT_MS ?? 30000),

@@ -132,6 +132,14 @@ describe('apiRequest', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  it('enforces the deadline even when a stalled transport ignores abort', async () => {
+    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => new Promise<Response>(() => {}))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(apiRequest('/api/article', { method: 'PUT' }, { timeoutMs: 5 })).rejects.toMatchObject({ kind: 'timeout' })
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true)
+  })
+
   it('classifies a network failure and never retries the mutation', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
     vi.stubGlobal('fetch', fetchMock)

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { prisma } from '@/lib/prisma'
 import { assertSafeTestDatabaseHost } from '../../scripts/lib/assertSafeTestDatabaseHost'
+import { hostedTestingConfigurationError, HOSTED_TEST_WORKSPACE } from './hostedTestingWorkspace'
 
 export const TESTING_COOKIE = 'consilium-testing'
 export const TEST_PERSONAS = ['writer', 'writer-other', 'editor', 'editor-global', 'growth'] as const
@@ -11,9 +12,11 @@ const local = (value?: string) => {
   try { return ['localhost', '127.0.0.1', '[::1]'].includes(new URL(value ?? '').hostname) } catch { return false }
 }
 
-/** Local verified workspace only. A preview pointed at production is never eligible. */
+/** Explicitly verified workspace only. A preview pointed at production is never eligible. */
 export function testingConfigurationError(env: Record<string, string | undefined> = process.env): string | null {
-  if (env.TESTING_MODE_ENABLED !== '1') return 'Testing mode is disabled. Configure an isolated local workspace.'
+  if (env.TESTING_MODE_ENABLED !== '1') return 'Testing mode is disabled. Configure a verified isolated workspace.'
+  if (env.TESTING_WORKSPACE_KIND === 'hosted') return hostedTestingConfigurationError(env)
+  if (env.TESTING_WORKSPACE_KIND && env.TESTING_WORKSPACE_KIND !== 'local') return 'Testing workspace kind is invalid.'
   if (!env.TEST_DATABASE_URL || env.DATABASE_URL !== env.TEST_DATABASE_URL || env.DIRECT_URL !== env.TEST_DATABASE_URL) return 'Testing requires an explicit TEST_DATABASE_URL used by both database connections.'
   try { assertSafeTestDatabaseHost(env.TEST_DATABASE_URL, 'TEST_DATABASE_URL', { env }) } catch { return 'Testing database is not safe.' }
   if (!local(env.TEST_DATABASE_URL) || !local(env.NEXT_PUBLIC_SUPABASE_URL) || !local(env.NEXTAUTH_URL) || !local(env.NEXT_PUBLIC_SITE_URL)) return 'Testing services must all be local; hosted workspace verification is unavailable.'
@@ -26,6 +29,12 @@ export async function requireTestingWorkspace() {
   if (error) throw new Error(error)
   const marker = await prisma.siteSetting.findUnique({ where: { key: 'testing-workspace' } })
   if (marker?.value !== process.env.TESTING_WORKSPACE_ID) throw new Error('Database is not attested as this testing workspace.')
+  if (process.env.TESTING_WORKSPACE_KIND === 'hosted') {
+    const hosted = await prisma.siteSetting.findUnique({ where: { key: 'testing-hosted-project' } })
+    if (hosted?.value !== JSON.stringify(HOSTED_TEST_WORKSPACE)) throw new Error('Hosted database attestation does not match the reviewed resources.')
+    const sink = await prisma.$queryRaw<{ ready: boolean }[]>`SELECT COALESCE((SELECT relrowsecurity FROM pg_class WHERE oid=to_regclass('public.testing_email_outbox')), false) AS ready`
+    if (!sink[0]?.ready) throw new Error('Private test email capture is unavailable.')
+  }
 }
 
 export async function resolveTestingIdentity(administratorId: string, opaqueToken?: string) {

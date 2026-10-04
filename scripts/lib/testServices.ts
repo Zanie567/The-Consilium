@@ -34,6 +34,7 @@ export function isolatedServiceEnv(opts: IsolatedServiceOptions): Record<string,
   return {
     E2E_ISOLATED: '1',
     TESTING_MODE_ENABLED: '1',
+    TESTING_WORKSPACE_KIND: 'local',
     TESTING_WORKSPACE_ID: 'local-consilium-testing',
     // Storage: a local Supabase-Storage-compatible server (tests/e2e/helpers/fake-storage-server.ts).
     NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${opts.storagePort}`,
@@ -70,7 +71,7 @@ export function assertIsolatedServiceEnv(env: Env = process.env): void {
   if (env.E2E_ISOLATED !== '1') {
     problems.push('E2E_ISOLATED is not set - run through scripts/run-e2e.sh')
   }
-  if (env.TESTING_MODE_ENABLED !== '1' || env.TESTING_WORKSPACE_ID !== 'local-consilium-testing') {
+  if (env.TESTING_MODE_ENABLED !== '1' || env.TESTING_WORKSPACE_KIND !== 'local' || env.TESTING_WORKSPACE_ID !== 'local-consilium-testing') {
     problems.push('Testing mode must use the attested local-consilium-testing workspace')
   }
 

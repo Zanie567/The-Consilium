@@ -109,7 +109,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/(.*)',
-        headers: securityHeaders,
+        headers: [...securityHeaders, ...(process.env.TESTING_MODE_ENABLED === '1' ? [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }] : [])],
       },
     ]
   },

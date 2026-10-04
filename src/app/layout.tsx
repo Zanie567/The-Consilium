@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     'economic analysis',
     'opinion',
   ],
-  robots: { index: true, follow: true },
+  robots: { index: process.env.TESTING_MODE_ENABLED !== '1', follow: process.env.TESTING_MODE_ENABLED !== '1' },
   openGraph: {
     title: 'The Consilium',
     description: SITE_DESCRIPTION,

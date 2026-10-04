@@ -45,9 +45,13 @@ async function prep(page: Page) {
 }
 
 /** Centre a marker (or its inner link) and return its viewport centre point. */
-function point(page: Page, selector: string) {
+async function point(page: Page, selector: string) {
+  await page.locator(selector).evaluate((el) => el.scrollIntoView({ block: 'center' }))
+  // Scrolling changes the sticky navbar border from 2px to 1px. Wait for
+  // that actual layout update before measuring the marker/popover; otherwise
+  // the unrelated one-pixel header change is attributed to opening the tip.
+  await expect(page.locator('header').first()).toHaveCSS('border-bottom-width', '1px')
   return page.locator(selector).evaluate((el) => {
-    el.scrollIntoView({ block: 'center' })
     const target = el.querySelector('a') ?? el
     const r = target.getBoundingClientRect()
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 }
