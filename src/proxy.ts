@@ -31,6 +31,7 @@ const PUBLIC_PAGE_PREFIXES = [
 ]
 
 function isPublicApi(pathname: string) {
+  if (process.env.E2E_ISOLATED === '1' && pathname === '/api/test-attestation') return true
   if (/^\/api\/editorial\/articles\/[^/]+\/view$/.test(pathname)) return true
   // Exact match or a `prefix/...` sub-path only. A bare `startsWith(prefix)`
   // fallback would wrongly treat e.g. `/api/teams` as public via `/api/team`,
