@@ -1,176 +1,53 @@
-# Automated user-workflow audit
+# Workflow audit completion — verification in progress
 
-This audit uses real Playwright clicks, typing, native prompts and file inputs against a
-production-mode local build. The coverage inventory distinguishes test definitions,
-source inspection and executed behaviour. A passing page-load check does not establish
-that every action on that page works.
+This branch continues the preserved audit on a dedicated worktree, incorporating its changes against `origin/main` without modifying the original checkout or other active audits. The task branch is `fix/workflow-audit-completion`. The owner confirmed **preserve editor styling on publication**; the renderer preserves validated colours, highlights, alignment, spacing and table widths alongside semantic content.
 
-## Version and environment
+The final full verification is being moved to GitHub Actions because other local audits and the owner's laptop work produced system load above 100. Cloud Chromium/Playwright WebKit and mobile emulations are independent of those local resources. This draft report will be replaced with the exact cloud commit, results and artifact links when that run completes. It does not claim a final green result.
 
-- Final affected-workflow regression commit: `680c11b716c30a0596dbceab706ab3249910c576`.
-- Full audit commit: `64ae87b64a3e39b7e5ad51cd9d470865d94c0f02`. The application code is identical at these two commits; the later commit strengthens tests only. The reporting commit adds documentation only.
-- Initial audited commit: `c379afa7e161b2e540f9b8fa3a857cdd6b8cbb45`.
-- Branch: `test/ui-workflow-audit-isolated`, based on `f6f67e2`.
-- Checkout: `/private/tmp/consilium-workflow-isolated`. A separate checkout was necessary
-  because another local process changed Team Profile code/schema and generated Prisma
-  files while the original audit was running. Those contaminated results are not used
-  to certify website behaviour. Two unrelated Team Profile wording changes slipped into the first snapshot; its test caught the mismatch. They were restored to the base wording before the final run, without altering the other checkout.
-- macOS 27.0.1 arm64, Node 20.20.2, Next 16.2.2, React 19.2.4,
-  Playwright 1.60.0, Prisma 7.6.0, PostgreSQL 16.15.
-- Disposable PostgreSQL: `localhost:55434/consilium`, data directory
-  `/tmp/consilium-workflow-isolated-pg`; app `http://localhost:3321`; local fake storage
-  `http://127.0.0.1:55422`; email capture
-  `/tmp/consilium-workflow-isolated-outbox.jsonl`.
-- Desktop Chromium and WebKit, Pixel 7 Chromium and iPhone 14 WebKit emulation.
-  Team Profile and the older editorial suites use desktop Chromium.
-- The installed Next testing, environment, Link prefetch, custom tsconfig and cache
-  invalidation documentation was read before relevant changes, as AGENTS.md requires.
-- No push, merge, deployment, production credential edits or production migrations.
-  This checkout contains no production `.env.local`. App and helpers inherit the same
-  guarded TEST_DATABASE_URL; production storage/email/OAuth keys are explicitly blank
-  or replaced. All schema setup and fixture mutations target the disposable database.
+## Executed evidence so far
 
-## Inventory and evidence definitions
+The previous complete local run used one clean commit, `497785c19652ccd63a30d4bc78b452d8f12f69d5`, and fresh resources `next-e2e-3357-66419`. Vitest: **965 passed, 1 failed**; main browser phase: **73 passed, 11 failed**; workflows: **348 passed, 4 failed**; Team Profile: **41 passed**. Total browser executions: **462 passed, 15 failed, 0 skipped**, including repeated setup executions between phases. These results predate subsequent fixes and are historical evidence only. Artifacts remain in `test-results/next-e2e-3357-66419/` and `playwright-report/next-e2e-3357-66419/` in the task worktree.
 
-[coverage-inventory.md](./coverage-inventory.md) maps roles, areas, stateful menus,
-dialogs, expected behaviour and gaps to test files.
-[control-inventory.json](./control-inventory.json) records 63 page routes and 647 JSX
-control declarations, 163 dynamic control families and six native dialog calls,
-including inherited layout controls, options, source handlers and disabled conditions.
-479 declarations have no direct literal-label test reference; this is a conservative
-inspection signal, not an exact count of untested behaviours. Data-dependent labels and
-rows can have group coverage without a literal reference.
+The failures identified a cold local-image request/cache hang, an obsolete console-collector expectation, a wrong negative permission status, a prediction refresh/navigation race and the retained strict WebKit document-navigation errors. Subsequent ordinary unit/route tests passed **793/793**, and focused account-data/image regressions passed **12/12**. Those focused passes are not combined with historical browser passes into a final result.
 
-The JSON is a source census, not proof that conditional controls appeared in a browser.
-Rendered initial portal page inventories are saved separately for Writer, Editor,
-Admin, Growth and Reader on Chromium and WebKit. Reader access/refusal and profile actions are
-browser-tested. Menus/dialogs opened by the workflow specs have trace evidence on
-failure, but initial page snapshots do not enumerate unopened dialogs. Arbitrary
-production rows and every combination of filters/table dimensions/palette colours
-cannot be exhaustively enumerated by this finite fixture set.
+## Confirmed fixes
 
-## Changes and confirmed findings
+- Owner/account-scoped local draft recovery across refresh, closure and browser restart; explicit recovery decisions, stale-server conflicts, deliberate overwrites, deleted/missing/expired article handling and local download/discard. Recovery never submits, approves or publishes. Pending recovery locks body, title, excerpt, cover and metadata controls.
+- Exact save response assertions, edits during in-flight saves, timeouts and retries without silently losing unsaved work; fresh persisted content assertions.
+- Explicit confirmation and API intent for publication changes; ordinary metadata saves cannot accidentally publish/unpublish/schedule. Repeated/cancelled destructive actions and warmed public-cache visibility have browser regressions.
+- Fresh database session permissions, current ban/active/role enforcement, owner/category trash boundaries and deleted-article refusal.
+- Atomic one-use password-reset claims and controlled captured-link browser workflows; production email and OAuth are disabled in tests.
+- Browser/server 4 MiB upload limits, interrupted/invalid upload recovery and reader avatar persistence.
+- Private admin profile notes and account metadata gated before data access; category assignments validate before an atomic profile update. Invalid/missing debate updates cannot deactivate another debate. In-process regression baseline: 8 failures/3 passes; after fixes: 11 passes.
+- Failed admin profile, warning, note, user-detail and audit requests retain input and expose retry/error controls. New browser checks await cloud execution.
+- Content-filter expected failures replaced by active passing regressions; editor formatting policy implemented with a restrictive CSS sanitizer, not arbitrary style passthrough.
+- Clipboard failure feedback, dashboard dismissal failures, captured print/PDF boundaries, and enabled series/glossary/debate/prediction/calendar/subscriber/account/moderation actions.
+- Safety guards propagate environment-generator failure before SQL/build/services. Each launcher creates and attests its own disposable database, refuses occupied ports and unattested builds/servers, and cleans up only owned resources.
 
-| Finding | Evidence | Focused change / regression |
-|---|---|---|
-| Shell launcher continued after isolation generator refused its target | The actual run-e2e launcher regression failed before the fix: a later command executed after npx exited 42 | Check generator exit before eval; both launchers now fail before SQL/build/start/cleanup |
-| Shared build manifests, saved sessions and generated Prisma files made concurrent audits unreliable | Earlier runs produced chunk/setup failures, wrong-database JWT access denials and schema/client validation errors | Unique per-run builds, tsconfig, sessions, logs/reports; separate worktree and dependency/generated-client copies |
-| WebKit hydration failed on Editor/Admin article lists | Original failure traces show SSR `2 Nov, 22:23` versus hydrated `2 Nov at 22:23`, React 418 | Format numeric UK date parts with stable punctuation; schedule display unit tests and both-engine menu navigation |
-| Review feature/pin toggles had no accessible name or pressed state | The browser could not find the real Featured button by accessible name | Add aria-label/aria-pressed; UI toggles, reload, database read-back, public correction test |
-| Invalid Team Profile photo preview caused an extra CSP error before server validation | Original Chromium invalid-upload trace reports blob connect-src violation in addition to the expected 400 | Preview only recognised image signatures; leave authoritative rejection to the server; report file-read failure visibly; existing invalid-upload regression retained |
-| Browsing polluted seeded analytics fixtures | Three-reader aggregate returned four on rerun | Private draft fixtures, exact hand-computed SQL assertions, fail setup if database unavailable; bounded Vitest concurrency |
-| Repeated footnote test clicks entered the editor's double/triple-click path | Failure trace contains insert/edit prompts but no cancel/removal prompt | Model separate interactions, assert the native prompt, accept/cancel/remove; exact removal count retained |
-| Same-tab reopen raced the editor router refresh in WebKit | Schedule returned 200; the subsequent goto was interrupted by refresh to the same edit URL | Reopen in a fresh browser tab and assert persisted settings |
-| Publication used a Server-Action-only cache API from Route Handlers | Both-engine UI regression: Publish 200, warmed category omitted article; server logged updateTag rejection | revalidateTag(articles, { expire: 0 }); browser checks category/archive/home after publish AND unpublish; unit pins supported cache API and logged failures |
+### Confirmed Next image cancellation/cache defect
 
-Successful saves require exact 201/200 responses and reopen persisted articles.
-Public-list API failures can no longer masquerade as an article being private. Removed
-broad console filters for ResizeObserver, aborted local requests and favicon errors;
-only external font/image failures are exempt. Navigation errors are no longer swallowed
-by the public transition test. Screenshots and traces are retained on a first local
-failure, not only on CI retry.
+A minimal Next 16.2.2 app containing only a local image reproduced hanging later requests when the first request for that cache key was cancelled. Instrumentation showed the internal static-file response inherited the disconnected client socket and never reached stream completion; shared response caching then stranded later requests for that key. Correct valid-image requests returned 200 without cancellation. The portable original-function reproduction retained three timeout cases; after the upstream fix, all five valid requests returned exactly 200. Earlier expanded probes retained 22 before/after cases locally.
 
-Added UI tests for editor publication controls and settings, live links, corrections,
-commendation, feature/pin, all spacing options, counts/theme, table removal, footnote
-editing, conflict discard, failed Back-to-articles save/recovery and interrupted image
-upload/retry/reopen. Existing representative formatting, lifecycle, mobile, role,
-reader and article-trash suites are retained. Team Profile remains part of every full
-run, after other uploads finish, with one worker.
+Installation backports [merged Next PR #98168](https://github.com/vercel/next.js/pull/98168), merge commit `dcbfff7789b84f39388228e6dab11456c446e269`: preserve the mocked request socket, detach the mocked response from it. The patch is pinned to 16.2.2, validates both CommonJS and ESM source signatures before writing and is idempotent. Framework versions remain unchanged. The regression uses real static streaming against a disconnected requester; no request rejection is hidden. Portable evidence: `test-results/image-abort-before.json` and `test-results/image-abort-after.json`.
 
-## Renderer expectations
+## WebKit investigation and limits
 
-This audit does not change articleRender.ts. The existing
-`tests/unit/article-render-formatting.test.ts` and inventory record the policy: publish
-semantic tables, strikethrough and code; preserve highlight as the site's mark; apply
-house typography instead of inline text colours, alignment, line spacing, font size
-or family. Browser checks verify saved editor formatting and published house style.
-Font size/family have no available toolbar control; dormant callbacks and pasted
-attributes are code-inspection findings. This relies on the repository's recorded
-policy and is not new owner confirmation in this conversation.
+Actual link controls, back/forward and rapid client clicks passed on both engines in the previous full workflow phase. The separate strict rapid document-navigation test still fails on Playwright WebKit and remains enabled, with no filtered errors, catches, skips or expected failures. Historical HTTP and local HTTPS both reproduced it.
 
-## Results
+Framework-free same-origin pagehide fetches with explicit rejection handlers reproduce native WebKit errors; CSP on/off does not remove them. A minimal Next application reproduces cancelled RSC prefetch errors while instrumentation records no `window.error` or unhandled-promise events. Playwright's WebKit console bridge classifies JavaScript-source native console errors as page errors. This supports a browser/tool diagnostic-boundary hypothesis, **not proof of harmless deployed behaviour**. The associated historical NextAuth session-fetch failure still lacks a separately confirmed application root cause. Reproductions and strict tests are retained.
 
-Initial isolated full run at `c379afa` (`next-e2e-3321-8387`):
+Safari 27.0.1 is installed and its remote automation setting was observed enabled after the owner's `safaridriver --enable`. A fresh owned driver still returns HTTP 500: session creation times out after 30 seconds while connecting to Safari. No successful real Safari automation is claimed. The observed personal Safari developer settings also disable cross-origin restrictions, so a default-security Safari comparison requires an isolated/default configuration. The owner's settings and browsing are not changed.
 
-| Phase | Passed | Failed | Not run / skipped |
-|---|---:|---:|---:|
-| Vitest | 910 ordinary passes + 7 expected failures | 0 unexpected | 18 existing skips |
-| Main Playwright | 84 | 0 | 0 |
-| Workflow Playwright | 203 | 3 test synchronization failures | 0 |
-| Team Profile | 11 | 1 snapshot wording mismatch | 29 serial dependents not run |
+## External verification required
 
-Focused run `next-e2e-3321-11096` passed the four corrected prompt/settings tests
-(two engines), plus six login setup tests. Its two new cache probes initially targeted
-an unavailable draft-review Publish Now control; that test error was corrected to use
-the actual editor Publish control. `next-e2e-3321-11839` then reproduced the real cache
-defect in BOTH engines after successful Publish 200. No failing cache assertion was
-relaxed. After the cache fix, `next-e2e-3321-12710` passed the category check but exposed
-an Archive locator error: Archive link names include date/category/author. The regression
-now checks the visible article heading on each layout. `next-e2e-3321-14315` passed on
-WebKit; Chromium exceeded the 30s aggregate budget across nine public page loads. The
-multi-step test now has 90s overall, retaining 10s action/assertion deadlines.
+No separate staging storage/email/OAuth credentials, controlled provider inboxes or physical devices were supplied. Local stand-ins cannot establish real bucket access policies, cross-user storage isolation, signed URL expiry, transformations, CDN invalidation, provider email delivery, OAuth or physical mobile behaviour.
 
-Full audit at `64ae87b` (`next-e2e-3321-15965`), with two workers and no retries:
+Required follow-up: provide a non-production project/buckets and two controlled accounts; verify upload/read/delete and cross-account denial, signed URL expiration and transformations; provide a captured/staging email provider and controlled recipients, follow reset/unsubscribe links and verify expiry/reuse; run scheduling with isolated jobs and verify public visibility. With default-security Safari/WebDriver or a controlled Mac, run the cancellation probes and actual UI navigation/auth/article flows; repeat representative upload/editor/lifecycle controls on physical iOS and Android devices. No billable infrastructure or production mutations are authorised or attempted.
 
-| Phase | Passed | Failed | Skipped |
-|---|---:|---:|---:|
-| Vitest (935 total) | 910 ordinary + 7 existing expected failures | 0 unexpected | 18 existing |
-| Main Playwright (84) | 83 | 1 WebKit navigation error | 0 |
-| Workflow Playwright (208) | 205 | 2 aggregate timeouts + 1 reopen synchronization error | 0 |
-| Team Profile (41) | 41 | 0 | 0 |
+## Inventory and evidence
 
-The command correctly exited 1. Across browser phases there were 329 passing executions and four failures; setup is counted twice, and four `publication-lifecycle` executions are API-driven. Those figures must not be read as 329 distinct browser actions.
+[Coverage inventory](coverage-inventory.md) separates browser actions, API/database checks, unit tests, source inspection, unavailable features, uncovered actions and externally blocked verification. [Source census](control-inventory.json) enumerates routes, conditional control declarations, dynamic row families and native dialogs; declaration or label matches are not browser evidence.
 
-Both desktop engines passed the complete representative formatting article through creation, save/reopen, preview and publication; the eight-stage writer/editor feedback, revision, scheduling, publication/unpublication workflow; all article uploads; list publication/trash; both conflict recovery choices; failure/delay/session/in-flight/double-click scenarios except the Back-to-articles test's reopen race. Both mobile projects passed all five workflows each. Team Profile passed all 41 tests, including invalid uploads and role changes. Warmed category/archive/home publication and unpublication passed in both engines.
+All retained screenshots/traces/HTML reports are run-scoped in ignored artifact directories. Authentication state, credentials and captured email/reset tokens are not committed. Useful editor/preview/published screenshots and Chromium PDF evidence are attached to workflow results. Cloud artifacts will provide downloadable links in the final report.
 
-The remaining workflow failures were addressed in test code at `680c11b`: Back now asserts the completed list navigation and visible article row before opening a fresh tab; the complete Admin menu census and multi-mutation review scenario receive 90s aggregate budgets. Individual page navigation, actions and assertions remain bounded at 10s. Resource contention from other local browser/typecheck runs was observed during the full run; changing aggregate budgets is not evidence of production performance.
-
-The permission audit also found a false-positive check: unsupported POST `/api/admin/users` returned 405, accepted by its broad assertion. The test now calls real POST `/api/editorial/users` and requires 403 for all non-Admin roles. Other sensitive endpoints require their handlers' exact 401/403 responses. These negative permission checks are API tests, separate from role-specific UI visibility and navigation.
-
-Final focused run at `680c11b` (`next-e2e-3321-31884`), fresh isolated production build, one worker, no retries: **54 passed, one failed, zero skipped** in 4.1 minutes. All eight Writer/Editor/Admin/Growth menu-navigation cases, both review-control cases, both Back-to-articles recovery cases, both warmed public-cache cases, and all 34 exact negative permission cases passed, plus six authentication setups. The single failure is public WebKit navigation; its error assertion also captured a NextAuth session-fetch “Load failed” during rapid navigation. The launcher correctly exited 1. These affected workflows were rerun, not the entire suite at the latest test-only commit. Build, typecheck and lint pass for the tested application/tests. See [evidence-index.md](./evidence-index.md) and [verification-results.json](./verification-results.json) for per-spec outcomes, screenshots, traces and successful preview/published captures.
-
-## Remaining gaps and environment limits
-
-The inventory explicitly marks uncovered UI mutations in debates, series, glossary,
-predictions, calendar, user ban/warn/delete, analytics date/filter controls, exports,
-notifications, commissioning brief/cadence/banner dismissal, inline review comments,
-password-reset email-link flow, newsletter/unsubscribe, reader avatar, comment replies
-and reports, PDF export and external sharing. Page loads or API/unit checks do not
-establish those browser behaviours. Calendar and predictions are intentionally Admin
-only; seeded first-admin setup is unavailable; Writer slug/author/publication controls
-are intentionally hidden. Real print/file chooser chrome, Google sign-in, delivery,
-Supabase RLS/signed URLs/image transformations/CDN and real mobile Safari hardware are
-outside the local stand-ins.
-
-The existing API test file has 18 explicitly skipped cases: five password-reset,
-six comments, four upload and three bookmark scenarios. Several are superseded by
-active UI/API audit tests, but reset expiry/use, long comment constraints and invalid
-bookmark ID remain gaps. Existing content-filter tests contain seven expected failures
-(separator/repeated-character bypasses and an academic-quotation exception); those are
-known defects, not successful behaviour. No new expected-failure or skip was added.
-
-WebKit public navigation remains an open failure: rapid real navigation produces uncaught RSC-fetch errors containing “due to access control checks”, even while destination URLs and document responses succeed. The error assertion stays enabled; no skip or suppression was added. The full run recorded 54 such errors. A diagnostic repeated navigation over both HTTP and a local HTTPS proxy and recorded 65 and 67 errors respectively ([diagnostic results](./evidence/local-https-probe.json), [diagnostic source](./evidence/local-https-probe.cjs.txt)). That rules out the earlier suggestion that plain HTTP alone explains the problem. Its underlying framework/browser cause and deployed Safari impact remain unconfirmed; changing unrelated application code or swallowing errors would not be a supported fix.
-
-A historical 1px WebKit footnote page-height difference did not recur in the final full run, but one successful run does not establish its elimination. All seven footnote tests passed on both engines; their assertions remain enabled. Real deployed HTTPS Safari and physical mobile devices were not exercised.
-
-Native file inputs are supplied through Playwright `setInputFiles`; the operating-system chooser is not tested. Text-range selection uses DOM Range to select exact editor text before clicking formatting controls, and pasted images use a synthetic clipboard event. Print is verified by intercepting `window.print`, not by operating the system print dialog. Fixtures and the scheduler firing use database/API calls, but user creation/edit/save/review/publication/upload actions use the actual interface.
-
-## Reproduction and artifacts
-
-Use [README.md](./README.md)'s isolated setup/audit commands. Reports live under each
-printed run ID. Failure traces can be opened with `npx playwright show-trace <trace.zip>`.
-Large evidence is retained locally and ignored by git; the existing CI artifact step
-uploads test-results and Playwright reports. No deployed environment or remote CI job was exercised. CI is configured to run the routine three-phase suite, including Team Profile; its Linux results and duration remain unverified locally. The launcher stopped its owned app and fake-storage processes; the disposable PostgreSQL cluster remains available for reproduction.
-
-The final focused command was:
-
-```sh
-TEST_DATABASE_URL=postgresql://postgres@localhost:55434/consilium \
-  E2E_APP_PORT=3321 FAKE_STORAGE_PORT=55422 \
-  EMAIL_CAPTURE_FILE=/tmp/consilium-workflow-isolated-outbox.jsonl \
-  E2E_PHASE=final-regression npm run test:e2e -- --workers=1 \
-  --project=public-webkit --project=wf-chromium --project=wf-webkit \
-  --grep 'every menu entry|sensitive endpoints|review correction|Back to articles|publication and unpublication|view-transition'
-```
-
-A durable local copy of this report, inventories, all seven isolated browser-run result directories and HTML reports, and original pre-fix evidence is under `/Users/zanie/The-Consilium/docs/testing/evidence/audit-isolated-2026-10-04/`. Its relative links remain intact. This is an ignored artifact directory; it does not overwrite the other checkout's source changes. The committed implementation remains on `test/ui-workflow-audit-isolated` in the separate worktree.
+See [reproduction and isolation commands](README.md). The PR remains draft while material failures or required verification remain unresolved.

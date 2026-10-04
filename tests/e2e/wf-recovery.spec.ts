@@ -44,8 +44,11 @@ test('refresh and tab closure retain exact unsaved work; recovery requires delib
   page.on('dialog', (d) => void d.accept())
   await page.reload({ waitUntil: 'networkidle' })
   await expect(page.getByRole('button', { name: 'Recover local work' })).toBeVisible()
+  await expect(ed.title()).toBeDisabled()
+  await expect(ed.excerpt()).toBeDisabled()
   await expect(ed.body()).toHaveText('Server text.')
   await page.getByRole('button', { name: 'Recover local work' }).click()
+  await expect(ed.title()).toBeEnabled()
   await expect(ed.body()).toContainText('Exact unsaved punctuation: £4.25 & <local>.')
   await expect(ed.title()).toHaveValue(title + ' unsaved')
   await expect(

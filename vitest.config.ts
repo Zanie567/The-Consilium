@@ -12,6 +12,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    include: ['tests/**/*.test.{ts,tsx}'],
     // Each database suite owns a pool. Bound concurrency so a full local audit
     // does not exhaust Postgres/CPU while its production app is also running.
     maxWorkers: 2,

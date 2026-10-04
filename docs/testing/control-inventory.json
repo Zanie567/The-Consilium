@@ -754,6 +754,7 @@
         "tests/e2e/team-profile-lifecycle.spec.ts",
         "tests/e2e/team-profile.spec.ts",
         "tests/e2e/wf-access.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
         "tests/integration/proxy.test.ts",
@@ -2065,11 +2066,11 @@
         "src/components/admin/ArticleEditor.tsx:233",
         "src/components/admin/ArticleEditor.tsx:243",
         "src/components/admin/article-editor/ArticleEditorDocument.tsx:53",
-        "src/components/admin/article-editor/ArticleEditorDocument.tsx:73",
-        "src/components/admin/article-editor/ArticleEditorDocument.tsx:82",
-        "src/components/admin/article-editor/ArticleEditorDocument.tsx:95",
-        "src/components/admin/article-editor/ArticleEditorDocument.tsx:109",
-        "src/components/admin/article-editor/ArticleEditorDocument.tsx:119",
+        "src/components/admin/article-editor/ArticleEditorDocument.tsx:74",
+        "src/components/admin/article-editor/ArticleEditorDocument.tsx:83",
+        "src/components/admin/article-editor/ArticleEditorDocument.tsx:96",
+        "src/components/admin/article-editor/ArticleEditorDocument.tsx:110",
+        "src/components/admin/article-editor/ArticleEditorDocument.tsx:120",
         "src/components/editor/TiptapEditor.tsx:132",
         "src/components/editor/TiptapEditor.tsx:133",
         "src/components/editor/TiptapEditor.tsx:251",
@@ -2327,11 +2328,11 @@
         "src/components/admin/ArticleEditor.tsx:233",
         "src/components/admin/ArticleEditor.tsx:243",
         "src/components/admin/article-editor/ArticleEditorDocument.tsx:53",
-        "src/components/admin/article-editor/ArticleEditorDocument.tsx:73",
-        "src/components/admin/article-editor/ArticleEditorDocument.tsx:82",
-        "src/components/admin/article-editor/ArticleEditorDocument.tsx:95",
-        "src/components/admin/article-editor/ArticleEditorDocument.tsx:109",
-        "src/components/admin/article-editor/ArticleEditorDocument.tsx:119",
+        "src/components/admin/article-editor/ArticleEditorDocument.tsx:74",
+        "src/components/admin/article-editor/ArticleEditorDocument.tsx:83",
+        "src/components/admin/article-editor/ArticleEditorDocument.tsx:96",
+        "src/components/admin/article-editor/ArticleEditorDocument.tsx:110",
+        "src/components/admin/article-editor/ArticleEditorDocument.tsx:120",
         "src/components/editor/TiptapEditor.tsx:132",
         "src/components/editor/TiptapEditor.tsx:133",
         "src/components/editor/TiptapEditor.tsx:251",
@@ -2982,7 +2983,8 @@
         "tests/e2e/wf-remaining.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
-        "tests/integration/api.test.ts"
+        "tests/integration/api.test.ts",
+        "tests/integration/management-data-protection.test.ts"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/debates/layout.tsx: import { requirePortalRole } from '@/lib/portalAccess'",
@@ -3089,7 +3091,8 @@
         "tests/e2e/wf-remaining.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
-        "tests/integration/api.test.ts"
+        "tests/integration/api.test.ts",
+        "tests/integration/management-data-protection.test.ts"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/debates/layout.tsx: import { requirePortalRole } from '@/lib/portalAccess'",
@@ -3414,7 +3417,8 @@
         "tests/e2e/wf-remaining.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
-        "tests/integration/api.test.ts"
+        "tests/integration/api.test.ts",
+        "tests/integration/management-data-protection.test.ts"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/debates/page.tsx: if (!session?.user || !['ADMIN', 'EDITOR'].includes(session.user.role ?? '')) {",
@@ -4094,6 +4098,7 @@
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-controls.spec.ts",
         "tests/e2e/wf-failures.spec.ts",
@@ -4110,6 +4115,7 @@
         "tests/integration/api.test.ts",
         "tests/integration/calendar-access.test.ts",
         "tests/integration/comments-resilience.test.ts",
+        "tests/integration/management-data-protection.test.ts",
         "tests/integration/proxy.test.ts",
         "tests/integration/read-through-routes.test.ts",
         "tests/integration/review-route.test.ts",
@@ -5565,38 +5571,43 @@
         "tests/e2e/editorial.spec.ts",
         "tests/e2e/team-profile-lifecycle.spec.ts",
         "tests/e2e/wf-access.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
         "tests/integration/api.test.ts",
+        "tests/integration/management-data-protection.test.ts",
         "tests/integration/proxy.test.ts",
         "tests/integration/team-profile-db.test.ts"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/users/[id]/page.tsx: import { getVerifiedSessionUser } from '@/lib/auth'",
         "src/app/editorial/(portal)/users/[id]/page.tsx: const session = await getVerifiedSessionUser(ADMIN_ONLY)",
+        "src/app/editorial/(portal)/users/[id]/page.tsx: const session = await getVerifiedSessionUser(ADMIN_ONLY)",
         "src/app/editorial/(portal)/users/[id]/page.tsx: if (!session) redirect('/editorial')",
         "src/app/editorial/(portal)/layout.tsx: redirect('/editorial/login')"
       ],
       "controls": [
-        "src/components/editorial/UserProfileEditor.tsx:101",
-        "src/components/editorial/UserProfileEditor.tsx:109",
-        "src/components/editorial/UserProfileEditor.tsx:112",
-        "src/components/editorial/UserProfileEditor.tsx:120",
-        "src/components/editorial/UserProfileEditor.tsx:224",
-        "src/components/editorial/UserProfileEditor.tsx:292",
-        "src/components/editorial/UserProfileEditor.tsx:299",
-        "src/components/editorial/UserProfileEditor.tsx:313",
-        "src/components/editorial/UserProfileEditor.tsx:327",
-        "src/components/editorial/UserProfileEditor.tsx:343",
-        "src/components/editorial/UserProfileEditor.tsx:369",
-        "src/components/editorial/UserProfileEditor.tsx:385",
-        "src/components/editorial/UserProfileEditor.tsx:397",
-        "src/components/editorial/UserProfileEditor.tsx:407",
-        "src/components/editorial/UserProfileEditor.tsx:414",
-        "src/components/editorial/UserProfileEditor.tsx:425",
-        "src/components/editorial/UserProfileEditor.tsx:465",
-        "src/components/editorial/UserProfileEditor.tsx:538",
-        "src/components/editorial/UserProfileEditor.tsx:546",
+        "src/components/editorial/UserProfileEditor.tsx:106",
+        "src/components/editorial/UserProfileEditor.tsx:116",
+        "src/components/editorial/UserProfileEditor.tsx:119",
+        "src/components/editorial/UserProfileEditor.tsx:127",
+        "src/components/editorial/UserProfileEditor.tsx:241",
+        "src/components/editorial/UserProfileEditor.tsx:309",
+        "src/components/editorial/UserProfileEditor.tsx:317",
+        "src/components/editorial/UserProfileEditor.tsx:331",
+        "src/components/editorial/UserProfileEditor.tsx:345",
+        "src/components/editorial/UserProfileEditor.tsx:361",
+        "src/components/editorial/UserProfileEditor.tsx:388",
+        "src/components/editorial/UserProfileEditor.tsx:404",
+        "src/components/editorial/UserProfileEditor.tsx:416",
+        "src/components/editorial/UserProfileEditor.tsx:426",
+        "src/components/editorial/UserProfileEditor.tsx:434",
+        "src/components/editorial/UserProfileEditor.tsx:445",
+        "src/components/editorial/UserProfileEditor.tsx:485",
+        "src/components/editorial/UserProfileEditor.tsx:558",
+        "src/components/editorial/UserProfileEditor.tsx:566",
+        "src/components/ui/ConfirmDialog.tsx:43",
+        "src/components/ui/ConfirmDialog.tsx:46",
         "src/components/layout/EditorialSidebarWrapper.tsx:36",
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
@@ -5643,17 +5654,17 @@
       "dynamicFamilies": [
         {
           "file": "src/components/editorial/UserProfileEditor.tsx",
-          "line": 298,
+          "line": 316,
           "source": "ROLE_OPTIONS.map((r) => ( <option key={r} value={r}>{r}</option> ))"
         },
         {
           "file": "src/components/editorial/UserProfileEditor.tsx",
-          "line": 311,
+          "line": 329,
           "source": "categories.map((cat) => ( <label key={cat.id} className=\"flex items-center gap-1.5 cursor-pointer\"> <input type=\"checkbox\" checked={selectedCats.includes(cat.id)} onChange={(e) => { setSelectedCats((prev) => e.target.checked ? [...prev, cat.id] : prev.filter((id) => id !== cat.id) ) }} className=\"accent-gold\" /> <span className=\"text-xs text-[var(--fg-muted)]\">{cat.name}</span> </label> ))"
         },
         {
           "file": "src/components/editorial/UserProfileEditor.tsx",
-          "line": 462,
+          "line": 482,
           "source": "user.articles.map((a) => ( <tr key={a.id} className=\"hover:bg-[var(--bg-subtle)] transition-colors\"> <td className=\"px-5 py-3\"> <Link href={`/editorial/articles/${a.id}/edit`} className=\"text-[var(--fg)] hover:text-gold transition-colors text-xs font-medium line-clamp-1\" > {a.title} </Link> </td> <td className=\"px-4 py-3 text-[var(--fg-faint)] text-xs hidden sm:table-cell\"> {a.category?.name ?? 'Uncategorised'} </td> <td className=\"px-4 py-3\"> <span className={`text-[10px] font-bold px-2 py-0.5 ${STATUS_STYLE[a.status] ?? ''}`}> {a.status.replace('_', ' ')} </span> </td> <td className=\"px-4 py-3 text-[var(--fg-faint)] text-xs hidden md:table-cell\"> {format(new Date(a.createdAt), 'd MMM yyyy')} </td> <td className=\"px-4 py-3 text-[var(--fg-faint)] text-xs hidden lg:table-cell\"> {a.publishedAt ? format(new Date(a.publishedAt), 'd MMM yyyy') : 'Not published'} </td> </tr> ))"
         },
         {
@@ -5701,9 +5712,11 @@
         "tests/e2e/editorial.spec.ts",
         "tests/e2e/team-profile-lifecycle.spec.ts",
         "tests/e2e/wf-access.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
         "tests/integration/api.test.ts",
+        "tests/integration/management-data-protection.test.ts",
         "tests/integration/proxy.test.ts",
         "tests/integration/team-profile-db.test.ts"
       ],
@@ -5714,53 +5727,56 @@
         "src/app/editorial/(portal)/layout.tsx: redirect('/editorial/login')"
       ],
       "controls": [
-        "src/components/admin/AdminUsersPage.tsx:181",
-        "src/components/admin/AdminUsersPage.tsx:191",
-        "src/components/admin/AdminUsersPage.tsx:197",
-        "src/components/admin/AdminUsersPage.tsx:206",
-        "src/components/admin/AdminUsersPage.tsx:218",
-        "src/components/admin/AdminUsersPage.tsx:226",
-        "src/components/admin/AdminUsersPage.tsx:234",
-        "src/components/admin/AdminUsersPage.tsx:243",
-        "src/components/admin/AdminUsersPage.tsx:417",
-        "src/components/admin/AdminUsersPage.tsx:425",
-        "src/components/admin/AdminUsersPage.tsx:454",
-        "src/components/admin/AdminUsersPage.tsx:460",
-        "src/components/admin/AdminUsersPage.tsx:477",
-        "src/components/admin/AdminUsersPage.tsx:491",
-        "src/components/admin/AdminUsersPage.tsx:506",
+        "src/components/admin/AdminUsersPage.tsx:182",
+        "src/components/admin/AdminUsersPage.tsx:192",
+        "src/components/admin/AdminUsersPage.tsx:198",
+        "src/components/admin/AdminUsersPage.tsx:207",
+        "src/components/admin/AdminUsersPage.tsx:219",
+        "src/components/admin/AdminUsersPage.tsx:227",
+        "src/components/admin/AdminUsersPage.tsx:235",
+        "src/components/admin/AdminUsersPage.tsx:244",
+        "src/components/admin/AdminUsersPage.tsx:274",
+        "src/components/admin/AdminUsersPage.tsx:422",
+        "src/components/admin/AdminUsersPage.tsx:430",
+        "src/components/admin/AdminUsersPage.tsx:459",
+        "src/components/admin/AdminUsersPage.tsx:465",
+        "src/components/admin/AdminUsersPage.tsx:482",
+        "src/components/admin/AdminUsersPage.tsx:496",
         "src/components/admin/AdminUsersPage.tsx:511",
-        "src/components/admin/AdminUsersPage.tsx:512",
-        "src/components/admin/AdminUsersPage.tsx:513",
-        "src/components/admin/AdminUsersPage.tsx:514",
+        "src/components/admin/AdminUsersPage.tsx:517",
         "src/components/admin/AdminUsersPage.tsx:518",
+        "src/components/admin/AdminUsersPage.tsx:519",
+        "src/components/admin/AdminUsersPage.tsx:520",
         "src/components/admin/AdminUsersPage.tsx:524",
-        "src/components/admin/AdminUsersPage.tsx:648",
-        "src/components/admin/AdminUsersPage.tsx:656",
-        "src/components/admin/UserDetailPanel.tsx:349",
-        "src/components/admin/UserDetailPanel.tsx:359",
-        "src/components/admin/UserDetailPanel.tsx:369",
-        "src/components/admin/UserDetailPanel.tsx:382",
-        "src/components/admin/UserDetailPanel.tsx:391",
-        "src/components/admin/UserDetailPanel.tsx:398",
-        "src/components/admin/UserDetailPanel.tsx:408",
-        "src/components/admin/UserDetailPanel.tsx:422",
-        "src/components/admin/UserDetailPanel.tsx:430",
-        "src/components/admin/UserDetailPanel.tsx:433",
-        "src/components/admin/UserDetailPanel.tsx:441",
-        "src/components/admin/UserDetailPanel.tsx:449",
-        "src/components/admin/UserDetailPanel.tsx:452",
-        "src/components/admin/UserDetailPanel.tsx:464",
-        "src/components/admin/UserDetailPanel.tsx:472",
-        "src/components/admin/UserDetailPanel.tsx:475",
-        "src/components/admin/UserDetailPanel.tsx:497",
-        "src/components/admin/UserDetailPanel.tsx:541",
-        "src/components/admin/UserDetailPanel.tsx:582",
-        "src/components/admin/UserDetailPanel.tsx:594",
-        "src/components/admin/UserDetailPanel.tsx:601",
-        "src/components/admin/UserDetailPanel.tsx:626",
-        "src/components/admin/UserDetailPanel.tsx:662",
-        "src/components/admin/UserDetailPanel.tsx:672",
+        "src/components/admin/AdminUsersPage.tsx:531",
+        "src/components/admin/AdminUsersPage.tsx:655",
+        "src/components/admin/AdminUsersPage.tsx:664",
+        "src/components/admin/UserDetailPanel.tsx:255",
+        "src/components/admin/UserDetailPanel.tsx:256",
+        "src/components/admin/UserDetailPanel.tsx:330",
+        "src/components/admin/UserDetailPanel.tsx:340",
+        "src/components/admin/UserDetailPanel.tsx:350",
+        "src/components/admin/UserDetailPanel.tsx:363",
+        "src/components/admin/UserDetailPanel.tsx:372",
+        "src/components/admin/UserDetailPanel.tsx:380",
+        "src/components/admin/UserDetailPanel.tsx:390",
+        "src/components/admin/UserDetailPanel.tsx:404",
+        "src/components/admin/UserDetailPanel.tsx:412",
+        "src/components/admin/UserDetailPanel.tsx:415",
+        "src/components/admin/UserDetailPanel.tsx:423",
+        "src/components/admin/UserDetailPanel.tsx:431",
+        "src/components/admin/UserDetailPanel.tsx:434",
+        "src/components/admin/UserDetailPanel.tsx:446",
+        "src/components/admin/UserDetailPanel.tsx:454",
+        "src/components/admin/UserDetailPanel.tsx:457",
+        "src/components/admin/UserDetailPanel.tsx:479",
+        "src/components/admin/UserDetailPanel.tsx:523",
+        "src/components/admin/UserDetailPanel.tsx:564",
+        "src/components/admin/UserDetailPanel.tsx:577",
+        "src/components/admin/UserDetailPanel.tsx:584",
+        "src/components/admin/UserDetailPanel.tsx:609",
+        "src/components/admin/UserDetailPanel.tsx:645",
+        "src/components/admin/UserDetailPanel.tsx:655",
         "src/components/ui/ConfirmDialog.tsx:43",
         "src/components/ui/ConfirmDialog.tsx:46",
         "src/components/layout/EditorialSidebarWrapper.tsx:36",
@@ -5809,82 +5825,82 @@
       "dynamicFamilies": [
         {
           "file": "src/components/admin/AdminUsersPage.tsx",
-          "line": 205,
+          "line": 206,
           "source": "['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].filter((r) => r !== user.role).map((r) => ( <button key={r} onClick={() => handleRoleChange(r)} className=\"w-full text-left px-4 py-2 text-xs text-[var(--fg)] hover:bg-gold/10 hover:text-gold\" > {r} </button> ))"
         },
         {
           "file": "src/components/admin/AdminUsersPage.tsx",
-          "line": 285,
+          "line": 290,
           "source": "entries.map((e) => { const meta = e.metadata ?? {} const target = meta.targetEmail ?? meta.deletedEmail ?? e.targetId.slice(0, 8) + '...' const by = meta.adminName ?? e.performedBy.slice(0, 8) + '...' const detail = e.action === 'USER_ROLE_CHANGED' && meta.oldRole && meta.newRole ? `${meta.oldRole} → ${meta.newRole}` : meta.reason ? meta.reason.slice(0, 60) + (meta.reason.length > 60 ? '…' : '') : '' return ( <tr key={e.id} className=\"hover:bg-[var(--bg)] transition-colors\"> <td className=\"px-4 py-3\"> <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 ${ e.action.includes('BANNED') ? 'bg-red-500/15 text-red-500' : e.action.includes('UNBANNED') ? 'bg-green-500/15 text-green-500' : e.action.includes('WARNED') ? 'bg-amber-500/15 text-amber-500' : e.action.includes('DELETED') ? 'bg-red-500/15 text-red-400' : 'bg-[var(--border)] text-[var(--fg-muted)]' }`}> {ACTION_LABELS[e.action] ?? e.action} </span> {detail && <p className=\"text-[var(--fg-faint)] text-[9px] mt-0.5 line-clamp-1\">{detail}</p>} </td> <td className=\"px-4 py-3 text-[var(--fg)] font-mono\">{target}</td> <td className=\"px-4 py-3 text-[var(--fg-muted)] hidden md:table-cell\">{by}</td> <td className=\"px-4 py-3 text-[var(--fg-faint)] whitespace-nowrap\"> {formatDistanceToNow(new Date(e.createdAt), { addSuffix: true })} </td> </tr> ) })"
         },
         {
           "file": "src/components/admin/AdminUsersPage.tsx",
-          "line": 442,
+          "line": 447,
           "source": "[0, 1, 2, 3].map((i) => ( <div key={i} className=\"bg-[var(--bg-elevated)] border border-[var(--border)] p-5 animate-pulse\"> <div className=\"h-3 w-24 bg-[var(--border)] rounded mb-3\" /> <div className=\"h-8 w-16 bg-[var(--border)] rounded\" /> </div> ))"
         },
         {
           "file": "src/components/admin/AdminUsersPage.tsx",
-          "line": 490,
+          "line": 495,
           "source": "ROLE_TABS.map((tab) => ( <button key={tab} onClick={() => setRoleTab(tab)} className={`shrink-0 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${ roleTab === tab ? 'bg-gold text-navy' : 'text-[var(--fg-faint)] hover:text-[var(--fg)]' }`} > {tab} </button> ))"
         },
         {
           "file": "src/components/admin/AdminUsersPage.tsx",
-          "line": 523,
+          "line": 530,
           "source": "SORT_OPTIONS.map((o) => ( <option key={o.value} value={o.value}>{o.label}</option> ))"
         },
         {
           "file": "src/components/admin/AdminUsersPage.tsx",
-          "line": 549,
+          "line": 556,
           "source": "[1, 2, 3, 4, 5].map((i) => ( <tr key={i}> <td colSpan={9} className=\"px-4 py-4\"> <div className=\"h-4 bg-[var(--border)] animate-pulse rounded w-3/4\" /> </td> </tr> ))"
         },
         {
           "file": "src/components/admin/AdminUsersPage.tsx",
-          "line": 563,
+          "line": 570,
           "source": "users.map((user) => ( <tr key={user.id} className=\"hover:bg-[var(--bg)] transition-colors cursor-pointer\" onClick={() => setSelectedUserId(user.id)} > {/* Avatar + name + email */} <td className=\"px-4 py-3\"> <div className=\"flex items-center gap-3\"> <div className=\"w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold text-xs font-bold shrink-0\"> {(user.name || user.email).charAt(0).toUpperCase()} </div> <div className=\"min-w-0\"> <p className=\"text-[var(--fg)] font-semibold text-xs truncate\">{user.name ?? '-'}</p> <p className=\"text-[var(--fg-faint)] text-[10px] truncate\">{user.email}</p> </div> </div> </td> {/* Role */} <td className=\"px-3 py-3\"> <RoleBadge role={user.role} /> </td> {/* Articles */} <td className=\"px-3 py-3 text-center text-[var(--fg-muted)] text-xs hidden sm:table-cell\"> {user._count.articles} </td> {/* Comments */} <td className=\"px-3 py-3 text-center text-[var(--fg-muted)] text-xs hidden md:table-cell\"> {user._count.comments} </td> {/* Warnings */} <td className=\"px-3 py-3 text-center hidden lg:table-cell\"> <span className={`text-xs font-bold ${user._count.warnings > 0 ? 'text-amber-500' : 'text-[var(--fg-faint)]'}`}> {user._count.warnings} </span> </td> {/* Joined */} <td className=\"px-3 py-3 text-[var(--fg-faint)] text-[10px] whitespace-nowrap hidden lg:table-cell\"> {format(new Date(user.createdAt), 'd MMM yyyy')} </td> {/* Last active */} <td className=\"px-3 py-3 text-[var(--fg-faint)] text-[10px] hidden xl:table-cell\"> <span className=\"flex items-center gap-1\"> <Clock size={9} /> {user.lastActiveAt ? formatDistanceToNow(new Date(user.lastActiveAt), { addSuffix: true }) : 'Never'} </span> </td> {/* Status */} <td className=\"px-3 py-3\"> <StatusDot isBanned={user.isBanned} /> </td> {/* Actions */} <td className=\"px-2 py-3\" onClick={(e) => e.stopPropagation()}> <ActionMenu user={user} currentAdminId={currentAdminId} onView={() => setSelectedUserId(user.id)} onReload={() => { setActionError(''); handleReload() }} onError={setActionError} /> </td> </tr> ))"
         },
         {
           "file": "src/components/admin/UserDetailPanel.tsx",
-          "line": 368,
+          "line": 349,
           "source": "['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].filter((r) => r !== user.role).map((r) => ( <button key={r} onClick={() => requestRoleChange(r)} className=\"w-full text-left px-4 py-2 text-xs text-[var(--fg)] hover:bg-gold/10 hover:text-gold transition-colors\" > {r} </button> ))"
         },
         {
           "file": "src/components/admin/UserDetailPanel.tsx",
-          "line": 496,
+          "line": 478,
           "source": "(['overview', 'content', 'activity'] as TabId[]).map((tab) => ( <button key={tab} onClick={() => setActiveTab(tab)} className={`px-5 py-3 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-colors ${ activeTab === tab ? 'border-gold text-gold' : 'border-transparent text-[var(--fg-faint)] hover:text-[var(--fg)]' }`} > {tab} </button> ))"
         },
         {
           "file": "src/components/admin/UserDetailPanel.tsx",
-          "line": 553,
+          "line": 535,
           "source": "user.warnings.map((w) => ( <div key={w.id} className=\"bg-amber-500/5 border border-amber-500/20 p-3 rounded-sm\"> <p className=\"text-[var(--fg)] text-xs leading-relaxed\">{w.reason}</p> <p className=\"text-amber-500/70 text-[9px] mt-1\"> Issued by {w.issuedBy} on {format(new Date(w.createdAt), 'd MMM yyyy HH:mm')} </p> </div> ))"
         },
         {
           "file": "src/components/admin/UserDetailPanel.tsx",
-          "line": 574,
-          "source": "user.notes.map((n) => ( <div key={n.id} className=\"flex items-start gap-2 bg-navy/20 border border-[var(--border)] p-3\"> <div className=\"flex-1\"> <p className=\"text-[var(--fg)] text-xs leading-relaxed\">{n.note}</p> <p className=\"text-[var(--fg-faint)] text-[9px] mt-1\"> {n.authorName ?? n.authorId} on {format(new Date(n.createdAt), 'd MMM yyyy HH:mm')} </p> </div> <button onClick={() => handleDeleteNote(n.id)} className=\"text-[var(--fg-faint)] hover:text-red-400 transition-colors shrink-0\" aria-label=\"Delete note\" > <X size={12} /> </button> </div> ))"
+          "line": 556,
+          "source": "user.notes.map((n) => ( <div key={n.id} className=\"flex items-start gap-2 bg-navy/20 border border-[var(--border)] p-3\"> <div className=\"flex-1\"> <p className=\"text-[var(--fg)] text-xs leading-relaxed\">{n.note}</p> <p className=\"text-[var(--fg-faint)] text-[9px] mt-1\"> {n.authorName ?? n.authorId} on {format(new Date(n.createdAt), 'd MMM yyyy HH:mm')} </p> </div> <button onClick={() => handleDeleteNote(n.id)} disabled={noteLoading} className=\"text-[var(--fg-faint)] hover:text-red-400 transition-colors shrink-0\" aria-label=\"Delete note\" > <X size={12} /> </button> </div> ))"
         },
         {
           "file": "src/components/admin/UserDetailPanel.tsx",
-          "line": 625,
+          "line": 608,
           "source": "user.articles.map((a) => ( <a key={a.id} href={`/editorial/articles/${a.id}/edit`} target=\"_blank\" rel=\"noopener noreferrer\" className=\"flex items-center gap-3 p-2 bg-[var(--bg)] border border-[var(--border)] hover:border-gold/30 transition-colors group\" > <div className=\"flex-1 min-w-0\"> <p className=\"text-[var(--fg)] text-xs font-semibold group-hover:text-gold transition-colors line-clamp-1\">{a.title}</p> <div className=\"flex items-center gap-2 mt-0.5\"> {a.category && <span className=\"text-gold text-[8px] font-bold uppercase tracking-widest\">{a.category.name}</span>} <span className=\"text-[var(--fg-faint)] text-[9px]\">{format(new Date(a.createdAt), 'd MMM yyyy')}</span> </div> </div> <div className=\"shrink-0 flex items-center gap-2\"> <ArticleStatusBadge status={a.status} /> <span className=\"text-[var(--fg-faint)] text-[9px] flex items-center gap-0.5\"><Eye size={9} />{a.viewCount}</span> </div> </a> ))"
         },
         {
           "file": "src/components/admin/UserDetailPanel.tsx",
-          "line": 659,
+          "line": 642,
           "source": "user.comments.filter((c) => !hiddenComments.has(c.id)).map((c) => ( <div key={c.id} className=\"flex gap-3 p-3 bg-[var(--bg)] border border-[var(--border)]\"> <div className=\"flex-1 min-w-0\"> <a href={`/articles/${c.article.slug}#comments`} target=\"_blank\" rel=\"noopener noreferrer\" className=\"text-gold text-[9px] font-bold uppercase tracking-widest hover:underline line-clamp-1 block\"> {c.article.title} </a> <p className=\"text-[var(--fg)] text-xs mt-0.5 line-clamp-2\">{c.body}</p> <div className=\"flex items-center gap-3 mt-1 text-[9px] text-[var(--fg-faint)]\"> <span>{format(new Date(c.createdAt), 'd MMM yyyy')}</span> {c._count.upvotedBy > 0 && <span>{c._count.upvotedBy} upvotes</span>} </div> </div> <button onClick={() => handleRemoveComment(c.id)} className=\"shrink-0 text-[var(--fg-faint)] hover:text-red-400 transition-colors\" title=\"Remove comment\" > <Trash2 size={12} /> </button> </div> ))"
         },
         {
           "file": "src/components/admin/UserDetailPanel.tsx",
-          "line": 697,
+          "line": 680,
           "source": "user.debateVotes.map((v) => ( <div key={v.id} className=\"flex items-center gap-3 p-2 bg-[var(--bg)] border border-[var(--border)]\"> <span className={`shrink-0 text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 ${v.side === 'FOR' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-red-500/15 text-red-500'}`}> {v.side} </span> <p className=\"flex-1 text-[var(--fg)] text-xs line-clamp-1\">{v.debate.title}</p> <span className=\"shrink-0 text-[var(--fg-faint)] text-[9px]\">{format(new Date(v.createdAt), 'd MMM yyyy')}</span> </div> ))"
         },
         {
           "file": "src/components/admin/UserDetailPanel.tsx",
-          "line": 717,
+          "line": 700,
           "source": "user.readingProgress.map((r) => ( <div key={r.id} className=\"flex items-center gap-3 p-2 bg-[var(--bg)] border border-[var(--border)]\"> <div className=\"flex-1 min-w-0\"> <p className=\"text-[var(--fg)] text-xs line-clamp-1\">{r.article.title}</p> <p className=\"text-[var(--fg-faint)] text-[9px] mt-0.5\">{formatDistanceToNow(new Date(r.updatedAt), { addSuffix: true })}</p> </div> <div className=\"shrink-0 flex flex-col items-end gap-1\"> <span className=\"text-[9px] text-[var(--fg-faint)]\">{Math.round(r.progress)}%</span> <div className=\"w-16 h-0.5 bg-[var(--border)]\"> <div className=\"h-full bg-gold\" style={{ width: `${r.progress}%` }} /> </div> </div> {r.completed && <span className=\"text-[8px] text-green-500 font-bold shrink-0\">Read</span>} </div> ))"
         },
         {
           "file": "src/components/admin/UserDetailPanel.tsx",
-          "line": 750,
+          "line": 733,
           "source": "events.map((e, i) => ( <div key={i} className=\"flex items-start gap-3\"> <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${ e.type === 'article' ? 'bg-gold' : e.type === 'comment' ? 'bg-blue-400' : 'bg-emerald-400' }`} /> <div className=\"flex-1 min-w-0\"> <p className=\"text-[var(--fg)] text-xs line-clamp-1\">{e.label}</p> <p className=\"text-[var(--fg-faint)] text-[9px]\">{formatDistanceToNow(new Date(e.date), { addSuffix: true })}</p> </div> </div> ))"
         },
         {
@@ -7763,6 +7779,7 @@
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
         "tests/integration/api-audit.test.ts",
@@ -8630,6 +8647,7 @@
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
@@ -9029,6 +9047,7 @@
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
@@ -9107,6 +9126,7 @@
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-cache.spec.ts",
         "tests/e2e/wf-controls.spec.ts",
@@ -9127,6 +9147,7 @@
         "tests/integration/article-comments-auth.test.ts",
         "tests/integration/article-save-route.test.ts",
         "tests/integration/calendar-access.test.ts",
+        "tests/integration/management-data-protection.test.ts",
         "tests/integration/review-route.test.ts",
         "tests/integration/scheduling-routes.test.ts",
         "tests/integration/team-profile-db.test.ts",
@@ -10668,9 +10689,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:181",
+      "id": "src/components/admin/AdminUsersPage.tsx:182",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 181,
+      "line": 182,
       "tag": "button",
       "label": "Actions",
       "href": null,
@@ -10688,9 +10709,9 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:191",
+      "id": "src/components/admin/AdminUsersPage.tsx:192",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 191,
+      "line": 192,
       "tag": "button",
       "label": "View Profile",
       "href": null,
@@ -10705,9 +10726,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:197",
+      "id": "src/components/admin/AdminUsersPage.tsx:198",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 197,
+      "line": 198,
       "tag": "button",
       "label": "Change Role",
       "href": null,
@@ -10724,9 +10745,9 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:206",
+      "id": "src/components/admin/AdminUsersPage.tsx:207",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 206,
+      "line": 207,
       "tag": "button",
       "label": "{r}",
       "href": null,
@@ -10741,9 +10762,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:218",
+      "id": "src/components/admin/AdminUsersPage.tsx:219",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 218,
+      "line": 219,
       "tag": "button",
       "label": "Send Warning",
       "href": null,
@@ -10752,15 +10773,17 @@
       "expectedFromSource": {
         "onClick": "{() => { setOpen(false); onView() }}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
-      "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
+      "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:226",
+      "id": "src/components/admin/AdminUsersPage.tsx:227",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 226,
+      "line": 227,
       "tag": "button",
       "label": "Unban Account",
       "href": null,
@@ -10775,9 +10798,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:234",
+      "id": "src/components/admin/AdminUsersPage.tsx:235",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 234,
+      "line": 235,
       "tag": "button",
       "label": "Ban Account",
       "href": null,
@@ -10792,9 +10815,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:243",
+      "id": "src/components/admin/AdminUsersPage.tsx:244",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 243,
+      "line": 244,
       "tag": "button",
       "label": "Delete Account",
       "href": null,
@@ -10811,9 +10834,28 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:417",
+      "id": "src/components/admin/AdminUsersPage.tsx:274",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 417,
+      "line": 274,
+      "tag": "button",
+      "label": "Retry audit log",
+      "href": null,
+      "type": null,
+      "disabledWhen": null,
+      "expectedFromSource": {
+        "onClick": "{load}"
+      },
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts"
+      ],
+      "groupTestFiles": [],
+      "evidence": "CODE_INSPECTION",
+      "coverage": "Test references label; behaviour requires matching run evidence"
+    },
+    {
+      "id": "src/components/admin/AdminUsersPage.tsx:422",
+      "file": "src/components/admin/AdminUsersPage.tsx",
+      "line": 422,
       "tag": "button",
       "label": "Dismiss",
       "href": null,
@@ -10832,9 +10874,9 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:425",
+      "id": "src/components/admin/AdminUsersPage.tsx:430",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 425,
+      "line": 430,
       "tag": "button",
       "label": "Retry",
       "href": null,
@@ -10843,15 +10885,17 @@
       "expectedFromSource": {
         "onClick": "{loadStats}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
-      "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
+      "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:454",
+      "id": "src/components/admin/AdminUsersPage.tsx:459",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 454,
+      "line": 459,
       "tag": "button",
       "label": "All Users",
       "href": null,
@@ -10866,9 +10910,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:460",
+      "id": "src/components/admin/AdminUsersPage.tsx:465",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 460,
+      "line": 465,
       "tag": "button",
       "label": "Audit Log",
       "href": null,
@@ -10877,15 +10921,17 @@
       "expectedFromSource": {
         "onClick": "{() => setMainTab('audit')}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
-      "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
+      "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:477",
+      "id": "src/components/admin/AdminUsersPage.tsx:482",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 477,
+      "line": 482,
       "tag": "input",
       "label": "Search name or email...",
       "href": null,
@@ -10895,16 +10941,17 @@
         "onChange": "{(e) => handleSearchChange(e.target.value)}"
       },
       "candidateTests": [
-        "tests/e2e/wf-access.spec.ts"
+        "tests/e2e/wf-access.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:491",
+      "id": "src/components/admin/AdminUsersPage.tsx:496",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 491,
+      "line": 496,
       "tag": "button",
       "label": "{tab}",
       "href": null,
@@ -10919,11 +10966,11 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:506",
+      "id": "src/components/admin/AdminUsersPage.tsx:511",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 506,
+      "line": 511,
       "tag": "select",
-      "label": "All Status Active Banned Warned",
+      "label": "User status",
       "href": null,
       "type": null,
       "disabledWhen": null,
@@ -10936,9 +10983,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:511",
+      "id": "src/components/admin/AdminUsersPage.tsx:517",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 511,
+      "line": 517,
       "tag": "option",
       "label": "All Status",
       "href": null,
@@ -10951,9 +10998,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:512",
+      "id": "src/components/admin/AdminUsersPage.tsx:518",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 512,
+      "line": 518,
       "tag": "option",
       "label": "Active",
       "href": null,
@@ -10962,10 +11009,12 @@
       "expectedFromSource": "Input/container; inspect enclosing handler",
       "candidateTests": [
         "tests/e2e/team-profile.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
         "tests/integration/article-create-route.test.ts",
         "tests/integration/article-save-route.test.ts",
+        "tests/integration/management-data-protection.test.ts",
         "tests/integration/profile-account-route.test.ts",
         "tests/integration/scheduling-routes.test.ts",
         "tests/integration/team-profile-db.test.ts",
@@ -10977,9 +11026,9 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:513",
+      "id": "src/components/admin/AdminUsersPage.tsx:519",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 513,
+      "line": 519,
       "tag": "option",
       "label": "Banned",
       "href": null,
@@ -10999,9 +11048,9 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:514",
+      "id": "src/components/admin/AdminUsersPage.tsx:520",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 514,
+      "line": 520,
       "tag": "option",
       "label": "Warned",
       "href": null,
@@ -11014,11 +11063,11 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:518",
+      "id": "src/components/admin/AdminUsersPage.tsx:524",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 518,
+      "line": 524,
       "tag": "select",
-      "label": "{SORT_OPTIONS.map((o) => ( <option key={o.value} value={o.value}>{o.label}</option> ))}",
+      "label": "User sort",
       "href": null,
       "type": null,
       "disabledWhen": null,
@@ -11031,9 +11080,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:524",
+      "id": "src/components/admin/AdminUsersPage.tsx:531",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 524,
+      "line": 531,
       "tag": "option",
       "label": "{o.label}",
       "href": null,
@@ -11046,11 +11095,11 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:648",
+      "id": "src/components/admin/AdminUsersPage.tsx:655",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 648,
+      "line": 655,
       "tag": "button",
-      "label": "(unnamed control)",
+      "label": "Previous users page",
       "href": null,
       "type": null,
       "disabledWhen": "{page === 1}",
@@ -11063,11 +11112,11 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:656",
+      "id": "src/components/admin/AdminUsersPage.tsx:664",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 656,
+      "line": 664,
       "tag": "button",
-      "label": "(unnamed control)",
+      "label": "Next users page",
       "href": null,
       "type": null,
       "disabledWhen": "{page === pages}",
@@ -11277,6 +11326,7 @@
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
         "tests/integration/api-audit.test.ts",
@@ -11337,6 +11387,7 @@
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
@@ -11664,26 +11715,66 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:349",
+      "id": "src/components/admin/UserDetailPanel.tsx:255",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 349,
+      "line": 255,
       "tag": "button",
-      "label": "(unnamed control)",
+      "label": "Retry user details",
+      "href": null,
+      "type": null,
+      "disabledWhen": null,
+      "expectedFromSource": {
+        "onClick": "{load}"
+      },
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts"
+      ],
+      "groupTestFiles": [],
+      "evidence": "CODE_INSPECTION",
+      "coverage": "Test references label; behaviour requires matching run evidence"
+    },
+    {
+      "id": "src/components/admin/UserDetailPanel.tsx:256",
+      "file": "src/components/admin/UserDetailPanel.tsx",
+      "line": 256,
+      "tag": "button",
+      "label": "Close user details",
       "href": null,
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": {
         "onClick": "{onClose}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
-      "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
+      "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:359",
+      "id": "src/components/admin/UserDetailPanel.tsx:330",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 359,
+      "line": 330,
+      "tag": "button",
+      "label": "Close user details",
+      "href": null,
+      "type": null,
+      "disabledWhen": null,
+      "expectedFromSource": {
+        "onClick": "{onClose}"
+      },
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts"
+      ],
+      "groupTestFiles": [],
+      "evidence": "CODE_INSPECTION",
+      "coverage": "Test references label; behaviour requires matching run evidence"
+    },
+    {
+      "id": "src/components/admin/UserDetailPanel.tsx:340",
+      "file": "src/components/admin/UserDetailPanel.tsx",
+      "line": 340,
       "tag": "button",
       "label": "Change Role",
       "href": null,
@@ -11700,9 +11791,9 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:369",
+      "id": "src/components/admin/UserDetailPanel.tsx:350",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 369,
+      "line": 350,
       "tag": "button",
       "label": "{r}",
       "href": null,
@@ -11717,9 +11808,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:382",
+      "id": "src/components/admin/UserDetailPanel.tsx:363",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 382,
+      "line": 363,
       "tag": "button",
       "label": "Warn",
       "href": null,
@@ -11728,20 +11819,22 @@
       "expectedFromSource": {
         "onClick": "{() => setWarnOpen((o) => !o)}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
-      "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
+      "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:391",
+      "id": "src/components/admin/UserDetailPanel.tsx:372",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 391,
+      "line": 372,
       "tag": "button",
       "label": "Unban",
       "href": null,
       "type": null,
-      "disabledWhen": null,
+      "disabledWhen": "{banLoading}",
       "expectedFromSource": {
         "onClick": "{handleUnban}"
       },
@@ -11753,9 +11846,9 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:398",
+      "id": "src/components/admin/UserDetailPanel.tsx:380",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 398,
+      "line": 380,
       "tag": "button",
       "label": "Ban",
       "href": null,
@@ -11770,9 +11863,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:408",
+      "id": "src/components/admin/UserDetailPanel.tsx:390",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 408,
+      "line": 390,
       "tag": "button",
       "label": "Delete",
       "href": null,
@@ -11784,6 +11877,7 @@
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-controls.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
@@ -11796,9 +11890,9 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:422",
+      "id": "src/components/admin/UserDetailPanel.tsx:404",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 422,
+      "line": 404,
       "tag": "textarea",
       "label": "Reason for warning...",
       "href": null,
@@ -11807,15 +11901,17 @@
       "expectedFromSource": {
         "onChange": "{(e) => setWarnReason(e.target.value)}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
-      "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
+      "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:430",
+      "id": "src/components/admin/UserDetailPanel.tsx:412",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 430,
+      "line": 412,
       "tag": "button",
       "label": "{warnLoading ? 'Sending...' : 'Send Warning'}",
       "href": null,
@@ -11830,9 +11926,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:433",
+      "id": "src/components/admin/UserDetailPanel.tsx:415",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 433,
+      "line": 415,
       "tag": "button",
       "label": "Cancel",
       "href": null,
@@ -11844,6 +11940,7 @@
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
@@ -11855,9 +11952,9 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:441",
+      "id": "src/components/admin/UserDetailPanel.tsx:423",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 441,
+      "line": 423,
       "tag": "textarea",
       "label": "Reason for ban (visible to the user)...",
       "href": null,
@@ -11874,9 +11971,9 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:449",
+      "id": "src/components/admin/UserDetailPanel.tsx:431",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 449,
+      "line": 431,
       "tag": "button",
       "label": "{banLoading ? 'Banning...' : 'Confirm Ban'}",
       "href": null,
@@ -11891,9 +11988,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:452",
+      "id": "src/components/admin/UserDetailPanel.tsx:434",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 452,
+      "line": 434,
       "tag": "button",
       "label": "Cancel",
       "href": null,
@@ -11905,6 +12002,7 @@
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
@@ -11916,9 +12014,9 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:464",
+      "id": "src/components/admin/UserDetailPanel.tsx:446",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 464,
+      "line": 446,
       "tag": "input",
       "label": "{user.email}",
       "href": null,
@@ -11933,9 +12031,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:472",
+      "id": "src/components/admin/UserDetailPanel.tsx:454",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 472,
+      "line": 454,
       "tag": "button",
       "label": "{deleteLoading ? 'Deleting...' : 'Delete Account'}",
       "href": null,
@@ -11950,9 +12048,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:475",
+      "id": "src/components/admin/UserDetailPanel.tsx:457",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 475,
+      "line": 457,
       "tag": "button",
       "label": "Cancel",
       "href": null,
@@ -11964,6 +12062,7 @@
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
@@ -11975,9 +12074,9 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:497",
+      "id": "src/components/admin/UserDetailPanel.tsx:479",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 497,
+      "line": 479,
       "tag": "button",
       "label": "{tab}",
       "href": null,
@@ -11992,9 +12091,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:541",
+      "id": "src/components/admin/UserDetailPanel.tsx:523",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 541,
+      "line": 523,
       "tag": "button",
       "label": "Issue Warning",
       "href": null,
@@ -12009,26 +12108,28 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:582",
+      "id": "src/components/admin/UserDetailPanel.tsx:564",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 582,
+      "line": 564,
       "tag": "button",
       "label": "Delete note",
       "href": null,
       "type": null,
-      "disabledWhen": null,
+      "disabledWhen": "{noteLoading}",
       "expectedFromSource": {
         "onClick": "{() => handleDeleteNote(n.id)}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
-      "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
+      "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:594",
+      "id": "src/components/admin/UserDetailPanel.tsx:577",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 594,
+      "line": 577,
       "tag": "textarea",
       "label": "Add a private admin note...",
       "href": null,
@@ -12037,15 +12138,17 @@
       "expectedFromSource": {
         "onChange": "{(e) => setNoteText(e.target.value)}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
-      "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
+      "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:601",
+      "id": "src/components/admin/UserDetailPanel.tsx:584",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 601,
+      "line": 584,
       "tag": "button",
       "label": "{noteLoading ? 'Saving...' : 'Add Note'}",
       "href": null,
@@ -12060,9 +12163,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:626",
+      "id": "src/components/admin/UserDetailPanel.tsx:609",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 626,
+      "line": 609,
       "tag": "a",
       "label": "{a.title} {a.category && <span className=\"text-gold text-[8px] font-bold uppercase tracking-widest\">{a.category.name}</span>} {format(new Date(a.createdAt), 'd MMM yyyy')} {a.viewCount}",
       "href": "{`/editorial/articles/${a.id}/edit`}",
@@ -12075,9 +12178,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:662",
+      "id": "src/components/admin/UserDetailPanel.tsx:645",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 662,
+      "line": 645,
       "tag": "a",
       "label": "{c.article.title}",
       "href": "{`/articles/${c.article.slug}#comments`}",
@@ -12090,9 +12193,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/UserDetailPanel.tsx:672",
+      "id": "src/components/admin/UserDetailPanel.tsx:655",
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 672,
+      "line": 655,
       "tag": "button",
       "label": "Remove comment",
       "href": null,
@@ -12114,7 +12217,7 @@
       "label": "(unnamed control)",
       "href": null,
       "type": "file",
-      "disabledWhen": null,
+      "disabledWhen": "{!editor.canEdit || Boolean(editor.recovery)}",
       "expectedFromSource": {
         "onChange": "{(e) => void actions.handleCoverUpload(e)}"
       },
@@ -12130,9 +12233,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/article-editor/ArticleEditorDocument.tsx:73",
+      "id": "src/components/admin/article-editor/ArticleEditorDocument.tsx:74",
       "file": "src/components/admin/article-editor/ArticleEditorDocument.tsx",
-      "line": 73,
+      "line": 74,
       "tag": "button",
       "label": "{editor.uploading ? 'Uploading...' : 'Change'}",
       "href": null,
@@ -12153,9 +12256,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/article-editor/ArticleEditorDocument.tsx:82",
+      "id": "src/components/admin/article-editor/ArticleEditorDocument.tsx:83",
       "file": "src/components/admin/article-editor/ArticleEditorDocument.tsx",
-      "line": 82,
+      "line": 83,
       "tag": "button",
       "label": "Remove",
       "href": null,
@@ -12182,9 +12285,9 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/article-editor/ArticleEditorDocument.tsx:95",
+      "id": "src/components/admin/article-editor/ArticleEditorDocument.tsx:96",
       "file": "src/components/admin/article-editor/ArticleEditorDocument.tsx",
-      "line": 95,
+      "line": 96,
       "tag": "button",
       "label": "{editor.uploading ? 'Uploading...' : 'Add cover image'}",
       "href": null,
@@ -12205,14 +12308,14 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/admin/article-editor/ArticleEditorDocument.tsx:109",
+      "id": "src/components/admin/article-editor/ArticleEditorDocument.tsx:110",
       "file": "src/components/admin/article-editor/ArticleEditorDocument.tsx",
-      "line": 109,
+      "line": 110,
       "tag": "textarea",
       "label": "Your headline here...",
       "href": null,
       "type": null,
-      "disabledWhen": "{!editor.canEdit}",
+      "disabledWhen": "{!editor.canEdit || Boolean(editor.recovery)}",
       "expectedFromSource": {
         "onChange": "{(event) => actions.updateTitle(event.target.value)}"
       },
@@ -12232,14 +12335,14 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/admin/article-editor/ArticleEditorDocument.tsx:119",
+      "id": "src/components/admin/article-editor/ArticleEditorDocument.tsx:120",
       "file": "src/components/admin/article-editor/ArticleEditorDocument.tsx",
-      "line": 119,
+      "line": 120,
       "tag": "textarea",
       "label": "Write a brief summary that draws readers in...",
       "href": null,
       "type": null,
-      "disabledWhen": "{!editor.canEdit}",
+      "disabledWhen": "{!editor.canEdit || Boolean(editor.recovery)}",
       "expectedFromSource": {
         "onChange": "{(event) => actions.setExcerpt(event.target.value)}"
       },
@@ -12432,6 +12535,7 @@
         "onChange": "{actions.setSelectedAuthorId}"
       },
       "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/integration/api.test.ts",
         "tests/integration/route-handlers.test.ts",
         "tests/unit/featured-article-hero.test.tsx",
@@ -13163,6 +13267,7 @@
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
@@ -14327,6 +14432,7 @@
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-cache.spec.ts",
         "tests/e2e/wf-controls.spec.ts",
@@ -14347,6 +14453,7 @@
         "tests/integration/article-comments-auth.test.ts",
         "tests/integration/article-save-route.test.ts",
         "tests/integration/calendar-access.test.ts",
+        "tests/integration/management-data-protection.test.ts",
         "tests/integration/review-route.test.ts",
         "tests/integration/scheduling-routes.test.ts",
         "tests/integration/team-profile-db.test.ts",
@@ -14737,6 +14844,7 @@
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
@@ -14819,6 +14927,7 @@
         "tests/integration/article-create-route.test.ts",
         "tests/integration/article-save-route.test.ts",
         "tests/integration/comments-resilience.test.ts",
+        "tests/integration/management-data-protection.test.ts",
         "tests/integration/profile-account-route.test.ts",
         "tests/integration/read-through-routes.test.ts",
         "tests/integration/review-route.test.ts",
@@ -15287,6 +15396,7 @@
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
@@ -15333,6 +15443,7 @@
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-cache.spec.ts",
         "tests/e2e/wf-controls.spec.ts",
@@ -15353,6 +15464,7 @@
         "tests/integration/article-comments-auth.test.ts",
         "tests/integration/article-save-route.test.ts",
         "tests/integration/calendar-access.test.ts",
+        "tests/integration/management-data-protection.test.ts",
         "tests/integration/review-route.test.ts",
         "tests/integration/scheduling-routes.test.ts",
         "tests/integration/team-profile-db.test.ts",
@@ -15525,6 +15637,7 @@
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-cache.spec.ts",
         "tests/e2e/wf-controls.spec.ts",
@@ -15545,6 +15658,7 @@
         "tests/integration/article-comments-auth.test.ts",
         "tests/integration/article-save-route.test.ts",
         "tests/integration/calendar-access.test.ts",
+        "tests/integration/management-data-protection.test.ts",
         "tests/integration/review-route.test.ts",
         "tests/integration/scheduling-routes.test.ts",
         "tests/integration/team-profile-db.test.ts",
@@ -16494,6 +16608,7 @@
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
@@ -16734,6 +16849,7 @@
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
@@ -16809,6 +16925,7 @@
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-controls.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
@@ -16823,14 +16940,14 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:101",
+      "id": "src/components/editorial/UserProfileEditor.tsx:106",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 101,
+      "line": 106,
       "tag": "input",
-      "label": "(unnamed control)",
+      "label": "{label}",
       "href": null,
       "type": "{type}",
-      "disabledWhen": null,
+      "disabledWhen": "{saving}",
       "expectedFromSource": {
         "onChange": "{(e) => setDraft(e.target.value)}",
         "onKeyDown": "{(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') cancel() }}"
@@ -16841,9 +16958,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:109",
+      "id": "src/components/editorial/UserProfileEditor.tsx:116",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 109,
+      "line": 116,
       "tag": "button",
       "label": "Save",
       "href": null,
@@ -16859,6 +16976,7 @@
         "tests/e2e/team-profile-lifecycle.spec.ts",
         "tests/e2e/team-profile.spec.ts",
         "tests/e2e/wf-access.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-controls.spec.ts",
         "tests/e2e/wf-failures.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
@@ -16875,20 +16993,21 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:112",
+      "id": "src/components/editorial/UserProfileEditor.tsx:119",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 112,
+      "line": 119,
       "tag": "button",
       "label": "Cancel",
       "href": null,
       "type": null,
-      "disabledWhen": null,
+      "disabledWhen": "{saving}",
       "expectedFromSource": {
         "onClick": "{cancel}"
       },
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
@@ -16900,9 +17019,9 @@
       "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:120",
+      "id": "src/components/editorial/UserProfileEditor.tsx:127",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 120,
+      "line": 127,
       "tag": "button",
       "label": "{`Edit ${label}`}",
       "href": null,
@@ -16917,9 +17036,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:224",
+      "id": "src/components/editorial/UserProfileEditor.tsx:241",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 224,
+      "line": 241,
       "tag": "Link",
       "label": "User Management",
       "href": "/editorial/users",
@@ -16932,26 +17051,59 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:292",
+      "id": "src/components/editorial/UserProfileEditor.tsx:309",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 292,
+      "line": 309,
       "tag": "select",
-      "label": "{ROLE_OPTIONS.map((r) => ( <option key={r} value={r}>{r}</option> ))}",
+      "label": "Role",
       "href": null,
       "type": null,
       "disabledWhen": "{loading === 'role'}",
       "expectedFromSource": {
-        "onChange": "{(e) => saveRole(e.target.value)}"
+        "onChange": "{(e) => setPendingRole(e.target.value)}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/editorial-layout.spec.ts",
+        "tests/e2e/editorial.spec.ts",
+        "tests/e2e/footnotes.spec.ts",
+        "tests/e2e/team-profile-lifecycle.spec.ts",
+        "tests/e2e/team-profile.spec.ts",
+        "tests/e2e/wf-access.spec.ts",
+        "tests/e2e/wf-accounts.spec.ts",
+        "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
+        "tests/e2e/wf-articles.spec.ts",
+        "tests/e2e/wf-cache.spec.ts",
+        "tests/e2e/wf-controls.spec.ts",
+        "tests/e2e/wf-failures.spec.ts",
+        "tests/e2e/wf-formatting.spec.ts",
+        "tests/e2e/wf-lifecycle.spec.ts",
+        "tests/e2e/wf-mobile.spec.ts",
+        "tests/e2e/wf-navigation.spec.ts",
+        "tests/e2e/wf-portal.spec.ts",
+        "tests/e2e/wf-publication-safety.spec.ts",
+        "tests/e2e/wf-reader.spec.ts",
+        "tests/e2e/wf-recovery.spec.ts",
+        "tests/e2e/wf-remaining.spec.ts",
+        "tests/e2e/wf-upload.spec.ts",
+        "tests/integration/api.test.ts",
+        "tests/integration/profile-account-route.test.ts",
+        "tests/integration/route-handlers.test.ts",
+        "tests/integration/team-profile-db.test.ts",
+        "tests/integration/team-profile-storage.test.ts",
+        "tests/unit/featured-article-hero.test.tsx",
+        "tests/unit/rbac.test.ts",
+        "tests/unit/team-hierarchy.test.ts",
+        "tests/unit/team-profile-accounts.test.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
-      "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
+      "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:299",
+      "id": "src/components/editorial/UserProfileEditor.tsx:317",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 299,
+      "line": 317,
       "tag": "option",
       "label": "{r}",
       "href": null,
@@ -16964,9 +17116,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:313",
+      "id": "src/components/editorial/UserProfileEditor.tsx:331",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 313,
+      "line": 331,
       "tag": "input",
       "label": "(unnamed control)",
       "href": null,
@@ -16981,9 +17133,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:327",
+      "id": "src/components/editorial/UserProfileEditor.tsx:345",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 327,
+      "line": 345,
       "tag": "button",
       "label": "{loading === 'cats' ? 'Saving…' : 'Save categories'}",
       "href": null,
@@ -16998,27 +17150,29 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:343",
+      "id": "src/components/editorial/UserProfileEditor.tsx:361",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 343,
+      "line": 361,
       "tag": "textarea",
-      "label": "Short biography shown on their public author page…",
+      "label": "Biography",
       "href": null,
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": {
-        "onChange": "{(e) => setUser((prev) => ({ ...prev, bio: e.target.value }))}",
-        "onBlur": "{() => { if ((user.bio ?? '') !== (initial.bio ?? '')) saveField('bio')(user.bio ?? '') }}"
+        "onChange": "{(e) => setBioDraft(e.target.value)}",
+        "onBlur": "{() => { if (bioDraft !== (user.bio ?? '')) void saveField('bio')(bioDraft) }}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
-      "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
+      "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:369",
+      "id": "src/components/editorial/UserProfileEditor.tsx:388",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 369,
+      "line": 388,
       "tag": "button",
       "label": "{loading === 'active' ? 'Updating…' : user.isActive ? 'Deactivate Account' : 'Reactivate Account'}",
       "href": null,
@@ -17033,9 +17187,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:385",
+      "id": "src/components/editorial/UserProfileEditor.tsx:404",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 385,
+      "line": 404,
       "tag": "button",
       "label": "{loading === 'email' ? 'Sending…' : 'Send Password Reset Email'}",
       "href": null,
@@ -17050,9 +17204,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:397",
+      "id": "src/components/editorial/UserProfileEditor.tsx:416",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 397,
+      "line": 416,
       "tag": "button",
       "label": "Set Password Directly",
       "href": null,
@@ -17061,32 +17215,36 @@
       "expectedFromSource": {
         "onClick": "{() => setShowPwReset((v) => !v)}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
-      "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
+      "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:407",
+      "id": "src/components/editorial/UserProfileEditor.tsx:426",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 407,
+      "line": 426,
       "tag": "input",
-      "label": "Min. 8 characters",
+      "label": "New password",
       "href": null,
-      "type": "text",
+      "type": "password",
       "disabledWhen": null,
       "expectedFromSource": {
         "onChange": "{(e) => setNewPassword(e.target.value)}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
-      "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
+      "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:414",
+      "id": "src/components/editorial/UserProfileEditor.tsx:434",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 414,
+      "line": 434,
       "tag": "button",
       "label": "{loading === 'pw' ? 'Saving…' : 'Save'}",
       "href": null,
@@ -17101,9 +17259,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:425",
+      "id": "src/components/editorial/UserProfileEditor.tsx:445",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 425,
+      "line": 445,
       "tag": "a",
       "label": "View Public Author Page",
       "href": "{`/author/${authorSlug}`}",
@@ -17116,9 +17274,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:465",
+      "id": "src/components/editorial/UserProfileEditor.tsx:485",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 465,
+      "line": 485,
       "tag": "Link",
       "label": "{a.title}",
       "href": "{`/editorial/articles/${a.id}/edit`}",
@@ -17131,9 +17289,9 @@
       "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:538",
+      "id": "src/components/editorial/UserProfileEditor.tsx:558",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 538,
+      "line": 558,
       "tag": "textarea",
       "label": "Private notes about this account (e.g. availability, communication preferences, issues)…",
       "href": null,
@@ -17142,15 +17300,17 @@
       "expectedFromSource": {
         "onChange": "{(e) => { setAdminNotes(e.target.value); setNotesDirty(true) }}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
-      "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
+      "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
-      "id": "src/components/editorial/UserProfileEditor.tsx:546",
+      "id": "src/components/editorial/UserProfileEditor.tsx:566",
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 546,
+      "line": 566,
       "tag": "button",
       "label": "{loading === 'notes' ? 'Saving…' : 'Save Notes'}",
       "href": null,
@@ -17471,6 +17631,7 @@
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
         "tests/integration/api-audit.test.ts",
@@ -17525,9 +17686,11 @@
       "candidateTests": [
         "tests/e2e/team-profile-lifecycle.spec.ts",
         "tests/e2e/team-profile.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/integration/api-audit.test.ts",
         "tests/integration/data-layer.test.ts",
+        "tests/integration/management-data-protection.test.ts",
         "tests/integration/team-profile-db.test.ts",
         "tests/unit/role-changed-email.test.ts",
         "tests/unit/team-profile-accounts.test.ts",
@@ -17590,6 +17753,7 @@
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
         "tests/integration/api-audit.test.ts",
@@ -17617,6 +17781,7 @@
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
         "tests/integration/api-audit.test.ts",
@@ -17659,6 +17824,7 @@
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
         "tests/integration/api-audit.test.ts",
@@ -17776,9 +17942,11 @@
       "candidateTests": [
         "tests/e2e/team-profile-lifecycle.spec.ts",
         "tests/e2e/team-profile.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/integration/api-audit.test.ts",
         "tests/integration/data-layer.test.ts",
+        "tests/integration/management-data-protection.test.ts",
         "tests/integration/team-profile-db.test.ts",
         "tests/unit/role-changed-email.test.ts",
         "tests/unit/team-profile-accounts.test.ts",
@@ -18330,6 +18498,7 @@
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
@@ -18528,6 +18697,7 @@
         "tests/e2e/team-profile-lifecycle.spec.ts",
         "tests/e2e/team-profile.spec.ts",
         "tests/e2e/wf-access.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-controls.spec.ts",
         "tests/e2e/wf-failures.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
@@ -18624,6 +18794,7 @@
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
@@ -18767,10 +18938,12 @@
       "expectedFromSource": {
         "onClick": "{fetchComments}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
-      "coverage": "UNCOVERED: no direct label reference; partial group coverage may exist"
+      "coverage": "Test references label; behaviour requires matching run evidence"
     },
     {
       "id": "src/components/ui/ConfirmDialog.tsx:43",
@@ -18787,6 +18960,7 @@
       "candidateTests": [
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
@@ -20376,37 +20550,37 @@
     },
     {
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 205,
+      "line": 206,
       "source": "['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].filter((r) => r !== user.role).map((r) => ( <button key={r} onClick={() => handleRoleChange(r)} className=\"w-full text-left px-4 py-2 text-xs text-[var(--fg)] hover:bg-gold/10 hover:text-gold\" > {r} </button> ))"
     },
     {
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 285,
+      "line": 290,
       "source": "entries.map((e) => { const meta = e.metadata ?? {} const target = meta.targetEmail ?? meta.deletedEmail ?? e.targetId.slice(0, 8) + '...' const by = meta.adminName ?? e.performedBy.slice(0, 8) + '...' const detail = e.action === 'USER_ROLE_CHANGED' && meta.oldRole && meta.newRole ? `${meta.oldRole} → ${meta.newRole}` : meta.reason ? meta.reason.slice(0, 60) + (meta.reason.length > 60 ? '…' : '') : '' return ( <tr key={e.id} className=\"hover:bg-[var(--bg)] transition-colors\"> <td className=\"px-4 py-3\"> <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 ${ e.action.includes('BANNED') ? 'bg-red-500/15 text-red-500' : e.action.includes('UNBANNED') ? 'bg-green-500/15 text-green-500' : e.action.includes('WARNED') ? 'bg-amber-500/15 text-amber-500' : e.action.includes('DELETED') ? 'bg-red-500/15 text-red-400' : 'bg-[var(--border)] text-[var(--fg-muted)]' }`}> {ACTION_LABELS[e.action] ?? e.action} </span> {detail && <p className=\"text-[var(--fg-faint)] text-[9px] mt-0.5 line-clamp-1\">{detail}</p>} </td> <td className=\"px-4 py-3 text-[var(--fg)] font-mono\">{target}</td> <td className=\"px-4 py-3 text-[var(--fg-muted)] hidden md:table-cell\">{by}</td> <td className=\"px-4 py-3 text-[var(--fg-faint)] whitespace-nowrap\"> {formatDistanceToNow(new Date(e.createdAt), { addSuffix: true })} </td> </tr> ) })"
     },
     {
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 442,
+      "line": 447,
       "source": "[0, 1, 2, 3].map((i) => ( <div key={i} className=\"bg-[var(--bg-elevated)] border border-[var(--border)] p-5 animate-pulse\"> <div className=\"h-3 w-24 bg-[var(--border)] rounded mb-3\" /> <div className=\"h-8 w-16 bg-[var(--border)] rounded\" /> </div> ))"
     },
     {
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 490,
+      "line": 495,
       "source": "ROLE_TABS.map((tab) => ( <button key={tab} onClick={() => setRoleTab(tab)} className={`shrink-0 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${ roleTab === tab ? 'bg-gold text-navy' : 'text-[var(--fg-faint)] hover:text-[var(--fg)]' }`} > {tab} </button> ))"
     },
     {
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 523,
+      "line": 530,
       "source": "SORT_OPTIONS.map((o) => ( <option key={o.value} value={o.value}>{o.label}</option> ))"
     },
     {
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 549,
+      "line": 556,
       "source": "[1, 2, 3, 4, 5].map((i) => ( <tr key={i}> <td colSpan={9} className=\"px-4 py-4\"> <div className=\"h-4 bg-[var(--border)] animate-pulse rounded w-3/4\" /> </td> </tr> ))"
     },
     {
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 563,
+      "line": 570,
       "source": "users.map((user) => ( <tr key={user.id} className=\"hover:bg-[var(--bg)] transition-colors cursor-pointer\" onClick={() => setSelectedUserId(user.id)} > {/* Avatar + name + email */} <td className=\"px-4 py-3\"> <div className=\"flex items-center gap-3\"> <div className=\"w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold text-xs font-bold shrink-0\"> {(user.name || user.email).charAt(0).toUpperCase()} </div> <div className=\"min-w-0\"> <p className=\"text-[var(--fg)] font-semibold text-xs truncate\">{user.name ?? '-'}</p> <p className=\"text-[var(--fg-faint)] text-[10px] truncate\">{user.email}</p> </div> </div> </td> {/* Role */} <td className=\"px-3 py-3\"> <RoleBadge role={user.role} /> </td> {/* Articles */} <td className=\"px-3 py-3 text-center text-[var(--fg-muted)] text-xs hidden sm:table-cell\"> {user._count.articles} </td> {/* Comments */} <td className=\"px-3 py-3 text-center text-[var(--fg-muted)] text-xs hidden md:table-cell\"> {user._count.comments} </td> {/* Warnings */} <td className=\"px-3 py-3 text-center hidden lg:table-cell\"> <span className={`text-xs font-bold ${user._count.warnings > 0 ? 'text-amber-500' : 'text-[var(--fg-faint)]'}`}> {user._count.warnings} </span> </td> {/* Joined */} <td className=\"px-3 py-3 text-[var(--fg-faint)] text-[10px] whitespace-nowrap hidden lg:table-cell\"> {format(new Date(user.createdAt), 'd MMM yyyy')} </td> {/* Last active */} <td className=\"px-3 py-3 text-[var(--fg-faint)] text-[10px] hidden xl:table-cell\"> <span className=\"flex items-center gap-1\"> <Clock size={9} /> {user.lastActiveAt ? formatDistanceToNow(new Date(user.lastActiveAt), { addSuffix: true }) : 'Never'} </span> </td> {/* Status */} <td className=\"px-3 py-3\"> <StatusDot isBanned={user.isBanned} /> </td> {/* Actions */} <td className=\"px-2 py-3\" onClick={(e) => e.stopPropagation()}> <ActionMenu user={user} currentAdminId={currentAdminId} onView={() => setSelectedUserId(user.id)} onReload={() => { setActionError(''); handleReload() }} onError={setActionError} /> </td> </tr> ))"
     },
     {
@@ -20421,47 +20595,47 @@
     },
     {
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 368,
+      "line": 349,
       "source": "['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].filter((r) => r !== user.role).map((r) => ( <button key={r} onClick={() => requestRoleChange(r)} className=\"w-full text-left px-4 py-2 text-xs text-[var(--fg)] hover:bg-gold/10 hover:text-gold transition-colors\" > {r} </button> ))"
     },
     {
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 496,
+      "line": 478,
       "source": "(['overview', 'content', 'activity'] as TabId[]).map((tab) => ( <button key={tab} onClick={() => setActiveTab(tab)} className={`px-5 py-3 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-colors ${ activeTab === tab ? 'border-gold text-gold' : 'border-transparent text-[var(--fg-faint)] hover:text-[var(--fg)]' }`} > {tab} </button> ))"
     },
     {
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 553,
+      "line": 535,
       "source": "user.warnings.map((w) => ( <div key={w.id} className=\"bg-amber-500/5 border border-amber-500/20 p-3 rounded-sm\"> <p className=\"text-[var(--fg)] text-xs leading-relaxed\">{w.reason}</p> <p className=\"text-amber-500/70 text-[9px] mt-1\"> Issued by {w.issuedBy} on {format(new Date(w.createdAt), 'd MMM yyyy HH:mm')} </p> </div> ))"
     },
     {
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 574,
-      "source": "user.notes.map((n) => ( <div key={n.id} className=\"flex items-start gap-2 bg-navy/20 border border-[var(--border)] p-3\"> <div className=\"flex-1\"> <p className=\"text-[var(--fg)] text-xs leading-relaxed\">{n.note}</p> <p className=\"text-[var(--fg-faint)] text-[9px] mt-1\"> {n.authorName ?? n.authorId} on {format(new Date(n.createdAt), 'd MMM yyyy HH:mm')} </p> </div> <button onClick={() => handleDeleteNote(n.id)} className=\"text-[var(--fg-faint)] hover:text-red-400 transition-colors shrink-0\" aria-label=\"Delete note\" > <X size={12} /> </button> </div> ))"
+      "line": 556,
+      "source": "user.notes.map((n) => ( <div key={n.id} className=\"flex items-start gap-2 bg-navy/20 border border-[var(--border)] p-3\"> <div className=\"flex-1\"> <p className=\"text-[var(--fg)] text-xs leading-relaxed\">{n.note}</p> <p className=\"text-[var(--fg-faint)] text-[9px] mt-1\"> {n.authorName ?? n.authorId} on {format(new Date(n.createdAt), 'd MMM yyyy HH:mm')} </p> </div> <button onClick={() => handleDeleteNote(n.id)} disabled={noteLoading} className=\"text-[var(--fg-faint)] hover:text-red-400 transition-colors shrink-0\" aria-label=\"Delete note\" > <X size={12} /> </button> </div> ))"
     },
     {
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 625,
+      "line": 608,
       "source": "user.articles.map((a) => ( <a key={a.id} href={`/editorial/articles/${a.id}/edit`} target=\"_blank\" rel=\"noopener noreferrer\" className=\"flex items-center gap-3 p-2 bg-[var(--bg)] border border-[var(--border)] hover:border-gold/30 transition-colors group\" > <div className=\"flex-1 min-w-0\"> <p className=\"text-[var(--fg)] text-xs font-semibold group-hover:text-gold transition-colors line-clamp-1\">{a.title}</p> <div className=\"flex items-center gap-2 mt-0.5\"> {a.category && <span className=\"text-gold text-[8px] font-bold uppercase tracking-widest\">{a.category.name}</span>} <span className=\"text-[var(--fg-faint)] text-[9px]\">{format(new Date(a.createdAt), 'd MMM yyyy')}</span> </div> </div> <div className=\"shrink-0 flex items-center gap-2\"> <ArticleStatusBadge status={a.status} /> <span className=\"text-[var(--fg-faint)] text-[9px] flex items-center gap-0.5\"><Eye size={9} />{a.viewCount}</span> </div> </a> ))"
     },
     {
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 659,
+      "line": 642,
       "source": "user.comments.filter((c) => !hiddenComments.has(c.id)).map((c) => ( <div key={c.id} className=\"flex gap-3 p-3 bg-[var(--bg)] border border-[var(--border)]\"> <div className=\"flex-1 min-w-0\"> <a href={`/articles/${c.article.slug}#comments`} target=\"_blank\" rel=\"noopener noreferrer\" className=\"text-gold text-[9px] font-bold uppercase tracking-widest hover:underline line-clamp-1 block\"> {c.article.title} </a> <p className=\"text-[var(--fg)] text-xs mt-0.5 line-clamp-2\">{c.body}</p> <div className=\"flex items-center gap-3 mt-1 text-[9px] text-[var(--fg-faint)]\"> <span>{format(new Date(c.createdAt), 'd MMM yyyy')}</span> {c._count.upvotedBy > 0 && <span>{c._count.upvotedBy} upvotes</span>} </div> </div> <button onClick={() => handleRemoveComment(c.id)} className=\"shrink-0 text-[var(--fg-faint)] hover:text-red-400 transition-colors\" title=\"Remove comment\" > <Trash2 size={12} /> </button> </div> ))"
     },
     {
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 697,
+      "line": 680,
       "source": "user.debateVotes.map((v) => ( <div key={v.id} className=\"flex items-center gap-3 p-2 bg-[var(--bg)] border border-[var(--border)]\"> <span className={`shrink-0 text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 ${v.side === 'FOR' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-red-500/15 text-red-500'}`}> {v.side} </span> <p className=\"flex-1 text-[var(--fg)] text-xs line-clamp-1\">{v.debate.title}</p> <span className=\"shrink-0 text-[var(--fg-faint)] text-[9px]\">{format(new Date(v.createdAt), 'd MMM yyyy')}</span> </div> ))"
     },
     {
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 717,
+      "line": 700,
       "source": "user.readingProgress.map((r) => ( <div key={r.id} className=\"flex items-center gap-3 p-2 bg-[var(--bg)] border border-[var(--border)]\"> <div className=\"flex-1 min-w-0\"> <p className=\"text-[var(--fg)] text-xs line-clamp-1\">{r.article.title}</p> <p className=\"text-[var(--fg-faint)] text-[9px] mt-0.5\">{formatDistanceToNow(new Date(r.updatedAt), { addSuffix: true })}</p> </div> <div className=\"shrink-0 flex flex-col items-end gap-1\"> <span className=\"text-[9px] text-[var(--fg-faint)]\">{Math.round(r.progress)}%</span> <div className=\"w-16 h-0.5 bg-[var(--border)]\"> <div className=\"h-full bg-gold\" style={{ width: `${r.progress}%` }} /> </div> </div> {r.completed && <span className=\"text-[8px] text-green-500 font-bold shrink-0\">Read</span>} </div> ))"
     },
     {
       "file": "src/components/admin/UserDetailPanel.tsx",
-      "line": 750,
+      "line": 733,
       "source": "events.map((e, i) => ( <div key={i} className=\"flex items-start gap-3\"> <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${ e.type === 'article' ? 'bg-gold' : e.type === 'comment' ? 'bg-blue-400' : 'bg-emerald-400' }`} /> <div className=\"flex-1 min-w-0\"> <p className=\"text-[var(--fg)] text-xs line-clamp-1\">{e.label}</p> <p className=\"text-[var(--fg-faint)] text-[9px]\">{formatDistanceToNow(new Date(e.date), { addSuffix: true })}</p> </div> </div> ))"
     },
     {
@@ -20626,17 +20800,17 @@
     },
     {
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 298,
+      "line": 316,
       "source": "ROLE_OPTIONS.map((r) => ( <option key={r} value={r}>{r}</option> ))"
     },
     {
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 311,
+      "line": 329,
       "source": "categories.map((cat) => ( <label key={cat.id} className=\"flex items-center gap-1.5 cursor-pointer\"> <input type=\"checkbox\" checked={selectedCats.includes(cat.id)} onChange={(e) => { setSelectedCats((prev) => e.target.checked ? [...prev, cat.id] : prev.filter((id) => id !== cat.id) ) }} className=\"accent-gold\" /> <span className=\"text-xs text-[var(--fg-muted)]\">{cat.name}</span> </label> ))"
     },
     {
       "file": "src/components/editorial/UserProfileEditor.tsx",
-      "line": 462,
+      "line": 482,
       "source": "user.articles.map((a) => ( <tr key={a.id} className=\"hover:bg-[var(--bg-subtle)] transition-colors\"> <td className=\"px-5 py-3\"> <Link href={`/editorial/articles/${a.id}/edit`} className=\"text-[var(--fg)] hover:text-gold transition-colors text-xs font-medium line-clamp-1\" > {a.title} </Link> </td> <td className=\"px-4 py-3 text-[var(--fg-faint)] text-xs hidden sm:table-cell\"> {a.category?.name ?? 'Uncategorised'} </td> <td className=\"px-4 py-3\"> <span className={`text-[10px] font-bold px-2 py-0.5 ${STATUS_STYLE[a.status] ?? ''}`}> {a.status.replace('_', ' ')} </span> </td> <td className=\"px-4 py-3 text-[var(--fg-faint)] text-xs hidden md:table-cell\"> {format(new Date(a.createdAt), 'd MMM yyyy')} </td> <td className=\"px-4 py-3 text-[var(--fg-faint)] text-xs hidden lg:table-cell\"> {a.publishedAt ? format(new Date(a.publishedAt), 'd MMM yyyy') : 'Not published'} </td> </tr> ))"
     },
     {

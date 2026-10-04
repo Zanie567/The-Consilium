@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { UserDetailPanel } from './UserDetailPanel'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -259,14 +260,18 @@ function AuditLog() {
   const [entries, setEntries] = useState<AuditEntry[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetch('/api/admin/audit-log')
-      .then((r) => r.json())
-      .then((d) => { if (Array.isArray(d)) setEntries(d) })
-      .catch(() => {})
+  const [error, setError] = useState('')
+  const load = useCallback(() => {
+    setLoading(true)
+    setError('')
+    apiRequest<AuditEntry[]>('/api/admin/audit-log')
+      .then(setEntries)
+      .catch(reason => setError(asApiError(reason).message))
       .finally(() => setLoading(false))
   }, [])
+  useEffect(load, [load])
 
+  if (error && !loading) return <div className="py-8 text-center"><p role="alert">{error}</p><button onClick={load}>Retry audit log</button></div>
   if (loading) return <div className="py-8 text-center text-[var(--fg-faint)] text-xs">Loading audit log...</div>
   if (entries.length === 0) return <div className="py-8 text-center text-[var(--fg-faint)] text-xs">No audit entries yet.</div>
 
@@ -505,6 +510,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
               {/* Status filter */}
               <select
                 value={status}
+                aria-label="User status"
                 onChange={(e) => setStatus(e.target.value)}
                 className="bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--fg)] text-base sm:text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 outline-none"
               >
@@ -517,6 +523,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
               {/* Sort */}
               <select
                 value={sort}
+                aria-label="User sort"
                 onChange={(e) => setSort(e.target.value)}
                 className="bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--fg)] text-base sm:text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 outline-none"
               >
@@ -646,6 +653,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
                 </p>
                 <div className="flex items-center gap-2">
                   <button
+                    aria-label="Previous users page"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
                     className="p-1.5 text-[var(--fg-faint)] hover:text-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
@@ -654,6 +662,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
                   </button>
                   <span className="text-[var(--fg-faint)] text-xs">{page} / {pages}</span>
                   <button
+                    aria-label="Next users page"
                     onClick={() => setPage((p) => Math.min(pages, p + 1))}
                     disabled={page === pages}
                     className="p-1.5 text-[var(--fg-faint)] hover:text-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"

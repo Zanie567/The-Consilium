@@ -260,15 +260,23 @@ test('Admin prediction create, edit, vote, revise, close, reopen, resolve and ca
   await page.waitForURL('**/editorial/predictions')
   await page.getByRole('link', { name, exact: true }).click()
   await page.getByLabel('Your prediction').fill('4.25')
+  let refreshed = page.waitForResponse(r => new URL(r.url()).pathname === `/predictions/${id}` && r.request().headers().rsc === '1')
   await mutation(page, `/api/predictions/${id}`, 'POST', 200, () =>
     page.getByRole('button', { name: 'Submit prediction' }).click()
   )
+  expect((await refreshed).status()).toBe(200)
+  await (await refreshed).finished()
+  await page.waitForLoadState('networkidle')
   await page.reload({ waitUntil: 'networkidle' })
   await expect(page.getByLabel('Your prediction')).toHaveValue('4.25')
   await page.getByLabel('Your prediction').fill('4.5')
+  refreshed = page.waitForResponse(r => new URL(r.url()).pathname === `/predictions/${id}` && r.request().headers().rsc === '1')
   await mutation(page, `/api/predictions/${id}`, 'POST', 200, () =>
     page.getByRole('button', { name: 'Update prediction' }).click()
   )
+  expect((await refreshed).status()).toBe(200)
+  await (await refreshed).finished()
+  await page.waitForLoadState('networkidle')
   await page.goto('/editorial/predictions', { waitUntil: 'networkidle' })
   await mutation(page, `/api/editorial/predictions/${id}`, 'PATCH', 200, () =>
     card.getByRole('button', { name: 'Close early' }).click()

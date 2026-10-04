@@ -343,7 +343,7 @@ test.describe('subscribers (growth, admin)', () => {
 
     for (const who of ['editor', 'writer', 'reader'] as const) {
       const ctx = await signedIn(browser, who)
-      expect((await ctx.request.get('/api/editorial/growth/subscribers')).status(), who).toBe(403)
+      expect((await ctx.request.get('/api/editorial/growth/subscribers')).status(), who).toBe(401)
       await ctx.close()
     }
   })

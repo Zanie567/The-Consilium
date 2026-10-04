@@ -48,7 +48,7 @@ export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  retries: 0,
   workers: 2,
   outputDir: `${resultsDir}/${phase ?? 'selected'}`,
   reporter: [
@@ -123,13 +123,13 @@ export default defineConfig({
     // and unpublish articles, which the public count assertions must not race with.
     {
       name: 'wf-chromium',
-      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles|controls|cache|access|publication-safety|recovery|accounts|portal|admin-content|stale-authorization|remaining|navigation)\.spec\.ts/,
+      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles|controls|cache|access|publication-safety|recovery|accounts|portal|admin-content|stale-authorization|remaining|navigation|admin-profile)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'wf-webkit',
-      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles|controls|cache|access|publication-safety|recovery|accounts|portal|admin-content|stale-authorization|remaining|navigation)\.spec\.ts/,
+      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles|controls|cache|access|publication-safety|recovery|accounts|portal|admin-content|stale-authorization|remaining|navigation|admin-profile)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Safari'] },
     },

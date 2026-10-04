@@ -272,13 +272,12 @@ describe('Debates', () => {
 
     expect((await fetch(`${BASE}/api/debates/active`)).status).toBe(200)
   })
-  it('POST /api/debates/[id]/vote → 200 or 409 (already voted)', async () => {
+  it('POST /api/debates/[id]/vote → exactly 200 on the fresh reader fixture', async () => {
 
     const debate = await (await fetch(`${BASE}/api/debates/active`)).json()
     expect(debate?.id,'active debate fixture').toBeTruthy()
     const res = await reader.post(`/api/debates/${debate.id}/vote`, { side: 'FOR' })
-    // 200 first vote, 409 already voted, 429 rate-limited on rapid re-runs.
-    expect([200, 409, 429]).toContain(res.status)
+    expect(res.status).toBe(200)
   })
   it('POST vote with bad side → 400', async () => {
 

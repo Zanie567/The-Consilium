@@ -1,192 +1,83 @@
-# Coverage inventory
+# Role and action coverage inventory
 
-What each kind of account can open and do, and which automated test exercises it.
+The final cloud run is pending. Existing test locations below describe implemented action coverage; they are not unconditional pass claims. The exact final executed outcome will be linked from this inventory. Historical complete run at `497785c`: 462 browser passes/15 failures, 965 Vitest passes/1 failure. Newly changed tests require execution at the final commit.
 
-- **Observed** means the control list was read from the rendered page by `wf-roles.spec.ts`
-  (run with `E2E_INVENTORY_DIR=/some/dir` to regenerate the JSON), not only from source.
-- **Browser** = Playwright clicking the real control. **API/unit** = no browser.
-- Status below describes tests that exist, not an unconditional passing claim. See workflow-audit-report.md for executed outcomes. ✅ covered · 🟡 partly · ❌ not covered · ⛔ intentionally unavailable · 🚧 blocked in the test environment.
+Methods: **BROWSER** = an actual control/navigation/form driven by Playwright; **API_DB** = an HTTP or database assertion alone; **UNIT** = in-process isolated behaviour; **INSPECTION** = source only; **UNAVAILABLE** = intentionally absent/disabled; **UNCOVERED** = enabled action not yet exercised; **EXTERNAL_BLOCK** = unavailable controlled integration/device. Fixtures prepare representative records; database read-back verifies persistence but does not replace the listed user action. Dynamic records are action families, not literal production rows. Equivalent palette colours/table dimensions share a family; distinct table actions and permission/state transitions are exercised separately.
 
-Test files are in `tests/e2e/` unless a path says otherwise.
+## Routes and role menus
 
-## 1. Accounts and who can open what
+The complete final-source [route/control census](control-inventory.json) records every discovered page, inherited layout controls, button/link/form/input/tab/menu/switch declaration, enabled condition, handler, native dialog and dynamic map family. Its candidate tests are inspection references only. `wf-roles` validates exact Writer, Editor, Admin, Growth and Reader portal menus, opens menu routes and separately checks sensitive API boundaries. `wf-mobile` exercises drawers and responsive controls. Rendered snapshots are captured automatically under each run's `inventory/<browser>/<role>.json`.
 
-Menu per role is asserted exactly by `wf-roles.spec.ts` ("the menu is exactly the documented one"),
-every entry is opened ("every menu entry opens"), and pages outside the role must be refused
-("editorial pages outside the role are refused").
+| Route family | Writer | Editor | Admin | Growth | Reader | Expected boundary / verification |
+|---|---|---|---|---|---|---|
+| `/editorial`, public `/profile` | Portal + profile | Portal + profile | Portal + profile | Portal + profile | Profile; portal denied | Role menus/pages BROWSER, `wf-roles`, `wf-reader` |
+| Team Profile | Own | Own | Admin explanation/manage | Own | Denied | BROWSER `team-profile*`; public roster and ownership read-back |
+| Articles/new/edit/My Drafts | Own | Managed/category scope | Any | Denied | Denied | BROWSER `wf-lifecycle`, `wf-articles`, `editor-scope`; direct API boundaries separate |
+| Review/queue/scheduled/series | Denied review; submitted content locked | Managed scope | Any | Denied | Denied | BROWSER lifecycle/portal/controls; exact response/state/public visibility |
+| Trash | Own permitted drafts/rejections | Managed scope | Any | Denied | Denied | BROWSER `wf-access`, `wf-articles`; restore/permanent-delete confirmations |
+| Debates/comments | Denied management | Allowed | Allowed | Denied management | Denied management | BROWSER `wf-admin-content`, `wf-remaining`; API moderation boundaries separate |
+| Calendar/predictions/users/glossary | Denied | Denied except debate management | Allowed | Denied | Denied | BROWSER `wf-portal`, `wf-admin-profile`; UNIT/API_DB boundary tests |
+| Analytics/subscribers/engagement/writer metrics | Denied reports | Denied reports | Allowed | Allowed | Denied | BROWSER ranges/tabs/search/CSV; metrics partly UNIT/API_DB |
+| Your Readers/leaderboard | Own metrics | Own | Any/management | Direct permitted leaderboard | Denied portal | BROWSER role navigation; calculations UNIT/API_DB |
+| Legacy `/admin/data`, `/admin/login-attempts`, `/admin/team` | Denied | Denied | Allowed | Denied | Denied | BROWSER `wf-remaining`, Team Profile; deletion API negative checks separate |
+| Legacy `/admin/subscribers` | Denied | Allowed by existing route policy | Allowed | Denied | Denied | BROWSER navigation; portal subscriber workflows use Admin/Growth |
+| `/predictions`, detail, leaderboard trial | Denied | Denied | Allowed | Denied | Denied | BROWSER `wf-portal`; intentionally gated trial |
+| `/editorial/setup` | First-admin form only without existing admin | Same | Same | Same | Same | UNAVAILABLE in seeded environment; UNIT route-handler creation/guards |
+| Public home/category/archive/search/tag/author/article/debate/team/static policies/contact | Public | Public | Public | Public | Public | BROWSER `public`, `footnotes`, reader/mobile workflows; API_DB crawl separate |
+| Public login/signup/forgot/reset/unsubscribe/banned | Account/session-dependent forms | Same | Same | Same | Same | BROWSER account/access tests; captured transport only |
 
-| Page | Writer | Editor | Admin | Growth | Reader |
-|---|---|---|---|---|---|
-| Dashboard `/editorial` | ✅ | ✅ | ✅ | ✅ | ⛔ Access Denied |
-| Team Profile | ✅ | ✅ | explanation only | ✅ | ⛔ |
-| All/My Articles, My Drafts, New Article | ✅ | ✅ | ✅ | ⛔ redirect | ⛔ |
-| Article Series, Scheduled | ⛔ | ✅ | ✅ | ⛔ | ⛔ |
-| Trash | own articles only (no menu link) | ✅ | ✅ | ⛔ | ⛔ |
-| Review Queue, review screen | ⛔ | ✅ | ✅ | ⛔ | ⛔ |
-| Debates, Comments | ⛔ | ✅ | ✅ | ⛔ (comments API readable by Growth by design) | ⛔ |
-| Calendar | ⛔ | ⛔ | ✅ (`CALENDAR_ACCESS_ROLES`) | ⛔ | ⛔ |
-| Users, Predictions, Glossary | ⛔ | ⛔ | ✅ | ⛔ | ⛔ |
-| Analytics | ⛔ | ⛔ | ✅ | ✅ | ⛔ |
-| Subscribers, Engagement, Writer activity | ⛔ | ⛔ | ✅ | ✅ | ⛔ |
-| Your Readers | ✅ own | ✅ own | ✅ any | ⛔ | ⛔ |
-| Leaderboard | ✅ menu | by URL | by URL | by URL | ⛔ |
-| Public site, `/profile` | ✅ | ✅ | ✅ | ✅ | ✅ |
+## Meaningful action families
 
-## 2. Article workflow
+Every row maps expected behaviour to test locations and a verification method. Final run outcomes are pending; historical passes must not be described as final verification. Files live under `tests/e2e/` unless specified otherwise.
 
-| Action | Writer | Editor/Admin | Test |
-|---|---|---|---|
-| Create, autosave, Save draft | ✅ | ✅ | `wf-lifecycle`, `wf-failures`, `editorial.spec` (autosave + reopen) |
-| Title, excerpt, category, tags, cover URL | ✅ | ✅ | `wf-formatting`, `wf-upload`, `wf-mobile` |
-| Slug, author, status dropdown | ⛔ hidden | ✅ slug/author/status save, reopen, publish and schedule | `wf-controls` |
-| Submit for review | ✅ | n/a | `wf-lifecycle`, `wf-formatting`, `wf-mobile` |
-| Editor notified (email captured + in-app) | | ✅ email; 🟡 in-app bell not clicked | `wf-lifecycle` |
-| Internal note on review screen | | ✅ | `wf-lifecycle` |
-| Return to writer with feedback | | ✅ | `wf-lifecycle` (button disabled without text; email carries the note) |
-| Writer sees feedback, revises, resubmits | ✅ | | `wf-lifecycle` (note cleared on resubmit) |
-| Publish Now (review screen) | | ✅ | `wf-lifecycle`, `wf-formatting`, `wf-mobile` |
-| Schedule (review screen) | | ✅ future time; scheduler publishes | `wf-lifecycle` (cron call is a fixture) |
-| Unpublish (review screen) | | ✅ | `wf-lifecycle` |
-| Publish / Unpublish from the article list | | ✅ | `wf-articles` |
-| Publish / Schedule / Unpublish buttons inside the editor | | ✅ success + failure, View live, reopen status | `wf-controls`, `wf-failures` |
-| Mark corrected + correction note, Feature, Pin, Commendation | | ✅ | `wf-controls` |
-| Move to Trash, Restore, Delete Forever | ✅ own (not run) | ✅ | `wf-articles` (editor) |
-| Inline review comments (select text → comment) | | ❌ browser; API 🟡 | `publication-lifecycle.spec` (API only) |
-| Locked after submit / publish, with explanation | ✅ | | `wf-formatting`, `wf-lifecycle` |
-| Public visibility at each state, including warmed public-page caches | | | `wf-lifecycle`, `wf-articles`, `wf-failures`, `wf-cache` |
-
-## 3. Editor controls (`TiptapEditor.tsx`)
-
-All exercised in `wf-formatting.spec.ts`, then checked in editor → reopened → review preview → published page.
-
-| Control | Editor | Reopen | Preview | Published |
-|---|---|---|---|---|
-| Undo, Redo | ✅ | | | |
-| Print | ✅ (stubbed `window.print` was called) | | | 🚧 real print dialog |
-| Bold, Italic, Underline | ✅ | ✅ | ✅ | ✅ |
-| Strikethrough | ✅ | ✅ | ✅ | ✅ (baseline renderer) |
-| Text colour (palette, hex, remove) | ✅ | ✅ | | ⛔ stripped by decision |
-| Highlight (palette, hex, none) | ✅ | ✅ | ✅ | ✅ as site `<mark>` (colour not kept) |
-| Link (apply, cancel, remove) | ✅ | ✅ | ✅ | ✅ |
-| Image upload → figure, caption, credit | ✅ | ✅ | ✅ | ✅ |
-| Table (grid picker; row above/below, column left/right, delete row/column) | ✅ | ✅ | ✅ | ✅ (baseline renderer) |
-| Delete table | ✅ `wf-controls` | ✅ | | | |
-| Horizontal rule | ✅ | ✅ | | ✅ |
-| Bullet list, Numbered list, Indent, Outdent | ✅ | ✅ | | ✅ |
-| Align left / centre / right / justify | ✅ | ✅ | | ⛔ stripped by decision |
-| Line spacing (4 options) | ✅ all four `wf-controls` | ✅ | | ⛔ stripped by decision |
-| Block quote, Code block (⌘/Ctrl+Enter to leave) | ✅ | ✅ | ✅ pre | ✅ (code fixed) |
-| Pull quote, Footnote | ✅ | ✅ | | ✅ |
-| Headings (`## `, `### ` shortcut) | ✅ | ✅ | ✅ | ✅ |
-| Paste with images | ✅ (synthetic paste event) | | | |
-| Footnote edit/remove by clicking the marker | ✅ edit/cancel/remove `wf-controls` | ✅ | | | |
-| Tutorial dialog | ✅ open/close on a phone (`wf-mobile`) | | | |
-| Dark-mode toggle in the editor bar | ✅ `wf-controls` | | | |
-| Word count / reading time panel | ✅ `wf-controls` | | | |
-| ⛔ Font size / font family | no control: `applyFontSize` is unused code; only reachable by pasting | | | |
-| ⛔ Heading button | none; the tutorial now says so | | | |
-
-## 4. Uploads (`wf-upload.spec.ts`)
-
-Figure, cover from the document body, cover from the settings panel, cover URL, pasted image ✅.
-Invalid file (image name, text bytes), over 10 MB, storage 500, expired session ✅, with
-nothing stored on failure. Who may upload (signed out 401, reader/growth 403, unknown bucket 400) ✅.
-Avatar upload: `team-profile.spec` and `tests/integration/team-profile-storage.test.ts`.
-🚧 Supabase bucket policies and size/type limits on the real service.
-
-## 5. Failure and data-protection scenarios (`wf-failures.spec.ts`)
-
-500, 400, 403 with code, network abort, a request that never answers (15 s timeout), slow
-save, edit during an in-flight save, Save draft ×2, Submit ×2, first autosave while typing,
-expired session and recovery in a second tab, stale second tab (409 + keep/discard), failed
-publish followed by autosave ✅. Dropped connection during upload + retry/reopen ✅ `wf-upload`. Back to articles failed-save/retry ✅ `wf-failures`. Browser crash/close with unsaved text ❌: only the `beforeunload` warning exists.
-
-## 6. Other portal areas
-
-| Area | Status |
-|---|---|
-| Analytics tabs (Overview…Distribution) | ✅ load + Writers data `editorial.spec`; filters/range ❌ |
-| Users: list, filters, actions menu (role, ban, warn, delete) | 🟡 page loads; actions ❌ browser; role email unit-tested; `team-profile-lifecycle.spec` covers role grants via UI |
-| Debates (create/edit/vote), Series, Glossary, Predictions, Calendar | 🟡 load + console only; create/edit ❌ |
-| Comments moderation tabs | ✅ load/tabs/stats `editorial.spec`; hide/restore ❌ |
-| Subscribers search/export | 🟡 page loads; export ❌ |
-| Notifications bell | 🟡 count seen; open/clear ❌ |
-| Team Profile (create, edit, photo, roles, admin link) | ✅ `team-profile*.spec` — now in every run |
-| Dashboard: streak cadence, commissioning brief, dismiss banners, delete draft | ❌ |
-| Your Readers / Leaderboard | 🟡 load only; calculations in vitest |
-
-## 7. Reader / public (`wf-reader.spec.ts`, `public.spec.ts`, `footnotes.spec.ts`, `network-crawl.spec.ts`)
-
-Sign up, sign in/out, delete account, comment (min length), save/unsave article, profile tabs
-(history, currently reading, saved, debate votes, comments, settings), rename ✅.
-Home, category counts, article page, search + highlight, debate vote, dark mode, contact
-validation, footnote popovers, link crawl ✅.
-❌ Forgot/reset password end to end (email captured but link not followed), newsletter signup,
-unsubscribe, share buttons, PDF export, avatar upload by a reader, reply to a comment,
-report a comment, ban screen. 🚧 Google sign-in.
-
-## 8. Browsers and screens
-
-| | Chromium | WebKit |
+| Actions and state variants | Expected behaviour / evidence | Method and tests |
 |---|---|---|
-| Desktop workflow specs | ✅ | ✅ |
-| Phone (Pixel 7 / iPhone 14) | ✅ | ✅ |
-| Layout 1100–1920 px | ✅ | ✅ |
-| `public` spec | ✅ | configured including the view-transition check; see run report |
-| `footnotes` spec | ✅ | enabled; keyboard/outside tap corrected, intermittent height issue open |
-| `editorial`, `editor-scope`, `team-profile` specs | ✅ | ❌ chromium only |
-| Firefox | ❌ not configured |
+| Sidebar/public navigation, mobile drawers, header/search, sign in/out, back/forward, rapid links | Correct role menu, destination/history, responsive drawer; no collected browser errors | BROWSER `wf-roles`, `wf-mobile`, `wf-navigation`, `public`, `editorial-layout`; strict WebKit document navigation remains unresolved |
+| New article, title/excerpt/category/tags, Save/autosave, reopen | Exact 201 creation/200 update; persisted document/metadata, no accidental publication | BROWSER + DB read-back `wf-formatting`, `wf-lifecycle`, `wf-controls`, `editorial` |
+| Submit, feedback/internal notes, return, revision/resubmit, approval/review, immediate publication | Separate Writer/Editor sessions; content locks and public invisibility until allowed publication | BROWSER `wf-lifecycle`, `wf-formatting`; captured emails + DB/public assertions |
+| Inline review comment, reply, resolve, show-resolved, reopen | Selected text anchors review feedback; writer sees/replies; thread state persists | BROWSER `wf-portal` |
+| Schedule, scheduler trigger, publish due item | Explicit confirmed scheduling; fresh public visibility only after due processing | BROWSER scheduling `wf-lifecycle`; trigger is API_DB, not a scheduler UI |
+| Publish/unpublish from editor, review and list; feature/pin/correction/commendation | Explicit intent/confirm/cancel; double-click guards; corrected notes and latest public status | BROWSER `wf-controls`, `wf-publication-safety`, `wf-articles`, `wf-failures` |
+| Warm home/category/archive caches before publish/unpublish | Every warmed public surface updates to authorised visibility | BROWSER `wf-cache`, lifecycle workflows |
+| Trash/restore/delete forever; own/category/locked/deleted records | Confirm/cancel, scoped rights and public hiding; exact response codes and reopened state | BROWSER `wf-articles`, `wf-access`; some negative ownership variants API_DB |
+| Bold/italic/underline/strike, heading shortcuts, quote/pull quote/code/rule | Semantic content survives save/reopen/review/preview/publication | BROWSER `wf-formatting`, `wf-controls` |
+| Bullet/ordered lists, indent/outdent; links apply/cancel/remove | Correct nesting and safe links persist across stages | BROWSER `wf-formatting`, `wf-controls` |
+| Colour/highlight palette/hex/remove, alignment, spacing options | Owner-approved editor styling is retained safely through publication | BROWSER `wf-formatting`, `wf-controls`; sanitizer/invalid style UNIT `article-render-formatting` |
+| Table picker, row above/below, column left/right, delete row/column/table, resize column | Distinct actions modify intended cells; table and explicit widths persist in editor and publication | BROWSER `wf-formatting`, `wf-controls`; new resize assertions pending cloud execution |
+| Figure upload/caption/credit, cover body/panel/URL/removal, pasted image | Actual chooser/editor upload; exact successful response and stored/reopened content | BROWSER `wf-upload`, `wf-formatting`, `wf-mobile`; synthetic paste is disclosed by test |
+| Footnote insert/edit/cancel/remove; public focus/outside click/popover | Content and accessibility remain correct; cancellation leaves content unchanged | BROWSER `wf-controls`, `wf-formatting`, `footnotes` |
+| Tutorial/settings sheets, counts/theme, Undo/Redo/Print | Controls open/close/update accurately; print boundary invoked | BROWSER `wf-controls`, `wf-mobile`, `wf-formatting`; OS print dialog EXTERNAL_BLOCK |
+| Font family/size and heading dropdown buttons | Dormant callbacks/pasted attributes have no enabled toolbar control | UNAVAILABLE; pasted style sanitizer UNIT; do not enable for coverage |
+| Failed 400/403/500 saves, slow/hung requests, network interruption/retry, expired/revoked sessions | Visible errors; content preserved; timeout; exact successful retry and fresh-page persistence | BROWSER `wf-failures`, `wf-recovery`, `wf-access`; stale cookie endpoint-only variants API_DB `wf-stale-authorization` |
+| Repeated Save/Submit/Publish/delete; edit during in-flight save | No stale response clears newer edits or repeats a destructive transition | BROWSER `wf-failures`, `wf-publication-safety`, `wf-articles` |
+| Two tabs, 409 conflict, discard/reload, deliberate keep/overwrite | Expected content/version persists; permissions rechecked even on force | BROWSER `wf-failures`, `wf-access`, `wf-recovery` |
+| Failed navigation away, refresh, tab closure/browser restart, local recovery | Owner/tab-scoped local work survives; recovery labelled and chosen; stale work cannot silently overwrite server | BROWSER `wf-recovery`; ownership/retention/validation UNIT |
+| Missing/deleted/expired article recovery, download/discard/new copy | Explicit recovery-centre actions; no resurrection or automatic publish | BROWSER `wf-recovery`, `wf-remaining`; account separation UNIT + browser |
+| Invalid/4 MiB oversized/413/interrupted uploads, storage failure, expired session | Visible refusal/no stored object; retry persists correct content | BROWSER `wf-upload`; limits/content validation UNIT/API_DB |
+| Public password-reset link, short/mismatched passwords, expiry/reuse, concurrent claim | Controlled captured link works exactly once; only winning password signs in | BROWSER `wf-accounts`; atomic claims UNIT/in-process routes |
+| User row role menu, confirm/cancel, promotion/demotion, ban/unban/delete | Fresh access and authored-article warning; deliberate irreversible deletion | BROWSER `wf-access`, `team-profile-lifecycle`, `wf-remaining`; exact current permissions API_DB |
+| Legacy admin profile inline edits/cancel, biography save/revert, photo/slug, category assignment, private notes, direct/reset password, active toggle | Failed input retained; exact update; admin-only notes and metadata; fresh reopen | BROWSER new `wf-admin-profile`; ownership/atomic validation UNIT `management-data-protection` |
+| Admin warning/cancel/retry, detail-load retry, private note add/delete/retry, detail tabs, audit error/retry | Controlled warning email; no failed mutation loses input or falsely shows an empty report | BROWSER new `wf-admin-profile` |
+| User directory search/role/status/sort/pagination | Scope and global ordering across pages | Search/role changes BROWSER `wf-access`; remaining status/sort/pagination UNCOVERED; count sorting currently orders within each page (inspection finding requiring regression/fix) |
+| Comment creation/reply/report; moderation recent/reported/hidden/hide/restore/permanent hide | Reader feedback, report persistence, separate moderator session, visibility rights | BROWSER `wf-reader`, `wf-remaining`, `wf-admin-content`; negative API boundaries separate |
+| Newsletter signup/duplicate, subscriber search/CSV, signed unsubscribe invalid/valid/reuse | Exact create/update, captured export content, deliberate unsubscribe validation | BROWSER `wf-accounts`, `wf-admin-content`; newsletter transport/signature preparation API_DB |
+| Reader profile tabs/rename/avatar upload/reopen/remove/account deletion | Own account data and storage persist; deleted session loses rights | BROWSER `wf-reader`, `wf-accounts`; remaining biography/password settings variants UNCOVERED |
+| Notification open/mark-all-read/failure/rollback/retry | Only owner's notifications read; visible failure and preserved unread state | BROWSER `wf-remaining`; individual linked-notification navigation UNCOVERED; no clear-all UI UNAVAILABLE |
+| Commissioning brief/cadence, draft deletion, achievement dismiss/retry | Role-specific dashboard controls persist across sessions | BROWSER `wf-portal`, `wf-remaining`, `wf-articles` |
+| Article status/search/sort/pagination, My Drafts, row contextual menus | Correct owned representative pages/reset on filters; enabled list transitions | BROWSER `wf-articles`, `wf-remaining`; scope variants `editor-scope` |
+| Series create/validation/cancel/expand/assign | Published member appended with series order; fresh page persists assignment | BROWSER `wf-portal`, `wf-admin-content`; editing/deletion/reorder controls UNAVAILABLE |
+| Debate create/validation/edit/cancel/active/public vote | Correct framing/arguments/rights; duplicate vote refused | BROWSER `wf-admin-content`, `wf-remaining`, `public`; closing-date/edit-active variants UNCOVERED; atomic invalid target/date UNIT |
+| Glossary create/edit/search/activate/deactivate/delete confirm/cancel/linking toggle | Term and public tooltips update for Admin only | BROWSER `wf-portal`, `wf-admin-content`; page navigation UNCOVERED; import UI UNAVAILABLE |
+| Predictions create/edit/submit/revise/close/reopen/resolve/cancel | Admin trial only; exact values/status persisted; refresh completion before subsequent navigation | BROWSER `wf-portal`, `wf-admin-content`; request synchronization changed since historical run |
+| Calendar next/previous/today/day dialog/close/article link/drag/past refusal | Correct local dates and permission; rescheduling never publishes | BROWSER `wf-portal`, `wf-remaining`; denied roles API_DB/UNIT |
+| Analytics date presets/all tabs and available filters | Correct exact period/tab request, data shape/role restrictions | BROWSER `wf-portal`, `editorial`; aggregations UNIT/API_DB; custom date/export UI UNAVAILABLE |
+| Share popups/copy/failure/PDF | Exact destination observed without posting; clipboard real read-back Chromium; print/PDF content | BROWSER `wf-remaining`; WebKit clipboard success boundary only; native print/share destinations EXTERNAL_BLOCK |
+| Team form/photo/linking/role promotion/delete confirmation/public roster | Account-bound ownership and actual stored image/public roster across mobile layouts | BROWSER `team-profile`, `team-profile-lifecycle`; real storage policy EXTERNAL_BLOCK |
+| Contact validation/submission and static/public links | Visible required-field validation, exact submission; public policy/content renders | BROWSER `public`; API_DB `api`; external form/social posting not exercised |
+| First-admin setup/bootstrap | Refuse takeover after admin exists; create only in empty state | UNIT/in-process route; seeded browser flow UNAVAILABLE |
 
-### Open WebKit findings (not fixed, not hidden)
+## External limits and unresolved findings
 
-1. `public.spec` "navigating across pages throws no InvalidStateError": rapid navigation under WebKit produces uncaught Next RSC fetch errors containing "due to access control checks", although destination pages respond successfully. It also reproduces over a local HTTPS proxy (65 HTTP and 67 HTTPS errors), so an HTTP-only explanation is unsupported. The test remains enabled. Framework/browser root cause and deployed Safari impact remain unconfirmed; see the audit report and failure traces.
-2. Historical `footnotes.spec` findings under WebKit (the keyboard and outside-point tests have now been corrected; the exact page-height assertion remains enabled): (a) keyboard Tab does not reach the footnote link (Safari
-   skips links in the tab order unless the user enables it, so the popover is not
-   keyboard-reachable there by default); (b) a tap outside the open popover does not close it
-   under WebKit touch emulation; (c) a page-height equality assertion is 1 px off.
+Real Safari comparison is blocked by driver session-creation timeout despite enabled automation; personal developer preferences are not a default-security comparison. Physical devices, staging bucket policies/signed URLs/transforms/CDN, provider email delivery and OAuth require separate controlled access. No production services are used for mutations. Headless/mobile emulation and local fake services do not prove these boundaries.
 
-## 9. Full source census and stateful controls
-
-[control-inventory.json](./control-inventory.json) lists every discovered JSX control
-declaration and native dialog, linked to all page routes through inherited layouts and
-component imports. Options and dynamic map expressions are included. Each entry records
-its source line, expected handler/navigation, disabled condition and candidate test
-references. A candidate reference is never a claim that an action ran. Rendered snapshots
-under `test-results/inventory/<browser>/<role>.json` record the initial portal pages; they
-do not enumerate dialogs that have not been opened. Data-dependent rows are families
-(one action per article/user/debate), not a finite list of production data.
-
-| Stateful control family | Expected behaviour | Browser coverage / gap |
-|---|---|---|
-| Writer/Editor/Admin/Growth sidebar; mobile drawer; sign out | exact role menu, route access, scroll-bounded shell, sign out | `wf-roles`, `editorial-layout`, reader sign out; portal sign out action not separately tested |
-| Article filters/search/sort/pagination, My Drafts, article action menu | scope rows to role/status/query; Edit/Review/View/Publish/Unpublish/Trash | page access + lifecycle/list publication/trash tested; every filter combination/pagination uncovered |
-| Editor colour/highlight menus | palette swatches, hex Enter, remove/no highlight; cancel closes | representative swatches + hex + remove in `wf-formatting`; every individual swatch equivalent not separately clicked |
-| Table picker/context menu | 1–10 columns, 1–8 rows; insert/delete rows, columns, whole table | representative 3x3 and 2x2 + all context actions; all 80 dimensions not separately tested |
-| Link bar, figure/caption/credit inputs, footnote prompt, upload chooser | apply/cancel/remove; save content and uploads; edit/cancel/remove footnotes | `wf-formatting`, `wf-controls`, `wf-upload`; native OS chooser/print dialog blocked by automation |
-| Settings desktop aside/mobile sheet, tutorial dialog | categories/tags/slug/author/status/date/cover; close settings/tutorial | `wf-formatting`, `wf-controls`, `wf-mobile`; series assignment and tag removal uncovered |
-| Save conflict banner, expired-session error, beforeunload confirmation | keep/discard, recover login, preserve content, warn before closing | save conflict and recovery tested; actual crash recovery uncovered |
-| Review feedback/correction/commendation and feature/pin | disabled return without text; persist state; public correction; feature/pin toggle | `wf-lifecycle`, `wf-controls`; selected-text inline review comments uncovered |
-| Trash confirmation | restore or permanently delete only authorised articles | `wf-articles` editor; writer-own trash action not exercised |
-| Users filters, row menu, user details, ban/warn/delete confirmation | Admin manages users; role change updates access and profile | Team Profile lifecycle role grants covered; ban/warn/delete and remaining filters uncovered |
-| Team Profile + admin Team management forms/link selector/delete confirmation | own biography/photo, duplicate protection, legacy card link, public roster | `team-profile*.spec`; exact run outcome in report |
-| Analytics Overview/Articles/Categories/Authors/Readers/Activity/Writers/Distribution tabs and date/filter controls | valid data for Admin/Growth, deny other roles | tab load + Writers data; date/filter interactions uncovered |
-| Debates create/edit/delete/results/export, glossary form/import/toggle, predictions create/edit/resolve/cancel | authorised state changes; validation; public visibility | page/navigation/role checks and API/unit checks only; creation/edit browser actions uncovered |
-| Series form/order/parts; calendar month/event/filter/form | save series/calendar for authorised roles | menu load only; mutations uncovered; calendar intentionally Admin only |
-| Growth subscriber search/filter/export, engagement/writer metrics, reader-author selector | scoped reports/export, correct aggregations | initial page + unit/integration data checks; browser export/filter actions uncovered |
-| Dashboard commissioning brief, cadence, achievement/banner dismiss, draft delete, notification bell/open/clear | persist authorised edits, dismiss/read relevant notices | uncovered UI actions; APIs/calculations partly unit-tested |
-| Public header/search/mobile menu, cookie consent/theme, category/archive/tag/author pagination | navigate/filter/read without internal errors | public/network-crawl + mobile + reader flows; not every data-dependent pagination path |
-| Article share/copy/PDF, bookmarks, footnotes, comments/reply/report | copy/share/save, decode notes, submit/moderate authorised comments | bookmarks/comments/footnotes + share control presence; external share, PDF, reply/report uncovered |
-| Login/signup/profile tabs/settings/delete account; password reset forms | session transitions, rename, save/history/votes/comments, deletion | `wf-reader`; forgot/reset full captured-link flow uncovered; Google intentionally off in tests |
-| Newsletter/unsubscribe/contact/ban screen | validate forms, persist consent/disable subscription, display ban | contact empty validation only; newsletter/unsubscribe/ban outcome uncovered |
-| Legacy `/admin` pages | redirects to portal, Team management Admin only; legacy data deletion form API protected | Team covered; data/login-attempts/subscribers legacy UI uncovered; inspect API permissions separately |
-| `/editorial/setup` | first Admin form only if no Admin exists | intentionally unavailable in seeded app; route-handler test creates first Admin in process |
-| `/predictions`, detail and leaderboard | Admin-only trial; others refused | intentionally disabled for non-Admin; public prediction browser actions uncovered |
-| About/team/corrections/privacy/terms | read static/public content and published corrections/roster | crawl/page tests; correction content and Team roster workflows covered |
-
-Published typography policy is already recorded in
-`tests/unit/article-render-formatting.test.ts`: preserve semantic tables/strike/code, use
-house style for colours/alignment/line spacing/fonts. The audit preserves that policy.
-Font family/size have no available toolbar control; dormant callbacks/pasted attributes
-are inspection findings. This is not new owner confirmation in this session.
-
-Source access nuance: legacy `/editorial/debates/[debateId]` and its edit page inherit the portal shell without a manager-only page guard. Their APIs gate actions to Editor/Admin. The source census records that distinction; direct Writer/Growth navigation to those dynamic pages has not been browser-tested.
+The strict WebKit rapid document-navigation test remains an ordinary failing regression. Framework-free/Next reproductions support a native cancellation diagnostic/tool classification hypothesis; they do not establish deployed Safari impact or resolve the associated historical NextAuth session-fetch error. Source/label census, route loads, API-only checks and historical passes are not used to close the explicitly uncovered action rows above.

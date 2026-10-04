@@ -77,6 +77,9 @@ jobs:
   e2e:
     name: E2E (Playwright), data-layer & network checks
     runs-on: ubuntu-latest
+    # Measured local full run: ~30 minutes across three serialized phases.
+    # 60 minutes includes dependency/browser installs and first production build;
+    # individual action/navigation deadlines remain 10/15 seconds, retries zero.
     timeout-minutes: 60
 
     services:
@@ -151,4 +154,5 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            !test-results/**/outbox.jsonl
           retention-days: 7

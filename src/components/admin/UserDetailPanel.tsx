@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 import {
   X, Shield, AlertTriangle, Ban, Trash2, ChevronDown,
   Plus, Check, BookOpen, Bookmark, MessageSquare, Vote,
@@ -143,16 +144,19 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
   const [noteText, setNoteText] = useState('')
   const [noteLoading, setNoteLoading] = useState(false)
   const [toast, setToast] = useState('')
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [hiddenComments, setHiddenComments] = useState<Set<string>>(new Set())
 
   const panelRef = useRef<HTMLDivElement>(null)
+  const mutationInFlight = useRef(false)
+  const [loadError, setLoadError] = useState('')
 
   const load = useCallback(() => {
     setLoading(true)
-    fetch(`/api/admin/users/${userId}`)
-      .then((r) => r.json())
-      .then((d) => setUser(d))
-      .catch(() => {})
+    setLoadError('')
+    apiRequest<UserDetail>(`/api/admin/users/${userId}`)
+      .then(setUser)
+      .catch((error) => setLoadError(asApiError(error).message))
       .finally(() => setLoading(false))
   }, [userId])
 
@@ -165,116 +169,93 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
     return () => document.removeEventListener('keydown', handler)
   }, [onClose])
 
-  const showToast = (msg: string) => {
+  const showToast = (msg: string, success = true) => {
+    clearTimeout(toastTimer.current)
     setToast(msg)
-    setTimeout(() => setToast(''), 3000)
+    if (success) toastTimer.current = setTimeout(() => setToast(''), 3000)
   }
 
   // The panel only ASKS for a role change; this confirms it (see AdminUsersPage's ActionMenu).
   const [pendingRole, setPendingRole] = useState<string | null>(null)
   const requestRoleChange = (role: string) => { setRoleOpen(false); setPendingRole(role) }
 
-  const handleRoleChange = async (role: string) => {
-    setRoleLoading(true)
-    const res = await fetch(`/api/admin/users/${userId}/role`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role }),
-    })
-    setRoleLoading(false)
-    setRoleOpen(false)
-    if (res.ok) {
-      showToast(`Role changed to ${role}`)
-      load(); onUserUpdated()
-    } else {
-      const d = await res.json()
-      showToast(d.error ?? 'Failed to change role')
+  async function mutate(path: string, method: string, body: unknown, success: () => void, pending?: (value: boolean) => void) {
+    if (mutationInFlight.current) return
+    mutationInFlight.current = true
+    pending?.(true)
+    try {
+      await apiRequest(path, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      })
+      success()
+    } catch (error) {
+      showToast(asApiError(error).message, false)
+    } finally {
+      mutationInFlight.current = false
+      pending?.(false)
     }
   }
 
-  const handleWarn = async () => {
+  const handleRoleChange = (role: string) => mutate(`/api/admin/users/${userId}/role`, 'PATCH', { role }, () => {
+    setRoleOpen(false)
+    showToast(`Role changed to ${role}`)
+    load(); onUserUpdated()
+  }, setRoleLoading)
+
+  const handleWarn = () => {
     if (!warnReason.trim()) return
-    setWarnLoading(true)
-    const res = await fetch(`/api/admin/users/${userId}/warn`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason: warnReason }),
-    })
-    setWarnLoading(false)
-    if (res.ok) {
+    return mutate(`/api/admin/users/${userId}/warn`, 'POST', { reason: warnReason }, () => {
       setWarnOpen(false); setWarnReason('')
       showToast('Warning sent')
       load(); onUserUpdated()
-    } else {
-      showToast('Failed to send warning')
-    }
+    }, setWarnLoading)
   }
 
-  const handleBan = async () => {
+  const handleBan = () => {
     if (!banReason.trim()) return
-    setBanLoading(true)
-    const res = await fetch(`/api/admin/users/${userId}/ban`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason: banReason }),
-    })
-    setBanLoading(false)
-    if (res.ok) {
+    return mutate(`/api/admin/users/${userId}/ban`, 'POST', { reason: banReason }, () => {
       setBanOpen(false); setBanReason('')
       showToast('Account banned')
       load(); onUserUpdated()
-    } else {
-      const d = await res.json()
-      showToast(d.error ?? 'Failed to ban')
-    }
+    }, setBanLoading)
   }
 
-  const handleUnban = async () => {
-    const res = await fetch(`/api/admin/users/${userId}/unban`, { method: 'POST' })
-    if (res.ok) { showToast('Account unbanned'); load(); onUserUpdated() }
-    else showToast('Failed to unban')
-  }
+  const handleUnban = () => mutate(`/api/admin/users/${userId}/unban`, 'POST', undefined, () => {
+    showToast('Account unbanned'); load(); onUserUpdated()
+  }, setBanLoading)
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!user || deleteConfirm.toLowerCase() !== user.email.toLowerCase()) return
-    setDeleteLoading(true)
-    const res = await fetch(`/api/admin/users/${userId}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirmEmail: deleteConfirm }),
-    })
-    setDeleteLoading(false)
-    if (res.ok) { onClose(); onUserUpdated() }
-    else {
-      const d = await res.json()
-      showToast(d.error ?? 'Failed to delete')
-    }
+    return mutate(`/api/admin/users/${userId}`, 'DELETE', { confirmEmail: deleteConfirm }, () => {
+      onClose(); onUserUpdated()
+    }, setDeleteLoading)
   }
 
-  const handleAddNote = async () => {
+  const handleAddNote = () => {
     if (!noteText.trim()) return
-    setNoteLoading(true)
-    const res = await fetch(`/api/admin/users/${userId}/notes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ note: noteText }),
-    })
-    setNoteLoading(false)
-    if (res.ok) { setNoteText(''); load() }
-    else showToast('Failed to add note')
+    return mutate(`/api/admin/users/${userId}/notes`, 'POST', { note: noteText }, () => {
+      setNoteText(''); load()
+    }, setNoteLoading)
   }
 
-  const handleDeleteNote = async (noteId: string) => {
-    await fetch(`/api/admin/users/${userId}/notes/${noteId}`, { method: 'DELETE' })
-    load()
-  }
+  const handleDeleteNote = (noteId: string) => mutate(`/api/admin/users/${userId}/notes/${noteId}`, 'DELETE', undefined, load, setNoteLoading)
 
-  const handleRemoveComment = async (commentId: string) => {
-    const res = await fetch(`/api/admin/users/${userId}/comments/${commentId}`, { method: 'DELETE' })
-    if (res.ok) {
-      setHiddenComments((prev) => new Set([...prev, commentId]))
-      showToast('Comment removed')
-    }
+  const handleRemoveComment = (commentId: string) => mutate(`/api/admin/users/${userId}/comments/${commentId}`, 'DELETE', undefined, () => {
+    setHiddenComments((prev) => new Set([...prev, commentId]))
+    showToast('Comment removed')
+  })
+
+  if (loadError && !loading) {
+    return <>
+      <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
+      <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-[640px] bg-[var(--bg-elevated)] p-6">
+        <p role="alert">{loadError}</p>
+        <button onClick={load}>Retry user details</button>
+        <button onClick={onClose}>Close user details</button>
+      </div>
+    </>
   }
 
   if (loading || !user) {
@@ -322,7 +303,7 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
       >
         {/* Toast */}
         {toast && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-navy text-cream text-xs font-semibold px-4 py-2 border border-gold/30 shadow-lg">
+          <div role="alert" className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-navy text-cream text-xs font-semibold px-4 py-2 border border-gold/30 shadow-lg">
             {toast}
           </div>
         )}
@@ -346,7 +327,7 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
               <p className="text-cream/50 text-xs mt-0.5">{user.email}</p>
               <p className="text-cream/35 text-[10px] mt-0.5">Joined {format(new Date(user.createdAt), 'MMMM yyyy')}</p>
             </div>
-            <button onClick={onClose} className="text-cream/40 hover:text-cream transition-colors shrink-0 p-1">
+            <button onClick={onClose} aria-label="Close user details" className="text-cream/40 hover:text-cream transition-colors shrink-0 p-1">
               <X size={18} />
             </button>
           </div>
@@ -390,6 +371,7 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
               {user.isBanned ? (
                 <button
                   onClick={handleUnban}
+                  disabled={banLoading}
                   className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/30 text-green-500 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 hover:bg-green-500/20 transition-colors"
                 >
                   <Check size={11} /> Unban
@@ -581,6 +563,7 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
                         </div>
                         <button
                           onClick={() => handleDeleteNote(n.id)}
+                          disabled={noteLoading}
                           className="text-[var(--fg-faint)] hover:text-red-400 transition-colors shrink-0"
                           aria-label="Delete note"
                         >

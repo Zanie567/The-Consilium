@@ -419,10 +419,7 @@ describe('POST /api/publish-scheduled', () => {
 
   it('correct Bearer token → 200 with due and published', async () => {
 
-    if (secret === 'test-not-set') {
-      console.warn('[skip] CRON_SECRET not in environment')
-      return
-    }
+    expect(secret, 'the isolated launcher supplies a throwaway cron secret').not.toBe('test-not-set')
     const res = await fetch(`${BASE}/api/publish-scheduled`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${secret}` },
@@ -452,14 +449,14 @@ describe('POST /api/publish-scheduled', () => {
     // The old query-param auth leaked the secret into access logs; verifyCronAuth
     // now only accepts the Authorization: Bearer or x-cron-secret headers.
 
-    if (secret === 'test-not-set') return
+    expect(secret, 'isolated cron fixture').not.toBe('test-not-set')
     const res = await fetch(`${BASE}/api/publish-scheduled?secret=${secret}`, { method: 'POST' })
     expect(res.status).toBe(401)
   })
 
   it('GET method is also accepted (same handler)', async () => {
 
-    if (secret === 'test-not-set') return
+    expect(secret, 'isolated cron fixture').not.toBe('test-not-set')
     const res = await fetch(`${BASE}/api/publish-scheduled`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${secret}` },
@@ -618,13 +615,15 @@ describe('GET /api/articles role guard', () => {
   it('single published article never leaks author password/email', async () => {
 
     const list = await get('/api/articles')
+    expect(list.status).toBe(200)
     const articles = await list.json()
     const id = Array.isArray(articles) ? articles[0]?.id : null
-    if (!id) return
+    expect(id, 'published article fixture').toBeTruthy()
     const res = await get(`/api/articles/${id}`)
-    if (res.status !== 200) return
+    expect(res.status).toBe(200)
     const article = await res.json()
-    if (article?.author) {
+    expect(article.author, 'published author fixture').toBeTruthy()
+    if (article.author) {
       expect(article.author).not.toHaveProperty('password')
       expect(article.author).not.toHaveProperty('email')
     }
@@ -672,12 +671,9 @@ describe('POST /api/debates/[debateId]/vote', () => {
   it('anonymous vote → 200, sets consilium_anon_id cookie', async () => {
     expect(debateId,'debate fixture').toBeTruthy()
     const res = await post(`/api/debates/${debateId}/vote`, { side: 'FOR' })
-    // First anonymous vote should succeed (200 or 409 if debate already voted on from this IP)
-    expect([200, 409]).toContain(res.status)
-    if (res.status === 200) {
-      const setCookie = res.headers.get('set-cookie') ?? ''
-      expect(setCookie).toContain('consilium_anon_id')
-    }
+    expect(res.status).toBe(200)
+    const setCookie = res.headers.get('set-cookie') ?? ''
+    expect(setCookie).toContain('consilium_anon_id')
   })
 })
 

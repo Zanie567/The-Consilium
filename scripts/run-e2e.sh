@@ -26,6 +26,7 @@ export FAKE_STORAGE_PORT="${FAKE_STORAGE_PORT:-54321}"
 export E2E_DIST_DIR=".next-e2e-${E2E_APP_PORT}-$$"
 export E2E_RUN_ID="${E2E_DIST_DIR#.}"
 export E2E_RESULTS_DIR="test-results/$E2E_RUN_ID"
+export E2E_INVENTORY_DIR="$PWD/$E2E_RESULTS_DIR/inventory"
 export EMAIL_CAPTURE_FILE="$PWD/$E2E_RESULTS_DIR/outbox.jsonl"
 export E2E_CREATE_DATABASE=1
 
@@ -86,7 +87,14 @@ node node_modules/ts-node/dist/bin.js -P tsconfig.seed.json tests/e2e/helpers/fa
 
 # A storage URL alone cannot attest all credentials/source in a cached build.
 echo "→ building (isolated env) into ${NEXT_DIST_DIR}..."
-cp tsconfig.json "${NEXT_DIST_DIR}.tsconfig.json"
+node <<'NODE'
+const fs = require('node:fs')
+const config = JSON.parse(fs.readFileSync('tsconfig.json', 'utf8'))
+// Check this run's generated route types, without recursively checking archived builds.
+config.exclude = config.exclude.filter(entry => entry !== '.next-e2e-*')
+config.exclude.push(...fs.readdirSync('.').filter(entry => /^\.next-e2e-/.test(entry) && fs.statSync(entry).isDirectory() && entry !== process.env.NEXT_DIST_DIR))
+fs.writeFileSync(`${process.env.NEXT_DIST_DIR}.tsconfig.json`, JSON.stringify(config, null, 2))
+NODE
 npm run build >"$E2E_RESULTS_DIR/build.log" 2>&1 || { tail -40 "$E2E_RESULTS_DIR/build.log"; exit 1; }
 
 node node_modules/next/dist/bin/next start -p "$PORT" >"$E2E_RESULTS_DIR/server.log" 2>&1 &
