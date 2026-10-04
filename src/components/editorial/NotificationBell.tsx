@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Bell } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { apiRequest,asApiError } from '@/lib/apiClient'
 import { Tooltip } from '@/components/ui/Tooltip'
 
@@ -19,6 +20,7 @@ interface Notification {
 }
 
 export function NotificationBell() {
+  const router = useRouter()
   const [notifs, setNotifs] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -129,23 +131,25 @@ export function NotificationBell() {
                             ? `/editorial/review/${n.articleId}`
                             : `/editorial/articles/${n.articleId}/edit`
                         }
-                        onClick={() => {
-                          // Optimistically mark read; persist to server; revert on failure.
-                          if (!n.read) {
-                            setError('')
-                            setNotifs((prev) =>
-                              prev.map((item) => item.id === n.id ? { ...item, read: true } : item)
-                            )
-                            apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' })
-                              .catch((reason) => {
-                                // Revert the optimistic update on error
-                                setNotifs((prev) =>
-                                  prev.map((item) => item.id === n.id ? { ...item, read: false } : item)
-                                )
-                                setError(asApiError(reason).message)
-                              })
-                          }
-                          setOpen(false)
+                        onNavigate={(event) => {
+                          if (n.read) { setOpen(false); return }
+                          event.preventDefault()
+                          if (markingRef.current) return
+                          markingRef.current = true
+                          setMarking(true)
+                          setError('')
+                          // Keep the error and unread item reachable until the
+                          // acknowledgement succeeds; the editor has its own header.
+                          void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' })
+                            .then(() => {
+                              setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item))
+                              setOpen(false)
+                              router.push(n.type === 'article_submitted'
+                                ? `/editorial/review/${n.articleId}`
+                                : `/editorial/articles/${n.articleId}/edit`)
+                            })
+                            .catch(reason => setError(asApiError(reason).message))
+                            .finally(() => { markingRef.current = false; setMarking(false) })
                         }}
                         className="block"
                       >

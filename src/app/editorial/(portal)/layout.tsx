@@ -27,11 +27,11 @@ export default async function EditorialLayout({ children }: { children: React.Re
   const dbUser = await prisma.user
     .findUnique({
       where: { id: session.user.id },
-      select: { role: true, isActive: true, name: true, email: true, image: true },
+      select: { role: true, isActive: true, isBanned: true, name: true, email: true, image: true },
     })
     .catch(() => null)
 
-  if (!dbUser || !dbUser.isActive || !EDITORIAL_ROLES.includes(dbUser.role)) {
+  if (!dbUser || !dbUser.isActive || dbUser.isBanned || !EDITORIAL_ROLES.includes(dbUser.role)) {
     return (
       <div className="min-h-screen bg-navy flex items-center justify-center px-4">
         <div className="text-center max-w-sm">

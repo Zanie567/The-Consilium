@@ -353,6 +353,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
   const [users, setUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(true)
   const [usersError, setUsersError] = useState('')
+  const usersRequest = useRef(0)
   const [total, setTotal] = useState(0)
   const [pages, setPages] = useState(1)
   const [page, setPage] = useState(1)
@@ -379,6 +380,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
   }
 
   const loadUsers = useCallback(() => {
+    const request = ++usersRequest.current
     setLoading(true)
     setUsersError('')
     const params = new URLSearchParams({
@@ -391,12 +393,13 @@ export function AdminUsersPage({ currentAdminId }: Props) {
     })
     apiRequest<{users: UserRow[]; total: number; pages: number}>(`/api/admin/users?${params}`)
       .then((d) => {
+        if (request !== usersRequest.current) return
         setUsers(d.users ?? [])
         setTotal(d.total ?? 0)
         setPages(d.pages ?? 1)
       })
-      .catch(reason => setUsersError(asApiError(reason).message))
-      .finally(() => setLoading(false))
+      .catch(reason => { if (request === usersRequest.current) setUsersError(asApiError(reason).message) })
+      .finally(() => { if (request === usersRequest.current) setLoading(false) })
   }, [page, sort, search, roleTab, status])
 
   useEffect(() => { loadStats() }, [])

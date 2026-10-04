@@ -202,7 +202,38 @@ test('administrator directory filters, every sort and pagination rank count lead
     const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/admin/users' && (new URL(r.url()).searchParams.get('role') ?? '') === (role === 'All' ? '' : role.toUpperCase()))
     await page.getByRole('button', { name: role, exact: true }).click()
     expect((await response).status()).toBe(200)
-    await expect(page.locator('tbody tr')).toHaveCount(role === 'Reader' || role === 'All' ? 15 : 0)
+    if (role === 'Reader' || role === 'All') await expect(page.locator('tbody tr')).toHaveCount(15)
+    else { await expect(page.getByRole('cell', { name: 'No users found.', exact: true })).toBeVisible(); await expect(page.locator('tbody tr')).toHaveCount(1) }
   }
+  let release = () => {}
+  let started = () => {}
+  const held = new Promise<void>(resolve => { release = resolve })
+  const observed = new Promise<void>(resolve => { started = resolve })
+  await page.route('**/api/admin/users?*', async route => {
+    if (new URL(route.request().url()).searchParams.get('sort') !== 'oldest') return route.continue()
+    const response = await route.fetch()
+    expect(response.status()).toBe(200)
+    started()
+    await held
+    await route.fulfill({ response })
+  })
+  try {
+    await page.getByLabel('User sort').selectOption('oldest')
+    await observed
+    const latest = page.waitForResponse(r => new URL(r.url()).pathname === '/api/admin/users' && new URL(r.url()).searchParams.get('sort') === 'articleCount')
+    await page.getByLabel('User sort').selectOption('articleCount')
+    const latestResponse = await latest
+    expect(latestResponse.status()).toBe(200)
+    const currentEmails = (await latestResponse.json()).users.map((user: { email: string }) => user.email)
+    const renderedEmails = () => page.locator('tbody tr td:first-child').allInnerTexts().then(rows => rows.map(text => text.split(/\s+/).find(token => token.endsWith('@consilium.test'))))
+    await expect.poll(renderedEmails).toEqual(currentEmails)
+    const old = page.waitForResponse(r => new URL(r.url()).pathname === '/api/admin/users' && new URL(r.url()).searchParams.get('sort') === 'oldest')
+    release()
+    const oldResponse = await old
+    expect(oldResponse.status()).toBe(200)
+    expect((await oldResponse.json()).users.map((user: { email: string }) => user.email)).not.toEqual(currentEmails)
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())))
+    expect(await renderedEmails()).toEqual(currentEmails)
+  } finally { release() }
   await ctx.close()
 })

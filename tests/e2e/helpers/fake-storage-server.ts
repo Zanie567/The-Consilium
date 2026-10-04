@@ -70,7 +70,14 @@ http
       const url = new URL(req.url ?? '/', 'http://localhost')
       const parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent)
 
-      if (url.pathname === '/__attestation') return send(res, 200, {run:process.env.E2E_RUN_ID,database:new URL(DB_URL!).pathname.slice(1)})
+      if (url.pathname === '/__attestation') {
+        const client = new Client({ connectionString: DB_URL })
+        try {
+          await client.connect()
+          const { rows } = await client.query('SELECT current_database() AS database')
+          return send(res, 200, { run: process.env.E2E_RUN_ID, database: rows[0].database })
+        } finally { await client.end() }
+      }
       if (url.pathname === '/__objects') {
         return send(res, 200, [...objects].map(([key, o]) => ({ key, type: o.type, size: o.body.length })))
       }

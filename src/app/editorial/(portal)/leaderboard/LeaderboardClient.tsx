@@ -2,7 +2,7 @@
 
 import { apiRequest, asApiError } from '@/lib/apiClient'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Crown, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp } from 'lucide-react'
 
@@ -34,19 +34,21 @@ export function LeaderboardClient({ currentUserId }: { currentUserId: string }) 
   const [writers, setWriters]     = useState<WriterRow[]>([])
   const [loading, setLoading]     = useState(true)
   const [error, setError] = useState('')
+  const dataRequest = useRef(0)
   const [sortCol, setSortCol]     = useState<SortCol>('totalReadingMinutes')
   const [sortDir, setSortDir]     = useState<SortDir>('desc')
 
   const fetchData = useCallback(async (p: LeaderboardPeriod) => {
+    const request = ++dataRequest.current
     setLoading(true)
     setError('')
     try {
       const json = await apiRequest<{writers: WriterRow[]}>(`/api/editorial/leaderboard?period=${p}`)
-      setWriters(json.writers ?? [])
+      if (request === dataRequest.current) setWriters(json.writers ?? [])
     } catch (reason) {
-      setError(asApiError(reason).message)
+      if (request === dataRequest.current) setError(asApiError(reason).message)
     } finally {
-      setLoading(false)
+      if (request === dataRequest.current) setLoading(false)
     }
   }, [])
 

@@ -760,7 +760,8 @@
         "tests/integration/admin-directory-sort.test.ts",
         "tests/integration/proxy.test.ts",
         "tests/integration/route-handlers.test.ts",
-        "tests/integration/team-profile-db.test.ts"
+        "tests/integration/team-profile-db.test.ts",
+        "tests/unit/portal-request-order.test.tsx"
       ],
       "guardSource": [
         "src/app/admin/page.tsx: redirect('/editorial')",
@@ -1228,6 +1229,7 @@
         "tests/unit/auth-redirect.test.ts",
         "tests/unit/console-error-collection.test.ts",
         "tests/unit/featured-article-hero.test.tsx",
+        "tests/unit/notification-navigation.test.tsx",
         "tests/unit/public-user.test.ts"
       ],
       "guardSource": [
@@ -1643,6 +1645,7 @@
       "candidateTestFiles": [
         "tests/e2e/network-crawl.spec.ts",
         "tests/e2e/public.spec.ts",
+        "tests/e2e/wf-discovery.spec.ts",
         "tests/integration/api.test.ts"
       ],
       "guardSource": [],
@@ -2049,7 +2052,8 @@
         "tests/e2e/wf-remaining.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
-        "tests/integration/review-route.test.ts"
+        "tests/integration/review-route.test.ts",
+        "tests/unit/notification-navigation.test.tsx"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/articles/[id]/edit/page.tsx: import { requirePortalRole } from '@/lib/portalAccess'",
@@ -2583,7 +2587,8 @@
         "tests/e2e/wf-remaining.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
-        "tests/integration/review-route.test.ts"
+        "tests/integration/review-route.test.ts",
+        "tests/unit/notification-navigation.test.tsx"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/articles/page.tsx: import { requirePortalRole } from '@/lib/portalAccess'",
@@ -3988,9 +3993,9 @@
         "src/app/editorial/(portal)/layout.tsx: redirect('/editorial/login')"
       ],
       "controls": [
-        "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx:73",
-        "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx:101",
-        "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx:106",
+        "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx:75",
+        "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx:103",
+        "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx:108",
         "src/components/layout/EditorialSidebarWrapper.tsx:36",
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
@@ -4037,17 +4042,17 @@
       "dynamicFamilies": [
         {
           "file": "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx",
-          "line": 105,
+          "line": 107,
           "source": "PERIOD_OPTIONS.map(opt => ( <button key={opt.id} onClick={() => setPeriod(opt.id)} className={[ 'px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors border', period === opt.id ? 'bg-navy text-gold border-gold/30' : 'bg-[var(--bg-elevated)] text-[var(--fg-muted)] border-[var(--border)] hover:text-[var(--fg)]', ].join(' ')} > {opt.label} </button> ))"
         },
         {
           "file": "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx",
-          "line": 177,
+          "line": 179,
           "source": "Array.from({ length: 6 }).map((_, i) => ( <div key={i} className=\"bg-[var(--bg-elevated)] border border-[var(--border)] p-4 animate-pulse h-14\" /> ))"
         },
         {
           "file": "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx",
-          "line": 213,
+          "line": 215,
           "source": "sorted.map(writer => { const isCurrentUser = writer.id === currentUserId return ( <tr key={writer.id} className=\"transition-colors hover:bg-[var(--bg-subtle)]\" style={isCurrentUser ? { backgroundColor: 'rgba(201,168,76,0.07)' } : undefined} > <td className=\"px-4 py-3 text-center\"> {writer.rank === 1 ? ( <Crown size={14} className=\"text-gold mx-auto\" /> ) : ( <span className=\"text-xs font-bold text-[var(--fg-faint)] tabular-nums\">{writer.rank}</span> )} </td> <td className=\"px-4 py-3\"> <span className={`font-medium ${isCurrentUser ? 'text-gold' : 'text-[var(--fg)]'}`}> {writer.name} {isCurrentUser && <span className=\"ml-1.5 text-[10px] text-gold/70\">(you)</span>} </span> {/* Rank change badge */} {writer.rankChange !== null && writer.rankChange !== 0 && ( <span className={`ml-2 text-[10px] ${writer.rankChange > 0 ? 'text-emerald-600' : 'text-red-500'}`}> {writer.rankChange > 0 ? `↑${writer.rankChange}` : `↓${Math.abs(writer.rankChange)}`} </span> )} </td> <td className=\"px-4 py-3 text-right tabular-nums text-[var(--fg)]\">{writer.articlesCount}</td> <td className=\"px-4 py-3 text-right tabular-nums font-bold text-gold\"> {writer.totalReadingMinutes.toFixed(1)} </td> <td className=\"px-4 py-3 text-right tabular-nums text-[var(--fg)]\">{writer.avgCompletionRate}%</td> <td className=\"px-4 py-3 text-right tabular-nums text-[var(--fg)] hidden sm:table-cell\"> {writer.avgViewsPerArticle.toLocaleString()} </td> <td className=\"px-4 py-3 text-right tabular-nums text-[var(--fg)] hidden sm:table-cell\"> {writer.commentsGenerated} </td> </tr> ) })"
         },
         {
@@ -4130,6 +4135,9 @@
         "tests/unit/auth-redirect.test.ts",
         "tests/unit/editorial-calendar.test.ts",
         "tests/unit/editorial-schedule-display.test.ts",
+        "tests/unit/notification-navigation.test.tsx",
+        "tests/unit/portal-layout-ban.test.tsx",
+        "tests/unit/portal-request-order.test.tsx",
         "tests/unit/safe-redirect.test.ts"
       ],
       "guardSource": [
@@ -4155,9 +4163,9 @@
         "src/app/editorial/(portal)/page.tsx:526",
         "src/app/editorial/(portal)/page.tsx:558",
         "src/app/editorial/(portal)/page.tsx:602",
-        "src/components/editorial/NotificationBell.tsx:69",
-        "src/components/editorial/NotificationBell.tsx:97",
-        "src/components/editorial/NotificationBell.tsx:126",
+        "src/components/editorial/NotificationBell.tsx:71",
+        "src/components/editorial/NotificationBell.tsx:99",
+        "src/components/editorial/NotificationBell.tsx:128",
         "src/components/editorial/DraftsSection.tsx:49",
         "src/components/editorial/DraftsSection.tsx:61",
         "src/components/editorial/DraftsSection.tsx:85",
@@ -4235,8 +4243,8 @@
         },
         {
           "file": "src/components/editorial/NotificationBell.tsx",
-          "line": 113,
-          "source": "notifs.map((n) => ( <div key={n.id} className={`px-4 py-3 border-b border-[var(--border)] last:border-0 flex gap-2.5 ${ !n.read ? 'bg-gold/5' : '' }`} > {/* Bug 8: unread dot indicator that disappears once read */} <div className=\"mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full transition-colors duration-200\" style={{ background: n.read ? 'transparent' : 'var(--color-gold, #b8972e)' }} /> <div className=\"flex-1 min-w-0\"> {n.articleId ? ( <Link href={ n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit` } onClick={() => { // Optimistically mark read; persist to server; revert on failure. if (!n.read) { setError('') setNotifs((prev) => prev.map((item) => item.id === n.id ? { ...item, read: true } : item) ) apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .catch((reason) => { // Revert the optimistic update on error setNotifs((prev) => prev.map((item) => item.id === n.id ? { ...item, read: false } : item) ) setError(asApiError(reason).message) }) } setOpen(false) }} className=\"block\" > <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </Link> ) : ( <> <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </> )} </div> </div> ))"
+          "line": 115,
+          "source": "notifs.map((n) => ( <div key={n.id} className={`px-4 py-3 border-b border-[var(--border)] last:border-0 flex gap-2.5 ${ !n.read ? 'bg-gold/5' : '' }`} > {/* Bug 8: unread dot indicator that disappears once read */} <div className=\"mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full transition-colors duration-200\" style={{ background: n.read ? 'transparent' : 'var(--color-gold, #b8972e)' }} /> <div className=\"flex-1 min-w-0\"> {n.articleId ? ( <Link href={ n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit` } onNavigate={(event) => { if (n.read) { setOpen(false); return } event.preventDefault() if (markingRef.current) return markingRef.current = true setMarking(true) setError('') // Keep the error and unread item reachable until the // acknowledgement succeeds; the editor has its own header. void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .then(() => { setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item)) setOpen(false) router.push(n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit`) }) .catch(reason => setError(asApiError(reason).message)) .finally(() => { markingRef.current = false; setMarking(false) }) }} className=\"block\" > <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </Link> ) : ( <> <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </> )} </div> </div> ))"
         },
         {
           "file": "src/components/editorial/SeriesCompleteBadges.tsx",
@@ -4651,11 +4659,11 @@
         "src/app/editorial/(portal)/layout.tsx: redirect('/editorial/login')"
       ],
       "controls": [
-        "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:161",
-        "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:193",
-        "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:199",
-        "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:202",
-        "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:322",
+        "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:169",
+        "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:201",
+        "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:208",
+        "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:211",
+        "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:331",
         "src/components/layout/EditorialSidebarWrapper.tsx:36",
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
@@ -4702,17 +4710,17 @@
       "dynamicFamilies": [
         {
           "file": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx",
-          "line": 201,
+          "line": 210,
           "source": "authors.map((a) => ( <option key={a.id} value={a.id}> {a.id === currentUserId ? `${a.name} (me)` : a.name} </option> ))"
         },
         {
           "file": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx",
-          "line": 234,
+          "line": 243,
           "source": "Array.from({ length: 4 }).map((_, i) => ( <div key={i} className=\"h-9 bg-[var(--bg-subtle)]\" /> ))"
         },
         {
           "file": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx",
-          "line": 262,
+          "line": 271,
           "source": "sorted.map((a) => ( <tr key={a.id} onClick={() => selectArticle(a.id)} className={`cursor-pointer transition-colors ${ selectedId === a.id ? 'bg-gold/10' : 'hover:bg-[var(--bg-subtle)]' }`} > <td className=\"px-6 py-3\"> <p className=\"font-medium text-[var(--fg)] line-clamp-1\">{a.title}</p> <p className=\"text-[10px] text-[var(--fg-faint)] mt-0.5\"> {a.viewCount.toLocaleString()} total views, signed-in and guests </p> </td> <td className=\"px-4 py-3 text-right text-[var(--fg-faint)] text-xs whitespace-nowrap\"> {a.publishedAt ? format(new Date(a.publishedAt), 'd MMM yyyy') : ''} </td> <td className=\"px-4 py-3 text-right font-medium text-[var(--fg)] tabular-nums\"> {a.readerCount.toLocaleString()} </td> {a.hasEnoughData ? ( <> <td className=\"px-4 py-3 text-right tabular-nums\"> <span className=\"text-gold font-bold\">{a.completionRate}%</span> </td> <td className=\"px-4 py-3 text-right tabular-nums text-[var(--fg)]\"> {a.medianProgress}% </td> </> ) : ( <td colSpan={2} className=\"px-4 py-3 text-right text-xs text-[var(--fg-faint)]\"> Not enough data yet </td> )} </tr> ))"
         },
         {
@@ -5743,22 +5751,22 @@
         "src/components/admin/AdminUsersPage.tsx:235",
         "src/components/admin/AdminUsersPage.tsx:244",
         "src/components/admin/AdminUsersPage.tsx:274",
-        "src/components/admin/AdminUsersPage.tsx:423",
-        "src/components/admin/AdminUsersPage.tsx:431",
-        "src/components/admin/AdminUsersPage.tsx:460",
-        "src/components/admin/AdminUsersPage.tsx:466",
-        "src/components/admin/AdminUsersPage.tsx:483",
-        "src/components/admin/AdminUsersPage.tsx:497",
-        "src/components/admin/AdminUsersPage.tsx:512",
-        "src/components/admin/AdminUsersPage.tsx:518",
-        "src/components/admin/AdminUsersPage.tsx:519",
-        "src/components/admin/AdminUsersPage.tsx:520",
+        "src/components/admin/AdminUsersPage.tsx:426",
+        "src/components/admin/AdminUsersPage.tsx:434",
+        "src/components/admin/AdminUsersPage.tsx:463",
+        "src/components/admin/AdminUsersPage.tsx:469",
+        "src/components/admin/AdminUsersPage.tsx:486",
+        "src/components/admin/AdminUsersPage.tsx:500",
+        "src/components/admin/AdminUsersPage.tsx:515",
         "src/components/admin/AdminUsersPage.tsx:521",
-        "src/components/admin/AdminUsersPage.tsx:525",
-        "src/components/admin/AdminUsersPage.tsx:532",
-        "src/components/admin/AdminUsersPage.tsx:538",
-        "src/components/admin/AdminUsersPage.tsx:658",
-        "src/components/admin/AdminUsersPage.tsx:667",
+        "src/components/admin/AdminUsersPage.tsx:522",
+        "src/components/admin/AdminUsersPage.tsx:523",
+        "src/components/admin/AdminUsersPage.tsx:524",
+        "src/components/admin/AdminUsersPage.tsx:528",
+        "src/components/admin/AdminUsersPage.tsx:535",
+        "src/components/admin/AdminUsersPage.tsx:541",
+        "src/components/admin/AdminUsersPage.tsx:661",
+        "src/components/admin/AdminUsersPage.tsx:670",
         "src/components/admin/UserDetailPanel.tsx:255",
         "src/components/admin/UserDetailPanel.tsx:256",
         "src/components/admin/UserDetailPanel.tsx:330",
@@ -5843,27 +5851,27 @@
         },
         {
           "file": "src/components/admin/AdminUsersPage.tsx",
-          "line": 448,
+          "line": 451,
           "source": "[0, 1, 2, 3].map((i) => ( <div key={i} className=\"bg-[var(--bg-elevated)] border border-[var(--border)] p-5 animate-pulse\"> <div className=\"h-3 w-24 bg-[var(--border)] rounded mb-3\" /> <div className=\"h-8 w-16 bg-[var(--border)] rounded\" /> </div> ))"
         },
         {
           "file": "src/components/admin/AdminUsersPage.tsx",
-          "line": 496,
+          "line": 499,
           "source": "ROLE_TABS.map((tab) => ( <button key={tab} onClick={() => setRoleTab(tab)} className={`shrink-0 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${ roleTab === tab ? 'bg-gold text-navy' : 'text-[var(--fg-faint)] hover:text-[var(--fg)]' }`} > {tab} </button> ))"
         },
         {
           "file": "src/components/admin/AdminUsersPage.tsx",
-          "line": 531,
+          "line": 534,
           "source": "SORT_OPTIONS.map((o) => ( <option key={o.value} value={o.value}>{o.label}</option> ))"
         },
         {
           "file": "src/components/admin/AdminUsersPage.tsx",
-          "line": 559,
+          "line": 562,
           "source": "[1, 2, 3, 4, 5].map((i) => ( <tr key={i}> <td colSpan={9} className=\"px-4 py-4\"> <div className=\"h-4 bg-[var(--border)] animate-pulse rounded w-3/4\" /> </td> </tr> ))"
         },
         {
           "file": "src/components/admin/AdminUsersPage.tsx",
-          "line": 573,
+          "line": 576,
           "source": "users.map((user) => ( <tr key={user.id} className=\"hover:bg-[var(--bg)] transition-colors cursor-pointer\" onClick={() => setSelectedUserId(user.id)} > {/* Avatar + name + email */} <td className=\"px-4 py-3\"> <div className=\"flex items-center gap-3\"> <div className=\"w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold text-xs font-bold shrink-0\"> {(user.name || user.email).charAt(0).toUpperCase()} </div> <div className=\"min-w-0\"> <p className=\"text-[var(--fg)] font-semibold text-xs truncate\">{user.name ?? '-'}</p> <p className=\"text-[var(--fg-faint)] text-[10px] truncate\">{user.email}</p> </div> </div> </td> {/* Role */} <td className=\"px-3 py-3\"> <RoleBadge role={user.role} /> </td> {/* Articles */} <td className=\"px-3 py-3 text-center text-[var(--fg-muted)] text-xs hidden sm:table-cell\"> {user._count.articles} </td> {/* Comments */} <td className=\"px-3 py-3 text-center text-[var(--fg-muted)] text-xs hidden md:table-cell\"> {user._count.comments} </td> {/* Warnings */} <td className=\"px-3 py-3 text-center hidden lg:table-cell\"> <span className={`text-xs font-bold ${user._count.warnings > 0 ? 'text-amber-500' : 'text-[var(--fg-faint)]'}`}> {user._count.warnings} </span> </td> {/* Joined */} <td className=\"px-3 py-3 text-[var(--fg-faint)] text-[10px] whitespace-nowrap hidden lg:table-cell\"> {format(new Date(user.createdAt), 'd MMM yyyy')} </td> {/* Last active */} <td className=\"px-3 py-3 text-[var(--fg-faint)] text-[10px] hidden xl:table-cell\"> <span className=\"flex items-center gap-1\"> <Clock size={9} /> {user.lastActiveAt ? formatDistanceToNow(new Date(user.lastActiveAt), { addSuffix: true }) : 'Never'} </span> </td> {/* Status */} <td className=\"px-3 py-3\"> <StatusDot isBanned={user.isBanned} /> </td> {/* Actions */} <td className=\"px-2 py-3\" onClick={(e) => e.stopPropagation()}> <ActionMenu user={user} currentAdminId={currentAdminId} onView={() => setSelectedUserId(user.id)} onReload={() => { setActionError(''); handleReload() }} onError={setActionError} /> </td> </tr> ))"
         },
         {
@@ -6843,6 +6851,7 @@
       "candidateTestFiles": [
         "tests/e2e/team-profile-lifecycle.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
+        "tests/e2e/wf-discovery.spec.ts",
         "tests/e2e/wf-reader.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/integration/api-audit.test.ts",
@@ -9176,6 +9185,7 @@
         "tests/unit/article-render-formatting.test.ts",
         "tests/unit/editorial-calendar.test.ts",
         "tests/unit/editorial-schedule-display.test.ts",
+        "tests/unit/portal-layout-ban.test.tsx",
         "tests/unit/team-hierarchy.test.ts",
         "tests/unit/team-profile-accounts.test.ts",
         "tests/unit/team-profiles.test.ts"
@@ -9240,9 +9250,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx:73",
+      "id": "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx:75",
       "file": "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx",
-      "line": 73,
+      "line": 75,
       "tag": "button",
       "label": "{label} {sortCol === col ? (sortDir === 'desc' ? <ChevronDown size={10} /> : <ChevronUp size={10} />) : <ChevronDown size={10} className=\"opacity-30\" />}",
       "href": null,
@@ -9257,9 +9267,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx:101",
+      "id": "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx:103",
       "file": "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx",
-      "line": 101,
+      "line": 103,
       "tag": "button",
       "label": "Retry leaderboard",
       "href": null,
@@ -9276,9 +9286,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx:106",
+      "id": "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx:108",
       "file": "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx",
-      "line": 106,
+      "line": 108,
       "tag": "button",
       "label": "{opt.label}",
       "href": null,
@@ -9335,7 +9345,8 @@
       "candidateTests": [
         "tests/e2e/wf-lifecycle.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
-        "tests/unit/content-filter.test.ts"
+        "tests/unit/content-filter.test.ts",
+        "tests/unit/notification-navigation.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -9582,9 +9593,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:161",
+      "id": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:169",
       "file": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx",
-      "line": 161,
+      "line": 169,
       "tag": "button",
       "label": "{hint}",
       "href": null,
@@ -9599,26 +9610,34 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:193",
+      "id": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:201",
       "file": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx",
-      "line": 193,
+      "line": 201,
       "tag": "select",
-      "label": "{!authors.some((a) => a.id === currentUserId) && ( <option value={currentUserId}>My articles</option> )} {authors.map((a) => ( <option key={a.id} value={a.id}> {a.id === currentUserId ? `${a.name} (me)` : a.name} </option> ))}",
+      "label": "Author",
       "href": null,
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": {
         "onChange": "{(e) => setAuthorId(e.target.value)}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-admin-profile.spec.ts",
+        "tests/e2e/wf-discovery.spec.ts",
+        "tests/integration/api.test.ts",
+        "tests/integration/route-handlers.test.ts",
+        "tests/unit/featured-article-hero.test.tsx",
+        "tests/unit/portal-request-order.test.tsx",
+        "tests/unit/section-empty-states.test.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:199",
+      "id": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:208",
       "file": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx",
-      "line": 199,
+      "line": 208,
       "tag": "option",
       "label": "My articles",
       "href": null,
@@ -9631,9 +9650,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:202",
+      "id": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:211",
       "file": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx",
-      "line": 202,
+      "line": 211,
       "tag": "option",
       "label": "{a.id === currentUserId ? `${a.name} (me)` : a.name}",
       "href": null,
@@ -9646,9 +9665,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:322",
+      "id": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx:331",
       "file": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx",
-      "line": 322,
+      "line": 331,
       "tag": "button",
       "label": "Retry reader data",
       "href": null,
@@ -9707,7 +9726,8 @@
       "candidateTests": [
         "tests/e2e/wf-lifecycle.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
-        "tests/unit/content-filter.test.ts"
+        "tests/unit/content-filter.test.ts",
+        "tests/unit/notification-navigation.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -9774,7 +9794,9 @@
       "expectedFromSource": {
         "onChange": "{(e) => setResetEmail(e.target.value)}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-discovery.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -9840,7 +9862,9 @@
       "expectedFromSource": {
         "onChange": "{(e) => setForm({ ...form, email: e.target.value })}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-discovery.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -10110,6 +10134,7 @@
       "candidateTests": [
         "tests/e2e/public.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
+        "tests/e2e/wf-mobile.spec.ts",
         "tests/integration/api.test.ts",
         "tests/unit/seo.test.ts"
       ],
@@ -10195,6 +10220,7 @@
       "candidateTests": [
         "tests/e2e/public.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
+        "tests/e2e/wf-mobile.spec.ts",
         "tests/integration/api.test.ts",
         "tests/unit/seo.test.ts"
       ],
@@ -10440,6 +10466,7 @@
       "candidateTests": [
         "tests/e2e/public.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
+        "tests/e2e/wf-mobile.spec.ts",
         "tests/integration/api.test.ts",
         "tests/unit/seo.test.ts"
       ],
@@ -10567,6 +10594,7 @@
       "candidateTests": [
         "tests/e2e/public.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
+        "tests/e2e/wf-mobile.spec.ts",
         "tests/integration/api.test.ts",
         "tests/unit/seo.test.ts"
       ],
@@ -10915,9 +10943,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:423",
+      "id": "src/components/admin/AdminUsersPage.tsx:426",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 423,
+      "line": 426,
       "tag": "button",
       "label": "Dismiss",
       "href": null,
@@ -10936,9 +10964,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:431",
+      "id": "src/components/admin/AdminUsersPage.tsx:434",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 431,
+      "line": 434,
       "tag": "button",
       "label": "Retry",
       "href": null,
@@ -10956,9 +10984,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:460",
+      "id": "src/components/admin/AdminUsersPage.tsx:463",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 460,
+      "line": 463,
       "tag": "button",
       "label": "All Users",
       "href": null,
@@ -10973,9 +11001,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:466",
+      "id": "src/components/admin/AdminUsersPage.tsx:469",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 466,
+      "line": 469,
       "tag": "button",
       "label": "Audit Log",
       "href": null,
@@ -10992,9 +11020,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:483",
+      "id": "src/components/admin/AdminUsersPage.tsx:486",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 483,
+      "line": 486,
       "tag": "input",
       "label": "Search name or email...",
       "href": null,
@@ -11012,9 +11040,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:497",
+      "id": "src/components/admin/AdminUsersPage.tsx:500",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 497,
+      "line": 500,
       "tag": "button",
       "label": "{tab}",
       "href": null,
@@ -11029,9 +11057,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:512",
+      "id": "src/components/admin/AdminUsersPage.tsx:515",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 512,
+      "line": 515,
       "tag": "select",
       "label": "User status",
       "href": null,
@@ -11048,9 +11076,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:518",
+      "id": "src/components/admin/AdminUsersPage.tsx:521",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 518,
+      "line": 521,
       "tag": "option",
       "label": "All Status",
       "href": null,
@@ -11063,9 +11091,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:519",
+      "id": "src/components/admin/AdminUsersPage.tsx:522",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 519,
+      "line": 522,
       "tag": "option",
       "label": "Active",
       "href": null,
@@ -11083,6 +11111,8 @@
         "tests/integration/profile-account-route.test.ts",
         "tests/integration/scheduling-routes.test.ts",
         "tests/integration/team-profile-db.test.ts",
+        "tests/unit/portal-layout-ban.test.tsx",
+        "tests/unit/portal-request-order.test.tsx",
         "tests/unit/session-fresh-authorization.test.ts",
         "tests/unit/team-profile-accounts.test.ts"
       ],
@@ -11091,9 +11121,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:520",
+      "id": "src/components/admin/AdminUsersPage.tsx:523",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 520,
+      "line": 523,
       "tag": "option",
       "label": "Banned",
       "href": null,
@@ -11106,6 +11136,8 @@
         "tests/integration/api.test.ts",
         "tests/integration/profile-account-route.test.ts",
         "tests/integration/team-profile-db.test.ts",
+        "tests/unit/portal-layout-ban.test.tsx",
+        "tests/unit/portal-request-order.test.tsx",
         "tests/unit/session-fresh-authorization.test.ts",
         "tests/unit/team-profile-accounts.test.ts"
       ],
@@ -11114,9 +11146,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:521",
+      "id": "src/components/admin/AdminUsersPage.tsx:524",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 521,
+      "line": 524,
       "tag": "option",
       "label": "Warned",
       "href": null,
@@ -11129,9 +11161,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:525",
+      "id": "src/components/admin/AdminUsersPage.tsx:528",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 525,
+      "line": 528,
       "tag": "select",
       "label": "User sort",
       "href": null,
@@ -11141,16 +11173,17 @@
         "onChange": "{(e) => setSort(e.target.value)}"
       },
       "candidateTests": [
-        "tests/e2e/wf-admin-profile.spec.ts"
+        "tests/e2e/wf-admin-profile.spec.ts",
+        "tests/unit/portal-request-order.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:532",
+      "id": "src/components/admin/AdminUsersPage.tsx:535",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 532,
+      "line": 535,
       "tag": "option",
       "label": "{o.label}",
       "href": null,
@@ -11163,9 +11196,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:538",
+      "id": "src/components/admin/AdminUsersPage.tsx:541",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 538,
+      "line": 541,
       "tag": "button",
       "label": "Retry users",
       "href": null,
@@ -11182,9 +11215,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:658",
+      "id": "src/components/admin/AdminUsersPage.tsx:661",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 658,
+      "line": 661,
       "tag": "button",
       "label": "Previous users page",
       "href": null,
@@ -11201,9 +11234,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/admin/AdminUsersPage.tsx:667",
+      "id": "src/components/admin/AdminUsersPage.tsx:670",
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 667,
+      "line": 670,
       "tag": "button",
       "label": "Next users page",
       "href": null,
@@ -12509,7 +12542,8 @@
         "tests/e2e/wf-remaining.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/integration/api-audit.test.ts",
-        "tests/unit/draft-recovery.test.ts"
+        "tests/unit/draft-recovery.test.ts",
+        "tests/unit/notification-navigation.test.tsx"
       ],
       "groupTestFiles": [
         "tests/e2e/wf-formatting.spec.ts",
@@ -12638,6 +12672,7 @@
         "tests/integration/api.test.ts",
         "tests/integration/route-handlers.test.ts",
         "tests/unit/featured-article-hero.test.tsx",
+        "tests/unit/portal-request-order.test.tsx",
         "tests/unit/section-empty-states.test.ts"
       ],
       "groupTestFiles": [
@@ -14507,7 +14542,8 @@
       "candidateTests": [
         "tests/e2e/wf-lifecycle.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
-        "tests/unit/content-filter.test.ts"
+        "tests/unit/content-filter.test.ts",
+        "tests/unit/notification-navigation.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -14562,6 +14598,7 @@
         "tests/unit/article-render-formatting.test.ts",
         "tests/unit/editorial-calendar.test.ts",
         "tests/unit/editorial-schedule-display.test.ts",
+        "tests/unit/portal-layout-ban.test.tsx",
         "tests/unit/team-hierarchy.test.ts",
         "tests/unit/team-profile-accounts.test.ts",
         "tests/unit/team-profiles.test.ts"
@@ -15044,6 +15081,9 @@
         "tests/integration/route-handlers.test.ts",
         "tests/integration/scheduling-routes.test.ts",
         "tests/unit/api-client.test.ts",
+        "tests/unit/notification-navigation.test.tsx",
+        "tests/unit/portal-layout-ban.test.tsx",
+        "tests/unit/portal-request-order.test.tsx",
         "tests/unit/session-fresh-authorization.test.ts"
       ],
       "groupTestFiles": [],
@@ -15584,6 +15624,7 @@
         "tests/unit/article-render-formatting.test.ts",
         "tests/unit/editorial-calendar.test.ts",
         "tests/unit/editorial-schedule-display.test.ts",
+        "tests/unit/portal-layout-ban.test.tsx",
         "tests/unit/team-hierarchy.test.ts",
         "tests/unit/team-profile-accounts.test.ts",
         "tests/unit/team-profiles.test.ts"
@@ -15684,9 +15725,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/NotificationBell.tsx:69",
+      "id": "src/components/editorial/NotificationBell.tsx:71",
       "file": "src/components/editorial/NotificationBell.tsx",
-      "line": 69,
+      "line": 71,
       "tag": "button",
       "label": "{unread > 0 ? `${unread} unread notifications` : 'Notifications'}",
       "href": null,
@@ -15701,9 +15742,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/NotificationBell.tsx:97",
+      "id": "src/components/editorial/NotificationBell.tsx:99",
       "file": "src/components/editorial/NotificationBell.tsx",
-      "line": 97,
+      "line": 99,
       "tag": "button",
       "label": "Mark all read",
       "href": null,
@@ -15720,16 +15761,16 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/NotificationBell.tsx:126",
+      "id": "src/components/editorial/NotificationBell.tsx:128",
       "file": "src/components/editorial/NotificationBell.tsx",
-      "line": 126,
+      "line": 128,
       "tag": "Link",
       "label": "{n.title} {n.message} {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}",
       "href": "{ n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit` }",
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": {
-        "onClick": "{() => { // Optimistically mark read; persist to server; revert on failure. if (!n.read) { setError('') setNotifs((prev) => prev.map((item) => item.id === n.id ? { ...item, read: true } : item) ) apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .catch((reason) => { // Revert the optimistic update on error setNotifs((prev) => prev.map((item) => item.id === n.id ? { ...item, read: false } : item) ) setError(asApiError(reason).message) }) } setOpen(false) }}"
+        "onNavigate": "{(event) => { if (n.read) { setOpen(false); return } event.preventDefault() if (markingRef.current) return markingRef.current = true setMarking(true) setError('') // Keep the error and unread item reachable until the // acknowledgement succeeds; the editor has its own header. void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .then(() => { setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item)) setOpen(false) router.push(n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit`) }) .catch(reason => setError(asApiError(reason).message)) .finally(() => { markingRef.current = false; setMarking(false) }) }}"
       },
       "candidateTests": [],
       "groupTestFiles": [],
@@ -15785,6 +15826,7 @@
         "tests/unit/article-render-formatting.test.ts",
         "tests/unit/editorial-calendar.test.ts",
         "tests/unit/editorial-schedule-display.test.ts",
+        "tests/unit/portal-layout-ban.test.tsx",
         "tests/unit/team-hierarchy.test.ts",
         "tests/unit/team-profile-accounts.test.ts",
         "tests/unit/team-profiles.test.ts"
@@ -16303,7 +16345,8 @@
       "candidateTests": [
         "tests/e2e/wf-lifecycle.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
-        "tests/unit/content-filter.test.ts"
+        "tests/unit/content-filter.test.ts",
+        "tests/unit/notification-navigation.test.tsx"
       ],
       "groupTestFiles": [
         "tests/e2e/wf-formatting.spec.ts",
@@ -17103,6 +17146,7 @@
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-controls.spec.ts",
+        "tests/e2e/wf-discovery.spec.ts",
         "tests/e2e/wf-failures.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-mobile.spec.ts",
@@ -17219,6 +17263,8 @@
         "tests/integration/team-profile-db.test.ts",
         "tests/integration/team-profile-storage.test.ts",
         "tests/unit/featured-article-hero.test.tsx",
+        "tests/unit/notification-navigation.test.tsx",
+        "tests/unit/portal-request-order.test.tsx",
         "tests/unit/rbac.test.ts",
         "tests/unit/team-hierarchy.test.ts",
         "tests/unit/team-profile-accounts.test.ts"
@@ -17465,6 +17511,7 @@
       "candidateTests": [
         "tests/e2e/public.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
+        "tests/e2e/wf-mobile.spec.ts",
         "tests/integration/api.test.ts",
         "tests/unit/seo.test.ts"
       ],
@@ -17520,6 +17567,7 @@
       "candidateTests": [
         "tests/e2e/public.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
+        "tests/e2e/wf-mobile.spec.ts",
         "tests/integration/api.test.ts",
         "tests/unit/seo.test.ts"
       ],
@@ -17594,6 +17642,7 @@
       "candidateTests": [
         "tests/e2e/public.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
+        "tests/e2e/wf-mobile.spec.ts",
         "tests/integration/api.test.ts",
         "tests/unit/seo.test.ts"
       ],
@@ -17736,6 +17785,7 @@
       "candidateTests": [
         "tests/e2e/public.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
+        "tests/e2e/wf-mobile.spec.ts",
         "tests/integration/api.test.ts",
         "tests/unit/seo.test.ts"
       ],
@@ -17816,6 +17866,7 @@
         "tests/e2e/team-profile-lifecycle.spec.ts",
         "tests/e2e/team-profile.spec.ts",
         "tests/e2e/wf-admin-profile.spec.ts",
+        "tests/e2e/wf-discovery.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/integration/api-audit.test.ts",
         "tests/integration/data-layer.test.ts",
@@ -18033,7 +18084,8 @@
       },
       "candidateTests": [
         "tests/e2e/wf-roles.spec.ts",
-        "tests/integration/data-layer.test.ts"
+        "tests/integration/data-layer.test.ts",
+        "tests/unit/portal-request-order.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -18075,6 +18127,7 @@
         "tests/e2e/team-profile-lifecycle.spec.ts",
         "tests/e2e/team-profile.spec.ts",
         "tests/e2e/wf-admin-profile.spec.ts",
+        "tests/e2e/wf-discovery.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/integration/api-audit.test.ts",
         "tests/integration/data-layer.test.ts",
@@ -18843,6 +18896,7 @@
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-controls.spec.ts",
+        "tests/e2e/wf-discovery.spec.ts",
         "tests/e2e/wf-failures.spec.ts",
         "tests/e2e/wf-formatting.spec.ts",
         "tests/e2e/wf-mobile.spec.ts",
@@ -19164,7 +19218,9 @@
       "expectedFromSource": {
         "onChange": "{handleChange}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-discovery.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -19181,7 +19237,9 @@
       "expectedFromSource": {
         "onChange": "{handleChange}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-discovery.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -19308,7 +19366,9 @@
       "expectedFromSource": {
         "onChange": "{handleChange}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-discovery.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -20565,17 +20625,17 @@
     },
     {
       "file": "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx",
-      "line": 105,
+      "line": 107,
       "source": "PERIOD_OPTIONS.map(opt => ( <button key={opt.id} onClick={() => setPeriod(opt.id)} className={[ 'px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors border', period === opt.id ? 'bg-navy text-gold border-gold/30' : 'bg-[var(--bg-elevated)] text-[var(--fg-muted)] border-[var(--border)] hover:text-[var(--fg)]', ].join(' ')} > {opt.label} </button> ))"
     },
     {
       "file": "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx",
-      "line": 177,
+      "line": 179,
       "source": "Array.from({ length: 6 }).map((_, i) => ( <div key={i} className=\"bg-[var(--bg-elevated)] border border-[var(--border)] p-4 animate-pulse h-14\" /> ))"
     },
     {
       "file": "src/app/editorial/(portal)/leaderboard/LeaderboardClient.tsx",
-      "line": 213,
+      "line": 215,
       "source": "sorted.map(writer => { const isCurrentUser = writer.id === currentUserId return ( <tr key={writer.id} className=\"transition-colors hover:bg-[var(--bg-subtle)]\" style={isCurrentUser ? { backgroundColor: 'rgba(201,168,76,0.07)' } : undefined} > <td className=\"px-4 py-3 text-center\"> {writer.rank === 1 ? ( <Crown size={14} className=\"text-gold mx-auto\" /> ) : ( <span className=\"text-xs font-bold text-[var(--fg-faint)] tabular-nums\">{writer.rank}</span> )} </td> <td className=\"px-4 py-3\"> <span className={`font-medium ${isCurrentUser ? 'text-gold' : 'text-[var(--fg)]'}`}> {writer.name} {isCurrentUser && <span className=\"ml-1.5 text-[10px] text-gold/70\">(you)</span>} </span> {/* Rank change badge */} {writer.rankChange !== null && writer.rankChange !== 0 && ( <span className={`ml-2 text-[10px] ${writer.rankChange > 0 ? 'text-emerald-600' : 'text-red-500'}`}> {writer.rankChange > 0 ? `↑${writer.rankChange}` : `↓${Math.abs(writer.rankChange)}`} </span> )} </td> <td className=\"px-4 py-3 text-right tabular-nums text-[var(--fg)]\">{writer.articlesCount}</td> <td className=\"px-4 py-3 text-right tabular-nums font-bold text-gold\"> {writer.totalReadingMinutes.toFixed(1)} </td> <td className=\"px-4 py-3 text-right tabular-nums text-[var(--fg)]\">{writer.avgCompletionRate}%</td> <td className=\"px-4 py-3 text-right tabular-nums text-[var(--fg)] hidden sm:table-cell\"> {writer.avgViewsPerArticle.toLocaleString()} </td> <td className=\"px-4 py-3 text-right tabular-nums text-[var(--fg)] hidden sm:table-cell\"> {writer.commentsGenerated} </td> </tr> ) })"
     },
     {
@@ -20600,17 +20660,17 @@
     },
     {
       "file": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx",
-      "line": 201,
+      "line": 210,
       "source": "authors.map((a) => ( <option key={a.id} value={a.id}> {a.id === currentUserId ? `${a.name} (me)` : a.name} </option> ))"
     },
     {
       "file": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx",
-      "line": 234,
+      "line": 243,
       "source": "Array.from({ length: 4 }).map((_, i) => ( <div key={i} className=\"h-9 bg-[var(--bg-subtle)]\" /> ))"
     },
     {
       "file": "src/app/editorial/(portal)/readers/ReadersDashboard.tsx",
-      "line": 262,
+      "line": 271,
       "source": "sorted.map((a) => ( <tr key={a.id} onClick={() => selectArticle(a.id)} className={`cursor-pointer transition-colors ${ selectedId === a.id ? 'bg-gold/10' : 'hover:bg-[var(--bg-subtle)]' }`} > <td className=\"px-6 py-3\"> <p className=\"font-medium text-[var(--fg)] line-clamp-1\">{a.title}</p> <p className=\"text-[10px] text-[var(--fg-faint)] mt-0.5\"> {a.viewCount.toLocaleString()} total views, signed-in and guests </p> </td> <td className=\"px-4 py-3 text-right text-[var(--fg-faint)] text-xs whitespace-nowrap\"> {a.publishedAt ? format(new Date(a.publishedAt), 'd MMM yyyy') : ''} </td> <td className=\"px-4 py-3 text-right font-medium text-[var(--fg)] tabular-nums\"> {a.readerCount.toLocaleString()} </td> {a.hasEnoughData ? ( <> <td className=\"px-4 py-3 text-right tabular-nums\"> <span className=\"text-gold font-bold\">{a.completionRate}%</span> </td> <td className=\"px-4 py-3 text-right tabular-nums text-[var(--fg)]\"> {a.medianProgress}% </td> </> ) : ( <td colSpan={2} className=\"px-4 py-3 text-right text-xs text-[var(--fg-faint)]\"> Not enough data yet </td> )} </tr> ))"
     },
     {
@@ -20710,27 +20770,27 @@
     },
     {
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 448,
+      "line": 451,
       "source": "[0, 1, 2, 3].map((i) => ( <div key={i} className=\"bg-[var(--bg-elevated)] border border-[var(--border)] p-5 animate-pulse\"> <div className=\"h-3 w-24 bg-[var(--border)] rounded mb-3\" /> <div className=\"h-8 w-16 bg-[var(--border)] rounded\" /> </div> ))"
     },
     {
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 496,
+      "line": 499,
       "source": "ROLE_TABS.map((tab) => ( <button key={tab} onClick={() => setRoleTab(tab)} className={`shrink-0 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${ roleTab === tab ? 'bg-gold text-navy' : 'text-[var(--fg-faint)] hover:text-[var(--fg)]' }`} > {tab} </button> ))"
     },
     {
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 531,
+      "line": 534,
       "source": "SORT_OPTIONS.map((o) => ( <option key={o.value} value={o.value}>{o.label}</option> ))"
     },
     {
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 559,
+      "line": 562,
       "source": "[1, 2, 3, 4, 5].map((i) => ( <tr key={i}> <td colSpan={9} className=\"px-4 py-4\"> <div className=\"h-4 bg-[var(--border)] animate-pulse rounded w-3/4\" /> </td> </tr> ))"
     },
     {
       "file": "src/components/admin/AdminUsersPage.tsx",
-      "line": 573,
+      "line": 576,
       "source": "users.map((user) => ( <tr key={user.id} className=\"hover:bg-[var(--bg)] transition-colors cursor-pointer\" onClick={() => setSelectedUserId(user.id)} > {/* Avatar + name + email */} <td className=\"px-4 py-3\"> <div className=\"flex items-center gap-3\"> <div className=\"w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold text-xs font-bold shrink-0\"> {(user.name || user.email).charAt(0).toUpperCase()} </div> <div className=\"min-w-0\"> <p className=\"text-[var(--fg)] font-semibold text-xs truncate\">{user.name ?? '-'}</p> <p className=\"text-[var(--fg-faint)] text-[10px] truncate\">{user.email}</p> </div> </div> </td> {/* Role */} <td className=\"px-3 py-3\"> <RoleBadge role={user.role} /> </td> {/* Articles */} <td className=\"px-3 py-3 text-center text-[var(--fg-muted)] text-xs hidden sm:table-cell\"> {user._count.articles} </td> {/* Comments */} <td className=\"px-3 py-3 text-center text-[var(--fg-muted)] text-xs hidden md:table-cell\"> {user._count.comments} </td> {/* Warnings */} <td className=\"px-3 py-3 text-center hidden lg:table-cell\"> <span className={`text-xs font-bold ${user._count.warnings > 0 ? 'text-amber-500' : 'text-[var(--fg-faint)]'}`}> {user._count.warnings} </span> </td> {/* Joined */} <td className=\"px-3 py-3 text-[var(--fg-faint)] text-[10px] whitespace-nowrap hidden lg:table-cell\"> {format(new Date(user.createdAt), 'd MMM yyyy')} </td> {/* Last active */} <td className=\"px-3 py-3 text-[var(--fg-faint)] text-[10px] hidden xl:table-cell\"> <span className=\"flex items-center gap-1\"> <Clock size={9} /> {user.lastActiveAt ? formatDistanceToNow(new Date(user.lastActiveAt), { addSuffix: true }) : 'Never'} </span> </td> {/* Status */} <td className=\"px-3 py-3\"> <StatusDot isBanned={user.isBanned} /> </td> {/* Actions */} <td className=\"px-2 py-3\" onClick={(e) => e.stopPropagation()}> <ActionMenu user={user} currentAdminId={currentAdminId} onView={() => setSelectedUserId(user.id)} onReload={() => { setActionError(''); handleReload() }} onError={setActionError} /> </td> </tr> ))"
     },
     {
@@ -20900,8 +20960,8 @@
     },
     {
       "file": "src/components/editorial/NotificationBell.tsx",
-      "line": 113,
-      "source": "notifs.map((n) => ( <div key={n.id} className={`px-4 py-3 border-b border-[var(--border)] last:border-0 flex gap-2.5 ${ !n.read ? 'bg-gold/5' : '' }`} > {/* Bug 8: unread dot indicator that disappears once read */} <div className=\"mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full transition-colors duration-200\" style={{ background: n.read ? 'transparent' : 'var(--color-gold, #b8972e)' }} /> <div className=\"flex-1 min-w-0\"> {n.articleId ? ( <Link href={ n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit` } onClick={() => { // Optimistically mark read; persist to server; revert on failure. if (!n.read) { setError('') setNotifs((prev) => prev.map((item) => item.id === n.id ? { ...item, read: true } : item) ) apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .catch((reason) => { // Revert the optimistic update on error setNotifs((prev) => prev.map((item) => item.id === n.id ? { ...item, read: false } : item) ) setError(asApiError(reason).message) }) } setOpen(false) }} className=\"block\" > <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </Link> ) : ( <> <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </> )} </div> </div> ))"
+      "line": 115,
+      "source": "notifs.map((n) => ( <div key={n.id} className={`px-4 py-3 border-b border-[var(--border)] last:border-0 flex gap-2.5 ${ !n.read ? 'bg-gold/5' : '' }`} > {/* Bug 8: unread dot indicator that disappears once read */} <div className=\"mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full transition-colors duration-200\" style={{ background: n.read ? 'transparent' : 'var(--color-gold, #b8972e)' }} /> <div className=\"flex-1 min-w-0\"> {n.articleId ? ( <Link href={ n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit` } onNavigate={(event) => { if (n.read) { setOpen(false); return } event.preventDefault() if (markingRef.current) return markingRef.current = true setMarking(true) setError('') // Keep the error and unread item reachable until the // acknowledgement succeeds; the editor has its own header. void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .then(() => { setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item)) setOpen(false) router.push(n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit`) }) .catch(reason => setError(asApiError(reason).message)) .finally(() => { markingRef.current = false; setMarking(false) }) }} className=\"block\" > <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </Link> ) : ( <> <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </> )} </div> </div> ))"
     },
     {
       "file": "src/components/editorial/ReviewPanel.tsx",

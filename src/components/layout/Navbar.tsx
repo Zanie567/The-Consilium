@@ -108,7 +108,7 @@ export function Navbar() {
       <header
         className={`sticky top-0 z-50 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ease-out ${
           scrolled
-            ? 'bg-navy/[0.85] backdrop-blur-[12px] shadow-[0_4px_24px_rgba(0,0,0,0.28)] border-b border-gold/20'
+            ? 'bg-navy/[0.85] backdrop-blur-[12px] shadow-[0_4px_24px_rgba(0,0,0,0.28)] border-b-2 border-gold/20'
             : 'bg-navy border-b-2 border-gold'
         }`}
       >

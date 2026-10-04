@@ -221,8 +221,9 @@ body {
   opacity: 1;
 }
 
-/* ─── Drop cap on first paragraph ───────────────────────────────── */
-.prose-consilium > p:first-of-type::first-letter {
+/* Drop caps supply an unstyled default. Explicit paragraph/text presentation
+   belongs to the author; a floated house letter must not override it. */
+.prose-consilium > p:first-of-type:not([style]):not(:has(span[style], mark[style]))::first-letter {
   font-family: var(--font-serif);
   font-size: 3.4em;
   font-weight: 800;
@@ -234,7 +235,7 @@ body {
   padding-bottom: 0.02em;
 }
 
-.dark .prose-consilium > p:first-of-type::first-letter {
+.dark .prose-consilium > p:first-of-type:not([style]):not(:has(span[style], mark[style]))::first-letter {
   color: rgba(255, 255, 255, 0.87);
 }
 

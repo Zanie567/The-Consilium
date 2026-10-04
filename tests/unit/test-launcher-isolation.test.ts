@@ -8,6 +8,15 @@ import { spawnSync } from 'node:child_process'
 // npx represents an environment guard refusing a target. Every later command is
 // a tripwire: executing even one means the launcher failed open.
 describe('launchers fail closed before mutations', () => {
+  it('standalone attestation rejects unsafe ownership before HTTP or SQL', () => {
+    const result = spawnSync(process.execPath, ['scripts/attest-test-run.mjs'], {
+      env: { ...process.env, TEST_DATABASE_URL: 'postgresql://postgres@production.invalid/consilium', DATABASE_URL: 'postgresql://postgres@production.invalid/consilium', DIRECT_URL: 'postgresql://postgres@production.invalid/consilium', E2E_RUN_ID: 'next-e2e-3200-1234' },
+      encoding: 'utf8', timeout: 10_000,
+    })
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain('Refusing')
+    expect(result.stderr).not.toMatch(/ENOTFOUND|ECONNREFUSED|fetch failed/)
+  })
   for (const script of ['run-e2e.sh', 'run-audit.sh']) {
     it(`${script} propagates an environment-generator failure`, () => {
       const dir = mkdtempSync(join(tmpdir(), 'consilium-launcher-'))

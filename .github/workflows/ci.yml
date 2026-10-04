@@ -24,6 +24,58 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  critical-e2e:
+    name: Critical editor and account browser workflows
+    runs-on: ubuntu-latest
+    # Separate runner/database for prompt feedback. The complete audit below
+    # remains required on every PR, including navigation, mobile and Team Profile.
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: consilium
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/consilium
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
+      - name: Critical browser regressions
+        run: >-
+          E2E_REQUIRE_CLEAN=1 npm run test:e2e -- --workers=1
+          --project=wf-chromium --project=wf-webkit
+          wf-formatting.spec.ts wf-discovery.spec.ts wf-admin-profile.spec.ts
+      - name: Upload critical workflow evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: critical-workflow-report
+          path: |
+            playwright-report/
+            test-results/
+            !test-results/**/outbox.jsonl
+          retention-days: 7
+
   verify:
     name: Typecheck, test, build
     runs-on: ubuntu-latest
@@ -139,6 +191,9 @@ jobs:
 
       - name: Framework-free share popup diagnostic
         run: node scripts/diagnostics/share-popup.mjs
+
+      - name: Isolated NextAuth cancellation diagnostic
+        run: node scripts/diagnostics/session-cancellation.mjs
 
       # scripts/run-e2e.sh is the only supported entry point. It builds the app itself
       # into .next-e2e with storage, email and OAuth pinned to local stand-ins (a local

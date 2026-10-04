@@ -109,7 +109,7 @@ function rolesFor(route: string): string[] {
   return ['WRITER', 'EDITOR', 'ADMIN', 'GROWTH', 'READER', 'ANONYMOUS (profile requires sign-in)']
 }
 const routes = files.filter(f => f.endsWith('/page.tsx')).map(file => {
-  const route = '/' + file.replace(/^src\/app\//, '').replace(/\/page\.tsx$/, '').split('/').filter(p => !/^\(.*\)$/.test(p)).join('/')
+  const route = '/' + file.replace(/^src\/app\//, '').replace(/(?:^|\/)page\.tsx$/, '').split('/').filter(p => !/^\(.*\)$/.test(p)).join('/')
   const layouts = files.filter(f => f.endsWith('/layout.tsx') && file.startsWith(path.dirname(f) + '/'))
   const dependencies = new Set([...reachable(file), ...layouts.flatMap(f => [...reachable(f)])])
   const literalPath = route.replace(/\/\[.*$/, '')

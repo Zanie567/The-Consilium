@@ -267,7 +267,7 @@ test('reader biography failure/retry, fresh persisted settings, copy feedback an
   if (browserName === 'chromium') await ctx.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.getByRole('button', { name: 'Copy link', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Copied', exact: true })).toBeVisible()
-  if (browserName === 'chromium') expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(page.url())
+  if (browserName === 'chromium') expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(new URL('/profile', page.url()).href)
   await page.getByRole('button', { name: 'Delete Account', exact: true }).click()
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect(await db().user.findUnique({ where: { id: user.id } })).not.toBeNull()

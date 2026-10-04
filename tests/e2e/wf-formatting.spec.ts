@@ -474,9 +474,12 @@ test('the published article shows the content, semantic formatting and editor st
 
   await expect(p.locator('span[style*="color"]')).toHaveText('coloured word')
   await expect(article.locator('p', { hasText: 'Aligned centre paragraph.' })).toHaveCSS('text-align', 'center')
+  await expect(p.locator('span[style*="color"]')).toHaveCSS('color', 'rgb(255, 0, 0)')
+  await expect(p.locator('mark')).toHaveCSS('background-color', 'rgb(255, 255, 0)')
   await expect(article.locator('p', { hasText: 'Aligned right paragraph.' })).toHaveCSS('text-align', 'right')
   await expect(article.locator('p', { hasText: 'Aligned justify paragraph.' })).toHaveCSS('text-align', 'justify')
   expect(await article.locator('p', { hasText: 'Line spaced paragraph.' }).locator('span').evaluate(el=>parseFloat(getComputedStyle(el).lineHeight)/parseFloat(getComputedStyle(el).fontSize))).toBe(2)
+  expect(await p.evaluate(el => getComputedStyle(el, '::first-letter').float), 'house drop caps must not override explicitly styled paragraphs').toBe('none')
 
   expect(errors, `console errors on the published article:\n${errors.join('\n')}`).toEqual([])
   await new ArticleEditorPage(page).dismissCookieBanner()

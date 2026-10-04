@@ -2,7 +2,7 @@
 
 import { apiRequest, asApiError } from '@/lib/apiClient'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
 import { Bar } from 'react-chartjs-2'
@@ -93,10 +93,14 @@ export function ReadersDashboard({
   const [detail, setDetail] = useState<ArticleDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
+  const listRequest = useRef(0)
+  const detailRequest = useRef(0)
   const [sortKey, setSortKey] = useState<SortKey>('publishedAt')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   const fetchList = useCallback(async (forAuthor: string) => {
+    const request = ++listRequest.current
+    ++detailRequest.current
     setArticles(null)
     setListError(false)
     setSelectedId(null)
@@ -106,8 +110,10 @@ export function ReadersDashboard({
       const res = await fetch(`/api/editorial/read-through${qs}`)
       if (!res.ok) throw new Error(String(res.status))
       const json = await res.json()
+      if (request !== listRequest.current) return
       setArticles(json.articles)
     } catch {
+      if (request !== listRequest.current) return
       setListError(true)
       setArticles([])
     }
@@ -118,16 +124,18 @@ export function ReadersDashboard({
   }, [authorId, fetchList])
 
   const selectArticle = useCallback(async (id: string) => {
+    const request = ++detailRequest.current
     setSelectedId(id)
     setDetail(null)
     setDetailLoading(true)
     setDetailError('')
     try {
-      setDetail(await apiRequest<ArticleDetail>(`/api/editorial/read-through/${id}`))
+      const result = await apiRequest<ArticleDetail>(`/api/editorial/read-through/${id}`)
+      if (request === detailRequest.current) setDetail(result)
     } catch (reason) {
-      setDetailError(asApiError(reason).message)
+      if (request === detailRequest.current) setDetailError(asApiError(reason).message)
     } finally {
-      setDetailLoading(false)
+      if (request === detailRequest.current) setDetailLoading(false)
     }
   }, [])
 
@@ -191,6 +199,7 @@ export function ReadersDashboard({
           <label className="shrink-0 flex items-center gap-2 text-xs text-[var(--fg-faint)]">
             <span className="hidden sm:inline uppercase tracking-widest font-bold">Author</span>
             <select
+              aria-label="Author"
               value={authorId}
               onChange={(e) => setAuthorId(e.target.value)}
               className="bg-[var(--bg-elevated)] border border-[var(--border)] px-3 py-2 text-xs font-bold uppercase tracking-widest text-[var(--fg)] hover:border-gold transition-colors"
