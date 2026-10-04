@@ -128,6 +128,7 @@ export function ArticleEditorDocument({ editor, editorRef, excerptDomRef, titleD
 
         <div className="mt-6">
           <TiptapEditor
+        key={editor.recoveryRevision}
             ref={editorRef}
             content={editor.content}
             onChange={actions.handleContentChange}

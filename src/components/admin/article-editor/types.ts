@@ -74,6 +74,10 @@ export interface StatusAction {
 
 export interface ArticleEditorController {
   articleId?: string
+  recovery: { at: number; stale: boolean } | null
+  recovered: boolean
+  recoveryError: string
+  recoveryRevision: number
   statusAction: StatusAction | null
   /** Target status awaiting the user's confirmation, or null when no dialog is open. */
   pendingStatus: string | null
@@ -107,6 +111,8 @@ export interface ArticleEditorController {
   users: UserOption[]
   actions: {
     /** Ask for a status change; opens a confirmation first when it alters public visibility. */
+    restoreLocalDraft: () => void
+    discardLocalDraft: () => void
     requestStatusChange: (target: string) => void
     confirmStatusChange: () => Promise<void>
     cancelStatusChange: () => void

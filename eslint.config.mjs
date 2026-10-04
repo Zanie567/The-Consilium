@@ -8,7 +8,7 @@ const eslintConfig = defineConfig([
   globalIgnores([
     ".next/**",
     ".next-e2e*/**",
-    "playwright-report/**",
+    "playwright-report/**", "test-results/**",
     ".claude/**",
     ".vercel/**",
     "out/**",

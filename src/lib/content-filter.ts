@@ -58,16 +58,14 @@ function stripInvisible(text: string): string {
 // Collapse 3+ repeated characters to 2: "haaate" → "haate", "loooove" → "looove"
 // (2 so "ass" → still "ass", "aass" → "aass")
 function collapseRepeats(text: string): string {
-  return text.replace(/(.)\1{2,}/g, '$1$1')
+  return text.replace(/(.)\1{2,}/g, '$1')
 }
 
 // Remove punctuation/spaces that are inserted between the letters of a word
 // e.g. "f.u.c.k" → "fuck", "n-i-g" → "nig", "w o r d" → "word"
 // Only applies when the pattern is clearly letter-by-letter (single chars separated)
 function removeSeparators(text: string): string {
-  // Match single letter separated by one non-alphanumeric, repeated at least 3 times
-  return text.replace(/\b([a-z])[\s\-_.]{1,2}(?=[a-z][\s\-_.]{0,2}[a-z])/g, '$1')
-    .replace(/([a-z])\s([a-z])\s([a-z])/g, '$1$2$3')
+  return text.replace(/\b[a-z](?:[\s\-_.]{1,2}[a-z]){2,}\b/g, run => run.replace(/[\s\-_.]/g, ''))
 }
 
 function normalise(text: string): string {
@@ -90,13 +88,13 @@ const ACADEMIC_PREFIXES = [
   /the term\s+["'"]/i,
   /the (word|slur|phrase)\s+["'"]/i,
   /historically (referred|known|described) (to|as)\s+["'"]/i,
-  /(?:quote[sd]?|citing)\s+["'"]/i,
+  /(?:quote[sd]?|quoting|citing)\s+["'"]/i,
   /in (quotes?|quotation marks?)/i,
 ]
 
 function isAcademicContext(original: string, matchIndex: number): boolean {
   const preceding = original.slice(Math.max(0, matchIndex - 80), matchIndex)
-  return ACADEMIC_PREFIXES.some((re) => re.test(preceding))
+  return ACADEMIC_PREFIXES.some((re) => new RegExp(re.source + '$', re.flags).test(preceding))
 }
 
 // ── Banned patterns ──────────────────────────────────────────────────────────
@@ -209,17 +207,20 @@ export interface FilterResult {
 export function filterComment(text: string): FilterResult {
   const norm = normalise(text)
 
+  let flagReason: string | undefined
   for (const { pattern, category } of BANNED) {
     const match = norm.match(pattern)
     if (match) {
       const matchIndex = norm.indexOf(match[0])
       // Academic context: allow with flag
-      if (isAcademicContext(text, matchIndex)) {
-        return { allowed: true, flagForReview: true, flagReason: 'academic_mention' }
+      if (category.endsWith('_slur') && isAcademicContext(norm, matchIndex)) {
+        flagReason = 'academic_mention'
+        continue
       }
       // FLAG_ONLY patterns: allow with flag
       if (FLAG_ONLY.some((fp) => fp.pattern.source === pattern.source)) {
-        return { allowed: true, flagForReview: true, flagReason: category }
+        flagReason ??= category
+        continue
       }
       return {
         allowed: false,
@@ -227,6 +228,8 @@ export function filterComment(text: string): FilterResult {
       }
     }
   }
+
+  if (flagReason) return { allowed: true, flagForReview: true, flagReason }
 
   // Check flag-only patterns separately (they don't block)
   for (const { pattern, category } of FLAG_ONLY) {

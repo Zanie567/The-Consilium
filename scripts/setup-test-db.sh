@@ -34,35 +34,26 @@ PGSOCK="${PGSOCK:-/tmp}"
 PGBIN="${PGBIN:-/opt/homebrew/opt/postgresql@16/bin}"
 [ -d "$PGBIN" ] && export PATH="$PGBIN:$PATH"
 
-if [ "${USE_EXISTING_DB:-0}" != "1" ]; then
-  if ! pg_isready -h "$PGSOCK" -p "$PGPORT" >/dev/null 2>&1; then
-    if [ ! -d "$PGDATA/base" ]; then
-      echo "→ initialising Postgres cluster at $PGDATA"
-      initdb -D "$PGDATA" -U postgres --auth=trust >/dev/null
-    fi
-    echo "→ starting Postgres on port $PGPORT"
-    pg_ctl -D "$PGDATA" -o "-p $PGPORT -k $PGSOCK" -l /tmp/pg_server.log -w start
-  fi
-  createdb -h "$PGSOCK" -p "$PGPORT" -U postgres consilium 2>/dev/null || true
-
-  # The local cluster we just started/verified — explicitly, so nothing
-  # downstream can fall back to whatever .env.local happens to say.
-  export TEST_DATABASE_URL="postgresql://postgres@localhost:${PGPORT}/consilium"
+# Resolve and validate BEFORE SQL or cluster startup. Never replace a refused caller URL.
+if [ "${USE_EXISTING_DB:-0}" != 1 ]; then
+  export TEST_DATABASE_URL="${TEST_DATABASE_URL:-postgresql://postgres@localhost:${PGPORT}/consilium}"
 else
-  : "${TEST_DATABASE_URL:?USE_EXISTING_DB=1 requires TEST_DATABASE_URL to be set}"
+  : "${TEST_DATABASE_URL:?USE_EXISTING_DB=1 requires TEST_DATABASE_URL}"
 fi
-# One database for everything below, whatever the environment carried in.
-export DATABASE_URL="$TEST_DATABASE_URL"
-export DIRECT_URL="$TEST_DATABASE_URL"
-
-# Marks every seed/dedupe script's own in-process safety check as active —
-# see scripts/lib/assertSafeTestDatabaseHost.ts — so the check holds even if
-# one of them is ever invoked outside this script with a stale env.
+DB_EXPORTS="$(npx ts-node -P tsconfig.seed.json scripts/test-db-env.ts)" || { echo "✗ refusing unsafe database" >&2; exit 1; }
+eval "$DB_EXPORTS"
 export TEST_HARNESS=1
-
-echo "→ verifying resolved database host is safe for the test harness"
-npx ts-node -P tsconfig.seed.json scripts/assert-safe-test-db.ts
-
+if [ "${USE_EXISTING_DB:-0}" != 1 ]; then
+  if pg_isready -h localhost -p "$PGPORT" >/dev/null 2>&1; then
+    echo "✗ refusing an existing cluster without USE_EXISTING_DB=1" >&2; exit 1
+  fi
+  if [ -e "$PGDATA" ]; then
+    echo "✗ refusing an existing data directory: $PGDATA" >&2; exit 1
+  fi
+  initdb -D "$PGDATA" -U postgres --auth=trust >/dev/null
+  pg_ctl -D "$PGDATA" -o "-p $PGPORT -k $PGSOCK" -l "$PGDATA/server.log" -w start
+  createdb -h localhost -p "$PGPORT" -U postgres consilium
+fi
 echo "→ prisma generate + db push"
 npx prisma generate >/dev/null
 npx prisma db push >/dev/null

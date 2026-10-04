@@ -416,7 +416,7 @@ test('the editor sees every feature in the review preview, then publishes from i
   await ctx.close()
 })
 
-test('the published article shows the content, semantic formatting kept, house style applied', async ({ browser }) => {
+test('the published article shows the content, semantic formatting and editor styling preserved', async ({ browser }) => {
   const ctx = await signedIn(browser, null)
   const page = await ctx.newPage()
   const errors = collectConsoleErrors(page)
@@ -458,9 +458,11 @@ test('the published article shows the content, semantic formatting kept, house s
   await expect(article.locator('sup.footnote-ref')).toHaveCount(1)
   await expect(page.getByText(FOOTNOTE).first()).toBeVisible()
 
-  // House style: colour, alignment and line spacing are not carried to readers.
-  const styled = await article.evaluate((el) => el.querySelectorAll('[style]').length)
-  expect(styled, 'published body must carry no inline styles').toBe(0)
+  await expect(p.locator('span[style*="color"]')).toHaveText('coloured word')
+  await expect(article.locator('p', { hasText: 'Aligned centre paragraph.' })).toHaveCSS('text-align', 'center')
+  await expect(article.locator('p', { hasText: 'Aligned right paragraph.' })).toHaveCSS('text-align', 'right')
+  await expect(article.locator('p', { hasText: 'Aligned justify paragraph.' })).toHaveCSS('text-align', 'justify')
+  await expect(article.locator('p', { hasText: 'Line spaced paragraph.' }).locator('span')).toHaveCSS('line-height', /.+/)
 
   expect(errors, `console errors on the published article:\n${errors.join('\n')}`).toEqual([])
   await new ArticleEditorPage(page).dismissCookieBanner()

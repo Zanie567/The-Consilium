@@ -1,4 +1,5 @@
 import sanitizeHtml from 'sanitize-html'
+import { SAFE_COLOUR, SAFE_FONT_SIZE, SAFE_FONT_FAMILY, SAFE_LINE_HEIGHT, SAFE_ALIGNMENT } from './articleStyles'
 
 /**
  * Sanitiser for the rendered article body. Keeps the structural tags/attributes
@@ -36,7 +37,9 @@ export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     img: ['src', 'alt'],
     th: ['colspan', 'rowspan'],
     td: ['colspan', 'rowspan'],
-    p: ['class'],
+    p: ['class', 'style'],
+    mark: ['style'],
+    h1: ['style'], h2: ['style'], h3: ['style'], h4: ['style'], h5: ['style'], h6: ['style'],
     figure: ['class'],
     figcaption: ['class'],
     aside: ['class', 'data-type'],
@@ -47,12 +50,17 @@ export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     sup: ['class', 'data-footnote', 'data-index', 'id'],
     // Glossary tooltip triggers only. data-gloss-* values are plain text the
     // tooltip reads via getAttribute/textContent, never interpreted as HTML.
-    span: ['class', 'data-gloss-term', 'data-gloss-def', 'data-gloss-url'],
+    span: ['style', 'class', 'data-gloss-term', 'data-gloss-def', 'data-gloss-url'],
   },
   // A span may only carry the glossary trigger class; anything else (including
   // a class-less span from pasted content) is stripped to its text.
   allowedClasses: {
     span: ['glossary-term'],
+  },
+  allowedStyles: {
+    '*': { color: [SAFE_COLOUR], 'background-color': [SAFE_COLOUR],
+      'font-size': [SAFE_FONT_SIZE], 'font-family': [SAFE_FONT_FAMILY],
+      'line-height': [SAFE_LINE_HEIGHT], 'text-align': [SAFE_ALIGNMENT] },
   },
   // Only safe URL schemes; relative/anchor hrefs (e.g. #correction-note) still pass.
   allowedSchemes: ['http', 'https', 'mailto'],

@@ -21,6 +21,7 @@
  * It is NOT the real service: it does not model storage RLS policies, signed URLs,
  * transformations or CDN behaviour. Inspection endpoints for tests: GET /__objects.
  */
+import { assertRunDatabase } from '../../../scripts/lib/assertRunDatabase'
 import http from 'node:http'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { Client } from 'pg'
@@ -30,6 +31,7 @@ const PORT = Number(process.env.FAKE_STORAGE_PORT ?? 54321)
 const DB_URL = process.env.TEST_DATABASE_URL
 if (!DB_URL) throw new Error('TEST_DATABASE_URL is required')
 assertSafeTestDatabaseHost(DB_URL, 'TEST_DATABASE_URL')
+assertRunDatabase()
 
 /** key = `${bucket}/${path}` */
 const objects = new Map<string, { type: string; body: Buffer }>()
@@ -68,6 +70,7 @@ http
       const url = new URL(req.url ?? '/', 'http://localhost')
       const parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent)
 
+      if (url.pathname === '/__attestation') return send(res, 200, {run:process.env.E2E_RUN_ID,database:new URL(DB_URL!).pathname.slice(1)})
       if (url.pathname === '/__objects') {
         return send(res, 200, [...objects].map(([key, o]) => ({ key, type: o.type, size: o.body.length })))
       }

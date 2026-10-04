@@ -16,6 +16,7 @@ import type {
   SaveStatus,
   UserOption,
 } from './types'
+import { readDrafts, storeDraft, deleteDraft, type LocalDraft } from '@/lib/draftRecovery'
 import { STATUS_LABELS } from './constants'
 
 interface SavedArticleResponse {
@@ -185,6 +186,87 @@ export function useArticleEditorController({
   const selectedAuthorIdRef = useRef(selectedAuthorId)
 
   const canEdit = !isWriter || currentStatus === 'DRAFT' || currentStatus === 'REJECTED'
+  const [recovery, setRecovery] = useState<{ at: number; stale: boolean } | null>(null)
+  const [recovered, setRecovered] = useState(false)
+  const [recoveryError, setRecoveryError] = useState('')
+  const [recoveryRevision, setRecoveryRevision] = useState(0)
+  const recoveryDraftRef = useRef<LocalDraft | null>(null)
+  const localDraftRef = useRef<LocalDraft | null>(null)
+  const tabIdRef = useRef('')
+  const recoveryBlockedRef = useRef(false)
+
+  useEffect(() => {
+    try {
+      tabIdRef.current = sessionStorage.getItem('consilium:editor-tab') ?? crypto.randomUUID()
+      sessionStorage.setItem('consilium:editor-tab', tabIdRef.current)
+      const drafts = readDrafts(localStorage, authorId, articleId ?? 'new')
+      const draft = drafts.find(d => d.fields.content !== (initialData?.content ?? '') || d.fields.title !== (initialData?.title ?? '') || d.fields.excerpt !== (initialData?.excerpt ?? '') || d.baseVersion !== initialData?.version)
+      if (draft) {
+        recoveryDraftRef.current = draft
+        recoveryBlockedRef.current = true
+        setRecovery({ at: draft.at, stale: draft.baseVersion !== initialData?.version })
+      }
+    } catch {
+      setRecoveryError('Local draft recovery is unavailable in this browser. Keep this tab open until saving succeeds.')
+    }
+  }, [authorId, articleId, initialData])
+
+  const persistLocalDraft = useCallback(() => {
+    if (!isDirtyRef.current || !tabIdRef.current) return
+    const draft: LocalDraft = {
+      userId: authorId, articleId: articleIdRef.current ?? 'new', tabId: tabIdRef.current,
+      at: Date.now(), baseVersion: versionRef.current,
+      fields: { title: titleRef.current, slug: slugRef.current, content: contentRef.current,
+        excerpt: excerptRef.current, coverImage: coverImageRef.current, categoryId: categoryIdRef.current,
+        tags: tagsRef.current, authorId: selectedAuthorIdRef.current },
+    }
+    try {
+      storeDraft(localStorage, draft)
+      if (localDraftRef.current && localDraftRef.current.articleId !== draft.articleId) deleteDraft(localStorage, localDraftRef.current)
+      localDraftRef.current = draft
+    } catch {
+      setRecoveryError('Could not retain a local recovery copy. Keep this tab open until saving succeeds.')
+    }
+  }, [authorId])
+
+  const clearLocalDraft = useCallback(() => {
+    try {
+      if (localDraftRef.current) deleteDraft(localStorage, localDraftRef.current)
+      if (recoveryDraftRef.current) deleteDraft(localStorage, recoveryDraftRef.current)
+      localDraftRef.current = null
+      recoveryDraftRef.current = null
+    } catch { setRecoveryError('Could not remove the local recovery copy.') }
+  }, [])
+
+  const discardLocalDraft = () => {
+    clearLocalDraft()
+    recoveryBlockedRef.current = false
+    setRecovery(null)
+    setRecovered(false)
+  }
+
+  const restoreLocalDraft = () => {
+    const draft = recoveryDraftRef.current
+    if (!draft || !canEdit) return
+    const f = draft.fields
+    setTitle(f.title); titleRef.current = f.title
+    setSlugState(f.slug); slugRef.current = f.slug
+    setContent(f.content); contentRef.current = f.content
+    setExcerptState(f.excerpt); excerptRef.current = f.excerpt
+    setCoverImageState(f.coverImage); coverImageRef.current = f.coverImage
+    setCategoryIdState(f.categoryId); categoryIdRef.current = f.categoryId
+    setTags(f.tags); tagsRef.current = f.tags
+    setSelectedAuthorIdState(f.authorId); selectedAuthorIdRef.current = f.authorId
+    // Keep the recovery's original base: a newer server version must produce 409.
+    versionRef.current = draft.baseVersion
+    isDirtyRef.current = true
+    editVersionRef.current++
+    recoveryBlockedRef.current = true
+    setRecovery(null); setRecovered(true); setSaveStatus('idle')
+    setRecoveryRevision(v => v + 1)
+    persistLocalDraft()
+  }
+
 
   useEffect(() => setThemeMounted(true), [])
 
@@ -332,7 +414,11 @@ export function useArticleEditorController({
         // A response only acknowledges the exact snapshot it sent. Edits made
         // while this request was in flight stay dirty until their own queued save
         // succeeds.
-        if (editVersion === editVersionRef.current) isDirtyRef.current = false
+        if (editVersion === editVersionRef.current) {
+          isDirtyRef.current = false
+          clearLocalDraft()
+          setRecovered(false)
+        } else persistLocalDraft()
 
         void globalMutate(DRAFTS_SWR_KEY)
 
@@ -375,7 +461,7 @@ export function useArticleEditorController({
     const result = saveQueueRef.current.then(execute, execute)
     saveQueueRef.current = result.then(() => undefined, () => undefined)
     return result
-  }, [])
+  }, [clearLocalDraft, persistLocalDraft])
 
   const scheduleAutosave = useCallback(() => {
     if (!canEdit) return
@@ -384,15 +470,16 @@ export function useArticleEditorController({
     clearTimeout(savedFadeTimer.current)
     clearTimeout(savedTimeoutRef.current)
     setSavedVisible(false)
+    persistLocalDraft()
     clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => {
-      void performSave()
+      if (!recoveryBlockedRef.current) void performSave()
     }, 2000)
-  }, [canEdit, performSave])
+  }, [canEdit, performSave, persistLocalDraft])
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && isDirtyRef.current && canEdit) {
+      if (document.visibilityState === 'hidden' && isDirtyRef.current && canEdit && !recoveryBlockedRef.current) {
         clearTimeout(autoSaveTimer.current)
         void performSave()
       }
@@ -447,6 +534,8 @@ export function useArticleEditorController({
     }
     clearTimeout(autoSaveTimer.current)
     setError(null)
+    if (recovery) return
+    recoveryBlockedRef.current = false
     const saved = await performSave(explicitStatus)
 
     if (!saved || !articleIdRef.current) return
@@ -497,6 +586,7 @@ export function useArticleEditorController({
   }
 
   const reloadLatest = () => {
+    clearLocalDraft()
     isDirtyRef.current = false // otherwise the browser asks "leave site?" for text being discarded
     window.location.reload()
   }
@@ -644,6 +734,7 @@ export function useArticleEditorController({
 
   return {
     articleId: articleIdRef.current,
+    recovery, recovered, recoveryError, recoveryRevision,
     statusAction,
     pendingStatus,
     scheduledAtForDialog: scheduledAt,
@@ -675,6 +766,7 @@ export function useArticleEditorController({
     uploading,
     users,
     actions: {
+      restoreLocalDraft, discardLocalDraft,
       requestStatusChange,
       confirmStatusChange,
       cancelStatusChange,

@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 import { ADMIN_STORAGE, EDITOR_GLOBAL_STORAGE } from './tests/e2e/helpers/authStorage'
 import { applyTestDatabaseEnv, resolveTestBaseUrl } from './scripts/lib/testDatabase'
+import { assertRunDatabase } from './scripts/lib/assertRunDatabase'
 import { assertIsolatedServiceEnv } from './scripts/lib/testServices'
 
 // SAFETY: E2E signs in with seeded credentials and writes data, and the e2e DB
@@ -13,6 +14,7 @@ applyTestDatabaseEnv()
 // scripts/run-e2e.sh sets every one of them to a local stand-in; refuse to run
 // without it. Re-checked in each worker, which re-imports this file.
 assertIsolatedServiceEnv()
+assertRunDatabase()
 
 if (!process.env.E2E_BASE_URL) {
   throw new Error('E2E_BASE_URL is not set. Run the suite with `npm run test:e2e` (scripts/run-e2e.sh).')
@@ -60,6 +62,7 @@ export default defineConfig({
     // A control that cannot be clicked within 10s is a defect to report, not a reason to
     // sit for the rest of the test timeout.
     actionTimeout: 10_000,
+    navigationTimeout: 15_000,
     baseURL: BASE_URL,
     // A failure in CI must leave evidence: a trace (DOM snapshots, network, console) and a
     // screenshot of the failing step, including a first local failure.
@@ -120,13 +123,13 @@ export default defineConfig({
     // and unpublish articles, which the public count assertions must not race with.
     {
       name: 'wf-chromium',
-      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles|controls|cache)\.spec\.ts/,
+      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles|controls|cache|access|publication-safety|recovery|accounts|portal|navigation)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'wf-webkit',
-      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles|controls|cache)\.spec\.ts/,
+      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles|controls|cache|access|publication-safety|recovery|accounts|portal|navigation)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Safari'] },
     },

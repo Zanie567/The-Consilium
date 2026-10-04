@@ -1,4 +1,5 @@
 import { escapeHtml as escHtml } from '@/lib/escapeHtml'
+import { articleStyle } from '@/lib/articleStyles'
 import { sanitizeArticleHtml } from '@/lib/articleSanitize'
 
 /**
@@ -65,14 +66,14 @@ function nodeToHtml(node: TiptapNode, state: RenderState): string {
     case 'paragraph': {
       const inner = node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''
       if (!inner.trim()) return ''
-      return `<p>${inner}</p>`
+      return `<p${articleStyle(node.attrs)}>${inner}</p>`
     }
     case 'heading': {
       // Clamp to a valid h1-h6: the level is interpolated into the tag name, so an
       // unvalidated attribute (e.g. level = "1><img onerror=...>") would inject markup.
       const raw = Number(node.attrs?.level)
       const level = Number.isFinite(raw) ? Math.min(6, Math.max(1, Math.trunc(raw))) : 2
-      return `<h${level}>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</h${level}>`
+      return `<h${level}${articleStyle(node.attrs)}>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</h${level}>`
     }
     case 'text': {
       let text = escHtml(node.text ?? '')
@@ -83,7 +84,8 @@ function nodeToHtml(node: TiptapNode, state: RenderState): string {
           if (mark.type === 'underline') text = `<u>${text}</u>`
           if (mark.type === 'strike')    text = `<s>${text}</s>`
           if (mark.type === 'code')      text = `<code>${text}</code>`
-          if (mark.type === 'highlight') text = `<mark>${text}</mark>`
+          if (mark.type === 'highlight') text = `<mark${articleStyle(mark.attrs, true)}>${text}</mark>`
+          if (mark.type === 'textStyle') text = `<span${articleStyle(mark.attrs)}>${text}</span>`
           if (mark.type === 'link') {
             const href = safeHref(String(mark.attrs?.href ?? '#'))
             const target = escHtml(String(mark.attrs?.target ?? '_self'))

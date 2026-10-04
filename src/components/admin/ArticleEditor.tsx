@@ -192,10 +192,20 @@ interface EditorBannersProps {
 }
 
 function EditorBanners({ editor }: EditorBannersProps) {
-  if (!editor.initialEditorNote && !editor.error && editor.canEdit) return null
+  if (!editor.initialEditorNote && !editor.error && !editor.recovery && !editor.recovered && !editor.recoveryError && editor.canEdit) return null
 
   return (
     <div className="max-w-[1120px] mx-auto px-3 sm:px-6 pt-4 sm:pt-5 space-y-3">
+      {editor.recovery && (
+        <div role="alert" className="border border-amber-500 p-4 rounded">
+          <p>Unsaved local work from {new Date(editor.recovery.at).toLocaleString()} is available on this device.</p>
+          <p>{editor.recovery.stale ? 'The server has changed since this copy. Saving recovered work will require resolving a conflict.' : 'This copy has not been saved to the server.'}</p>
+          {editor.canEdit ? <button type="button" onClick={editor.actions.restoreLocalDraft}>Recover local work</button> : <p>This article is locked. Local work cannot replace it.</p>}
+          <button type="button" onClick={editor.actions.discardLocalDraft}>Discard local recovery</button>
+        </div>
+      )}
+      {editor.recovered && <p role="status" className="border border-amber-500 p-4">Recovered local work — not server-saved. Review it and press Save draft. Recovery never changes publication status.</p>}
+      {editor.recoveryError && <p role="alert">{editor.recoveryError}</p>}
       {editor.initialEditorNote && (
         <div className="bg-amber-500/8 border border-amber-500/20 px-4 py-3 rounded">
           <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Editor feedback</p>

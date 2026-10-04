@@ -8,6 +8,7 @@ import fs from 'node:fs'
 import bcrypt from 'bcryptjs'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { assertRunDatabase } from '../../../scripts/lib/assertRunDatabase'
 import { assertSafeTestDatabaseHost } from '../../../scripts/lib/assertSafeTestDatabaseHost'
 import {
   ADMIN_STORAGE,
@@ -43,6 +44,7 @@ export function uniqueTitle(label: string) {
 let prisma: PrismaClient | null = null
 export function db(): PrismaClient {
   if (!prisma) {
+    assertRunDatabase()
     const url = process.env.DATABASE_URL ?? ''
     assertSafeTestDatabaseHost(url, 'DATABASE_URL')
     prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) })
