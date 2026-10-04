@@ -137,6 +137,9 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium webkit
 
+      - name: Framework-free share popup diagnostic
+        run: node scripts/diagnostics/share-popup.mjs
+
       # scripts/run-e2e.sh is the only supported entry point. It builds the app itself
       # into .next-e2e with storage, email and OAuth pinned to local stand-ins (a local
       # Supabase-Storage-compatible server, captured email, no Google), so nothing in this

@@ -352,6 +352,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
   const [stats, setStats] = useState<Stats | null>(null)
   const [users, setUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [usersError, setUsersError] = useState('')
   const [total, setTotal] = useState(0)
   const [pages, setPages] = useState(1)
   const [page, setPage] = useState(1)
@@ -379,6 +380,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
 
   const loadUsers = useCallback(() => {
     setLoading(true)
+    setUsersError('')
     const params = new URLSearchParams({
       page: String(page),
       limit: String(PAGE_SIZE),
@@ -387,14 +389,13 @@ export function AdminUsersPage({ currentAdminId }: Props) {
       ...(roleTab !== 'All' && { role: roleTab.toUpperCase() }),
       ...(status && { status }),
     })
-    fetch(`/api/admin/users?${params}`)
-      .then((r) => r.json())
+    apiRequest<{users: UserRow[]; total: number; pages: number}>(`/api/admin/users?${params}`)
       .then((d) => {
         setUsers(d.users ?? [])
         setTotal(d.total ?? 0)
         setPages(d.pages ?? 1)
       })
-      .catch(() => {})
+      .catch(reason => setUsersError(asApiError(reason).message))
       .finally(() => setLoading(false))
   }, [page, sort, search, roleTab, status])
 
@@ -534,6 +535,8 @@ export function AdminUsersPage({ currentAdminId }: Props) {
             </div>
           </div>
 
+          {usersError && <div role="alert"><p>{usersError}</p><button onClick={loadUsers}>Retry users</button></div>}
+
           {/* Table */}
           <div className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden">
             <div className="overflow-x-auto">
@@ -560,7 +563,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
                         </td>
                       </tr>
                     ))
-                  ) : users.length === 0 ? (
+                  ) : usersError ? null : users.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="px-4 py-12 text-center text-[var(--fg-faint)] text-sm">
                         No users found.

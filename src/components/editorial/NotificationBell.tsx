@@ -83,6 +83,8 @@ export function NotificationBell() {
       </button>
       </Tooltip>
 
+      {error && !open && <p role="alert" className="absolute right-0 top-full mt-2 w-80 bg-[var(--bg-elevated)] border border-[var(--border)] p-3 text-red-500 text-sm z-50">{error}</p>}
+
       {open && (
         <div className="absolute right-0 top-full mt-2 w-80 bg-[var(--bg-elevated)] border border-[var(--border)] shadow-lg z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
@@ -130,18 +132,17 @@ export function NotificationBell() {
                         onClick={() => {
                           // Optimistically mark read; persist to server; revert on failure.
                           if (!n.read) {
+                            setError('')
                             setNotifs((prev) =>
                               prev.map((item) => item.id === n.id ? { ...item, read: true } : item)
                             )
-                            fetch(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' })
-                              .then((r) => {
-                                if (!r.ok) throw new Error('failed')
-                              })
-                              .catch(() => {
+                            apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' })
+                              .catch((reason) => {
                                 // Revert the optimistic update on error
                                 setNotifs((prev) =>
                                   prev.map((item) => item.id === n.id ? { ...item, read: false } : item)
                                 )
+                                setError(asApiError(reason).message)
                               })
                           }
                           setOpen(false)

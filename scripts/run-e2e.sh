@@ -52,6 +52,7 @@ PIDS=()
 DB_CREATED=0
 RUN_DB="consilium_audit_${E2E_RUN_ID//-/_}"
 cleanup() {
+  ORIGINAL_STATUS=$?
   for p in "${PIDS[@]:-}"; do
     [ -n "$p" ] && kill "$p" 2>/dev/null || true
   done
@@ -59,8 +60,12 @@ cleanup() {
     [ -n "$p" ] && wait "$p" 2>/dev/null || true
   done
   if [ "$DB_CREATED" = 1 ]; then
-    psql "$E2E_ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -qc "DROP DATABASE \"$RUN_DB\" WITH (FORCE)" >>"$E2E_RESULTS_DIR/cleanup.log" 2>&1
+    psql "$E2E_ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -qc "DROP DATABASE \"$RUN_DB\" WITH (FORCE)" >>"$E2E_RESULTS_DIR/cleanup.log" 2>&1 || ORIGINAL_STATUS=1
+    DB_REMAINING=$(psql "$E2E_ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -Atqc "SELECT count(*) FROM pg_database WHERE datname='$RUN_DB'" 2>>"$E2E_RESULTS_DIR/cleanup.log") || ORIGINAL_STATUS=1
+    RUN_DATABASE="$RUN_DB" RUN_DATABASE_REMAINING="$DB_REMAINING" node -e 'require("fs").writeFileSync(process.env.E2E_RESULTS_DIR+"/cleanup.json",JSON.stringify({database:process.env.RUN_DATABASE,databaseAbsent:process.env.RUN_DATABASE_REMAINING==="0",ownedServicesWaited:true,productionServicesUsed:false},null,2))' || ORIGINAL_STATUS=1
+    [ "$DB_REMAINING" = 0 ] || ORIGINAL_STATUS=1
   fi
+  exit "$ORIGINAL_STATUS"
 }
 trap cleanup EXIT
 # Never kill or reuse an unknown listener (including another audit).

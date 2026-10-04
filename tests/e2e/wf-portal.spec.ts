@@ -260,23 +260,17 @@ test('Admin prediction create, edit, vote, revise, close, reopen, resolve and ca
   await page.waitForURL('**/editorial/predictions')
   await page.getByRole('link', { name, exact: true }).click()
   await page.getByLabel('Your prediction').fill('4.25')
-  let refreshed = page.waitForResponse(r => new URL(r.url()).pathname === `/predictions/${id}` && r.request().headers().rsc === '1')
   await mutation(page, `/api/predictions/${id}`, 'POST', 200, () =>
     page.getByRole('button', { name: 'Submit prediction' }).click()
   )
-  expect((await refreshed).status()).toBe(200)
-  await (await refreshed).finished()
-  await page.waitForLoadState('networkidle')
+  await expect(page.getByRole('button', { name: 'Update prediction', exact: true })).toBeEnabled()
   await page.reload({ waitUntil: 'networkidle' })
   await expect(page.getByLabel('Your prediction')).toHaveValue('4.25')
   await page.getByLabel('Your prediction').fill('4.5')
-  refreshed = page.waitForResponse(r => new URL(r.url()).pathname === `/predictions/${id}` && r.request().headers().rsc === '1')
   await mutation(page, `/api/predictions/${id}`, 'POST', 200, () =>
     page.getByRole('button', { name: 'Update prediction' }).click()
   )
-  expect((await refreshed).status()).toBe(200)
-  await (await refreshed).finished()
-  await page.waitForLoadState('networkidle')
+  await expect(page.getByRole('button', { name: 'Update prediction', exact: true })).toBeEnabled()
   await page.goto('/editorial/predictions', { waitUntil: 'networkidle' })
   await mutation(page, `/api/editorial/predictions/${id}`, 'PATCH', 200, () =>
     card.getByRole('button', { name: 'Close early' }).click()
@@ -388,4 +382,27 @@ test('Growth analytics requests exact date ranges and every tab through the UI',
     expect((await response).status()).toBe(200)
   }
   await ctx.close()
+})
+
+test('glossary pagination and numbered controls preserve all seven representative searched terms', async ({ browser }) => {
+  const prefix = uniqueTitle('glossary-pages')
+  const ids: string[] = []
+  const ctx = await signedIn(browser, 'admin')
+  try {
+    for (let i = 0; i < 7; i++) ids.push((await db().glossaryTerm.create({ data: { term: `${prefix} ${i}`, definition: 'A sufficiently detailed pagination definition.' } })).id)
+    const page = await ctx.newPage()
+    await page.goto('/editorial/glossary', { waitUntil: 'networkidle' })
+    await new ArticleEditorPage(page).dismissCookieBanner()
+    await page.getByLabel('Search glossary terms').fill(prefix)
+    await expect(page.getByText('Showing 1 to 6 of 7 terms')).toBeVisible()
+    await expect(page.getByLabel('Previous page', { exact: true })).toBeDisabled()
+    await page.getByLabel('Next page', { exact: true }).click()
+    await expect(page.getByText('Showing 7 to 7 of 7 terms')).toBeVisible()
+    await expect(page.getByLabel('Next page', { exact: true })).toBeDisabled()
+    await page.getByLabel('Page 1', { exact: true }).click()
+    await expect(page.getByText('Showing 1 to 6 of 7 terms')).toBeVisible()
+    await page.getByLabel('Page 2', { exact: true }).click()
+    await page.getByLabel('Previous page', { exact: true }).click()
+    await expect(page.getByText('Showing 1 to 6 of 7 terms')).toBeVisible()
+  } finally { await db().glossaryTerm.deleteMany({ where: { id: { in: ids } } }); await ctx.close() }
 })

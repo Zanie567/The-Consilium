@@ -28,4 +28,3 @@ for (const [file, original, replacement] of [
 }
 // Validate both distributions before writing either one.
 for (const [location, source] of updates) fs.writeFileSync(location, source)
-

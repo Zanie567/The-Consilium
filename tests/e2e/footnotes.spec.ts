@@ -74,6 +74,8 @@ test.describe('desktop', () => {
     const p = await point(page, '#fnref-2')
     const before = await page.evaluate(() => ({
       h: document.body.scrollHeight,
+      documentHeight: document.documentElement.scrollHeight,
+      body: document.body.getBoundingClientRect().toJSON(),
       box: document.getElementById('fnref-2')!.getBoundingClientRect().toJSON(),
     }))
 
@@ -87,8 +89,11 @@ test.describe('desktop', () => {
     // Opening the popover must not move the page or the marker
     const after = await page.evaluate(() => ({
       h: document.body.scrollHeight,
+      documentHeight: document.documentElement.scrollHeight,
+      body: document.body.getBoundingClientRect().toJSON(),
       box: document.getElementById('fnref-2')!.getBoundingClientRect().toJSON(),
     }))
+    await test.info().attach('popover-geometry.json', { body: JSON.stringify({ before, after }), contentType: 'application/json' })
     expect(after.h).toBe(before.h)
     expect(after.box).toEqual(before.box)
 

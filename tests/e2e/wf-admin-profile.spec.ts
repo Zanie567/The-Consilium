@@ -149,6 +149,60 @@ test('administrator warnings, private notes, detail load recovery and audit log 
   const audit = page.waitForResponse(r => new URL(r.url()).pathname === '/api/admin/audit-log')
   await page.getByRole('button', { name: 'Retry audit log' }).click()
   expect((await audit).status()).toBe(200)
-  await expect(page.getByRole('cell', { name: 'Warning issued', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('row').filter({ hasText: account.email }).filter({ hasText: 'Warning issued' }).first()).toBeVisible()
+  await ctx.close()
+})
+
+test('administrator directory filters, every sort and pagination rank count leaders across pages', async ({ browser }) => {
+  test.setTimeout(150_000) // Sixteen isolated accounts plus all filters/sorts; normal per-action deadlines remain unchanged.
+  const prefix = `directory-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+  const users = []
+  for (let i = 0; i < 16; i++) users.push(await createAccount('READER', prefix))
+  const leader = users[0]
+  const article = await db().article.create({ data: { title: uniqueTitle('Directory count'), slug: uniqueTitle('directory-count').toLowerCase().replaceAll(' ', '-'), content: 'Directory count fixture', authorId: leader.id, status: 'DRAFT' } })
+  await db().comment.create({ data: { articleId: article.id, userId: leader.id, body: 'Countable directory comment.' } })
+  await db().user.update({ where: { id: users[1].id }, data: { isBanned: true } })
+  await db().userWarning.create({ data: { userId: users[2].id, reason: 'Controlled filter fixture', issuedBy: 'Isolated test' } })
+  const ctx = await signedIn(browser, 'admin')
+  const page = await ctx.newPage()
+  await page.goto('/editorial/users', { waitUntil: 'networkidle' })
+  await new ArticleEditorPage(page).dismissCookieBanner()
+  await page.getByPlaceholder('Search name or email...').fill(prefix)
+  await expect(page.getByText('Showing 1 to 15 of 16 users')).toBeVisible()
+  await page.getByLabel('Next users page').click()
+  await expect(page.getByText('Showing 16 to 16 of 16 users')).toBeVisible()
+  await expect(page.locator('tbody tr')).toHaveCount(1)
+  await page.getByLabel('Previous users page').click()
+  await page.route('**/api/admin/users?*', r => r.fulfill({ status: 503, json: { error: 'Directory unavailable' } }))
+  await page.getByLabel('User sort').selectOption('oldest')
+  await expect(page.getByRole('alert').filter({ hasText: 'Directory unavailable' })).toBeVisible()
+  await page.unroute('**/api/admin/users?*')
+  const retried = page.waitForResponse(r => new URL(r.url()).pathname === '/api/admin/users')
+  await page.getByRole('button', { name: 'Retry users' }).click()
+  expect((await retried).status()).toBe(200)
+  await expect(page.locator('tbody tr').first()).toContainText(leader.email)
+  for (const sort of ['articleCount', 'commentCount', 'lastActive', 'createdAt']) {
+    const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/admin/users' && new URL(r.url()).searchParams.get('sort') === sort)
+    await page.getByLabel('User sort').selectOption(sort)
+    expect((await response).status()).toBe(200)
+    await expect(page.getByText('Showing 1 to 15 of 16 users')).toBeVisible()
+    if (['oldest', 'articleCount', 'commentCount'].includes(sort)) await expect(page.locator('tbody tr').first()).toContainText(leader.email)
+  }
+  for (const [status, expected] of [['banned', users[1].email], ['warned', users[2].email]] as const) {
+    const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/admin/users' && new URL(r.url()).searchParams.get('status') === status)
+    await page.getByLabel('User status').selectOption(status)
+    expect((await response).status()).toBe(200)
+    await expect(page.locator('tbody tr')).toHaveCount(1)
+    await expect(page.locator('tbody tr')).toContainText(expected)
+  }
+  await page.getByLabel('User status').selectOption('active')
+  await expect(page.getByText('Showing 1 to 15 of 15 users')).toBeVisible()
+  await page.getByLabel('User status').selectOption('')
+  for (const role of ['Admin', 'Editor', 'Writer', 'Growth', 'Reader', 'All']) {
+    const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/admin/users' && (new URL(r.url()).searchParams.get('role') ?? '') === (role === 'All' ? '' : role.toUpperCase()))
+    await page.getByRole('button', { name: role, exact: true }).click()
+    expect((await response).status()).toBe(200)
+    await expect(page.locator('tbody tr')).toHaveCount(role === 'Reader' || role === 'All' ? 15 : 0)
+  }
   await ctx.close()
 })

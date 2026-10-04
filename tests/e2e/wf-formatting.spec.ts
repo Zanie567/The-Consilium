@@ -259,7 +259,7 @@ test('build the article using every control', async ({ browser }) => {
   await headerCell.scrollIntoViewIfNeeded()
   const bounds = (await headerCell.boundingBox())!
   await page.mouse.move(bounds.x + bounds.width - 1, bounds.y + bounds.height / 2)
-  await expect(table.locator('.column-resize-handle')).toHaveCount(1)
+  await expect(headerCell.locator('.column-resize-handle')).toHaveCount(1)
   await page.mouse.down()
   await page.mouse.move(bounds.x + bounds.width + 40, bounds.y + bounds.height / 2, { steps: 8 })
   await page.mouse.up()
@@ -457,7 +457,7 @@ test('the published article shows the content, semantic formatting and editor st
 
   const table = article.locator('table')
   await expect(table, 'table must be published').toHaveCount(1)
-  await expect(table.locator('col').first()).toHaveAttribute('style', /width: [1-9][0-9]*px/)
+  await expect(table.locator('col').first()).toHaveAttribute('style', /width:\s*[1-9][0-9]*px/)
   await expect(table.locator('th')).toHaveText(['Region', 'Rate', 'Change'])
   await expect(table.locator('tr').nth(1).locator('td')).toHaveText(['UK', '5.25', '+0.25'])
   await expect(table.locator('tr').nth(2).locator('td')).toHaveText(['FR', '4.00', '-0.10'])

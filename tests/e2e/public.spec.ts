@@ -194,13 +194,13 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
   // 'domcontentloaded', not 'networkidle' — the dev server's HMR socket keeps
   // the network busy, so 'networkidle' never settles.
   await page.goto('/', { waitUntil: 'domcontentloaded' })
-  const links = page.locator('header a[href^="/category/"], main a[href^="/articles/"]')
+  const links = page.locator('header a[href^="/category/"], main article a[href^="/articles/"]')
   const targets = (await links.evaluateAll(elements => elements.map(el => el.getAttribute('href')!))).slice(0, 5)
   expect(targets.length).toBeGreaterThan(0)
   for (const href of targets) {
-    await page.locator(`a[href="${href}"]`).first().click({ timeout: 2000 })
+    await page.locator(`header a[href="${href}"], main article a[href="${href}"]`).first().click()
     await expect(page).toHaveURL(new RegExp(`${href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
-    await page.waitForTimeout(200)
+    await expect(page.locator('main')).toBeVisible()
     await page.goBack({ waitUntil: 'domcontentloaded' })
     await expect(page).toHaveURL(/\/$/)
   }

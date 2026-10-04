@@ -541,6 +541,7 @@ function AccountSettingsTab({
   const [deleteError, setDeleteError] = useState('')
 
   const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState('')
   // Read after mount: rendering window.location.origin directly made the server HTML ('')
   // differ from the first client render, a hydration error (React #418) in production.
   const [origin, setOrigin] = useState('')
@@ -646,11 +647,12 @@ function AccountSettingsTab({
   }
 
   const handleCopyProfile = async () => {
+    setCopyError('')
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/profile`)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch { /* ignore */ }
+    } catch { setCopyError('Could not copy the profile link. Please copy it from the text above.') }
   }
 
   return (
@@ -796,6 +798,8 @@ function AccountSettingsTab({
           </button>
         </div>
       </section>
+
+      {copyError && <p role="alert" className="text-red-500 text-xs">{copyError}</p>}
 
       {/* Danger zone */}
       <section>

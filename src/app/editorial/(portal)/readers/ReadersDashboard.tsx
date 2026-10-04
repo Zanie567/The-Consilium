@@ -1,5 +1,7 @@
 'use client'
 
+import { apiRequest, asApiError } from '@/lib/apiClient'
+
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
@@ -90,6 +92,7 @@ export function ReadersDashboard({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detail, setDetail] = useState<ArticleDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('publishedAt')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
@@ -118,9 +121,11 @@ export function ReadersDashboard({
     setSelectedId(id)
     setDetail(null)
     setDetailLoading(true)
+    setDetailError('')
     try {
-      const res = await fetch(`/api/editorial/read-through/${id}`)
-      if (res.ok) setDetail(await res.json())
+      setDetail(await apiRequest<ArticleDetail>(`/api/editorial/read-through/${id}`))
+    } catch (reason) {
+      setDetailError(asApiError(reason).message)
     } finally {
       setDetailLoading(false)
     }
@@ -313,7 +318,8 @@ export function ReadersDashboard({
                   <div className="p-6 animate-pulse h-64 bg-[var(--bg-elevated)]" />
                 ) : (
                   <p className="px-6 py-8 text-center text-[var(--fg-faint)] text-sm">
-                    This article&apos;s reader data could not be loaded. Please try again.
+                    <span role="alert">{detailError || 'This article’s reader data could not be loaded.'}</span>
+                    <button onClick={() => void selectArticle(selectedId)}>Retry reader data</button>
                   </p>
                 )
               ) : detail && !detail.stats.hasEnoughData ? (

@@ -72,7 +72,7 @@ for (const file of files) {
         controls.push({ id, file, line, tag, label, href: attrs.href ?? null, type: attrs.type ?? null,
           disabledWhen: attrs.disabled ?? null, expectedFromSource: Object.keys(events).length ? events : attrs.href ? `Navigate to ${attrs.href}` : 'Input/container; inspect enclosing handler',
           candidateTests: candidates, groupTestFiles: groupTests(file).map(name => `tests/e2e/${name}.spec.ts`),
-          evidence: 'CODE_INSPECTION', coverage: candidates.length ? 'Test references label; behaviour requires matching run evidence' : 'UNCOVERED: no direct label reference; partial group coverage may exist',
+          evidence: 'CODE_INSPECTION', coverage: 'Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results.',
         })
         ids.push(id)
       }
@@ -124,7 +124,7 @@ const output = 'docs/testing/control-inventory.json'
 fs.writeFileSync(output, JSON.stringify({
   provenance: 'Static JSX/import census. Includes conditional and disabled controls. Dynamic map expressions represent families, not enumerated runtime options. Candidate tests are references, never a claim of passing behaviour.',
   regenerate: 'npx ts-node -P tsconfig.seed.json scripts/build-workflow-inventory.ts',
-  renderedEvidence: 'test-results/inventory/<browser>/<role>.json and coverage-inventory.md',
+  renderedEvidence: 'test-results/<run>/inventory/<browser>/<role>.json and coverage-inventory.md',
   routes, controls, dynamicFamilies, nativeDialogs,
 }, null, 2) + '\n')
 console.log(`${routes.length} page routes, ${controls.length} control declarations -> ${path.relative(root, path.resolve(output))}`)

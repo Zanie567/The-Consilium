@@ -1,5 +1,7 @@
 'use client'
 
+import { apiRequest, asApiError } from '@/lib/apiClient'
+
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Crown, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp } from 'lucide-react'
@@ -31,17 +33,18 @@ export function LeaderboardClient({ currentUserId }: { currentUserId: string }) 
   const [period, setPeriod]       = useState<LeaderboardPeriod>('month')
   const [writers, setWriters]     = useState<WriterRow[]>([])
   const [loading, setLoading]     = useState(true)
+  const [error, setError] = useState('')
   const [sortCol, setSortCol]     = useState<SortCol>('totalReadingMinutes')
   const [sortDir, setSortDir]     = useState<SortDir>('desc')
 
   const fetchData = useCallback(async (p: LeaderboardPeriod) => {
     setLoading(true)
+    setError('')
     try {
-      const res = await fetch(`/api/editorial/leaderboard?period=${p}`)
-      if (res.ok) {
-        const json = await res.json()
-        setWriters(json.writers ?? [])
-      }
+      const json = await apiRequest<{writers: WriterRow[]}>(`/api/editorial/leaderboard?period=${p}`)
+      setWriters(json.writers ?? [])
+    } catch (reason) {
+      setError(asApiError(reason).message)
     } finally {
       setLoading(false)
     }
@@ -94,6 +97,8 @@ export function LeaderboardClient({ currentUserId }: { currentUserId: string }) 
           Compete with your fellow writers. Rankings update daily and reflect how deeply your articles are being read, not just clicked.
         </p>
       </div>
+
+      {error && <div role="alert"><p>{error}</p><button onClick={() => void fetchData(period)}>Retry leaderboard</button></div>}
 
       {/* Period selector */}
       <div className="flex gap-2 mb-6">

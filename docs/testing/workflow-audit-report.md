@@ -8,7 +8,9 @@ The final full verification is being moved to GitHub Actions because other local
 
 The previous complete local run used one clean commit, `497785c19652ccd63a30d4bc78b452d8f12f69d5`, and fresh resources `next-e2e-3357-66419`. Vitest: **965 passed, 1 failed**; main browser phase: **73 passed, 11 failed**; workflows: **348 passed, 4 failed**; Team Profile: **41 passed**. Total browser executions: **462 passed, 15 failed, 0 skipped**, including repeated setup executions between phases. These results predate subsequent fixes and are historical evidence only. Artifacts remain in `test-results/next-e2e-3357-66419/` and `playwright-report/next-e2e-3357-66419/` in the task worktree.
 
-The failures identified a cold local-image request/cache hang, an obsolete console-collector expectation, a wrong negative permission status, a prediction refresh/navigation race and the retained strict WebKit document-navigation errors. Subsequent ordinary unit/route tests passed **793/793**, and focused account-data/image regressions passed **12/12**. Those focused passes are not combined with historical browser passes into a final result.
+The failures identified a cold local-image request/cache hang, an obsolete console-collector expectation, a wrong negative permission status, a prediction refresh/navigation race and the retained strict WebKit document-navigation errors. Subsequent ordinary unit/route tests passed **796/796** on the working implementation (including three global directory-sort regressions), and focused account-data/image regressions passed **12/12**. Those focused passes are not combined with historical browser passes into a final result.
+
+The first cloud run at `2be930d76ffd01128e6fe90bd51b9a22f9755b3c` completed [here](https://github.com/Zanie567/The-Consilium/actions/runs/37221880490). Quality checks passed; live Vitest passed **978/978**. Browser phases: main **82 passed/2 failed**, workflow **340 passed/6 failed/10 skipped**, Team Profile **36 passed/1 failed/4 skipped**. Total **458 passed/9 failed/14 skipped**, zero retries. Skips were serial dependants of failed formatting and role-change steps, not declared skips. These are historical results pending verification of subsequent changes. The retained strict navigation, popover-height and share-popup observations are not suppressed.
 
 ## Confirmed fixes
 
@@ -19,7 +21,8 @@ The failures identified a cold local-image request/cache hang, an obsolete conso
 - Atomic one-use password-reset claims and controlled captured-link browser workflows; production email and OAuth are disabled in tests.
 - Browser/server 4 MiB upload limits, interrupted/invalid upload recovery and reader avatar persistence.
 - Private admin profile notes and account metadata gated before data access; category assignments validate before an atomic profile update. Invalid/missing debate updates cannot deactivate another debate. In-process regression baseline: 8 failures/3 passes; after fixes: 11 passes.
-- Failed admin profile, warning, note, user-detail and audit requests retain input and expose retry/error controls. New browser checks await cloud execution.
+- User directory count sorts now rank all filtered users before pagination, with bound SQL parameters and consistent exclusion of trashed articles/hidden comments. Failed directory, reader-detail and leaderboard requests expose retry controls.
+- Failed admin profile, warning, note, user-detail and audit requests retain input and expose retry/error controls. The additional checks and corrected fixture assumptions await the next cloud run.
 - Content-filter expected failures replaced by active passing regressions; editor formatting policy implemented with a restrictive CSS sanitizer, not arbitrary style passthrough.
 - Clipboard failure feedback, dashboard dismissal failures, captured print/PDF boundaries, and enabled series/glossary/debate/prediction/calendar/subscriber/account/moderation actions.
 - Safety guards propagate environment-generator failure before SQL/build/services. Each launcher creates and attests its own disposable database, refuses occupied ports and unattested builds/servers, and cleans up only owned resources.

@@ -68,7 +68,12 @@ async function signUp(browser: Browser, name: string, email: string) {
 async function grantRole(userId: string, role: Role) {
   await adminPage.goto(`/editorial/users/${userId}`)
   const select = adminPage.locator('select', { has: adminPage.locator('option[value="GROWTH"]') }).first()
+  const saved = adminPage.waitForResponse(r => new URL(r.url()).pathname === `/api/editorial/users/${userId}` && r.request().method() === 'PATCH')
   await select.selectOption(role)
+  const confirmation = adminPage.getByRole('alertdialog')
+  await expect(confirmation).toContainText(role)
+  await confirmation.getByRole('button', { name: `Change to ${role}` }).click()
+  expect((await saved).status()).toBe(200)
   await expect(adminPage.getByText('Saved.', { exact: true })).toBeVisible()
   expect((await db().user.findUniqueOrThrow({ where: { id: userId } })).role).toBe(role)
 }
