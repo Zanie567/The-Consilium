@@ -16,15 +16,15 @@ export const RECOVERY_MAX_AGE = 30 * 24 * 60 * 60 * 1000
 export function recoveryKey(draft: Pick<LocalDraft, 'userId' | 'articleId' | 'tabId'>): string {
   return RECOVERY_PREFIX + [draft.userId, draft.articleId, draft.tabId].map(encodeURIComponent).join(':')
 }
-export function readDrafts(storage: Storage, userId: string, articleId: string, now = Date.now()): LocalDraft[] {
+export function readDrafts(storage: Storage, userId: string, articleId?: string, now = Date.now(), includeExpired = false): LocalDraft[] {
   const drafts: LocalDraft[] = []
   for (let i = 0; i < storage.length; i++) {
     const key = storage.key(i)
     if (!key?.startsWith(RECOVERY_PREFIX)) continue
     try {
       const d = JSON.parse(storage.getItem(key) ?? '') as LocalDraft
-      if (d.userId !== userId || d.articleId !== articleId || recoveryKey(d) !== key) continue
-      if (!Number.isFinite(d.at) || d.at > now || now - d.at > RECOVERY_MAX_AGE) continue
+      if (d.userId !== userId || (articleId !== undefined && d.articleId !== articleId) || recoveryKey(d) !== key) continue
+      if (!Number.isFinite(d.at) || d.at > now || (!includeExpired && now - d.at > RECOVERY_MAX_AGE)) continue
       if (!d.fields || !['title','slug','content','excerpt','coverImage','categoryId','authorId'].every(k => typeof d.fields[k as keyof LocalDraft['fields']] === 'string')) continue
       if (!Array.isArray(d.fields.tags) || !d.fields.tags.every(t => typeof t === 'string')) continue
       drafts.push(d)

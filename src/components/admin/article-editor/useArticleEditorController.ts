@@ -592,6 +592,7 @@ export function useArticleEditorController({
   }
 
   const handleBack = async () => {
+    if (recoveryBlockedRef.current) { router.push(returnUrl ?? '/editorial'); return }
     if (isDirtyRef.current && canEdit) {
       clearTimeout(autoSaveTimer.current)
       const saved = await performSave()

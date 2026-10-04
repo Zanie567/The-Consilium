@@ -32,10 +32,7 @@ let writerOk = false
 
 beforeAll(async () => {
   up = await serverUp(BASE)
-  if (!up) {
-    console.warn(`[calendar-access] No server at ${BASE} — skipping.`)
-    return
-  }
+  if (!up) throw new Error('Required isolated live server is unreachable')
   admin = new Session(BASE)
   writer = new Session(BASE)
   ;[adminOk, writerOk] = await Promise.all([
@@ -76,7 +73,7 @@ describe('editorial calendar authorisation', () => {
   })
 
   it('rejects an anonymous move request with 401', async () => {
-    if (!up) return
+
     const res = await fetch(`${BASE}/api/editorial/calendar`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },

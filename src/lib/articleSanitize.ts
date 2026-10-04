@@ -25,7 +25,7 @@ export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: [
     'p', 'br', 'hr',
     'strong', 'em', 'u', 's', 'mark', 'code', 'pre',
-    'table', 'tbody', 'tr', 'th', 'td',
+    'table', 'colgroup', 'col', 'tbody', 'tr', 'th', 'td',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'ul', 'ol', 'li', 'blockquote',
     'a', 'figure', 'figcaption', 'img', 'aside', 'sup',
@@ -35,6 +35,7 @@ export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     // aria-label carries the accessible name of footnote marker links.
     a: ['href', 'target', 'rel', 'aria-label'],
     img: ['src', 'alt'],
+    col: ['style'],
     th: ['colspan', 'rowspan'],
     td: ['colspan', 'rowspan'],
     p: ['class', 'style'],
@@ -58,6 +59,7 @@ export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     span: ['glossary-term'],
   },
   allowedStyles: {
+    col: { width: [/^(?:[2-9]\d|[1-9]\d{2}|1\d{3}|2000)px$/] },
     '*': { color: [SAFE_COLOUR], 'background-color': [SAFE_COLOUR],
       'font-size': [SAFE_FONT_SIZE], 'font-family': [SAFE_FONT_FAMILY],
       'line-height': [SAFE_LINE_HEIGHT], 'text-align': [SAFE_ALIGNMENT] },

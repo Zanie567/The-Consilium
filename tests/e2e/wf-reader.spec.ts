@@ -1,3 +1,5 @@
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import { test, expect } from '@playwright/test'
 import { closeDb, db, signedIn } from './helpers/workflow'
 import { collectConsoleErrors } from './helpers/console'
@@ -14,6 +16,7 @@ const EMAIL = `wf.reader.${stamp}@consilium.test`
 const PASSWORD = 'reader-pass-1234'
 const NAME = `Reader ${stamp}`
 const COMMENT = `A thoughtful comment from ${stamp}.`
+const authFile=path.resolve('tests/e2e/.auth',process.env.E2E_RUN_ID!,`reader-${stamp}.json`)
 let articlePath = ''
 
 test.afterAll(async () => {
@@ -24,6 +27,7 @@ test.afterAll(async () => {
     await db().bookmark.deleteMany({ where: { userId: user.id } }).catch(() => {})
     await db().user.delete({ where: { id: user.id } }).catch(() => {})
   }
+  await fs.rm(authFile,{force:true})
   await closeDb()
 })
 
@@ -50,12 +54,12 @@ test('sign up through the form lands signed in', async ({ browser }) => {
   expect(user?.name).toBe(NAME)
   await expect(page.getByRole('link', { name: 'PROFILE' }).first()).toBeVisible()
   expect(errors, errors.join('\n')).toEqual([])
-  await page.context().storageState({ path: `/tmp/wf-reader-${stamp}.json` })
+  await page.context().storageState({ path: authFile })
   await ctx.close()
 })
 
 async function readerPage(browser: import('@playwright/test').Browser) {
-  const ctx = await browser.newContext({ storageState: `/tmp/wf-reader-${stamp}.json` })
+  const ctx = await browser.newContext({ storageState: authFile })
   return { ctx, page: await ctx.newPage() }
 }
 
@@ -140,7 +144,7 @@ test('the reader signs out, then signs back in with the same password', async ({
   await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30_000 })
   await page.goto('/profile', { waitUntil: 'networkidle' })
   await expect(page).toHaveURL(/\/profile$/)
-  await page.context().storageState({ path: `/tmp/wf-reader-${stamp}.json` })
+  await page.context().storageState({ path: authFile })
   await ctx.close()
 })
 

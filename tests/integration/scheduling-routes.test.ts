@@ -75,7 +75,7 @@ function putRequest(body: unknown): NextRequest {
   return new NextRequest('http://test.local/api/articles/article-1', {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({publicationIntent:true,...body}),
   })
 }
 
@@ -87,7 +87,7 @@ function calendarRequest(body: unknown): Request {
   return new Request('http://test.local/api/editorial/calendar', {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({publicationIntent:true,...body}),
   })
 }
 

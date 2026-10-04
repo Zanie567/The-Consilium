@@ -132,7 +132,7 @@ export function ArticleEditorDocument({ editor, editorRef, excerptDomRef, titleD
             ref={editorRef}
             content={editor.content}
             onChange={actions.handleContentChange}
-            editable={editor.canEdit}
+            editable={editor.canEdit && !editor.recovery}
             saveStatus={editor.saveStatus}
             saveError={editor.error?.label}
             toolbarPortalRef={toolbarPortalRef}

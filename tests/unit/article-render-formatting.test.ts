@@ -98,3 +98,9 @@ describe('editor presentation is published safely', () => {
     expect(out).toContain('safe')
   })
 })
+
+it('preserves bounded resized table columns and rejects hostile widths',()=>{
+ const table=(colwidth:unknown)=>({type:'table',content:[{type:'tableRow',content:[{type:'tableCell',attrs:{colwidth},content:[para(text('cell'))]}]}]})
+ expect(html(table([180]))).toContain('<col style="width:180px"')
+ for(const value of [['180px;position:fixed'],[10000],[-1]])expect(html(table(value))).not.toContain('style=')
+})

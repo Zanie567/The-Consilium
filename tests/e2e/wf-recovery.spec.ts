@@ -36,7 +36,7 @@ test('stale recovery refuses silent overwrite and never changes publication stat
  await ed.openNew();const title=uniqueTitle('stale-recovery');await ed.title().fill(title);await ed.typeBody('Initial server text.');const {id}=await ed.saveNow()
  await page.route('**/api/articles/*',async r=>r.request().method()==='PUT'?r.abort('failed'):r.continue())
  await ed.moveToEnd();await page.keyboard.type(' Local stale work.')
- const newer=await ctx.newPage();const second=new ArticleEditorPage(newer);await second.openExisting(id);await second.moveToEnd();await newer.keyboard.type(' New server content.');await second.saveNow()
+ const separate=await signedIn(browser,'writer');const newer=await separate.newPage();const second=new ArticleEditorPage(newer);await second.openExisting(id);await second.moveToEnd();await newer.keyboard.type(' New server content.');await second.saveNow();await separate.close()
  page.on('dialog',d=>void d.accept());await page.unrouteAll();await page.reload({waitUntil:'networkidle'})
  await expect(page.getByText('The server has changed since this copy.',{exact:false})).toBeVisible()
  await page.getByRole('button',{name:'Recover local work'}).click()
@@ -59,4 +59,32 @@ test('another signed-in account cannot recover a writer draft stored on the same
  await expect(page.getByRole('button',{name:'Recover local work'})).toHaveCount(0)
  await expect(ed.body()).not.toContainText('Private local work.')
  await admin.close();await ctx.close()
+})
+
+
+test('deleted originals remain recoverable deliberately as new drafts; expired copies can be downloaded',async({browser})=>{
+ test.setTimeout(90_000)
+ const ctx=await signedIn(browser,'writer');const page=await ctx.newPage();const ed=new ArticleEditorPage(page)
+ await ed.openNew();const title=uniqueTitle('missing-recovery');await ed.title().fill(title);await ed.typeBody('Saved original.');const{id}=await ed.saveNow()
+ await page.route('**/api/articles/*',async r=>r.request().method()==='PUT'?r.abort():r.continue());await ed.moveToEnd();await page.keyboard.type(' Exact retained local body.')
+ await expect.poll(()=>page.evaluate(()=>Object.keys(localStorage).filter(k=>k.startsWith('consilium:draft:')).length)).toBeGreaterThan(0)
+ await db().article.update({where:{id},data:{deletedAt:new Date()}})
+ page.on('dialog',d=>void d.accept());await page.goto('/editorial/recovery',{waitUntil:'networkidle'})
+ const card=page.getByRole('article').filter({has:page.getByRole('heading',{name:title,exact:true})})
+ await card.getByRole('link',{name:'Open original article'}).click();await expect(page.getByText('404',{exact:true})).toBeVisible()
+ await page.goto('/editorial/recovery',{waitUntil:'networkidle'});const downloaded=page.waitForEvent('download');await card.getByRole('button',{name:'Download local copy'}).click();expect((await downloaded).suggestedFilename()).toBe('consilium-unsaved-draft.json')
+ await card.getByRole('button',{name:'Recover as new draft'}).click();await page.getByRole('button',{name:'Recover local work'}).click();await expect(ed.body()).toContainText('Exact retained local body.')
+ await page.unrouteAll();const created=await ed.saveNow();expect(created.id).not.toBe(id);expect((await db().article.findUniqueOrThrow({where:{id:created.id}})).status).toBe('DRAFT')
+ await page.evaluate(()=>{for(const key of Object.keys(localStorage)){if(key.startsWith('consilium:draft:')){const d=JSON.parse(localStorage.getItem(key)!);d.at=Date.now()-31*24*60*60*1000;localStorage.setItem(key,JSON.stringify(d))}}})
+ await page.goto('/editorial/recovery',{waitUntil:'networkidle'});await expect(card.getByText(/expired/).first()).toBeVisible();await expect(card.getByRole('button',{name:'Recover as new draft'})).toHaveCount(0)
+ await card.getByRole('button',{name:'Discard local copy'}).click();await expect(card).toHaveCount(0);await ctx.close()
+})
+
+test('browser restart retains local work without persisting or publishing it',async({browser,browserName})=>{
+ test.setTimeout(90_000)
+ const engine=(await import('@playwright/test'))[browserName]
+ const auth=await signedIn(browser,'writer');const firstBrowser=await engine.launch();const first=await firstBrowser.newContext({baseURL:process.env.E2E_BASE_URL,storageState:await auth.storageState()});await auth.close()
+ const page=await first.newPage();const ed=new ArticleEditorPage(page);await ed.openNew();const title=uniqueTitle('restart');await ed.title().fill(title);await ed.typeBody('Saved before restart.');const{id}=await ed.saveNow();await page.route('**/api/articles/*',async r=>r.request().method()==='PUT'?r.abort():r.continue());await ed.moveToEnd();await page.keyboard.type(' Unsaved after restart.')
+ const state=await first.storageState();await firstBrowser.close()
+ const secondBrowser=await engine.launch();try{const ctx=await secondBrowser.newContext({baseURL:process.env.E2E_BASE_URL,storageState:state});const reopened=await ctx.newPage();const restored=new ArticleEditorPage(reopened);await restored.openExisting(id);await reopened.getByRole('button',{name:'Recover local work'}).click();await expect(restored.body()).toContainText('Unsaved after restart.');expect((await articleByTitle(title))!.content).not.toContain('Unsaved after restart.');expect((await articleByTitle(title))!.status).toBe('DRAFT');await restored.saveNow();expect((await articleByTitle(title))!.content).toContain('Unsaved after restart.')}finally{await secondBrowser.close()}
 })

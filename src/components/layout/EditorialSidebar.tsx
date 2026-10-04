@@ -117,6 +117,7 @@ export function EditorialSidebar({
         {
           label: 'CONTENT',
           items: [
+            { href: '/editorial/recovery', icon: FileText, label: 'Local draft recovery', show: true },
             { href: '/editorial/articles', icon: FileText, label: user.role === 'WRITER' ? 'My Articles' : 'All Articles', show: true },
             { href: '/editorial/articles?mine=true&status=DRAFT', icon: Pencil, label: 'My Drafts', exact: true, show: true },
             { href: '/editorial/articles/new', icon: PlusCircle, label: 'New Article', exact: true, show: true },

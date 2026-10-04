@@ -17,15 +17,17 @@ export function ResetPasswordForm({ token }: { token: string }) {
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
 
     setLoading(true)
+    try {
     const res = await fetch('/api/editorial/password-reset', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, password }),
     })
     const data = await res.json()
-    setLoading(false)
     if (!res.ok) { setError(data.error ?? 'Reset failed.'); return }
     router.push('/editorial/login')
+    } catch { setError('Reset could not reach the server. Check your connection and try again.') }
+    finally { setLoading(false) }
   }
 
   return (
@@ -42,6 +44,8 @@ export function ResetPasswordForm({ token }: { token: string }) {
         <input
           type="password"
           required
+          minLength={8}
+          maxLength={128}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="w-full bg-white/5 border border-white/10 focus:border-gold px-4 py-2.5 text-cream text-sm outline-none transition-colors"
@@ -55,6 +59,8 @@ export function ResetPasswordForm({ token }: { token: string }) {
         <input
           type="password"
           required
+          minLength={8}
+          maxLength={128}
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           className="w-full bg-white/5 border border-white/10 focus:border-gold px-4 py-2.5 text-cream text-sm outline-none transition-colors"

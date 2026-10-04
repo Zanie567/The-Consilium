@@ -41,7 +41,7 @@ function spanAttr(name: 'colspan' | 'rowspan', value: unknown): string {
 
 interface TiptapMark {
   type: string
-  attrs?: Record<string, string | number | boolean | null>
+  attrs?: Record<string, unknown>
 }
 
 export interface TiptapNode {
@@ -49,7 +49,7 @@ export interface TiptapNode {
   content?: TiptapNode[]
   text?: string
   marks?: TiptapMark[]
-  attrs?: Record<string, string | number | boolean | null>
+  attrs?: Record<string, unknown>
 }
 
 export interface ArticleFootnote {
@@ -103,9 +103,12 @@ function nodeToHtml(node: TiptapNode, state: RenderState): string {
     // Code block: plain text only. Marks inside a code block are ignored on purpose.
     case 'codeBlock':
       return `<pre><code>${escHtml((node.content ?? []).map((n) => n.text ?? '').join(''))}</code></pre>`
-    // Tables. Semantic content, so it is published; column widths are presentation and
-    // are not (the house table style in globals.css lays the columns out).
-    case 'table':         return `<table><tbody>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</tbody></table>`
+    // Keep explicitly resized columns within a bounded, numeric layout contract.
+    case 'table': {
+      const widths = node.content?.[0]?.content?.flatMap(cell => Array.isArray(cell.attrs?.colwidth) ? cell.attrs.colwidth : [null]) ?? []
+      const cols = widths.map(width => typeof width === 'number' && Number.isInteger(width) && width >= 25 && width <= 2000 ? `<col style="width:${width}px" />` : '<col />').join('')
+      return `<table>${widths.some(w => typeof w === 'number') ? `<colgroup>${cols}</colgroup>` : ''}<tbody>${node.content?.map(n => nodeToHtml(n, state)).join('') ?? ''}</tbody></table>`
+    }
     case 'tableRow':      return `<tr>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</tr>`
     case 'tableHeader':
     case 'tableCell': {

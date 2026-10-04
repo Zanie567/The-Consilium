@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { ArticleEditorPage, closeDb, removeMyArticles, signedIn, uniqueTitle } from './helpers/workflow'
+import { confirmPublicChange, ArticleEditorPage, closeDb, removeMyArticles, signedIn, uniqueTitle } from './helpers/workflow'
 
 test.afterAll(async () => { await removeMyArticles(); await closeDb() })
 
@@ -25,7 +25,7 @@ test('publication and unpublication immediately refresh already visited public l
       expect((await publicPage.goto(path, { waitUntil: 'networkidle' }))?.status()).toBe(200)
       await expect(publicPage.getByRole('heading', { name: title, exact: true })).toHaveCount(0)
     }
-    expect((await ed.saving(() => page.getByRole('button', { name: 'Publish', exact: true }).click())).status()).toBe(200)
+    expect((await ed.saving(async () => { await page.getByRole('button', { name: 'Publish', exact: true }).click(); await confirmPublicChange(page, 'Publish now') })).status()).toBe(200)
     await expect(page.getByRole('button', { name: 'Unpublish', exact: true })).toBeVisible()
     for (const path of ['/category/opinion', '/archive', '/']) {
       expect((await publicPage.goto(path, { waitUntil: 'networkidle' }))?.status()).toBe(200)
@@ -33,7 +33,7 @@ test('publication and unpublication immediately refresh already visited public l
       // title heading is the same public contract on all three listing layouts.
       await expect(publicPage.getByRole('heading', { name: title, exact: true }).first()).toBeVisible()
     }
-    expect((await ed.saving(() => page.getByRole('button', { name: 'Unpublish', exact: true }).click())).status()).toBe(200)
+    expect((await ed.saving(async () => { await page.getByRole('button', { name: 'Unpublish', exact: true }).click(); await confirmPublicChange(page, 'Unpublish') })).status()).toBe(200)
     for (const path of ['/category/opinion', '/archive', '/']) {
       expect((await publicPage.goto(path, { waitUntil: 'networkidle' }))?.status()).toBe(200)
       await expect(publicPage.getByRole('heading', { name: title, exact: true })).toHaveCount(0)

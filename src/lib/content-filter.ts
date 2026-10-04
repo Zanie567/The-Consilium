@@ -209,9 +209,8 @@ export function filterComment(text: string): FilterResult {
 
   let flagReason: string | undefined
   for (const { pattern, category } of BANNED) {
-    const match = norm.match(pattern)
-    if (match) {
-      const matchIndex = norm.indexOf(match[0])
+    for (const match of norm.matchAll(new RegExp(pattern.source, pattern.flags + 'g'))) {
+      const matchIndex = match.index!
       // Academic context: allow with flag
       if (category.endsWith('_slur') && isAcademicContext(norm, matchIndex)) {
         flagReason = 'academic_mention'

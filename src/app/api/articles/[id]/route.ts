@@ -131,7 +131,7 @@ export async function PUT(
       title, slug, content, excerpt, coverImage, categoryId, status,
       corrected, correctionNote, seriesId, seriesOrder, tags, scheduledAt,
       authorId: bodyAuthorId,
-      baseVersion,
+      baseVersion, publicationIntent,
     } = body
 
     // Optimistic concurrency: a client that says which version it was editing is refused
@@ -180,6 +180,11 @@ export async function PUT(
       if ((allowedStatuses as readonly string[]).includes(status)) {
         finalStatus = status as ArticleStatus
       }
+    }
+
+    if (isAdminOrEditor && finalStatus !== existing.status &&
+      ([existing.status,finalStatus].some(s=>s==='PUBLISHED'||s==='SCHEDULED')) && publicationIntent !== true) {
+      return apiError('Confirm this publication change before saving.',409,'PUBLICATION_CONFIRMATION_REQUIRED',requestId)
     }
 
     // Validate scheduledAt is in the future when scheduling

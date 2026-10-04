@@ -446,3 +446,5 @@ describe('normalisation context', () => {
     expect(allowed('I hope you have a good day. A cat sat on a mat.')).toBe(true)
   })
 })
+
+ it('does not excuse a later unframed occurrence of the same slur',()=>{expect(filterComment('The slur paki was quoted. You are a paki.').allowed).toBe(false)})

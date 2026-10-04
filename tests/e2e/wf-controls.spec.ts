@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { ArticleEditorPage, articleByTitle, closeDb, db, removeMyArticles, signedIn, uniqueTitle } from './helpers/workflow'
+import { confirmPublicChange, ArticleEditorPage, articleByTitle, closeDb, db, removeMyArticles, signedIn, uniqueTitle } from './helpers/workflow'
 
 test.afterAll(async () => { await removeMyArticles(); await closeDb() })
 
@@ -82,7 +82,7 @@ test('review correction, commendation, feature and pin persist and corrections a
     await ed.title().fill(title)
     await ed.typeBody('A body that will receive a correction.')
     const { id } = await ed.saveNow()
-    expect((await ed.saving(() => page.getByRole('button', { name: 'Publish', exact: true }).click())).status()).toBe(200)
+    expect((await ed.saving(async () => { await page.getByRole('button', { name: 'Publish', exact: true }).click(); await confirmPublicChange(page, 'Publish now') })).status()).toBe(200)
     await page.goto(`/editorial/review/${id}`, { waitUntil: 'networkidle' })
     await page.getByRole('checkbox', { name: 'Mark as corrected' }).check()
     const correction = 'Corrected the reported rate to 4.5 percent.'
@@ -146,7 +146,7 @@ test('editor document settings, publish, live link, unpublish and schedule work 
   await ed.openExisting(id)
   await expect(panel.getByPlaceholder('url-slug')).toHaveValue(slug)
   await expect(author).toHaveValue(writerOption!)
-  const published = await ed.saving(() => page.getByRole('button', { name: 'Publish', exact: true }).click())
+  const published = await ed.saving(async () => { await page.getByRole('button', { name: 'Publish', exact: true }).click(); await confirmPublicChange(page, 'Publish now') })
   expect(published.status()).toBe(200)
   expect((await articleByTitle(title))!.status).toBe('PUBLISHED')
   await expect(page.getByRole('button', { name: 'Unpublish', exact: true })).toBeVisible()
@@ -160,14 +160,14 @@ test('editor document settings, publish, live link, unpublish and schedule work 
   await expect(live.locator('h1')).toContainText(title)
   await expect(live.locator('.prose-consilium')).toContainText('Document settings article body.')
   await live.close()
-  expect((await ed.saving(() => page.getByRole('button', { name: 'Unpublish', exact: true }).click())).status()).toBe(200)
+  expect((await ed.saving(async () => { await page.getByRole('button', { name: 'Unpublish', exact: true }).click(); await confirmPublicChange(page, 'Unpublish') })).status()).toBe(200)
   const anon = await signedIn(browser, null)
   const publicPage = await anon.newPage()
   expect((await publicPage.goto(`/articles/${slug}`))?.status()).toBe(404)
   await anon.close()
   await status.selectOption('SCHEDULED')
   await panel.locator('input[type="datetime-local"]').fill('2027-01-15T12:30')
-  expect((await ed.saving(() => page.getByRole('button', { name: 'Schedule', exact: true }).click())).status()).toBe(200)
+  expect((await ed.saving(async () => { await page.getByRole('button', { name: 'Schedule', exact: true }).click(); await confirmPublicChange(page, 'Schedule') })).status()).toBe(200)
   // Reopen in a fresh tab while the original page refreshes its server data.
   // Racing goto against router.refresh in the same WebKit page interrupted it.
   const reopened = await ctx.newPage()

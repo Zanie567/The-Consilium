@@ -38,8 +38,8 @@ async function schemaIsReady(): Promise<boolean> {
 }
 
 const ready = await schemaIsReady()
-if (!ready) console.warn('[team-profile-db] skipped: no local test database with the team_members.userId column')
-const suite = ready ? describe : describe.skip
+if (!ready) throw new Error('Required isolated team profile database is unavailable or missing its schema')
+const suite = describe
 
 const { state, storage } = vi.hoisted(() => ({
   state: { prisma: undefined as unknown, session: null as null | { id: string } },

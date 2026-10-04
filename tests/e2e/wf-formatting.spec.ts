@@ -462,7 +462,7 @@ test('the published article shows the content, semantic formatting and editor st
   await expect(article.locator('p', { hasText: 'Aligned centre paragraph.' })).toHaveCSS('text-align', 'center')
   await expect(article.locator('p', { hasText: 'Aligned right paragraph.' })).toHaveCSS('text-align', 'right')
   await expect(article.locator('p', { hasText: 'Aligned justify paragraph.' })).toHaveCSS('text-align', 'justify')
-  await expect(article.locator('p', { hasText: 'Line spaced paragraph.' }).locator('span')).toHaveCSS('line-height', /.+/)
+  expect(await article.locator('p', { hasText: 'Line spaced paragraph.' }).locator('span').evaluate(el=>parseFloat(getComputedStyle(el).lineHeight)/parseFloat(getComputedStyle(el).fontSize))).toBe(2)
 
   expect(errors, `console errors on the published article:\n${errors.join('\n')}`).toEqual([])
   await new ArticleEditorPage(page).dismissCookieBanner()
