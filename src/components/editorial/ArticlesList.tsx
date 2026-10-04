@@ -326,15 +326,18 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                           </button>
                         </Tooltip>
                       )}
-                      <Tooltip content="Move this article to the trash. It can be restored for 30 days." variant="editorial" side="top" maxWidth={240}>
-                        <button
-                          onClick={() => deleteArticle(article.id)}
-                          aria-label="Delete article"
-                          className="p-2 sm:p-1.5 text-[var(--fg-faint)] hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </Tooltip>
+                      {/* A writer can trash only what they can still edit; the server enforces the same. */}
+                      {(isEditor || article.status === 'DRAFT' || article.status === 'REJECTED') && (
+                        <Tooltip content="Move this article to the trash. It can be restored for 30 days." variant="editorial" side="top" maxWidth={240}>
+                          <button
+                            onClick={() => deleteArticle(article.id)}
+                            aria-label="Delete article"
+                            className="p-2 sm:p-1.5 text-[var(--fg-faint)] hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </Tooltip>
+                      )}
                     </div>
                   </td>
                 </tr>

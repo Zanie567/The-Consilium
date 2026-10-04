@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { format, formatDistanceToNow } from 'date-fns'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import {
   X, Shield, AlertTriangle, Ban, Trash2, ChevronDown,
   Plus, Check, BookOpen, Bookmark, MessageSquare, Vote,
@@ -169,6 +170,10 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
     setTimeout(() => setToast(''), 3000)
   }
 
+  // The panel only ASKS for a role change; this confirms it (see AdminUsersPage's ActionMenu).
+  const [pendingRole, setPendingRole] = useState<string | null>(null)
+  const requestRoleChange = (role: string) => { setRoleOpen(false); setPendingRole(role) }
+
   const handleRoleChange = async (role: string) => {
     setRoleLoading(true)
     const res = await fetch(`/api/admin/users/${userId}/role`, {
@@ -292,6 +297,21 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
 
   return (
     <>
+      <ConfirmDialog
+        open={pendingRole !== null}
+        title={`Change ${user.name ?? user.email}'s role?`}
+        message={`${user.name ?? user.email} (${user.email}) changes from ${user.role} to ${pendingRole}. What they can open and do changes immediately, and they are emailed.`}
+        confirmLabel={`Change to ${pendingRole}`}
+        tone={pendingRole === 'ADMIN' ? 'danger' : 'default'}
+        busy={roleLoading}
+        onConfirm={() => {
+          const role = pendingRole
+          if (!role || roleLoading) return
+          setPendingRole(null)
+          void handleRoleChange(role)
+        }}
+        onCancel={() => setPendingRole(null)}
+      />
       {/* Backdrop */}
       <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
@@ -348,7 +368,7 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
                     {['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'].filter((r) => r !== user.role).map((r) => (
                       <button
                         key={r}
-                        onClick={() => handleRoleChange(r)}
+                        onClick={() => requestRoleChange(r)}
                         className="w-full text-left px-4 py-2 text-xs text-[var(--fg)] hover:bg-gold/10 hover:text-gold transition-colors"
                       >
                         {r}

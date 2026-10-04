@@ -371,6 +371,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // A writer can delete only what they can still edit (a draft, or one returned to them). Trashing
+    // a submitted, scheduled or published article would pull it from the queue or the public site
+    // without an editor, which a writer cannot otherwise do (they cannot unpublish or edit it either).
+    if (!isAdminOrEditor && existing.status !== 'DRAFT' && existing.status !== 'REJECTED') {
+      return apiError(
+        'This article has been submitted or published, so only an editor can remove it.',
+        403,
+        'ARTICLE_LOCKED_FOR_WRITER',
+        requestId
+      )
+    }
+
     if (user.role === 'EDITOR') {
       const scope = await loadEditorCategoryScope(user.id)
       if (!editorCanAccessCategory(scope, existing.categoryId)) {

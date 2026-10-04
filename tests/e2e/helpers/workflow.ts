@@ -5,6 +5,7 @@
  */
 import { expect, type Browser, type BrowserContext, type Page, type Response } from '@playwright/test'
 import fs from 'node:fs'
+import bcrypt from 'bcryptjs'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { assertSafeTestDatabaseHost } from '../../../scripts/lib/assertSafeTestDatabaseHost'
@@ -219,4 +220,47 @@ export function docTypes(doc: unknown): { nodes: Set<string>; marks: Set<string>
   }
   walk(doc as never)
   return { nodes, marks }
+}
+
+// ── Throwaway accounts ─────────────────────────────────────────────────────────────────
+// Tests that change an account (ban, demote, reassign) must never touch the shared seeded users
+// the saved sessions belong to. They create their own, with a real password, and sign in through
+// the real login form like a person would.
+export interface TestAccount { id: string; email: string; name: string; role: string; password: string }
+const accounts: string[] = []
+const ACCOUNT_PASSWORD = 'wf-account-1234'
+
+export async function createAccount(role: 'ADMIN' | 'EDITOR' | 'WRITER' | 'GROWTH' | 'READER', label: string): Promise<TestAccount> {
+  const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+  const email = `wf.${label}.${stamp}@consilium.test`
+  const name = `WF ${label} ${stamp}`
+  const user = await db().user.create({
+    data: { email, name, role, password: await bcrypt.hash(ACCOUNT_PASSWORD, 10), emailVerified: new Date(), slug: `wf-${label}-${stamp}` },
+  })
+  accounts.push(user.id)
+  return { id: user.id, email, name, role, password: ACCOUNT_PASSWORD }
+}
+
+/** Removes the accounts this worker created, with what hangs off them. */
+export async function removeMyAccounts() {
+  for (const id of accounts) {
+    await db().article.deleteMany({ where: { authorId: id } }).catch(() => {})
+    await db().notification.deleteMany({ where: { userId: id } }).catch(() => {})
+    await db().adminNote.deleteMany({ where: { userId: id } }).catch(() => {})
+    await db().user.delete({ where: { id } }).catch(() => {})
+  }
+}
+
+/** A new browser context signed in as `account` through the login form. */
+export async function signInAs(browser: Browser, account: TestAccount): Promise<BrowserContext> {
+  const ctx = await browser.newContext()
+  const page = await ctx.newPage()
+  const staff = account.role !== 'READER'
+  await page.goto(staff ? '/editorial/login' : '/login')
+  await page.locator('input[type="email"]').fill(account.email)
+  await page.locator('input[type="password"]').fill(account.password)
+  await page.locator('button[type="submit"]').click()
+  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 30_000 })
+  await page.close()
+  return ctx
 }

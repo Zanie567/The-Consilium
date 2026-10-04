@@ -8,6 +8,7 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import { UserDetailPanel } from './UserDetailPanel'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -102,13 +103,18 @@ function ActionMenu({
   currentAdminId,
   onView,
   onReload,
+  onError,
 }: {
   user: UserRow
   currentAdminId: string
   onView: () => void
   onReload: () => void
+  onError: (message: string) => void
 }) {
   const [open, setOpen] = useState(false)
+  // A role change alters what the person can reach (Admin can do everything), so the menu only
+  // ASKS for one; the dialog confirms it.
+  const [pendingRole, setPendingRole] = useState<string | null>(null)
   const [roleOpen, setRoleOpen] = useState(false)
   const [loading, setLoading] = useState('')
   const ref = useRef<HTMLDivElement>(null)
@@ -127,18 +133,29 @@ function ActionMenu({
 
   const doAction = async (endpoint: string, method: string, body?: object) => {
     setLoading(endpoint)
-    const res = await fetch(endpoint, {
-      method,
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    })
-    setLoading('')
-    setOpen(false)
-    if (res.ok) onReload()
+    try {
+      const res = await fetch(endpoint, {
+        method,
+        headers: body ? { 'Content-Type': 'application/json' } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      })
+      if (res.ok) {
+        onReload()
+      } else {
+        // A refused action used to disappear without a word.
+        const data = await res.json().catch(() => ({}))
+        onError(data.error ?? `That action could not be completed (${res.status}).`)
+      }
+    } catch {
+      onError('The server could not be reached. Nothing was changed.')
+    } finally {
+      setLoading('')
+      setOpen(false)
+    }
   }
 
   const handleRoleChange = (role: string) => {
-    doAction(`/api/admin/users/${user.id}/role`, 'PATCH', { role })
+    setPendingRole(role)
     setRoleOpen(false)
   }
 
@@ -146,6 +163,21 @@ function ActionMenu({
 
   return (
     <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
+      <ConfirmDialog
+        open={pendingRole !== null}
+        title={`Change ${user.name ?? user.email}'s role?`}
+        message={`${user.name ?? user.email} (${user.email}) changes from ${user.role} to ${pendingRole}. What they can open and do changes immediately, and they are emailed.`}
+        confirmLabel={`Change to ${pendingRole}`}
+        tone={pendingRole === 'ADMIN' ? 'danger' : 'default'}
+        busy={loading !== ''}
+        onConfirm={() => {
+          const role = pendingRole
+          if (!role || loading !== '') return
+          setPendingRole(null)
+          void doAction(`/api/admin/users/${user.id}/role`, 'PATCH', { role })
+        }}
+        onCancel={() => setPendingRole(null)}
+      />
       <button
         onClick={() => setOpen((o) => !o)}
         className="p-1.5 text-[var(--fg-faint)] hover:text-[var(--fg)] hover:bg-[var(--border)] transition-colors rounded"
@@ -328,6 +360,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
   // Panel
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [statsError, setStatsError] = useState(false)
+  const [actionError, setActionError] = useState('')
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -378,6 +411,12 @@ export function AdminUsersPage({ currentAdminId }: Props) {
 
   return (
     <div>
+      {actionError && (
+        <div role="alert" className="mb-4 flex items-center justify-between gap-4 border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+          <span>{actionError}</span>
+          <button onClick={() => setActionError('')} className="text-xs font-bold uppercase tracking-widest underline">Dismiss</button>
+        </div>
+      )}
       {/* Stats bar: real counts, an error fallback, or skeletons while loading.
           statsError prevents the skeleton from pulsing forever when the fetch fails. */}
       {statsError ? (
@@ -588,7 +627,8 @@ export function AdminUsersPage({ currentAdminId }: Props) {
                             user={user}
                             currentAdminId={currentAdminId}
                             onView={() => setSelectedUserId(user.id)}
-                            onReload={handleReload}
+                            onReload={() => { setActionError(''); handleReload() }}
+                            onError={setActionError}
                           />
                         </td>
                       </tr>
