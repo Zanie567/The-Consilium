@@ -94,14 +94,12 @@ function reachable(file: string, seen = new Set<string>()): Set<string> {
 // These are inspection findings; individual article/category ownership still applies.
 function rolesFor(route: string): string[] {
   if (route.startsWith('/predictions')) return ['ADMIN']
-  if (route === '/admin/team' || route === '/admin/login-attempts') return ['ADMIN']
+  if (route === '/admin/team' || route === '/admin/login-attempts' || route === '/admin/data') return ['ADMIN']
   if (route === '/admin/subscribers') return ['ADMIN', 'EDITOR']
   if (route.startsWith('/admin')) return ['ADMIN', 'EDITOR', 'WRITER']
   if (/^\/editorial\/(login|reset-password|setup)$/.test(route)) return ['ALL: unauthenticated forms; setup only when no admin exists']
   if (route.startsWith('/editorial')) {
-    // These legacy client pages inherit the portal shell and rely on their API
-    // to refuse non-managers. This is page-shell access, not mutation permission.
-    if (route.startsWith('/editorial/debates/[debateId]')) return ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH (API actions remain manager-only)']
+    if (route === '/editorial/recovery') return ['ADMIN', 'EDITOR', 'WRITER']
     if (/^\/editorial\/(calendar|users|predictions|glossary)(\/|$)/.test(route)) return ['ADMIN']
     if (/^\/editorial\/(analytics|growth)(\/|$)/.test(route)) return ['ADMIN', 'GROWTH']
     if (/^\/editorial\/(review|scheduled|series|debates|comments)(\/|$)/.test(route)) return ['ADMIN', 'EDITOR']
@@ -117,7 +115,7 @@ const routes = files.filter(f => f.endsWith('/page.tsx')).map(file => {
   const literalPath = route.replace(/\/\[.*$/, '')
   return { route, file, rolesFromInspection: rolesFor(route), accessEvidence: 'CODE_INSPECTION: see coverage-inventory.md role matrix and route guards; rendered refusals in wf-roles',
     candidateTestFiles: literalPath.length > 1 ? testText.filter(t => t.text.includes(literalPath)).map(t => t.file) : [],
-    guardSource: [...dependencies].filter(f => f === file || layouts.includes(f)).flatMap(f => fs.readFileSync(f, 'utf8').split('\n').filter(l => /getVerifiedSessionUser|session\.user\.role|redirect\(|ALLOWED_ROLES/.test(l)).map(l => `${f}: ${clean(l)}`)),
+    guardSource: [...dependencies].filter(f => f === file || layouts.includes(f)).flatMap(f => fs.readFileSync(f, 'utf8').split('\n').filter(l => /requirePortalRole|getVerifiedSessionUser|session\.user\.role|redirect\(|ALLOWED_ROLES/.test(l)).map(l => `${f}: ${clean(l)}`)),
     controls: [...dependencies].flatMap(f => controlFiles.get(f) ?? []),
     dynamicFamilies: dynamicFamilies.filter(f => dependencies.has(f.file)), nativeDialogs: nativeDialogs.filter(f => dependencies.has(f.file)),
   }

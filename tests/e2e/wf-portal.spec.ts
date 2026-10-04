@@ -69,7 +69,7 @@ test('series creation, cancel and article assignment persist through the enabled
   const reopened = await ctx.newPage()
   await reopened.goto('/editorial/series', { waitUntil: 'networkidle' })
   await reopened.getByRole('button', { name: new RegExp(name) }).click()
-  await expect(reopened.getByText(title, { exact: true })).toBeVisible()
+  await expect(reopened.locator('span').filter({hasText: new RegExp('^'+title+'$')})).toBeVisible()
   expect(
     await db().article.findUnique({ where: { id }, select: { seriesId: true, seriesOrder: true } })
   ).toEqual({ seriesId: series.id, seriesOrder: 1 })
@@ -192,6 +192,7 @@ test('inline review comments are created, replied to, resolved and reopened by s
     wp.getByRole('button', { name: 'Post', exact: true }).filter({visible:true}).click()
   )
   await ep.reload({ waitUntil: 'networkidle' })
+  await ep.getByRole('button', { name: /^Comments/ }).click()
   await expect(ep.getByText('Source added in my revision.').filter({visible:true})).toBeVisible()
   const thread = await db().articleComment.findFirstOrThrow({
     where: { articleId: id, parentId: null },
