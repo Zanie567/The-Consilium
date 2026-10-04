@@ -175,7 +175,10 @@ test('deleted originals remain recoverable deliberately as new drafts; expired c
   await page.goto('/editorial/recovery', { waitUntil: 'networkidle' })
   const downloaded = page.waitForEvent('download')
   await card.getByRole('button', { name: 'Download local copy' }).click()
-  expect((await downloaded).suggestedFilename()).toBe('consilium-unsaved-draft.json')
+  const copy=await downloaded
+  expect(copy.suggestedFilename()).toBe('consilium-unsaved-draft.json')
+  expect(await copy.failure()).toBeNull()
+  await copy.delete()
   await card.getByRole('button', { name: 'Recover as new draft' }).click()
   await page.getByRole('button', { name: 'Recover local work' }).click()
   await expect(ed.body()).toContainText('Exact retained local body.')

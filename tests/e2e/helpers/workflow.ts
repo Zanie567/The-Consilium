@@ -75,6 +75,7 @@ async function removeArticlesTitled(prefix: string) {
   const rows = await db().article.findMany({ where: { title: { startsWith: prefix } }, select: { id: true } })
   const ids = rows.map((r) => r.id)
   if (!ids.length) return
+  await db().debate.deleteMany({ where: { OR: [{forArticleId:{in:ids}},{againstArticleId:{in:ids}}] } })
   await db().notification.deleteMany({ where: { articleId: { in: ids } } })
   await db().articleComment.deleteMany({ where: { articleId: { in: ids } } }).catch(() => {})
   await db().articleTag.deleteMany({ where: { articleId: { in: ids } } })

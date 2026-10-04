@@ -51,6 +51,7 @@ function ShareBtn({ onClick, label, children }: ShareBtnProps) {
 
 export function ShareButtons({ title }: { title: string }) {
   const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState('')
 
   const url = typeof window !== 'undefined' ? window.location.href : ''
 
@@ -66,9 +67,14 @@ export function ShareButtons({ title }: { title: string }) {
   }
 
   const copyLink = async () => {
-    await navigator.clipboard.writeText(url)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2200)
+    setCopyError('')
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2200)
+    } catch {
+      setCopyError('Could not copy the link. Copy the address from your browser instead.')
+    }
   }
 
   return (
@@ -92,6 +98,7 @@ export function ShareButtons({ title }: { title: string }) {
         </ShareBtn>
       </Tooltip>
 
+      {copyError && <span role="alert" className="text-xs text-red-500">{copyError}</span>}
       {/* Copy link with animated checkmark */}
       <Tooltip content={copied ? 'Link copied!' : 'Copy link to clipboard'}>
       <motion.button

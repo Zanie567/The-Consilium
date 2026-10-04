@@ -66,9 +66,10 @@ test('series creation, cancel and article assignment persist through the enabled
   await mutation(page, `/api/articles/${id}`, 'PUT', 200, () =>
     page.getByRole('button', { name: 'Add', exact: true }).click()
   )
-  await page.reload({ waitUntil: 'networkidle' })
-  await page.getByRole('button', { name: new RegExp(name) }).click()
-  await expect(page.getByText(title, { exact: true })).toBeVisible()
+  const reopened = await ctx.newPage()
+  await reopened.goto('/editorial/series', { waitUntil: 'networkidle' })
+  await reopened.getByRole('button', { name: new RegExp(name) }).click()
+  await expect(reopened.getByText(title, { exact: true })).toBeVisible()
   expect(
     await db().article.findUnique({ where: { id }, select: { seriesId: true, seriesOrder: true } })
   ).toEqual({ seriesId: series.id, seriesOrder: 1 })
@@ -185,9 +186,10 @@ test('inline review comments are created, replied to, resolved and reopened by s
   )
   await wp.reload({ waitUntil: 'networkidle' })
   await expect(wp.getByText('Please provide the source for this sentence.').filter({visible:true})).toBeVisible()
+  await wp.getByRole('button', { name: 'Reply', exact: true }).filter({ visible: true }).click()
   await wp.getByPlaceholder('Reply...').filter({visible:true}).fill('Source added in my revision.')
   await mutation(wp, `/api/articles/${id}/comments`, 'POST', 201, () =>
-    wp.getByRole('button', { name: 'Reply', exact: true }).filter({visible:true}).click()
+    wp.getByRole('button', { name: 'Post', exact: true }).filter({visible:true}).click()
   )
   await ep.reload({ waitUntil: 'networkidle' })
   await expect(ep.getByText('Source added in my revision.').filter({visible:true})).toBeVisible()
@@ -205,6 +207,7 @@ test('inline review comments are created, replied to, resolved and reopened by s
         })
     )
     .toBe(1)
+  await ep.getByRole('button', { name: /Show 1 resolved/ }).filter({ visible: true }).click()
   await mutation(ep, `/api/articles/${id}/comments/${thread.id}`, 'PATCH', 200, () =>
     ep.getByRole('button', { name: 'Reopen', exact: true }).filter({visible:true}).click()
   )
@@ -353,12 +356,13 @@ test('Growth analytics requests exact date ranges and every tab through the UI',
     ['Last 90 days', '90d'],
     ['Last 30 days', '30d'],
   ]) {
-    await page.getByRole('button', { name: current, exact: true }).click()
+    await page.getByRole('button', { name: current, exact: true }).first().click()
     const request = page.waitForResponse((r) =>
       r.url().includes(`/api/editorial/analytics?period=${value}&tab=overview`)
     )
     await page.getByRole('button', { name: label, exact: true }).last().click()
     expect((await request).status()).toBe(200)
+    await expect(page.getByRole('button', { name: label, exact: true })).toHaveCount(1)
     current = label
   }
   for (const [label, tab] of [

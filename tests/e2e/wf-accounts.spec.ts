@@ -186,7 +186,7 @@ test('reader avatar upload persists on fresh page and can be removed', async ({ 
   await page
     .locator('input[type=file]')
     .setInputFiles({ name: 'avatar.png', mimeType: 'image/png', buffer: makePng(64) })
-  expect((await upload).status()).toBe(200)
+  expect((await upload).status()).toBe(201)
   await expect
     .poll(async () => (await db().user.findUnique({ where: { id: user.id } }))?.image)
     .toContain('/avatars/')

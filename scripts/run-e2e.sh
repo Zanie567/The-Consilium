@@ -78,6 +78,7 @@ USE_EXISTING_DB=1 bash scripts/setup-test-db.sh >"$E2E_RESULTS_DIR/fixtures.log"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f tests/e2e/helpers/local-storage-schema.sql || exit 1
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/migrations/20261001_team_member_user_link.sql || exit 1
 
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -qc "UPDATE articles SET \"coverImage\"='/team/sam-hunt.png' WHERE \"coverImage\" IS NOT NULL" || exit 1
 : > "$EMAIL_CAPTURE_FILE"
 node -e 'require("fs").writeFileSync(process.env.E2E_RESULTS_DIR+"/commit.json",JSON.stringify({commit:require("child_process").execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim(),run:process.env.E2E_RUN_ID,database:new URL(process.env.TEST_DATABASE_URL).pathname,app:process.env.NEXTAUTH_URL,storage:process.env.NEXT_PUBLIC_SUPABASE_URL,email:process.env.EMAIL_CAPTURE_FILE,services:"local stand-ins; OAuth off"},null,2))' 
 

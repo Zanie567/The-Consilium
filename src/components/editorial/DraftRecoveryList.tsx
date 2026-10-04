@@ -30,8 +30,11 @@ export function DraftRecoveryList({ userId }: { userId: string }) {
     const link = document.createElement('a')
     link.href = url
     link.download = 'consilium-unsaved-draft.json'
+    document.body.appendChild(link)
     link.click()
-    URL.revokeObjectURL(url)
+    link.remove()
+    // Let the browser start reading the Blob before releasing its URL.
+    setTimeout(() => URL.revokeObjectURL(url), 0)
   }
   const recreate = useCallback((draft: LocalDraft) => {
     if (Date.now() - draft.at > RECOVERY_MAX_AGE) {

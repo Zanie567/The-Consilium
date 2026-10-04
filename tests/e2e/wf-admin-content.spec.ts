@@ -144,7 +144,7 @@ test.describe('glossary (admin)', () => {
 })
 
 test.describe('debates (editor)', () => {
-  test('create an active debate, see it on the public hub, edit its title', async ({ browser }) => {
+  test('create an active debate and see it on the public hub', async ({ browser }) => {
     test.setTimeout(90_000)
     const ctx = await signedIn(browser, 'editor')
     const page = await ctx.newPage()
