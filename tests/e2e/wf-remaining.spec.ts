@@ -4,25 +4,106 @@ import { collectConsoleErrors } from './helpers/console'
 let debatesToRestore: string[] = []
 test.afterAll(async()=>{await removeMyArticles();await db().debate.updateMany({where:{id:{in:debatesToRestore}},data:{isActive:true}});await removeMyAccounts();await closeDb()})
 
-test('notifications opening marks only the current account read; failed read changes revert and retry',async({browser})=>{
- const own=await createAccount('WRITER','notifications');const other=await createAccount('WRITER','other-notifications')
- const title=uniqueTitle('notification');const article=await db().article.create({data:{title:uniqueTitle('notification article'),slug:uniqueTitle('notification-slug').toLowerCase().replaceAll(' ','-'),authorId:own.id,status:'DRAFT',content:'Linked notification draft.'}});await db().notification.createMany({data:[own,other].map(user=>({userId:user.id,type:'comment',title,message:'A message for this account.',articleId:article.id}))})
- const ctx=await signInAs(browser,own);const page=await ctx.newPage();await page.goto('/editorial',{waitUntil:'networkidle'})
- await page.route('**/api/editorial/notifications',r=>r.request().method()==='PATCH'?r.fulfill({status:500,json:{error:'Read update failed'}}):r.continue())
- const failed=page.waitForResponse(r=>r.url().endsWith('/api/editorial/notifications')&&r.request().method()==='PATCH');await page.getByRole('button',{name:'1 unread notifications',exact:true}).click();expect((await failed).status()).toBe(500);await expect(page.getByRole('alert').filter({hasText:'Read update failed'})).toBeVisible();await expect(page.getByRole('button',{name:'1 unread notifications',exact:true})).toBeVisible()
- await page.unrouteAll();const saved=page.waitForResponse(r=>r.url().endsWith('/api/editorial/notifications')&&r.request().method()==='PATCH');await page.getByRole('button',{name:'Mark all read'}).click();expect((await saved).status()).toBe(200)
- expect(await db().notification.count({where:{userId:own.id,read:false}})).toBe(0);expect(await db().notification.count({where:{userId:other.id,read:false}})).toBe(1)
- await page.reload({waitUntil:'networkidle'});await page.getByRole('button',{name:'Notifications',exact:true}).click();await expect(page.getByText(title,{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Mark all read'})).toHaveCount(0);await page.getByRole('link',{name:new RegExp(title)}).click();await expect(new ArticleEditorPage(page).title()).toHaveValue(article.title);await ctx.close()
+test('opening notifications marks nothing read; only Mark all read does, for the current account only, and a failed attempt retries', async ({ browser }) => {
+  const own = await createAccount('WRITER', 'notifications')
+  const other = await createAccount('WRITER', 'other-notifications')
+  const title = uniqueTitle('notification')
+  const article = await db().article.create({ data: { title: uniqueTitle('notification article'), slug: uniqueTitle('notification-slug').toLowerCase().replaceAll(' ', '-'), authorId: own.id, status: 'DRAFT', content: 'Linked notification draft.' } })
+  await db().notification.createMany({ data: [own, other].map(user => ({ userId: user.id, type: 'comment', title, message: 'A message for this account.', articleId: article.id })) })
+  const ctx = await signInAs(browser, own)
+  const page = await ctx.newPage()
+  const patches: string[] = []
+  page.on('request', r => { if (r.method() === 'PATCH' && r.url().includes('/api/editorial/notifications')) patches.push(r.url()) })
+  await page.goto('/editorial', { waitUntil: 'networkidle' })
+
+  // Looking at the list changes nothing, however often it is opened.
+  const bell = page.getByRole('button', { name: '1 unread notifications', exact: true })
+  await bell.click()
+  await expect(page.getByText(title, { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Mark all read' })).toBeVisible()
+  await bell.click()
+  await bell.click()
+  await page.waitForLoadState('networkidle')
+  expect(patches).toEqual([])
+  expect(await db().notification.count({ where: { userId: own.id, read: false } })).toBe(1)
+
+  // The explicit button fails visibly, leaves the notification unread, then succeeds on retry.
+  await page.route('**/api/editorial/notifications', r => r.request().method() === 'PATCH' ? r.fulfill({ status: 500, json: { error: 'Read update failed' } }) : r.continue())
+  const failed = page.waitForResponse(r => r.url().endsWith('/api/editorial/notifications') && r.request().method() === 'PATCH')
+  await page.getByRole('button', { name: 'Mark all read' }).click()
+  expect((await failed).status()).toBe(500)
+  await expect(page.getByRole('alert').filter({ hasText: 'Read update failed' })).toBeVisible()
+  await expect(bell).toBeVisible()
+  expect(await db().notification.count({ where: { userId: own.id, read: false } })).toBe(1)
+  await page.unrouteAll()
+  const saved = page.waitForResponse(r => r.url().endsWith('/api/editorial/notifications') && r.request().method() === 'PATCH')
+  await page.getByRole('button', { name: 'Mark all read' }).click()
+  expect((await saved).status()).toBe(200)
+  expect(await db().notification.count({ where: { userId: own.id, read: false } })).toBe(0)
+  expect(await db().notification.count({ where: { userId: other.id, read: false } })).toBe(1)
+
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'Notifications', exact: true }).click()
+  await expect(page.getByText(title, { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Mark all read' })).toHaveCount(0)
+  await page.getByRole('link', { name: new RegExp(title) }).click()
+  await expect(new ArticleEditorPage(page).title()).toHaveValue(article.title)
+  await ctx.close()
 })
 
-test('individual notification read failure preserves unread work, shows feedback before navigation and retries',async({browser})=>{
- const own=await createAccount('WRITER','individual-notifications');const title=uniqueTitle('individual notification');const article=await db().article.create({data:{title:uniqueTitle('linked draft'),slug:uniqueTitle('linked-draft-slug').toLowerCase().replaceAll(' ','-'),authorId:own.id,status:'DRAFT',content:'Linked draft content.'}});const notification=await db().notification.create({data:{userId:own.id,type:'comment',title,message:'Your draft has feedback.',articleId:article.id}})
- const ctx=await signInAs(browser,own);const page=await ctx.newPage();await page.goto('/editorial',{waitUntil:'networkidle'});await new ArticleEditorPage(page).dismissCookieBanner()
- // Keep the individual branch unread: opening otherwise marks every notification read.
- await page.route('**/api/editorial/notifications',r=>r.request().method()==='PATCH'?r.fulfill({status:503,json:{error:'Bulk read unavailable'}}):r.continue())
- const individual=`/api/editorial/notifications/${notification.id}`;await page.route(`**${individual}`,r=>r.fulfill({status:503,json:{error:'Individual read unavailable'}}))
- await page.getByRole('button',{name:'1 unread notifications',exact:true}).click();await expect(page.getByRole('alert').filter({hasText:'Bulk read unavailable'})).toBeVisible();const failed=page.waitForResponse(r=>new URL(r.url()).pathname===individual);await page.getByRole('link',{name:new RegExp(title)}).click();expect((await failed).status()).toBe(503);await expect(page).toHaveURL(new URL('/editorial',page.url()).href);await expect(page.getByRole('alert').filter({hasText:'Individual read unavailable'})).toBeVisible();expect((await db().notification.findUniqueOrThrow({where:{id:notification.id}})).read).toBe(false)
- await page.unroute(`**${individual}`);const saved=page.waitForResponse(r=>new URL(r.url()).pathname===individual);await page.getByRole('link',{name:new RegExp(title)}).click();expect((await saved).status()).toBe(200);await expect(new ArticleEditorPage(page).title()).toHaveValue(article.title);expect((await db().notification.findUniqueOrThrow({where:{id:notification.id}})).read).toBe(true);await page.unrouteAll();await page.goto('/editorial',{waitUntil:'networkidle'});await page.getByRole('button',{name:'Notifications',exact:true}).click();await expect(page.getByText(title,{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Mark all read'})).toHaveCount(0);await ctx.close()
+test('opening a notification always reaches its article; a failed read shows one-time feedback there and stays unread', async ({ browser }) => {
+  const own = await createAccount('WRITER', 'individual-notifications')
+  const title = uniqueTitle('individual notification')
+  const article = await db().article.create({ data: { title: uniqueTitle('linked draft'), slug: uniqueTitle('linked-draft-slug').toLowerCase().replaceAll(' ', '-'), authorId: own.id, status: 'DRAFT', content: 'Linked draft content.' } })
+  const notification = await db().notification.create({ data: { userId: own.id, type: 'comment', title, message: 'Your draft has feedback.', articleId: article.id } })
+  const ctx = await signInAs(browser, own)
+  const page = await ctx.newPage()
+  await page.goto('/editorial', { waitUntil: 'networkidle' })
+  await new ArticleEditorPage(page).dismissCookieBanner()
+  const individual = `/api/editorial/notifications/${notification.id}`
+  const unread = async () => (await db().notification.findUniqueOrThrow({ where: { id: notification.id } })).read === false
+  await page.route(`**${individual}`, r => r.fulfill({ status: 503, json: { error: 'Individual read unavailable' } }))
+  await page.evaluate(() => { const original = Storage.prototype.setItem; Storage.prototype.setItem = function(key, value) { if (key === 'consilium:route-feedback') throw new Error('Controlled route-feedback storage denial'); return original.call(this, key, value) } })
+
+  await page.getByRole('button', { name: '1 unread notifications', exact: true }).click()
+  const failed = page.waitForResponse(r => new URL(r.url()).pathname === individual)
+  await page.getByRole('link', { name: new RegExp(title) }).click()
+  expect((await failed).status()).toBe(503)
+
+  // The navigation still happens, and the failure is reported on the page that was reached.
+  await expect(new ArticleEditorPage(page).title()).toHaveValue(article.title)
+  await expect(page).toHaveURL(new URL(`/editorial/articles/${article.id}/edit`, page.url()).href)
+  const feedback = page.getByRole('alert').filter({ hasText: 'Individual read unavailable' })
+  await expect(feedback).toBeVisible()
+  await expect(feedback).toContainText(title)
+  expect(await unread()).toBe(true)
+  await page.getByRole('button', { name: 'Dismiss message', exact: true }).click()
+  await expect(feedback).toHaveCount(0)
+  expect(new URL(page.url()).pathname).toBe(`/editorial/articles/${article.id}/edit`)
+
+  // It is one-time: reloading does not show it again, and it never appeared in the address.
+  await page.reload({ waitUntil: 'networkidle' })
+  await expect(feedback).toHaveCount(0)
+  expect(new URL(page.url()).search).toBe('')
+
+  // The notification is still unread when notifications are loaded again.
+  await page.goto('/editorial', { waitUntil: 'networkidle' })
+  await expect(page.getByRole('button', { name: '1 unread notifications', exact: true })).toBeVisible()
+
+  // A deliberate retry succeeds, shows no failure, and marks it read.
+  await page.unroute(`**${individual}`)
+  await page.getByRole('button', { name: '1 unread notifications', exact: true }).click()
+  const saved = page.waitForResponse(r => new URL(r.url()).pathname === individual)
+  await page.getByRole('link', { name: new RegExp(title) }).click()
+  expect((await saved).status()).toBe(200)
+  await expect(new ArticleEditorPage(page).title()).toHaveValue(article.title)
+  await expect(page.getByRole('alert').filter({ hasText: 'could not be marked as read' })).toHaveCount(0)
+  expect(await unread()).toBe(false)
+  await page.goto('/editorial', { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'Notifications', exact: true }).click()
+  await expect(page.getByText(title, { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Mark all read' })).toHaveCount(0)
+  await ctx.close()
 })
 
 test('calendar dragging reschedules a scheduled article and rejects a past date without publishing',async({browser})=>{

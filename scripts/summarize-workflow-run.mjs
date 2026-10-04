@@ -28,11 +28,12 @@ const attachment = (a, phase) => {
   // Playwright's HTML reporter stores inline attachments by their SHA-1.
   // Reference that retained file without duplicating base64 payloads in the inventory.
   const bytes = Buffer.from(a.body, 'base64')
-  const extensions = { 'image/png': 'png', 'application/pdf': 'pdf', 'application/json': 'json', 'text/plain': 'txt' }
+  const extensions = { 'image/png': 'png', 'application/pdf': 'pdf' }
   const extension = extensions[a.contentType]
   const digest = createHash('sha1').update(bytes).digest('hex')
   return { name: a.name, contentType: a.contentType, bytes: bytes.length,
-    ...(extension ? { artifactPath: `playwright-report/${path.basename(directory)}/${phase}/data/${digest}.${extension}` } : { inlineSHA1: digest }) }
+    ...(extension ? { artifactPath: `playwright-report/${path.basename(directory)}/${phase}/data/${digest}.${extension}` }
+      : { artifactPath: `test-results/${path.basename(directory)}/${phase}/results.json`, inlineSHA1: digest }) }
 }
 for (const phase of ['main', 'workflow', 'team-profile']) {
   const result = read(`${phase}/results.json`)

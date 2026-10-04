@@ -41,7 +41,9 @@ async function prep(page: Page) {
   await page.addStyleTag({ content: 'html{scroll-behavior:auto !important}' })
   // Let the entrance animation settle so positions are stable.
   await expect(page.locator('#fnref-1')).toBeVisible()
-  await page.waitForTimeout(900)
+  await expect(page.locator('#article-body').locator('..')).toHaveCSS('opacity', '1')
+  await expect(page.locator('#article-body').locator('..')).toHaveCSS('transform', 'none')
+  await page.evaluate(() => document.fonts.ready)
 }
 
 /** Centre a marker (or its inner link) and return its viewport centre point. */

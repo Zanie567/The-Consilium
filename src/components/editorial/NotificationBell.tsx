@@ -6,6 +6,7 @@ import { formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { apiRequest,asApiError } from '@/lib/apiClient'
+import { queueRouteFeedback } from '@/lib/routeFeedback'
 import { Tooltip } from '@/components/ui/Tooltip'
 
 interface Notification {
@@ -19,7 +20,13 @@ interface Notification {
   articleId: string | null
 }
 
-export function NotificationBell() {
+function destination(n: Notification): string {
+  return n.type === 'article_submitted'
+    ? `/editorial/review/${n.articleId}`
+    : `/editorial/articles/${n.articleId}/edit`
+}
+
+export function NotificationBell({ userId }: { userId: string }) {
   const router = useRouter()
   const [notifs, setNotifs] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
@@ -69,10 +76,9 @@ export function NotificationBell() {
         side="bottom"
       >
       <button
-        onClick={() => {
-          setOpen((o) => !o)
-          if (!open && unread > 0) void markAllRead()
-        }}
+        // Opening the list only shows it. Notifications are marked read by the explicit
+        // "Mark all read" button or by opening one of them, never by looking at the list.
+        onClick={() => setOpen((o) => !o)}
         className="relative p-2 text-[var(--fg-muted)] hover:text-gold transition-colors"
         aria-label={unread > 0 ? `${unread} unread notifications` : 'Notifications'}
       >
@@ -126,11 +132,7 @@ export function NotificationBell() {
                   <div className="flex-1 min-w-0">
                     {n.articleId ? (
                       <Link
-                        href={
-                          n.type === 'article_submitted'
-                            ? `/editorial/review/${n.articleId}`
-                            : `/editorial/articles/${n.articleId}/edit`
-                        }
+                        href={destination(n)}
                         onNavigate={(event) => {
                           if (n.read) { setOpen(false); return }
                           event.preventDefault()
@@ -138,18 +140,20 @@ export function NotificationBell() {
                           markingRef.current = true
                           setMarking(true)
                           setError('')
-                          // Keep the error and unread item reachable until the
-                          // acknowledgement succeeds; the editor has its own header.
+                          // Opening a notification always takes the person to its article. The
+                          // acknowledgement is awaited first (not fired and forgotten) so that, if it
+                          // fails, the message is queued before the route changes and is shown once on
+                          // the destination. The notification stays unread on the server, so it is still
+                          // unread the next time notifications are loaded.
                           void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' })
-                            .then(() => {
-                              setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item))
+                            .then(() => setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item)))
+                            .catch(reason => queueRouteFeedback(`“${n.title}” could not be marked as read and is still unread. ${asApiError(reason).message}`, userId, destination(n)))
+                            .finally(() => {
+                              markingRef.current = false
+                              setMarking(false)
                               setOpen(false)
-                              router.push(n.type === 'article_submitted'
-                                ? `/editorial/review/${n.articleId}`
-                                : `/editorial/articles/${n.articleId}/edit`)
+                              router.push(destination(n))
                             })
-                            .catch(reason => setError(asApiError(reason).message))
-                            .finally(() => { markingRef.current = false; setMarking(false) })
                         }}
                         className="block"
                       >

@@ -4,6 +4,9 @@ import bcrypt from 'bcryptjs'
 import fs from 'node:fs/promises'
 import {
   signedIn,
+  signInAs,
+  createAccount,
+  removeMyAccounts,
   db,
   closeDb,
   capturedEmails,
@@ -18,6 +21,7 @@ test.afterAll(async () => {
     await db().subscriber.deleteMany({ where: { email } })
     await db().user.deleteMany({ where: { email } })
   }
+  await removeMyAccounts()
   await closeDb()
 })
 function email(label: string) {
@@ -232,7 +236,7 @@ test('two reset forms cannot consume the same token twice', async ({ browser }) 
   await ctx.close()
 })
 
-test('reader biography failure/retry, fresh persisted settings, copy feedback and delete cancellation use real controls', async ({ browser, browserName }) => {
+test('reader biography failure/retry, fresh persisted settings, no author-page sharing for readers and delete cancellation use real controls', async ({ browser }) => {
   const address = email('biography')
   const user = await db().user.create({ data: { email: address, name: 'Biography reader', role: 'READER', password: await bcrypt.hash('Biography-password-123', 10) } })
   const ctx = await browser.newContext()
@@ -259,17 +263,60 @@ test('reader biography failure/retry, fresh persisted settings, copy feedback an
   await page.reload({ waitUntil: 'networkidle' })
   await page.getByRole('button', { name: 'Account Settings', exact: true }).click()
   await expect(page.getByPlaceholder('Tell us a little about yourself...')).toHaveValue(bio)
-  await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new Error('Controlled clipboard denial') } } }) })
-  await page.getByRole('button', { name: 'Copy link', exact: true }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'Could not copy the profile link.' })).toBeVisible()
-  await page.reload({ waitUntil: 'networkidle' })
-  await page.getByRole('button', { name: 'Account Settings', exact: true }).click()
-  if (browserName === 'chromium') await ctx.grantPermissions(['clipboard-read', 'clipboard-write'])
-  await page.getByRole('button', { name: 'Copy link', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Copied', exact: true })).toBeVisible()
-  if (browserName === 'chromium') expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(new URL('/profile', page.url()).href)
+  // A reader has no public author page, so nothing offers a link to share. In particular the
+  // private /profile address is not offered as one.
+  await expect(page.getByRole('heading', { name: 'Share Your Author Page' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Copy link', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Delete Account', exact: true }).click()
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect(await db().user.findUnique({ where: { id: user.id } })).not.toBeNull()
+  await ctx.close()
+})
+
+test('a writer copies the public author link; a signed-out visitor and another signed-in person see only that public page', async ({ browser, browserName }) => {
+  const writer = await createAccount('WRITER', 'share-author')
+  const visitor = await createAccount('READER', 'share-visitor')
+  const bio = 'Public biography shown on the shared author page.'
+  await db().user.update({ where: { id: writer.id }, data: { bio } })
+  const { slug } = await db().user.findUniqueOrThrow({ where: { id: writer.id }, select: { slug: true } })
+  expect(slug).toBeTruthy()
+
+  const ctx = await signInAs(browser, writer)
+  const page = await ctx.newPage()
+  await page.goto('/profile?tab=settings', { waitUntil: 'networkidle' })
+  await new ArticleEditorPage(page).dismissCookieBanner()
+  await expect(page.getByRole('heading', { name: 'Share Your Author Page' })).toBeVisible()
+  await expect(page.getByText('Your email address and account settings are never shown.')).toBeVisible()
+
+  // A denied clipboard is reported, not swallowed.
+  await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new Error('Controlled clipboard denial') } } }) })
+  await page.getByRole('button', { name: 'Copy link', exact: true }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'Could not copy the link.' })).toBeVisible()
+
+  // Exercise the real clipboard boundary; Chromium additionally reads its contents back.
+  await page.evaluate(() => Reflect.deleteProperty(navigator, 'clipboard'))
+  if (browserName === 'chromium') await ctx.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.getByRole('button', { name: 'Copy link', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Copied', exact: true })).toBeVisible()
+  const link = new URL(`/author/${slug}`, page.url()).href
+  if (browserName === 'chromium') expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(link)
+  expect(new URL(link).pathname).not.toContain('/profile')
+
+  const publicPage = async (visitorPage: Page) => {
+    await visitorPage.goto(link, { waitUntil: 'networkidle' })
+    await expect(visitorPage).toHaveURL(link)
+    await expect(visitorPage.getByRole('heading', { level: 1, name: writer.name })).toBeVisible()
+    await expect(visitorPage.getByText(bio, { exact: true })).toBeVisible()
+    for (const privateText of [writer.email, visitor.email, 'Account Settings', 'Delete Account', 'Share Your Author Page'])
+      await expect(visitorPage.locator('body')).not.toContainText(privateText)
+  }
+
+  const signedOut = await signedIn(browser, null)
+  await publicPage(await signedOut.newPage())
+  await signedOut.close()
+
+  const other = await signInAs(browser, visitor)
+  await publicPage(await other.newPage())
+  await other.close()
   await ctx.close()
 })

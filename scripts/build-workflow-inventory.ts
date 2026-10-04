@@ -16,6 +16,7 @@ const controlFiles = new Map<string, string[]>()
 const tags = new Set(['button', 'a', 'Link', 'input', 'select', 'option', 'textarea', 'form', 'dialog', 'ToolbarBtn', 'IconToggle', 'SelectField'])
 const dynamicFamilies: { file: string; line: number; source: string }[] = []
 const nativeDialogs: { file: string; line: number; source: string }[] = []
+const imperativeControls: { file: string; line: number; source: string; evidence: string }[] = []
 function groupTests(file: string): string[] {
   if (file.includes('components/editor/TiptapEditor')) return ['wf-formatting', 'wf-controls', 'wf-upload', 'wf-mobile']
   if (file.includes('components/admin/article-editor/')) return ['wf-formatting', 'wf-controls', 'wf-failures', 'wf-lifecycle', 'wf-mobile']
@@ -40,6 +41,10 @@ for (const file of files) {
       }
       if (/^(?:window\.)?(?:prompt|confirm|alert)$/.test(expression)) {
         nativeDialogs.push({ file, line, source: clean(node.getText(source)) })
+      }
+      if ((expression.endsWith('.createElement') && node.arguments[0] && ts.isStringLiteral(node.arguments[0]) && ['a', 'button', 'input', 'select', 'textarea', 'form'].includes(node.arguments[0].text))
+        || (expression.endsWith('.setAttribute') && node.arguments[0] && ts.isStringLiteral(node.arguments[0]) && node.arguments[0].text === 'role' && node.arguments[1] && ts.isStringLiteral(node.arguments[1]) && ['button', 'dialog', 'menu'].includes(node.arguments[1].text))) {
+        imperativeControls.push({ file, line, source: clean(node.getText(source)), evidence: 'CODE_INSPECTION; see reviewed action families for browser execution' })
       }
     }
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
@@ -120,6 +125,7 @@ const routes = files.filter(f => f.endsWith('/page.tsx')).map(file => {
     guardSource: [...dependencies].filter(f => f === file || layouts.includes(f)).flatMap(f => fs.readFileSync(f, 'utf8').split('\n').filter(l => /requirePortalRole|getVerifiedSessionUser|session\.user\.role|redirect\(|ALLOWED_ROLES/.test(l)).map(l => `${f}: ${clean(l)}`)),
     controls: [...dependencies].flatMap(f => controlFiles.get(f) ?? []),
     dynamicFamilies: dynamicFamilies.filter(f => dependencies.has(f.file)), nativeDialogs: nativeDialogs.filter(f => dependencies.has(f.file)),
+    imperativeControls: imperativeControls.filter(f => dependencies.has(f.file)),
   }
 })
 const output = 'docs/testing/control-inventory.json'
@@ -127,6 +133,6 @@ fs.writeFileSync(output, JSON.stringify({
   provenance: 'Static JSX/import census. Includes conditional and disabled controls. Dynamic map expressions represent families, not enumerated runtime options. Candidate tests are references, never a claim of passing behaviour.',
   regenerate: 'npx ts-node -P tsconfig.seed.json scripts/build-workflow-inventory.ts',
   renderedEvidence: 'test-results/<run>/inventory/<browser>/<role>.json and coverage-inventory.md',
-  routes, controls, dynamicFamilies, nativeDialogs,
+  routes, controls, dynamicFamilies, nativeDialogs, imperativeControls,
 }, null, 2) + '\n')
 console.log(`${routes.length} page routes, ${controls.length} control declarations -> ${path.relative(root, path.resolve(output))}`)

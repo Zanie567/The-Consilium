@@ -248,7 +248,7 @@ export default async function EditorialDashboard() {
               : 'Write and manage your articles.'}
           </p>
         </div>
-        <NotificationBell />
+        <NotificationBell userId={session.user.id} />
       </PortalSection>
 
       {/* One-time achievement banners (first publish, then series completion) */}

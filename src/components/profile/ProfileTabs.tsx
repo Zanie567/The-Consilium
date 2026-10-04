@@ -513,6 +513,7 @@ function AccountSettingsTab({
   initialImage,
   email,
   role,
+  authorPath,
   onNameChange,
   onImageChange,
 }: {
@@ -521,6 +522,8 @@ function AccountSettingsTab({
   initialImage: string | null
   email: string
   role: string
+  /** The public author page for this account, or null when it is not meant to have one. */
+  authorPath: string | null
   onNameChange: (name: string) => void
   onImageChange: (image: string | null) => void
 }) {
@@ -646,13 +649,16 @@ function AccountSettingsTab({
     }
   }
 
+  // /profile is this person's own private page (it shows whoever opens it their own account, or
+  // sends them to sign in), so it is never what gets copied. Only the public author page is shared.
   const handleCopyProfile = async () => {
+    if (!authorPath) return
     setCopyError('')
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}/profile`)
+      await navigator.clipboard.writeText(`${window.location.origin}${authorPath}`)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch { setCopyError('Could not copy the profile link. Please copy it from the text above.') }
+    } catch { setCopyError('Could not copy the link. Please copy it from the text above.') }
   }
 
   return (
@@ -785,19 +791,25 @@ function AccountSettingsTab({
         </div>
       </section>
 
-      {/* Share profile */}
-      <section>
-        <h3 className="text-[var(--fg)] font-bold text-sm uppercase tracking-widest mb-4">Share Your Profile</h3>
-        <div className="flex items-center gap-3 p-3 bg-[var(--bg-elevated)] border border-[var(--border)]">
-          <p className="flex-1 text-[var(--fg-faint)] text-xs truncate">{origin}/profile</p>
-          <button
-            onClick={handleCopyProfile}
-            className="shrink-0 flex items-center gap-1.5 text-[var(--fg-faint)] hover:text-gold text-xs font-semibold transition-colors"
-          >
-            {copied ? <><CheckCheck size={13} className="text-gold" /> Copied</> : <><Copy size={13} /> Copy link</>}
-          </button>
-        </div>
-      </section>
+      {/* Share the public author page (only for roles that have one) */}
+      {authorPath && (
+        <section>
+          <h3 className="text-[var(--fg)] font-bold text-sm uppercase tracking-widest mb-4">Share Your Author Page</h3>
+          <p className="text-[var(--fg-faint)] text-xs mb-3">
+            Anyone with this link can see your name, photo, biography and published articles, without signing in.
+            Your email address and account settings are never shown.
+          </p>
+          <div className="flex items-center gap-3 p-3 bg-[var(--bg-elevated)] border border-[var(--border)]">
+            <p className="flex-1 text-[var(--fg-faint)] text-xs truncate">{origin}{authorPath}</p>
+            <button
+              onClick={handleCopyProfile}
+              className="shrink-0 flex items-center gap-1.5 text-[var(--fg-faint)] hover:text-gold text-xs font-semibold transition-colors"
+            >
+              {copied ? <><CheckCheck size={13} className="text-gold" /> Copied</> : <><Copy size={13} /> Copy link</>}
+            </button>
+          </div>
+        </section>
+      )}
 
       {copyError && <p role="alert" className="text-red-500 text-xs">{copyError}</p>}
 
@@ -877,9 +889,10 @@ interface ProfileTabsProps {
   createdAt: string
   initialTab?: TabId
   role: string
+  authorPath: string | null
 }
 
-export function ProfileTabs({ initialName, initialBio, email, image, createdAt, initialTab, role }: ProfileTabsProps) {
+export function ProfileTabs({ initialName, initialBio, email, image, createdAt, initialTab, role, authorPath }: ProfileTabsProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'history')
   const [displayName, setDisplayName] = useState(initialName)
@@ -997,6 +1010,7 @@ export function ProfileTabs({ initialName, initialBio, email, image, createdAt, 
             initialImage={image}
             email={email}
             role={role}
+            authorPath={authorPath}
             onNameChange={setDisplayName}
             onImageChange={setAvatar}
           />

@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { EditorialSidebarWrapper } from '@/components/layout/EditorialSidebarWrapper'
 import { PortalTransition } from '@/components/editorial/PortalTransition'
+import { RouteFeedback } from '@/components/editorial/RouteFeedback'
 import type { Metadata } from 'next'
 import { NOINDEX_NOFOLLOW_ROBOTS } from '@/lib/seo'
 
@@ -96,6 +97,7 @@ export default async function EditorialLayout({ children }: { children: React.Re
       <div className="flex-1 min-w-0 overflow-auto">
         <PortalTransition>{children}</PortalTransition>
       </div>
+      <RouteFeedback userId={session.user.id} />
     </div>
   )
 }

@@ -215,6 +215,44 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
   expect(consoleErrors, `console errors:\n${consoleErrors.join('\n')}`).toEqual([])
 })
 
+test('settled document and client navigation produces no browser errors', async ({ page }) => {
+  const consoleErrors = collectConsoleErrors(page)
+  const invalidState: string[] = []
+  const watch = (text: string) => {
+    if (/InvalidStateError|Transition was aborted because of invalid state/i.test(text)) invalidState.push(text)
+  }
+  page.on('console', (m) => watch(m.text()))
+  page.on('pageerror', (e) => watch(`${e.name}: ${e.message}`))
+
+
+  // Full document loads (exercise the removed @view-transition navigation rule)…
+  for (const path of ['/', '/category/opinion', '/opinion-debate', '/category/news', '/about', '/']) {
+    expect((await page.goto(path, { waitUntil: 'domcontentloaded' }))?.status()).toBe(200)
+    await page.waitForLoadState('networkidle')
+  }
+  // …then rapid client-side navigations (exercise Next's SPA transitions). Use
+  // 'domcontentloaded', not 'networkidle' — the dev server's HMR socket keeps
+  // the network busy, so 'networkidle' never settles.
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
+  await page.waitForLoadState('networkidle')
+  const links = page.locator('header a[href^="/category/"], main article a[href^="/articles/"]')
+  const targets = (await links.evaluateAll(elements => elements.map(el => el.getAttribute('href')!))).slice(0, 5)
+  expect(targets.length).toBeGreaterThan(0)
+  for (const href of targets) {
+    await page.locator(`header a[href="${href}"], main article a[href="${href}"]`).first().click()
+    await expect(page).toHaveURL(new RegExp(`${href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
+    await expect(page.locator('main')).toBeVisible()
+    await page.waitForLoadState('networkidle')
+    await page.goBack({ waitUntil: 'domcontentloaded' })
+    await expect(page).toHaveURL(/\/$/)
+    await page.waitForLoadState('networkidle')
+  }
+  await page.waitForLoadState('networkidle')
+
+  expect(invalidState, `InvalidStateError fired:\n${invalidState.join('\n')}`).toEqual([])
+  expect(consoleErrors, `console errors:\n${consoleErrors.join('\n')}`).toEqual([])
+})
+
 test('dark-mode toggle switches theme', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   const html = page.locator('html')

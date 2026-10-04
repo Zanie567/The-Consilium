@@ -32,6 +32,7 @@ Minimal cancellation reproductions require no database, application credentials 
 ```sh
 node scripts/diagnostics/webkit-cancellation.mjs test-results/webkit-cancellation.json
 node scripts/diagnostics/share-popup.mjs
+node scripts/diagnostics/related-card-stack.mjs
 node scripts/diagnostics/session-cancellation.mjs
 node scripts/diagnostics/next-navigation.mjs
 node scripts/diagnostics/image-optimizer-abort.mjs --original --output=test-results/image-abort-before.json

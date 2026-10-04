@@ -69,10 +69,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -156,7 +156,8 @@
           "source": "slides.map((slide, i) => ( <div key={slide.id} aria-hidden={i !== activeIndex} inert={i !== activeIndex} style={CROSSFADE} className={`col-start-1 row-start-1 ${ i === activeIndex ? 'opacity-100' : 'opacity-0' }`} > <Link href={`/articles/${slide.slug}`}> <h2 className=\"text-3xl lg:text-4xl font-bold text-[var(--fg)] mb-4 leading-tight transition-colors duration-200 hover:text-gold\" style={{ fontFamily: 'var(--font-serif)' }} > {slide.title} </h2> </Link> {slide.excerpt && ( <p className=\"text-[var(--fg-muted)] text-base leading-relaxed mb-6\"> {slide.excerpt} </p> )} <div className=\"flex items-center gap-3 text-xs text-[var(--fg-faint)] mb-7\"> <span className=\"font-semibold text-[var(--fg-muted)]\">{slide.authorName}</span> <span className=\"text-gold/40\">·</span> <span>{slide.dateLabel}</span> </div> <Link href={`/articles/${slide.slug}`} className=\"inline-flex items-center gap-2 text-gold text-xs font-bold uppercase tracking-widest group/link hover:gap-3 transition-[gap] duration-200 ease-out\" > Read Article <span className=\"inline-block transition-transform duration-200 ease-out group-hover/link:translate-x-1\"> → </span> </Link> </div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/about",
@@ -175,7 +176,8 @@
         "tests/e2e/public.spec.ts",
         "tests/e2e/wf-navigation.spec.ts",
         "tests/e2e/wf-public-controls.spec.ts",
-        "tests/unit/seo.test.ts"
+        "tests/unit/seo.test.ts",
+        "tests/unit/signup-prompt-navigation.test.tsx"
       ],
       "guardSource": [],
       "controls": [
@@ -210,10 +212,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -252,7 +254,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/admin/articles/[id]/edit",
@@ -306,10 +309,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -348,7 +351,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/admin/articles/new",
@@ -400,10 +404,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -442,7 +446,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/admin/articles",
@@ -496,10 +501,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -538,7 +543,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/admin/data",
@@ -599,10 +605,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -641,7 +647,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/admin/login-attempts",
@@ -693,10 +700,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -740,7 +747,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/admin",
@@ -805,10 +813,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -847,7 +855,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/admin/subscribers",
@@ -902,10 +911,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -949,7 +958,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/admin/team",
@@ -1020,10 +1030,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -1078,7 +1088,8 @@
           "line": 126,
           "source": "confirm('Delete this team member?')"
         }
-      ]
+      ],
+      "imperativeControls": []
     },
     {
       "route": "/archive",
@@ -1142,10 +1153,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -1184,7 +1195,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/articles/[slug]",
@@ -1234,7 +1246,8 @@
         "tests/unit/console-error-collection.test.ts",
         "tests/unit/featured-article-hero.test.tsx",
         "tests/unit/notification-navigation.test.tsx",
-        "tests/unit/public-user.test.ts"
+        "tests/unit/public-user.test.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "guardSource": [
         "src/app/articles/[slug]/page.tsx: ? { id: session.user.id, name: session.user.name, role: session.user.role }"
@@ -1302,10 +1315,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -1326,7 +1339,7 @@
         {
           "file": "src/app/articles/[slug]/page.tsx",
           "line": 557,
-          "source": "related.map((rel) => ( <StaggerItem key={rel.id}> <article className=\"relative bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden group card-hover shadow-[var(--shadow-card)] h-full flex flex-col\"> <Link href={`/articles/${rel.slug}`} className=\"absolute inset-0 z-0\" aria-label={rel.title} /> <div className=\"relative h-44 bg-navy/10 overflow-hidden img-zoom flex-shrink-0\"> {rel.coverImage ? ( <Image src={rel.coverImage} alt={rel.title} fill className=\"object-cover\" /> ) : ( <div className=\"absolute inset-0 bg-gradient-to-br from-navy to-navy-light flex items-center justify-center\"> <span className=\"text-gold/15 text-3xl font-bold select-none\" style={{ fontFamily: 'var(--font-serif)' }}>TC</span> </div> )} {rel.category && ( <div className=\"absolute top-3 left-3 z-10\"> <span className=\"category-badge\">{rel.category.name}</span> </div> )} </div> <div className=\"relative z-10 p-5 flex flex-col flex-1\"> <h3 className=\"font-bold text-[var(--fg)] text-base leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2 mb-2 flex-1\" style={{ fontFamily: 'var(--font-serif)' }} > {rel.title} </h3> {rel.excerpt && ( <p className=\"text-[var(--fg-muted)] text-sm leading-relaxed line-clamp-2 mb-3\"> {rel.excerpt} </p> )} <div className=\"flex items-center justify-between text-xs text-[var(--fg-faint)] mt-auto pt-3 border-t border-[var(--border)]\"> <Link href={`/author/${rel.author.slug ?? rel.author.id}`} className=\"relative z-10 font-semibold text-[var(--fg-muted)] hover:text-gold transition-colors\" > {displayAuthorName(rel.author.name)} </Link> {rel.publishedAt && ( <span>{format(new Date(rel.publishedAt), 'd MMM yyyy')}</span> )} </div> </div> </article> </StaggerItem> ))"
+          "source": "related.map((rel) => ( <StaggerItem key={rel.id}> <article className=\"relative bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden group card-hover shadow-[var(--shadow-card)] h-full flex flex-col\"> <Link href={`/articles/${rel.slug}`} className=\"absolute inset-0 z-0\" aria-label={rel.title} /> <div className=\"pointer-events-none relative h-44 bg-navy/10 overflow-hidden img-zoom flex-shrink-0\"> {rel.coverImage ? ( <Image src={rel.coverImage} alt={rel.title} fill className=\"object-cover\" /> ) : ( <div className=\"absolute inset-0 bg-gradient-to-br from-navy to-navy-light flex items-center justify-center\"> <span className=\"text-gold/15 text-3xl font-bold select-none\" style={{ fontFamily: 'var(--font-serif)' }}>TC</span> </div> )} {rel.category && ( <div className=\"absolute top-3 left-3 z-10\"> <span className=\"category-badge\">{rel.category.name}</span> </div> )} </div> <div className=\"pointer-events-none relative z-10 p-5 flex flex-col flex-1\"> <h3 className=\"font-bold text-[var(--fg)] text-base leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2 mb-2 flex-1\" style={{ fontFamily: 'var(--font-serif)' }} > {rel.title} </h3> {rel.excerpt && ( <p className=\"text-[var(--fg-muted)] text-sm leading-relaxed line-clamp-2 mb-3\"> {rel.excerpt} </p> )} <div className=\"flex items-center justify-between text-xs text-[var(--fg-faint)] mt-auto pt-3 border-t border-[var(--border)]\"> <Link href={`/author/${rel.author.slug ?? rel.author.id}`} className=\"pointer-events-auto relative z-10 font-semibold text-[var(--fg-muted)] hover:text-gold transition-colors\" > {displayAuthorName(rel.author.name)} </Link> {rel.publishedAt && ( <span>{format(new Date(rel.publishedAt), 'd MMM yyyy')}</span> )} </div> </div> </article> </StaggerItem> ))"
         },
         {
           "file": "src/components/layout/Footer.tsx",
@@ -1369,7 +1382,27 @@
           "source": "comments.map((c) => ( <SingleComment key={c.id} comment={c} currentUser={currentUser} articleId={articleId} onDelete={handleDelete} onReplyPosted={handleReplyPosted} /> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": [
+        {
+          "file": "src/components/ui/ArticleAnchorLinks.tsx",
+          "line": 52,
+          "source": "document.createElement('a')",
+          "evidence": "CODE_INSPECTION; see reviewed action families for browser execution"
+        },
+        {
+          "file": "src/components/ui/GlossaryTooltips.tsx",
+          "line": 61,
+          "source": "document.createElement('a')",
+          "evidence": "CODE_INSPECTION; see reviewed action families for browser execution"
+        },
+        {
+          "file": "src/components/ui/GlossaryTooltips.tsx",
+          "line": 130,
+          "source": "el.setAttribute('role', 'button')",
+          "evidence": "CODE_INSPECTION; see reviewed action families for browser execution"
+        }
+      ]
     },
     {
       "route": "/author/[slug]",
@@ -1384,8 +1417,10 @@
       ],
       "accessEvidence": "CODE_INSPECTION: see coverage-inventory.md role matrix and route guards; rendered refusals in wf-roles",
       "candidateTestFiles": [
+        "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-cache.spec.ts",
-        "tests/e2e/wf-public-controls.spec.ts"
+        "tests/e2e/wf-public-controls.spec.ts",
+        "tests/unit/author-utils.test.ts"
       ],
       "guardSource": [],
       "controls": [
@@ -1422,10 +1457,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -1464,7 +1499,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/banned",
@@ -1513,10 +1549,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -1545,7 +1581,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/category/[slug]",
@@ -1564,7 +1601,8 @@
         "tests/e2e/public.spec.ts",
         "tests/e2e/wf-cache.spec.ts",
         "tests/e2e/wf-navigation.spec.ts",
-        "tests/e2e/wf-public-controls.spec.ts"
+        "tests/e2e/wf-public-controls.spec.ts",
+        "tests/unit/signup-prompt-navigation.test.tsx"
       ],
       "guardSource": [],
       "controls": [
@@ -1602,10 +1640,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -1639,7 +1677,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/contact",
@@ -1706,10 +1745,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -1738,7 +1777,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/corrections",
@@ -1790,10 +1830,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -1822,7 +1862,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/analytics",
@@ -1861,6 +1902,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -1890,10 +1932,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -2042,7 +2084,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/articles/[id]/edit",
@@ -2067,7 +2110,8 @@
         "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
         "tests/integration/review-route.test.ts",
-        "tests/unit/notification-navigation.test.tsx"
+        "tests/unit/notification-navigation.test.tsx",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/articles/[id]/edit/page.tsx: import { requirePortalRole } from '@/lib/portalAccess'",
@@ -2188,6 +2232,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -2217,10 +2262,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -2315,7 +2360,8 @@
           "line": 976,
           "source": "window.prompt('Footnote text:')"
         }
-      ]
+      ],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/articles/new",
@@ -2450,6 +2496,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -2479,10 +2526,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -2577,7 +2624,8 @@
           "line": 976,
           "source": "window.prompt('Footnote text:')"
         }
-      ]
+      ],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/articles",
@@ -2602,7 +2650,8 @@
         "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
         "tests/integration/review-route.test.ts",
-        "tests/unit/notification-navigation.test.tsx"
+        "tests/unit/notification-navigation.test.tsx",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/articles/page.tsx: import { requirePortalRole } from '@/lib/portalAccess'",
@@ -2629,6 +2678,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -2658,10 +2708,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -2716,7 +2766,8 @@
           "line": 87,
           "source": "confirm('Move this article to trash? It can be restored for 30 days.')"
         }
-      ]
+      ],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/calendar",
@@ -2755,6 +2806,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -2784,10 +2836,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -2861,7 +2913,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/comments",
@@ -2897,6 +2950,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -2926,10 +2980,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -2988,7 +3042,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/debates/[debateId]/edit",
@@ -3025,6 +3080,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -3054,10 +3110,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -3096,7 +3152,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/debates/[debateId]",
@@ -3129,6 +3186,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -3158,10 +3216,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -3210,7 +3268,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/debates/new",
@@ -3305,6 +3364,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -3334,10 +3394,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -3422,7 +3482,8 @@
           "line": 976,
           "source": "window.prompt('Footnote text:')"
         }
-      ]
+      ],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/debates",
@@ -3457,6 +3518,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -3486,10 +3548,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -3533,7 +3595,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/glossary",
@@ -3546,6 +3609,7 @@
         "tests/e2e/editorial-layout.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
+        "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts"
       ],
@@ -3576,6 +3640,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -3605,10 +3670,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -3663,7 +3728,8 @@
           "line": 227,
           "source": "window.confirm( `Delete \"${term.term}\" permanently? If it might come back, deactivate it instead.` )"
         }
-      ]
+      ],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/growth/engagement",
@@ -3689,6 +3755,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -3718,10 +3785,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -3780,7 +3847,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/growth/subscribers",
@@ -3808,6 +3876,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -3837,10 +3906,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -3884,7 +3953,15 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": [
+        {
+          "file": "src/app/editorial/(portal)/growth/subscribers/page.tsx",
+          "line": 50,
+          "source": "document.createElement('a')",
+          "evidence": "CODE_INSPECTION; see reviewed action families for browser execution"
+        }
+      ]
     },
     {
       "route": "/editorial/growth/writer-activity",
@@ -3909,6 +3986,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -3938,10 +4016,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -3985,7 +4063,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/leaderboard",
@@ -4014,6 +4093,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -4043,10 +4123,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -4100,7 +4180,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial",
@@ -4154,8 +4235,10 @@
         "tests/unit/portal-layout-ban.test.tsx",
         "tests/unit/portal-request-order.test.tsx",
         "tests/unit/profile-feedback.test.tsx",
+        "tests/unit/route-feedback.test.tsx",
         "tests/unit/safe-redirect.test.ts",
-        "tests/unit/trash-feedback.test.tsx"
+        "tests/unit/trash-feedback.test.tsx",
+        "tests/unit/trash-load-error.test.tsx"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/page.tsx: import { requirePortalRole } from '@/lib/portalAccess'",
@@ -4180,9 +4263,9 @@
         "src/app/editorial/(portal)/page.tsx:526",
         "src/app/editorial/(portal)/page.tsx:558",
         "src/app/editorial/(portal)/page.tsx:602",
-        "src/components/editorial/NotificationBell.tsx:71",
-        "src/components/editorial/NotificationBell.tsx:99",
-        "src/components/editorial/NotificationBell.tsx:128",
+        "src/components/editorial/NotificationBell.tsx:78",
+        "src/components/editorial/NotificationBell.tsx:105",
+        "src/components/editorial/NotificationBell.tsx:134",
         "src/components/editorial/DraftsSection.tsx:49",
         "src/components/editorial/DraftsSection.tsx:61",
         "src/components/editorial/DraftsSection.tsx:85",
@@ -4198,6 +4281,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -4227,10 +4311,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -4260,8 +4344,8 @@
         },
         {
           "file": "src/components/editorial/NotificationBell.tsx",
-          "line": 115,
-          "source": "notifs.map((n) => ( <div key={n.id} className={`px-4 py-3 border-b border-[var(--border)] last:border-0 flex gap-2.5 ${ !n.read ? 'bg-gold/5' : '' }`} > {/* Bug 8: unread dot indicator that disappears once read */} <div className=\"mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full transition-colors duration-200\" style={{ background: n.read ? 'transparent' : 'var(--color-gold, #b8972e)' }} /> <div className=\"flex-1 min-w-0\"> {n.articleId ? ( <Link href={ n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit` } onNavigate={(event) => { if (n.read) { setOpen(false); return } event.preventDefault() if (markingRef.current) return markingRef.current = true setMarking(true) setError('') // Keep the error and unread item reachable until the // acknowledgement succeeds; the editor has its own header. void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .then(() => { setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item)) setOpen(false) router.push(n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit`) }) .catch(reason => setError(asApiError(reason).message)) .finally(() => { markingRef.current = false; setMarking(false) }) }} className=\"block\" > <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </Link> ) : ( <> <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </> )} </div> </div> ))"
+          "line": 121,
+          "source": "notifs.map((n) => ( <div key={n.id} className={`px-4 py-3 border-b border-[var(--border)] last:border-0 flex gap-2.5 ${ !n.read ? 'bg-gold/5' : '' }`} > {/* Bug 8: unread dot indicator that disappears once read */} <div className=\"mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full transition-colors duration-200\" style={{ background: n.read ? 'transparent' : 'var(--color-gold, #b8972e)' }} /> <div className=\"flex-1 min-w-0\"> {n.articleId ? ( <Link href={destination(n)} onNavigate={(event) => { if (n.read) { setOpen(false); return } event.preventDefault() if (markingRef.current) return markingRef.current = true setMarking(true) setError('') // Opening a notification always takes the person to its article. The // acknowledgement is awaited first (not fired and forgotten) so that, if it // fails, the message is queued before the route changes and is shown once on // the destination. The notification stays unread on the server, so it is still // unread the next time notifications are loaded. void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .then(() => setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item))) .catch(reason => queueRouteFeedback(`“${n.title}” could not be marked as read and is still unread. ${asApiError(reason).message}`, userId, destination(n))) .finally(() => { markingRef.current = false setMarking(false) setOpen(false) router.push(destination(n)) }) }} className=\"block\" > <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </Link> ) : ( <> <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </> )} </div> </div> ))"
         },
         {
           "file": "src/components/editorial/SeriesCompleteBadges.tsx",
@@ -4314,7 +4398,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/predictions/[id]/edit",
@@ -4355,6 +4440,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -4384,10 +4470,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -4426,7 +4512,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/predictions/new",
@@ -4466,6 +4553,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -4495,10 +4583,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -4537,7 +4625,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/predictions",
@@ -4572,6 +4661,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -4601,10 +4691,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -4654,7 +4744,8 @@
           "line": 27,
           "source": "window.confirm(confirmText)"
         }
-      ]
+      ],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/readers",
@@ -4685,6 +4776,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -4714,10 +4806,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -4771,7 +4863,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/recovery",
@@ -4800,6 +4893,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -4829,10 +4923,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -4882,6 +4976,14 @@
           "line": 60,
           "source": "window.confirm( 'Permanently discard this local recovery copy? This does not delete the server article.' )"
         }
+      ],
+      "imperativeControls": [
+        {
+          "file": "src/components/editorial/DraftRecoveryList.tsx",
+          "line": 30,
+          "source": "document.createElement('a')",
+          "evidence": "CODE_INSPECTION; see reviewed action families for browser execution"
+        }
       ]
     },
     {
@@ -4903,7 +5005,8 @@
         "tests/e2e/wf-portal.spec.ts",
         "tests/e2e/wf-publication-safety.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
-        "tests/e2e/wf-stale-authorization.spec.ts"
+        "tests/e2e/wf-stale-authorization.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/review/[id]/page.tsx: if (!session) redirect('/editorial/login')",
@@ -4950,6 +5053,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -4979,10 +5083,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -5036,7 +5140,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/review",
@@ -5057,7 +5162,8 @@
         "tests/e2e/wf-portal.spec.ts",
         "tests/e2e/wf-publication-safety.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
-        "tests/e2e/wf-stale-authorization.spec.ts"
+        "tests/e2e/wf-stale-authorization.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/review/page.tsx: if (!session) redirect('/editorial/login')",
@@ -5074,6 +5180,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -5103,10 +5210,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -5150,7 +5257,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/scheduled",
@@ -5177,6 +5285,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -5206,10 +5315,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -5253,7 +5362,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/series",
@@ -5290,6 +5400,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -5319,10 +5430,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -5376,7 +5487,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/team-profile",
@@ -5407,6 +5519,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -5436,10 +5549,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -5478,7 +5591,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/trash",
@@ -5494,6 +5608,7 @@
         "tests/e2e/editorial.spec.ts",
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
+        "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
@@ -5514,6 +5629,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -5543,10 +5659,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -5590,7 +5706,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/users/[id]",
@@ -5645,6 +5762,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -5674,10 +5792,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -5731,7 +5849,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/users",
@@ -5817,6 +5936,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -5846,10 +5966,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -5968,7 +6088,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/login",
@@ -6024,10 +6145,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -6056,7 +6177,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/reset-password",
@@ -6101,10 +6223,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -6133,7 +6255,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/editorial/setup",
@@ -6184,10 +6307,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -6216,7 +6339,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/forgot-password",
@@ -6270,10 +6394,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -6302,7 +6426,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/login",
@@ -6369,10 +6494,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -6401,7 +6526,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/opinion-debate",
@@ -6456,10 +6582,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -6498,7 +6624,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/predictions/[id]",
@@ -6550,10 +6677,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -6592,7 +6719,8 @@
           "source": "buckets.map((b, i) => ( <div key={i} className=\"flex items-center gap-3 text-xs\"> <span className=\"w-28 shrink-0 text-right text-[var(--fg-faint)] tabular-nums\"> {fmt(b.from)} to {fmt(b.to)} </span> <div className=\"flex-1 h-5 rounded-sm bg-[var(--bg-subtle)] overflow-hidden\"> <div className={b.hasActual ? 'h-full bg-gold' : 'h-full bg-gold/40'} style={{ width: `${maxCount === 0 ? 0 : (b.count / maxCount) * 100}%` }} /> </div> <span className=\"w-10 shrink-0 text-[var(--fg-muted)] tabular-nums\">{b.count}</span> </div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/predictions/leaderboard",
@@ -6636,10 +6764,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -6678,7 +6806,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/predictions",
@@ -6729,10 +6858,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -6771,7 +6900,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/privacy",
@@ -6824,10 +6954,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -6856,7 +6986,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/profile",
@@ -6880,6 +7011,7 @@
         "tests/integration/api-audit.test.ts",
         "tests/integration/profile-account-route.test.ts",
         "tests/unit/auth-redirect.test.ts",
+        "tests/unit/author-utils.test.ts",
         "tests/unit/safe-redirect.test.ts"
       ],
       "guardSource": [
@@ -6900,21 +7032,21 @@
         "src/components/profile/ProfileTabs.tsx:443",
         "src/components/profile/ProfileTabs.tsx:477",
         "src/components/profile/ProfileTabs.tsx:494",
-        "src/components/profile/ProfileTabs.tsx:683",
-        "src/components/profile/ProfileTabs.tsx:690",
-        "src/components/profile/ProfileTabs.tsx:699",
-        "src/components/profile/ProfileTabs.tsx:720",
-        "src/components/profile/ProfileTabs.tsx:733",
-        "src/components/profile/ProfileTabs.tsx:755",
-        "src/components/profile/ProfileTabs.tsx:767",
-        "src/components/profile/ProfileTabs.tsx:778",
-        "src/components/profile/ProfileTabs.tsx:793",
-        "src/components/profile/ProfileTabs.tsx:813",
-        "src/components/profile/ProfileTabs.tsx:827",
-        "src/components/profile/ProfileTabs.tsx:836",
-        "src/components/profile/ProfileTabs.tsx:843",
-        "src/components/profile/ProfileTabs.tsx:969",
-        "src/components/profile/ProfileTabs.tsx:1009",
+        "src/components/profile/ProfileTabs.tsx:689",
+        "src/components/profile/ProfileTabs.tsx:696",
+        "src/components/profile/ProfileTabs.tsx:705",
+        "src/components/profile/ProfileTabs.tsx:726",
+        "src/components/profile/ProfileTabs.tsx:739",
+        "src/components/profile/ProfileTabs.tsx:761",
+        "src/components/profile/ProfileTabs.tsx:773",
+        "src/components/profile/ProfileTabs.tsx:784",
+        "src/components/profile/ProfileTabs.tsx:804",
+        "src/components/profile/ProfileTabs.tsx:825",
+        "src/components/profile/ProfileTabs.tsx:839",
+        "src/components/profile/ProfileTabs.tsx:848",
+        "src/components/profile/ProfileTabs.tsx:855",
+        "src/components/profile/ProfileTabs.tsx:982",
+        "src/components/profile/ProfileTabs.tsx:1023",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -6944,10 +7076,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -7007,11 +7139,12 @@
         },
         {
           "file": "src/components/profile/ProfileTabs.tsx",
-          "line": 968,
+          "line": 981,
           "source": "TABS.map((tab) => ( <button key={tab.id} onClick={() => handleTabChange(tab.id)} className={`flex items-center gap-2 px-4 py-3.5 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap border-b-2 transition-colors duration-150 ${ activeTab === tab.id ? 'border-gold text-gold' : 'border-transparent text-[var(--fg-faint)] hover:text-[var(--fg)]' }`} > {tab.icon} <span className=\"hidden sm:inline\">{tab.label}</span> </button> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/reset-password",
@@ -7063,10 +7196,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -7095,7 +7228,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/search",
@@ -7155,10 +7289,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -7192,7 +7326,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/signup",
@@ -7208,6 +7343,7 @@
       "accessEvidence": "CODE_INSPECTION: see coverage-inventory.md role matrix and route guards; rendered refusals in wf-roles",
       "candidateTestFiles": [
         "tests/e2e/team-profile-lifecycle.spec.ts",
+        "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-reader.spec.ts",
         "tests/integration/api.test.ts",
         "tests/integration/team-profile-db.test.ts"
@@ -7257,10 +7393,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -7289,7 +7425,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/tag/[slug]",
@@ -7341,10 +7478,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -7378,7 +7515,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/team",
@@ -7443,10 +7581,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -7490,7 +7628,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/terms",
@@ -7542,10 +7681,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -7574,7 +7713,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     },
     {
       "route": "/unsubscribe",
@@ -7625,10 +7765,10 @@
         "src/components/layout/Footer.tsx:125",
         "src/components/layout/Footer.tsx:134",
         "src/components/layout/Footer.tsx:149",
-        "src/components/ui/SignupPrompt.tsx:90",
-        "src/components/ui/SignupPrompt.tsx:104",
-        "src/components/ui/SignupPrompt.tsx:128",
-        "src/components/ui/SignupPrompt.tsx:135",
+        "src/components/ui/SignupPrompt.tsx:93",
+        "src/components/ui/SignupPrompt.tsx:107",
+        "src/components/ui/SignupPrompt.tsx:131",
+        "src/components/ui/SignupPrompt.tsx:138",
         "src/components/ui/CookieConsent.tsx:39",
         "src/components/ui/CookieConsent.tsx:51",
         "src/components/ui/CookieConsent.tsx:56",
@@ -7657,7 +7797,8 @@
           "source": "navLinks.map((link, i) => ( <motion.div key={link.href} initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }} > <Link href={link.href} onClick={() => setMobileOpen(false)} className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${ isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold' }`} > {link.label} </Link> </motion.div> ))"
         }
       ],
-      "nativeDialogs": []
+      "nativeDialogs": [],
+      "imperativeControls": []
     }
   ],
   "controls": [
@@ -8569,6 +8710,7 @@
       "candidateTests": [
         "tests/e2e/wf-admin-content.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
+        "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
         "tests/integration/api-audit.test.ts",
         "tests/integration/team-profile-db.test.ts",
@@ -9727,10 +9869,12 @@
         "onChange": "{(e) => setAuthorId(e.target.value)}"
       },
       "candidateTests": [
+        "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-discovery.spec.ts",
         "tests/integration/api.test.ts",
         "tests/integration/route-handlers.test.ts",
+        "tests/unit/author-utils.test.ts",
         "tests/unit/featured-article-hero.test.tsx",
         "tests/unit/portal-request-order.test.tsx",
         "tests/unit/section-empty-states.test.ts"
@@ -10206,7 +10350,9 @@
       "expectedFromSource": {
         "onClick": "{() => unstable_retry()}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-public-controls.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -10281,7 +10427,9 @@
       "expectedFromSource": {
         "onClick": "{() => unstable_retry()}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-public-controls.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -10859,6 +11007,7 @@
       "candidateTests": [
         "tests/e2e/editorial.spec.ts",
         "tests/e2e/public.spec.ts",
+        "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
         "tests/unit/hero-articles.test.ts",
         "tests/unit/seo.test.ts",
@@ -11077,8 +11226,10 @@
       },
       "candidateTests": [
         "tests/e2e/footnotes.spec.ts",
+        "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
-        "tests/e2e/wf-upload.spec.ts"
+        "tests/e2e/wf-upload.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -11225,6 +11376,7 @@
         "tests/e2e/public.spec.ts",
         "tests/e2e/team-profile.spec.ts",
         "tests/e2e/wf-admin-profile.spec.ts",
+        "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
         "tests/integration/article-create-route.test.ts",
@@ -12630,6 +12782,7 @@
         "tests/e2e/wf-admin-content.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
         "tests/e2e/wf-lifecycle.spec.ts",
+        "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-publication-safety.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts"
@@ -12792,10 +12945,12 @@
         "onChange": "{actions.setSelectedAuthorId}"
       },
       "candidateTests": [
+        "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-discovery.spec.ts",
         "tests/integration/api.test.ts",
         "tests/integration/route-handlers.test.ts",
+        "tests/unit/author-utils.test.ts",
         "tests/unit/featured-article-hero.test.tsx",
         "tests/unit/portal-request-order.test.tsx",
         "tests/unit/section-empty-states.test.ts"
@@ -14903,8 +15058,10 @@
       },
       "candidateTests": [
         "tests/e2e/footnotes.spec.ts",
+        "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
-        "tests/e2e/wf-upload.spec.ts"
+        "tests/e2e/wf-upload.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -15502,8 +15659,10 @@
       },
       "candidateTests": [
         "tests/e2e/footnotes.spec.ts",
+        "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
-        "tests/e2e/wf-upload.spec.ts"
+        "tests/e2e/wf-upload.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -15865,16 +16024,16 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/NotificationBell.tsx:71",
+      "id": "src/components/editorial/NotificationBell.tsx:78",
       "file": "src/components/editorial/NotificationBell.tsx",
-      "line": 71,
+      "line": 78,
       "tag": "button",
       "label": "{unread > 0 ? `${unread} unread notifications` : 'Notifications'}",
       "href": null,
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": {
-        "onClick": "{() => { setOpen((o) => !o) if (!open && unread > 0) void markAllRead() }}"
+        "onClick": "{() => setOpen((o) => !o)}"
       },
       "candidateTests": [],
       "groupTestFiles": [],
@@ -15882,9 +16041,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/NotificationBell.tsx:99",
+      "id": "src/components/editorial/NotificationBell.tsx:105",
       "file": "src/components/editorial/NotificationBell.tsx",
-      "line": 99,
+      "line": 105,
       "tag": "button",
       "label": "Mark all read",
       "href": null,
@@ -15894,23 +16053,24 @@
         "onClick": "{()=>void markAllRead()}"
       },
       "candidateTests": [
-        "tests/e2e/wf-remaining.spec.ts"
+        "tests/e2e/wf-remaining.spec.ts",
+        "tests/unit/notification-navigation.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/NotificationBell.tsx:128",
+      "id": "src/components/editorial/NotificationBell.tsx:134",
       "file": "src/components/editorial/NotificationBell.tsx",
-      "line": 128,
+      "line": 134,
       "tag": "Link",
       "label": "{n.title} {n.message} {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}",
-      "href": "{ n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit` }",
+      "href": "{destination(n)}",
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": {
-        "onNavigate": "{(event) => { if (n.read) { setOpen(false); return } event.preventDefault() if (markingRef.current) return markingRef.current = true setMarking(true) setError('') // Keep the error and unread item reachable until the // acknowledgement succeeds; the editor has its own header. void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .then(() => { setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item)) setOpen(false) router.push(n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit`) }) .catch(reason => setError(asApiError(reason).message)) .finally(() => { markingRef.current = false; setMarking(false) }) }}"
+        "onNavigate": "{(event) => { if (n.read) { setOpen(false); return } event.preventDefault() if (markingRef.current) return markingRef.current = true setMarking(true) setError('') // Opening a notification always takes the person to its article. The // acknowledgement is awaited first (not fired and forgotten) so that, if it // fails, the message is queued before the route changes and is shown once on // the destination. The notification stays unread on the server, so it is still // unread the next time notifications are loaded. void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .then(() => setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item))) .catch(reason => queueRouteFeedback(`“${n.title}” could not be marked as read and is still unread. ${asApiError(reason).message}`, userId, destination(n))) .finally(() => { markingRef.current = false setMarking(false) setOpen(false) router.push(destination(n)) }) }}"
       },
       "candidateTests": [],
       "groupTestFiles": [],
@@ -16806,6 +16966,26 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
+      "id": "src/components/editorial/RouteFeedback.tsx:34",
+      "file": "src/components/editorial/RouteFeedback.tsx",
+      "line": 34,
+      "tag": "button",
+      "label": "Dismiss message",
+      "href": null,
+      "type": "button",
+      "disabledWhen": null,
+      "expectedFromSource": {
+        "onClick": "{() => setShown(null)}"
+      },
+      "candidateTests": [
+        "tests/e2e/wf-remaining.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
+      ],
+      "groupTestFiles": [],
+      "evidence": "CODE_INSPECTION",
+      "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
+    },
+    {
       "id": "src/components/editorial/SeriesCompleteBadges.tsx:47",
       "file": "src/components/editorial/SeriesCompleteBadges.tsx",
       "line": 47,
@@ -17211,6 +17391,7 @@
       "candidateTests": [
         "tests/e2e/wf-admin-content.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
+        "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
         "tests/integration/api-audit.test.ts",
         "tests/integration/team-profile-db.test.ts",
@@ -17422,6 +17603,8 @@
         "tests/unit/portal-request-order.test.tsx",
         "tests/unit/profile-feedback.test.tsx",
         "tests/unit/rbac.test.ts",
+        "tests/unit/route-feedback.test.tsx",
+        "tests/unit/signup-prompt-navigation.test.tsx",
         "tests/unit/team-hierarchy.test.ts",
         "tests/unit/team-profile-accounts.test.ts",
         "tests/unit/trash-feedback.test.tsx"
@@ -18771,9 +18954,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:683",
+      "id": "src/components/profile/ProfileTabs.tsx:689",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 683,
+      "line": 689,
       "tag": "input",
       "label": "(unnamed control)",
       "href": null,
@@ -18788,9 +18971,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:690",
+      "id": "src/components/profile/ProfileTabs.tsx:696",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 690,
+      "line": 696,
       "tag": "button",
       "label": "{uploading ? 'Uploading…' : image ? 'Change Photo' : 'Upload Photo'}",
       "href": null,
@@ -18805,9 +18988,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:699",
+      "id": "src/components/profile/ProfileTabs.tsx:705",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 699,
+      "line": 705,
       "tag": "button",
       "label": "Remove",
       "href": null,
@@ -18828,9 +19011,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:720",
+      "id": "src/components/profile/ProfileTabs.tsx:726",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 720,
+      "line": 726,
       "tag": "input",
       "label": "Your name",
       "href": null,
@@ -18848,9 +19031,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:733",
+      "id": "src/components/profile/ProfileTabs.tsx:739",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 733,
+      "line": 739,
       "tag": "textarea",
       "label": "Tell us a little about yourself...",
       "href": null,
@@ -18867,9 +19050,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:755",
+      "id": "src/components/profile/ProfileTabs.tsx:761",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 755,
+      "line": 761,
       "tag": "input",
       "label": "(unnamed control)",
       "href": null,
@@ -18882,9 +19065,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:767",
+      "id": "src/components/profile/ProfileTabs.tsx:773",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 767,
+      "line": 773,
       "tag": "input",
       "label": "(unnamed control)",
       "href": null,
@@ -18897,9 +19080,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:778",
+      "id": "src/components/profile/ProfileTabs.tsx:784",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 778,
+      "line": 784,
       "tag": "button",
       "label": "{saved ? <><Check size={13} /> Saved</> : saving ? 'Saving...' : <><Pencil size={13} /> Save Changes</>}",
       "href": null,
@@ -18914,9 +19097,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:793",
+      "id": "src/components/profile/ProfileTabs.tsx:804",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 793,
+      "line": 804,
       "tag": "button",
       "label": "{copied ? <><CheckCheck size={13} className=\"text-gold\" /> Copied</> : <><Copy size={13} /> Copy link</>}",
       "href": null,
@@ -18931,9 +19114,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:813",
+      "id": "src/components/profile/ProfileTabs.tsx:825",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 813,
+      "line": 825,
       "tag": "button",
       "label": "Delete Account",
       "href": null,
@@ -18951,9 +19134,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:827",
+      "id": "src/components/profile/ProfileTabs.tsx:839",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 827,
+      "line": 839,
       "tag": "input",
       "label": "{`Type \"${email}\" to confirm`}",
       "href": null,
@@ -18968,9 +19151,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:836",
+      "id": "src/components/profile/ProfileTabs.tsx:848",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 836,
+      "line": 848,
       "tag": "button",
       "label": "{deleting ? 'Deleting...' : 'Permanently Delete'}",
       "href": null,
@@ -18985,9 +19168,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:843",
+      "id": "src/components/profile/ProfileTabs.tsx:855",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 843,
+      "line": 855,
       "tag": "button",
       "label": "Cancel",
       "href": null,
@@ -19012,9 +19195,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:969",
+      "id": "src/components/profile/ProfileTabs.tsx:982",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 969,
+      "line": 982,
       "tag": "button",
       "label": "{tab.icon} {tab.label}",
       "href": null,
@@ -19029,9 +19212,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:1009",
+      "id": "src/components/profile/ProfileTabs.tsx:1023",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 1009,
+      "line": 1023,
       "tag": "Link",
       "label": "More from {stats.favouriteCategory} Your most read category",
       "href": "{`/category/${stats.favouriteCategory.toLowerCase()}`}",
@@ -19117,7 +19300,9 @@
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": "Navigate to {`/author/${member.authorSlug}`}",
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-public-controls.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -19640,7 +19825,9 @@
       "disabledWhen": null,
       "expectedFromSource": "Input/container; inspect enclosing handler",
       "candidateTests": [
-        "tests/e2e/wf-public-controls.spec.ts"
+        "tests/e2e/wf-public-controls.spec.ts",
+        "tests/unit/notification-navigation.test.tsx",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -19723,7 +19910,9 @@
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": "Navigate to /signup",
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-public-controls.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -19738,7 +19927,9 @@
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": "Input/container; inspect enclosing handler",
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-public-controls.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -19773,7 +19964,8 @@
         "onClick": "{decline}"
       },
       "candidateTests": [
-        "tests/e2e/team-profile.spec.ts"
+        "tests/e2e/team-profile.spec.ts",
+        "tests/e2e/wf-public-controls.spec.ts"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -19791,7 +19983,9 @@
       "expectedFromSource": {
         "onClick": "{accept}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-public-controls.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -20015,7 +20209,9 @@
       "expectedFromSource": {
         "onClick": "{dismiss}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-public-controls.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -20202,7 +20398,9 @@
       "expectedFromSource": {
         "onClick": "{() => scrollToSaved(restoreBanner.scrollY)}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-public-controls.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -20221,8 +20419,10 @@
       },
       "candidateTests": [
         "tests/e2e/footnotes.spec.ts",
+        "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
-        "tests/e2e/wf-upload.spec.ts"
+        "tests/e2e/wf-upload.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -20242,8 +20442,10 @@
       },
       "candidateTests": [
         "tests/e2e/footnotes.spec.ts",
+        "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
-        "tests/e2e/wf-upload.spec.ts"
+        "tests/e2e/wf-upload.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -20261,7 +20463,9 @@
       "expectedFromSource": {
         "onClick": "{() => setGuestNudge(false)}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-public-controls.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -20278,7 +20482,9 @@
       "expectedFromSource": {
         "onClick": "{() => setGuestNudge(false)}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-public-controls.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -20586,24 +20792,27 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/ui/SignupPrompt.tsx:90",
+      "id": "src/components/ui/SignupPrompt.tsx:93",
       "file": "src/components/ui/SignupPrompt.tsx",
-      "line": 90,
+      "line": 93,
       "tag": "motion.div",
       "label": "Create an account",
       "href": null,
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": "Input/container; inspect enclosing handler",
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-public-controls.spec.ts",
+        "tests/unit/signup-prompt-navigation.test.tsx"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/ui/SignupPrompt.tsx:104",
+      "id": "src/components/ui/SignupPrompt.tsx:107",
       "file": "src/components/ui/SignupPrompt.tsx",
-      "line": 104,
+      "line": 107,
       "tag": "button",
       "label": "Dismiss",
       "href": null,
@@ -20614,17 +20823,19 @@
       },
       "candidateTests": [
         "tests/e2e/footnotes.spec.ts",
+        "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
-        "tests/e2e/wf-upload.spec.ts"
+        "tests/e2e/wf-upload.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/ui/SignupPrompt.tsx:128",
+      "id": "src/components/ui/SignupPrompt.tsx:131",
       "file": "src/components/ui/SignupPrompt.tsx",
-      "line": 128,
+      "line": 131,
       "tag": "Link",
       "label": "Create Account",
       "href": "/signup",
@@ -20633,15 +20844,17 @@
       "expectedFromSource": {
         "onClick": "{dismiss}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-public-controls.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/ui/SignupPrompt.tsx:135",
+      "id": "src/components/ui/SignupPrompt.tsx:138",
       "file": "src/components/ui/SignupPrompt.tsx",
-      "line": 135,
+      "line": 138,
       "tag": "button",
       "label": "Maybe Later",
       "href": null,
@@ -20650,7 +20863,9 @@
       "expectedFromSource": {
         "onClick": "{dismiss}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-public-controls.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -20725,7 +20940,7 @@
     {
       "file": "src/app/articles/[slug]/page.tsx",
       "line": 557,
-      "source": "related.map((rel) => ( <StaggerItem key={rel.id}> <article className=\"relative bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden group card-hover shadow-[var(--shadow-card)] h-full flex flex-col\"> <Link href={`/articles/${rel.slug}`} className=\"absolute inset-0 z-0\" aria-label={rel.title} /> <div className=\"relative h-44 bg-navy/10 overflow-hidden img-zoom flex-shrink-0\"> {rel.coverImage ? ( <Image src={rel.coverImage} alt={rel.title} fill className=\"object-cover\" /> ) : ( <div className=\"absolute inset-0 bg-gradient-to-br from-navy to-navy-light flex items-center justify-center\"> <span className=\"text-gold/15 text-3xl font-bold select-none\" style={{ fontFamily: 'var(--font-serif)' }}>TC</span> </div> )} {rel.category && ( <div className=\"absolute top-3 left-3 z-10\"> <span className=\"category-badge\">{rel.category.name}</span> </div> )} </div> <div className=\"relative z-10 p-5 flex flex-col flex-1\"> <h3 className=\"font-bold text-[var(--fg)] text-base leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2 mb-2 flex-1\" style={{ fontFamily: 'var(--font-serif)' }} > {rel.title} </h3> {rel.excerpt && ( <p className=\"text-[var(--fg-muted)] text-sm leading-relaxed line-clamp-2 mb-3\"> {rel.excerpt} </p> )} <div className=\"flex items-center justify-between text-xs text-[var(--fg-faint)] mt-auto pt-3 border-t border-[var(--border)]\"> <Link href={`/author/${rel.author.slug ?? rel.author.id}`} className=\"relative z-10 font-semibold text-[var(--fg-muted)] hover:text-gold transition-colors\" > {displayAuthorName(rel.author.name)} </Link> {rel.publishedAt && ( <span>{format(new Date(rel.publishedAt), 'd MMM yyyy')}</span> )} </div> </div> </article> </StaggerItem> ))"
+      "source": "related.map((rel) => ( <StaggerItem key={rel.id}> <article className=\"relative bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden group card-hover shadow-[var(--shadow-card)] h-full flex flex-col\"> <Link href={`/articles/${rel.slug}`} className=\"absolute inset-0 z-0\" aria-label={rel.title} /> <div className=\"pointer-events-none relative h-44 bg-navy/10 overflow-hidden img-zoom flex-shrink-0\"> {rel.coverImage ? ( <Image src={rel.coverImage} alt={rel.title} fill className=\"object-cover\" /> ) : ( <div className=\"absolute inset-0 bg-gradient-to-br from-navy to-navy-light flex items-center justify-center\"> <span className=\"text-gold/15 text-3xl font-bold select-none\" style={{ fontFamily: 'var(--font-serif)' }}>TC</span> </div> )} {rel.category && ( <div className=\"absolute top-3 left-3 z-10\"> <span className=\"category-badge\">{rel.category.name}</span> </div> )} </div> <div className=\"pointer-events-none relative z-10 p-5 flex flex-col flex-1\"> <h3 className=\"font-bold text-[var(--fg)] text-base leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2 mb-2 flex-1\" style={{ fontFamily: 'var(--font-serif)' }} > {rel.title} </h3> {rel.excerpt && ( <p className=\"text-[var(--fg-muted)] text-sm leading-relaxed line-clamp-2 mb-3\"> {rel.excerpt} </p> )} <div className=\"flex items-center justify-between text-xs text-[var(--fg-faint)] mt-auto pt-3 border-t border-[var(--border)]\"> <Link href={`/author/${rel.author.slug ?? rel.author.id}`} className=\"pointer-events-auto relative z-10 font-semibold text-[var(--fg-muted)] hover:text-gold transition-colors\" > {displayAuthorName(rel.author.name)} </Link> {rel.publishedAt && ( <span>{format(new Date(rel.publishedAt), 'd MMM yyyy')}</span> )} </div> </div> </article> </StaggerItem> ))"
     },
     {
       "file": "src/app/author/[slug]/page.tsx",
@@ -21279,8 +21494,8 @@
     },
     {
       "file": "src/components/editorial/NotificationBell.tsx",
-      "line": 115,
-      "source": "notifs.map((n) => ( <div key={n.id} className={`px-4 py-3 border-b border-[var(--border)] last:border-0 flex gap-2.5 ${ !n.read ? 'bg-gold/5' : '' }`} > {/* Bug 8: unread dot indicator that disappears once read */} <div className=\"mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full transition-colors duration-200\" style={{ background: n.read ? 'transparent' : 'var(--color-gold, #b8972e)' }} /> <div className=\"flex-1 min-w-0\"> {n.articleId ? ( <Link href={ n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit` } onNavigate={(event) => { if (n.read) { setOpen(false); return } event.preventDefault() if (markingRef.current) return markingRef.current = true setMarking(true) setError('') // Keep the error and unread item reachable until the // acknowledgement succeeds; the editor has its own header. void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .then(() => { setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item)) setOpen(false) router.push(n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit`) }) .catch(reason => setError(asApiError(reason).message)) .finally(() => { markingRef.current = false; setMarking(false) }) }} className=\"block\" > <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </Link> ) : ( <> <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </> )} </div> </div> ))"
+      "line": 121,
+      "source": "notifs.map((n) => ( <div key={n.id} className={`px-4 py-3 border-b border-[var(--border)] last:border-0 flex gap-2.5 ${ !n.read ? 'bg-gold/5' : '' }`} > {/* Bug 8: unread dot indicator that disappears once read */} <div className=\"mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full transition-colors duration-200\" style={{ background: n.read ? 'transparent' : 'var(--color-gold, #b8972e)' }} /> <div className=\"flex-1 min-w-0\"> {n.articleId ? ( <Link href={destination(n)} onNavigate={(event) => { if (n.read) { setOpen(false); return } event.preventDefault() if (markingRef.current) return markingRef.current = true setMarking(true) setError('') // Opening a notification always takes the person to its article. The // acknowledgement is awaited first (not fired and forgotten) so that, if it // fails, the message is queued before the route changes and is shown once on // the destination. The notification stays unread on the server, so it is still // unread the next time notifications are loaded. void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .then(() => setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item))) .catch(reason => queueRouteFeedback(`“${n.title}” could not be marked as read and is still unread. ${asApiError(reason).message}`, userId, destination(n))) .finally(() => { markingRef.current = false setMarking(false) setOpen(false) router.push(destination(n)) }) }} className=\"block\" > <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </Link> ) : ( <> <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </> )} </div> </div> ))"
     },
     {
       "file": "src/components/editorial/ReviewPanel.tsx",
@@ -21419,7 +21634,7 @@
     },
     {
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 968,
+      "line": 981,
       "source": "TABS.map((tab) => ( <button key={tab.id} onClick={() => handleTabChange(tab.id)} className={`flex items-center gap-2 px-4 py-3.5 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap border-b-2 transition-colors duration-150 ${ activeTab === tab.id ? 'border-gold text-gold' : 'border-transparent text-[var(--fg-faint)] hover:text-[var(--fg)]' }`} > {tab.icon} <span className=\"hidden sm:inline\">{tab.label}</span> </button> ))"
     },
     {
@@ -21518,6 +21733,38 @@
       "file": "src/components/editorial/PredictionEventActions.tsx",
       "line": 27,
       "source": "window.confirm(confirmText)"
+    }
+  ],
+  "imperativeControls": [
+    {
+      "file": "src/app/editorial/(portal)/growth/subscribers/page.tsx",
+      "line": 50,
+      "source": "document.createElement('a')",
+      "evidence": "CODE_INSPECTION; see reviewed action families for browser execution"
+    },
+    {
+      "file": "src/components/editorial/DraftRecoveryList.tsx",
+      "line": 30,
+      "source": "document.createElement('a')",
+      "evidence": "CODE_INSPECTION; see reviewed action families for browser execution"
+    },
+    {
+      "file": "src/components/ui/ArticleAnchorLinks.tsx",
+      "line": 52,
+      "source": "document.createElement('a')",
+      "evidence": "CODE_INSPECTION; see reviewed action families for browser execution"
+    },
+    {
+      "file": "src/components/ui/GlossaryTooltips.tsx",
+      "line": 61,
+      "source": "document.createElement('a')",
+      "evidence": "CODE_INSPECTION; see reviewed action families for browser execution"
+    },
+    {
+      "file": "src/components/ui/GlossaryTooltips.tsx",
+      "line": 130,
+      "source": "el.setAttribute('role', 'button')",
+      "evidence": "CODE_INSPECTION; see reviewed action families for browser execution"
     }
   ]
 }

@@ -1,14 +1,16 @@
 import { test, expect, type Page, type Locator } from '@playwright/test'
-import { ArticleEditorPage, closeDb, createAccount, db, removeMyAccounts, removeMyArticles, signedIn, uniqueTitle } from './helpers/workflow'
+import { ArticleEditorPage, closeDb, createAccount, db, removeMyAccounts, removeMyArticles, signedIn, signInAs, uniqueTitle } from './helpers/workflow'
 import { collectConsoleErrors } from './helpers/console'
 import { CONTACT_EMAIL, INSTAGRAM_URL, LINKEDIN_URL, FEEDBACK_FORM_URL } from '../../src/lib/constants'
 
 const ownedSeries: string[] = []
 const ownedTags: string[] = []
+const ownedTerms: string[] = []
 test.afterAll(async () => {
   await removeMyArticles(); await removeMyAccounts()
   await db().series.deleteMany({ where: { id: { in: ownedSeries } } })
   await db().tag.deleteMany({ where: { id: { in: ownedTags } } })
+  await db().glossaryTerm.deleteMany({ where: { id: { in: ownedTerms } } })
   await closeDb()
 })
 const nav = [
@@ -20,14 +22,15 @@ async function arrived(page: Page, path: string, heading: string) {
   await expect(page).toHaveURL(new URL(path, page.url()).href)
   await expect(page.locator('main h1')).toHaveText(heading)
 }
-async function popup(page: Page, link: Locator, destination: string) {
+async function popup(page: Page, link: Locator, destination: string, touch = false) {
   const target = new URL(destination).href
   expect(new URL((await link.getAttribute('href'))!).href).toBe(target)
   // Capture only this external transport boundary; the provider receives no request.
   await page.context().route(url => url.href === target, route => route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>Controlled external destination</h1>' }))
   const opened = page.context().waitForEvent('page')
   const response = page.context().waitForEvent('response', { predicate: response => response.url() === target })
-  await link.click()
+  if (touch) await link.tap()
+  else await link.click()
   const child = await opened
   expect((await response).status()).toBe(200)
   await expect(child).toHaveURL(target)
@@ -246,6 +249,8 @@ test('article section links, author/category/tag filters, series edges and relat
   await arrived(page, middle, articles[1].title)
   await page.getByRole('link', { name: new RegExp(`Next.*${articles[2].title}`) }).click()
   await arrived(page, `/articles/${articles[2].slug}`, articles[2].title)
+  await expect(headings.nth(1)).toHaveAttribute('id', 'repeated-section-2')
+  await expect(headings.nth(1).getByRole('link')).toHaveAttribute('href', '#repeated-section-2')
   await expect(page.getByText('Part 3 of 3', { exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: /^Next →/ })).toHaveCount(0)
   await page.getByRole('link', { name: new RegExp(`Previous.*${articles[1].title}`) }).click()
@@ -261,4 +266,367 @@ test('article section links, author/category/tag filters, series edges and relat
   await arrived(page, '/', 'The Consilium')
   expect(errors, errors.join('\n')).toEqual([])
   await ctx.close()
+})
+
+test('cookie privacy/decline/accept and the third-visit signup prompt exercise every available action', async ({ browser }) => {
+  test.setTimeout(120_000) // Fresh consent states and three prompt choices, including the specified 3.5s appearance delay.
+  for (const action of ['Dismiss', 'Maybe Later', 'Create Account']) {
+    const ctx = await browser.newContext({ reducedMotion: 'reduce' })
+    const page = await ctx.newPage()
+    await page.goto('/', { waitUntil: 'networkidle' })
+    const consent = page.getByRole('dialog', { name: 'Cookie consent', exact: true })
+    if (action === 'Dismiss') {
+      await consent.getByRole('link', { name: 'Privacy Policy', exact: true }).click()
+      await arrived(page, '/privacy', 'Privacy Policy')
+      await consent.getByRole('button', { name: 'Decline', exact: true }).click()
+      await expect(consent).toBeHidden()
+      await page.reload({ waitUntil: 'networkidle' })
+      await expect(consent).toHaveCount(0)
+      expect(await page.evaluate(() => localStorage.getItem('consilium_cookie_consent'))).toBe('declined')
+      expect((await ctx.cookies()).some(c => c.name === 'consilium_visits')).toBe(false)
+      await page.evaluate(() => localStorage.removeItem('consilium_cookie_consent'))
+      await page.goto('/', { waitUntil: 'networkidle' })
+    }
+    await consent.getByRole('button', { name: 'Accept', exact: true }).click()
+    await expect(consent).toBeHidden()
+    await page.reload({ waitUntil: 'networkidle' }) // First consented page view.
+    await expect(consent).toHaveCount(0)
+    expect(await page.evaluate(() => localStorage.getItem('consilium_cookie_consent'))).toBe('accepted')
+    const mainNav = page.getByRole('navigation', { name: 'Main navigation', exact: true })
+    await mainNav.getByRole('link', { name: 'News', exact: true }).click()
+    await arrived(page, '/category/news', 'News')
+    await mainNav.getByRole('link', { name: 'About', exact: true }).click()
+    await arrived(page, '/about', 'About')
+    expect((await ctx.cookies()).find(c => c.name === 'consilium_visits')?.value).toBe('3')
+    const prompt = page.getByRole('dialog', { name: 'Create an account', exact: true })
+    await expect(prompt).toBeVisible()
+    await prompt.getByRole(action === 'Create Account' ? 'link' : 'button', { name: action, exact: true }).click()
+    await expect(prompt).toBeHidden()
+    expect((await ctx.cookies()).find(c => c.name === 'consilium_prompt_dismissed')?.value).toMatch(/^\d+$/)
+    if (action === 'Create Account') {
+      await expect(page).toHaveURL(new URL('/signup', page.url()).href)
+      await expect(page.locator('input[type=email]')).toBeVisible()
+    } else {
+      await page.reload({ waitUntil: 'networkidle' })
+      await expect(prompt).toHaveCount(0)
+    }
+    await ctx.close()
+  }
+})
+
+test('iOS and Android install guidance dismisses and stays dismissed after reopening', async ({ browser }) => {
+  for (const [userAgent, instruction] of [
+    ['Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1', 'Share'],
+    ['Mozilla/5.0 (Linux; Android 15; Pixel 7) AppleWebKit/537.36 Chrome/130.0.0.0 Mobile Safari/537.36', 'browser menu'],
+  ]) {
+    const ctx = await browser.newContext({ userAgent, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' })
+    const page = await ctx.newPage()
+    await page.goto('/', { waitUntil: 'networkidle' })
+    await new ArticleEditorPage(page).dismissCookieBanner()
+    const guidance = page.getByRole('banner').filter({ hasText: 'Install The Consilium' })
+    await expect(guidance).toBeVisible()
+    await expect(guidance).toContainText(instruction)
+    await guidance.getByRole('button', { name: 'Dismiss install banner', exact: true }).click()
+    await expect(guidance).toHaveCount(0)
+    expect(await page.evaluate(() => localStorage.getItem('consilium_install_dismissed'))).toBe('1')
+    await page.reload({ waitUntil: 'networkidle' })
+    await expect(guidance).toHaveCount(0)
+    await ctx.close()
+  }
+})
+
+test('public team cards trap and restore focus, close by button/backdrop/Escape, and activate author/email links', async ({ browser }) => {
+  test.setTimeout(60_000)
+  const owner = await createAccount('WRITER', 'team-dialog')
+  const account = await db().user.findUniqueOrThrow({ where: { id: owner.id } })
+  await db().teamMember.create({ data: { userId: owner.id, name: owner.name, email: owner.email, role: 'Writer', bio: 'A complete controlled team biography.', isActive: true } })
+  const ctx = await browser.newContext({ reducedMotion: 'reduce' })
+  const page = await ctx.newPage()
+  await page.goto('/team', { waitUntil: 'networkidle' })
+  await new ArticleEditorPage(page).dismissCookieBanner()
+  const card = page.getByRole('button', { name: `View full profile for ${owner.name}`, exact: true })
+  const dialog = page.getByRole('dialog', { name: owner.name, exact: true })
+  for (const action of ['Escape', 'button', 'backdrop']) {
+    await card.click()
+    await expect(dialog).toBeVisible()
+    await expect(dialog).toContainText('A complete controlled team biography.')
+    expect(await page.locator('body').evaluate(el => el.style.overflow)).toBe('hidden')
+    if (action === 'Escape') {
+      await page.keyboard.press('Tab')
+      await expect(dialog.getByRole('button', { name: `Close profile for ${owner.name}` })).toBeFocused()
+      await page.keyboard.press('Shift+Tab')
+      await expect(dialog.getByRole('link', { name: owner.email, exact: true })).toBeFocused()
+      await page.keyboard.press('Tab')
+      await expect(dialog.getByRole('button', { name: `Close profile for ${owner.name}` })).toBeFocused()
+      await page.keyboard.press('Escape')
+    } else if (action === 'button') await dialog.getByRole('button', { name: `Close profile for ${owner.name}` }).click()
+    else await page.mouse.click(10, 10)
+    await expect(dialog).toBeHidden()
+    await expect(card).toBeFocused()
+    expect(await page.locator('body').evaluate(el => el.style.overflow)).toBe('')
+  }
+  await card.click()
+  await page.evaluate(() => document.addEventListener('click', event => {
+    const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="mailto:"]')
+    if (link) { event.preventDefault(); document.documentElement.dataset.mailto = link.href }
+  }, true))
+  await dialog.getByRole('link', { name: owner.email, exact: true }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-mailto', `mailto:${owner.email}`)
+  await dialog.getByRole('link', { name: 'Read their articles →', exact: true }).click()
+  await arrived(page, `/author/${account.slug}`, owner.name)
+  await ctx.close()
+})
+
+test('reading-position jump/dismiss and home continuation reopen server-saved progress through actual controls', async ({ browser }) => {
+  test.setTimeout(60_000)
+  const owner = await createAccount('READER', 'reading-controls')
+  const writer = await createAccount('WRITER', 'reading-author')
+  const title = uniqueTitle('Reading controls')
+  const article = await db().article.create({ data: { title, slug: title.toLowerCase().replaceAll(' ', '-'), authorId: writer.id, status: 'PUBLISHED', publishedAt: new Date(), content: '<p>A long representative article paragraph for restoring a real reading position.</p>'.repeat(80) } })
+  await db().readingProgress.create({ data: { userId: owner.id, articleId: article.id, progress: 40, scrollY: 600 } })
+  const reader = await signInAs(browser, owner)
+  const page = await reader.newPage()
+  await page.goto(`/articles/${article.slug}`, { waitUntil: 'networkidle' })
+  await new ArticleEditorPage(page).dismissCookieBanner()
+  const banner = page.getByText('Continue where you left off', { exact: true }).locator('..').locator('..')
+  await expect(banner).toBeVisible()
+  const saved = page.waitForResponse(r => new URL(r.url()).pathname === '/api/reading-progress' && r.request().method() === 'POST' && r.request().postDataJSON()?.scrollY === 600)
+  await banner.getByRole('button', { name: 'Jump back', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600)
+  expect((await saved).status()).toBe(200)
+  await expect(banner).toBeHidden()
+  expect((await db().readingProgress.findUniqueOrThrow({ where: { userId_articleId: { userId: owner.id, articleId: article.id } } })).scrollY).toBe(600)
+  const fresh = await reader.newPage()
+  await fresh.goto(`/articles/${article.slug}`, { waitUntil: 'networkidle' })
+  const freshBanner = fresh.getByText('Continue where you left off', { exact: true }).locator('..').locator('..')
+  await freshBanner.getByRole('button', { name: 'Dismiss', exact: true }).click()
+  await expect(freshBanner).toBeHidden()
+  await fresh.getByRole('link', { name: '← Back to Homepage', exact: true }).click()
+  await expect(fresh.getByText('Continue Reading', { exact: true }).first()).toBeVisible()
+  // The continuation row is distinct from the homepage's article cards.
+  const row = fresh.locator('a').filter({ has: fresh.locator('p', { hasText: title }) }).filter({ hasText: '%' })
+  await row.click()
+  await arrived(fresh, `/articles/${article.slug}`, title)
+  await reader.close()
+})
+
+test('guest reading-position nudge close/later/signup and homepage invitation activate', async ({ browser }) => {
+  test.setTimeout(90_000)
+  const writer = await createAccount('WRITER', 'guest-reading-author')
+  const title = uniqueTitle('Guest reading controls')
+  const article = await db().article.create({ data: { title, slug: title.toLowerCase().replaceAll(' ', '-'), authorId: writer.id, status: 'PUBLISHED', publishedAt: new Date(), content: '<p>A long guest article paragraph for restoring a reading position.</p>'.repeat(80) } })
+  for (const action of ['Dismiss', 'Maybe Later', 'Create Account', 'home']) {
+    const ctx = await browser.newContext({ reducedMotion: 'reduce' })
+    const page = await ctx.newPage()
+    await page.goto('/', { waitUntil: 'networkidle' })
+    await new ArticleEditorPage(page).dismissCookieBanner()
+    await page.evaluate(({ id }) => localStorage.setItem(`consilium_rp_${id}`, JSON.stringify({ progress: 40, scrollY: 600 })), { id: article.id })
+    if (action === 'home') {
+      await page.reload({ waitUntil: 'networkidle' })
+      await expect(page.getByText('You have 1 article in progress', { exact: true })).toBeVisible()
+      await page.getByRole('link', { name: 'Create a free account', exact: true }).click()
+    } else {
+      await page.goto(`/articles/${article.slug}`, { waitUntil: 'networkidle' })
+      const nudge = page.getByText('Reading progress saved', { exact: true }).locator('..')
+      await expect(nudge).toBeVisible()
+      await nudge.getByRole(action === 'Create Account' ? 'link' : 'button', { name: action, exact: true }).click()
+      await expect(nudge).toBeHidden()
+    }
+    if (action === 'home' || action === 'Create Account') {
+      await expect(page).toHaveURL(new URL('/signup', page.url()).href)
+      await expect(page.locator('input[type=email]')).toBeVisible()
+    } else {
+      expect(await page.evaluate(() => sessionStorage.getItem('consilium_nudge_seen'))).toBe('1')
+      await page.reload({ waitUntil: 'networkidle' })
+      await expect(page.getByText('Reading progress saved', { exact: true })).toHaveCount(0)
+    }
+    await ctx.close()
+  }
+})
+
+test('persistent reading-position sync failure is visible and a successful retry saves the real scroll position', async ({ browser }) => {
+  test.setTimeout(60_000) // Actual scrolls trigger two four-second application debounces, not test sleeps.
+  const reader = await createAccount('READER', 'reading-retry')
+  const writer = await createAccount('WRITER', 'reading-retry-author')
+  const title = uniqueTitle('Reading retry')
+  const article = await db().article.create({ data: { title, slug: title.toLowerCase().replaceAll(' ', '-'), authorId: writer.id, status: 'PUBLISHED', publishedAt: new Date(), content: '<p>A representative reading retry paragraph long enough to provide real scrolling.</p>'.repeat(80) } })
+  const ctx = await signInAs(browser, reader)
+  const page = await ctx.newPage()
+  await page.route('**/api/reading-progress**', r => r.fulfill({ status: 503, json: { error: 'Reading sync unavailable' } }))
+  const failedLoad = page.waitForResponse(r => new URL(r.url()).pathname === `/api/reading-progress/${article.id}`)
+  await page.goto(`/articles/${article.slug}`, { waitUntil: 'networkidle' })
+  expect((await failedLoad).status()).toBe(503)
+  await new ArticleEditorPage(page).dismissCookieBanner()
+  const notice = page.getByRole('status').filter({ hasText: 'Your reading position isn’t saving right now.' })
+  for (let i = 0; i < 2; i++) {
+    const failure = page.waitForResponse(r => new URL(r.url()).pathname === '/api/reading-progress' && r.request().method() === 'POST')
+    await page.mouse.wheel(0, 300)
+    expect((await failure).status()).toBe(503)
+  }
+  await expect(notice).toBeVisible()
+  await page.unroute('**/api/reading-progress**')
+  const saved = page.waitForResponse(r => new URL(r.url()).pathname === '/api/reading-progress' && r.request().method() === 'POST')
+  await page.mouse.wheel(0, 300)
+  const response = await saved
+  expect(response.status()).toBe(200)
+  const sent = response.request().postDataJSON()
+  expect(sent.scrollY).toBeGreaterThan(0)
+  const persisted = await db().readingProgress.findUniqueOrThrow({ where: { userId_articleId: { userId: reader.id, articleId: article.id } } })
+  expect(persisted.scrollY).toBe(sent.scrollY)
+  expect(persisted.progress).toBe(sent.progress)
+  await expect(notice).toHaveCount(0)
+  const fresh = await ctx.newPage()
+  await fresh.goto(`/articles/${article.slug}`, { waitUntil: 'networkidle' })
+  await expect(fresh.getByText('Continue where you left off', { exact: true })).toBeVisible()
+  await ctx.close()
+})
+
+test('public glossary hover, keyboard, touch, learn-more and client article transitions bind to the current content', async ({ browser }) => {
+  test.setTimeout(90_000)
+  const admin = await signedIn(browser, 'admin')
+  const oldEnabled = (await db().siteSetting.findUnique({ where: { key: 'glossary_linking_enabled' } }))?.value === 'true'
+  const term = uniqueTitle('tooltip')
+  const definition = 'A controlled definition for the public glossary interaction.'
+  const destination = 'https://example.org/controlled-glossary'
+  const created = await admin.request.post('/api/editorial/glossary', { data: { term, definition, aliases: [], learnMoreUrl: destination } })
+  expect(created.status()).toBe(200)
+  ownedTerms.push((await created.json()).id)
+  if (!oldEnabled) expect((await admin.request.patch('/api/editorial/glossary/settings', { data: { enabled: true } })).status()).toBe(200)
+  try {
+    const writer = await createAccount('WRITER', 'glossary-controls')
+    const prefix = uniqueTitle('Public glossary')
+    const articles = []
+    for (let i = 0; i < 2; i++) articles.push(await db().article.create({ data: { title: `${prefix} ${i}`, slug: `${prefix}-${i}`.toLowerCase().replaceAll(' ', '-'), authorId: writer.id, content: `<p>This paragraph explains ${term} for the reader.</p>`, status: 'PUBLISHED', publishedAt: new Date() } }))
+    const ctx = await browser.newContext({ reducedMotion: 'reduce' })
+    const page = await ctx.newPage()
+    await page.goto(`/articles/${articles[0].slug}`, { waitUntil: 'networkidle' })
+    await new ArticleEditorPage(page).dismissCookieBanner()
+    const trigger = page.getByRole('button', { name: term, exact: true })
+    const tip = page.getByRole('tooltip').filter({ hasText: definition })
+    await trigger.hover()
+    await expect(tip).toBeVisible()
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    await expect(trigger).toHaveAttribute('aria-describedby', 'glossary-tooltip')
+    await popup(page, tip.getByRole('link', { name: 'Learn more', exact: true }), destination)
+    await trigger.press('Escape')
+    await expect(tip).toBeHidden()
+    await trigger.press('Enter')
+    await expect(tip).toBeVisible()
+    await trigger.press('Space')
+    await expect(tip).toBeHidden()
+    await trigger.press('Enter')
+    await page.locator('main h1').click()
+    await expect(tip).toBeHidden()
+    await page.getByRole('link', { name: articles[1].title, exact: true }).click()
+    await arrived(page, `/articles/${articles[1].slug}`, articles[1].title)
+    await trigger.hover()
+    await expect(tip).toBeVisible()
+    await ctx.close()
+    const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' })
+    const phone = await mobile.newPage()
+    await phone.goto(`/articles/${articles[0].slug}`, { waitUntil: 'networkidle' })
+    await new ArticleEditorPage(phone).dismissCookieBanner()
+    const tapped = phone.getByRole('button', { name: term, exact: true })
+    const mobileTip = phone.getByRole('tooltip').filter({ hasText: definition })
+    await tapped.tap()
+    await expect(mobileTip).toBeVisible()
+    const box = (await mobileTip.boundingBox())!
+    expect(box.x).toBeGreaterThanOrEqual(8)
+    expect(box.x + box.width).toBeLessThanOrEqual(382)
+    await tapped.tap()
+    await expect(mobileTip).toBeHidden()
+    await tapped.tap()
+    await phone.locator('main h1').tap()
+    await expect(mobileTip).toBeHidden()
+    await tapped.tap()
+    await popup(phone, mobileTip.getByRole('link', { name: 'Learn more', exact: true }), destination, true)
+    await mobile.close()
+  } finally {
+    if (!oldEnabled) expect((await admin.request.patch('/api/editorial/glossary/settings', { data: { enabled: false } })).status()).toBe(200)
+    await admin.close()
+  }
+})
+
+test('a root chrome exception exposes the real global boundary and its retry/home controls restore the application', async ({ browser }, testInfo) => {
+  test.setTimeout(60_000)
+  for (const action of ['Try again', '← Back to Homepage']) {
+    const ctx = await browser.newContext({ reducedMotion: 'reduce' })
+    // Fault injection is limited to this context and one client read, never the server/database.
+    await ctx.addInitScript(() => {
+      const get = Storage.prototype.getItem
+      Storage.prototype.getItem = function(key) {
+        if (key === 'consilium_cookie_consent' && sessionStorage.getItem('consilium-e2e-root-fault-fired') !== '1') {
+          sessionStorage.setItem('consilium-e2e-root-fault-fired', '1')
+          throw new Error('Controlled root chrome access failure')
+        }
+        return get.call(this, key)
+      }
+    })
+    const page = await ctx.newPage()
+    const errors = collectConsoleErrors(page)
+    expect((await page.goto('/', { waitUntil: 'networkidle' }))?.status()).toBe(200)
+    await expect(page.getByRole('button', { name: 'Try again', exact: true })).toBeVisible()
+    await expect(page.locator('header')).toHaveCount(0)
+    expect(errors.length).toBeGreaterThan(0)
+    // Assert every diagnostic belongs to the injected exception; retain them as evidence.
+    for (const error of errors) expect(error).toContain('Controlled root chrome access failure')
+    const count = errors.length
+    await testInfo.attach(`root-error-${action === 'Try again' ? 'retry' : 'home'}`, { body: JSON.stringify(errors), contentType: 'application/json' })
+    const recovered = page.waitForResponse(response => new URL(response.url()).pathname === '/' && response.request().method() === 'GET')
+    await page.getByRole(action === 'Try again' ? 'button' : 'link', { name: action, exact: true }).click()
+    expect((await recovered).status()).toBe(200)
+    await arrived(page, '/', 'The Consilium')
+    await new ArticleEditorPage(page).dismissCookieBanner()
+    await page.waitForLoadState('networkidle')
+    expect(errors).toHaveLength(count)
+    await page.getByRole('navigation', { name: 'Main navigation', exact: true }).getByRole('link', { name: 'News', exact: true }).click()
+    await arrived(page, '/category/news', 'News')
+    await ctx.close()
+  }
+})
+
+test('a disposable database outage exposes the page boundary; retry/home recover without losing trashed content', async ({ browser }, testInfo) => {
+  test.setTimeout(90_000)
+  // This deliberately interrupts one owned service. Full and critical workflow phases
+  // run with one worker; refuse this scenario before touching fixtures in a parallel run.
+  expect(testInfo.config.workers, 'service outage coverage requires --workers=1').toBe(1)
+  const owner = await createAccount('WRITER', 'trash-outage')
+  const title = uniqueTitle('Trash service recovery')
+  const article = await db().article.create({ data: { title, slug: title.toLowerCase().replaceAll(' ', '-'), authorId: owner.id, content: 'Content retained through a real disposable database outage.', status: 'DRAFT', deletedAt: new Date() } })
+  const ctx = await signInAs(browser, owner)
+  try {
+    for (const action of ['Try again', '← Back to Homepage']) {
+      const page = await ctx.newPage()
+      const errors = collectConsoleErrors(page)
+      // db() verifies the run-owned database. No credentials or production schema is used.
+      await db().$executeRaw`ALTER TABLE "articles" RENAME TO "consilium_e2e_outage_articles"`
+      let failureStatus: number | undefined
+      try {
+        failureStatus = (await page.goto('/editorial/trash', { waitUntil: 'networkidle' }))?.status()
+        await expect(page.getByRole('heading', { name: 'Unexpected Error', exact: true })).toBeVisible()
+        await expect(page.getByText('Trash is empty.', { exact: true })).toHaveCount(0)
+      } finally {
+        // Restore even if navigation/assertions fail, before another scenario can run.
+        await db().$executeRaw`ALTER TABLE "consilium_e2e_outage_articles" RENAME TO "articles"`
+      }
+      await testInfo.attach(`database-outage-${action === 'Try again' ? 'retry' : 'home'}`, { body: JSON.stringify({ failureStatus, errors }), contentType: 'application/json' })
+      const beforeRecovery = errors.length
+      const destination = action === 'Try again' ? '/editorial/trash' : '/'
+      const recovered = page.waitForResponse(r => new URL(r.url()).pathname === destination && r.request().method() === 'GET')
+      await page.getByRole(action === 'Try again' ? 'button' : 'link', { name: action, exact: true }).click()
+      expect((await recovered).status()).toBe(200)
+      if (action === 'Try again') {
+        await expect(page.getByRole('heading', { name: 'Trash', exact: true })).toBeVisible()
+        await expect(page.getByText(title, { exact: true })).toBeVisible()
+      } else await arrived(page, '/', 'The Consilium')
+      await page.waitForLoadState('networkidle')
+      expect(errors).toHaveLength(beforeRecovery)
+      const persisted = await db().article.findUniqueOrThrow({ where: { id: article.id } })
+      expect(persisted.content).toBe(article.content)
+      expect(persisted.status).toBe('DRAFT')
+      expect(persisted.deletedAt).not.toBeNull()
+      expect((await ctx.request.get(`/articles/${article.slug}`)).status()).toBe(404)
+      await page.close()
+    }
+  } finally { await ctx.close() }
 })

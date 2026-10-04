@@ -6,8 +6,8 @@
 # crashed in production. `npm ci` fails hard when package.json and the lockfile are
 # out of sync, so this workflow would have caught that exact bug before merge.
 #
-# Runs on every PR and on pushes to main. Pure build/typecheck/test — no secrets,
-# no database. The build step uses throwaway env values purely to satisfy
+# Runs on every PR and on pushes to main. Quality checks use no secrets or live
+# database; browser jobs own isolated disposable databases. The build uses throwaway env values to satisfy
 # module-load guards (e.g. NEXTAUTH_SECRET) and inlined NEXT_PUBLIC_* vars; all
 # public pages are dynamic / force-dynamic, so the build never connects to a DB.
 
