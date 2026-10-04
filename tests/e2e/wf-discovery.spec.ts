@@ -59,7 +59,7 @@ test('Your Readers author selection, every sort and detail failure/retry display
   await page.goto('/editorial/readers', { waitUntil: 'networkidle' })
   await new ArticleEditorPage(page).dismissCookieBanner()
   const listed = page.waitForResponse(r => new URL(r.url()).pathname === '/api/editorial/read-through' && new URL(r.url()).searchParams.get('authorId') === author.id)
-  await page.getByLabel('Author', { exact: true }).selectOption(author.id)
+  await page.getByRole('combobox', { name: 'Author', exact: true }).selectOption(author.id)
   expect((await listed).status()).toBe(200)
   await expect(page.locator('tbody tr')).toHaveCount(2)
   for (const label of ['Published', 'Signed-in readers', 'Finished', 'Median furthest point']) {
@@ -87,7 +87,7 @@ test('Your Readers author selection, every sort and detail failure/retry display
   await expect(detailCard.getByText('Not enough data yet', { exact: true })).toHaveCount(0)
   await page.reload({ waitUntil: 'networkidle' })
   const refreshedList = page.waitForResponse(r => new URL(r.url()).pathname === '/api/editorial/read-through' && new URL(r.url()).searchParams.get('authorId') === author.id)
-  await page.getByLabel('Author', { exact: true }).selectOption(author.id)
+  await page.getByRole('combobox', { name: 'Author', exact: true }).selectOption(author.id)
   expect((await refreshedList).status()).toBe(200)
   await expect(page.locator('tbody tr')).toHaveCount(2)
   for (const label of ['Published', 'Signed-in readers', 'Finished', 'Median furthest point']) {

@@ -1230,7 +1230,8 @@
         "tests/unit/console-error-collection.test.ts",
         "tests/unit/featured-article-hero.test.tsx",
         "tests/unit/notification-navigation.test.tsx",
-        "tests/unit/public-user.test.ts"
+        "tests/unit/public-user.test.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "guardSource": [
         "src/app/articles/[slug]/page.tsx: ? { id: session.user.id, name: session.user.name, role: session.user.role }"
@@ -1375,7 +1376,9 @@
       ],
       "accessEvidence": "CODE_INSPECTION: see coverage-inventory.md role matrix and route guards; rendered refusals in wf-roles",
       "candidateTestFiles": [
-        "tests/e2e/wf-cache.spec.ts"
+        "tests/e2e/wf-accounts.spec.ts",
+        "tests/e2e/wf-cache.spec.ts",
+        "tests/unit/author-utils.test.ts"
       ],
       "guardSource": [],
       "controls": [
@@ -1847,6 +1850,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -2053,7 +2057,8 @@
         "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
         "tests/integration/review-route.test.ts",
-        "tests/unit/notification-navigation.test.tsx"
+        "tests/unit/notification-navigation.test.tsx",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/articles/[id]/edit/page.tsx: import { requirePortalRole } from '@/lib/portalAccess'",
@@ -2174,6 +2179,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -2436,6 +2442,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -2588,7 +2595,8 @@
         "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
         "tests/integration/review-route.test.ts",
-        "tests/unit/notification-navigation.test.tsx"
+        "tests/unit/notification-navigation.test.tsx",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/articles/page.tsx: import { requirePortalRole } from '@/lib/portalAccess'",
@@ -2615,6 +2623,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -2741,6 +2750,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -2883,6 +2893,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -3011,6 +3022,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -3115,6 +3127,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -3291,6 +3304,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -3443,6 +3457,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -3562,6 +3577,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -3675,6 +3691,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -3794,6 +3811,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -3895,6 +3913,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -4000,6 +4019,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -4138,6 +4158,7 @@
         "tests/unit/notification-navigation.test.tsx",
         "tests/unit/portal-layout-ban.test.tsx",
         "tests/unit/portal-request-order.test.tsx",
+        "tests/unit/route-feedback.test.tsx",
         "tests/unit/safe-redirect.test.ts"
       ],
       "guardSource": [
@@ -4163,9 +4184,9 @@
         "src/app/editorial/(portal)/page.tsx:526",
         "src/app/editorial/(portal)/page.tsx:558",
         "src/app/editorial/(portal)/page.tsx:602",
-        "src/components/editorial/NotificationBell.tsx:71",
-        "src/components/editorial/NotificationBell.tsx:99",
-        "src/components/editorial/NotificationBell.tsx:128",
+        "src/components/editorial/NotificationBell.tsx:78",
+        "src/components/editorial/NotificationBell.tsx:105",
+        "src/components/editorial/NotificationBell.tsx:134",
         "src/components/editorial/DraftsSection.tsx:49",
         "src/components/editorial/DraftsSection.tsx:61",
         "src/components/editorial/DraftsSection.tsx:85",
@@ -4181,6 +4202,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -4243,8 +4265,8 @@
         },
         {
           "file": "src/components/editorial/NotificationBell.tsx",
-          "line": 115,
-          "source": "notifs.map((n) => ( <div key={n.id} className={`px-4 py-3 border-b border-[var(--border)] last:border-0 flex gap-2.5 ${ !n.read ? 'bg-gold/5' : '' }`} > {/* Bug 8: unread dot indicator that disappears once read */} <div className=\"mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full transition-colors duration-200\" style={{ background: n.read ? 'transparent' : 'var(--color-gold, #b8972e)' }} /> <div className=\"flex-1 min-w-0\"> {n.articleId ? ( <Link href={ n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit` } onNavigate={(event) => { if (n.read) { setOpen(false); return } event.preventDefault() if (markingRef.current) return markingRef.current = true setMarking(true) setError('') // Keep the error and unread item reachable until the // acknowledgement succeeds; the editor has its own header. void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .then(() => { setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item)) setOpen(false) router.push(n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit`) }) .catch(reason => setError(asApiError(reason).message)) .finally(() => { markingRef.current = false; setMarking(false) }) }} className=\"block\" > <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </Link> ) : ( <> <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </> )} </div> </div> ))"
+          "line": 121,
+          "source": "notifs.map((n) => ( <div key={n.id} className={`px-4 py-3 border-b border-[var(--border)] last:border-0 flex gap-2.5 ${ !n.read ? 'bg-gold/5' : '' }`} > {/* Bug 8: unread dot indicator that disappears once read */} <div className=\"mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full transition-colors duration-200\" style={{ background: n.read ? 'transparent' : 'var(--color-gold, #b8972e)' }} /> <div className=\"flex-1 min-w-0\"> {n.articleId ? ( <Link href={destination(n)} onNavigate={(event) => { if (n.read) { setOpen(false); return } event.preventDefault() if (markingRef.current) return markingRef.current = true setMarking(true) setError('') // Opening a notification always takes the person to its article. The // acknowledgement is awaited first (not fired and forgotten) so that, if it // fails, the message is queued before the route changes and is shown once on // the destination. The notification stays unread on the server, so it is still // unread the next time notifications are loaded. void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .then(() => setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item))) .catch(reason => queueRouteFeedback(`“${n.title}” could not be marked as read and is still unread. ${asApiError(reason).message}`)) .finally(() => { markingRef.current = false setMarking(false) setOpen(false) router.push(destination(n)) }) }} className=\"block\" > <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </Link> ) : ( <> <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </> )} </div> </div> ))"
         },
         {
           "file": "src/components/editorial/SeriesCompleteBadges.tsx",
@@ -4338,6 +4360,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -4449,6 +4472,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -4555,6 +4579,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -4668,6 +4693,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -4783,6 +4809,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -4886,7 +4913,8 @@
         "tests/e2e/wf-portal.spec.ts",
         "tests/e2e/wf-publication-safety.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
-        "tests/e2e/wf-stale-authorization.spec.ts"
+        "tests/e2e/wf-stale-authorization.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/review/[id]/page.tsx: if (!session) redirect('/editorial/login')",
@@ -4933,6 +4961,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -5040,7 +5069,8 @@
         "tests/e2e/wf-portal.spec.ts",
         "tests/e2e/wf-publication-safety.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
-        "tests/e2e/wf-stale-authorization.spec.ts"
+        "tests/e2e/wf-stale-authorization.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/review/page.tsx: if (!session) redirect('/editorial/login')",
@@ -5057,6 +5087,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -5160,6 +5191,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -5273,6 +5305,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -5390,6 +5423,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -5496,6 +5530,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -5627,6 +5662,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -5799,6 +5835,7 @@
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
         "src/components/layout/EditorialSidebar.tsx:305",
+        "src/components/editorial/RouteFeedback.tsx:34",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -6857,6 +6894,7 @@
         "tests/integration/api-audit.test.ts",
         "tests/integration/profile-account-route.test.ts",
         "tests/unit/auth-redirect.test.ts",
+        "tests/unit/author-utils.test.ts",
         "tests/unit/safe-redirect.test.ts"
       ],
       "guardSource": [
@@ -6877,21 +6915,21 @@
         "src/components/profile/ProfileTabs.tsx:443",
         "src/components/profile/ProfileTabs.tsx:477",
         "src/components/profile/ProfileTabs.tsx:494",
-        "src/components/profile/ProfileTabs.tsx:683",
-        "src/components/profile/ProfileTabs.tsx:690",
-        "src/components/profile/ProfileTabs.tsx:699",
-        "src/components/profile/ProfileTabs.tsx:720",
-        "src/components/profile/ProfileTabs.tsx:733",
-        "src/components/profile/ProfileTabs.tsx:755",
-        "src/components/profile/ProfileTabs.tsx:767",
-        "src/components/profile/ProfileTabs.tsx:778",
-        "src/components/profile/ProfileTabs.tsx:793",
-        "src/components/profile/ProfileTabs.tsx:813",
-        "src/components/profile/ProfileTabs.tsx:827",
-        "src/components/profile/ProfileTabs.tsx:836",
-        "src/components/profile/ProfileTabs.tsx:843",
-        "src/components/profile/ProfileTabs.tsx:969",
-        "src/components/profile/ProfileTabs.tsx:1009",
+        "src/components/profile/ProfileTabs.tsx:689",
+        "src/components/profile/ProfileTabs.tsx:696",
+        "src/components/profile/ProfileTabs.tsx:705",
+        "src/components/profile/ProfileTabs.tsx:726",
+        "src/components/profile/ProfileTabs.tsx:739",
+        "src/components/profile/ProfileTabs.tsx:761",
+        "src/components/profile/ProfileTabs.tsx:773",
+        "src/components/profile/ProfileTabs.tsx:784",
+        "src/components/profile/ProfileTabs.tsx:804",
+        "src/components/profile/ProfileTabs.tsx:825",
+        "src/components/profile/ProfileTabs.tsx:839",
+        "src/components/profile/ProfileTabs.tsx:848",
+        "src/components/profile/ProfileTabs.tsx:855",
+        "src/components/profile/ProfileTabs.tsx:982",
+        "src/components/profile/ProfileTabs.tsx:1023",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -6984,7 +7022,7 @@
         },
         {
           "file": "src/components/profile/ProfileTabs.tsx",
-          "line": 968,
+          "line": 981,
           "source": "TABS.map((tab) => ( <button key={tab.id} onClick={() => handleTabChange(tab.id)} className={`flex items-center gap-2 px-4 py-3.5 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap border-b-2 transition-colors duration-150 ${ activeTab === tab.id ? 'border-gold text-gold' : 'border-transparent text-[var(--fg-faint)] hover:text-[var(--fg)]' }`} > {tab.icon} <span className=\"hidden sm:inline\">{tab.label}</span> </button> ))"
         }
       ],
@@ -9622,10 +9660,12 @@
         "onChange": "{(e) => setAuthorId(e.target.value)}"
       },
       "candidateTests": [
+        "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-discovery.spec.ts",
         "tests/integration/api.test.ts",
         "tests/integration/route-handlers.test.ts",
+        "tests/unit/author-utils.test.ts",
         "tests/unit/featured-article-hero.test.tsx",
         "tests/unit/portal-request-order.test.tsx",
         "tests/unit/section-empty-states.test.ts"
@@ -10957,7 +10997,8 @@
       "candidateTests": [
         "tests/e2e/footnotes.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
-        "tests/e2e/wf-upload.spec.ts"
+        "tests/e2e/wf-upload.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -12667,10 +12708,12 @@
         "onChange": "{actions.setSelectedAuthorId}"
       },
       "candidateTests": [
+        "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-discovery.spec.ts",
         "tests/integration/api.test.ts",
         "tests/integration/route-handlers.test.ts",
+        "tests/unit/author-utils.test.ts",
         "tests/unit/featured-article-hero.test.tsx",
         "tests/unit/portal-request-order.test.tsx",
         "tests/unit/section-empty-states.test.ts"
@@ -14772,7 +14815,8 @@
       "candidateTests": [
         "tests/e2e/footnotes.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
-        "tests/e2e/wf-upload.spec.ts"
+        "tests/e2e/wf-upload.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -15068,6 +15112,7 @@
         "onClick": "{(e) => { e.stopPropagation(); void resolveComment(comment.id, true) }}"
       },
       "candidateTests": [
+        "tests/e2e/footnotes.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
         "tests/integration/admin-directory-sort.test.ts",
         "tests/integration/article-comments-auth.test.ts",
@@ -15367,7 +15412,8 @@
       "candidateTests": [
         "tests/e2e/footnotes.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
-        "tests/e2e/wf-upload.spec.ts"
+        "tests/e2e/wf-upload.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -15725,16 +15771,16 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/NotificationBell.tsx:71",
+      "id": "src/components/editorial/NotificationBell.tsx:78",
       "file": "src/components/editorial/NotificationBell.tsx",
-      "line": 71,
+      "line": 78,
       "tag": "button",
       "label": "{unread > 0 ? `${unread} unread notifications` : 'Notifications'}",
       "href": null,
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": {
-        "onClick": "{() => { setOpen((o) => !o) if (!open && unread > 0) void markAllRead() }}"
+        "onClick": "{() => setOpen((o) => !o)}"
       },
       "candidateTests": [],
       "groupTestFiles": [],
@@ -15742,9 +15788,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/NotificationBell.tsx:99",
+      "id": "src/components/editorial/NotificationBell.tsx:105",
       "file": "src/components/editorial/NotificationBell.tsx",
-      "line": 99,
+      "line": 105,
       "tag": "button",
       "label": "Mark all read",
       "href": null,
@@ -15754,23 +15800,24 @@
         "onClick": "{()=>void markAllRead()}"
       },
       "candidateTests": [
-        "tests/e2e/wf-remaining.spec.ts"
+        "tests/e2e/wf-remaining.spec.ts",
+        "tests/unit/notification-navigation.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/NotificationBell.tsx:128",
+      "id": "src/components/editorial/NotificationBell.tsx:134",
       "file": "src/components/editorial/NotificationBell.tsx",
-      "line": 128,
+      "line": 134,
       "tag": "Link",
       "label": "{n.title} {n.message} {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}",
-      "href": "{ n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit` }",
+      "href": "{destination(n)}",
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": {
-        "onNavigate": "{(event) => { if (n.read) { setOpen(false); return } event.preventDefault() if (markingRef.current) return markingRef.current = true setMarking(true) setError('') // Keep the error and unread item reachable until the // acknowledgement succeeds; the editor has its own header. void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .then(() => { setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item)) setOpen(false) router.push(n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit`) }) .catch(reason => setError(asApiError(reason).message)) .finally(() => { markingRef.current = false; setMarking(false) }) }}"
+        "onNavigate": "{(event) => { if (n.read) { setOpen(false); return } event.preventDefault() if (markingRef.current) return markingRef.current = true setMarking(true) setError('') // Opening a notification always takes the person to its article. The // acknowledgement is awaited first (not fired and forgotten) so that, if it // fails, the message is queued before the route changes and is shown once on // the destination. The notification stays unread on the server, so it is still // unread the next time notifications are loaded. void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .then(() => setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item))) .catch(reason => queueRouteFeedback(`“${n.title}” could not be marked as read and is still unread. ${asApiError(reason).message}`)) .finally(() => { markingRef.current = false setMarking(false) setOpen(false) router.push(destination(n)) }) }}"
       },
       "candidateTests": [],
       "groupTestFiles": [],
@@ -16661,6 +16708,25 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
+      "id": "src/components/editorial/RouteFeedback.tsx:34",
+      "file": "src/components/editorial/RouteFeedback.tsx",
+      "line": 34,
+      "tag": "button",
+      "label": "Dismiss message",
+      "href": null,
+      "type": "button",
+      "disabledWhen": null,
+      "expectedFromSource": {
+        "onClick": "{() => setShown(null)}"
+      },
+      "candidateTests": [
+        "tests/unit/route-feedback.test.tsx"
+      ],
+      "groupTestFiles": [],
+      "evidence": "CODE_INSPECTION",
+      "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
+    },
+    {
       "id": "src/components/editorial/SeriesCompleteBadges.tsx:47",
       "file": "src/components/editorial/SeriesCompleteBadges.tsx",
       "line": 47,
@@ -17266,6 +17332,7 @@
         "tests/unit/notification-navigation.test.tsx",
         "tests/unit/portal-request-order.test.tsx",
         "tests/unit/rbac.test.ts",
+        "tests/unit/route-feedback.test.tsx",
         "tests/unit/team-hierarchy.test.ts",
         "tests/unit/team-profile-accounts.test.ts"
       ],
@@ -18465,9 +18532,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:683",
+      "id": "src/components/profile/ProfileTabs.tsx:689",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 683,
+      "line": 689,
       "tag": "input",
       "label": "(unnamed control)",
       "href": null,
@@ -18482,9 +18549,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:690",
+      "id": "src/components/profile/ProfileTabs.tsx:696",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 690,
+      "line": 696,
       "tag": "button",
       "label": "{uploading ? 'Uploading…' : image ? 'Change Photo' : 'Upload Photo'}",
       "href": null,
@@ -18499,9 +18566,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:699",
+      "id": "src/components/profile/ProfileTabs.tsx:705",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 699,
+      "line": 705,
       "tag": "button",
       "label": "Remove",
       "href": null,
@@ -18522,9 +18589,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:720",
+      "id": "src/components/profile/ProfileTabs.tsx:726",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 720,
+      "line": 726,
       "tag": "input",
       "label": "Your name",
       "href": null,
@@ -18542,9 +18609,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:733",
+      "id": "src/components/profile/ProfileTabs.tsx:739",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 733,
+      "line": 739,
       "tag": "textarea",
       "label": "Tell us a little about yourself...",
       "href": null,
@@ -18561,9 +18628,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:755",
+      "id": "src/components/profile/ProfileTabs.tsx:761",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 755,
+      "line": 761,
       "tag": "input",
       "label": "(unnamed control)",
       "href": null,
@@ -18576,9 +18643,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:767",
+      "id": "src/components/profile/ProfileTabs.tsx:773",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 767,
+      "line": 773,
       "tag": "input",
       "label": "(unnamed control)",
       "href": null,
@@ -18591,9 +18658,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:778",
+      "id": "src/components/profile/ProfileTabs.tsx:784",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 778,
+      "line": 784,
       "tag": "button",
       "label": "{saved ? <><Check size={13} /> Saved</> : saving ? 'Saving...' : <><Pencil size={13} /> Save Changes</>}",
       "href": null,
@@ -18608,9 +18675,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:793",
+      "id": "src/components/profile/ProfileTabs.tsx:804",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 793,
+      "line": 804,
       "tag": "button",
       "label": "{copied ? <><CheckCheck size={13} className=\"text-gold\" /> Copied</> : <><Copy size={13} /> Copy link</>}",
       "href": null,
@@ -18625,9 +18692,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:813",
+      "id": "src/components/profile/ProfileTabs.tsx:825",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 813,
+      "line": 825,
       "tag": "button",
       "label": "Delete Account",
       "href": null,
@@ -18645,9 +18712,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:827",
+      "id": "src/components/profile/ProfileTabs.tsx:839",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 827,
+      "line": 839,
       "tag": "input",
       "label": "{`Type \"${email}\" to confirm`}",
       "href": null,
@@ -18662,9 +18729,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:836",
+      "id": "src/components/profile/ProfileTabs.tsx:848",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 836,
+      "line": 848,
       "tag": "button",
       "label": "{deleting ? 'Deleting...' : 'Permanently Delete'}",
       "href": null,
@@ -18679,9 +18746,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:843",
+      "id": "src/components/profile/ProfileTabs.tsx:855",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 843,
+      "line": 855,
       "tag": "button",
       "label": "Cancel",
       "href": null,
@@ -18706,9 +18773,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:969",
+      "id": "src/components/profile/ProfileTabs.tsx:982",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 969,
+      "line": 982,
       "tag": "button",
       "label": "{tab.icon} {tab.label}",
       "href": null,
@@ -18723,9 +18790,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:1009",
+      "id": "src/components/profile/ProfileTabs.tsx:1023",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 1009,
+      "line": 1023,
       "tag": "Link",
       "label": "More from {stats.favouriteCategory} Your most read category",
       "href": "{`/category/${stats.favouriteCategory.toLowerCase()}`}",
@@ -19331,7 +19398,10 @@
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": "Input/container; inspect enclosing handler",
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/unit/notification-navigation.test.tsx",
+        "tests/unit/route-feedback.test.tsx"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -19911,7 +19981,8 @@
       "candidateTests": [
         "tests/e2e/footnotes.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
-        "tests/e2e/wf-upload.spec.ts"
+        "tests/e2e/wf-upload.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -19932,7 +20003,8 @@
       "candidateTests": [
         "tests/e2e/footnotes.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
-        "tests/e2e/wf-upload.spec.ts"
+        "tests/e2e/wf-upload.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -20296,7 +20368,8 @@
       "candidateTests": [
         "tests/e2e/footnotes.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
-        "tests/e2e/wf-upload.spec.ts"
+        "tests/e2e/wf-upload.spec.ts",
+        "tests/unit/route-feedback.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -20960,8 +21033,8 @@
     },
     {
       "file": "src/components/editorial/NotificationBell.tsx",
-      "line": 115,
-      "source": "notifs.map((n) => ( <div key={n.id} className={`px-4 py-3 border-b border-[var(--border)] last:border-0 flex gap-2.5 ${ !n.read ? 'bg-gold/5' : '' }`} > {/* Bug 8: unread dot indicator that disappears once read */} <div className=\"mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full transition-colors duration-200\" style={{ background: n.read ? 'transparent' : 'var(--color-gold, #b8972e)' }} /> <div className=\"flex-1 min-w-0\"> {n.articleId ? ( <Link href={ n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit` } onNavigate={(event) => { if (n.read) { setOpen(false); return } event.preventDefault() if (markingRef.current) return markingRef.current = true setMarking(true) setError('') // Keep the error and unread item reachable until the // acknowledgement succeeds; the editor has its own header. void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .then(() => { setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item)) setOpen(false) router.push(n.type === 'article_submitted' ? `/editorial/review/${n.articleId}` : `/editorial/articles/${n.articleId}/edit`) }) .catch(reason => setError(asApiError(reason).message)) .finally(() => { markingRef.current = false; setMarking(false) }) }} className=\"block\" > <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </Link> ) : ( <> <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </> )} </div> </div> ))"
+      "line": 121,
+      "source": "notifs.map((n) => ( <div key={n.id} className={`px-4 py-3 border-b border-[var(--border)] last:border-0 flex gap-2.5 ${ !n.read ? 'bg-gold/5' : '' }`} > {/* Bug 8: unread dot indicator that disappears once read */} <div className=\"mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full transition-colors duration-200\" style={{ background: n.read ? 'transparent' : 'var(--color-gold, #b8972e)' }} /> <div className=\"flex-1 min-w-0\"> {n.articleId ? ( <Link href={destination(n)} onNavigate={(event) => { if (n.read) { setOpen(false); return } event.preventDefault() if (markingRef.current) return markingRef.current = true setMarking(true) setError('') // Opening a notification always takes the person to its article. The // acknowledgement is awaited first (not fired and forgotten) so that, if it // fails, the message is queued before the route changes and is shown once on // the destination. The notification stays unread on the server, so it is still // unread the next time notifications are loaded. void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' }) .then(() => setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item))) .catch(reason => queueRouteFeedback(`“${n.title}” could not be marked as read and is still unread. ${asApiError(reason).message}`)) .finally(() => { markingRef.current = false setMarking(false) setOpen(false) router.push(destination(n)) }) }} className=\"block\" > <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </Link> ) : ( <> <p className=\"text-xs font-semibold text-[var(--fg)] mb-0.5\">{n.title}</p> <p className=\"text-xs text-[var(--fg-muted)] line-clamp-2\">{n.message}</p> <p className=\"text-[var(--fg-faint)] text-[10px] mt-1\"> {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })} </p> </> )} </div> </div> ))"
     },
     {
       "file": "src/components/editorial/ReviewPanel.tsx",
@@ -21100,7 +21173,7 @@
     },
     {
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 968,
+      "line": 981,
       "source": "TABS.map((tab) => ( <button key={tab.id} onClick={() => handleTabChange(tab.id)} className={`flex items-center gap-2 px-4 py-3.5 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap border-b-2 transition-colors duration-150 ${ activeTab === tab.id ? 'border-gold text-gold' : 'border-transparent text-[var(--fg-faint)] hover:text-[var(--fg)]' }`} > {tab.icon} <span className=\"hidden sm:inline\">{tab.label}</span> </button> ))"
     },
     {

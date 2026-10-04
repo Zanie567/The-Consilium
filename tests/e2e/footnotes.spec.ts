@@ -42,6 +42,21 @@ async function prep(page: Page) {
   // Let the entrance animation settle so positions are stable.
   await expect(page.locator('#fnref-1')).toBeVisible()
   await page.waitForTimeout(900)
+  await settledLayout(page)
+}
+
+/**
+ * Resolves once web fonts have loaded and the page height is unchanged across two readings.
+ * A late font swap changes line heights above a marker by a pixel; a "no layout shift" baseline
+ * taken before that happens compares two different moments, not the effect of the hover.
+ */
+async function settledLayout(page: Page) {
+  await page.evaluate(() => document.fonts.ready)
+  await expect.poll(async () => {
+    const first = await page.evaluate(() => document.body.scrollHeight)
+    await page.waitForTimeout(300)
+    return first === (await page.evaluate(() => document.body.scrollHeight))
+  }, { timeout: 10_000 }).toBe(true)
 }
 
 /** Centre a marker (or its inner link) and return its viewport centre point. */

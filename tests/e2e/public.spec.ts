@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page, type Request } from '@playwright/test'
 import { collectConsoleErrors } from './helpers/console'
 import {
   expectedCategoryArticles,
@@ -176,6 +176,28 @@ test('search highlights matched terms with <mark>', async ({ page }) => {
   expect(await marks.count()).toBeGreaterThan(0)
 })
 
+/**
+ * Returns a function that resolves once nothing has been in flight for a moment. Leaving a page
+ * while its prefetches (or a navigation's own payload) are still loading makes the browser
+ * cancel them, and WebKit reports each cancellation as a console error ("due to access control
+ * checks", next-auth "Load failed", Next "Failed to fetch RSC payload"). Those are requests
+ * abandoned by the navigation, not failures, so the test only navigates once the page is quiet.
+ * Nothing is filtered: any error that still appears after that is reported as it always was.
+ */
+function requestsSettled(page: Page) {
+  const pending = new Set<Request>()
+  page.on('request', (r) => pending.add(r))
+  page.on('requestfinished', (r) => pending.delete(r))
+  page.on('requestfailed', (r) => pending.delete(r))
+  return async () => {
+    await expect.poll(async () => {
+      if (pending.size > 0) return false
+      await page.waitForTimeout(400)
+      return pending.size === 0
+    }, { message: 'requests still in flight', timeout: 15_000 }).toBe(true)
+  }
+}
+
 test('navigating across pages throws no InvalidStateError (view-transition guard)', async ({ page }) => {
   const consoleErrors = collectConsoleErrors(page)
   const invalidState: string[] = []
@@ -185,15 +207,18 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
   page.on('console', (m) => watch(m.text()))
   page.on('pageerror', (e) => watch(`${e.name}: ${e.message}`))
 
+  const settled = requestsSettled(page)
+
   // Full document loads (exercise the removed @view-transition navigation rule)…
   for (const path of ['/', '/category/opinion', '/opinion-debate', '/category/news', '/about', '/']) {
     expect((await page.goto(path, { waitUntil: 'domcontentloaded' }))?.status()).toBe(200)
-    await page.waitForTimeout(150)
+    await settled()
   }
   // …then rapid client-side navigations (exercise Next's SPA transitions). Use
   // 'domcontentloaded', not 'networkidle' — the dev server's HMR socket keeps
   // the network busy, so 'networkidle' never settles.
   await page.goto('/', { waitUntil: 'domcontentloaded' })
+  await settled()
   const links = page.locator('header a[href^="/category/"], main article a[href^="/articles/"]')
   const targets = (await links.evaluateAll(elements => elements.map(el => el.getAttribute('href')!))).slice(0, 5)
   expect(targets.length).toBeGreaterThan(0)
@@ -201,10 +226,12 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
     await page.locator(`header a[href="${href}"], main article a[href="${href}"]`).first().click()
     await expect(page).toHaveURL(new RegExp(`${href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
     await expect(page.locator('main')).toBeVisible()
+    await settled()
     await page.goBack({ waitUntil: 'domcontentloaded' })
     await expect(page).toHaveURL(/\/$/)
+    await settled()
   }
-  await page.waitForTimeout(300)
+  await settled()
 
   expect(invalidState, `InvalidStateError fired:\n${invalidState.join('\n')}`).toEqual([])
   expect(consoleErrors, `console errors:\n${consoleErrors.join('\n')}`).toEqual([])

@@ -203,7 +203,11 @@ test('administrator directory filters, every sort and pagination rank count lead
     await page.getByRole('button', { name: role, exact: true }).click()
     expect((await response).status()).toBe(200)
     if (role === 'Reader' || role === 'All') await expect(page.locator('tbody tr')).toHaveCount(15)
-    else { await expect(page.getByRole('cell', { name: 'No users found.', exact: true })).toBeVisible(); await expect(page.locator('tbody tr')).toHaveCount(1) }
+    else {
+      // No account holds this role among the matches: the empty-state row is shown, and no row is a user.
+      await expect(page.getByRole('cell', { name: 'No users found.', exact: true })).toBeVisible()
+      await expect(page.locator('tbody tr').filter({ hasNotText: 'No users found.' })).toHaveCount(0)
+    }
   }
   let release = () => {}
   let started = () => {}
