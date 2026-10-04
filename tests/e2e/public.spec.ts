@@ -206,10 +206,10 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
   const n = Math.min(await links.count(), 5)
   expect(n).toBeGreaterThan(0)
   for (let i = 0; i < n; i++) {
-    await links.nth(i).hover({ timeout: 2000 })
+    await links.nth(i).hover()
     const href = await links.nth(i).getAttribute('href')
     expect(href).toBeTruthy()
-    await links.nth(i).click({ timeout: 2000 })
+    await links.nth(i).click()
     await page.waitForURL(url => url.pathname === href, { waitUntil: 'networkidle' })
     await expect(page.locator('main').first()).toBeVisible()
     await page.waitForTimeout(200)

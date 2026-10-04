@@ -55,9 +55,11 @@ Real OS print-dialog output is **not tested** (`window.print` invocation is test
 
 ## Commands and counts
 
+The table immediately below is the initial local checkpoint. It is retained as history; the later continuation checks and `evidence/final-ci.json` give the latest source results.
+
 These selections overlap; do not add their counts together. Earlier failed runs remain documented below, with their causes and subsequent passing checks.
 
-| Final check | Result | Evidence |
+| Initial local checkpoint | Result at that checkpoint | Evidence |
 |---|---|---|
 | Unit/integration, standalone and real-server development | 69 files; 956 passed, 7 pre-existing expected failures, 18 pre-existing skips; 0 unexpected failures | `evidence/vitest-final.json`; `next-e2e-3342-4991/vitest.json` |
 | Development profile and testing-mode browser suites | 55 passed; 0 failed/skipped; retries 0 | `next-e2e-3342-4991` |
@@ -223,3 +225,19 @@ npm run lint
 - CI `37239866629` exposed one further test-locator fault (**64 pass / 1 fail** in public/mobile): the raw nth-anchor selected an inactive, inert hero slide after Back. The downloaded trace showed all category navigations succeed, then a click on the noninteractive Small Sample anchor without any article navigation. The test now selects accessible links and hovers to pause the carousel using its actual implemented behavior, before reading/clicking the target. Assertions remain strict; no retry, timer override, forced click or console suppression. New source is submitted for the full CI gate; current evidence is in `evidence/final-ci.json`.
 - Read-only HTTPS WebKit smoke on the redeployed test origin: **4 pages pass / 0 fail / no collected errors**, including both actual published journey articles, loaded image pixels, house-style normalization and one leading ADMIN chief. [Evidence](./evidence/hosted-verified/webkit-public-smoke.json). This is WebKit automation, not a claim of real Safari or every hosted workflow control.
 - The publication project’s automatic feature preview remains **blocked**: deployment `dpl_HacWRuV8AbuW4otc8s1VUxJ3tBDR` failed visibly because its Preview environment lacks `NEXTAUTH_SECRET`. Its build/type compilation completed before the explicit configuration guard failed. No production/project preview credentials were added or substituted. The approved separate test project built and deployed successfully. This external Vercel status is distinguished from application CI and the isolated hosted workspace.
+
+
+## Hydration and final CI follow-up
+
+A subsequent signed-in hosted page smoke found two HTTP 409 console errors at `POST /api/analytics/track`. Initial article hydration ran the child view-counter passive effect before the parent identity transport passive effect. The server correctly denied the unpinned mutation. The transport now installs in the parent layout effect before child passive writes. The new browser regression asserts the actual initial request identity, HTTP 200, persisted/deduplicated views, and no console errors for the writer persona, administrator after exit, and ordinary writer. It changes no server authorization rule.
+
+```sh
+TEST_DATABASE_URL=postgresql://postgres@localhost:55435/consilium_appointments_browser E2E_APP_PORT=3353 FAKE_STORAGE_PORT=55533 EMAIL_CAPTURE_FILE=/tmp/consilium-hydration-outbox.jsonl SKIP_DB_SETUP=1 npm run test:e2e -- tests/e2e/testing-mode.spec.ts --project=testing-mode --workers=1
+TEST_DATABASE_URL=postgresql://postgres@localhost:55435/consilium_appointments_browser E2E_APP_PORT=3354 FAKE_STORAGE_PORT=55534 EMAIL_CAPTURE_FILE=/tmp/consilium-public-stability-outbox.jsonl SKIP_DB_SETUP=1 npm run test:e2e -- tests/e2e/public.spec.ts --project=public --project=public-webkit --workers=1
+```
+
+The first launcher refused an occupied storage port without disturbing its process. The unused-port mode follow-up (`next-e2e-3353-63810`) passed **14 / 0 failed**, including six ordinary authentication setup checks and all eight mode journeys, with zero retries. Typecheck and lint passed.
+
+CI `37240982769` public/mobile had **64 pass / 1 fail**: its accessible hero click did not become stable within the inherited explicit two-second action override. The trace contains no click dispatch or destination request. The test now uses the project's existing ten-second actionability deadline, retaining the ninety-second overall limit, accessible targeting, actual hover, destination/Back checks and all console assertions. No forced action, retry or error filtering was introduced. Local production public follow-up (`next-e2e-3354-64266`) passed **32 / 0 failed**, including both complete navigation checks, with zero retries. Final CI counts and source SHA are recorded in `evidence/final-ci.json` and PR checks.
+
+The publication project's latest automatic preview `dpl_D3gPy3UdFkTg43x1pDUGR3c8vi9B` again compiled/types successfully, then failed its explicit missing `NEXTAUTH_SECRET` configuration guard. That original project's Preview credentials remain outside the approved test-only credential transfer. The independent test deployment and its final signed-in/public smoke are recorded separately.

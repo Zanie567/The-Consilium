@@ -87,6 +87,40 @@ test('entry, switching, refresh, two tabs, back navigation and exit use real per
   expect(errors).toEqual([])
 })
 
+test('public article hydration pins initial writes during testing and after exit', async ({ browser }) => {
+  const title = uniqueTitle('identity-hydration')
+  const article = await db().article.create({ data: {
+    title, slug: title.replaceAll(' ', '-').toLowerCase(), content: '<p>Published test article</p>',
+    authorId: administratorId, status: 'PUBLISHED', publishedAt: new Date(),
+  } })
+  const errors = collectConsoleErrors(page)
+  async function openPublished(screen: Page, ctx: BrowserContext) {
+    const expected = (await identityHeaders(ctx))['x-consilium-identity']
+    const tracked = screen.waitForResponse(response => response.url().endsWith('/api/analytics/track') && response.request().method() === 'POST')
+    await screen.goto(`/articles/${article.slug}`, { waitUntil: 'networkidle' })
+    const response = await tracked
+    expect(response.request().headers()['x-consilium-identity']).toBe(expected)
+    expect(response.status()).toBe(200)
+    await expect(screen.getByRole('heading', { level: 1, name: title })).toBeVisible()
+  }
+  await switchTo('writer')
+  await openPublished(page, context)
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'Exit testing mode' }).click()
+  await readyPersona(page, 'Administrator')
+  await openPublished(page, context)
+  const ordinary = await signedIn(browser, 'writer')
+  try {
+    const ordinaryPage = await ordinary.newPage()
+    const ordinaryErrors = collectConsoleErrors(ordinaryPage)
+    await openPublished(ordinaryPage, ordinary)
+    expect(ordinaryErrors).toEqual([])
+  } finally { await ordinary.close() }
+  expect(await db().articleView.count({ where: { articleId: article.id } })).toBe(2)
+  expect((await db().article.findUniqueOrThrow({ where: { id: article.id } })).viewCount).toBe(2)
+  expect(errors).toEqual([])
+})
+
 test('expiry, forged cookies and replay deny writes and restore normal navigation', async () => {
   await switchTo('writer')
   const oldHeaders = await identityHeaders()

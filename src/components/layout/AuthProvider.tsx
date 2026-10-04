@@ -1,12 +1,14 @@
 'use client'
 import { SessionProvider } from 'next-auth/react'
-import { useEffect } from 'react'
+import { useLayoutEffect } from 'react'
 import type { Session } from 'next-auth'
 import { getTestingTabId, identityPinnedFetch, isTestingTransition, setTestingTransition } from '@/lib/testingClient'
 import { TestingControls } from './TestingControls'
 
 export function AuthProvider({ children, session, testWorkspace = false }: { children: React.ReactNode; session?: Session | null; testWorkspace?: boolean }) {
-  useEffect(() => {
+  // Install the identity transport before child passive effects send writes
+  // (for example the public article view counter during initial hydration).
+  useLayoutEffect(() => {
     if (!testWorkspace) return
     const original = window.fetch.bind(window)
     const identity = session?.requestIdentity
