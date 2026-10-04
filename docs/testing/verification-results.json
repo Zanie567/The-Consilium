@@ -1,0 +1,573 @@
+{
+  "environment": {
+    "database": "localhost:55434/consilium",
+    "app": "http://localhost:3321",
+    "storage": "http://127.0.0.1:55422",
+    "email": "local capture only"
+  },
+  "runs": [
+    {
+      "label": "full-audit",
+      "commit": "64ae87b64a3e39b7e5ad51cd9d470865d94c0f02",
+      "runId": "next-e2e-3321-15965",
+      "phases": [
+        {
+          "phase": "main",
+          "stats": {
+            "startTime": "2026-10-03T23:24:27.951Z",
+            "duration": 113773.866,
+            "expected": 83,
+            "skipped": 0,
+            "unexpected": 1,
+            "flaky": 0
+          },
+          "groups": {
+            "setup / auth.setup.ts": {
+              "passed": 6,
+              "failed": 0,
+              "skipped": 0
+            },
+            "public / footnotes.spec.ts": {
+              "passed": 7,
+              "failed": 0,
+              "skipped": 0
+            },
+            "public-webkit / footnotes.spec.ts": {
+              "passed": 7,
+              "failed": 0,
+              "skipped": 0
+            },
+            "public / network-crawl.spec.ts": {
+              "passed": 3,
+              "failed": 0,
+              "skipped": 0
+            },
+            "public / public.spec.ts": {
+              "passed": 16,
+              "failed": 0,
+              "skipped": 0
+            },
+            "public-webkit / public.spec.ts": {
+              "passed": 15,
+              "failed": 1,
+              "skipped": 0
+            },
+            "editorial / editorial-layout.spec.ts": {
+              "passed": 5,
+              "failed": 0,
+              "skipped": 0
+            },
+            "editorial / editorial.spec.ts": {
+              "passed": 17,
+              "failed": 0,
+              "skipped": 0
+            },
+            "editor / editor-scope.spec.ts": {
+              "passed": 3,
+              "failed": 0,
+              "skipped": 0
+            },
+            "lifecycle / publication-lifecycle.spec.ts": {
+              "passed": 4,
+              "failed": 0,
+              "skipped": 0
+            }
+          },
+          "failures": [
+            {
+              "title": "navigating across pages throws no InvalidStateError (view-transition guard)",
+              "project": "public-webkit",
+              "status": "failed",
+              "errors": [
+                "Error: console errors:\npageerror: /localhost:3321/?category=news&_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/?category=interviews&_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/?category=analysis&_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/articles/footnote-popover-test?_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/articles/the-long-read-experiment?_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/articles/the-small-sample?_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/category/news?_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/?_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/login?_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/about?_rsc=1pn8p due to access control checks.\npageerror: /localhost:3321/about?_rsc=nn07o due to access control checks.\npageerror: /localhost:3321/about?_rsc=uudir due to access control checks.\npageerror: /localhost:3321/about?_rsc=1pr6k due to access control checks.\npageerror: /localhost:3321/opinion-debate?_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/category/interviews?_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/category/news?_rsc=11lxi due to access control checks.\npageerror: /localhost:3321/?_rsc=11lxi due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=13frh due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=591fv due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=q987n due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=1w5xg due to access control checks.\npageerror: /localhost:3321/articles/limits-of-free-trade-orthodoxy?_rsc=10pju due to access control checks.\npageerror: /localhost:3321/articles/in-defence-of-free-trade?_rsc=10pju due to access control checks.\npageerror: /localhost:3321/articles/against-higher-minimum-wage-economic-analysis?_rsc=10pju due to access control checks.\npageerror: /localhost:3321/login?_rsc=10pju due to access control checks.\npageerror: /localhost:3321/articles/raise-the-minimum-wage-the-economic-case?_rsc=10pju due to access control checks.\npageerror: /localhost:3321/articles/against-ai-regulation-innovation-cost?_rsc=10pju due to access control checks.\npageerror: /localhost:3321/articles/ai-regulation-economic-imperative?_rsc=10pju due to access control checks.\npageerror: /localhost:3321/category/opinion?_rsc=10pju due to access control checks.\npageerror: /localhost:3321/category/interviews?_rsc=21rih due to access control checks.\npageerror: /localhost:3321/category/analysis?_rsc=21rih due to access control checks.\npageerror: /localhost:3321/category/opinion?_rsc=21rih due to access control checks.\npageerror: /localhost:3321/category/news?_rsc=21rih due to access control checks.\npageerror: /localhost:3321/?_rsc=c5qoq due to access control checks.\npageerror: /localhost:3321/category/analysis?_rsc=8pnti due to access control checks.\npageerror: /localhost:3321/category/analysis?_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/category/opinion?_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/category/news?_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/?category=opinion&_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/?category=news&_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/?category=interviews&_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/?category=analysis&_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/?_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=1pn8p due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=nn07o due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=1v2tv due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=1148h due to access control checks.\npageerror: /localhost:3321/login?_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/about?_rsc=1pn8p due to access control checks.\npageerror: /localhost:3321/about?_rsc=uudir due to access control checks.\npageerror: /localhost:3321/about?_rsc=1pr6k due to access control checks.\npageerror: /localhost:3321/opinion-debate?_rsc=p37cr due to access control checks.\n\nexpect(received).toEqual(expected) // deep equality\n\n- Expected  -  1\n+ Received  + 54\n\n- Array []\n+ Array [\n+   \"pageerror: /localhost:3321/?category=news&_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/?category=interviews&_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/?category=analysis&_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/articles/footnote-popover-test?_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/articles/the-long-read-experiment?_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/articles/the-small-sample?_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/news?_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/?_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/login?_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=1pn8p due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=nn07o due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=uudir due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=1pr6k due to access control checks.\",\n+   \"pageerror: /localhost:3321/opinion-debate?_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/interviews?_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/news?_rsc=11lxi due to access control checks.\",\n+   \"pageerror: /localhost:3321/?_rsc=11lxi due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=13frh due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=591fv due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=q987n due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=1w5xg due to access control checks.\",\n+   \"pageerror: /localhost:3321/articles/limits-of-free-trade-orthodoxy?_rsc=10pju due to access control checks.\",\n+   \"pageerror: /localhost:3321/articles/in-defence-of-free-trade?_rsc=10pju due to access control checks.\",\n+   \"pageerror: /localhost:3321/articles/against-higher-minimum-wage-economic-analysis?_rsc=10pju due to access control checks.\",\n+   \"pageerror: /localhost:3321/login?_rsc=10pju due to access control checks.\",\n+   \"pageerror: /localhost:3321/articles/raise-the-minimum-wage-the-economic-case?_rsc=10pju due to access control checks.\",\n+   \"pageerror: /localhost:3321/articles/against-ai-regulation-innovation-cost?_rsc=10pju due to access control checks.\",\n+   \"pageerror: /localhost:3321/articles/ai-regulation-economic-imperative?_rsc=10pju due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/opinion?_rsc=10pju due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/interviews?_rsc=21rih due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/analysis?_rsc=21rih due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/opinion?_rsc=21rih due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/news?_rsc=21rih due to access control checks.\",\n+   \"pageerror: /localhost:3321/?_rsc=c5qoq due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/analysis?_rsc=8pnti due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/analysis?_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/opinion?_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/news?_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/?category=opinion&_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/?category=news&_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/?category=interviews&_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/?category=analysis&_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/?_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=1pn8p due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=nn07o due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=1v2tv due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=1148h due to access control checks.\",\n+   \"pageerror: /localhost:3321/login?_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=1pn8p due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=uudir due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=1pr6k due to access control checks.\",\n+   \"pageerror: /localhost:3321/opinion-debate?_rsc=p37cr due to access control checks.\",\n+ ]\n\n  208 |\n  209 |   expect(invalidState, `InvalidStateError fired:\\n${invalidState.join('\\n')}`).toEqual([])\n> 210 |   expect(consoleErrors, `console errors:\\n${consoleErrors.join('\\n')}`).toEqual([])\n      |                                                                         ^\n  211 | })\n  212 |\n  213 | test('dark-mode toggle switches theme', async ({ page }) => {\n    at /private/tmp/consilium-workflow-isolated/tests/e2e/public.spec.ts:210:73"
+              ],
+              "attachments": [
+                {
+                  "name": "screenshot",
+                  "path": "../../test-results/next-e2e-3321-15965/main/public-navigating-across-p-776ee-rror-view-transition-guard--public-webkit/test-failed-1.png"
+                },
+                {
+                  "name": "error-context",
+                  "path": "../../test-results/next-e2e-3321-15965/main/public-navigating-across-p-776ee-rror-view-transition-guard--public-webkit/error-context.md"
+                },
+                {
+                  "name": "error-context",
+                  "path": "../../test-results/next-e2e-3321-15965/main/public-navigating-across-p-776ee-rror-view-transition-guard--public-webkit/error-context.md"
+                },
+                {
+                  "name": "trace",
+                  "path": "../../test-results/next-e2e-3321-15965/main/public-navigating-across-p-776ee-rror-view-transition-guard--public-webkit/trace.zip"
+                }
+              ]
+            }
+          ],
+          "positiveEvidence": []
+        },
+        {
+          "phase": "team-profile",
+          "stats": {
+            "startTime": "2026-10-03T23:37:10.219Z",
+            "duration": 122321.043,
+            "expected": 41,
+            "skipped": 0,
+            "unexpected": 0,
+            "flaky": 0
+          },
+          "groups": {
+            "team-profile / team-profile-lifecycle.spec.ts": {
+              "passed": 5,
+              "failed": 0,
+              "skipped": 0
+            },
+            "team-profile / team-profile.spec.ts": {
+              "passed": 36,
+              "failed": 0,
+              "skipped": 0
+            }
+          },
+          "failures": [],
+          "positiveEvidence": []
+        },
+        {
+          "phase": "workflow",
+          "stats": {
+            "startTime": "2026-10-03T23:26:22.646Z",
+            "duration": 646811.541,
+            "expected": 205,
+            "skipped": 0,
+            "unexpected": 3,
+            "flaky": 0
+          },
+          "groups": {
+            "setup / auth.setup.ts": {
+              "passed": 6,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-chromium / wf-articles.spec.ts": {
+              "passed": 5,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-webkit / wf-articles.spec.ts": {
+              "passed": 5,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-chromium / wf-cache.spec.ts": {
+              "passed": 1,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-webkit / wf-cache.spec.ts": {
+              "passed": 1,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-chromium / wf-controls.spec.ts": {
+              "passed": 3,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-webkit / wf-controls.spec.ts": {
+              "passed": 2,
+              "failed": 1,
+              "skipped": 0
+            },
+            "wf-chromium / wf-failures.spec.ts": {
+              "passed": 16,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-webkit / wf-failures.spec.ts": {
+              "passed": 15,
+              "failed": 1,
+              "skipped": 0
+            },
+            "wf-chromium / wf-formatting.spec.ts": {
+              "passed": 6,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-webkit / wf-formatting.spec.ts": {
+              "passed": 6,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-chromium / wf-layout.spec.ts": {
+              "passed": 5,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-webkit / wf-layout.spec.ts": {
+              "passed": 5,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-chromium / wf-lifecycle.spec.ts": {
+              "passed": 8,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-webkit / wf-lifecycle.spec.ts": {
+              "passed": 8,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-chromium / wf-reader.spec.ts": {
+              "passed": 6,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-webkit / wf-reader.spec.ts": {
+              "passed": 6,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-chromium / wf-roles.spec.ts": {
+              "passed": 31,
+              "failed": 1,
+              "skipped": 0
+            },
+            "wf-webkit / wf-roles.spec.ts": {
+              "passed": 32,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-chromium / wf-upload.spec.ts": {
+              "passed": 14,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-webkit / wf-upload.spec.ts": {
+              "passed": 14,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-mobile-chromium / wf-mobile.spec.ts": {
+              "passed": 5,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-mobile-webkit / wf-mobile.spec.ts": {
+              "passed": 5,
+              "failed": 0,
+              "skipped": 0
+            }
+          },
+          "failures": [
+            {
+              "title": "review correction, commendation, feature and pin persist and corrections appear publicly",
+              "project": "wf-webkit",
+              "status": "timedOut",
+              "errors": [
+                "Test timeout of 30000ms exceeded."
+              ],
+              "attachments": [
+                {
+                  "name": "screenshot",
+                  "path": "../../test-results/next-e2e-3321-15965/workflow/wf-controls-review-correct-ec7fc-corrections-appear-publicly-wf-webkit/test-failed-1.png"
+                },
+                {
+                  "name": "screenshot",
+                  "path": "../../test-results/next-e2e-3321-15965/workflow/wf-controls-review-correct-ec7fc-corrections-appear-publicly-wf-webkit/test-failed-2.png"
+                },
+                {
+                  "name": "error-context",
+                  "path": "../../test-results/next-e2e-3321-15965/workflow/wf-controls-review-correct-ec7fc-corrections-appear-publicly-wf-webkit/error-context.md"
+                },
+                {
+                  "name": "error-context",
+                  "path": "../../test-results/next-e2e-3321-15965/workflow/wf-controls-review-correct-ec7fc-corrections-appear-publicly-wf-webkit/error-context.md"
+                },
+                {
+                  "name": "trace",
+                  "path": "../../test-results/next-e2e-3321-15965/workflow/wf-controls-review-correct-ec7fc-corrections-appear-publicly-wf-webkit/trace.zip"
+                }
+              ]
+            },
+            {
+              "title": "Back to articles stays in the editor when saving fails, then saves and leaves on retry",
+              "project": "wf-webkit",
+              "status": "failed",
+              "errors": [
+                "Error: page.goto: Navigation to \"http://localhost:3321/editorial/articles/cmut12y2z0066lf36ufhc6npq/edit\" is interrupted by another navigation to \"http://localhost:3321/editorial/articles\"\nCall log:\n  - navigating to \"http://localhost:3321/editorial/articles/cmut12y2z0066lf36ufhc6npq/edit\", waiting until \"networkidle\"\n\n\n   at helpers/workflow.ts:120\n\n  118 |\n  119 |   async openExisting(id: string) {\n> 120 |     await this.page.goto(`/editorial/articles/${id}/edit`, { waitUntil: 'networkidle' })\n      |                     ^\n  121 |     await this.dismissCookieBanner()\n  122 |     await expect(this.title()).toBeVisible()\n  123 |     await expect(this.body()).toBeVisible()\n    at ArticleEditorPage.openExisting (/private/tmp/consilium-workflow-isolated/tests/e2e/helpers/workflow.ts:120:21)\n    at /private/tmp/consilium-workflow-isolated/tests/e2e/wf-failures.spec.ts:371:14"
+              ],
+              "attachments": [
+                {
+                  "name": "screenshot",
+                  "path": "../../test-results/next-e2e-3321-15965/workflow/wf-failures-Back-to-articl-013d1-n-saves-and-leaves-on-retry-wf-webkit/test-failed-1.png"
+                },
+                {
+                  "name": "error-context",
+                  "path": "../../test-results/next-e2e-3321-15965/workflow/wf-failures-Back-to-articl-013d1-n-saves-and-leaves-on-retry-wf-webkit/error-context.md"
+                },
+                {
+                  "name": "error-context",
+                  "path": "../../test-results/next-e2e-3321-15965/workflow/wf-failures-Back-to-articl-013d1-n-saves-and-leaves-on-retry-wf-webkit/error-context.md"
+                },
+                {
+                  "name": "trace",
+                  "path": "../../test-results/next-e2e-3321-15965/workflow/wf-failures-Back-to-articl-013d1-n-saves-and-leaves-on-retry-wf-webkit/trace.zip"
+                }
+              ]
+            },
+            {
+              "title": "every menu entry opens, with a heading and no console errors",
+              "project": "wf-chromium",
+              "status": "timedOut",
+              "errors": [
+                "Test timeout of 30000ms exceeded."
+              ],
+              "attachments": [
+                {
+                  "name": "screenshot",
+                  "path": "../../test-results/next-e2e-3321-15965/workflow/wf-roles-admin-every-menu--b23f4-ading-and-no-console-errors-wf-chromium/test-failed-1.png"
+                },
+                {
+                  "name": "error-context",
+                  "path": "../../test-results/next-e2e-3321-15965/workflow/wf-roles-admin-every-menu--b23f4-ading-and-no-console-errors-wf-chromium/error-context.md"
+                },
+                {
+                  "name": "trace",
+                  "path": "../../test-results/next-e2e-3321-15965/workflow/wf-roles-admin-every-menu--b23f4-ading-and-no-console-errors-wf-chromium/trace.zip"
+                }
+              ]
+            }
+          ],
+          "positiveEvidence": [
+            {
+              "title": "the editor sees every feature in the review preview, then publishes from it",
+              "project": "wf-chromium",
+              "name": "representative-article-preview",
+              "path": "evidence/wf-chromium-representative-article-preview.png"
+            },
+            {
+              "title": "the published article shows the content, semantic formatting kept, house style applied",
+              "project": "wf-chromium",
+              "name": "representative-article-published",
+              "path": "evidence/wf-chromium-representative-article-published.png"
+            },
+            {
+              "title": "the editor sees every feature in the review preview, then publishes from it",
+              "project": "wf-webkit",
+              "name": "representative-article-preview",
+              "path": "evidence/wf-webkit-representative-article-preview.png"
+            },
+            {
+              "title": "the published article shows the content, semantic formatting kept, house style applied",
+              "project": "wf-webkit",
+              "name": "representative-article-published",
+              "path": "evidence/wf-webkit-representative-article-published.png"
+            }
+          ]
+        }
+      ],
+      "vitest": {
+        "numTotalTests": 935,
+        "numPassedTests": 917,
+        "numFailedTests": 0,
+        "numPendingTests": 18,
+        "numTodoTests": 0,
+        "success": true
+      }
+    },
+    {
+      "label": "final-regression",
+      "commit": "680c11b716c30a0596dbceab706ab3249910c576",
+      "runId": "next-e2e-3321-31884",
+      "phases": [
+        {
+          "phase": "final-regression",
+          "stats": {
+            "startTime": "2026-10-04T00:00:14.649Z",
+            "duration": 243441.574,
+            "expected": 54,
+            "skipped": 0,
+            "unexpected": 1,
+            "flaky": 0
+          },
+          "groups": {
+            "setup / auth.setup.ts": {
+              "passed": 6,
+              "failed": 0,
+              "skipped": 0
+            },
+            "public-webkit / public.spec.ts": {
+              "passed": 0,
+              "failed": 1,
+              "skipped": 0
+            },
+            "wf-chromium / wf-cache.spec.ts": {
+              "passed": 1,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-webkit / wf-cache.spec.ts": {
+              "passed": 1,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-chromium / wf-controls.spec.ts": {
+              "passed": 1,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-webkit / wf-controls.spec.ts": {
+              "passed": 1,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-chromium / wf-failures.spec.ts": {
+              "passed": 1,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-webkit / wf-failures.spec.ts": {
+              "passed": 1,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-chromium / wf-roles.spec.ts": {
+              "passed": 21,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-webkit / wf-roles.spec.ts": {
+              "passed": 21,
+              "failed": 0,
+              "skipped": 0
+            }
+          },
+          "failures": [
+            {
+              "title": "navigating across pages throws no InvalidStateError (view-transition guard)",
+              "project": "public-webkit",
+              "status": "failed",
+              "errors": [
+                "Error: console errors:\npageerror: /localhost:3321/articles/footnote-popover-test?_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/articles/the-long-read-experiment?_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/articles/the-small-sample?_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/category/analysis?_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/category/opinion?_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/category/news?_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/?_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/login?_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/about?_rsc=1pn8p due to access control checks.\npageerror: /localhost:3321/about?_rsc=nn07o due to access control checks.\npageerror: /localhost:3321/about?_rsc=uudir due to access control checks.\npageerror: /localhost:3321/about?_rsc=1pr6k due to access control checks.\npageerror: /localhost:3321/opinion-debate?_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/category/interviews?_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=11lxi due to access control checks.\npageerror: /localhost:3321/articles/against-higher-minimum-wage-economic-analysis?_rsc=11lxi due to access control checks.\npageerror: /localhost:3321/articles/ai-regulation-economic-imperative?_rsc=11lxi due to access control checks.\npageerror: /localhost:3321/articles/against-ai-regulation-innovation-cost?_rsc=11lxi due to access control checks.\npageerror: /localhost:3321/about?_rsc=11lxi due to access control checks.\npageerror: /localhost:3321/opinion-debate?_rsc=11lxi due to access control checks.\npageerror: /localhost:3321/category/interviews?_rsc=11lxi due to access control checks.\npageerror: /localhost:3321/category/analysis?_rsc=11lxi due to access control checks.\npageerror: /localhost:3321/category/news?_rsc=11lxi due to access control checks.\npageerror: /localhost:3321/?_rsc=11lxi due to access control checks.\npageerror: /localhost:3321/category/opinion?_rsc=10pju due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=3qufl due to access control checks.\npageerror: /localhost:3321/category/interviews?_rsc=3qufl due to access control checks.\n[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Load failed {error: undefined, url: /api/auth/session, message: Load failed} @ http://localhost:3321/_next/static/chunks/1859tlvgsw07~.js\npageerror: /localhost:3321/category/analysis?_rsc=3qufl due to access control checks.\npageerror: /localhost:3321/category/opinion?_rsc=3qufl due to access control checks.\npageerror: /localhost:3321/category/news?_rsc=3qufl due to access control checks.\npageerror: /localhost:3321/?_rsc=3qufl due to access control checks.\npageerror: /localhost:3321/opinion-debate?_rsc=21rih due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=zy1kv due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=188i8 due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=143lk due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=9wllg due to access control checks.\npageerror: /localhost:3321/team?_rsc=2hlo4 due to access control checks.\npageerror: /localhost:3321/about?_rsc=zy1kv due to access control checks.\npageerror: /localhost:3321/about?_rsc=cd6m8 due to access control checks.\npageerror: /localhost:3321/about?_rsc=1o53o due to access control checks.\npageerror: /localhost:3321/category/opinion?_rsc=8pnti due to access control checks.\npageerror: /localhost:3321/category/news?_rsc=8pnti due to access control checks.\npageerror: /localhost:3321/?_rsc=1xad1 due to access control checks.\npageerror: /localhost:3321/login?_rsc=8pnti due to access control checks.\npageerror: /localhost:3321/login?_rsc=tg835 due to access control checks.\npageerror: /localhost:3321/about?_rsc=m0ktk due to access control checks.\npageerror: /localhost:3321/about?_rsc=z8vpb due to access control checks.\npageerror: /localhost:3321/about?_rsc=hyi7y due to access control checks.\npageerror: /localhost:3321/opinion-debate?_rsc=tg835 due to access control checks.\npageerror: /localhost:3321/category/interviews?_rsc=tg835 due to access control checks.\npageerror: /localhost:3321/category/analysis?_rsc=tg835 due to access control checks.\npageerror: /localhost:3321/category/opinion?_rsc=tg835 due to access control checks.\npageerror: /localhost:3321/category/news?_rsc=tg835 due to access control checks.\npageerror: /localhost:3321/?_rsc=kwyx8 due to access control checks.\npageerror: /localhost:3321/category/news?_rsc=1r34m due to access control checks.\npageerror: /localhost:3321/?category=opinion&_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/?category=news&_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/?category=interviews&_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/?category=analysis&_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/?_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/articles/footnote-popover-test?_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=1pn8p due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=nn07o due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=1v2tv due to access control checks.\npageerror: /localhost:3321/privacy?_rsc=1148h due to access control checks.\npageerror: /localhost:3321/login?_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/about?_rsc=1pn8p due to access control checks.\npageerror: /localhost:3321/about?_rsc=uudir due to access control checks.\npageerror: /localhost:3321/about?_rsc=1pr6k due to access control checks.\npageerror: /localhost:3321/opinion-debate?_rsc=p37cr due to access control checks.\npageerror: /localhost:3321/category/interviews?_rsc=p37cr due to access control checks.\n\nexpect(received).toEqual(expected) // deep equality\n\n- Expected  -  1\n+ Received  + 76\n\n- Array []\n+ Array [\n+   \"pageerror: /localhost:3321/articles/footnote-popover-test?_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/articles/the-long-read-experiment?_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/articles/the-small-sample?_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/analysis?_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/opinion?_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/news?_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/?_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/login?_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=1pn8p due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=nn07o due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=uudir due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=1pr6k due to access control checks.\",\n+   \"pageerror: /localhost:3321/opinion-debate?_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/interviews?_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=11lxi due to access control checks.\",\n+   \"pageerror: /localhost:3321/articles/against-higher-minimum-wage-economic-analysis?_rsc=11lxi due to access control checks.\",\n+   \"pageerror: /localhost:3321/articles/ai-regulation-economic-imperative?_rsc=11lxi due to access control checks.\",\n+   \"pageerror: /localhost:3321/articles/against-ai-regulation-innovation-cost?_rsc=11lxi due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=11lxi due to access control checks.\",\n+   \"pageerror: /localhost:3321/opinion-debate?_rsc=11lxi due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/interviews?_rsc=11lxi due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/analysis?_rsc=11lxi due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/news?_rsc=11lxi due to access control checks.\",\n+   \"pageerror: /localhost:3321/?_rsc=11lxi due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/opinion?_rsc=10pju due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=3qufl due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/interviews?_rsc=3qufl due to access control checks.\",\n+   \"[next-auth][error][CLIENT_FETCH_ERROR] \n+ https://next-auth.js.org/errors#client_fetch_error Load failed {error: undefined, url: /api/auth/session, message: Load failed} @ http://localhost:3321/_next/static/chunks/1859tlvgsw07~.js\",\n+   \"pageerror: /localhost:3321/category/analysis?_rsc=3qufl due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/opinion?_rsc=3qufl due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/news?_rsc=3qufl due to access control checks.\",\n+   \"pageerror: /localhost:3321/?_rsc=3qufl due to access control checks.\",\n+   \"pageerror: /localhost:3321/opinion-debate?_rsc=21rih due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=zy1kv due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=188i8 due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=143lk due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=9wllg due to access control checks.\",\n+   \"pageerror: /localhost:3321/team?_rsc=2hlo4 due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=zy1kv due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=cd6m8 due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=1o53o due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/opinion?_rsc=8pnti due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/news?_rsc=8pnti due to access control checks.\",\n+   \"pageerror: /localhost:3321/?_rsc=1xad1 due to access control checks.\",\n+   \"pageerror: /localhost:3321/login?_rsc=8pnti due to access control checks.\",\n+   \"pageerror: /localhost:3321/login?_rsc=tg835 due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=m0ktk due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=z8vpb due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=hyi7y due to access control checks.\",\n+   \"pageerror: /localhost:3321/opinion-debate?_rsc=tg835 due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/interviews?_rsc=tg835 due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/analysis?_rsc=tg835 due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/opinion?_rsc=tg835 due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/news?_rsc=tg835 due to access control checks.\",\n+   \"pageerror: /localhost:3321/?_rsc=kwyx8 due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/news?_rsc=1r34m due to access control checks.\",\n+   \"pageerror: /localhost:3321/?category=opinion&_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/?category=news&_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/?category=interviews&_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/?category=analysis&_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/?_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/articles/footnote-popover-test?_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=1pn8p due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=nn07o due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=1v2tv due to access control checks.\",\n+   \"pageerror: /localhost:3321/privacy?_rsc=1148h due to access control checks.\",\n+   \"pageerror: /localhost:3321/login?_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=1pn8p due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=uudir due to access control checks.\",\n+   \"pageerror: /localhost:3321/about?_rsc=1pr6k due to access control checks.\",\n+   \"pageerror: /localhost:3321/opinion-debate?_rsc=p37cr due to access control checks.\",\n+   \"pageerror: /localhost:3321/category/interviews?_rsc=p37cr due to access control checks.\",\n+ ]\n\n  208 |\n  209 |   expect(invalidState, `InvalidStateError fired:\\n${invalidState.join('\\n')}`).toEqual([])\n> 210 |   expect(consoleErrors, `console errors:\\n${consoleErrors.join('\\n')}`).toEqual([])\n      |                                                                         ^\n  211 | })\n  212 |\n  213 | test('dark-mode toggle switches theme', async ({ page }) => {\n    at /private/tmp/consilium-workflow-isolated/tests/e2e/public.spec.ts:210:73"
+              ],
+              "attachments": [
+                {
+                  "name": "screenshot",
+                  "path": "../../test-results/next-e2e-3321-31884/final-regression/public-navigating-across-p-776ee-rror-view-transition-guard--public-webkit/test-failed-1.png"
+                },
+                {
+                  "name": "error-context",
+                  "path": "../../test-results/next-e2e-3321-31884/final-regression/public-navigating-across-p-776ee-rror-view-transition-guard--public-webkit/error-context.md"
+                },
+                {
+                  "name": "error-context",
+                  "path": "../../test-results/next-e2e-3321-31884/final-regression/public-navigating-across-p-776ee-rror-view-transition-guard--public-webkit/error-context.md"
+                },
+                {
+                  "name": "trace",
+                  "path": "../../test-results/next-e2e-3321-31884/final-regression/public-navigating-across-p-776ee-rror-view-transition-guard--public-webkit/trace.zip"
+                }
+              ]
+            }
+          ],
+          "positiveEvidence": []
+        }
+      ]
+    },
+    {
+      "label": "cache-red",
+      "commit": "c379afa7e161b2e540f9b8fa3a857cdd6b8cbb45 with uncommitted regression test",
+      "runId": "next-e2e-3321-11839",
+      "phases": [
+        {
+          "phase": "cache-red2",
+          "stats": {
+            "startTime": "2026-10-03T23:15:57.592Z",
+            "duration": 25840.227,
+            "expected": 6,
+            "skipped": 0,
+            "unexpected": 2,
+            "flaky": 0
+          },
+          "groups": {
+            "setup / auth.setup.ts": {
+              "passed": 6,
+              "failed": 0,
+              "skipped": 0
+            },
+            "wf-chromium / wf-cache.spec.ts": {
+              "passed": 0,
+              "failed": 1,
+              "skipped": 0
+            },
+            "wf-webkit / wf-cache.spec.ts": {
+              "passed": 0,
+              "failed": 1,
+              "skipped": 0
+            }
+          },
+          "failures": [
+            {
+              "title": "publication and unpublication immediately refresh already visited public listings",
+              "project": "wf-chromium",
+              "status": "failed",
+              "errors": [
+                "Error: expect(locator).toBeVisible() failed\n\nLocator: getByRole('link', { name: 'WF cache mut0gcg9-lwot', exact: true }).first()\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 10000ms\n  - waiting for getByRole('link', { name: 'WF cache mut0gcg9-lwot', exact: true }).first()\n\n\n  27 |     for (const path of ['/category/opinion', '/archive', '/']) {\n  28 |       expect((await publicPage.goto(path, { waitUntil: 'networkidle' }))?.status()).toBe(200)\n> 29 |       await expect(publicPage.getByRole('link', { name: title, exact: true }).first()).toBeVisible()\n     |                                                                                        ^\n  30 |     }\n  31 |     expect((await ed.saving(() => page.getByRole('button', { name: 'Unpublish', exact: true }).click())).status()).toBe(200)\n  32 |     for (const path of ['/category/opinion', '/archive', '/']) {\n    at /private/tmp/consilium-workflow-isolated/tests/e2e/wf-cache.spec.ts:29:88"
+              ],
+              "attachments": [
+                {
+                  "name": "screenshot",
+                  "path": "../../test-results/next-e2e-3321-11839/cache-red2/wf-cache-publication-and-u-29223-ady-visited-public-listings-wf-chromium/test-failed-1.png"
+                },
+                {
+                  "name": "screenshot",
+                  "path": "../../test-results/next-e2e-3321-11839/cache-red2/wf-cache-publication-and-u-29223-ady-visited-public-listings-wf-chromium/test-failed-2.png"
+                },
+                {
+                  "name": "error-context",
+                  "path": "../../test-results/next-e2e-3321-11839/cache-red2/wf-cache-publication-and-u-29223-ady-visited-public-listings-wf-chromium/error-context.md"
+                },
+                {
+                  "name": "error-context",
+                  "path": "../../test-results/next-e2e-3321-11839/cache-red2/wf-cache-publication-and-u-29223-ady-visited-public-listings-wf-chromium/error-context.md"
+                },
+                {
+                  "name": "trace",
+                  "path": "../../test-results/next-e2e-3321-11839/cache-red2/wf-cache-publication-and-u-29223-ady-visited-public-listings-wf-chromium/trace.zip"
+                }
+              ]
+            },
+            {
+              "title": "publication and unpublication immediately refresh already visited public listings",
+              "project": "wf-webkit",
+              "status": "failed",
+              "errors": [
+                "Error: expect(locator).toBeVisible() failed\n\nLocator: getByRole('link', { name: 'WF cache mut0gf2o-kzzj', exact: true }).first()\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 10000ms\n  - waiting for getByRole('link', { name: 'WF cache mut0gf2o-kzzj', exact: true }).first()\n\n\n  27 |     for (const path of ['/category/opinion', '/archive', '/']) {\n  28 |       expect((await publicPage.goto(path, { waitUntil: 'networkidle' }))?.status()).toBe(200)\n> 29 |       await expect(publicPage.getByRole('link', { name: title, exact: true }).first()).toBeVisible()\n     |                                                                                        ^\n  30 |     }\n  31 |     expect((await ed.saving(() => page.getByRole('button', { name: 'Unpublish', exact: true }).click())).status()).toBe(200)\n  32 |     for (const path of ['/category/opinion', '/archive', '/']) {\n    at /private/tmp/consilium-workflow-isolated/tests/e2e/wf-cache.spec.ts:29:88"
+              ],
+              "attachments": [
+                {
+                  "name": "screenshot",
+                  "path": "../../test-results/next-e2e-3321-11839/cache-red2/wf-cache-publication-and-u-29223-ady-visited-public-listings-wf-webkit/test-failed-2.png"
+                },
+                {
+                  "name": "screenshot",
+                  "path": "../../test-results/next-e2e-3321-11839/cache-red2/wf-cache-publication-and-u-29223-ady-visited-public-listings-wf-webkit/test-failed-1.png"
+                },
+                {
+                  "name": "error-context",
+                  "path": "../../test-results/next-e2e-3321-11839/cache-red2/wf-cache-publication-and-u-29223-ady-visited-public-listings-wf-webkit/error-context.md"
+                },
+                {
+                  "name": "error-context",
+                  "path": "../../test-results/next-e2e-3321-11839/cache-red2/wf-cache-publication-and-u-29223-ady-visited-public-listings-wf-webkit/error-context.md"
+                },
+                {
+                  "name": "trace",
+                  "path": "../../test-results/next-e2e-3321-11839/cache-red2/wf-cache-publication-and-u-29223-ady-visited-public-listings-wf-webkit/trace.zip"
+                }
+              ]
+            }
+          ],
+          "positiveEvidence": []
+        }
+      ]
+    }
+  ]
+}

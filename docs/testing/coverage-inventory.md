@@ -64,12 +64,12 @@ All exercised in `wf-formatting.spec.ts`, then checked in editor → reopened �
 | Undo, Redo | ✅ | | | |
 | Print | ✅ (stubbed `window.print` was called) | | | 🚧 real print dialog |
 | Bold, Italic, Underline | ✅ | ✅ | ✅ | ✅ |
-| Strikethrough | ✅ | ✅ | ✅ | ✅ (fixed) |
+| Strikethrough | ✅ | ✅ | ✅ | ✅ (baseline renderer) |
 | Text colour (palette, hex, remove) | ✅ | ✅ | | ⛔ stripped by decision |
 | Highlight (palette, hex, none) | ✅ | ✅ | ✅ | ✅ as site `<mark>` (colour not kept) |
 | Link (apply, cancel, remove) | ✅ | ✅ | ✅ | ✅ |
 | Image upload → figure, caption, credit | ✅ | ✅ | ✅ | ✅ |
-| Table (grid picker; row above/below, column left/right, delete row/column) | ✅ | ✅ | ✅ | ✅ (fixed) |
+| Table (grid picker; row above/below, column left/right, delete row/column) | ✅ | ✅ | ✅ | ✅ (baseline renderer) |
 | Delete table | ✅ `wf-controls` | ✅ | | | |
 | Horizontal rule | ✅ | ✅ | | ✅ |
 | Bullet list, Numbered list, Indent, Outdent | ✅ | ✅ | | ✅ |
@@ -139,11 +139,7 @@ report a comment, ban screen. 🚧 Google sign-in.
 
 ### Open WebKit findings (not fixed, not hidden)
 
-1. `public.spec` "navigating across pages throws no InvalidStateError": under WebKit on
-   `http://localhost`, every Next RSC prefetch `fetch()` rejects with "due to access control
-   checks" although the server answers 200 with `text/x-component`. Probably specific to
-   plain-HTTP localhost; needs a check on a real HTTPS preview in Safari before it is called
-   a production problem.
+1. `public.spec` "navigating across pages throws no InvalidStateError": rapid navigation under WebKit produces uncaught Next RSC fetch errors containing "due to access control checks", although destination pages respond successfully. It also reproduces over a local HTTPS proxy (65 HTTP and 67 HTTPS errors), so an HTTP-only explanation is unsupported. The test remains enabled. Framework/browser root cause and deployed Safari impact remain unconfirmed; see the audit report and failure traces.
 2. Historical `footnotes.spec` findings under WebKit (the keyboard and outside-point tests have now been corrected; the exact page-height assertion remains enabled): (a) keyboard Tab does not reach the footnote link (Safari
    skips links in the tab order unless the user enables it, so the popover is not
    keyboard-reachable there by default); (b) a tap outside the open popover does not close it
