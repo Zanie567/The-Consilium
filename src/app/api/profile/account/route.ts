@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -14,7 +15,7 @@ import { apiServerErrorResponse } from '@/lib/apiResponse'
 // and logs the change) — a user must never be able to promote themselves by
 // posting a role alongside their bio. Unknown keys in the body are ignored
 // because every field below is picked out by name.
-export async function PATCH(request: NextRequest) {
+async function PATCHHandler(request: NextRequest) {
   const auth = await requireVerifiedSessionUser(ALL_ROLES)
   if (!auth.ok) return auth.response
   const user = auth.user
@@ -82,7 +83,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 // DELETE /api/profile/account - permanently delete the account
-export async function DELETE(request: NextRequest) {
+async function DELETEHandler(request: NextRequest) {
   const auth = await requireVerifiedSessionUser(ALL_ROLES)
   if (!auth.ok) return auth.response
   const user = auth.user
@@ -116,3 +117,7 @@ export async function DELETE(request: NextRequest) {
     })
   }
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)
+
+export const DELETE = withTestingAudit(DELETEHandler)

@@ -9,6 +9,9 @@ const eslintConfig = defineConfig([
     ".next/**",
     ".next-e2e*/**",
     "playwright-report/**",
+    // Retained browser reports contain generated, minified vendor bundles.
+    "docs/testing/evidence/**",
+    "test-results/**",
     ".claude/**",
     ".vercel/**",
     "out/**",

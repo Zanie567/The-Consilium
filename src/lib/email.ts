@@ -13,6 +13,7 @@ export async function sendEmail({
   subject: string
   html: string
 }) {
+  if (process.env.TESTING_MODE_ENABLED === '1' && (process.env.EMAIL_TRANSPORT !== 'capture' || !process.env.EMAIL_CAPTURE_FILE)) throw new Error('Testing requires captured email.')
   // Test isolation: with EMAIL_TRANSPORT=capture nothing is ever sent. The message
   // is appended (as one JSON line) to EMAIL_CAPTURE_FILE so tests can assert what
   // would have gone out. Checked before RESEND_API_KEY so a real key in the

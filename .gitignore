@@ -54,3 +54,5 @@ next-env.d.ts
 # Per-run isolated audit build configuration and retained local evidence
 /.next-e2e*.tsconfig.json
 /docs/testing/evidence/
+
+/supabase/.temp/

@@ -1,3 +1,5 @@
+import { withTestingAudit } from '@/lib/testingAudit'
+import { TEAM_TIER_ORDER } from '@/lib/teamHierarchy'
 import { NextResponse, NextRequest } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -5,7 +7,7 @@ import { ADMIN_ONLY } from '@/lib/rbac'
 import { isUniqueViolation } from '@/lib/prismaErrors'
 import { parseLinkTarget } from '../linkTarget'
 
-export async function PUT(
+async function PUTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -17,8 +19,11 @@ export async function PUT(
   const { id } = await params
   try {
     const body = await request.json()
-    const { name, role, bio, image, email, order, isActive, userId } = body
+    const { name, role, bio, image, email, order, isActive, userId, publicTier } = body
 
+    if (publicTier != null && publicTier !== '' && !TEAM_TIER_ORDER.includes(publicTier)) {
+      return NextResponse.json({ error: 'Invalid public placement' }, { status: 400 })
+    }
     const link = await parseLinkTarget(userId)
     if (!link.ok) return link.response
 
@@ -27,14 +32,15 @@ export async function PUT(
       data: {
         // Absent leaves the link as it is; null unlinks; an id links.
         ...(link.userId !== undefined ? { userId: link.userId } : {}),
+        ...(publicTier !== undefined ? { publicTier: publicTier || null } : {}),
         name,
-        // See POST /api/team: an absent role is stored as an empty string.
-        role: role ?? '',
-        bio: bio || null,
-        image: image || null,
-        email: email || null,
-        order: order ?? 0,
-        isActive: isActive ?? true,
+        // Missing preserves the appointment; explicit null clears the title.
+        ...(role !== undefined ? { role: role ?? '' } : {}),
+        ...(bio !== undefined ? { bio: bio || null } : {}),
+        ...(image !== undefined ? { image: image || null } : {}),
+        ...(email !== undefined ? { email: email || null } : {}),
+        ...(order !== undefined ? { order } : {}),
+        ...(isActive !== undefined ? { isActive } : {}),
       },
     })
     return NextResponse.json(member)
@@ -46,7 +52,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
+async function DELETEHandler(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -63,3 +69,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to delete team member' }, { status: 500 })
   }
 }
+
+export const PUT = withTestingAudit(PUTHandler)
+
+export const DELETE = withTestingAudit(DELETEHandler)

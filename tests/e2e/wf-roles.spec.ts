@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
-import { signedIn, type SessionName } from './helpers/workflow'
+import { signedIn, closeDb, type SessionName } from './helpers/workflow'
 import { collectConsoleErrors } from './helpers/console'
 
 /**
@@ -15,6 +15,9 @@ import { collectConsoleErrors } from './helpers/console'
  * With E2E_INVENTORY_DIR set it also writes every control it finds on every page to
  * JSON, which is how docs/testing/coverage-inventory.md is kept honest.
  */
+
+// Remove only this worker's generated test administrators and release its pool.
+test.afterAll(async () => { await closeDb() })
 
 type NavLink = { label: string; href: string }
 
@@ -44,6 +47,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
   ],
   admin: [
     { label: 'Dashboard', href: '/editorial' },
+    { label: 'Team Profile', href: '/editorial/team-profile' },
     { label: 'All Articles', href: '/editorial/articles' },
     { label: 'My Drafts', href: '/editorial/articles?mine=true&status=DRAFT' },
     { label: 'New Article', href: '/editorial/articles/new' },
@@ -54,6 +58,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
     { label: 'Review Queue', href: '/editorial/review' },
     { label: 'Debates', href: '/editorial/debates' },
     { label: 'Comments', href: '/editorial/comments' },
+    { label: 'Testing', href: '/admin/testing' },
     { label: 'Users', href: '/editorial/users' },
     { label: 'Analytics', href: '/editorial/analytics' },
     { label: 'Predictions', href: '/editorial/predictions' },
@@ -85,17 +90,31 @@ const EXTRA_ALLOWED: Record<string, string[]> = {
   // Leaderboard: open to every portal role by design (page check: EDITORIAL_PORTAL_ROLES), menu entry for writers only.
   writer: ['/editorial/trash'],
   editor: ['/editorial/debates/new', '/editorial/leaderboard'],
-  // Admin: team-profile shows an explanation, not a form (covered by team-profile.spec.ts).
+  // Admin: assigned profiles are editable; unassigned accounts see an explanation.
   admin: ['/editorial/debates/new', '/editorial/predictions/new', '/editorial/growth/subscribers', '/editorial/growth/engagement', '/editorial/growth/writer-activity', '/editorial/leaderboard', '/editorial/team-profile'],
   growth: ['/editorial/growth/writer-activity', '/editorial/leaderboard'],
 }
 
 const norm = (href: string) => href.split('?')[0]
 
+async function portalReady(page: Page) {
+  await expect(page.getByRole('region', { name: 'Testing environment', exact: true })).toBeVisible()
+  // Every ordinary/persona page measures its persistent banner after hydration.
+  await page.waitForFunction(() => Boolean(document.documentElement.style.getPropertyValue('--testing-banner-height')))
+}
+
 async function outcome(page: Page, url: string) {
-  // networkidle, not domcontentloaded: a server redirect() inside a streamed page arrives
-  // as a 200 shell followed by a client navigation, so the URL is only final once idle.
-  const res = await page.goto(url, { waitUntil: 'networkidle' })
+  // A streamed redirect can follow the initial 200 shell. Wait for its observable
+  // refusal rather than unrelated notification polling or prefetched requests.
+  const res = await page.goto(url, { waitUntil: 'domcontentloaded' })
+  if ((res?.status() ?? 200) < 400) {
+    await page.waitForFunction((requestedPath) =>
+      location.pathname !== requestedPath ||
+      /Access Denied|This page could not be found|404/i.test(document.body.innerText),
+    norm(url), { timeout: 5000 }).catch((error: Error) => {
+      if (error.name !== 'TimeoutError') throw error
+    })
+  }
   const finalPath = new URL(page.url()).pathname
   const body = (await page.locator('body').innerText().catch(() => '')).slice(0, 4000)
   const refused =
@@ -129,7 +148,8 @@ for (const role of ['writer', 'editor', 'admin', 'growth'] as const) {
     test('the menu is exactly the documented one', async ({ browser }) => {
       const ctx = await signedIn(browser, role as SessionName)
       const page = await ctx.newPage()
-      await page.goto('/editorial', { waitUntil: 'networkidle' })
+      await page.goto('/editorial', { waitUntil: 'domcontentloaded' })
+      await portalReady(page)
       const links = await page.locator('nav[aria-label="Editorial navigation"] a').evaluateAll((as) =>
         as.map((a) => ({ label: (a.textContent ?? '').replace(/\s+/g, ' ').trim().replace(/\d+$/, '').trim(), href: a.getAttribute('href') ?? '' })))
       expect(links).toEqual(NAV[role])
@@ -137,15 +157,33 @@ for (const role of ['writer', 'editor', 'admin', 'growth'] as const) {
     })
 
     test('every menu entry opens, with a heading and no console errors', async ({ browser }) => {
+      // Up to 18 pages, HTTP reads and rendered inventories in one journey.
+      // Individual fetch/action/expectation deadlines remain ten seconds.
+      test.setTimeout(120_000)
       const ctx = await signedIn(browser, role as SessionName)
       const page = await ctx.newPage()
       const errors = collectConsoleErrors(page)
-      for (const link of NAV[role]) {
-        const res = await page.goto(link.href, { waitUntil: 'networkidle' })
-        expect(res?.status(), `${role} ${link.href}`).toBe(200)
-        expect(new URL(page.url()).pathname, `${role} was bounced from ${link.href}`).toBe(norm(link.href))
+      await page.goto('/editorial', { waitUntil: 'domcontentloaded' })
+      await portalReady(page)
+      // Testing leaves the editorial layout; exercise that link last so every
+      // destination is reached through the actual menu, including query links.
+      const links = [...NAV[role].filter(link => link.href !== '/admin/testing'), ...NAV[role].filter(link => link.href === '/admin/testing')]
+      for (const link of links) {
+        // Use the same browser transport and cookies as normal navigation.
+        // Consume the response before changing routes; no retry hides failures.
+        const status = await page.evaluate(async href => {
+          const response = await fetch(href, { cache: 'no-store', signal: AbortSignal.timeout(10_000) })
+          await response.arrayBuffer()
+          return response.status
+        }, link.href)
+        expect(status, `${role} ${link.href}`).toBe(200)
+        await page.locator('nav[aria-label="Editorial navigation"]').locator(`a[href="${link.href}"]`).click()
+        await expect(page).toHaveURL(url => url.pathname + url.search === link.href)
+        await portalReady(page)
         if (link.href !== '/editorial/articles/new') {
           await expect(page.locator('h1').first(), `${link.href} has a heading`).toBeVisible()
+        } else {
+          await expect(page.locator('.tiptap').first(), 'the rich text editor is ready').toBeVisible()
         }
         await dumpControls(page, role, link.href)
       }

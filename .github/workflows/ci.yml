@@ -6,8 +6,9 @@
 # crashed in production. `npm ci` fails hard when package.json and the lockfile are
 # out of sync, so this workflow would have caught that exact bug before merge.
 #
-# Runs on every PR and on pushes to main. Pure build/typecheck/test — no secrets,
-# no database. The build step uses throwaway env values purely to satisfy
+# Runs on every PR and on pushes to main. No production secrets or services.
+# The verify job uses no database; the E2E job owns a local Postgres service.
+# The build step uses throwaway env values purely to satisfy
 # module-load guards (e.g. NEXTAUTH_SECRET) and inlined NEXT_PUBLIC_* vars; all
 # public pages are dynamic / force-dynamic, so the build never connects to a DB.
 
@@ -52,8 +53,8 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Unit + integration tests
-        run: npm test
+      - name: Unit tests
+        run: npm run test:unit
 
       # Faithful production build. Catches missing imports, type errors, and
       # page-data collection failures. Dummy env values only — never real secrets.
@@ -74,7 +75,7 @@ jobs:
   e2e:
     name: E2E (Playwright), data-layer & network checks
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
 
     services:
       postgres:
@@ -128,6 +129,9 @@ jobs:
 
       - name: Set up & seed test database
         run: npm run test:setup-db
+
+      - name: Lint
+        run: npm run lint
 
       - name: Unit + integration tests (vitest, against seeded DB)
         run: npm test

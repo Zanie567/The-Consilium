@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getVerifiedSessionUser, requireActiveSession } from '@/lib/auth'
@@ -19,7 +20,7 @@ export async function GET() {
   return NextResponse.json(notifications)
 }
 
-export async function PATCH() {
+async function PATCHHandler() {
   const user = await getVerifiedSessionUser(EDITORIAL_PORTAL_ROLES)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -30,3 +31,5 @@ export async function PATCH() {
 
   return NextResponse.json({ ok: true })
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)

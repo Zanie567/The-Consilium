@@ -3,8 +3,9 @@
  * a person does (click, type, upload); the database and storage helpers only READ state
  * back for assertions, or remove the fixtures a spec created.
  */
-import { expect, type Browser, type BrowserContext, type Page, type Response } from '@playwright/test'
+import { test, expect, type Browser, type BrowserContext, type Page, type Response } from '@playwright/test'
 import fs from 'node:fs'
+import bcrypt from 'bcryptjs'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { assertSafeTestDatabaseHost } from '../../../scripts/lib/assertSafeTestDatabaseHost'
@@ -24,10 +25,37 @@ const SESSIONS = {
   reader: READER_STORAGE,
 } as const
 export type SessionName = keyof typeof SESSIONS
+const initiatingCredentials = new WeakMap<BrowserContext, { email: string; password: string }>()
+/** Reauthenticate the actual initiator, preserving the server-controlled persona capability. */
+export function writerLoginCredentials(context: BrowserContext) {
+  return initiatingCredentials.get(context) ?? { email: 'writer@theconsilium.com', password: 'writer2024' }
+}
 
 /** A fresh browser context signed in as `who`: one per person, so sessions never mix. */
 export async function signedIn(browser: Browser, who: SessionName | null): Promise<BrowserContext> {
-  return browser.newContext(who ? { storageState: SESSIONS[who] } : {})
+  if (!test.info().project.name.startsWith('simulator-') || !who || who === 'admin' || who === 'reader') {
+    return browser.newContext(who ? { storageState: SESSIONS[who] } : {})
+  }
+  // One real test administrator per context; concurrent sessions never revoke another run.
+  const key = `test-session-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const administrator = await db().user.create({ data: { email: `${key}@consilium.test`, name: 'Testing Administrator', role: 'ADMIN', emailVerified: new Date(), password: await bcrypt.hash('testing-local-1234', 10) } })
+  testAdministrators.push(administrator.id)
+  const context = await browser.newContext()
+  initiatingCredentials.set(context, { email: administrator.email, password: 'testing-local-1234' })
+  const page = await context.newPage()
+  await page.goto('/editorial/login')
+  await page.locator('input[type="email"]').fill(administrator.email)
+  await page.locator('input[type="password"]').fill('testing-local-1234')
+  await page.locator('button[type="submit"]').click()
+  await page.waitForURL(u => !u.pathname.includes('/login'))
+  await page.goto('/admin/testing')
+  const label = who === 'editor' ? 'Global Editor' : who.charAt(0).toUpperCase() + who.slice(1)
+  await page.getByRole('button', { name: `Test as ${label}`, exact: true }).last().click()
+  await expect(page.getByRole('region', { name: 'Testing environment' }).locator('strong')).toContainText(label)
+  const session = await (await context.request.get('/api/auth/session')).json()
+  await context.setExtraHTTPHeaders({ 'x-consilium-identity': session.requestIdentity })
+  await page.close()
+  return context
 }
 
 /** Titles this worker generated; only these are removed afterwards, never another worker's. */
@@ -39,6 +67,7 @@ export function uniqueTitle(label: string) {
 }
 
 // ── Database (test DB only; read-back + fixture cleanup) ────────────────────────────
+const testAdministrators: string[] = []
 let prisma: PrismaClient | null = null
 export function db(): PrismaClient {
   if (!prisma) {
@@ -49,6 +78,12 @@ export function db(): PrismaClient {
   return prisma
 }
 export async function closeDb() {
+  if (prisma && testAdministrators.length) {
+    await prisma.testingSession.deleteMany({ where: { administratorId: { in: testAdministrators } } })
+    await prisma.auditLog.deleteMany({ where: { performedBy: { in: testAdministrators } } })
+    await prisma.user.deleteMany({ where: { id: { in: testAdministrators }, email: { startsWith: 'test-session-' } } })
+    testAdministrators.length = 0
+  }
   await prisma?.$disconnect().catch(() => {})
   prisma = null
 }

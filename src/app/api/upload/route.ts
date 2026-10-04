@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse, NextRequest } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
@@ -32,7 +33,7 @@ const BUCKET_MAX_BYTES: Record<string, number> = {
   avatars: MAX_AVATAR_BYTES,
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   // Authenticate against the widest set here; the per-bucket check below narrows
   // it once we know which bucket the caller asked for.
   const auth = await requireVerifiedSessionUser(ALL_ROLES)
@@ -150,3 +151,5 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export const POST = withTestingAudit(POSTHandler)

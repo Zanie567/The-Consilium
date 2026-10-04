@@ -32,7 +32,9 @@ const BASE_URL = resolveTestBaseUrl(process.env.E2E_BASE_URL)
 // from everything else (E2E_PHASE=main). Unset = every project, for explicit
 // `--project=...` selections.
 const phase = process.env.E2E_PHASE
-const isWorkflow = (name: string) => name.startsWith('wf-')
+const resultsDir = process.env.E2E_RESULTS_DIR ?? 'test-results'
+const reportDir = `playwright-report/${process.env.E2E_RUN_ID ?? 'manual'}`
+const isWorkflow = (name: string) => name.startsWith('wf-') || name.startsWith('simulator-') || name === 'testing-mode'
 const inPhase = (name: string) => {
   if (phase === 'team-profile') return name === 'team-profile'
   if (phase === 'workflow') return name === 'setup' || isWorkflow(name)
@@ -44,13 +46,13 @@ export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  retries: 0,
   workers: 2,
-  outputDir: `test-results/${phase ?? 'selected'}`,
+  outputDir: `${resultsDir}/${phase ?? 'selected'}`,
   reporter: [
     ['list'],
-    ['html', { open: 'never', outputFolder: `playwright-report/${phase ?? 'selected'}` }],
-    ['json', { outputFile: `test-results/${phase ?? 'selected'}/results.json` }],
+    ['html', { open: 'never', outputFolder: `${reportDir}/${phase ?? 'selected'}` }],
+    ['json', { outputFile: `${resultsDir}/${phase ?? 'selected'}/results.json` }],
   ],
   timeout: 30_000,
   expect: { timeout: 10_000 },
@@ -60,7 +62,7 @@ export default defineConfig({
     actionTimeout: 10_000,
     baseURL: BASE_URL,
     // A failure in CI must leave evidence: a trace (DOM snapshots, network, console) and a
-    // screenshot of the failing step. Locally traces are taken on retry only.
+    // screenshot of the failing step, including a first local failure.
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
@@ -68,6 +70,16 @@ export default defineConfig({
     // Part of every run now: scripts/run-e2e.sh always provides the local storage
     // server and a build pointed at it. The specs share that one server and assert on
     // its contents, so they run serially (see `workers` in the project's spec files).
+    // Playwright 1.60 final trace export uses project.timeout, independently of
+    // test.setTimeout. Preserve complete multi-page traces; control limits stay 10s.
+    {
+      name: 'testing-mode', testMatch: /testing-mode\.spec\.ts/, timeout: 120_000,
+      dependencies: ['setup'], use: { ...devices['Desktop Chrome'], trace: 'on' as const },
+    },
+    {
+      name: 'simulator-chromium', testMatch: /wf-(formatting|lifecycle|upload|roles|controls|failures)\.spec\.ts/, timeout: 120_000,
+      dependencies: ['setup'], use: { ...devices['Desktop Chrome'], trace: 'on' as const },
+    },
     {
       name: 'team-profile',
       testMatch: /team-profile(-lifecycle)?\.spec\.ts/,
@@ -83,13 +95,7 @@ export default defineConfig({
       // The public pages on the WebKit engine (Safari). network-crawl is browser-independent
       // (plain HTTP), so it stays on the Chromium project only.
       //
-      // NOT run here, and recorded as open findings rather than hidden (see
-      // docs/testing/coverage-inventory.md, section 8):
-      //  - footnotes.spec: Tab does not focus links in Safari by default, a tap outside the
-      //    popover does not dismiss it under WebKit touch emulation, and one assertion
-      //    compares page heights to the pixel (WebKit rounds differently).
-      //  - the InvalidStateError test: on http://localhost WebKit rejects Next's RSC prefetch
-      //    fetches ("due to access control checks") although the server answers 200.
+      // Keep footnotes and view-transition checks enabled: failures retain evidence.
       name: 'public-webkit',
       testMatch: /(public|footnotes)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },

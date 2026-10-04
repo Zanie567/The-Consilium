@@ -1,5 +1,7 @@
 # Testing The Consilium
 
+Public appointment separation and simulator operations: [appointments-and-testing-mode.md](./appointments-and-testing-mode.md). Current acceptance/results: [acceptance-and-evidence.md](./acceptance-and-evidence.md).
+
 ## The suites
 
 | Command | What it runs | Needs |
@@ -49,7 +51,7 @@ Real clicks and typing. Databases and APIs are used only to prepare or read back
 | `wf-layout` | the editor fits 1100–1920 px windows |
 | `wf-mobile` | the working flow on a phone |
 
-Projects: `wf-chromium`, `wf-webkit` (desktop Safari engine), `wf-mobile-chromium` (Pixel 7),
+The same formatting/lifecycle/upload/role/control/failure specs also run through genuine personas in `simulator-chromium`; `testing-mode` checks parity, revocation and switching. Projects: `wf-chromium`, `wf-webkit` (desktop Safari engine), `wf-mobile-chromium` (Pixel 7),
 `wf-mobile-webkit` (iPhone 14). The `team-profile` specs now run in every full run.
 
 ## Conventions

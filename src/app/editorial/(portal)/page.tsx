@@ -223,6 +223,9 @@ export default async function EditorialDashboard() {
 
   return (
     <PortalPage className="p-4 sm:p-6 lg:p-8 max-w-6xl">
+      {isAdmin && <Link href="/admin/testing" className="mb-5 block border border-gold/40 p-4 text-sm text-[var(--fg)]">
+        <strong>Testing</strong> — Test as Writer, Editor or Growth in the isolated workspace
+      </Link>}
       {/* Surface DB errors rather than silently rendering empty data */}
       {fetchError && (
         <div className="mb-6 bg-red-500/10 border border-red-500/20 px-5 py-4 text-red-600 dark:text-red-400 text-sm">

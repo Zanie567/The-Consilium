@@ -158,7 +158,7 @@ suite('PUT /api/team-profile (real database)', () => {
   })
 
   afterAll(async () => {
-    await db.teamMember.deleteMany({ where: { OR: [{ user: { email: { startsWith: tag } } }, { email: { startsWith: tag } }] } })
+    await db.teamMember.deleteMany({ where: { OR: [{ user: { email: { startsWith: tag } } }, { email: { startsWith: tag } }, { name: { startsWith: tag } }] } })
     await db.user.deleteMany({ where: { email: { startsWith: tag } } })
     await db.$disconnect()
   })
@@ -208,7 +208,7 @@ suite('PUT /api/team-profile (real database)', () => {
 
       expect(await rowsFor(victim.id)).toHaveLength(0)
       const [mine] = await rowsFor(writer.id)
-      expect(mine).toMatchObject({ name: writer.name, role: '', isActive: true, order: 1000 })
+      expect(mine).toMatchObject({ name: writer.name, role: 'Writer', publicTier: 'writer', isActive: true, order: 1000 })
       // and the account's own role is untouched
       expect((await db.user.findUniqueOrThrow({ where: { id: writer.id } })).role).toBe('WRITER')
     })
@@ -426,7 +426,6 @@ suite('PUT /api/team-profile (real database)', () => {
       await asAdmin('adm-3')
       const card = await db.teamMember.create({ data: { name: `${tag} adm3`, role: 'Writer' } })
       const targets = [
-        await makeUser('ADMIN', 'adm-t-admin'),
         await makeUser('READER', 'adm-t-reader'),
         await makeUser('WRITER', 'adm-t-inactive', { isActive: false }),
         await makeUser('EDITOR', 'adm-t-banned', { isBanned: true }),
@@ -441,10 +440,10 @@ suite('PUT /api/team-profile (real database)', () => {
     })
 
     it.each([
-      ['WRITER', 'writers'],
-      ['EDITOR', 'editorial'],
-      ['GROWTH', 'growth'],
-    ] as const)('a linked %s card is in %s whatever team or title the admin request carries', async (role, section) => {
+      ['ADMIN', 'masthead'],
+      ['EDITOR', 'masthead'],
+      ['GROWTH', 'masthead'],
+    ] as const)('an authorised title change moves a %s card independently of permission %s', async (role, _section) => {
       await asAdmin(`adm-team-${role}`)
       const target = await makeUser(role, `adm-team-t-${role}`)
       const card = await db.teamMember.create({ data: { name: `${tag} team ${role}`, role: 'Writer' } })
@@ -457,7 +456,7 @@ suite('PUT /api/team-profile (real database)', () => {
           include: { user: { select: { email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
         })
         const sections = buildTeamMasthead(buildPublicRoster(rows, []))
-        expect(sections.map((x) => x.id), title).toEqual([section])
+        expect(sections.map((x) => x.id), title).toEqual([title === 'Editor-in-Chief' || title === 'Chief Designer' || title === 'Head of Growth' ? 'masthead' : title === 'Senior Editor' ? 'editorial' : title === 'Writer' ? 'writers' : 'wider'])
         expect((await db.user.findUniqueOrThrow({ where: { id: target.id } })).role).toBe(role)
       }
     })
@@ -598,60 +597,20 @@ suite('PUT /api/team-profile (real database)', () => {
       expect((await rowsFor(id)).map((r) => r.id)).toEqual([rows[0].id])
     })
 
-    it('role changes keep the same card: Writer → Editor → Growth → Reader → Writer → Admin → Editor', async () => {
+    it('permission changes preserve appointment and ownership, including ADMIN', async () => {
       const id = await create('Lifecycle Chain', 'chain')
       await grant(id, 'WRITER')
       state.session = { id }
       expect((await put({ bio: 'chain bio', image: photo() })).status).toBe(201)
       const [original] = await rowsFor(id)
-      expect(original.image).toBeTruthy()
-      const unchanged = async () => {
-        const rows = await rowsFor(id)
-        expect(rows).toHaveLength(1)
-        expect(rows[0]).toMatchObject({ id: original.id, userId: id, bio: 'chain bio', image: original.image })
+      for (const role of ['EDITOR', 'GROWTH', 'READER', 'WRITER', 'ADMIN', 'EDITOR'] as const) {
+        await grant(id, role)
+        const [card] = await rowsFor(id)
+        expect(card).toEqual(original)
+        expect(await publicSections(id)).toEqual(['writers'])
+        expect((await put({ bio: 'chain bio', publicTier: 'editor_in_chief', order: '-1' })).status).toBe(role === 'READER' ? 403 : 200)
+        expect((await rowsFor(id))[0]).toEqual(original)
       }
-
-      expect(await publicSections(id)).toEqual(['writers'])
-
-      await grant(id, 'EDITOR')
-      await unchanged()
-      expect(await publicSections(id)).toEqual(['editorial'])
-      expect((await put({ bio: 'chain bio' })).status).toBe(200) // still editable
-      await unchanged()
-
-      await grant(id, 'GROWTH')
-      await unchanged()
-      expect(await publicSections(id)).toEqual(['growth'])
-
-      // → READER: the row stays, but it is hidden and every write is refused
-      await grant(id, 'READER')
-      await unchanged()
-      expect(await publicSections(id)).toEqual([])
-      expect((await put({ bio: 'sneaky edit' })).status).toBe(403)
-      expect((await put({ removeImage: 'true' })).status).toBe(403)
-      expect((await put({ image: photo() })).status).toBe(403)
-      await unchanged()
-      expect(storage.uploads).toHaveLength(1) // the refused attempt never reached storage
-
-      // → WRITER again: the SAME card is live again, with its bio and photo
-      await grant(id, 'WRITER')
-      await unchanged()
-      expect(await publicSections(id)).toEqual(['writers'])
-      expect((await put({ bio: 'chain bio' })).status).toBe(200)
-      await unchanged()
-
-      // → ADMIN: no team role, so no public card and no writes (same rule as every admin)
-      await grant(id, 'ADMIN')
-      await unchanged()
-      expect(await publicSections(id)).toEqual([])
-      expect((await put({ bio: 'admin edit' })).status).toBe(403)
-      await unchanged()
-
-      // → EDITOR: back, still one card
-      await grant(id, 'EDITOR')
-      await unchanged()
-      expect(await publicSections(id)).toEqual(['editorial'])
-      expect(await db.teamMember.count({ where: { name: 'Lifecycle Chain' } })).toBe(1)
     })
   })
 
@@ -745,7 +704,7 @@ suite('PUT /api/team-profile (real database)', () => {
       expect(storage.removed).toEqual([])
     })
 
-    it('demoting an account removes its card from the public roster; the team follows the role', async () => {
+    it('changing permissions preserves the public appointment; reader writes remain denied', async () => {
       const user = await makeUser('WRITER', 'demote')
       state.session = { id: user.id }
       await put({ bio: 'x' })
@@ -759,11 +718,11 @@ suite('PUT /api/team-profile (real database)', () => {
           [],
         )
 
-      expect((await load())[0].team).toBe('writing')
+      expect(buildTeamMasthead(await load())[0].id).toBe('writers')
       await db.user.update({ where: { id: user.id }, data: { role: 'EDITOR' } })
-      expect((await load())[0].team).toBe('editorial')
+      expect(buildTeamMasthead(await load())[0].id).toBe('writers')
       await db.user.update({ where: { id: user.id }, data: { role: 'READER' } })
-      expect(await load()).toHaveLength(0)
+      expect(buildTeamMasthead(await load())[0].id).toBe('writers')
       // …and the same request now fails closed.
       expect((await put({ bio: 'y' })).status).toBe(403)
     })

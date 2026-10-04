@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextRequest, NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -21,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   return NextResponse.json(notes)
 }
 
-export async function POST(req: NextRequest, { params }: Ctx) {
+async function POSTHandler(req: NextRequest, { params }: Ctx) {
   const admin = await getVerifiedSessionUser(ADMIN_ONLY)
   if (!admin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -49,3 +50,5 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   return NextResponse.json(created)
 }
+
+export const POST = withTestingAudit(POSTHandler)

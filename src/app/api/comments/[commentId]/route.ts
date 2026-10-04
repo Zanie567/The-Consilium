@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -7,7 +8,7 @@ interface Props {
   params: Promise<{ commentId: string }>
 }
 
-export async function DELETE(_req: Request, { params }: Props) {
+async function DELETEHandler(_req: Request, { params }: Props) {
   const { commentId } = await params
   const auth = await requireVerifiedSessionUser(ALL_ROLES)
   if (!auth.ok) return auth.response
@@ -36,3 +37,5 @@ export async function DELETE(_req: Request, { params }: Props) {
 
   return NextResponse.json({ ok: true })
 }
+
+export const DELETE = withTestingAudit(DELETEHandler)

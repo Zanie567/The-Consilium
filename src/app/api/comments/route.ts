@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, requireVerifiedSessionUser } from '@/lib/auth'
@@ -62,7 +63,7 @@ export async function GET(req: Request) {
 
 // ── POST /api/comments ───────────────────────────────────────────────────────
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const auth = await requireVerifiedSessionUser(ALL_ROLES)
   if (!auth.ok) return auth.response
   const user = auth.user
@@ -181,3 +182,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json(comment, { status: 201 })
 }
+
+export const POST = withTestingAudit(POSTHandler)

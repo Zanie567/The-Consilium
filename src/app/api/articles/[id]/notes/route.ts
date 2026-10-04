@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -10,7 +11,7 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
-export async function POST(req: Request, { params }: Props) {
+async function POSTHandler(req: Request, { params }: Props) {
   const auth = await requireVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
   if (!auth.ok) return auth.response
   const user = auth.user
@@ -52,3 +53,5 @@ export async function POST(req: Request, { params }: Props) {
 
   return NextResponse.json(note, { status: 201 })
 }
+
+export const POST = withTestingAudit(POSTHandler)

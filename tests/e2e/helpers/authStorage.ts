@@ -6,7 +6,9 @@ import path from 'path'
  * mid-file. Kept out of auth.setup.ts because Playwright refuses to let a spec
  * import a setup file.
  */
-const AUTH_DIR = path.join(__dirname, '..', '.auth')
+// Another server has different user IDs even when its seeded credentials match.
+// Sharing files let a concurrent audit replace a valid session with its own JWT.
+const AUTH_DIR = path.join(__dirname, '..', '.auth', process.env.E2E_RUN_ID ?? 'manual')
 
 export const ADMIN_STORAGE = path.join(AUTH_DIR, 'admin.json')
 export const EDITOR_GLOBAL_STORAGE = path.join(AUTH_DIR, 'editor-global.json')

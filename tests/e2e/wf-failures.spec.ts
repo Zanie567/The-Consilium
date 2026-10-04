@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext, type Page, type Route } from '@playwright/test'
-import { ArticleEditorPage, articleByTitle, closeDb, db, removeMyArticles, signedIn, uniqueTitle } from './helpers/workflow'
+import { ArticleEditorPage, articleByTitle, closeDb, db, removeMyArticles, signedIn, uniqueTitle, writerLoginCredentials } from './helpers/workflow'
 
 /**
  * What the editor does when saving goes wrong, and whether work survives. Failures are
@@ -203,7 +203,8 @@ test('Save draft pressed twice before the first response creates one article', a
 
 test('an expired session is reported, keeps the text, and recovers after signing in again in another tab', async ({ browser }) => {
   const { ctx, page, ed, title } = await openDraft(browser, 'expired')
-  await ctx.clearCookies() // what an expired session looks like to the browser
+  // Expire authentication only. A testing capability cannot authenticate its initiator.
+  await ctx.clearCookies({ name: /^(?:__Secure-)?next-auth\.session-token$/ })
   await ed.moveToEnd()
   await page.keyboard.type(' Words typed after the session ended.')
   await expect(alertOf(page)).toContainText('session has expired', { timeout: 10_000 })
@@ -214,8 +215,9 @@ test('an expired session is reported, keeps the text, and recovers after signing
   // Sign in again, as the page tells the user to, in a second tab of the same browser.
   const login = await ctx.newPage()
   await login.goto('/editorial/login')
-  await login.locator('input[type="email"]').fill('writer@theconsilium.com')
-  await login.locator('input[type="password"]').fill('writer2024')
+  const credentials = writerLoginCredentials(ctx)
+  await login.locator('input[type="email"]').fill(credentials.email)
+  await login.locator('input[type="password"]').fill(credentials.password)
   await login.locator('button[type="submit"]').click()
   await login.waitForURL((url) => !url.pathname.includes('/login'))
   await login.close()

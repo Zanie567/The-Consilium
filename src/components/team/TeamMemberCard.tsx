@@ -82,6 +82,8 @@ export function TeamMemberCard({ member, variant }: TeamMemberCardProps) {
   return (
     <>
       <div
+        data-team-member-id={member.id}
+        data-team-card-variant={variant}
         className={`${style.card} group relative h-full bg-[var(--bg-elevated)] border border-[var(--border)] flex flex-col items-center justify-center text-center transition-colors duration-300 hover:border-gold/40 focus-within:border-gold/40`}
       >
         {/* The whole card opens the profile. An overlay button (rather than

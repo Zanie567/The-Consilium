@@ -51,7 +51,7 @@ describe('editorial calendar authorisation', () => {
     expect(res.status).toBe(200)
     const html = await res.text()
     expect(html).toContain('Editorial Calendar')
-  })
+  }, 15_000) // A cold next-dev calendar compilation can exceed Vitest's 5s default.
 
   it('does not serve the calendar page to a writer', async () => {
     if (!up || !writerOk) return

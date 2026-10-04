@@ -67,11 +67,12 @@ export function ArticleEditor(props: ArticleEditorProps) {
   )
 
   return (
-    <div className="min-h-full">
+    <div className="min-h-full" data-article-server-version={props.initialData?.version} data-article-server-status={props.initialData?.status}>
       <ArticleEditorTopBar editor={editor} />
 
       <div
         ref={toolbarPortalRef}
+        style={{ top: 'calc(3rem + var(--testing-banner-height, 0px))' }}
         className="fixed top-12 left-0 md:left-12 lg:left-[220px] right-0 z-[200]"
       />
 

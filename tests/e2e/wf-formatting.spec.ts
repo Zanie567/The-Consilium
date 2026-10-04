@@ -415,7 +415,7 @@ test('the editor sees every feature in the review preview, then publishes from i
   await ctx.close()
 })
 
-test('the published article shows the content, semantic formatting kept, house style applied', async ({ browser }) => {
+test('the published article shows the content, semantic formatting kept, house style applied', async ({ browser }, testInfo) => {
   const ctx = await signedIn(browser, null)
   const page = await ctx.newPage()
   const errors = collectConsoleErrors(page)
@@ -457,10 +457,11 @@ test('the published article shows the content, semantic formatting kept, house s
   await expect(article.locator('sup.footnote-ref')).toHaveCount(1)
   await expect(page.getByText(FOOTNOTE).first()).toBeVisible()
 
-  // House style: colour, alignment and line spacing are not carried to readers.
-  const styled = await article.evaluate((el) => el.querySelectorAll('[style]').length)
+  // Confirmed public house style normalizes presentation settings.
+  const styled = await article.evaluate(el => el.querySelectorAll('[style]').length)
   expect(styled, 'published body must carry no inline styles').toBe(0)
 
   expect(errors, `console errors on the published article:\n${errors.join('\n')}`).toEqual([])
+  await page.screenshot({ path: testInfo.outputPath('public-formatting-media.png'), fullPage: true })
   await ctx.close()
 })

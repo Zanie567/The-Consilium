@@ -115,13 +115,16 @@ describe('Priority 4 — duplicate / count reconciliation', () => {
   it('dashboard user count equals the users-page total (single source of truth)', async () => {
     if (!dbUp) return
     // Dashboard now: prisma.user.count(); users page total: prisma.user.count().
-    const dashboard = await prisma.user.count()
-    const usersPageTotal = await prisma.user.count()
-    expect(dashboard).toBe(usersPageTotal)
-    // And it must NOT be the old staff-only subset when readers exist.
-    const staffOnly = await prisma.user.count({ where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] } } })
-    const readers = await prisma.user.count({ where: { role: 'READER' } })
-    if (readers > 0) expect(dashboard).toBeGreaterThan(staffOnly)
+    // Other integration suites create/remove their scoped accounts concurrently.
+    // Compare definitions against one database snapshot, never two moving totals.
+    await prisma.$transaction(async (tx) => {
+      const dashboard = await tx.user.count()
+      const usersPageTotal = await tx.user.count()
+      expect(dashboard).toBe(usersPageTotal)
+      const staffOnly = await tx.user.count({ where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] } } })
+      const readers = await tx.user.count({ where: { role: 'READER' } })
+      if (readers > 0) expect(dashboard).toBeGreaterThan(staffOnly)
+    }, { isolationLevel: 'RepeatableRead' })
   })
 
   it('comment moderation total equals the sum of per-user comment counts', async () => {

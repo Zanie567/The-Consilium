@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -48,7 +49,7 @@ export async function GET(_req: Request, { params }: Props) {
   return NextResponse.json(user)
 }
 
-export async function PATCH(req: Request, { params }: Props) {
+async function PATCHHandler(req: Request, { params }: Props) {
   const caller = await getVerifiedSessionUser(ADMIN_ONLY)
   if (!caller) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -160,7 +161,7 @@ export async function PATCH(req: Request, { params }: Props) {
   return NextResponse.json(user)
 }
 
-export async function DELETE(_req: Request, { params }: Props) {
+async function DELETEHandler(_req: Request, { params }: Props) {
   const caller = await getVerifiedSessionUser(ADMIN_ONLY)
   if (!caller) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -185,3 +186,7 @@ export async function DELETE(_req: Request, { params }: Props) {
 
   return NextResponse.json({ ok: true })
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)
+
+export const DELETE = withTestingAudit(DELETEHandler)

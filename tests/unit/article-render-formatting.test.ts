@@ -4,13 +4,9 @@ import { renderContent, type TiptapNode } from '@/lib/articleRender'
 /**
  * What the public renderer does with each editor feature. The editor (TiptapEditor)
  * offers strikethrough, tables, code blocks, inline code, text colour, highlight,
- * alignment and line spacing. Decision recorded with the owner (see
- * docs/testing/coverage-inventory.md):
- *   - semantic features (strikethrough, tables, code) are PUBLISHED, because dropping
- *     them changes what the article says (struck-out text reading as asserted, a table
- *     collapsing into a run-on string);
- *   - presentation (text colour, alignment, line spacing, font size) is STRIPPED: the
- *     published article uses the house style.
+ * alignment and line spacing. The owner confirmed that public articles retain
+ * semantic formatting while presentation uses the existing publication house
+ * style. Drafts/review previews still retain every implemented editor setting.
  */
 const doc = (...content: TiptapNode[]) => JSON.stringify({ type: 'doc', content })
 const text = (value: string, ...marks: TiptapNode['marks'] extends (infer M)[] | undefined ? M[] : never) =>
@@ -80,7 +76,7 @@ describe('semantic formatting is published', () => {
   })
 })
 
-describe('presentation is stripped (house style)', () => {
+describe('presentation is stripped (confirmed public house style)', () => {
   it('drops text colour', () => {
     const out = html(para(text('red', { type: 'textStyle', attrs: { color: '#ff0000' } })))
     expect(out).toContain('red')
@@ -105,5 +101,12 @@ describe('presentation is stripped (house style)', () => {
     const out = html(para(text('hi', { type: 'highlight', attrs: { color: '#ffff00' } })))
     expect(out).toContain('<mark>hi</mark>')
     expect(out).not.toContain('#ffff00')
+  })
+
+  it('excludes forged alignment, URL-bearing colours and unsupported spacing', () => {
+    const out = html({ type: 'paragraph', attrs: { textAlign: 'center;position:fixed' }, content: [text('safe',
+      { type: 'textStyle', attrs: { color: 'url(https://evil.test/track)', lineHeight: '999' } },
+      { type: 'highlight', attrs: { color: '#fff\" onclick=\"alert(1)' } })] })
+    expect(out).toBe('<p><mark>safe</mark></p>')
   })
 })

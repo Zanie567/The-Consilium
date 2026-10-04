@@ -1,6 +1,6 @@
 # Coverage inventory
 
-What each kind of account can open and do, and which automated test exercises it.
+What each kind of account can open and do, and which automated test exercises it. Current appointment/testing-mode evidence and remaining limitations are in [acceptance-and-evidence.md](./acceptance-and-evidence.md); checks outside its recorded selections reflect the earlier workflow audit.
 
 - **Observed** means the control list was read from the rendered page by `wf-roles.spec.ts`
   (run with `E2E_INVENTORY_DIR=/some/dir` to regenerate the JSON), not only from source.
@@ -18,7 +18,7 @@ every entry is opened ("every menu entry opens"), and pages outside the role mus
 | Page | Writer | Editor | Admin | Growth | Reader |
 |---|---|---|---|---|---|
 | Dashboard `/editorial` | ✅ | ✅ | ✅ | ✅ | ⛔ Access Denied |
-| Team Profile | ✅ | ✅ | explanation only | ✅ | ⛔ |
+| Team Profile | ✅ | ✅ | assigned card form; otherwise explanation | ✅ | ⛔ |
 | All/My Articles, My Drafts, New Article | ✅ | ✅ | ✅ | ⛔ redirect | ⛔ |
 | Article Series, Scheduled | ⛔ | ✅ | ✅ | ⛔ | ⛔ |
 | Trash | own articles only (no menu link) | ✅ | ✅ | ⛔ | ⛔ |
@@ -38,7 +38,7 @@ every entry is opened ("every menu entry opens"), and pages outside the role mus
 |---|---|---|---|
 | Create, autosave, Save draft | ✅ | ✅ | `wf-lifecycle`, `wf-failures`, `editorial.spec` (autosave + reopen) |
 | Title, excerpt, category, tags, cover URL | ✅ | ✅ | `wf-formatting`, `wf-upload`, `wf-mobile` |
-| Slug, author, status dropdown | ⛔ hidden | 🟡 slug/author/status dropdown present, not exercised | — |
+| Slug, author, status dropdown | ⛔ hidden | ✅ saved, reloaded and scheduled | `wf-controls` |
 | Submit for review | ✅ | n/a | `wf-lifecycle`, `wf-formatting`, `wf-mobile` |
 | Editor notified (email captured + in-app) | | ✅ email; 🟡 in-app bell not clicked | `wf-lifecycle` |
 | Internal note on review screen | | ✅ | `wf-lifecycle` |
@@ -48,10 +48,10 @@ every entry is opened ("every menu entry opens"), and pages outside the role mus
 | Schedule (review screen) | | ✅ future time; scheduler publishes | `wf-lifecycle` (cron call is a fixture) |
 | Unpublish (review screen) | | ✅ | `wf-lifecycle` |
 | Publish / Unpublish from the article list | | ✅ | `wf-articles` |
-| Publish / Schedule / Unpublish buttons inside the editor | | 🟡 Publish click with a failing server only | `wf-failures` |
-| Mark corrected + correction note, Feature, Pin, Commendation | | ❌ | — |
+| Publish / Schedule / Unpublish buttons inside the editor | | ✅ persisted and publicly verified | `wf-controls`, `wf-failures` |
+| Mark corrected + correction note, Feature, Pin, Commendation | | ✅ reload and public correction | `wf-controls` |
 | Move to Trash, Restore, Delete Forever | ✅ own (not run) | ✅ | `wf-articles` (editor) |
-| Inline review comments (select text → comment) | | ❌ browser; API 🟡 | `publication-lifecycle.spec` (API only) |
+| Inline review comments (select text → comment) | | ✅ create, reply, resolve, reopen, reload | `wf-lifecycle`; `publication-lifecycle` API |
 | Locked after submit / publish, with explanation | ✅ | | `wf-formatting`, `wf-lifecycle` |
 | Public visibility at each state | | | `wf-lifecycle`, `wf-articles`, `wf-failures` |
 
@@ -65,24 +65,24 @@ All exercised in `wf-formatting.spec.ts`, then checked in editor → reopened �
 | Print | ✅ (stubbed `window.print` was called) | | | 🚧 real print dialog |
 | Bold, Italic, Underline | ✅ | ✅ | ✅ | ✅ |
 | Strikethrough | ✅ | ✅ | ✅ | ✅ (fixed) |
-| Text colour (palette, hex, remove) | ✅ | ✅ | | ⛔ stripped by decision |
-| Highlight (palette, hex, none) | ✅ | ✅ | ✅ | ✅ as site `<mark>` (colour not kept) |
+| Text colour (palette, hex, remove) | ✅ | ✅ | | ⛔ normalized by confirmed house-style policy |
+| Highlight (palette, hex, none) | ✅ | ✅ | ✅ | ✅ as site `<mark>` (colour normalized) |
 | Link (apply, cancel, remove) | ✅ | ✅ | ✅ | ✅ |
 | Image upload → figure, caption, credit | ✅ | ✅ | ✅ | ✅ |
 | Table (grid picker; row above/below, column left/right, delete row/column) | ✅ | ✅ | ✅ | ✅ (fixed) |
-| Delete table | ❌ | | | |
+| Delete table | ✅ `wf-controls` | ✅ absent | | |
 | Horizontal rule | ✅ | ✅ | | ✅ |
 | Bullet list, Numbered list, Indent, Outdent | ✅ | ✅ | | ✅ |
-| Align left / centre / right / justify | ✅ | ✅ | | ⛔ stripped by decision |
-| Line spacing (4 options) | 🟡 one option | ✅ | | ⛔ stripped by decision |
+| Align left / centre / right / justify | ✅ | ✅ | | ⛔ normalized by confirmed house-style policy |
+| Line spacing (4 options) | ✅ all four, `wf-controls` | ✅ | | ⛔ normalized by confirmed house-style policy |
 | Block quote, Code block (⌘/Ctrl+Enter to leave) | ✅ | ✅ | ✅ pre | ✅ (code fixed) |
 | Pull quote, Footnote | ✅ | ✅ | | ✅ |
 | Headings (`## `, `### ` shortcut) | ✅ | ✅ | ✅ | ✅ |
 | Paste with images | ✅ (synthetic paste event) | | | |
-| Footnote edit/remove by clicking the marker | ❌ | | | |
+| Footnote edit/cancel/remove by clicking the marker | ✅ `wf-controls` | ✅ retained note | | |
 | Tutorial dialog | ✅ open/close on a phone (`wf-mobile`) | | | |
-| Dark-mode toggle in the editor bar | ❌ (the public site toggle is ✅ in `public.spec`) | | | |
-| Word count / reading time panel | ❌ | | | |
+| Dark-mode toggle in the editor bar | ✅ both directions, `wf-controls` | | | |
+| Word count / reading time panel | ✅ `wf-controls` | | | |
 | ⛔ Font size / font family | no control: `applyFontSize` is unused code; only reachable by pasting | | | |
 | ⛔ Heading button | none; the tutorial now says so | | | |
 
@@ -106,11 +106,11 @@ with unsaved text (only the `beforeunload` warning exists) ❌.
 
 | Area | Status |
 |---|---|
-| Analytics tabs (Overview…Distribution) | ✅ load + Writers data `editorial.spec`; filters/range ❌ |
+| Analytics tabs (Overview…Distribution) | ✅ ordinary Growth/persona: all tabs, four periods, all writer sort columns; `testing-mode` |
 | Users: list, filters, actions menu (role, ban, warn, delete) | 🟡 page loads; actions ❌ browser; role email unit-tested; `team-profile-lifecycle.spec` covers role grants via UI |
 | Debates (create/edit/vote), Series, Glossary, Predictions, Calendar | 🟡 load + console only; create/edit ❌ |
 | Comments moderation tabs | ✅ load/tabs/stats `editorial.spec`; hide/restore ❌ |
-| Subscribers search/export | 🟡 page loads; export ❌ |
+| Subscribers search/export | ✅ ordinary Growth/persona: match/no-match and real CSV download; `testing-mode` |
 | Notifications bell | 🟡 count seen; open/clear ❌ |
 | Team Profile (create, edit, photo, roles, admin link) | ✅ `team-profile*.spec` — now in every run |
 | Dashboard: streak cadence, commissioning brief, dismiss banners, delete draft | ❌ |
@@ -138,7 +138,9 @@ report a comment, ban screen. 🚧 Google sign-in.
 | `editorial`, `editor-scope`, `team-profile` specs | ✅ | ❌ chromium only |
 | Firefox | ❌ not configured |
 
-### Open WebKit findings (not fixed, not hidden)
+### Historical exploratory WebKit findings (outside the recorded feature selection)
+
+These are retained findings from the earlier broad audit, not results of the scoped appointment/testing-mode verification. The current writer/editor journeys and actual role-menu Link navigation passed WebKit without collected application console errors. The unrelated public navigation/footnote cases below were not re-run in this implementation; an HTTPS hosted Safari check remains unavailable.
 
 1. `public.spec` "navigating across pages throws no InvalidStateError": under WebKit on
    `http://localhost`, every Next RSC prefetch `fetch()` rejects with "due to access control

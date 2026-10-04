@@ -1,15 +1,8 @@
 /**
- * Resolving a team member's bio against their own account.
- *
- * `TeamMember` (admin-managed, /admin/team) and `User` (the person's account) are
- * separate tables with no foreign key between them. They are matched on email, so
- * a person who edits their bio at /profile?tab=account sees that bio on their
- * Meet the Team card without an admin re-typing it.
- *
- * Precedence: the account bio wins when there is one; the admin-entered bio is the
- * fallback for members with no account, or whose account bio is empty. An admin
- * therefore keeps a working bio for every member, and a member can override their
- * own at any time.
+ * Permissions belong to User, ownership to the unique TeamMember.userId link,
+ * and public appointment to the admin-managed card title/publicTier/order.
+ * Linked cards prefer their own description, then account bio. Legacy cards
+ * retain the case-insensitive email bio fallback until safely linked.
  */
 
 import type { MemberTeam } from '@/lib/teamHierarchy'
@@ -23,6 +16,8 @@ export interface TeamMemberRow {
   email: string | null
   /** Masthead sort position; carried through so `buildTeamMasthead` can tier. */
   order: number
+  publicTier?: string | null
+  isActive?: boolean
 }
 
 export interface LinkedAccount {
@@ -76,15 +71,11 @@ export function resolveTeamMemberBios(
 
 // ── Account-linked profiles ──────────────────────────────────────────────────
 //
-// A member can own one card, created from their portal. It is tied to their
-// account by `TeamMember.userId` (unique), and its team is NEVER stored or taken
-// from a request: it is derived from the account's role by `teamForRole`.
-
-/** Roles that may own a team profile. ADMIN and READER have none. */
-export const TEAM_PROFILE_ROLES = ['WRITER', 'EDITOR', 'GROWTH'] as const
+// Ownership is unique; appointment and placement are trusted card data.
+export const TEAM_PROFILE_ROLES = ['ADMIN', 'WRITER', 'EDITOR', 'GROWTH'] as const
 type TeamProfileRole = (typeof TEAM_PROFILE_ROLES)[number]
 
-const ROLE_TEAM: Record<TeamProfileRole, MemberTeam> = {
+const ROLE_TEAM: Partial<Record<TeamProfileRole, MemberTeam>> = {
   WRITER: 'writing',
   EDITOR: 'editorial',
   GROWTH: 'growth',
@@ -96,10 +87,10 @@ export const TEAM_LABEL: Record<MemberTeam, string> = {
   growth: 'Growth & Communications',
 }
 
-/** The fixed role → team mapping. `null` means the role cannot own a profile. */
+/** Ordinary creation defaults only. ADMIN never gets a card automatically. */
 export function teamForRole(role: string | null | undefined): MemberTeam | null {
   return typeof role === 'string' && Object.hasOwn(ROLE_TEAM, role)
-    ? ROLE_TEAM[role as TeamProfileRole]
+    ? ROLE_TEAM[role as TeamProfileRole] ?? null
     : null
 }
 
@@ -134,20 +125,11 @@ export interface TeamRowWithAccount extends TeamMemberRow {
 }
 
 export interface RosterMember extends ResolvedTeamMember {
+  placementName?: string
   team: MemberTeam | null
 }
 
-/**
- * Builds the public roster from every active team row.
- *
- * - Linked card: shown only while its account is active, not banned and still in
- *   a team role (WRITER / EDITOR / GROWTH). The name comes from the account, so a rename is reflected
- *   without touching the card. The card's own bio wins, falling back to the
- *   account bio. The team comes from the account's current role.
- * - Legacy card (no account link): the existing email-matched bio behaviour.
- * - A legacy card whose email belongs to an account that already has a linked
- *   card is dropped, so nobody can appear twice while old and new data coexist.
- */
+/** Public placement comes from the card; permissions never choose its section. */
 export function buildPublicRoster(
   rows: TeamRowWithAccount[],
   emailAccounts: LinkedAccount[],
@@ -156,7 +138,11 @@ export function buildPublicRoster(
   const roster: RosterMember[] = []
   const legacy: TeamMemberRow[] = []
 
-  for (const { user, ...row } of rows) {
+  for (const { user, ...card } of rows) {
+    // Explicit public projection: Prisma rows contain internal ownership fields.
+    const row: TeamMemberRow = { id: card.id, name: card.name, role: card.role, bio: card.bio,
+      image: card.image, email: card.email, order: card.order, publicTier: card.publicTier, isActive: card.isActive }
+    if (row.isActive === false) continue
     if (!user) {
       legacy.push(row)
       continue
@@ -165,18 +151,15 @@ export function buildPublicRoster(
     if (!user.isActive || user.isBanned) continue
     // Internal test accounts (the sitemap and author pages exclude them too) must
     // never surface publicly, even if one of them creates a card.
-    if (isTestAccountEmail(user.email)) continue
-    // The team is the account's role. No role-derived team (ADMIN, READER, or a
-    // demoted account) means no public card: there is no exception for titles.
-    const team = teamForRole(user.role)
-    if (!team) continue
+    if (isTestAccountEmail(user.email) && process.env.TESTING_MODE_ENABLED !== '1') continue
     roster.push({
       ...row,
       name: user.name?.trim() || row.name,
+      placementName: row.name,
       role: row.role.trim() || null,
       bio: row.bio?.trim() || user.bio?.trim() || null,
       authorSlug: user.slug,
-      team,
+      team: null,
     })
   }
 
@@ -203,4 +186,14 @@ function isTestAccountEmail(email: string): boolean {
  */
 export function normalizePersonName(name: string): string {
   return name.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+/** Used only when an ordinary member creates a new card. Never on update. */
+export function defaultPublicAppointment(role: string) {
+  return ({ WRITER: { role: 'Writer', publicTier: 'writer' },
+    EDITOR: { role: 'Editor', publicTier: 'editor' },
+    GROWTH: { role: 'Growth & Communications', publicTier: 'growth' } } as const)[role as 'WRITER' | 'EDITOR' | 'GROWTH'] ?? null
+}
+export function publicAppointmentLabel(card: { role?: string | null; publicTier?: string | null }) {
+  return card.role?.trim() || ({ editor_in_chief: 'Editor-in-Chief', leadership: 'Leadership', senior_editor: 'Senior Editor', editor: 'Editor', junior_editor: 'Junior Editor', writer: 'Writer', growth: 'Growth & Communications', other: 'Wider Team' } as Record<string, string>)[card.publicTier ?? 'other'] || 'Wider Team'
 }

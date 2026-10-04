@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -34,7 +35,7 @@ export async function GET() {
  * The streak is recomputed under the new cadence before returning so the caller
  * sees the updated figures immediately.
  */
-export async function PATCH(req: Request) {
+async function PATCHHandler(req: Request) {
   const auth = await requireVerifiedSessionUser()
   if (!auth.ok) return auth.response
   const user = auth.user
@@ -86,3 +87,5 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)

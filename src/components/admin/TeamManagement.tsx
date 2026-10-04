@@ -1,5 +1,6 @@
 'use client'
 
+import { TEAM_TIER_ORDER } from '@/lib/teamHierarchy'
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { PlusCircle, Trash2, Edit, Check, X, Upload } from 'lucide-react'
@@ -10,6 +11,7 @@ interface TeamMember {
   id: string
   name: string
   role: string
+  publicTier?: string | null
   bio: string | null
   image: string | null
   email: string | null
@@ -33,6 +35,7 @@ interface TeamManagementProps {
 const emptyMember = {
   name: '',
   role: '',
+  publicTier: '',
   bio: '',
   image: '',
   email: '',
@@ -61,6 +64,7 @@ export function TeamManagement({ initialMembers, accounts }: TeamManagementProps
     setForm({
       name: member.name,
       role: member.role,
+      publicTier: member.publicTier ?? "",
       bio: member.bio ?? '',
       image: member.image ?? '',
       email: member.email ?? '',
@@ -106,7 +110,8 @@ export function TeamManagement({ initialMembers, accounts }: TeamManagementProps
     setError(null)
     const data = new FormData()
     data.append('file', file)
-    data.append('bucket', 'team-photos')
+    // Use the configured profile bucket and the normal authenticated upload path.
+    data.append('bucket', 'avatars')
     try {
       const { url } = await apiRequest<{ url?: string }>('/api/upload', { method: 'POST', body: data })
       if (!url) {
@@ -166,7 +171,13 @@ export function TeamManagement({ initialMembers, accounts }: TeamManagementProps
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-navy text-xs font-bold uppercase tracking-widest mb-1">
+              <label className="block text-xs font-bold">Public placement
+              <select value={form.publicTier} onChange={(e) => setForm({ ...form, publicTier: e.target.value })}>
+                <option value="">Follow public title</option>
+                {TEAM_TIER_ORDER.map((tier) => <option key={tier} value={tier}>{tier.replaceAll('_', ' ')}</option>)}
+              </select>
+            </label>
+            <label className="block text-navy text-xs font-bold uppercase tracking-widest mb-1">
                 Name *
               </label>
               <input

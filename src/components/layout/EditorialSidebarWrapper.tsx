@@ -35,7 +35,7 @@ export function EditorialSidebarWrapper({ user, trashCount = 0 }: { user: User; 
        */}
       <button
         className="md:hidden fixed top-3.5 left-3.5 z-[80] w-9 h-9 flex items-center justify-center rounded-md text-cream/70 hover:text-gold transition-colors active:scale-[0.92] transition-transform"
-        style={{ background: '#0F1623', boxShadow: '0 2px 8px rgba(0,0,0,0.45)' }}
+        style={{ top: 'calc(0.875rem + var(--testing-banner-height, 0px))', background: '#0F1623', boxShadow: '0 2px 8px rgba(0,0,0,0.45)' }}
         onClick={() => setMobileOpen((o) => !o)}
         aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
         aria-expanded={mobileOpen}

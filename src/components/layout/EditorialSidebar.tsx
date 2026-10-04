@@ -137,6 +137,7 @@ export function EditorialSidebar({
         {
           label: 'MANAGE',
           items: [
+            { href: '/admin/testing', icon: Users, label: 'Testing', show: isAdmin },
             { href: '/editorial/users', icon: Users, label: 'Users', show: isAdmin },
             { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
             { href: '/editorial/predictions', icon: Target, label: 'Predictions', show: isAllowedRole(user.role, PREDICTIONS_MANAGE_ROLES) },
@@ -178,6 +179,7 @@ export function EditorialSidebar({
           ].join(' ')}
         >
           <Link
+            prefetch={false}
             href="/"
             className="text-gold font-bold text-sm tracking-widest uppercase whitespace-nowrap block"
             style={{ fontFamily: 'var(--font-serif)' }}
@@ -216,6 +218,7 @@ export function EditorialSidebar({
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={false}
                     onClick={onNavClick}
                     className={[
                       'flex items-center gap-2.5 px-3 text-[13px] font-medium border-l-2',
