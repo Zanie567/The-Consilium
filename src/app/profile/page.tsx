@@ -3,6 +3,7 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { ProfileTabs } from '@/components/profile/ProfileTabs'
+import { publicAuthorPath } from '@/lib/authorUtils'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -31,7 +32,7 @@ export default async function ProfilePage({ searchParams }: Props) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { name: true, email: true, image: true, bio: true, createdAt: true, role: true },
+    select: { id: true, slug: true, name: true, email: true, image: true, bio: true, createdAt: true, role: true },
   }).catch(() => null)
 
   if (!user) redirect('/login')
@@ -46,6 +47,7 @@ export default async function ProfilePage({ searchParams }: Props) {
         createdAt={user.createdAt.toISOString()}
         initialTab={initialTab}
         role={user.role}
+        authorPath={publicAuthorPath(user)}
       />
     </div>
   )
