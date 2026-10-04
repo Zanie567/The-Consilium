@@ -335,7 +335,7 @@ export default async function ArticlePage({ params }: Props) {
                 Series: {article.series.title}
               </p>
               <p className="text-[var(--fg-faint)] text-xs">
-                Part {(article.seriesOrder ?? seriesPosition + 1)} of {seriesArticles.length}
+                Part {seriesPosition + 1} of {seriesArticles.length}
               </p>
             </div>
           </AnimateIn>

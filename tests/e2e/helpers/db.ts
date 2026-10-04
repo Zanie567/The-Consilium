@@ -24,7 +24,7 @@ function db(): PrismaClient {
 }
 
 export async function closeDb() {
-  if (prisma) await prisma.$disconnect().catch(() => {})
+  if (prisma) await prisma.$disconnect()
   prisma = null
 }
 

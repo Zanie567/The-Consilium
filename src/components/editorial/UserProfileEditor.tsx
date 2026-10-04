@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -141,6 +141,7 @@ function EditableField({
 export function UserProfileEditor({ user: initial, categories }: Props) {
   const [user, setUser] = useState(initial)
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [loading, setLoading] = useState<string | null>(null)
   const [adminNotes, setAdminNotes] = useState(initial.adminNotes ?? '')
   const [notesDirty, setNotesDirty] = useState(false)
@@ -152,10 +153,14 @@ export function UserProfileEditor({ user: initial, categories }: Props) {
     initial.categoryAssignments.map((a) => a.category.id)
   )
 
-  const showToast = (msg: string, ok = true) => {
+  useEffect(() => () => { if (toastTimer.current !== null) clearTimeout(toastTimer.current) }, [])
+
+  const showToast = useCallback((msg: string, ok = true) => {
+    if (toastTimer.current !== null) clearTimeout(toastTimer.current)
+    toastTimer.current = null
     setToast({ msg, ok })
-    if (ok) setTimeout(() => setToast(null), 3000)
-  }
+    if (ok) toastTimer.current = setTimeout(() => { toastTimer.current = null; setToast(null) }, 3000)
+  }, [])
 
   const patch = useCallback(async (data: Record<string, unknown>, loadingKey = 'save') => {
     setLoading(loadingKey)
@@ -174,7 +179,7 @@ export function UserProfileEditor({ user: initial, categories }: Props) {
     } finally {
       setLoading(null)
     }
-  }, [user.id])
+  }, [user.id, showToast])
 
   const saveField = (key: string) => async (value: string) => patch({ [key]: value })
 

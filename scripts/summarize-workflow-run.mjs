@@ -1,6 +1,7 @@
 // Summarise one attested run, never combine successes from different revisions.
 import fs from 'node:fs'
 import path from 'node:path'
+import { createHash } from 'node:crypto'
 
 const [directory, output, runURL] = process.argv.slice(2)
 if (!directory || !output) throw new Error('Usage: node scripts/summarize-workflow-run.mjs <run-directory> <output.json> [GitHub-run-URL]')
@@ -20,6 +21,19 @@ const method = (file, title) => file === 'auth.setup.ts' ? 'BROWSER_FIXTURE_PREP
   : apiOnly.some(([f, t]) => f.test(file) && t.test(title)) ? 'API_DB'
     : 'BROWSER (see individual steps; API/DB assertions may additionally verify persistence and permissions)'
 const phases = []
+const attachment = (a, phase) => {
+  if (a.path) return { name: a.name, contentType: a.contentType,
+    artifactPath: a.path.replace(/^.*?(?=test-results\/)/, '') }
+  if (!a.body) return { name: a.name, contentType: a.contentType }
+  // Playwright's HTML reporter stores inline attachments by their SHA-1.
+  // Reference that retained file without duplicating base64 payloads in the inventory.
+  const bytes = Buffer.from(a.body, 'base64')
+  const extensions = { 'image/png': 'png', 'application/pdf': 'pdf', 'application/json': 'json', 'text/plain': 'txt' }
+  const extension = extensions[a.contentType]
+  const digest = createHash('sha1').update(bytes).digest('hex')
+  return { name: a.name, contentType: a.contentType, bytes: bytes.length,
+    ...(extension ? { artifactPath: `playwright-report/${path.basename(directory)}/${phase}/data/${digest}.${extension}` } : { inlineSHA1: digest }) }
+}
 for (const phase of ['main', 'workflow', 'team-profile']) {
   const result = read(`${phase}/results.json`)
   const recordedCommit = result.config?.metadata?.gitCommit?.hash
@@ -34,8 +48,7 @@ for (const phase of ['main', 'workflow', 'team-profile']) {
         outcome: test.status, expectedStatus: test.expectedStatus,
         executions: test.results.map(r => ({ status: r.status, duration: r.duration, retry: r.retry,
           errors: (r.errors ?? []).map(e => e.message),
-          attachments: (r.attachments ?? []).filter(a => a.path).map(a => ({ name: a.name, contentType: a.contentType,
-            artifactPath: a.path.replace(/^.*?(?=test-results\/)/, '') })) })),
+          attachments: (r.attachments ?? []).map(a => attachment(a, phase)) })),
       })
     }
     for (const child of suite.suites ?? []) visit(child, titles)

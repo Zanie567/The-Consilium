@@ -256,6 +256,7 @@ export function Navbar() {
               </button>
               <button
                 type="button"
+                aria-label="Close search"
                 onClick={() => setSearchOpen(false)}
                 className="text-cream/40 hover:text-cream transition-colors"
               >

@@ -1,6 +1,7 @@
 import { test, expect, type Browser, type BrowserContext, type Page } from '@playwright/test'
 import bcrypt from 'bcryptjs'
 import { closeDb, db } from './helpers/teamFixtures'
+import { ArticleEditorPage } from './helpers/workflow'
 import { makePng, watch } from './helpers/e2eUtils'
 
 /**
@@ -101,7 +102,7 @@ async function publicPlacement(browser: Browser, name: string): Promise<{ sectio
 }
 
 async function dismissCookies(page: Page) {
-  await page.getByRole('button', { name: 'Decline' }).click({ timeout: 1500 }).catch(() => {})
+  await new ArticleEditorPage(page).dismissCookieBanner()
 }
 
 // ── new account → promotion → profile, for each of the three roles ────────────

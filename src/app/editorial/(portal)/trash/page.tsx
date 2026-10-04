@@ -45,5 +45,5 @@ export default async function TrashPage() {
     deletedAt: a.deletedAt?.toISOString() ?? '',
   }))
 
-  return <TrashList initialArticles={serialized} />
+  return <TrashList initialArticles={serialized} referenceTime={new Date().toISOString()} />
 }

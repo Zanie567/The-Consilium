@@ -21,7 +21,9 @@ function groupTests(file: string): string[] {
   if (file.includes('components/admin/article-editor/')) return ['wf-formatting', 'wf-controls', 'wf-failures', 'wf-lifecycle', 'wf-mobile']
   if (file.includes('ReviewPanel')) return ['wf-formatting', 'wf-controls', 'wf-lifecycle', 'wf-mobile']
   if (/TeamProfileForm|TeamManagement/.test(file)) return ['team-profile', 'team-profile-lifecycle']
-  if (/ArticleList|Trash/.test(file)) return ['wf-articles']
+  if (/ArticleList|Trash/.test(file)) return ['wf-articles', 'wf-remaining']
+  if (/Navbar|Footer|ArticleAnchorLinks|app\/articles\/\[slug\]/.test(file)) return ['wf-public-controls', 'wf-navigation', 'public']
+  if (/NewsletterSignup/.test(file)) return ['wf-accounts']
   return []
 }
 

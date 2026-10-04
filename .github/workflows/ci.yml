@@ -64,7 +64,7 @@ jobs:
         run: >-
           E2E_REQUIRE_CLEAN=1 npm run test:e2e -- --workers=1
           --project=wf-chromium --project=wf-webkit
-          wf-formatting.spec.ts wf-discovery.spec.ts wf-admin-profile.spec.ts
+          wf-formatting.spec.ts wf-discovery.spec.ts wf-admin-profile.spec.ts wf-public-controls.spec.ts wf-remaining.spec.ts wf-accounts.spec.ts
       - name: Upload critical workflow evidence
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
@@ -125,8 +125,10 @@ jobs:
 
   # End-to-end gate: seeds a real Postgres, builds, and runs the Playwright suite.
   # A failing e2e test, a console error on any page, or any internal URL returning
-  # >= 400 (including ?_rsc= prefetch requests) fails this job and blocks merge.
+  # >= 400 (including ?_rsc= prefetch requests) fails this job. Branch protection must require it to block merging.
   e2e:
+    # Preserve the full required suite while failing fast on quality/critical regressions.
+    needs: [verify, critical-e2e]
     name: E2E (Playwright), data-layer & network checks
     runs-on: ubuntu-latest
     # Measured local full run: ~30 minutes across three serialized phases.

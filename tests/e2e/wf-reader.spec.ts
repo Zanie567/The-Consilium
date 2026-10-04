@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { test, expect } from '@playwright/test'
-import { closeDb, db, signedIn } from './helpers/workflow'
+import { ArticleEditorPage, closeDb, db, signedIn } from './helpers/workflow'
 import { collectConsoleErrors } from './helpers/console'
 
 /**
@@ -24,8 +24,8 @@ test.afterAll(async () => {
   const user = await db().user.findUnique({ where: { email: EMAIL } })
   if (user) {
     await db().comment.deleteMany({ where: { userId: user.id } })
-    await db().bookmark.deleteMany({ where: { userId: user.id } }).catch(() => {})
-    await db().user.delete({ where: { id: user.id } }).catch(() => {})
+    await db().bookmark.deleteMany({ where: { userId: user.id } })
+    await db().user.delete({ where: { id: user.id } })
   }
   await fs.rm(authFile,{force:true})
   await closeDb()
@@ -36,7 +36,7 @@ test('sign up through the form lands signed in', async ({ browser }) => {
   const page = await ctx.newPage()
   const errors = collectConsoleErrors(page)
   await page.goto('/signup', { waitUntil: 'networkidle' })
-  await page.getByRole('dialog', { name: 'Cookie consent' }).getByRole('button', { name: 'Decline' }).click().catch(() => {})
+  await new ArticleEditorPage(page).dismissCookieBanner()
 
   const submit = page.locator('button[type="submit"]')
   await page.getByPlaceholder('Your name').fill(NAME)

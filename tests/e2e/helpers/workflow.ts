@@ -52,7 +52,7 @@ export function db(): PrismaClient {
   return prisma
 }
 export async function closeDb() {
-  await prisma?.$disconnect().catch(() => {})
+  await prisma?.$disconnect()
   prisma = null
 }
 
@@ -77,7 +77,7 @@ async function removeArticlesTitled(prefix: string) {
   if (!ids.length) return
   await db().debate.deleteMany({ where: { OR: [{forArticleId:{in:ids}},{againstArticleId:{in:ids}}] } })
   await db().notification.deleteMany({ where: { articleId: { in: ids } } })
-  await db().articleComment.deleteMany({ where: { articleId: { in: ids } } }).catch(() => {})
+  await db().articleComment.deleteMany({ where: { articleId: { in: ids } } })
   await db().articleTag.deleteMany({ where: { articleId: { in: ids } } })
   await db().article.deleteMany({ where: { id: { in: ids } } })
 }
@@ -117,7 +117,10 @@ export class ArticleEditorPage {
   /** A person's first act on a fresh browser: answer the cookie banner, which sits over the editor's lower edge. */
   async dismissCookieBanner() {
     const decline = this.page.getByRole('dialog', { name: 'Cookie consent' }).getByRole('button', { name: 'Decline' })
-    if (await decline.isVisible().catch(() => false)) await decline.click()
+    if (await decline.isVisible()) {
+      await decline.click()
+      await expect(this.page.getByRole('dialog', { name: 'Cookie consent' })).toBeHidden()
+    }
   }
 
   async openNew() {
@@ -150,7 +153,7 @@ export class ArticleEditorPage {
   async saveNow(): Promise<{ id: string; status: number }> {
     const res = await this.saving(() => this.saveDraftButton().click())
     const expected = res.request().method() === 'POST' ? 201 : 200
-    expect(res.status(), `save returned ${res.status()}: ${await res.text().catch(() => '')}`).toBe(expected)
+    expect(res.status(), `save returned ${res.status()}: ${await res.text()}`).toBe(expected)
     const json = (await res.json()) as { id: string }
     return { id: json.id, status: res.status() }
   }
@@ -247,10 +250,10 @@ export async function createAccount(role: 'ADMIN' | 'EDITOR' | 'WRITER' | 'GROWT
 /** Removes the accounts this worker created, with what hangs off them. */
 export async function removeMyAccounts() {
   for (const id of accounts) {
-    await db().article.deleteMany({ where: { authorId: id } }).catch(() => {})
-    await db().notification.deleteMany({ where: { userId: id } }).catch(() => {})
-    await db().adminNote.deleteMany({ where: { userId: id } }).catch(() => {})
-    await db().user.delete({ where: { id } }).catch(() => {})
+    await db().article.deleteMany({ where: { authorId: id } })
+    await db().notification.deleteMany({ where: { userId: id } })
+    await db().adminNote.deleteMany({ where: { userId: id } })
+    await db().user.deleteMany({ where: { id } })
   }
 }
 

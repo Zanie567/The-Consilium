@@ -139,22 +139,33 @@ test('bookmarks are fetched ONCE per page, not once per card (Bug 7)', async ({ 
   ).toBeLessThanOrEqual(1)
 })
 
-test('comments moderation total matches the users-table comment counts (Priority 4)', async ({ page }) => {
-  // The moderation page must not show "0 total comments" when comments exist.
+test('visible moderation total equals the comment counts across every users-table page', async ({ page }) => {
+  test.setTimeout(60_000) // Two screens and every seeded user page; exact responses synchronize the rendered counts.
+  const moderation = page.waitForResponse(r => new URL(r.url()).pathname === '/api/editorial/comments' && r.request().method() === 'GET')
   await page.goto('/editorial/comments', { waitUntil: 'networkidle' })
-  const totalText = await page
-    .locator('text=Total Comments')
-    .locator('xpath=following-sibling::*[1]')
-    .textContent()
-    .catch(() => null)
-
-  // Sum the per-user comment counts shown on the users page.
+  const moderationResponse = await moderation
+  expect(moderationResponse.status()).toBe(200)
+  const stats = (await moderationResponse.json()).stats
+  const statValue = (label: string) => page.getByText(label, { exact: true }).locator('..').locator('p').nth(1)
+  await expect(statValue('Total Comments')).toHaveText(String(stats.total))
+  await expect(statValue('Hidden')).toHaveText(String(stats.hidden))
+  const visibleTotal = Number(await statValue('Total Comments').innerText()) - Number(await statValue('Hidden').innerText())
+  expect(visibleTotal).toBeGreaterThan(0)
+  const first = page.waitForResponse(r => new URL(r.url()).pathname === '/api/admin/users' && r.request().method() === 'GET')
   await page.goto('/editorial/users', { waitUntil: 'networkidle' })
-  // Wait for the table to populate.
-  await page.waitForTimeout(1000)
-
-  // Both sources should be internally consistent; the data-layer test already
-  // proves the equality at the DB level, so here we just assert the moderation
-  // page rendered a real (non-dash) number rather than silently failing.
-  expect(totalText?.trim()).toMatch(/^\d[\d,]*$/)
+  let response = await first
+  let sum = 0
+  for (;;) {
+    expect(response.status()).toBe(200)
+    const data = await response.json()
+    const counts = page.locator('tbody tr td:nth-child(4)')
+    await expect(counts).toHaveText(data.users.map((user: { _count: { comments: number } }) => String(user._count.comments)))
+    sum += (await counts.allInnerTexts()).reduce((total, count) => total + Number(count), 0)
+    const next = page.getByLabel('Next users page', { exact: true })
+    if (await next.isDisabled()) break
+    const changed = page.waitForResponse(r => new URL(r.url()).pathname === '/api/admin/users' && r.request().method() === 'GET')
+    await next.click()
+    response = await changed
+  }
+  expect(sum).toBe(visibleTotal)
 })

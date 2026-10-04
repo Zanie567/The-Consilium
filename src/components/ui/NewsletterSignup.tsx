@@ -5,12 +5,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 
 export function NewsletterSignup() {
-  const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    // Read the visible form value, including autofill and input before hydration.
+    const email = String(new FormData(e.currentTarget as HTMLFormElement).get('email') ?? '')
     setStatus('loading')
     try {
       await apiRequest('/api/subscribe', {
@@ -20,7 +21,6 @@ export function NewsletterSignup() {
       })
       setStatus('success')
       setMessage('Thank you for subscribing to The Consilium.')
-      setEmail('')
     } catch (reason) {
       setStatus('error')
       setMessage(asApiError(reason).message)
@@ -90,8 +90,7 @@ export function NewsletterSignup() {
               <div className="relative flex-1 group">
                 <input
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  name="email"
                   placeholder="Your email address"
                   required
                   className="w-full bg-white/[0.06] border border-cream/20 text-cream placeholder:text-cream/35 px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-gold/70 focus:bg-white/[0.09] transition-all duration-200"

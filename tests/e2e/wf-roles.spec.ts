@@ -100,7 +100,7 @@ async function outcome(page: Page, url: string) {
   // as a 200 shell followed by a client navigation, so the URL is only final once idle.
   const res = await page.goto(url, { waitUntil: 'networkidle' })
   const finalPath = new URL(page.url()).pathname
-  const body = (await page.locator('body').innerText().catch(() => '')).slice(0, 4000)
+  const body = (await page.locator('body').innerText()).slice(0, 4000)
   const refused =
     (res?.status() ?? 200) >= 400 ||
     finalPath !== norm(url) ||
