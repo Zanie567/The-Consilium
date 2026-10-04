@@ -78,7 +78,7 @@ test('sidebar and sign out stay in view while the content region scrolls', async
 
   const before = await page.locator('aside').boundingBox()
   await region.evaluate((el) => el.scrollBy(0, 600))
-  await page.waitForTimeout(300)
+  await expect.poll(() => region.evaluate(el => el.scrollTop)).toBeGreaterThan(0)
   const after = await page.locator('aside').boundingBox()
 
   // The sidebar has not moved, and the document still has not scrolled.

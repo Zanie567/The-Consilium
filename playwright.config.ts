@@ -122,14 +122,16 @@ export default defineConfig({
     // no project-level storageState. They run as their own phase because they publish
     // and unpublish articles, which the public count assertions must not race with.
     {
+      // New desktop workflow files must be selected automatically. Only the
+      // device-configured phone-only spec belongs exclusively to mobile projects.
       name: 'wf-chromium',
-      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles|controls|cache|access|publication-safety|recovery|accounts|portal|admin-content|stale-authorization|remaining|navigation|admin-profile|discovery)\.spec\.ts/,
+      testMatch: /wf-(?!mobile\.spec\.ts$)[^/]+\.spec\.ts$/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'wf-webkit',
-      testMatch: /wf-(formatting|lifecycle|failures|upload|roles|layout|reader|articles|controls|cache|access|publication-safety|recovery|accounts|portal|admin-content|stale-authorization|remaining|navigation|admin-profile|discovery)\.spec\.ts/,
+      testMatch: /wf-(?!mobile\.spec\.ts$)[^/]+\.spec\.ts$/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Safari'] },
     },

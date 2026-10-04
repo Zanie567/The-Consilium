@@ -187,3 +187,56 @@ test('trash restore and permanent-delete failures retain content and visible err
  for(const row of rows.slice(0,2)){const editor=new ArticleEditorPage(page);await editor.openExisting(row.id);await expect(editor.body()).toContainText(row.content);expect((await db().article.findUniqueOrThrow({where:{id:row.id}})).status).toBe('DRAFT');expect((await ctx.request.get(`/articles/${row.slug}`)).status()).toBe(404)}
  await ctx.close()
 })
+
+test('moderation load retry and delayed Recent data preserve the current Hidden tab', async ({ browser }) => {
+  test.setTimeout(60_000)
+  const writer = await createAccount('WRITER', 'moderation-order-author')
+  const reader = await createAccount('READER', 'moderation-order-reader')
+  const title = uniqueTitle('Moderation ordering')
+  const article = await db().article.create({ data: { title, slug: title.toLowerCase().replaceAll(' ', '-'), authorId: writer.id, content: 'Moderation selection fixture.', status: 'PUBLISHED', publishedAt: new Date() } })
+  const hiddenBody = uniqueTitle('Current hidden comment')
+  const recentBody = uniqueTitle('Recent visible comment')
+  await db().comment.createMany({ data: [ { body: hiddenBody, articleId: article.id, userId: reader.id, isHidden: true }, { body: recentBody, articleId: article.id, userId: reader.id, isHidden: false } ] })
+  const ctx = await signedIn(browser, 'admin')
+  const page = await ctx.newPage()
+  await page.route('**/api/editorial/comments?**', route => route.fulfill({ status: 503, json: { error: 'Controlled moderation load failure' } }))
+  const failed = page.waitForResponse(r => new URL(r.url()).pathname === '/api/editorial/comments')
+  await page.goto('/editorial/comments', { waitUntil: 'networkidle' })
+  expect((await failed).status()).toBe(503)
+  await expect(page.getByRole('alert')).toContainText("We couldn't load the comments.")
+  await new ArticleEditorPage(page).dismissCookieBanner()
+  await page.unroute('**/api/editorial/comments?**')
+  const recovered = page.waitForResponse(r => new URL(r.url()).pathname === '/api/editorial/comments')
+  await page.getByRole('button', { name: 'Retry comments', exact: true }).click()
+  expect((await recovered).status()).toBe(200)
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  let release = () => {}
+  let entered = () => {}
+  const held = new Promise<void>(resolve => { release = resolve })
+  const observed = new Promise<void>(resolve => { entered = resolve })
+  await page.route('**/api/editorial/comments?tab=recent&page=0', async route => {
+    const response = await route.fetch()
+    expect(response.status()).toBe(200)
+    entered()
+    await held
+    await route.fulfill({ response })
+  })
+  try {
+    await page.getByRole('button', { name: 'Recent', exact: true }).click()
+    await observed
+    const current = page.waitForResponse(r => new URL(r.url()).pathname === '/api/editorial/comments' && new URL(r.url()).searchParams.get('tab') === 'hidden')
+    await page.getByRole('button', { name: /^Hidden \(/ }).click()
+    expect((await current).status()).toBe(200)
+    await expect(page.getByText(hiddenBody, { exact: true })).toBeVisible()
+    await expect(page.getByText(recentBody, { exact: true })).toHaveCount(0)
+    const obsolete = page.waitForResponse(r => new URL(r.url()).pathname === '/api/editorial/comments' && new URL(r.url()).searchParams.get('tab') === 'recent')
+    release()
+    const old = await obsolete
+    expect(old.status()).toBe(200)
+    await old.finished()
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())))
+    await expect(page.getByText(hiddenBody, { exact: true })).toBeVisible()
+    await expect(page.getByText(recentBody, { exact: true })).toHaveCount(0)
+    await expect(page.getByRole('alert')).toHaveCount(0)
+  } finally { release(); await ctx.close() }
+})

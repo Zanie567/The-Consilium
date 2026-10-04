@@ -138,9 +138,7 @@ test('article page: correct title/meta, share, copy-link, save controls; reading
     })
   const before = await barScaleX()
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-  await page.waitForTimeout(700) // let the spring settle
-  const after = await barScaleX()
-  expect(after, `reading progress did not advance (before=${before}, after=${after})`).toBeGreaterThan(before)
+  await expect.poll(barScaleX, { message: `Reading progress must advance beyond ${before}` }).toBeGreaterThan(before)
 })
 
 test('debate hub records one fresh reader vote with exactly 200 and reopens persisted results', async ({ browser }) => {
@@ -261,10 +259,7 @@ test('dark-mode toggle switches theme', async ({ page }) => {
   // The toggle exposes one of these two labels depending on current theme.
   const toggle = page.getByLabel(startedDark ? 'Switch to light mode' : 'Switch to dark mode')
   await toggle.first().click()
-  await page.waitForTimeout(400)
-
-  const nowDark = (await html.getAttribute('class'))?.includes('dark') ?? false
-  expect(nowDark).toBe(!startedDark)
+  await expect.poll(async () => (await html.getAttribute('class'))?.includes('dark') ?? false).toBe(!startedDark)
 })
 
 test('contact form shows validation on empty submit', async ({ page }) => {

@@ -194,6 +194,9 @@ jobs:
       - name: Framework-free share popup diagnostic
         run: node scripts/diagnostics/share-popup.mjs
 
+      - name: Controlled related-card stacking regression
+        run: node scripts/diagnostics/related-card-stack.mjs
+
       - name: Isolated NextAuth cancellation diagnostic
         run: node scripts/diagnostics/session-cancellation.mjs
 

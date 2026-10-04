@@ -184,8 +184,10 @@ for (const [role, section] of [
     expect((await fetch(after[0].image!)).status).toBe(200)
     expect(await publicPlacement(browser, name)).toEqual({ sections: [section], total: 1 })
 
-    // only the one deliberate failure the test provokes may appear in the console
-    expect(errors.filter((e) => !/status of (400|403) /.test(e))).toEqual([])
+    // APIRequestContext permission probes do not produce browser console errors.
+    // Keep the complete browser diagnostics; no broad HTTP-error filter is justified.
+    await test.info().attach('complete-console-diagnostics', { body: JSON.stringify(errors), contentType: 'application/json' })
+    expect(errors, errors.join('\n')).toEqual([])
     await context.close()
   })
 }

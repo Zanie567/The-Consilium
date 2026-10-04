@@ -53,24 +53,24 @@ test('Analytics: every tab loads with no console errors, and Writers shows data'
   const errors = collectConsoleErrors(page)
   await page.goto('/editorial/analytics', { waitUntil: 'networkidle' })
 
-  // Writers is opened separately below, where its data request is awaited.
-  for (const label of ['Overview', 'Content', 'Audience', 'Engagement', 'Distribution']) {
-    const tab = page.getByRole('button', { name: label, exact: true })
-    if (await tab.count()) {
-      await tab.first().click()
-      await page.waitForTimeout(600) // lazy fetch + render
-    }
+  // Overview is already loaded by the awaited initial navigation. Every other
+  // tab must complete its own exact successful request, rather than a sleep.
+  for (const [label, tabId] of [['Content', 'content'], ['Audience', 'audience'], ['Engagement', 'engagement'], ['Distribution', 'distribution']]) {
+    const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/editorial/analytics' && new URL(r.url()).searchParams.get('tab') === tabId)
+    await page.getByRole('button', { name: label, exact: true }).click()
+    expect((await response).status()).toBe(200)
+    await expect(page.getByRole('button', { name: label, exact: true })).toHaveClass(/border-gold/)
   }
 
   // Writers tab (the "No writers…" bug): open it, wait for its data, and assert
   // it renders writer rows rather than the empty state.
   const writersTab = page.getByRole('button', { name: 'Writers', exact: true })
   const analyticsResp = page.waitForResponse(
-    (r) => r.url().includes('tab=leaderboard') && r.ok(),
+    (r) => new URL(r.url()).pathname === '/api/editorial/analytics' && new URL(r.url()).searchParams.get('tab') === 'leaderboard',
     { timeout: 10_000 },
   )
   await writersTab.first().click()
-  await analyticsResp
+  expect((await analyticsResp).status()).toBe(200)
   await expect(page.getByText('No writers have published articles')).toHaveCount(0)
   await expect(page.locator('table tbody tr').first()).toBeVisible({ timeout: 10_000 })
 
@@ -92,9 +92,12 @@ test('Comment Moderation loads WITHOUT the error banner and shows real stats', a
   expect(total?.trim()).toMatch(/^\d[\d,]*$/)
 
   // All three tabs switch without error.
-  for (const tab of ['Reported', 'Recent', 'Hidden']) {
-    await page.getByRole('button', { name: new RegExp(tab, 'i') }).first().click()
-    await page.waitForTimeout(400)
+  for (const tab of ['Recent', 'Hidden', 'Reported']) {
+    const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/editorial/comments' && new URL(r.url()).searchParams.get('tab') === tab.toLowerCase())
+    const button = page.getByRole('button', { name: new RegExp(`^${tab}`) }).first()
+    await button.click()
+    expect((await response).status()).toBe(200)
+    await expect(button).toHaveClass(/border-gold/)
   }
   expect(errors, `moderation console errors:\n${errors.join('\n')}`).toEqual([])
 })
@@ -128,15 +131,15 @@ test('bookmarks are fetched ONCE per page, not once per card (Bug 7)', async ({ 
   page.on('request', (r) => {
     if (r.method() === 'GET' && r.url().includes('/api/bookmarks')) bookmarkCalls.push(r.url())
   })
+  const loaded = page.waitForResponse(r => new URL(r.url()).pathname === '/api/bookmarks' && r.request().method() === 'GET')
   await page.goto('/', { waitUntil: 'networkidle' })
-  // Wait a beat for any late client fetches.
-  await page.waitForTimeout(800)
+  expect((await loaded).status()).toBe(200)
   const cards = await page.locator('a[href^="/articles/"]').count()
   expect(cards, 'homepage should render multiple article cards').toBeGreaterThan(3)
   expect(
     bookmarkCalls.length,
     `GET /api/bookmarks fired ${bookmarkCalls.length}× for ${cards} cards (should be ≤ 1)`,
-  ).toBeLessThanOrEqual(1)
+  ).toBe(1)
 })
 
 test('visible moderation total equals the comment counts across every users-table page', async ({ page }) => {

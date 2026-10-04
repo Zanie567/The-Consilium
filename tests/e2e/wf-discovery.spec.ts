@@ -270,3 +270,59 @@ test('reader history pagination and populated profile row links lead to the corr
   }
   await ctx.close()
 })
+
+test('Admin and Growth analytics expose failed requests, retry exact 200, and retain the latest period', async ({ browser }) => {
+  test.setTimeout(90_000) // Two roles, explicit failures and a controlled delayed period; ordinary action deadlines remain.
+  for (const role of ['admin', 'growth'] as const) {
+    const ctx = await signedIn(browser, role)
+    const page = await ctx.newPage()
+    const endpoint = '/api/editorial/analytics'
+    await page.route('**/api/editorial/analytics?**', route => route.fulfill({ status: 503, json: { error: 'Controlled analytics outage' } }))
+    const failed = page.waitForResponse(r => new URL(r.url()).pathname === endpoint)
+    await page.goto('/editorial/analytics', { waitUntil: 'networkidle' })
+    expect((await failed).status()).toBe(503)
+    await expect(page.getByRole('alert')).toContainText('Analytics could not be loaded (503).')
+    await new ArticleEditorPage(page).dismissCookieBanner()
+    await page.unroute('**/api/editorial/analytics?**')
+    const recovered = page.waitForResponse(r => new URL(r.url()).pathname === endpoint && new URL(r.url()).searchParams.get('period') === '30d')
+    await page.getByRole('button', { name: 'Retry analytics', exact: true }).click()
+    const recovery = await recovered
+    expect(recovery.status()).toBe(200)
+    const recoveredData = await recovery.json()
+    const value = (label: string) => page.getByText(label, { exact: true }).locator('..').locator('p').nth(1)
+    await expect(value('Views: last 30 days')).toHaveText(recoveredData.summary.viewsInPeriod.toLocaleString())
+    await expect(page.getByRole('alert')).toHaveCount(0)
+    let release = () => {}
+    let entered = () => {}
+    let finished = () => {}
+    const held = new Promise<void>(resolve => { release = resolve })
+    const observed = new Promise<void>(resolve => { entered = resolve })
+    const completed = new Promise<void>(resolve => { finished = resolve })
+    await page.route('**/api/editorial/analytics?period=90d&tab=overview', async route => {
+      const response = await route.fetch()
+      expect(response.status()).toBe(200)
+      entered()
+      await held
+      // Deliver the old data deliberately; the application owns cancellation/current selection.
+      await route.fulfill({ response })
+      finished()
+    })
+    try {
+      await page.getByRole('button', { name: 'Last 30 days', exact: true }).click()
+      await page.getByRole('button', { name: 'Last 90 days', exact: true }).click()
+      await observed
+      await page.getByRole('button', { name: 'Last 90 days', exact: true }).click()
+      const current = page.waitForResponse(r => new URL(r.url()).pathname === endpoint && new URL(r.url()).searchParams.get('period') === '7d')
+      await page.getByRole('button', { name: 'Last 7 days', exact: true }).click()
+      const response = await current
+      expect(response.status()).toBe(200)
+      const data = await response.json()
+      await expect(value('Views: last 7 days')).toHaveText(data.summary.viewsInPeriod.toLocaleString())
+      release()
+      await completed
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())))
+      await expect(value('Views: last 7 days')).toHaveText(data.summary.viewsInPeriod.toLocaleString())
+      await expect(page.getByRole('alert')).toHaveCount(0)
+    } finally { release(); await ctx.close() }
+  }
+})

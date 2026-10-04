@@ -1876,6 +1876,7 @@
       "candidateTestFiles": [
         "tests/e2e/editorial-layout.spec.ts",
         "tests/e2e/editorial.spec.ts",
+        "tests/e2e/wf-discovery.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
@@ -1890,9 +1891,10 @@
         "src/app/editorial/(portal)/layout.tsx: redirect('/editorial/login')"
       ],
       "controls": [
-        "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx:119",
-        "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx:139",
-        "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx:160",
+        "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx:123",
+        "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx:143",
+        "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx:164",
+        "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx:182",
         "src/app/editorial/(portal)/analytics/ContentTab.tsx:76",
         "src/app/editorial/(portal)/analytics/ContentTab.tsx:108",
         "src/app/editorial/(portal)/analytics/ContentTab.tsx:165",
@@ -1945,13 +1947,13 @@
       "dynamicFamilies": [
         {
           "file": "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx",
-          "line": 138,
+          "line": 142,
           "source": "(Object.keys(PERIOD_LABELS) as Period[]).map(p => ( <button key={p} onClick={() => { setPeriod(p); setDropdownOpen(false) }} className={`w-full text-left px-4 py-2.5 text-xs font-medium tracking-wide transition-colors ${ period === p ? 'bg-gold/10 text-gold font-bold' : 'text-[var(--fg-muted)] hover:bg-[var(--bg-subtle)] hover:text-[var(--fg)]' }`} > {PERIOD_LABELS[p]} </button> ))"
         },
         {
           "file": "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx",
-          "line": 159,
-          "source": "TABS.map(tab => ( <button key={tab.id} onClick={() => handleTabClick(tab.id)} className={[ 'shrink-0 pb-2.5 mr-5 text-xs font-bold uppercase tracking-widest transition-colors border-b-2 -mb-px', activeTab === tab.id ? 'border-gold text-[var(--fg)]' : 'border-transparent text-[var(--fg-faint)] hover:text-[var(--fg-muted)]', ].join(' ')} > {tab.label} </button> ))"
+          "line": 163,
+          "source": "TABS.map(tab => ( <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={[ 'shrink-0 pb-2.5 mr-5 text-xs font-bold uppercase tracking-widest transition-colors border-b-2 -mb-px', activeTab === tab.id ? 'border-gold text-[var(--fg)]' : 'border-transparent text-[var(--fg-faint)] hover:text-[var(--fg-muted)]', ].join(' ')} > {tab.label} </button> ))"
         },
         {
           "file": "src/app/editorial/(portal)/analytics/AudienceTab.tsx",
@@ -2929,6 +2931,7 @@
         "tests/e2e/editorial.spec.ts",
         "tests/e2e/wf-access.spec.ts",
         "tests/e2e/wf-admin-content.spec.ts",
+        "tests/e2e/wf-remaining.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/integration/api-audit.test.ts",
         "tests/integration/api.test.ts",
@@ -2939,13 +2942,14 @@
         "src/app/editorial/(portal)/layout.tsx: redirect('/editorial/login')"
       ],
       "controls": [
-        "src/app/editorial/(portal)/comments/page.tsx:137",
-        "src/app/editorial/(portal)/comments/page.tsx:179",
-        "src/app/editorial/(portal)/comments/page.tsx:204",
-        "src/app/editorial/(portal)/comments/page.tsx:212",
-        "src/app/editorial/(portal)/comments/page.tsx:220",
-        "src/app/editorial/(portal)/comments/page.tsx:237",
-        "src/app/editorial/(portal)/comments/page.tsx:247",
+        "src/app/editorial/(portal)/comments/page.tsx:113",
+        "src/app/editorial/(portal)/comments/page.tsx:144",
+        "src/app/editorial/(portal)/comments/page.tsx:186",
+        "src/app/editorial/(portal)/comments/page.tsx:211",
+        "src/app/editorial/(portal)/comments/page.tsx:219",
+        "src/app/editorial/(portal)/comments/page.tsx:227",
+        "src/app/editorial/(portal)/comments/page.tsx:244",
+        "src/app/editorial/(portal)/comments/page.tsx:254",
         "src/components/layout/EditorialSidebarWrapper.tsx:36",
         "src/components/layout/EditorialSidebar.tsx:181",
         "src/components/layout/EditorialSidebar.tsx:217",
@@ -2993,22 +2997,22 @@
       "dynamicFamilies": [
         {
           "file": "src/app/editorial/(portal)/comments/page.tsx",
-          "line": 112,
+          "line": 119,
           "source": "[ { label: 'Total Comments', value: stats?.total, warn: false }, { label: 'Reported', value: stats?.reported, warn: (stats?.reported ?? 0) > 0 }, { label: 'Hidden', value: stats?.hidden, warn: false }, ].map((s) => ( <div key={s.label} className={`bg-[var(--bg-elevated)] border p-5 shadow-[var(--shadow-card)] ${ s.warn ? 'border-red-400' : 'border-[var(--border)]' }`} > <p className=\"text-[var(--fg-faint)] text-[0.65rem] uppercase tracking-widest mb-1\">{s.label}</p> <p className={`text-2xl font-bold ${s.warn ? 'text-red-500' : 'text-[var(--fg)]'}`} style={{ fontFamily: 'var(--font-serif)' }} > {s.value === undefined ? '—' : s.value.toLocaleString()} </p> </div> ))"
         },
         {
           "file": "src/app/editorial/(portal)/comments/page.tsx",
-          "line": 136,
-          "source": "(['reported', 'recent', 'hidden'] as Tab[]).map((t) => ( <button key={t} onClick={() => setTab(t)} className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors border-b-2 -mb-px ${ tab === t ? 'text-gold border-gold' : 'text-[var(--fg-faint)] border-transparent hover:text-[var(--fg)]' }`} > {t === 'reported' ? `Reported (${stats?.reported ?? 0})` : t === 'hidden' ? `Hidden (${stats?.hidden ?? 0})` : 'Recent'} </button> ))"
+          "line": 143,
+          "source": "(['reported', 'recent', 'hidden'] as Tab[]).map((t) => ( <button key={t} onClick={() => { setPage(0); setTab(t) }} className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors border-b-2 -mb-px ${ tab === t ? 'text-gold border-gold' : 'text-[var(--fg-faint)] border-transparent hover:text-[var(--fg)]' }`} > {t === 'reported' ? `Reported (${stats?.reported ?? 0})` : t === 'hidden' ? `Hidden (${stats?.hidden ?? 0})` : 'Recent'} </button> ))"
         },
         {
           "file": "src/app/editorial/(portal)/comments/page.tsx",
-          "line": 153,
+          "line": 160,
           "source": "[1, 2, 3].map((i) => ( <div key={i} className=\"h-24 bg-[var(--border)] animate-pulse\" /> ))"
         },
         {
           "file": "src/app/editorial/(portal)/comments/page.tsx",
-          "line": 163,
+          "line": 170,
           "source": "comments.map((comment) => ( <div key={comment.id} className={`bg-[var(--bg-elevated)] border shadow-[var(--shadow-card)] p-5 ${ comment.isReported ? 'border-red-300' : 'border-[var(--border)]' }`} > <div className=\"flex items-start justify-between gap-4\"> <div className=\"flex-1 min-w-0\"> <div className=\"flex items-center gap-2 mb-2 flex-wrap\"> <span className=\"text-xs font-semibold text-[var(--fg)]\"> {comment.user.name ?? 'Anonymous'} </span> <span className=\"text-[var(--fg-faint)] text-[10px]\"> {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })} </span> <Link href={`/articles/${comment.article.slug}`} target=\"_blank\" className=\"text-[10px] text-gold hover:underline truncate max-w-[200px]\" > {comment.article.title} </Link> {comment.isReported && ( <span className=\"flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5\"> <Flag size={9} /> Reported </span> )} {comment.isHidden && ( <span className=\"flex items-center gap-1 text-[10px] font-bold text-[var(--fg-faint)] bg-[var(--bg-subtle)] px-2 py-0.5\"> <EyeOff size={9} /> Hidden </span> )} </div> <p className=\"text-sm text-[var(--fg-muted)] leading-relaxed\">{comment.body}</p> <p className=\"text-[10px] text-[var(--fg-faint)] mt-1\">{comment.upvotes} upvote{comment.upvotes !== 1 ? 's' : ''}</p> </div> {/* Actions */} <div className=\"flex flex-col gap-1.5 shrink-0\"> {comment.isReported && !comment.isHidden && ( <button onClick={() => handleAction(comment.id, 'approve')} className=\"flex items-center gap-1 text-[10px] font-bold text-green-600 hover:text-green-700 transition-colors\" > <CheckCircle size={11} /> Approve </button> )} {comment.isHidden && ( <button onClick={() => handleAction(comment.id, 'unhide')} className=\"flex items-center gap-1 text-[10px] font-bold text-green-600 hover:text-green-700 transition-colors\" > <CheckCircle size={11} /> Restore </button> )} {!comment.isHidden && ( <button onClick={() => handleAction(comment.id, 'hide')} className=\"flex items-center gap-1 text-[10px] font-bold text-[var(--fg-faint)] hover:text-red-500 transition-colors\" > <EyeOff size={11} /> Hide </button> )} </div> </div> </div> ))"
         },
         {
@@ -4228,9 +4232,11 @@
         "tests/integration/route-handlers.test.ts",
         "tests/integration/scheduling-routes.test.ts",
         "tests/integration/team-profile-db.test.ts",
+        "tests/unit/analytics-request-recovery.test.tsx",
         "tests/unit/auth-redirect.test.ts",
         "tests/unit/editorial-calendar.test.ts",
         "tests/unit/editorial-schedule-display.test.ts",
+        "tests/unit/moderation-request-order.test.tsx",
         "tests/unit/notification-navigation.test.tsx",
         "tests/unit/portal-layout-ban.test.tsx",
         "tests/unit/portal-request-order.test.tsx",
@@ -8489,9 +8495,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx:119",
+      "id": "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx:123",
       "file": "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx",
-      "line": 119,
+      "line": 123,
       "tag": "button",
       "label": "{PERIOD_LABELS[period]}",
       "href": null,
@@ -8506,9 +8512,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx:139",
+      "id": "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx:143",
       "file": "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx",
-      "line": 139,
+      "line": 143,
       "tag": "button",
       "label": "{PERIOD_LABELS[p]}",
       "href": null,
@@ -8523,18 +8529,38 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx:160",
+      "id": "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx:164",
       "file": "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx",
-      "line": 160,
+      "line": 164,
       "tag": "button",
       "label": "{tab.label}",
       "href": null,
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": {
-        "onClick": "{() => handleTabClick(tab.id)}"
+        "onClick": "{() => setActiveTab(tab.id)}"
       },
       "candidateTests": [],
+      "groupTestFiles": [],
+      "evidence": "CODE_INSPECTION",
+      "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
+    },
+    {
+      "id": "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx:182",
+      "file": "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx",
+      "line": 182,
+      "tag": "button",
+      "label": "Retry analytics",
+      "href": null,
+      "type": "button",
+      "disabledWhen": null,
+      "expectedFromSource": {
+        "onClick": "{() => setRetry(value => value + 1)}"
+      },
+      "candidateTests": [
+        "tests/e2e/wf-discovery.spec.ts",
+        "tests/unit/analytics-request-recovery.test.tsx"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -8647,16 +8673,35 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/comments/page.tsx:137",
+      "id": "src/app/editorial/(portal)/comments/page.tsx:113",
       "file": "src/app/editorial/(portal)/comments/page.tsx",
-      "line": 137,
+      "line": 113,
+      "tag": "button",
+      "label": "Retry comments",
+      "href": null,
+      "type": "button",
+      "disabledWhen": null,
+      "expectedFromSource": {
+        "onClick": "{() => { void fetchComments() }}"
+      },
+      "candidateTests": [
+        "tests/e2e/wf-remaining.spec.ts"
+      ],
+      "groupTestFiles": [],
+      "evidence": "CODE_INSPECTION",
+      "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
+    },
+    {
+      "id": "src/app/editorial/(portal)/comments/page.tsx:144",
+      "file": "src/app/editorial/(portal)/comments/page.tsx",
+      "line": 144,
       "tag": "button",
       "label": "{t === 'reported' ? `Reported (${stats?.reported ?? 0})` : t === 'hidden' ? `Hidden (${stats?.hidden ?? 0})` : 'Recent'}",
       "href": null,
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": {
-        "onClick": "{() => setTab(t)}"
+        "onClick": "{() => { setPage(0); setTab(t) }}"
       },
       "candidateTests": [],
       "groupTestFiles": [],
@@ -8664,9 +8709,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/comments/page.tsx:179",
+      "id": "src/app/editorial/(portal)/comments/page.tsx:186",
       "file": "src/app/editorial/(portal)/comments/page.tsx",
-      "line": 179,
+      "line": 186,
       "tag": "Link",
       "label": "{comment.article.title}",
       "href": "{`/articles/${comment.article.slug}`}",
@@ -8679,9 +8724,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/comments/page.tsx:204",
+      "id": "src/app/editorial/(portal)/comments/page.tsx:211",
       "file": "src/app/editorial/(portal)/comments/page.tsx",
-      "line": 204,
+      "line": 211,
       "tag": "button",
       "label": "Approve",
       "href": null,
@@ -8696,9 +8741,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/comments/page.tsx:212",
+      "id": "src/app/editorial/(portal)/comments/page.tsx:219",
       "file": "src/app/editorial/(portal)/comments/page.tsx",
-      "line": 212,
+      "line": 219,
       "tag": "button",
       "label": "Restore",
       "href": null,
@@ -8724,9 +8769,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/comments/page.tsx:220",
+      "id": "src/app/editorial/(portal)/comments/page.tsx:227",
       "file": "src/app/editorial/(portal)/comments/page.tsx",
-      "line": 220,
+      "line": 227,
       "tag": "button",
       "label": "Hide",
       "href": null,
@@ -8744,9 +8789,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/comments/page.tsx:237",
+      "id": "src/app/editorial/(portal)/comments/page.tsx:244",
       "file": "src/app/editorial/(portal)/comments/page.tsx",
-      "line": 237,
+      "line": 244,
       "tag": "button",
       "label": "← Previous",
       "href": null,
@@ -8763,9 +8808,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/comments/page.tsx:247",
+      "id": "src/app/editorial/(portal)/comments/page.tsx:254",
       "file": "src/app/editorial/(portal)/comments/page.tsx",
-      "line": 247,
+      "line": 254,
       "tag": "button",
       "label": "Next →",
       "href": null,
@@ -9372,8 +9417,10 @@
       "expectedFromSource": "Navigate to {`/editorial/debates/${debate.id}`}",
       "candidateTests": [
         "tests/e2e/editorial.spec.ts",
+        "tests/e2e/wf-discovery.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
-        "tests/integration/api-audit.test.ts"
+        "tests/integration/api-audit.test.ts",
+        "tests/unit/analytics-request-recovery.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -9743,7 +9790,8 @@
       "candidateTests": [
         "tests/e2e/editorial.spec.ts",
         "tests/e2e/wf-portal.spec.ts",
-        "tests/e2e/wf-roles.spec.ts"
+        "tests/e2e/wf-roles.spec.ts",
+        "tests/unit/analytics-request-recovery.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -11249,7 +11297,9 @@
       },
       "candidateTests": [
         "tests/e2e/wf-admin-profile.spec.ts",
-        "tests/e2e/wf-discovery.spec.ts"
+        "tests/e2e/wf-discovery.spec.ts",
+        "tests/e2e/wf-remaining.spec.ts",
+        "tests/unit/analytics-request-recovery.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -15369,6 +15419,7 @@
         "tests/integration/review-route.test.ts",
         "tests/integration/route-handlers.test.ts",
         "tests/integration/scheduling-routes.test.ts",
+        "tests/unit/analytics-request-recovery.test.tsx",
         "tests/unit/api-client.test.ts",
         "tests/unit/article-section-links.test.tsx",
         "tests/unit/newsletter-input.test.tsx",
@@ -17597,8 +17648,10 @@
         "tests/integration/route-handlers.test.ts",
         "tests/integration/team-profile-db.test.ts",
         "tests/integration/team-profile-storage.test.ts",
+        "tests/unit/analytics-request-recovery.test.tsx",
         "tests/unit/article-section-links.test.tsx",
         "tests/unit/featured-article-hero.test.tsx",
+        "tests/unit/moderation-request-order.test.tsx",
         "tests/unit/notification-navigation.test.tsx",
         "tests/unit/portal-request-order.test.tsx",
         "tests/unit/profile-feedback.test.tsx",
@@ -18546,6 +18599,7 @@
         "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
         "tests/integration/data-layer.test.ts",
+        "tests/unit/analytics-request-recovery.test.tsx",
         "tests/unit/portal-request-order.test.tsx"
       ],
       "groupTestFiles": [
@@ -19632,7 +19686,9 @@
       },
       "candidateTests": [
         "tests/e2e/wf-admin-profile.spec.ts",
-        "tests/e2e/wf-discovery.spec.ts"
+        "tests/e2e/wf-discovery.spec.ts",
+        "tests/e2e/wf-remaining.spec.ts",
+        "tests/unit/analytics-request-recovery.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -20959,13 +21015,13 @@
     },
     {
       "file": "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx",
-      "line": 138,
+      "line": 142,
       "source": "(Object.keys(PERIOD_LABELS) as Period[]).map(p => ( <button key={p} onClick={() => { setPeriod(p); setDropdownOpen(false) }} className={`w-full text-left px-4 py-2.5 text-xs font-medium tracking-wide transition-colors ${ period === p ? 'bg-gold/10 text-gold font-bold' : 'text-[var(--fg-muted)] hover:bg-[var(--bg-subtle)] hover:text-[var(--fg)]' }`} > {PERIOD_LABELS[p]} </button> ))"
     },
     {
       "file": "src/app/editorial/(portal)/analytics/AnalyticsDashboard.tsx",
-      "line": 159,
-      "source": "TABS.map(tab => ( <button key={tab.id} onClick={() => handleTabClick(tab.id)} className={[ 'shrink-0 pb-2.5 mr-5 text-xs font-bold uppercase tracking-widest transition-colors border-b-2 -mb-px', activeTab === tab.id ? 'border-gold text-[var(--fg)]' : 'border-transparent text-[var(--fg-faint)] hover:text-[var(--fg-muted)]', ].join(' ')} > {tab.label} </button> ))"
+      "line": 163,
+      "source": "TABS.map(tab => ( <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={[ 'shrink-0 pb-2.5 mr-5 text-xs font-bold uppercase tracking-widest transition-colors border-b-2 -mb-px', activeTab === tab.id ? 'border-gold text-[var(--fg)]' : 'border-transparent text-[var(--fg-faint)] hover:text-[var(--fg-muted)]', ].join(' ')} > {tab.label} </button> ))"
     },
     {
       "file": "src/app/editorial/(portal)/analytics/AudienceTab.tsx",
@@ -21079,22 +21135,22 @@
     },
     {
       "file": "src/app/editorial/(portal)/comments/page.tsx",
-      "line": 112,
+      "line": 119,
       "source": "[ { label: 'Total Comments', value: stats?.total, warn: false }, { label: 'Reported', value: stats?.reported, warn: (stats?.reported ?? 0) > 0 }, { label: 'Hidden', value: stats?.hidden, warn: false }, ].map((s) => ( <div key={s.label} className={`bg-[var(--bg-elevated)] border p-5 shadow-[var(--shadow-card)] ${ s.warn ? 'border-red-400' : 'border-[var(--border)]' }`} > <p className=\"text-[var(--fg-faint)] text-[0.65rem] uppercase tracking-widest mb-1\">{s.label}</p> <p className={`text-2xl font-bold ${s.warn ? 'text-red-500' : 'text-[var(--fg)]'}`} style={{ fontFamily: 'var(--font-serif)' }} > {s.value === undefined ? '—' : s.value.toLocaleString()} </p> </div> ))"
     },
     {
       "file": "src/app/editorial/(portal)/comments/page.tsx",
-      "line": 136,
-      "source": "(['reported', 'recent', 'hidden'] as Tab[]).map((t) => ( <button key={t} onClick={() => setTab(t)} className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors border-b-2 -mb-px ${ tab === t ? 'text-gold border-gold' : 'text-[var(--fg-faint)] border-transparent hover:text-[var(--fg)]' }`} > {t === 'reported' ? `Reported (${stats?.reported ?? 0})` : t === 'hidden' ? `Hidden (${stats?.hidden ?? 0})` : 'Recent'} </button> ))"
+      "line": 143,
+      "source": "(['reported', 'recent', 'hidden'] as Tab[]).map((t) => ( <button key={t} onClick={() => { setPage(0); setTab(t) }} className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors border-b-2 -mb-px ${ tab === t ? 'text-gold border-gold' : 'text-[var(--fg-faint)] border-transparent hover:text-[var(--fg)]' }`} > {t === 'reported' ? `Reported (${stats?.reported ?? 0})` : t === 'hidden' ? `Hidden (${stats?.hidden ?? 0})` : 'Recent'} </button> ))"
     },
     {
       "file": "src/app/editorial/(portal)/comments/page.tsx",
-      "line": 153,
+      "line": 160,
       "source": "[1, 2, 3].map((i) => ( <div key={i} className=\"h-24 bg-[var(--border)] animate-pulse\" /> ))"
     },
     {
       "file": "src/app/editorial/(portal)/comments/page.tsx",
-      "line": 163,
+      "line": 170,
       "source": "comments.map((comment) => ( <div key={comment.id} className={`bg-[var(--bg-elevated)] border shadow-[var(--shadow-card)] p-5 ${ comment.isReported ? 'border-red-300' : 'border-[var(--border)]' }`} > <div className=\"flex items-start justify-between gap-4\"> <div className=\"flex-1 min-w-0\"> <div className=\"flex items-center gap-2 mb-2 flex-wrap\"> <span className=\"text-xs font-semibold text-[var(--fg)]\"> {comment.user.name ?? 'Anonymous'} </span> <span className=\"text-[var(--fg-faint)] text-[10px]\"> {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })} </span> <Link href={`/articles/${comment.article.slug}`} target=\"_blank\" className=\"text-[10px] text-gold hover:underline truncate max-w-[200px]\" > {comment.article.title} </Link> {comment.isReported && ( <span className=\"flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5\"> <Flag size={9} /> Reported </span> )} {comment.isHidden && ( <span className=\"flex items-center gap-1 text-[10px] font-bold text-[var(--fg-faint)] bg-[var(--bg-subtle)] px-2 py-0.5\"> <EyeOff size={9} /> Hidden </span> )} </div> <p className=\"text-sm text-[var(--fg-muted)] leading-relaxed\">{comment.body}</p> <p className=\"text-[10px] text-[var(--fg-faint)] mt-1\">{comment.upvotes} upvote{comment.upvotes !== 1 ? 's' : ''}</p> </div> {/* Actions */} <div className=\"flex flex-col gap-1.5 shrink-0\"> {comment.isReported && !comment.isHidden && ( <button onClick={() => handleAction(comment.id, 'approve')} className=\"flex items-center gap-1 text-[10px] font-bold text-green-600 hover:text-green-700 transition-colors\" > <CheckCircle size={11} /> Approve </button> )} {comment.isHidden && ( <button onClick={() => handleAction(comment.id, 'unhide')} className=\"flex items-center gap-1 text-[10px] font-bold text-green-600 hover:text-green-700 transition-colors\" > <CheckCircle size={11} /> Restore </button> )} {!comment.isHidden && ( <button onClick={() => handleAction(comment.id, 'hide')} className=\"flex items-center gap-1 text-[10px] font-bold text-[var(--fg-faint)] hover:text-red-500 transition-colors\" > <EyeOff size={11} /> Hide </button> )} </div> </div> </div> ))"
     },
     {
