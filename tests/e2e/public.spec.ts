@@ -177,6 +177,8 @@ test('search highlights matched terms with <mark>', async ({ page }) => {
 })
 
 test('navigating across pages throws no InvalidStateError (view-transition guard)', async ({ page }) => {
+  // This case completes twelve navigations, including cold development routes.
+  test.setTimeout(90_000)
   const consoleErrors = collectConsoleErrors(page)
   const invalidState: string[] = []
   const watch = (text: string) => {
@@ -187,19 +189,28 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
 
   // Full document loads (exercise the removed @view-transition navigation rule)…
   for (const path of ['/', '/category/opinion', '/opinion-debate', '/category/news', '/about', '/']) {
-    await page.goto(path, { waitUntil: 'domcontentloaded' })
-    await page.waitForTimeout(150)
+    // Complete each document before replacing it. WebKit reports teardown of
+    // outstanding same-origin fetches as access-control errors; interrupting
+    // hydration/prefetch doesn't exercise a completed navigation.
+    await page.goto(path, { waitUntil: 'networkidle' })
+    await expect(page).toHaveURL(url => url.pathname === path)
+    await expect(page.locator('main').first()).toBeVisible()
   }
-  // …then rapid client-side navigations (exercise Next's SPA transitions). Use
-  // 'domcontentloaded', not 'networkidle' — the dev server's HMR socket keeps
-  // the network busy, so 'networkidle' never settles.
-  await page.goto('/', { waitUntil: 'domcontentloaded' })
+  // …then client-side navigations, followed promptly by Back after the target
+  // actually finishes loading. Neither clicks nor failed navigation are swallowed.
+  await page.goto('/', { waitUntil: 'networkidle' })
   const links = page.locator('header a[href^="/category/"], main a[href^="/articles/"]')
   const n = Math.min(await links.count(), 5)
+  expect(n).toBeGreaterThan(0)
   for (let i = 0; i < n; i++) {
-    await links.nth(i).click({ timeout: 2000 }).catch(() => {})
+    const href = await links.nth(i).getAttribute('href')
+    expect(href).toBeTruthy()
+    await links.nth(i).click({ timeout: 2000 })
+    await page.waitForURL(url => url.pathname === href, { waitUntil: 'networkidle' })
+    await expect(page.locator('main').first()).toBeVisible()
     await page.waitForTimeout(200)
-    await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => {})
+    await page.goBack({ waitUntil: 'networkidle' })
+    await expect(page).toHaveURL(url => url.pathname === '/')
   }
   await page.waitForTimeout(300)
 

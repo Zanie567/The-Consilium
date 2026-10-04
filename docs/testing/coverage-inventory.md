@@ -133,20 +133,20 @@ report a comment, ban screen. 🚧 Google sign-in.
 | Desktop workflow specs | ✅ | ✅ |
 | Phone (Pixel 7 / iPhone 14) | ✅ | ✅ |
 | Layout 1100–1920 px | ✅ | ✅ |
-| `public` spec | ✅ | ✅ (`public-webkit`), except the view-transition test 🚧 |
-| `footnotes` spec | ✅ | 🚧 3 failures under WebKit not yet triaged |
+| `public` spec | ✅ | ✅ (`public-webkit`), final production selection 32/32 |
+| `footnotes` spec | ✅ | ✅ all seven controls passed in the final production main phase |
 | `editorial`, `editor-scope`, `team-profile` specs | ✅ | ❌ chromium only |
 | Firefox | ❌ not configured |
 
 ### Historical exploratory WebKit findings (outside the recorded feature selection)
 
-These are retained findings from the earlier broad audit, not results of the scoped appointment/testing-mode verification. The current writer/editor journeys and actual role-menu Link navigation passed WebKit without collected application console errors. The unrelated public navigation/footnote cases below were not re-run in this implementation; an HTTPS hosted Safari check remains unavailable.
+These are historical findings from the earlier broad audit, superseded by the recorded follow-ups in [acceptance and evidence](./acceptance-and-evidence.md). Writer/editor journeys and role-menu navigation passed WebKit without collected application console errors. Public and footnote cases were re-run: all footnote controls passed; navigation passed after completing each transition and enforcing destination/Back assertions. Hosted representative journeys passed Chromium; a real Safari/complete HTTPS WebKit matrix remains not tested.
 
 1. `public.spec` "navigating across pages throws no InvalidStateError": under WebKit on
    `http://localhost`, every Next RSC prefetch `fetch()` rejects with "due to access control
-   checks" although the server answers 200 with `text/x-component`. Probably specific to
-   plain-HTTP localhost; needs a check on a real HTTPS preview in Safari before it is called
-   a production problem.
+   checks" although the server answers 200 with `text/x-component`. A subsequent diagnostic
+   tied these to replacing documents during outstanding hydration/prefetch fetches; the
+   corrected test completes navigation and keeps strict console/error assertions.
 2. `footnotes.spec` under WebKit: (a) keyboard Tab does not reach the footnote link (Safari
    skips links in the tab order unless the user enables it, so the popover is not
    keyboard-reachable there by default); (b) a tap outside the open popover does not close it

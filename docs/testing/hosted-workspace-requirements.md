@@ -34,7 +34,7 @@ Recreate: create a project, put its `SUPABASE_SERVICE_ROLE_KEY` in the protected
 
 **Extensions** (Supabase defaults, nothing custom): `pg_stat_statements`, `pgcrypto`, `plpgsql`, `supabase_vault`, `uuid-ossp`. No edge functions, no cron jobs.
 
-**Seed content** (all from the plan): six verified personas at `consilium.test` (`admin`, `writer`, `writer-other`, `editor` with an Opinion assignment, `editor-global`, `growth`), categories Opinion and Economics, one editor assignment, one administrator-owned chief card, two review articles, and the attestation settings `testing-workspace` and `testing-hosted-project`. Fixture passwords are random per generation and are not in the repository.
+**Seed content** (all from the plan): six verified personas at `consilium.test` (`admin`, `writer`, `writer-other`, `editor` with an Opinion assignment, `editor-global`, `growth`), categories Opinion and Economics, one editor assignment, one administrator-owned chief card, two review articles, and the attestation settings `testing-workspace` and `testing-hosted-project`. Fixture passwords are random on first provisioning, retained by the protected operator file on repeat setup, and are not in the repository.
 
 **Mail.** `EMAIL_TRANSPORT=capture-db` stores generated mail in `testing_email_outbox`; no provider credentials exist.
 
@@ -53,8 +53,8 @@ A scratch database was built from commit `6859d08` by `prisma db push` plus the 
 | enums | 5 | `fc11c5385b93292af45891460b489972` |
 | indexes | 37 tables | `767c8cbca8c84765b5a497b6bae479e5` |
 
-The live database holds about 15 rows in total (6 users, 2 articles, 2 categories, 2 settings, 1 assignment, 1 team card, 1 login attempt), 12 MB, and **no storage objects** in either bucket. Apart from one runtime `login_attempts` row, everything in it is reproduced by the plan.
+Before the hosted browser journeys, the database held about 15 rows in total (6 users, 2 articles, 2 categories, 2 settings, 1 assignment, 1 team card, 1 login attempt), 12 MB, and no storage objects. This is a provisioning snapshot, not the current row count: actual browser workflows subsequently created test articles, media, a writer card, sessions, audit events, captured mail and notifications. The operator smoke retains its unique run-prefixed articles for review. Repeat setup preserved the six account/credential and administrator-card checksums.
 
 ## Pausing
 
-Pausing keeps the data and the project ref; the workspace is unavailable until restored, and restoring needs a free active-project slot on the plan. Hosted browser, publication and mail journeys have **not** been run against this project; they would have to be repeated against a recreated or restored one.
+Pausing keeps the data and project ref; the workspace is unavailable until restored, and restoring needs a free active-project slot on the plan. Hosted ordinary/simulated writer/editor/growth, publication, profile media and captured mail journeys passed on 4 October; see [acceptance and evidence](./acceptance-and-evidence.md). Repeat readiness and the representative smoke after recreation/restoration. The complete scheduling/failure/toolbar matrix is verified locally, not claimed as a complete hosted browser matrix.

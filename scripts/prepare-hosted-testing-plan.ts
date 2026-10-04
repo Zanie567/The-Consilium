@@ -40,6 +40,7 @@ DO $guard$ BEGIN
  IF EXISTS (SELECT 1 FROM site_settings WHERE key='testing-hosted-project' AND value IS DISTINCT FROM ${quote(JSON.stringify(w))}) THEN RAISE EXCEPTION 'Hosted project attestation conflict'; END IF;
  IF NOT EXISTS (SELECT 1 FROM site_settings WHERE key='testing-workspace') AND EXISTS (SELECT 1 FROM users) THEN RAISE EXCEPTION 'Refusing to attest a populated unverified database'; END IF;
  ${ownershipChecks}
+ IF EXISTS (SELECT 1 FROM team_members WHERE (id=${quote(id('chief-card'))} OR "userId"=${quote(id('admin'))}) AND (id<>${quote(id('chief-card'))} OR "userId" IS DISTINCT FROM ${quote(id('admin'))})) THEN RAISE EXCEPTION 'Hosted chief ownership conflict'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname=${quote(w.databaseRole)}) THEN CREATE ROLE ${w.databaseRole} LOGIN PASSWORD ${quote(verifier)}; END IF;
 END $guard$;
 GRANT USAGE ON SCHEMA public, storage TO ${w.databaseRole};
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS public.testing_email_outbox (id text PRIMARY KEY, rec
 ALTER TABLE public.testing_email_outbox ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.testing_email_outbox FROM anon,authenticated;
 GRANT SELECT,INSERT ON public.testing_email_outbox TO ${w.databaseRole};
+REVOKE UPDATE,DELETE ON public.testing_email_outbox FROM ${w.databaseRole};
 DO $sink$ BEGIN
  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='testing_email_outbox' AND policyname='consilium_testing_server') THEN CREATE POLICY consilium_testing_server ON public.testing_email_outbox FOR ALL TO ${w.databaseRole} USING(true) WITH CHECK(true); END IF;
  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='storage' AND tablename='buckets' AND policyname='consilium_testing_readiness') THEN CREATE POLICY consilium_testing_readiness ON storage.buckets FOR SELECT TO ${w.databaseRole} USING(true); END IF;

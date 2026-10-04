@@ -252,14 +252,14 @@ test.describe('sensitive endpoints refuse the wrong roles', () => {
     ['GET', '/api/editorial/comments', ['writer', 'reader']],
     ['GET', '/api/editorial/trash', ['growth', 'reader']],
     ['PATCH', '/api/editorial/articles/none/review', ['writer', 'growth', 'reader']],
-    ['POST', '/api/admin/users', ['writer', 'editor', 'growth', 'reader']],
+    ['GET', '/api/admin/users', ['writer', 'editor', 'growth', 'reader']],
   ]
   for (const [method, url, roles] of CASES) {
     for (const who of roles) {
       test(`${who} ${method} ${url} is refused`, async ({ browser }) => {
         const ctx = await signedIn(browser, who)
         const res = await ctx.request.fetch(url, { method, data: method === 'GET' ? undefined : {} })
-        expect([401, 403, 404, 405], `${who} got ${res.status()}: ${(await res.text()).slice(0, 120)}`).toContain(res.status())
+        expect([401, 403], `${who} got ${res.status()}: ${(await res.text()).slice(0, 120)}`).toContain(res.status())
         await ctx.close()
       })
     }
