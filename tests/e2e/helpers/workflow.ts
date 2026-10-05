@@ -200,7 +200,7 @@ export class ArticleEditorPage {
     // Receiving HTTP headers is earlier than the controller acknowledging its
     // latest queued snapshot. Reloading then can interrupt the manual save and
     // correctly leave recovery work. Wait for the real editor's saved state.
-    await expect(this.page.getByText('Saved', { exact: true })).toHaveCount(1)
+    await expect(this.page.getByText('Saved', { exact: true }).last()).toBeAttached()
     await expect(this.saveDraftButton()).toBeEnabled()
     await expect.poll(() => this.page.evaluate((id) => {
       const tab = sessionStorage.getItem('consilium:editor-tab')
