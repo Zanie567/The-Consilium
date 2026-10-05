@@ -1382,3 +1382,12 @@ mark {
 @media (prefers-reduced-motion: reduce) {
   .comment-highlight.comment-highlight-active { animation: none; }
 }
+
+/* Preserve identical SSR/client animation wrappers. Reduced-motion readers see
+   the content immediately, including before hydration or intersection callbacks. */
+@media (prefers-reduced-motion: reduce) {
+  .consilium-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

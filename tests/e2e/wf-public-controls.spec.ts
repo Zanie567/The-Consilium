@@ -13,6 +13,7 @@ test.afterAll(async () => {
   await db().glossaryTerm.deleteMany({ where: { id: { in: ownedTerms } } })
   await closeDb()
 })
+const paragraphs = (text: string, count = 1) => JSON.stringify({ type: 'doc', content: Array.from({ length: count }, () => ({ type: 'paragraph', content: [{ type: 'text', text }] })) })
 const nav = [
   ['Home', '/', 'The Consilium'], ['News', '/category/news', 'News'], ['Opinion', '/category/opinion', 'Opinion'],
   ['Analysis', '/category/analysis', 'Analysis'], ['Interviews', '/category/interviews', 'Interviews'],
@@ -204,7 +205,7 @@ test('article section links, author/category/tag filters, series edges and relat
   // Sparse stored ordering and an unpublished member must not distort public part numbers.
   for (const [index, order] of [1, 3, 5, 2].entries()) {
     const title = `${prefix} article ${index}`
-    articles.push(await db().article.create({ data: { title, slug: slug(title), authorId: author.id, categoryId: categories[index === 2 ? 1 : 0].id, seriesId: series.id, seriesOrder: order, status: index === 3 ? 'DRAFT' : 'PUBLISHED', publishedAt: index === 3 ? null : new Date(), content: '<h2>Repeated section</h2><p>First section body.</p><h2>Repeated section</h2><p>Second section body.</p>', tags: { create: { tagId: tag.id } } } }))
+    articles.push(await db().article.create({ data: { title, slug: slug(title), authorId: author.id, categoryId: categories[index === 2 ? 1 : 0].id, seriesId: series.id, seriesOrder: order, status: index === 3 ? 'DRAFT' : 'PUBLISHED', publishedAt: index === 3 ? null : new Date(), content: JSON.stringify({ type: 'doc', content: [{ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Repeated section' }] }, { type: 'paragraph', content: [{ type: 'text', text: 'First section body.' }] }, { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Repeated section' }] }, { type: 'paragraph', content: [{ type: 'text', text: 'Second section body.' }] }] }), tags: { create: { tagId: tag.id } } } }))
   }
   const ctx = await browser.newContext({ reducedMotion: 'reduce' })
   const page = await ctx.newPage()
@@ -382,7 +383,9 @@ test('reading-position jump/dismiss and home continuation reopen server-saved pr
   const owner = await createAccount('READER', 'reading-controls')
   const writer = await createAccount('WRITER', 'reading-author')
   const title = uniqueTitle('Reading controls')
-  const article = await db().article.create({ data: { title, slug: title.toLowerCase().replaceAll(' ', '-'), authorId: writer.id, status: 'PUBLISHED', publishedAt: new Date(), content: '<p>A long representative article paragraph for restoring a real reading position.</p>'.repeat(80) } })
+  const article = await db().article.create({ data: { title, slug: title.toLowerCase().replaceAll(' ', '-'), authorId: writer.id, status: 'PUBLISHED', publishedAt: new Date(), content: paragraphs('A long representative article paragraph for restoring a real reading position.', 80) } })
+  const nextTitle = uniqueTitle('Reading continuation destination')
+  const nextArticle = await db().article.create({ data: { title: nextTitle, slug: nextTitle.toLowerCase().replaceAll(' ', '-'), authorId: writer.id, status: 'PUBLISHED', publishedAt: new Date(), content: paragraphs('A second article without any saved position.', 80) } })
   await db().readingProgress.create({ data: { userId: owner.id, articleId: article.id, progress: 40, scrollY: 600 } })
   const reader = await signInAs(browser, owner)
   const page = await reader.newPage()
@@ -407,6 +410,15 @@ test('reading-position jump/dismiss and home continuation reopen server-saved pr
   const row = fresh.locator('a').filter({ has: fresh.locator('p', { hasText: title }) }).filter({ hasText: '%' })
   await row.click()
   await arrived(fresh, `/articles/${article.slug}`, title)
+  await expect(fresh.getByText('Continue where you left off', { exact: true })).toBeVisible()
+  const emptyPosition = fresh.waitForResponse(r => new URL(r.url()).pathname === `/api/reading-progress/${nextArticle.id}`)
+  await fresh.getByRole('link', { name: nextTitle, exact: true }).click()
+  await arrived(fresh, `/articles/${nextArticle.slug}`, nextTitle)
+  const response = await emptyPosition
+  expect(response.status()).toBe(200)
+  expect(await response.json()).toBeNull()
+  await expect(fresh.getByText('Continue where you left off', { exact: true })).toHaveCount(0)
+  expect((await db().readingProgress.findUniqueOrThrow({ where: { userId_articleId: { userId: owner.id, articleId: article.id } } })).scrollY).toBe(600)
   await reader.close()
 })
 
@@ -414,7 +426,7 @@ test('guest reading-position nudge close/later/signup and homepage invitation ac
   test.setTimeout(90_000)
   const writer = await createAccount('WRITER', 'guest-reading-author')
   const title = uniqueTitle('Guest reading controls')
-  const article = await db().article.create({ data: { title, slug: title.toLowerCase().replaceAll(' ', '-'), authorId: writer.id, status: 'PUBLISHED', publishedAt: new Date(), content: '<p>A long guest article paragraph for restoring a reading position.</p>'.repeat(80) } })
+  const article = await db().article.create({ data: { title, slug: title.toLowerCase().replaceAll(' ', '-'), authorId: writer.id, status: 'PUBLISHED', publishedAt: new Date(), content: paragraphs('A long guest article paragraph for restoring a reading position.', 80) } })
   for (const action of ['Dismiss', 'Maybe Later', 'Create Account', 'home']) {
     const ctx = await browser.newContext({ reducedMotion: 'reduce' })
     const page = await ctx.newPage()
@@ -449,7 +461,7 @@ test('persistent reading-position sync failure is visible and a successful retry
   const reader = await createAccount('READER', 'reading-retry')
   const writer = await createAccount('WRITER', 'reading-retry-author')
   const title = uniqueTitle('Reading retry')
-  const article = await db().article.create({ data: { title, slug: title.toLowerCase().replaceAll(' ', '-'), authorId: writer.id, status: 'PUBLISHED', publishedAt: new Date(), content: '<p>A representative reading retry paragraph long enough to provide real scrolling.</p>'.repeat(80) } })
+  const article = await db().article.create({ data: { title, slug: title.toLowerCase().replaceAll(' ', '-'), authorId: writer.id, status: 'PUBLISHED', publishedAt: new Date(), content: paragraphs('A representative reading retry paragraph long enough to provide real scrolling.', 80) } })
   const ctx = await signInAs(browser, reader)
   const page = await ctx.newPage()
   await page.route('**/api/reading-progress**', r => r.fulfill({ status: 503, json: { error: 'Reading sync unavailable' } }))
@@ -496,7 +508,7 @@ test('public glossary hover, keyboard, touch, learn-more and client article tran
     const writer = await createAccount('WRITER', 'glossary-controls')
     const prefix = uniqueTitle('Public glossary')
     const articles = []
-    for (let i = 0; i < 2; i++) articles.push(await db().article.create({ data: { title: `${prefix} ${i}`, slug: `${prefix}-${i}`.toLowerCase().replaceAll(' ', '-'), authorId: writer.id, content: `<p>This paragraph explains ${term} for the reader.</p>`, status: 'PUBLISHED', publishedAt: new Date() } }))
+    for (let i = 0; i < 2; i++) articles.push(await db().article.create({ data: { title: `${prefix} ${i}`, slug: `${prefix}-${i}`.toLowerCase().replaceAll(' ', '-'), authorId: writer.id, content: paragraphs(`This paragraph explains ${term} for the reader.`), status: 'PUBLISHED', publishedAt: new Date() } }))
     const ctx = await browser.newContext({ reducedMotion: 'reduce' })
     const page = await ctx.newPage()
     await page.goto(`/articles/${articles[0].slug}`, { waitUntil: 'networkidle' })

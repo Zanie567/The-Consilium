@@ -281,7 +281,7 @@ test('Admin and Growth analytics expose failed requests, retry exact 200, and re
     const failed = page.waitForResponse(r => new URL(r.url()).pathname === endpoint)
     await page.goto('/editorial/analytics', { waitUntil: 'networkidle' })
     expect((await failed).status()).toBe(503)
-    await expect(page.getByRole('alert')).toContainText('Analytics could not be loaded (503).')
+    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText('Analytics could not be loaded (503).')
     await new ArticleEditorPage(page).dismissCookieBanner()
     await page.unroute('**/api/editorial/analytics?**')
     const recovered = page.waitForResponse(r => new URL(r.url()).pathname === endpoint && new URL(r.url()).searchParams.get('period') === '30d')
@@ -291,7 +291,7 @@ test('Admin and Growth analytics expose failed requests, retry exact 200, and re
     const recoveredData = await recovery.json()
     const value = (label: string) => page.getByText(label, { exact: true }).locator('..').locator('p').nth(1)
     await expect(value('Views: last 30 days')).toHaveText(recoveredData.summary.viewsInPeriod.toLocaleString())
-    await expect(page.getByRole('alert')).toHaveCount(0)
+    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toHaveCount(0)
     let release = () => {}
     let entered = () => {}
     let finished = () => {}
@@ -322,7 +322,7 @@ test('Admin and Growth analytics expose failed requests, retry exact 200, and re
       await completed
       await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())))
       await expect(value('Views: last 7 days')).toHaveText(data.summary.viewsInPeriod.toLocaleString())
-      await expect(page.getByRole('alert')).toHaveCount(0)
+      await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toHaveCount(0)
     } finally { release(); await ctx.close() }
   }
 })

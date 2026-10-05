@@ -107,7 +107,7 @@ export function SignupPrompt() {
             <button
               onClick={dismiss}
               aria-label="Dismiss"
-              className="absolute top-1.5 right-1.5 flex h-9 w-9 items-center justify-center text-cream/30 hover:text-cream/70 transition-colors"
+              className="absolute top-1.5 right-1.5 z-10 flex h-9 w-9 items-center justify-center text-cream/30 hover:text-cream/70 transition-colors"
             >
               <X size={16} />
             </button>

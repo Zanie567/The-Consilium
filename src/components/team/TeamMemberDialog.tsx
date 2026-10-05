@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -27,6 +28,8 @@ const FOCUSABLE = 'a[href], button:not([disabled])'
  * close, so keyboard users are never dropped at the top of the page.
  */
 export function TeamMemberDialog({ member, open, onClose }: TeamMemberDialogProps) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
   const panelRef = useRef<HTMLDivElement>(null)
   // The element that had focus before the dialog opened, restored on close.
   const restoreFocusRef = useRef<HTMLElement | null>(null)
@@ -41,7 +44,7 @@ export function TeamMemberDialog({ member, open, onClose }: TeamMemberDialogProp
   }, [onClose])
 
   useEffect(() => {
-    if (!open) return
+    if (!open || !mounted) return
 
     restoreFocusRef.current = document.activeElement as HTMLElement | null
 
@@ -79,11 +82,13 @@ export function TeamMemberDialog({ member, open, onClose }: TeamMemberDialogProp
       document.body.style.overflow = previousOverflow
       restoreFocusRef.current?.focus?.()
     }
-  }, [open])
+  }, [open, mounted])
 
   const headingId = `team-member-${member.id}`
 
-  return (
+  // An animated card ancestor can establish a containing block for fixed
+  // positioning. The modal belongs to the viewport, independent of that card.
+  return mounted ? createPortal(
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
@@ -195,6 +200,7 @@ export function TeamMemberDialog({ member, open, onClose }: TeamMemberDialogProp
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
-  )
+    </AnimatePresence>,
+    document.body
+  ) : null
 }

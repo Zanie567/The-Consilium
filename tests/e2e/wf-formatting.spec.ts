@@ -485,4 +485,18 @@ test('the published article shows the content, semantic formatting and editor st
   await new ArticleEditorPage(page).dismissCookieBanner()
   await test.info().attach('representative-article-published', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' })
   await ctx.close()
+  const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' })
+  try {
+    const phone = await mobile.newPage()
+    const phoneErrors = collectConsoleErrors(phone)
+    expect((await phone.goto(`/articles/${slug}`, { waitUntil: 'networkidle' }))?.status()).toBe(200)
+    await new ArticleEditorPage(phone).dismissCookieBanner()
+    await expect(phone.locator('#article-body table')).toHaveCount(1)
+    await expect(phone.locator('#article-body p', { hasText: 'Aligned centre paragraph.' })).toHaveCSS('text-align', 'center')
+    await expect(phone.locator('#article-body mark')).toHaveCSS('background-color', 'rgb(255, 255, 0)')
+    expect(await phone.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 'published formatting must not force the whole phone page sideways').toBeLessThanOrEqual(0)
+    expect(phoneErrors, phoneErrors.join('\n')).toEqual([])
+    await test.info().attach('representative-article-published-phone', { body: await phone.screenshot({ fullPage: true }), contentType: 'image/png' })
+  } finally { await mobile.close() }
+
 })

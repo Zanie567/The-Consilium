@@ -35,6 +35,13 @@ interface SavedProgress {
 
 export function ReadingTracker({ articleId }: { articleId: string }) {
   const { data: session } = useSession()
+  const userId = session?.user?.id ?? null
+  // Article/account changes replace the entire reading state and its effects.
+  // Even an exit animation must not display the previous owner's saved position.
+  return <ScopedReadingTracker key={JSON.stringify([articleId, userId])} articleId={articleId} userId={userId} />
+}
+
+function ScopedReadingTracker({ articleId, userId }: { articleId: string; userId: string | null }) {
   const rawProgress = useMotionValue(0)
   const scaleX = useSpring(rawProgress, { stiffness: 200, damping: 35, restDelta: 0.001 })
 
@@ -93,7 +100,7 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
 
   // ── Persist progress ──────────────────────────────────────────────────────
   const persist = useCallback((pct: number, scrollY: number) => {
-    if (session?.user?.id) {
+    if (userId) {
       void apiRequest('/api/reading-progress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -106,7 +113,7 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
         localStorage.setItem(LS_KEY(articleId), JSON.stringify({ progress: pct, scrollY }))
       } catch {}
     }
-  }, [articleId, session, noteSyncSuccess, noteSyncFailure])
+  }, [articleId, userId, noteSyncSuccess, noteSyncFailure])
 
   // ── Scroll handler ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -145,6 +152,7 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
   // ── Load saved position on mount ──────────────────────────────────────────
   useEffect(() => {
     let cancelled = false
+    let nudgeTimer: ReturnType<typeof setTimeout> | undefined
 
     const tryRestore = (saved: SavedProgress | null) => {
       if (cancelled) return
@@ -155,17 +163,17 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
         restoreScrollY.current = saved.scrollY
         setRestoreBanner(saved)
         // Guest nudge: show upgrade prompt once per session if not logged in
-        if (!session?.user?.id) {
+        if (!userId) {
           const alreadySeen = sessionStorage.getItem('consilium_nudge_seen')
           if (!alreadySeen) {
-            setTimeout(() => setGuestNudge(true), 800)
+            nudgeTimer = setTimeout(() => setGuestNudge(true), 800)
             sessionStorage.setItem('consilium_nudge_seen', '1')
           }
         }
       }
     }
 
-    if (session?.user?.id) {
+    if (userId) {
       apiRequest<SavedProgress | null>(`/api/reading-progress/${articleId}`)
         .then((data) => tryRestore(data))
         .catch(() => { if (!cancelled) noteSyncFailure() })
@@ -176,8 +184,11 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
       } catch {}
     }
 
-    return () => { cancelled = true }
-  }, [articleId, session, noteSyncFailure])
+    return () => {
+      cancelled = true
+      if (nudgeTimer) clearTimeout(nudgeTimer)
+    }
+  }, [articleId, userId, noteSyncFailure])
 
   const scrollToSaved = (scrollY: number) => {
     window.scrollTo({ top: scrollY, behavior: 'smooth' })
@@ -192,7 +203,7 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
         style={{ scaleX }}
       />
 
-      {syncFailing && session?.user?.id && (
+      {syncFailing && userId && (
         <div
           role="status"
           aria-live="polite"

@@ -1268,11 +1268,11 @@
         "src/app/articles/[slug]/page.tsx:588",
         "src/components/ui/BookmarkButton.tsx:22",
         "src/components/ui/BookmarkButton.tsx:50",
-        "src/components/ui/ReadingTracker.tsx:226",
-        "src/components/ui/ReadingTracker.tsx:232",
-        "src/components/ui/ReadingTracker.tsx:254",
-        "src/components/ui/ReadingTracker.tsx:269",
-        "src/components/ui/ReadingTracker.tsx:276",
+        "src/components/ui/ReadingTracker.tsx:237",
+        "src/components/ui/ReadingTracker.tsx:243",
+        "src/components/ui/ReadingTracker.tsx:265",
+        "src/components/ui/ReadingTracker.tsx:280",
+        "src/components/ui/ReadingTracker.tsx:287",
         "src/components/ui/PrintButton.tsx:9",
         "src/components/ui/SaveAsPdfButton.tsx:21",
         "src/components/ui/CommentSection.tsx:103",
@@ -7052,7 +7052,7 @@
         "src/components/profile/ProfileTabs.tsx:848",
         "src/components/profile/ProfileTabs.tsx:855",
         "src/components/profile/ProfileTabs.tsx:982",
-        "src/components/profile/ProfileTabs.tsx:1023",
+        "src/components/profile/ProfileTabs.tsx:1024",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -7146,7 +7146,7 @@
         {
           "file": "src/components/profile/ProfileTabs.tsx",
           "line": 981,
-          "source": "TABS.map((tab) => ( <button key={tab.id} onClick={() => handleTabChange(tab.id)} className={`flex items-center gap-2 px-4 py-3.5 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap border-b-2 transition-colors duration-150 ${ activeTab === tab.id ? 'border-gold text-gold' : 'border-transparent text-[var(--fg-faint)] hover:text-[var(--fg)]' }`} > {tab.icon} <span className=\"hidden sm:inline\">{tab.label}</span> </button> ))"
+          "source": "TABS.map((tab) => ( <button key={tab.id} aria-label={tab.label} onClick={() => handleTabChange(tab.id)} className={`flex items-center gap-2 px-4 py-3.5 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap border-b-2 transition-colors duration-150 ${ activeTab === tab.id ? 'border-gold text-gold' : 'border-transparent text-[var(--fg-faint)] hover:text-[var(--fg)]' }`} > {tab.icon} <span className=\"hidden sm:inline\">{tab.label}</span> </button> ))"
         }
       ],
       "nativeDialogs": [],
@@ -7554,10 +7554,10 @@
       "controls": [
         "src/components/team/TeamMemberCard.tsx:90",
         "src/components/team/TeamMemberCard.tsx:153",
-        "src/components/team/TeamMemberDialog.tsx:100",
-        "src/components/team/TeamMemberDialog.tsx:115",
-        "src/components/team/TeamMemberDialog.tsx:176",
-        "src/components/team/TeamMemberDialog.tsx:184",
+        "src/components/team/TeamMemberDialog.tsx:105",
+        "src/components/team/TeamMemberDialog.tsx:120",
+        "src/components/team/TeamMemberDialog.tsx:181",
+        "src/components/team/TeamMemberDialog.tsx:189",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -19253,7 +19253,7 @@
       "file": "src/components/profile/ProfileTabs.tsx",
       "line": 982,
       "tag": "button",
-      "label": "{tab.icon} {tab.label}",
+      "label": "{tab.label}",
       "href": null,
       "type": null,
       "disabledWhen": null,
@@ -19266,9 +19266,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/profile/ProfileTabs.tsx:1023",
+      "id": "src/components/profile/ProfileTabs.tsx:1024",
       "file": "src/components/profile/ProfileTabs.tsx",
-      "line": 1023,
+      "line": 1024,
       "tag": "Link",
       "label": "More from {stats.favouriteCategory} Your most read category",
       "href": "{`/category/${stats.favouriteCategory.toLowerCase()}`}",
@@ -19313,9 +19313,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/team/TeamMemberDialog.tsx:100",
+      "id": "src/components/team/TeamMemberDialog.tsx:105",
       "file": "src/components/team/TeamMemberDialog.tsx",
-      "line": 100,
+      "line": 105,
       "tag": "motion.div",
       "label": "{/* Gold masthead rule, matching the site's other elevated surfaces */} {member.image ? ( <Image src={member.image} alt=\"\" width={112} height={112} className=\"h-full w-full object-cover\" /> ) : ( <span className=\"absolute inset-0 flex items-center justify-center text-3xl font-bold text-gold\" style={{ fontFamily: 'var(--font-serif)' }} aria-hidden=\"true\" > {getInitials(member.name)} </span> )} {member.name} {hasDisplayableRole(member.role) && ( <p className=\"mt-2 text-[0.72rem] font-bold uppercase tracking-[0.24em] text-gold\"> {member.role} </p> )} {member.bio ? ( // The bio is the point of the dialog: full text, left-aligned and // a step larger than the card, with paragraph breaks preserved. <p className=\"text-left text-[0.95rem] leading-relaxed text-[var(--fg-muted)] whitespace-pre-line\"> {member.bio} </p> ) : ( <p className=\"text-sm italic text-[var(--fg-faint)]\"> This member has not written a bio yet. </p> )} {(member.email || member.authorSlug) && ( <div className=\"mt-8 flex flex-col items-center gap-3\"> {member.authorSlug && ( <Link href={`/author/${member.authorSlug}`} className=\"inline-flex items-center gap-2 border border-gold/50 px-6 py-3 text-xs font-bold uppercase tracking-[-0.01em] text-gold transition-all duration-150 hover:bg-gold hover:text-navy\" > Read their articles → </Link> )} {member.email && ( <a href={`mailto:${member.email}`} className=\"inline-flex max-w-full items-center gap-2 break-all text-xs text-[var(--fg-faint)] transition-colors hover:text-gold\" > <Mail size={14} className=\"shrink-0\" aria-hidden=\"true\" /> {member.email} </a> )} </div> )}",
       "href": null,
@@ -19328,9 +19328,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/team/TeamMemberDialog.tsx:115",
+      "id": "src/components/team/TeamMemberDialog.tsx:120",
       "file": "src/components/team/TeamMemberDialog.tsx",
-      "line": 115,
+      "line": 120,
       "tag": "button",
       "label": "{`Close profile for ${member.name}`}",
       "href": null,
@@ -19345,9 +19345,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/team/TeamMemberDialog.tsx:176",
+      "id": "src/components/team/TeamMemberDialog.tsx:181",
       "file": "src/components/team/TeamMemberDialog.tsx",
-      "line": 176,
+      "line": 181,
       "tag": "Link",
       "label": "Read their articles →",
       "href": "{`/author/${member.authorSlug}`}",
@@ -19362,9 +19362,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/team/TeamMemberDialog.tsx:184",
+      "id": "src/components/team/TeamMemberDialog.tsx:189",
       "file": "src/components/team/TeamMemberDialog.tsx",
-      "line": 184,
+      "line": 189,
       "tag": "a",
       "label": "{member.email}",
       "href": "{`mailto:${member.email}`}",
@@ -20443,9 +20443,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/ui/ReadingTracker.tsx:226",
+      "id": "src/components/ui/ReadingTracker.tsx:237",
       "file": "src/components/ui/ReadingTracker.tsx",
-      "line": 226,
+      "line": 237,
       "tag": "button",
       "label": "Jump back",
       "href": null,
@@ -20462,9 +20462,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/ui/ReadingTracker.tsx:232",
+      "id": "src/components/ui/ReadingTracker.tsx:243",
       "file": "src/components/ui/ReadingTracker.tsx",
-      "line": 232,
+      "line": 243,
       "tag": "button",
       "label": "Dismiss",
       "href": null,
@@ -20485,9 +20485,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/ui/ReadingTracker.tsx:254",
+      "id": "src/components/ui/ReadingTracker.tsx:265",
       "file": "src/components/ui/ReadingTracker.tsx",
-      "line": 254,
+      "line": 265,
       "tag": "button",
       "label": "Dismiss",
       "href": null,
@@ -20508,9 +20508,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/ui/ReadingTracker.tsx:269",
+      "id": "src/components/ui/ReadingTracker.tsx:280",
       "file": "src/components/ui/ReadingTracker.tsx",
-      "line": 269,
+      "line": 280,
       "tag": "Link",
       "label": "Create Account",
       "href": "/signup",
@@ -20527,9 +20527,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/ui/ReadingTracker.tsx:276",
+      "id": "src/components/ui/ReadingTracker.tsx:287",
       "file": "src/components/ui/ReadingTracker.tsx",
-      "line": 276,
+      "line": 287,
       "tag": "button",
       "label": "Maybe Later",
       "href": null,
@@ -21691,7 +21691,7 @@
     {
       "file": "src/components/profile/ProfileTabs.tsx",
       "line": 981,
-      "source": "TABS.map((tab) => ( <button key={tab.id} onClick={() => handleTabChange(tab.id)} className={`flex items-center gap-2 px-4 py-3.5 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap border-b-2 transition-colors duration-150 ${ activeTab === tab.id ? 'border-gold text-gold' : 'border-transparent text-[var(--fg-faint)] hover:text-[var(--fg)]' }`} > {tab.icon} <span className=\"hidden sm:inline\">{tab.label}</span> </button> ))"
+      "source": "TABS.map((tab) => ( <button key={tab.id} aria-label={tab.label} onClick={() => handleTabChange(tab.id)} className={`flex items-center gap-2 px-4 py-3.5 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap border-b-2 transition-colors duration-150 ${ activeTab === tab.id ? 'border-gold text-gold' : 'border-transparent text-[var(--fg-faint)] hover:text-[var(--fg)]' }`} > {tab.icon} <span className=\"hidden sm:inline\">{tab.label}</span> </button> ))"
     },
     {
       "file": "src/components/ui/ArticleAnchorLinks.tsx",

@@ -203,13 +203,13 @@ test('moderation load retry and delayed Recent data preserve the current Hidden 
   const failed = page.waitForResponse(r => new URL(r.url()).pathname === '/api/editorial/comments')
   await page.goto('/editorial/comments', { waitUntil: 'networkidle' })
   expect((await failed).status()).toBe(503)
-  await expect(page.getByRole('alert')).toContainText("We couldn't load the comments.")
+  await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText("We couldn't load the comments.")
   await new ArticleEditorPage(page).dismissCookieBanner()
   await page.unroute('**/api/editorial/comments?**')
   const recovered = page.waitForResponse(r => new URL(r.url()).pathname === '/api/editorial/comments')
   await page.getByRole('button', { name: 'Retry comments', exact: true }).click()
   expect((await recovered).status()).toBe(200)
-  await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toHaveCount(0)
   let release = () => {}
   let entered = () => {}
   const held = new Promise<void>(resolve => { release = resolve })
@@ -237,6 +237,6 @@ test('moderation load retry and delayed Recent data preserve the current Hidden 
     await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())))
     await expect(page.getByText(hiddenBody, { exact: true })).toBeVisible()
     await expect(page.getByText(recentBody, { exact: true })).toHaveCount(0)
-    await expect(page.getByRole('alert')).toHaveCount(0)
+    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toHaveCount(0)
   } finally { release(); await ctx.close() }
 })

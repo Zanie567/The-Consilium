@@ -981,6 +981,7 @@ export function ProfileTabs({ initialName, initialBio, email, image, createdAt, 
             {TABS.map((tab) => (
               <button
                 key={tab.id}
+                aria-label={tab.label}
                 onClick={() => handleTabChange(tab.id)}
                 className={`flex items-center gap-2 px-4 py-3.5 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap border-b-2 transition-colors duration-150 ${
                   activeTab === tab.id
