@@ -45,11 +45,18 @@ for (const [engineName, engine] of [['chromium', chromium], ['webkit', webkit]])
   }
 }
 
+// What each engine really does while a view transition runs (measured with Playwright's pinned browsers,
+// the same on macOS and CI): Chromium delivers no click to the page in any variant, not even with the
+// overlay's pointer-events disabled or the root's view-transition-name removed; WebKit delivers it only
+// when the root is excluded from the transition. Either way a click during a transition is lost, which
+// is why the application no longer starts view transitions.
+const expectedClicks = (engine, variant) => (engine === 'webkit' && variant === 'root-disabled' ? 1 : 0)
+
 for (const result of results) {
   assert.deepEqual(result.errors, [], `${result.engine} ${result.variant}: page errors`)
   assert.equal(
     result.clicks,
-    result.variant === 'root-disabled' ? 1 : 0,
+    expectedClicks(result.engine, result.variant),
     `${result.engine} ${result.variant}: native click result`,
   )
 }
