@@ -115,6 +115,12 @@ export async function proxy(request: NextRequest) {
       const opaque = request.cookies.get(TESTING_COOKIE)?.value
       const identity = await resolveTestingIdentity(token.id, opaque) ?? await resolveTestingIdentity(token.id)
       const mutating = !SAFE_METHODS.has(request.method)
+      // A restricted ordinary account is an authorization denial, not a changed
+      // test persona. Keep the normal 403 and useful account feedback. A stale
+      // capability still takes the revision path below and can never restore admin powers.
+      if (mutating && !opaque && !identity) {
+        return NextResponse.json({ error: 'Your account is suspended, inactive, or no longer available. Contact an administrator.', code: 'ACCOUNT_RESTRICTED' }, { status: 403 })
+      }
       const expected = identity ? `${identity.administrator.id}:${identity.administrator.testingRevision}:${identity.testing?.id ?? 'normal'}` : null
       if (mutating && (opaque || request.headers.has('x-consilium-identity') || (identity?.administrator.testingRevision ?? 0) > 0) && (pathname.startsWith('/api/') || request.headers.has('next-action'))) {
         // Ordinary accounts also use their own stable page identity in this workspace.

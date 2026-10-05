@@ -457,7 +457,8 @@ test('the published article shows the content, semantic formatting kept, house s
 
   const table = article.locator('table')
   await expect(table, 'table must be published').toHaveCount(1)
-  await expect(table.locator('col').first()).toHaveAttribute('style', /width:\s*[1-9][0-9]*px/)
+  // Stored editor widths are presentation; published columns use the confirmed house style.
+  await expect(table.locator('col[style]')).toHaveCount(0)
   await expect(table.locator('th')).toHaveText(['Region', 'Rate', 'Change'])
   await expect(table.locator('tr').nth(1).locator('td')).toHaveText(['UK', '5.25', '+0.25'])
   await expect(table.locator('tr').nth(2).locator('td')).toHaveText(['FR', '4.00', '-0.10'])
