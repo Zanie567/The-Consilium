@@ -22,6 +22,8 @@ const result = {
 const owned = new Set()
 let driver, session, server, aux
 let driverBase
+const delegated = []
+const webdriverHTTPService = '/System/Library/PrivateFrameworks/WebDriver.framework/Versions/A/XPCServices/com.apple.WebDriver.HTTPService.xpc/Contents/MacOS/com.apple.WebDriver.HTTPService'
 const root = await fs.mkdtemp(path.join(os.tmpdir(), 'consilium-cloud-safari-'))
 const runID = path.basename(root)
 const env = { PATH: process.env.PATH, HOME: process.env.HOME, TMPDIR: process.env.TMPDIR, NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1' }
@@ -95,6 +97,7 @@ try {
   await fs.writeFile(path.join(root, 'public', 'auth-client.js'), client + `\nwindow.__authStarted=true;fetchData('session',{basePath:'/api/auth'},{error:(code,details)=>console.error('[next-auth][error]['+code+'] '+details.error.message)});`)
   await fs.writeFile(path.join(root, 'server.cjs'), `const http=require('http'),fs=require('fs'),next=require('next');const port=Number(process.env.PROBE_PORT),app=next({dev:false,dir:__dirname,hostname:'127.0.0.1',port}),handle=app.getRequestHandler();app.prepare().then(()=>{const server=http.createServer((req,res)=>{const record=kind=>fs.appendFileSync(process.env.PROBE_NETWORK,JSON.stringify({kind,url:req.url,status:res.statusCode,ended:res.writableEnded,time:Date.now()})+'\\n');record('start');res.on('finish',()=>record('finish'));res.on('close',()=>{if(!res.writableEnded)record('cancelled')});handle(req,res)});server.listen(port,'127.0.0.1');process.on('SIGTERM',()=>{server.closeAllConnections();server.close(()=>process.exit(0))})});`)
   await fs.writeFile(path.join(root, 'next.config.mjs'), `export default {turbopack:{root:${JSON.stringify(process.cwd())}},experimental:{viewTransition:true},async headers(){return[{source:'/(.*)',headers:[{key:'x-consilium-probe',value:${JSON.stringify(runID)}},...(process.env.PROBE_CSP==='1'?[{key:'Content-Security-Policy',value:"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https:"},{key:'X-Content-Type-Options',value:'nosniff'}]:[])]}]}}`)
+  const servicePIDsBefore = new Set(execFileSync('/bin/ps', ['-axo', 'pid=,command='], { encoding: 'utf8' }).split(/\r?\n/).filter(line => line.includes(webdriverHTTPService)).map(line => line.trim().split(/\s+/)[0]))
   const driverPort = await unusedPort()
   driverBase = `http://127.0.0.1:${driverPort}`
   driver = child('/usr/bin/safaridriver', ['-p', String(driverPort)], 'safaridriver.log', { detached: true })
@@ -105,9 +108,10 @@ try {
     await new Promise(resolve => setTimeout(resolve, 100))
   }
   const listeners = execFileSync('/usr/sbin/lsof', ['-t', '-iTCP:' + driverPort, '-sTCP:LISTEN'], { encoding: 'utf8' }).trim().split(/\r?\n/)
-  const listenerProcesses = listeners.map(pid => ({ pid, processGroup: execFileSync('/bin/ps', ['-p', pid, '-o', 'pgid='], { encoding: 'utf8' }).trim(), command: execFileSync('/bin/ps', ['-p', pid, '-o', 'command='], { encoding: 'utf8' }).trim() }))
+  const listenerProcesses = listeners.map(pid => ({ pid, processGroup: execFileSync('/bin/ps', ['-p', pid, '-o', 'pgid='], { encoding: 'utf8' }).trim(), command: execFileSync('/bin/ps', ['-p', pid, '-o', 'command='], { encoding: 'utf8' }).trim(), uid: execFileSync('/bin/ps', ['-p', pid, '-o', 'uid='], { encoding: 'utf8' }).trim() }))
   result.driverOwnership = { spawnedPID: driver.pid, ownedProcessGroup: driver.pid, listenerProcesses }
-  assert(listenerProcesses.length > 0 && listenerProcesses.every(processInfo => processInfo.processGroup === String(driver.pid)), 'Driver port is not in the process group created by this run')
+  assert(listenerProcesses.length > 0 && listenerProcesses.every(processInfo => processInfo.processGroup === String(driver.pid) || (!servicePIDsBefore.has(processInfo.pid) && processInfo.command === webdriverHTTPService && processInfo.uid === String(process.getuid()))), 'Driver listener is neither owned nor a newly launched Apple XPC service')
+  delegated.push(...listenerProcesses.filter(processInfo => processInfo.processGroup !== String(driver.pid)))
   const created = await api('POST', '/session', { capabilities: { alwaysMatch: { browserName: 'safari', pageLoadStrategy: 'eager' } } }, 45_000)
   session = created.sessionId
   result.capabilities = created.capabilities
@@ -177,9 +181,16 @@ try {
 } finally {
   if (session) { try { await api('DELETE', `/session/${session}`) } catch (error) { result.sessionCleanupFailure = String(error); process.exitCode = 1 } }
   for (const processChild of [...owned]) await stop(processChild)
+  for (const processInfo of delegated) {
+    const running = () => { try { return execFileSync('/bin/ps', ['-p', processInfo.pid, '-o', 'command='], { encoding: 'utf8' }).trim() === processInfo.command } catch { return false } }
+    if (running()) process.kill(Number(processInfo.pid), 'SIGTERM')
+    const untilExited = Date.now() + 5000
+    while (running() && Date.now() < untilExited) await new Promise(resolve => setTimeout(resolve, 100))
+    if (running()) { result.delegatedCleanupFailure = processInfo; process.exitCode = 1 }
+  }
   if (aux) { aux.closeAllConnections(); await new Promise(resolve => aux.close(resolve)) }
   await fs.rm(root, { recursive: true, force: true })
-  result.cleanup = { ownedProcessesWaited: owned.size === 0, temporaryAppRemoved: true, productionServicesUsed: false, databaseUsed: false, authenticatedStateUsed: false }
+  result.cleanup = { ownedProcessesWaited: owned.size === 0, delegatedServicesAbsent: !result.delegatedCleanupFailure, temporaryAppRemoved: true, productionServicesUsed: false, databaseUsed: false, authenticatedStateUsed: false }
   await fs.writeFile(path.join(output, 'results.json'), JSON.stringify(result, null, 2) + '\n')
   console.log(JSON.stringify({ diagnosticCommit: result.diagnosticCommit, capabilities: result.capabilities, cases: result.cases.map(c => ({ phase: c.phase, rscStarted: c.requests.rscStarted, cancelled: c.requests.cancelled.length, windowErrors: c.windowErrors.length })), failure: result.failure, cleanup: result.cleanup }))
 }
