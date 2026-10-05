@@ -158,7 +158,10 @@ suite('PUT /api/team-profile (real database)', () => {
   })
 
   afterAll(async () => {
-    await db.teamMember.deleteMany({ where: { OR: [{ user: { email: { startsWith: tag } } }, { email: { startsWith: tag } }] } })
+    // Cards created without a user or an email (the legacy cards) are only identifiable by name. They stay
+    // active on the public Team page, so a leftover one (image /team/x.png does not exist) breaks later
+    // browser specs that share this database and fail on any console error.
+    await db.teamMember.deleteMany({ where: { OR: [{ user: { email: { startsWith: tag } } }, { email: { startsWith: tag } }, { name: { startsWith: tag } }] } })
     await db.user.deleteMany({ where: { email: { startsWith: tag } } })
     await db.$disconnect()
   })
