@@ -1,0 +1,33 @@
+name: Isolated real Safari navigation diagnostic
+on:
+  push:
+    branches: [test/consilium-cloud-safari-20261005]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  safari:
+    # Standard public-repository runner; no staging services or paid infrastructure.
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Enable the owned runner's Safari WebDriver service
+        run: sudo /usr/bin/safaridriver --enable
+      - name: Minimal Next and installed NextAuth navigation comparison
+        run: node scripts/diagnostics/cloud-safari.mjs
+        env:
+          CONSILIUM_CLOUD_SAFARI: '1'
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: isolated-real-safari-diagnostic
+          path: test-results/cloud-safari/
+          retention-days: 7
