@@ -128,7 +128,7 @@ export function ArticleEditor(props: ArticleEditorProps) {
             aria-hidden
           />
           <div
-            className={`min-[1100px]:hidden fixed inset-y-0 right-0 z-[206] w-[340px] max-w-[92vw] bg-[var(--bg-elevated)] shadow-2xl flex flex-col transition-transform duration-300 ease-out ${commentsDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
+            className={`min-[1100px]:hidden fixed top-[var(--testing-banner-height,0px)] bottom-0 right-0 z-[206] w-[340px] max-w-[92vw] bg-[var(--bg-elevated)] shadow-2xl flex flex-col transition-transform duration-300 ease-out ${commentsDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
             aria-hidden={!commentsDrawerOpen}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] shrink-0">

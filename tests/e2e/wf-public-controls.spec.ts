@@ -370,7 +370,10 @@ test('public team cards trap and restore focus, close by button/backdrop/Escape,
       await expect(dialog.getByRole('button', { name: `Close profile for ${owner.name}` })).toBeFocused()
       await page.keyboard.press('Escape')
     } else if (action === 'button') await dialog.getByRole('button', { name: `Close profile for ${owner.name}` }).click()
-    else await page.mouse.click(10, 10)
+    else {
+      const bannerBottom = await page.getByRole('region', { name: 'Testing environment' }).evaluate(el => el.getBoundingClientRect().bottom)
+      await page.mouse.click(10, bannerBottom + 10)
+    }
     await expect(dialog).toBeHidden()
     await expect(card).toBeFocused()
     expect(await page.locator('body').evaluate(el => el.style.overflow)).toBe('')

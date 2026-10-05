@@ -250,7 +250,7 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
   if (loadError && !loading) {
     return <>
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
-      <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-[640px] bg-[var(--bg-elevated)] p-6">
+      <div className="fixed right-0 top-[var(--testing-banner-height,0px)] bottom-0 z-50 w-full max-w-[640px] bg-[var(--bg-elevated)] p-6">
         <p role="alert">{loadError}</p>
         <button onClick={load}>Retry user details</button>
         <button onClick={onClose}>Close user details</button>
@@ -262,7 +262,7 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
     return (
       <>
         <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-        <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-[640px] bg-[var(--bg-elevated)] border-l border-[var(--border)] shadow-2xl flex items-center justify-center">
+        <div className="fixed right-0 top-[var(--testing-banner-height,0px)] bottom-0 z-50 w-full max-w-[640px] bg-[var(--bg-elevated)] border-l border-[var(--border)] shadow-2xl flex items-center justify-center">
           <div className="space-y-3 w-64">
             <div className="h-6 bg-[var(--border)] animate-pulse rounded" />
             <div className="h-4 bg-[var(--border)] animate-pulse rounded w-3/4" />
@@ -299,7 +299,7 @@ export function UserDetailPanel({ userId, onClose, onUserUpdated, currentAdminId
       {/* Panel */}
       <div
         ref={panelRef}
-        className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-[640px] bg-[var(--bg-elevated)] border-l border-[var(--border)] shadow-2xl flex flex-col overflow-hidden"
+        className="fixed right-0 top-[var(--testing-banner-height,0px)] bottom-0 z-50 w-full max-w-[640px] bg-[var(--bg-elevated)] border-l border-[var(--border)] shadow-2xl flex flex-col overflow-hidden"
       >
         {/* Toast */}
         {toast && (
