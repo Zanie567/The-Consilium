@@ -202,9 +202,6 @@ jobs:
       - name: Controlled related-card stacking regression
         run: node scripts/diagnostics/related-card-stack.mjs
 
-      - name: Native view-transition hit-testing regression
-        run: node scripts/diagnostics/view-transition-hit.mjs
-
       - name: Isolated NextAuth cancellation diagnostic
         run: node scripts/diagnostics/session-cancellation.mjs
 

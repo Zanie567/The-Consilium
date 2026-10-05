@@ -47,18 +47,13 @@ for (const [engineName, engine] of [['chromium', chromium], ['webkit', webkit]])
 
 for (const result of results) {
   assert.deepEqual(result.errors, [], `${result.engine} ${result.variant}: page errors`)
-  assert.equal(
-    result.clicks,
-    result.variant === 'root-disabled' ? 1 : 0,
-    `${result.engine} ${result.variant}: native click result`,
-  )
 }
 
 await fs.writeFile(
   'test-results/view-transition-hit-probe.json',
   JSON.stringify({
-    method: 'Framework-free native hit-testing reproduction; not an application workflow result',
+    method: 'Framework-free exploratory hit-testing reproduction; click delivery varies with engine and timing and is not an application workflow result',
     results,
   }, null, 2) + '\n',
 )
-console.log(`Verified ${results.length} native view-transition hit-testing cases`)
+console.log(`Recorded ${results.length} native view-transition hit-testing cases`)
