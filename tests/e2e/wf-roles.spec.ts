@@ -222,6 +222,10 @@ for (const role of ['writer', 'editor', 'admin', 'growth'] as const) {
         for (const action of ['close', 'backdrop']) {
           await open.click()
           await expect(close).toHaveAttribute('aria-expanded', 'true')
+          // The persistent environment banner must never cover actual drawer links.
+          const bannerBottom = await page.getByRole('region', { name: 'Testing environment', exact: true }).evaluate(el => el.getBoundingClientRect().bottom)
+          const firstLinkTop = await page.getByRole('navigation', { name: 'Editorial navigation' }).locator('a[href="/editorial"]').evaluate(el => el.getBoundingClientRect().top)
+          expect(firstLinkTop).toBeGreaterThanOrEqual(bannerBottom)
           await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('hidden')
           if (action === 'close') await close.click()
           else await page.mouse.click(370, 200)
@@ -232,6 +236,13 @@ for (const role of ['writer', 'editor', 'admin', 'growth'] as const) {
           await open.click()
           await page.getByRole('navigation', { name: 'Editorial navigation' }).locator(`a[href="${link.href}"]`).click()
           await expect(page).toHaveURL(new URL(link.href, process.env.E2E_BASE_URL!).href)
+          if (link.href === '/admin/testing') {
+            // Testing uses the admin/public shell rather than the editorial drawer.
+            // Prove that real menu destination, then return through browser history.
+            await expect(page.getByRole('heading', { name: 'Testing', exact: true })).toBeVisible()
+            await page.goBack({ waitUntil: 'networkidle' })
+            await portalReady(page)
+          }
           await expect(open).toHaveAttribute('aria-expanded', 'false')
           await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('')
           await page.waitForLoadState('networkidle')

@@ -97,7 +97,7 @@ export function EditorialSidebarWrapper({ user, trashCount = 0 }: { user: User; 
       <div
         className={[
           // Mobile: fixed overlay
-          'fixed inset-y-0 left-0 z-[75] flex',
+          'fixed top-[var(--testing-banner-height,0px)] bottom-0 left-0 z-[75] flex',
           // Desktop: in-flow
           'md:relative md:inset-auto md:z-auto md:flex md:shrink-0',
           // Mobile slide transform
