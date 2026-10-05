@@ -38,6 +38,7 @@ function child(command, args, file, options = {}) {
   const chunks = []
   processChild.stdout.on('data', data => chunks.push(data))
   processChild.stderr.on('data', data => chunks.push(data))
+  processChild.ownedGroup = options.detached === true
   processChild.completed = new Promise((resolve, reject) => {
     processChild.once('error', reject)
     processChild.once('close', async code => { owned.delete(processChild); await fs.writeFile(path.join(output, file), Buffer.concat(chunks)); resolve(code) })
@@ -46,7 +47,8 @@ function child(command, args, file, options = {}) {
 }
 async function stop(processChild) {
   if (!processChild || !owned.has(processChild)) return
-  processChild.kill('SIGTERM')
+  if (processChild.ownedGroup) process.kill(-processChild.pid, 'SIGTERM')
+  else processChild.kill('SIGTERM')
   await processChild.completed
 }
 async function api(method, endpoint, data, timeout = 15_000) {
@@ -95,7 +97,7 @@ try {
   await fs.writeFile(path.join(root, 'next.config.mjs'), `export default {turbopack:{root:${JSON.stringify(process.cwd())}},experimental:{viewTransition:true},async headers(){return[{source:'/(.*)',headers:[{key:'x-consilium-probe',value:${JSON.stringify(runID)}},...(process.env.PROBE_CSP==='1'?[{key:'Content-Security-Policy',value:"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https:"},{key:'X-Content-Type-Options',value:'nosniff'}]:[])]}]}}`)
   const driverPort = await unusedPort()
   driverBase = `http://127.0.0.1:${driverPort}`
-  driver = child('/usr/bin/safaridriver', ['-p', String(driverPort)], 'safaridriver.log')
+  driver = child('/usr/bin/safaridriver', ['-p', String(driverPort)], 'safaridriver.log', { detached: true })
   const readyEnd = Date.now() + 10_000
   while (Date.now() < readyEnd) {
     if (!owned.has(driver)) throw Error('Owned Safari driver exited before readiness')
@@ -103,8 +105,9 @@ try {
     await new Promise(resolve => setTimeout(resolve, 100))
   }
   const listeners = execFileSync('/usr/sbin/lsof', ['-t', '-iTCP:' + driverPort, '-sTCP:LISTEN'], { encoding: 'utf8' }).trim().split(/\r?\n/)
-  result.driverOwnership = { spawnedPID: driver.pid, listeningPIDs: listeners }
-  assert(listeners.every(pid => pid === String(driver.pid)), 'Driver port is not owned by this process')
+  const listenerProcesses = listeners.map(pid => ({ pid, processGroup: execFileSync('/bin/ps', ['-p', pid, '-o', 'pgid='], { encoding: 'utf8' }).trim(), command: execFileSync('/bin/ps', ['-p', pid, '-o', 'command='], { encoding: 'utf8' }).trim() }))
+  result.driverOwnership = { spawnedPID: driver.pid, ownedProcessGroup: driver.pid, listenerProcesses }
+  assert(listenerProcesses.length > 0 && listenerProcesses.every(processInfo => processInfo.processGroup === String(driver.pid)), 'Driver port is not in the process group created by this run')
   const created = await api('POST', '/session', { capabilities: { alwaysMatch: { browserName: 'safari', pageLoadStrategy: 'eager' } } }, 45_000)
   session = created.sessionId
   result.capabilities = created.capabilities
