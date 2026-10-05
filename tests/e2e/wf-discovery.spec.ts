@@ -308,13 +308,13 @@ test('Admin and Growth analytics expose failed requests, retry exact 200, and re
       finished()
     })
     try {
-      await page.getByRole('button', { name: 'Last 30 days', exact: true }).click()
+      await page.getByRole('button', { name: 'Analytics period', exact: true }).click()
       await page.getByRole('button', { name: 'Last 90 days', exact: true }).click()
       await observed
       // Wait for the old menu's exit, so its 90d option cannot be confused with
       // the current trigger. The held response remains pending throughout.
       await expect(page.getByRole('button', { name: 'Last 7 days', exact: true })).toHaveCount(0)
-      await page.getByRole('button', { name: 'Last 90 days', exact: true }).click()
+      await page.getByRole('button', { name: 'Analytics period', exact: true }).click()
       const current = page.waitForResponse(r => new URL(r.url()).pathname === endpoint && new URL(r.url()).searchParams.get('period') === '7d')
       await page.getByRole('button', { name: 'Last 7 days', exact: true }).click()
       const response = await current

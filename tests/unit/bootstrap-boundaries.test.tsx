@@ -5,7 +5,6 @@ import { connection } from 'next/server'
 import SetupPage from '@/app/editorial/setup/page'
 import { SetupForm } from '@/app/editorial/setup/SetupForm'
 import { POST } from '@/app/api/editorial/setup/route'
-import { connection } from 'next/server'
 
 const { rows, prisma } = vi.hoisted(() => {
   const rows: { role: string; email: string }[] = []
@@ -29,7 +28,6 @@ vi.mock('next/server', async importOriginal => ({ ...await importOriginal<typeof
 vi.mock('@/lib/prisma', () => ({ prisma }))
 vi.mock('bcryptjs', () => ({ default: { hash: async () => 'controlled-hash' } }))
 vi.mock('next/navigation', () => ({ redirect: vi.fn(), useRouter: () => ({ push: vi.fn() }) }))
-vi.mock('next/server', async importOriginal => ({ ...await importOriginal<typeof import('next/server')>(), connection: vi.fn(async () => {}) }))
 afterEach(() => { cleanup(); rows.length = 0; vi.clearAllMocks(); vi.unstubAllGlobals() })
 
 it('the setup decision waits for a live request before touching the database', async () => {
