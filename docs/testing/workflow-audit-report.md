@@ -1,8 +1,8 @@
 # Workflow audit completion — verification in progress
 
-This branch continues the preserved audit on a dedicated worktree, incorporating its changes against `origin/main` without modifying the original checkout or other active audits. The task branch is `fix/workflow-audit-completion`. The owner confirmed **preserve editor styling on publication**; the renderer preserves validated colours, highlights, alignment, spacing and table widths alongside semantic content.
+This document preserves PR #111's historical workflow audit and failure evidence. Current combined source, policy and verification are recorded in [pr-reconciliation.md](pr-reconciliation.md), the PR #112 CI run and its acceptance report. #111 through 0d5594f is included in that branch; the original worktrees remain preserved.
 
-The final full verification is being moved to GitHub Actions because other local audits and the owner's laptop work produced system load above 100. Cloud Chromium/Playwright WebKit and mobile emulations are independent of those local resources. This draft report will be replaced with the exact cloud commit, results and artifact links when that run completes. It does not claim a final green result.
+For this reconciliation the owner explicitly confirmed **keep the existing public house style**. Semantic formatting/media/captions survive publication; draft colours, alignment, spacing and column widths are retained in the editor and normalized publicly. The renderer, tutorial and browser assertions use that policy. The older styling-preservation decisions/results below describe their historical source, not the current contract. Historical failures do not become current passing evidence by being merged.
 
 ## Executed evidence so far
 

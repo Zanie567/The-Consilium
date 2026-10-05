@@ -11,7 +11,7 @@ The complete final-source [route/control census](control-inventory.json) records
 | Route family | Writer | Editor | Admin | Growth | Reader | Expected boundary / verification |
 |---|---|---|---|---|---|---|
 | `/editorial`, public `/profile` | Portal + profile | Portal + profile | Portal + profile | Portal + profile | Profile; portal denied | Role menus/pages BROWSER, `wf-roles`, `wf-reader` |
-| Team Profile | Own | Own | Admin explanation/manage | Own | Denied | BROWSER `team-profile*`; public roster and ownership read-back |
+| Team Profile | Own | Own | Own explicitly assigned card; admin management | Own | Denied | BROWSER `team-profile*`; public roster and ownership read-back |
 | Articles/new/edit/My Drafts | Own | Managed/category scope | Any | Denied | Denied | BROWSER `wf-lifecycle`, `wf-articles`, `editor-scope`; direct API boundaries separate |
 | Review/queue/scheduled/series | Denied review; submitted content locked | Managed scope | Any | Denied | Denied | BROWSER lifecycle/portal/controls; exact response/state/public visibility |
 | Trash | Own permitted drafts/rejections | Managed scope | Any | Denied | Denied | BROWSER `wf-access`, `wf-articles`; restore/permanent-delete confirmations |

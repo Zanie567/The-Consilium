@@ -145,7 +145,7 @@ for (const [role, section] of [
     await expect(heading(page)).toHaveText('Create your team profile')
     await expect(sidebarLink(page)).toBeVisible()
 
-    // 7. team derived from the role; nothing to choose
+    // 7. Ordinary first-card defaults are read-only; established appointments survive role changes.
     await expect(page.locator('form').getByText(TEAM_LABEL[role], { exact: true })).toBeVisible()
     await expect(page.locator('select')).toHaveCount(0)
 
@@ -194,14 +194,13 @@ for (const [role, section] of [
 
 // ── what the NextAuth session does ────────────────────────────────────────────
 
-test('session: server checks see a promotion immediately; the cached JWT role catches up within a minute, with no re-login', async ({ browser }) => {
+test('session: page, API and session response see a promotion immediately without re-login', async ({ browser }) => {
   test.setTimeout(150_000)
   const { context, page, user } = await signUp(browser, 'Newcomer session', `session${DOMAIN}`)
   await dismissCookies(page)
   expect(await sessionRole(page)).toBe('READER')
 
   await grantRole(user.id, 'WRITER')
-  const grantedAt = Date.now()
 
   // Immediately: the portal layout, the page and the API all read the role from the database.
   await page.goto('/editorial/team-profile')
@@ -209,21 +208,8 @@ test('session: server checks see a promotion immediately; the cached JWT role ca
   const created = await page.request.put('/api/team-profile', { multipart: { bio: 'immediately' } })
   expect(created.status()).toBe(201)
 
-  // The role cached inside the JWT cookie is refreshed from the database at most once a minute.
-  const immediate = await sessionRole(page)
-  let convergedAfterMs: number | null = null
-  for (let waited = 0; waited < 90_000; waited += 5_000) {
-    if ((await sessionRole(page)) === 'WRITER') {
-      convergedAfterMs = Date.now() - grantedAt
-      break
-    }
-    await page.waitForTimeout(5_000)
-  }
-  const finding = `JWT role right after the grant: ${immediate}; converged to WRITER after ${convergedAfterMs === null ? 'NEVER' : Math.round(convergedAfterMs / 1000) + 's'} without signing in again`
-  test.info().annotations.push({ type: 'session', description: finding })
-  console.warn(`[session] ${finding}`)
-  expect(convergedAfterMs, 'JWT role never caught up').not.toBeNull()
-  expect(convergedAfterMs!).toBeLessThan(90_000)
+  // A signed cookie may cache historical claims; the returned session does not trust them.
+  expect(await sessionRole(page)).toBe('WRITER')
   await context.close()
 })
 
