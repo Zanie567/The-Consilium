@@ -181,7 +181,10 @@ test('signed-in phone reader opens Profile and signs out; writer shortcuts open 
       const signedOut = page.waitForResponse(r => new URL(r.url()).pathname === '/api/auth/signout' && r.request().method() === 'POST')
       await drawer.getByRole('button', { name: 'Sign out', exact: true }).click()
       expect((await signedOut).status()).toBe(200)
-      await page.waitForLoadState('networkidle')
+      // The response precedes NextAuth's redirect and the protected profile's
+      // signed-out redirect. Reopening the old drawer can be lost on navigation.
+      await expect(page).toHaveURL(url => url.pathname === '/login')
+      expect((await (await ctx.request.get('/api/auth/session')).json()).user).toBeUndefined()
       await page.getByRole('button', { name: 'Open menu', exact: true }).click()
       await expect(drawer.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible()
     }
