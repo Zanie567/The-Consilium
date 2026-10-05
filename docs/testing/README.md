@@ -37,6 +37,7 @@ node scripts/diagnostics/webkit-cancellation.mjs test-results/webkit-cancellatio
 node scripts/diagnostics/share-popup.mjs
 node scripts/diagnostics/related-card-stack.mjs
 node scripts/diagnostics/session-cancellation.mjs
+node scripts/diagnostics/root-recovery.mjs
 node scripts/diagnostics/next-navigation.mjs
 node scripts/diagnostics/image-optimizer-abort.mjs --original --output=test-results/image-abort-before.json
 node scripts/diagnostics/image-optimizer-abort.mjs --output=test-results/image-abort-after.json
@@ -50,6 +51,7 @@ Summarise one completed full run without merging results across revisions:
 
 ```sh
 node scripts/summarize-workflow-run.mjs test-results/<run> docs/testing/verification-results.json <GitHub-run-URL>
+node scripts/build-action-results.mjs docs/testing/verification-results.json docs/testing/action-results.json
 ```
 
 GitHub PR jobs test the temporary merge commit. Record that exact hash from `commit.json`, the branch head, and their tree relationship explicitly. A report-only follow-up commit does not establish new application verification.

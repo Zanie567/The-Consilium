@@ -5,6 +5,7 @@ import { connection } from 'next/server'
 import SetupPage from '@/app/editorial/setup/page'
 import { SetupForm } from '@/app/editorial/setup/SetupForm'
 import { POST } from '@/app/api/editorial/setup/route'
+import { connection } from 'next/server'
 
 const { rows, prisma } = vi.hoisted(() => {
   const rows: { role: string; email: string }[] = []
@@ -28,7 +29,19 @@ vi.mock('next/server', async importOriginal => ({ ...await importOriginal<typeof
 vi.mock('@/lib/prisma', () => ({ prisma }))
 vi.mock('bcryptjs', () => ({ default: { hash: async () => 'controlled-hash' } }))
 vi.mock('next/navigation', () => ({ redirect: vi.fn(), useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('next/server', async importOriginal => ({ ...await importOriginal<typeof import('next/server')>(), connection: vi.fn(async () => {}) }))
 afterEach(() => { cleanup(); rows.length = 0; vi.clearAllMocks(); vi.unstubAllGlobals() })
+
+it('the setup decision waits for a live request before touching the database', async () => {
+  let arrive!: () => void
+  vi.mocked(connection).mockReturnValueOnce(new Promise<void>(resolve => { arrive = resolve }))
+  const page = SetupPage()
+  expect(prisma.user.findFirst).not.toHaveBeenCalled()
+  arrive()
+  render(await page)
+  expect(prisma.user.findFirst).toHaveBeenCalledOnce()
+  expect(screen.getByRole('button', { name: 'Create Admin Account' })).toBeTruthy()
+})
 
 it('a failed admin lookup cannot display the first-admin form', async () => {
   prisma.user.findFirst.mockRejectedValueOnce(new Error('Controlled admin lookup outage'))
@@ -56,13 +69,3 @@ it('a failed setup request preserves all input and restores its submit control',
 })
 
 
-it('setup waits for a request before querying first-admin state', async () => {
-  let arrive!: () => void
-  vi.mocked(connection).mockReturnValueOnce(new Promise<void>(resolve => { arrive = resolve }))
-  const page = SetupPage()
-  expect(prisma.user.findFirst).not.toHaveBeenCalled()
-  arrive()
-  render(await page)
-  expect(prisma.user.findFirst).toHaveBeenCalledOnce()
-  expect(screen.getByRole('button', { name: 'Create Admin Account' })).toBeTruthy()
-})

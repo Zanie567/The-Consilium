@@ -56,7 +56,7 @@ const rules = [
   ['Debate create', [['wf-admin-content', 'debates'], ['wf-remaining', 'debate editing']], ['management-data-protection']],
   ['Glossary create', [['wf-portal', 'glossary'], ['wf-admin-content', 'glossary']], []],
   ['Predictions create', [['wf-portal', 'prediction'], ['wf-admin-content', 'predictions']], ['predictions']],
-  ['Calendar next', [['wf-portal', 'calendar month'], ['wf-remaining', 'calendar dragging']], ['editorial-calendar']],
+  ['Calendar next', [['wf-portal', 'calendar month'], ['wf-remaining', 'calendar dragging']], ['editorial-calendar', 'calendar-drag-boundaries']],
   ['Analytics date', [['wf-portal', 'analytics'], ['wf-discovery', 'analytics'], ['editorial', 'analytics']], ['analytics-request-recovery']],
   ['Share popups', [['wf-remaining', 'public copy']], []],
   ['Team form', [['team-profile', '.'], ['team-profile-lifecycle', '.']], []],

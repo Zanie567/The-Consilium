@@ -3060,7 +3060,8 @@
         "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-stale-authorization.spec.ts",
         "tests/integration/calendar-access.test.ts",
-        "tests/integration/scheduling-routes.test.ts"
+        "tests/integration/scheduling-routes.test.ts",
+        "tests/unit/calendar-drag-boundaries.test.tsx"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/calendar/page.tsx: import { getVerifiedSessionUser } from '@/lib/auth'",
@@ -3068,17 +3069,17 @@
         "src/app/editorial/(portal)/layout.tsx: redirect('/editorial/login')"
       ],
       "controls": [
-        "src/components/editorial/CalendarView.tsx:214",
-        "src/components/editorial/CalendarView.tsx:220",
-        "src/components/editorial/CalendarView.tsx:233",
-        "src/components/editorial/CalendarView.tsx:256",
-        "src/components/editorial/CalendarView.tsx:322",
-        "src/components/editorial/CalendarView.tsx:392",
-        "src/components/editorial/CalendarView.tsx:429",
-        "src/components/editorial/CalendarView.tsx:469",
-        "src/components/editorial/CalendarView.tsx:505",
-        "src/components/editorial/CalendarView.tsx:524",
-        "src/components/editorial/CalendarView.tsx:550",
+        "src/components/editorial/CalendarView.tsx:218",
+        "src/components/editorial/CalendarView.tsx:224",
+        "src/components/editorial/CalendarView.tsx:237",
+        "src/components/editorial/CalendarView.tsx:260",
+        "src/components/editorial/CalendarView.tsx:326",
+        "src/components/editorial/CalendarView.tsx:396",
+        "src/components/editorial/CalendarView.tsx:435",
+        "src/components/editorial/CalendarView.tsx:475",
+        "src/components/editorial/CalendarView.tsx:511",
+        "src/components/editorial/CalendarView.tsx:530",
+        "src/components/editorial/CalendarView.tsx:556",
         "src/components/layout/EditorialSidebarWrapper.tsx:36",
         "src/components/layout/EditorialSidebar.tsx:182",
         "src/components/layout/EditorialSidebar.tsx:219",
@@ -3128,37 +3129,37 @@
       "dynamicFamilies": [
         {
           "file": "src/components/editorial/CalendarView.tsx",
-          "line": 268,
+          "line": 272,
           "source": "(['SCHEDULED', 'PUBLISHED', 'PENDING_REVIEW', 'DRAFT'] as const).map((status) => ( <span key={status} className=\"flex items-center gap-1.5\"> <span className={`w-2.5 h-2.5 rounded-full ${DOT_STYLE[status]}`} /> {STATUS_LABEL[status]} </span> ))"
         },
         {
           "file": "src/components/editorial/CalendarView.tsx",
-          "line": 298,
+          "line": 302,
           "source": "WEEKDAY_LABELS.map((label) => ( <div key={label} className=\"px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--fg-faint)] text-center\" > {label} </div> ))"
         },
         {
           "file": "src/components/editorial/CalendarView.tsx",
-          "line": 308,
-          "source": "weeks.map((week, wi) => ( <div key={week[0].key} className={`grid grid-cols-7 ${wi > 0 ? 'border-t border-[var(--border)]' : ''}`} > {week.map((day, di) => { const items = effectiveByDay[day.key] ?? [] const isToday = day.key === todayKey const isBusy = items.length >= 2 const isOpenGap = day.inMonth && !day.isWeekend && items.length === 0 const isDropTarget = dragOverKey === day.key && draggingId !== null const overflow = items.length - MAX_CHIPS_PER_CELL return ( <div key={day.key} role=\"button\" tabIndex={0} aria-label={`${formatDayHeading(day.key)}, ${items.length === 0 ? 'nothing planned' : `${items.length} item${items.length === 1 ? '' : 's'}`}`} onClick={(e) => openDayPanel(day.key, e.currentTarget)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault() openDayPanel(day.key, e.currentTarget) } }} onDragOver={(e) => { if (!draggingId) return e.preventDefault() e.dataTransfer.dropEffect = 'move' if (dragOverKey !== day.key) setDragOverKey(day.key) }} onDragLeave={(e) => { // Ignore moves onto the cell's own children, only // clear when the drag truly leaves the cell. if (e.currentTarget.contains(e.relatedTarget as Node)) return if (dragOverKey === day.key) setDragOverKey(null) }} onDrop={(e) => { e.preventDefault() void handleDrop(day.key) }} className={[ 'min-h-[112px] lg:min-h-[124px] p-1.5 flex flex-col gap-1 cursor-pointer text-left align-top', di > 0 ? 'border-l border-[var(--border)]' : '', day.inMonth ? '' : 'opacity-45', day.isWeekend && day.inMonth ? 'bg-[var(--bg-subtle)]/50' : '', isDropTarget ? 'ring-2 ring-inset ring-gold bg-gold/10' : 'hover:bg-[var(--bg-subtle)]/60', ].join(' ')} style={ isOpenGap && !isDropTarget ? { backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 7px, var(--border) 7px, var(--border) 8px)', } : undefined } > <div className=\"flex items-center justify-between gap-1\"> <span className={[ 'text-[11px] font-semibold w-5 h-5 flex items-center justify-center rounded-full', isToday ? 'bg-gold text-navy' : day.inMonth ? 'text-[var(--fg-muted)]' : 'text-[var(--fg-faint)]', ].join(' ')} > {day.dayOfMonth} </span> {isBusy && ( <span title={`${items.length} pieces land on this day`} className=\"px-1.5 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 rounded-full leading-none\" > {items.length} </span> )} </div> {items.slice(0, MAX_CHIPS_PER_CELL).map((item) => ( <Link key={item.id} href={`/editorial/articles/${item.id}/edit`} onClick={(e) => e.stopPropagation()} draggable={item.status === 'SCHEDULED'} onDragStart={(e) => { if (item.status !== 'SCHEDULED') return e.dataTransfer.setData('text/plain', item.id) e.dataTransfer.effectAllowed = 'move' setDraggingId(item.id) }} onDragEnd={() => { setDraggingId(null) setDragOverKey(null) }} title={`${item.title} (${STATUS_LABEL[item.status] ?? item.status}${item.timeLabel ? `, ${item.timeLabel}` : ''})`} className={[ 'block border-l-2 px-1.5 py-1 text-[11px] leading-tight hover:opacity-80 transition-opacity', CHIP_STYLE[item.status] ?? CHIP_STYLE.DRAFT, pendingIds.has(item.id) ? 'opacity-50 animate-pulse' : '', ].join(' ')} style={item.status === 'SCHEDULED' ? GRAB_CURSOR : undefined} > <span className=\"block font-semibold truncate\"> {item.timeLabel && ( <span className=\"font-normal opacity-70\">{item.timeLabel} </span> )} {item.title} </span> <span className=\"block truncate opacity-70\"> {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''} </span> </Link> ))} {overflow > 0 && ( <button onClick={(e) => { e.stopPropagation() openDayPanel(day.key, e.currentTarget.closest('[role=\"button\"]') as HTMLElement) }} className=\"text-left text-[11px] font-semibold text-[var(--fg-muted)] hover:text-gold px-1.5\" > +{overflow} more </button> )} </div> ) })} </div> ))"
+          "line": 312,
+          "source": "weeks.map((week, wi) => ( <div key={week[0].key} className={`grid grid-cols-7 ${wi > 0 ? 'border-t border-[var(--border)]' : ''}`} > {week.map((day, di) => { const items = effectiveByDay[day.key] ?? [] const isToday = day.key === todayKey const isBusy = items.length >= 2 const isOpenGap = day.inMonth && !day.isWeekend && items.length === 0 const isDropTarget = dragOverKey === day.key && draggingId !== null const overflow = items.length - MAX_CHIPS_PER_CELL return ( <div key={day.key} role=\"button\" tabIndex={0} aria-label={`${formatDayHeading(day.key)}, ${items.length === 0 ? 'nothing planned' : `${items.length} item${items.length === 1 ? '' : 's'}`}`} onClick={(e) => openDayPanel(day.key, e.currentTarget)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault() openDayPanel(day.key, e.currentTarget) } }} onDragOver={(e) => { if (!activeDrag.current) return e.preventDefault() e.dataTransfer.dropEffect = 'move' if (dragOverKey !== day.key) setDragOverKey(day.key) }} onDragLeave={(e) => { // Ignore moves onto the cell's own children, only // clear when the drag truly leaves the cell. if (e.currentTarget.contains(e.relatedTarget as Node)) return if (dragOverKey === day.key) setDragOverKey(null) }} onDrop={(e) => { e.preventDefault() void handleDrop(day.key) }} className={[ 'min-h-[112px] lg:min-h-[124px] p-1.5 flex flex-col gap-1 cursor-pointer text-left align-top', di > 0 ? 'border-l border-[var(--border)]' : '', day.inMonth ? '' : 'opacity-45', day.isWeekend && day.inMonth ? 'bg-[var(--bg-subtle)]/50' : '', isDropTarget ? 'ring-2 ring-inset ring-gold bg-gold/10' : 'hover:bg-[var(--bg-subtle)]/60', ].join(' ')} style={ isOpenGap && !isDropTarget ? { backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 7px, var(--border) 7px, var(--border) 8px)', } : undefined } > <div className=\"flex items-center justify-between gap-1\"> <span className={[ 'text-[11px] font-semibold w-5 h-5 flex items-center justify-center rounded-full', isToday ? 'bg-gold text-navy' : day.inMonth ? 'text-[var(--fg-muted)]' : 'text-[var(--fg-faint)]', ].join(' ')} > {day.dayOfMonth} </span> {isBusy && ( <span title={`${items.length} pieces land on this day`} className=\"px-1.5 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 rounded-full leading-none\" > {items.length} </span> )} </div> {items.slice(0, MAX_CHIPS_PER_CELL).map((item) => ( <Link key={item.id} href={`/editorial/articles/${item.id}/edit`} onClick={(e) => e.stopPropagation()} draggable={item.status === 'SCHEDULED'} onDragStart={(e) => { if (item.status !== 'SCHEDULED') return e.dataTransfer.setData('text/plain', item.id) e.dataTransfer.effectAllowed = 'move' activeDrag.current = item.id setDraggingId(item.id) }} onDragEnd={() => { activeDrag.current = null setDraggingId(null) setDragOverKey(null) }} title={`${item.title} (${STATUS_LABEL[item.status] ?? item.status}${item.timeLabel ? `, ${item.timeLabel}` : ''})`} className={[ 'block border-l-2 px-1.5 py-1 text-[11px] leading-tight hover:opacity-80 transition-opacity', CHIP_STYLE[item.status] ?? CHIP_STYLE.DRAFT, pendingIds.has(item.id) ? 'opacity-50 animate-pulse' : '', ].join(' ')} style={item.status === 'SCHEDULED' ? GRAB_CURSOR : undefined} > <span className=\"block font-semibold truncate\"> {item.timeLabel && ( <span className=\"font-normal opacity-70\">{item.timeLabel} </span> )} {item.title} </span> <span className=\"block truncate opacity-70\"> {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''} </span> </Link> ))} {overflow > 0 && ( <button onClick={(e) => { e.stopPropagation() openDayPanel(day.key, e.currentTarget.closest('[role=\"button\"]') as HTMLElement) }} className=\"text-left text-[11px] font-semibold text-[var(--fg-muted)] hover:text-gold px-1.5\" > +{overflow} more </button> )} </div> ) })} </div> ))"
         },
         {
           "file": "src/components/editorial/CalendarView.tsx",
-          "line": 313,
-          "source": "week.map((day, di) => { const items = effectiveByDay[day.key] ?? [] const isToday = day.key === todayKey const isBusy = items.length >= 2 const isOpenGap = day.inMonth && !day.isWeekend && items.length === 0 const isDropTarget = dragOverKey === day.key && draggingId !== null const overflow = items.length - MAX_CHIPS_PER_CELL return ( <div key={day.key} role=\"button\" tabIndex={0} aria-label={`${formatDayHeading(day.key)}, ${items.length === 0 ? 'nothing planned' : `${items.length} item${items.length === 1 ? '' : 's'}`}`} onClick={(e) => openDayPanel(day.key, e.currentTarget)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault() openDayPanel(day.key, e.currentTarget) } }} onDragOver={(e) => { if (!draggingId) return e.preventDefault() e.dataTransfer.dropEffect = 'move' if (dragOverKey !== day.key) setDragOverKey(day.key) }} onDragLeave={(e) => { // Ignore moves onto the cell's own children, only // clear when the drag truly leaves the cell. if (e.currentTarget.contains(e.relatedTarget as Node)) return if (dragOverKey === day.key) setDragOverKey(null) }} onDrop={(e) => { e.preventDefault() void handleDrop(day.key) }} className={[ 'min-h-[112px] lg:min-h-[124px] p-1.5 flex flex-col gap-1 cursor-pointer text-left align-top', di > 0 ? 'border-l border-[var(--border)]' : '', day.inMonth ? '' : 'opacity-45', day.isWeekend && day.inMonth ? 'bg-[var(--bg-subtle)]/50' : '', isDropTarget ? 'ring-2 ring-inset ring-gold bg-gold/10' : 'hover:bg-[var(--bg-subtle)]/60', ].join(' ')} style={ isOpenGap && !isDropTarget ? { backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 7px, var(--border) 7px, var(--border) 8px)', } : undefined } > <div className=\"flex items-center justify-between gap-1\"> <span className={[ 'text-[11px] font-semibold w-5 h-5 flex items-center justify-center rounded-full', isToday ? 'bg-gold text-navy' : day.inMonth ? 'text-[var(--fg-muted)]' : 'text-[var(--fg-faint)]', ].join(' ')} > {day.dayOfMonth} </span> {isBusy && ( <span title={`${items.length} pieces land on this day`} className=\"px-1.5 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 rounded-full leading-none\" > {items.length} </span> )} </div> {items.slice(0, MAX_CHIPS_PER_CELL).map((item) => ( <Link key={item.id} href={`/editorial/articles/${item.id}/edit`} onClick={(e) => e.stopPropagation()} draggable={item.status === 'SCHEDULED'} onDragStart={(e) => { if (item.status !== 'SCHEDULED') return e.dataTransfer.setData('text/plain', item.id) e.dataTransfer.effectAllowed = 'move' setDraggingId(item.id) }} onDragEnd={() => { setDraggingId(null) setDragOverKey(null) }} title={`${item.title} (${STATUS_LABEL[item.status] ?? item.status}${item.timeLabel ? `, ${item.timeLabel}` : ''})`} className={[ 'block border-l-2 px-1.5 py-1 text-[11px] leading-tight hover:opacity-80 transition-opacity', CHIP_STYLE[item.status] ?? CHIP_STYLE.DRAFT, pendingIds.has(item.id) ? 'opacity-50 animate-pulse' : '', ].join(' ')} style={item.status === 'SCHEDULED' ? GRAB_CURSOR : undefined} > <span className=\"block font-semibold truncate\"> {item.timeLabel && ( <span className=\"font-normal opacity-70\">{item.timeLabel} </span> )} {item.title} </span> <span className=\"block truncate opacity-70\"> {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''} </span> </Link> ))} {overflow > 0 && ( <button onClick={(e) => { e.stopPropagation() openDayPanel(day.key, e.currentTarget.closest('[role=\"button\"]') as HTMLElement) }} className=\"text-left text-[11px] font-semibold text-[var(--fg-muted)] hover:text-gold px-1.5\" > +{overflow} more </button> )} </div> ) })"
+          "line": 317,
+          "source": "week.map((day, di) => { const items = effectiveByDay[day.key] ?? [] const isToday = day.key === todayKey const isBusy = items.length >= 2 const isOpenGap = day.inMonth && !day.isWeekend && items.length === 0 const isDropTarget = dragOverKey === day.key && draggingId !== null const overflow = items.length - MAX_CHIPS_PER_CELL return ( <div key={day.key} role=\"button\" tabIndex={0} aria-label={`${formatDayHeading(day.key)}, ${items.length === 0 ? 'nothing planned' : `${items.length} item${items.length === 1 ? '' : 's'}`}`} onClick={(e) => openDayPanel(day.key, e.currentTarget)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault() openDayPanel(day.key, e.currentTarget) } }} onDragOver={(e) => { if (!activeDrag.current) return e.preventDefault() e.dataTransfer.dropEffect = 'move' if (dragOverKey !== day.key) setDragOverKey(day.key) }} onDragLeave={(e) => { // Ignore moves onto the cell's own children, only // clear when the drag truly leaves the cell. if (e.currentTarget.contains(e.relatedTarget as Node)) return if (dragOverKey === day.key) setDragOverKey(null) }} onDrop={(e) => { e.preventDefault() void handleDrop(day.key) }} className={[ 'min-h-[112px] lg:min-h-[124px] p-1.5 flex flex-col gap-1 cursor-pointer text-left align-top', di > 0 ? 'border-l border-[var(--border)]' : '', day.inMonth ? '' : 'opacity-45', day.isWeekend && day.inMonth ? 'bg-[var(--bg-subtle)]/50' : '', isDropTarget ? 'ring-2 ring-inset ring-gold bg-gold/10' : 'hover:bg-[var(--bg-subtle)]/60', ].join(' ')} style={ isOpenGap && !isDropTarget ? { backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 7px, var(--border) 7px, var(--border) 8px)', } : undefined } > <div className=\"flex items-center justify-between gap-1\"> <span className={[ 'text-[11px] font-semibold w-5 h-5 flex items-center justify-center rounded-full', isToday ? 'bg-gold text-navy' : day.inMonth ? 'text-[var(--fg-muted)]' : 'text-[var(--fg-faint)]', ].join(' ')} > {day.dayOfMonth} </span> {isBusy && ( <span title={`${items.length} pieces land on this day`} className=\"px-1.5 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 rounded-full leading-none\" > {items.length} </span> )} </div> {items.slice(0, MAX_CHIPS_PER_CELL).map((item) => ( <Link key={item.id} href={`/editorial/articles/${item.id}/edit`} onClick={(e) => e.stopPropagation()} draggable={item.status === 'SCHEDULED'} onDragStart={(e) => { if (item.status !== 'SCHEDULED') return e.dataTransfer.setData('text/plain', item.id) e.dataTransfer.effectAllowed = 'move' activeDrag.current = item.id setDraggingId(item.id) }} onDragEnd={() => { activeDrag.current = null setDraggingId(null) setDragOverKey(null) }} title={`${item.title} (${STATUS_LABEL[item.status] ?? item.status}${item.timeLabel ? `, ${item.timeLabel}` : ''})`} className={[ 'block border-l-2 px-1.5 py-1 text-[11px] leading-tight hover:opacity-80 transition-opacity', CHIP_STYLE[item.status] ?? CHIP_STYLE.DRAFT, pendingIds.has(item.id) ? 'opacity-50 animate-pulse' : '', ].join(' ')} style={item.status === 'SCHEDULED' ? GRAB_CURSOR : undefined} > <span className=\"block font-semibold truncate\"> {item.timeLabel && ( <span className=\"font-normal opacity-70\">{item.timeLabel} </span> )} {item.title} </span> <span className=\"block truncate opacity-70\"> {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''} </span> </Link> ))} {overflow > 0 && ( <button onClick={(e) => { e.stopPropagation() openDayPanel(day.key, e.currentTarget.closest('[role=\"button\"]') as HTMLElement) }} className=\"text-left text-[11px] font-semibold text-[var(--fg-muted)] hover:text-gold px-1.5\" > +{overflow} more </button> )} </div> ) })"
         },
         {
           "file": "src/components/editorial/CalendarView.tsx",
-          "line": 391,
-          "source": "items.slice(0, MAX_CHIPS_PER_CELL).map((item) => ( <Link key={item.id} href={`/editorial/articles/${item.id}/edit`} onClick={(e) => e.stopPropagation()} draggable={item.status === 'SCHEDULED'} onDragStart={(e) => { if (item.status !== 'SCHEDULED') return e.dataTransfer.setData('text/plain', item.id) e.dataTransfer.effectAllowed = 'move' setDraggingId(item.id) }} onDragEnd={() => { setDraggingId(null) setDragOverKey(null) }} title={`${item.title} (${STATUS_LABEL[item.status] ?? item.status}${item.timeLabel ? `, ${item.timeLabel}` : ''})`} className={[ 'block border-l-2 px-1.5 py-1 text-[11px] leading-tight hover:opacity-80 transition-opacity', CHIP_STYLE[item.status] ?? CHIP_STYLE.DRAFT, pendingIds.has(item.id) ? 'opacity-50 animate-pulse' : '', ].join(' ')} style={item.status === 'SCHEDULED' ? GRAB_CURSOR : undefined} > <span className=\"block font-semibold truncate\"> {item.timeLabel && ( <span className=\"font-normal opacity-70\">{item.timeLabel} </span> )} {item.title} </span> <span className=\"block truncate opacity-70\"> {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''} </span> </Link> ))"
+          "line": 395,
+          "source": "items.slice(0, MAX_CHIPS_PER_CELL).map((item) => ( <Link key={item.id} href={`/editorial/articles/${item.id}/edit`} onClick={(e) => e.stopPropagation()} draggable={item.status === 'SCHEDULED'} onDragStart={(e) => { if (item.status !== 'SCHEDULED') return e.dataTransfer.setData('text/plain', item.id) e.dataTransfer.effectAllowed = 'move' activeDrag.current = item.id setDraggingId(item.id) }} onDragEnd={() => { activeDrag.current = null setDraggingId(null) setDragOverKey(null) }} title={`${item.title} (${STATUS_LABEL[item.status] ?? item.status}${item.timeLabel ? `, ${item.timeLabel}` : ''})`} className={[ 'block border-l-2 px-1.5 py-1 text-[11px] leading-tight hover:opacity-80 transition-opacity', CHIP_STYLE[item.status] ?? CHIP_STYLE.DRAFT, pendingIds.has(item.id) ? 'opacity-50 animate-pulse' : '', ].join(' ')} style={item.status === 'SCHEDULED' ? GRAB_CURSOR : undefined} > <span className=\"block font-semibold truncate\"> {item.timeLabel && ( <span className=\"font-normal opacity-70\">{item.timeLabel} </span> )} {item.title} </span> <span className=\"block truncate opacity-70\"> {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''} </span> </Link> ))"
         },
         {
           "file": "src/components/editorial/CalendarView.tsx",
-          "line": 467,
+          "line": 473,
           "source": "unscheduled.map((item) => ( <li key={item.id}> <Link href={`/editorial/articles/${item.id}/edit`} className=\"block px-4 py-2.5 hover:bg-[var(--bg-subtle)] transition-colors\" > <span className=\"flex items-center gap-1.5\"> <span className={`w-2 h-2 rounded-full shrink-0 ${DOT_STYLE[item.status] ?? DOT_STYLE.DRAFT}`} /> <span className=\"text-[12px] font-semibold text-[var(--fg)] truncate\"> {item.title} </span> </span> <span className=\"block text-[11px] text-[var(--fg-faint)] truncate mt-0.5 pl-3.5\"> {STATUS_LABEL[item.status] ?? item.status} · {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''} </span> </Link> </li> ))"
         },
         {
           "file": "src/components/editorial/CalendarView.tsx",
-          "line": 538,
+          "line": 544,
           "source": "panelItems.map((item) => ( <li key={item.id} className=\"px-4 py-3\"> <span className=\"flex items-center gap-2 mb-1\"> <span className={`px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-sm border-l-2 ${CHIP_STYLE[item.status] ?? CHIP_STYLE.DRAFT}`} > {STATUS_LABEL[item.status] ?? item.status} </span> {item.timeLabel && ( <span className=\"text-[11px] text-[var(--fg-muted)]\">{item.timeLabel}</span> )} </span> <Link href={`/editorial/articles/${item.id}/edit`} className=\"block text-[13px] font-semibold text-[var(--fg)] hover:text-gold transition-colors\" style={{ fontFamily: 'var(--font-serif)' }} > {item.title} </Link> <p className=\"text-[11px] text-[var(--fg-faint)] mt-0.5\"> {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''} </p> </li> ))"
         },
         {
@@ -4592,6 +4593,7 @@
         "tests/unit/analytics-request-recovery.test.tsx",
         "tests/unit/auth-redirect.test.ts",
         "tests/unit/bootstrap-boundaries.test.tsx",
+        "tests/unit/calendar-drag-boundaries.test.tsx",
         "tests/unit/editorial-calendar.test.ts",
         "tests/unit/editorial-login-recovery.test.tsx",
         "tests/unit/editorial-schedule-display.test.ts",
@@ -15799,9 +15801,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/CalendarView.tsx:214",
+      "id": "src/components/editorial/CalendarView.tsx:218",
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 214,
+      "line": 218,
       "tag": "Link",
       "label": "Today",
       "href": "/editorial/calendar",
@@ -15816,9 +15818,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/CalendarView.tsx:220",
+      "id": "src/components/editorial/CalendarView.tsx:224",
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 220,
+      "line": 224,
       "tag": "Link",
       "label": "{`Go to ${monthLabel(addMonths(month, -1))}`}",
       "href": "{`/editorial/calendar?month=${addMonths(month, -1)}`}",
@@ -15831,9 +15833,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/CalendarView.tsx:233",
+      "id": "src/components/editorial/CalendarView.tsx:237",
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 233,
+      "line": 237,
       "tag": "Link",
       "label": "{`Go to ${monthLabel(addMonths(month, 1))}`}",
       "href": "{`/editorial/calendar?month=${addMonths(month, 1)}`}",
@@ -15846,9 +15848,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/CalendarView.tsx:256",
+      "id": "src/components/editorial/CalendarView.tsx:260",
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 256,
+      "line": 260,
       "tag": "button",
       "label": "Dismiss",
       "href": null,
@@ -15869,9 +15871,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/CalendarView.tsx:322",
+      "id": "src/components/editorial/CalendarView.tsx:326",
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 322,
+      "line": 326,
       "tag": "div",
       "label": "{`${formatDayHeading(day.key)}, ${items.length === 0 ? 'nothing planned' : `${items.length} item${items.length === 1 ? '' : 's'}`}`}",
       "href": null,
@@ -15880,7 +15882,7 @@
       "expectedFromSource": {
         "onClick": "{(e) => openDayPanel(day.key, e.currentTarget)}",
         "onKeyDown": "{(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault() openDayPanel(day.key, e.currentTarget) } }}",
-        "onDragOver": "{(e) => { if (!draggingId) return e.preventDefault() e.dataTransfer.dropEffect = 'move' if (dragOverKey !== day.key) setDragOverKey(day.key) }}",
+        "onDragOver": "{(e) => { if (!activeDrag.current) return e.preventDefault() e.dataTransfer.dropEffect = 'move' if (dragOverKey !== day.key) setDragOverKey(day.key) }}",
         "onDragLeave": "{(e) => { // Ignore moves onto the cell's own children, only // clear when the drag truly leaves the cell. if (e.currentTarget.contains(e.relatedTarget as Node)) return if (dragOverKey === day.key) setDragOverKey(null) }}",
         "onDrop": "{(e) => { e.preventDefault() void handleDrop(day.key) }}"
       },
@@ -15890,9 +15892,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/CalendarView.tsx:392",
+      "id": "src/components/editorial/CalendarView.tsx:396",
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 392,
+      "line": 396,
       "tag": "Link",
       "label": "{`${item.title} (${STATUS_LABEL[item.status] ?? item.status}${item.timeLabel ? `, ${item.timeLabel}` : ''})`}",
       "href": "{`/editorial/articles/${item.id}/edit`}",
@@ -15900,8 +15902,8 @@
       "disabledWhen": null,
       "expectedFromSource": {
         "onClick": "{(e) => e.stopPropagation()}",
-        "onDragStart": "{(e) => { if (item.status !== 'SCHEDULED') return e.dataTransfer.setData('text/plain', item.id) e.dataTransfer.effectAllowed = 'move' setDraggingId(item.id) }}",
-        "onDragEnd": "{() => { setDraggingId(null) setDragOverKey(null) }}"
+        "onDragStart": "{(e) => { if (item.status !== 'SCHEDULED') return e.dataTransfer.setData('text/plain', item.id) e.dataTransfer.effectAllowed = 'move' activeDrag.current = item.id setDraggingId(item.id) }}",
+        "onDragEnd": "{() => { activeDrag.current = null setDraggingId(null) setDragOverKey(null) }}"
       },
       "candidateTests": [],
       "groupTestFiles": [],
@@ -15909,9 +15911,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/CalendarView.tsx:429",
+      "id": "src/components/editorial/CalendarView.tsx:435",
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 429,
+      "line": 435,
       "tag": "button",
       "label": "+ {overflow} more",
       "href": null,
@@ -15926,9 +15928,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/CalendarView.tsx:469",
+      "id": "src/components/editorial/CalendarView.tsx:475",
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 469,
+      "line": 475,
       "tag": "Link",
       "label": "{item.title} {STATUS_LABEL[item.status] ?? item.status} · {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''}",
       "href": "{`/editorial/articles/${item.id}/edit`}",
@@ -15941,9 +15943,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/CalendarView.tsx:505",
+      "id": "src/components/editorial/CalendarView.tsx:511",
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 505,
+      "line": 511,
       "tag": "div",
       "label": "{`Details for ${formatDayHeading(dayPanel.key)}`}",
       "href": null,
@@ -15956,9 +15958,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/CalendarView.tsx:524",
+      "id": "src/components/editorial/CalendarView.tsx:530",
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 524,
+      "line": 530,
       "tag": "button",
       "label": "Close day details",
       "href": null,
@@ -15976,9 +15978,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/editorial/CalendarView.tsx:550",
+      "id": "src/components/editorial/CalendarView.tsx:556",
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 550,
+      "line": 556,
       "tag": "Link",
       "label": "{item.title}",
       "href": "{`/editorial/articles/${item.id}/edit`}",
@@ -18441,6 +18443,7 @@
         "tests/unit/analytics-request-recovery.test.tsx",
         "tests/unit/article-section-links.test.tsx",
         "tests/unit/bootstrap-boundaries.test.tsx",
+        "tests/unit/calendar-drag-boundaries.test.tsx",
         "tests/unit/editorial-login-recovery.test.tsx",
         "tests/unit/featured-article-hero.test.tsx",
         "tests/unit/hosted-testing-workspace.test.ts",
@@ -22352,37 +22355,37 @@
     },
     {
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 268,
+      "line": 272,
       "source": "(['SCHEDULED', 'PUBLISHED', 'PENDING_REVIEW', 'DRAFT'] as const).map((status) => ( <span key={status} className=\"flex items-center gap-1.5\"> <span className={`w-2.5 h-2.5 rounded-full ${DOT_STYLE[status]}`} /> {STATUS_LABEL[status]} </span> ))"
     },
     {
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 298,
+      "line": 302,
       "source": "WEEKDAY_LABELS.map((label) => ( <div key={label} className=\"px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--fg-faint)] text-center\" > {label} </div> ))"
     },
     {
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 308,
-      "source": "weeks.map((week, wi) => ( <div key={week[0].key} className={`grid grid-cols-7 ${wi > 0 ? 'border-t border-[var(--border)]' : ''}`} > {week.map((day, di) => { const items = effectiveByDay[day.key] ?? [] const isToday = day.key === todayKey const isBusy = items.length >= 2 const isOpenGap = day.inMonth && !day.isWeekend && items.length === 0 const isDropTarget = dragOverKey === day.key && draggingId !== null const overflow = items.length - MAX_CHIPS_PER_CELL return ( <div key={day.key} role=\"button\" tabIndex={0} aria-label={`${formatDayHeading(day.key)}, ${items.length === 0 ? 'nothing planned' : `${items.length} item${items.length === 1 ? '' : 's'}`}`} onClick={(e) => openDayPanel(day.key, e.currentTarget)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault() openDayPanel(day.key, e.currentTarget) } }} onDragOver={(e) => { if (!draggingId) return e.preventDefault() e.dataTransfer.dropEffect = 'move' if (dragOverKey !== day.key) setDragOverKey(day.key) }} onDragLeave={(e) => { // Ignore moves onto the cell's own children, only // clear when the drag truly leaves the cell. if (e.currentTarget.contains(e.relatedTarget as Node)) return if (dragOverKey === day.key) setDragOverKey(null) }} onDrop={(e) => { e.preventDefault() void handleDrop(day.key) }} className={[ 'min-h-[112px] lg:min-h-[124px] p-1.5 flex flex-col gap-1 cursor-pointer text-left align-top', di > 0 ? 'border-l border-[var(--border)]' : '', day.inMonth ? '' : 'opacity-45', day.isWeekend && day.inMonth ? 'bg-[var(--bg-subtle)]/50' : '', isDropTarget ? 'ring-2 ring-inset ring-gold bg-gold/10' : 'hover:bg-[var(--bg-subtle)]/60', ].join(' ')} style={ isOpenGap && !isDropTarget ? { backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 7px, var(--border) 7px, var(--border) 8px)', } : undefined } > <div className=\"flex items-center justify-between gap-1\"> <span className={[ 'text-[11px] font-semibold w-5 h-5 flex items-center justify-center rounded-full', isToday ? 'bg-gold text-navy' : day.inMonth ? 'text-[var(--fg-muted)]' : 'text-[var(--fg-faint)]', ].join(' ')} > {day.dayOfMonth} </span> {isBusy && ( <span title={`${items.length} pieces land on this day`} className=\"px-1.5 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 rounded-full leading-none\" > {items.length} </span> )} </div> {items.slice(0, MAX_CHIPS_PER_CELL).map((item) => ( <Link key={item.id} href={`/editorial/articles/${item.id}/edit`} onClick={(e) => e.stopPropagation()} draggable={item.status === 'SCHEDULED'} onDragStart={(e) => { if (item.status !== 'SCHEDULED') return e.dataTransfer.setData('text/plain', item.id) e.dataTransfer.effectAllowed = 'move' setDraggingId(item.id) }} onDragEnd={() => { setDraggingId(null) setDragOverKey(null) }} title={`${item.title} (${STATUS_LABEL[item.status] ?? item.status}${item.timeLabel ? `, ${item.timeLabel}` : ''})`} className={[ 'block border-l-2 px-1.5 py-1 text-[11px] leading-tight hover:opacity-80 transition-opacity', CHIP_STYLE[item.status] ?? CHIP_STYLE.DRAFT, pendingIds.has(item.id) ? 'opacity-50 animate-pulse' : '', ].join(' ')} style={item.status === 'SCHEDULED' ? GRAB_CURSOR : undefined} > <span className=\"block font-semibold truncate\"> {item.timeLabel && ( <span className=\"font-normal opacity-70\">{item.timeLabel} </span> )} {item.title} </span> <span className=\"block truncate opacity-70\"> {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''} </span> </Link> ))} {overflow > 0 && ( <button onClick={(e) => { e.stopPropagation() openDayPanel(day.key, e.currentTarget.closest('[role=\"button\"]') as HTMLElement) }} className=\"text-left text-[11px] font-semibold text-[var(--fg-muted)] hover:text-gold px-1.5\" > +{overflow} more </button> )} </div> ) })} </div> ))"
+      "line": 312,
+      "source": "weeks.map((week, wi) => ( <div key={week[0].key} className={`grid grid-cols-7 ${wi > 0 ? 'border-t border-[var(--border)]' : ''}`} > {week.map((day, di) => { const items = effectiveByDay[day.key] ?? [] const isToday = day.key === todayKey const isBusy = items.length >= 2 const isOpenGap = day.inMonth && !day.isWeekend && items.length === 0 const isDropTarget = dragOverKey === day.key && draggingId !== null const overflow = items.length - MAX_CHIPS_PER_CELL return ( <div key={day.key} role=\"button\" tabIndex={0} aria-label={`${formatDayHeading(day.key)}, ${items.length === 0 ? 'nothing planned' : `${items.length} item${items.length === 1 ? '' : 's'}`}`} onClick={(e) => openDayPanel(day.key, e.currentTarget)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault() openDayPanel(day.key, e.currentTarget) } }} onDragOver={(e) => { if (!activeDrag.current) return e.preventDefault() e.dataTransfer.dropEffect = 'move' if (dragOverKey !== day.key) setDragOverKey(day.key) }} onDragLeave={(e) => { // Ignore moves onto the cell's own children, only // clear when the drag truly leaves the cell. if (e.currentTarget.contains(e.relatedTarget as Node)) return if (dragOverKey === day.key) setDragOverKey(null) }} onDrop={(e) => { e.preventDefault() void handleDrop(day.key) }} className={[ 'min-h-[112px] lg:min-h-[124px] p-1.5 flex flex-col gap-1 cursor-pointer text-left align-top', di > 0 ? 'border-l border-[var(--border)]' : '', day.inMonth ? '' : 'opacity-45', day.isWeekend && day.inMonth ? 'bg-[var(--bg-subtle)]/50' : '', isDropTarget ? 'ring-2 ring-inset ring-gold bg-gold/10' : 'hover:bg-[var(--bg-subtle)]/60', ].join(' ')} style={ isOpenGap && !isDropTarget ? { backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 7px, var(--border) 7px, var(--border) 8px)', } : undefined } > <div className=\"flex items-center justify-between gap-1\"> <span className={[ 'text-[11px] font-semibold w-5 h-5 flex items-center justify-center rounded-full', isToday ? 'bg-gold text-navy' : day.inMonth ? 'text-[var(--fg-muted)]' : 'text-[var(--fg-faint)]', ].join(' ')} > {day.dayOfMonth} </span> {isBusy && ( <span title={`${items.length} pieces land on this day`} className=\"px-1.5 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 rounded-full leading-none\" > {items.length} </span> )} </div> {items.slice(0, MAX_CHIPS_PER_CELL).map((item) => ( <Link key={item.id} href={`/editorial/articles/${item.id}/edit`} onClick={(e) => e.stopPropagation()} draggable={item.status === 'SCHEDULED'} onDragStart={(e) => { if (item.status !== 'SCHEDULED') return e.dataTransfer.setData('text/plain', item.id) e.dataTransfer.effectAllowed = 'move' activeDrag.current = item.id setDraggingId(item.id) }} onDragEnd={() => { activeDrag.current = null setDraggingId(null) setDragOverKey(null) }} title={`${item.title} (${STATUS_LABEL[item.status] ?? item.status}${item.timeLabel ? `, ${item.timeLabel}` : ''})`} className={[ 'block border-l-2 px-1.5 py-1 text-[11px] leading-tight hover:opacity-80 transition-opacity', CHIP_STYLE[item.status] ?? CHIP_STYLE.DRAFT, pendingIds.has(item.id) ? 'opacity-50 animate-pulse' : '', ].join(' ')} style={item.status === 'SCHEDULED' ? GRAB_CURSOR : undefined} > <span className=\"block font-semibold truncate\"> {item.timeLabel && ( <span className=\"font-normal opacity-70\">{item.timeLabel} </span> )} {item.title} </span> <span className=\"block truncate opacity-70\"> {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''} </span> </Link> ))} {overflow > 0 && ( <button onClick={(e) => { e.stopPropagation() openDayPanel(day.key, e.currentTarget.closest('[role=\"button\"]') as HTMLElement) }} className=\"text-left text-[11px] font-semibold text-[var(--fg-muted)] hover:text-gold px-1.5\" > +{overflow} more </button> )} </div> ) })} </div> ))"
     },
     {
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 313,
-      "source": "week.map((day, di) => { const items = effectiveByDay[day.key] ?? [] const isToday = day.key === todayKey const isBusy = items.length >= 2 const isOpenGap = day.inMonth && !day.isWeekend && items.length === 0 const isDropTarget = dragOverKey === day.key && draggingId !== null const overflow = items.length - MAX_CHIPS_PER_CELL return ( <div key={day.key} role=\"button\" tabIndex={0} aria-label={`${formatDayHeading(day.key)}, ${items.length === 0 ? 'nothing planned' : `${items.length} item${items.length === 1 ? '' : 's'}`}`} onClick={(e) => openDayPanel(day.key, e.currentTarget)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault() openDayPanel(day.key, e.currentTarget) } }} onDragOver={(e) => { if (!draggingId) return e.preventDefault() e.dataTransfer.dropEffect = 'move' if (dragOverKey !== day.key) setDragOverKey(day.key) }} onDragLeave={(e) => { // Ignore moves onto the cell's own children, only // clear when the drag truly leaves the cell. if (e.currentTarget.contains(e.relatedTarget as Node)) return if (dragOverKey === day.key) setDragOverKey(null) }} onDrop={(e) => { e.preventDefault() void handleDrop(day.key) }} className={[ 'min-h-[112px] lg:min-h-[124px] p-1.5 flex flex-col gap-1 cursor-pointer text-left align-top', di > 0 ? 'border-l border-[var(--border)]' : '', day.inMonth ? '' : 'opacity-45', day.isWeekend && day.inMonth ? 'bg-[var(--bg-subtle)]/50' : '', isDropTarget ? 'ring-2 ring-inset ring-gold bg-gold/10' : 'hover:bg-[var(--bg-subtle)]/60', ].join(' ')} style={ isOpenGap && !isDropTarget ? { backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 7px, var(--border) 7px, var(--border) 8px)', } : undefined } > <div className=\"flex items-center justify-between gap-1\"> <span className={[ 'text-[11px] font-semibold w-5 h-5 flex items-center justify-center rounded-full', isToday ? 'bg-gold text-navy' : day.inMonth ? 'text-[var(--fg-muted)]' : 'text-[var(--fg-faint)]', ].join(' ')} > {day.dayOfMonth} </span> {isBusy && ( <span title={`${items.length} pieces land on this day`} className=\"px-1.5 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 rounded-full leading-none\" > {items.length} </span> )} </div> {items.slice(0, MAX_CHIPS_PER_CELL).map((item) => ( <Link key={item.id} href={`/editorial/articles/${item.id}/edit`} onClick={(e) => e.stopPropagation()} draggable={item.status === 'SCHEDULED'} onDragStart={(e) => { if (item.status !== 'SCHEDULED') return e.dataTransfer.setData('text/plain', item.id) e.dataTransfer.effectAllowed = 'move' setDraggingId(item.id) }} onDragEnd={() => { setDraggingId(null) setDragOverKey(null) }} title={`${item.title} (${STATUS_LABEL[item.status] ?? item.status}${item.timeLabel ? `, ${item.timeLabel}` : ''})`} className={[ 'block border-l-2 px-1.5 py-1 text-[11px] leading-tight hover:opacity-80 transition-opacity', CHIP_STYLE[item.status] ?? CHIP_STYLE.DRAFT, pendingIds.has(item.id) ? 'opacity-50 animate-pulse' : '', ].join(' ')} style={item.status === 'SCHEDULED' ? GRAB_CURSOR : undefined} > <span className=\"block font-semibold truncate\"> {item.timeLabel && ( <span className=\"font-normal opacity-70\">{item.timeLabel} </span> )} {item.title} </span> <span className=\"block truncate opacity-70\"> {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''} </span> </Link> ))} {overflow > 0 && ( <button onClick={(e) => { e.stopPropagation() openDayPanel(day.key, e.currentTarget.closest('[role=\"button\"]') as HTMLElement) }} className=\"text-left text-[11px] font-semibold text-[var(--fg-muted)] hover:text-gold px-1.5\" > +{overflow} more </button> )} </div> ) })"
+      "line": 317,
+      "source": "week.map((day, di) => { const items = effectiveByDay[day.key] ?? [] const isToday = day.key === todayKey const isBusy = items.length >= 2 const isOpenGap = day.inMonth && !day.isWeekend && items.length === 0 const isDropTarget = dragOverKey === day.key && draggingId !== null const overflow = items.length - MAX_CHIPS_PER_CELL return ( <div key={day.key} role=\"button\" tabIndex={0} aria-label={`${formatDayHeading(day.key)}, ${items.length === 0 ? 'nothing planned' : `${items.length} item${items.length === 1 ? '' : 's'}`}`} onClick={(e) => openDayPanel(day.key, e.currentTarget)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault() openDayPanel(day.key, e.currentTarget) } }} onDragOver={(e) => { if (!activeDrag.current) return e.preventDefault() e.dataTransfer.dropEffect = 'move' if (dragOverKey !== day.key) setDragOverKey(day.key) }} onDragLeave={(e) => { // Ignore moves onto the cell's own children, only // clear when the drag truly leaves the cell. if (e.currentTarget.contains(e.relatedTarget as Node)) return if (dragOverKey === day.key) setDragOverKey(null) }} onDrop={(e) => { e.preventDefault() void handleDrop(day.key) }} className={[ 'min-h-[112px] lg:min-h-[124px] p-1.5 flex flex-col gap-1 cursor-pointer text-left align-top', di > 0 ? 'border-l border-[var(--border)]' : '', day.inMonth ? '' : 'opacity-45', day.isWeekend && day.inMonth ? 'bg-[var(--bg-subtle)]/50' : '', isDropTarget ? 'ring-2 ring-inset ring-gold bg-gold/10' : 'hover:bg-[var(--bg-subtle)]/60', ].join(' ')} style={ isOpenGap && !isDropTarget ? { backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 7px, var(--border) 7px, var(--border) 8px)', } : undefined } > <div className=\"flex items-center justify-between gap-1\"> <span className={[ 'text-[11px] font-semibold w-5 h-5 flex items-center justify-center rounded-full', isToday ? 'bg-gold text-navy' : day.inMonth ? 'text-[var(--fg-muted)]' : 'text-[var(--fg-faint)]', ].join(' ')} > {day.dayOfMonth} </span> {isBusy && ( <span title={`${items.length} pieces land on this day`} className=\"px-1.5 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 rounded-full leading-none\" > {items.length} </span> )} </div> {items.slice(0, MAX_CHIPS_PER_CELL).map((item) => ( <Link key={item.id} href={`/editorial/articles/${item.id}/edit`} onClick={(e) => e.stopPropagation()} draggable={item.status === 'SCHEDULED'} onDragStart={(e) => { if (item.status !== 'SCHEDULED') return e.dataTransfer.setData('text/plain', item.id) e.dataTransfer.effectAllowed = 'move' activeDrag.current = item.id setDraggingId(item.id) }} onDragEnd={() => { activeDrag.current = null setDraggingId(null) setDragOverKey(null) }} title={`${item.title} (${STATUS_LABEL[item.status] ?? item.status}${item.timeLabel ? `, ${item.timeLabel}` : ''})`} className={[ 'block border-l-2 px-1.5 py-1 text-[11px] leading-tight hover:opacity-80 transition-opacity', CHIP_STYLE[item.status] ?? CHIP_STYLE.DRAFT, pendingIds.has(item.id) ? 'opacity-50 animate-pulse' : '', ].join(' ')} style={item.status === 'SCHEDULED' ? GRAB_CURSOR : undefined} > <span className=\"block font-semibold truncate\"> {item.timeLabel && ( <span className=\"font-normal opacity-70\">{item.timeLabel} </span> )} {item.title} </span> <span className=\"block truncate opacity-70\"> {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''} </span> </Link> ))} {overflow > 0 && ( <button onClick={(e) => { e.stopPropagation() openDayPanel(day.key, e.currentTarget.closest('[role=\"button\"]') as HTMLElement) }} className=\"text-left text-[11px] font-semibold text-[var(--fg-muted)] hover:text-gold px-1.5\" > +{overflow} more </button> )} </div> ) })"
     },
     {
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 391,
-      "source": "items.slice(0, MAX_CHIPS_PER_CELL).map((item) => ( <Link key={item.id} href={`/editorial/articles/${item.id}/edit`} onClick={(e) => e.stopPropagation()} draggable={item.status === 'SCHEDULED'} onDragStart={(e) => { if (item.status !== 'SCHEDULED') return e.dataTransfer.setData('text/plain', item.id) e.dataTransfer.effectAllowed = 'move' setDraggingId(item.id) }} onDragEnd={() => { setDraggingId(null) setDragOverKey(null) }} title={`${item.title} (${STATUS_LABEL[item.status] ?? item.status}${item.timeLabel ? `, ${item.timeLabel}` : ''})`} className={[ 'block border-l-2 px-1.5 py-1 text-[11px] leading-tight hover:opacity-80 transition-opacity', CHIP_STYLE[item.status] ?? CHIP_STYLE.DRAFT, pendingIds.has(item.id) ? 'opacity-50 animate-pulse' : '', ].join(' ')} style={item.status === 'SCHEDULED' ? GRAB_CURSOR : undefined} > <span className=\"block font-semibold truncate\"> {item.timeLabel && ( <span className=\"font-normal opacity-70\">{item.timeLabel} </span> )} {item.title} </span> <span className=\"block truncate opacity-70\"> {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''} </span> </Link> ))"
+      "line": 395,
+      "source": "items.slice(0, MAX_CHIPS_PER_CELL).map((item) => ( <Link key={item.id} href={`/editorial/articles/${item.id}/edit`} onClick={(e) => e.stopPropagation()} draggable={item.status === 'SCHEDULED'} onDragStart={(e) => { if (item.status !== 'SCHEDULED') return e.dataTransfer.setData('text/plain', item.id) e.dataTransfer.effectAllowed = 'move' activeDrag.current = item.id setDraggingId(item.id) }} onDragEnd={() => { activeDrag.current = null setDraggingId(null) setDragOverKey(null) }} title={`${item.title} (${STATUS_LABEL[item.status] ?? item.status}${item.timeLabel ? `, ${item.timeLabel}` : ''})`} className={[ 'block border-l-2 px-1.5 py-1 text-[11px] leading-tight hover:opacity-80 transition-opacity', CHIP_STYLE[item.status] ?? CHIP_STYLE.DRAFT, pendingIds.has(item.id) ? 'opacity-50 animate-pulse' : '', ].join(' ')} style={item.status === 'SCHEDULED' ? GRAB_CURSOR : undefined} > <span className=\"block font-semibold truncate\"> {item.timeLabel && ( <span className=\"font-normal opacity-70\">{item.timeLabel} </span> )} {item.title} </span> <span className=\"block truncate opacity-70\"> {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''} </span> </Link> ))"
     },
     {
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 467,
+      "line": 473,
       "source": "unscheduled.map((item) => ( <li key={item.id}> <Link href={`/editorial/articles/${item.id}/edit`} className=\"block px-4 py-2.5 hover:bg-[var(--bg-subtle)] transition-colors\" > <span className=\"flex items-center gap-1.5\"> <span className={`w-2 h-2 rounded-full shrink-0 ${DOT_STYLE[item.status] ?? DOT_STYLE.DRAFT}`} /> <span className=\"text-[12px] font-semibold text-[var(--fg)] truncate\"> {item.title} </span> </span> <span className=\"block text-[11px] text-[var(--fg-faint)] truncate mt-0.5 pl-3.5\"> {STATUS_LABEL[item.status] ?? item.status} · {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''} </span> </Link> </li> ))"
     },
     {
       "file": "src/components/editorial/CalendarView.tsx",
-      "line": 538,
+      "line": 544,
       "source": "panelItems.map((item) => ( <li key={item.id} className=\"px-4 py-3\"> <span className=\"flex items-center gap-2 mb-1\"> <span className={`px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-sm border-l-2 ${CHIP_STYLE[item.status] ?? CHIP_STYLE.DRAFT}`} > {STATUS_LABEL[item.status] ?? item.status} </span> {item.timeLabel && ( <span className=\"text-[11px] text-[var(--fg-muted)]\">{item.timeLabel}</span> )} </span> <Link href={`/editorial/articles/${item.id}/edit`} className=\"block text-[13px] font-semibold text-[var(--fg)] hover:text-gold transition-colors\" style={{ fontFamily: 'var(--font-serif)' }} > {item.title} </Link> <p className=\"text-[11px] text-[var(--fg-faint)] mt-0.5\"> {item.authorName} {item.categoryName ? ` · ${item.categoryName}` : ''} </p> </li> ))"
     },
     {
