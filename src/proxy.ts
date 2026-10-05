@@ -33,6 +33,9 @@ const PUBLIC_PAGE_PREFIXES = [
 function isPublicApi(pathname: string) {
   if (process.env.E2E_ISOLATED === '1' && pathname === '/api/test-attestation') return true
   if (/^\/api\/editorial\/articles\/[^/]+\/view$/.test(pathname)) return true
+  // Used by the signed-out "Forgot password?" form (POST) and the reset-link page (PATCH). Exact
+  // match only: the route has no sub-paths and every other /api/editorial route needs a session.
+  if (pathname === '/api/editorial/password-reset') return true
   // Exact match or a `prefix/...` sub-path only. A bare `startsWith(prefix)`
   // fallback would wrongly treat e.g. `/api/teams` as public via `/api/team`,
   // so path-segment matching is enforced here.
