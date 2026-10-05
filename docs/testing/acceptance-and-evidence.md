@@ -272,3 +272,12 @@ npm run lint
 ```
 
 Limits remain explicit: controlled hosted failures are injected at the client/API boundary, not an actual Supabase internal outage. All toolbar controls and the broader clock/failure matrix have local ordinary/simulator evidence; they are not all repeated remotely. Production migration/backfill/application deployment and production post-deployment smoke are not performed. Real Safari/Firefox/OS print output are not newly claimed.
+
+
+## Final deployment/build checks
+
+Commit `e020131` reached READY on the approved isolated test project (`dpl_CmVAHP7fPxmfjcxd2ZagczNS6sKX`) and the configured feature preview (`dpl_C5G7AzQCC1eovdVkHCMWqgNaf995`). Hosted 413 feedback is checked using an explicitly controlled API-boundary rejection; it is not described as a real storage outage. Near-limit normal-browser upload probes returned 200, while the separately recorded oversized multipart API request returned the hosting 413. They are different probes and no failed 413 expectation is counted as a pass.
+
+The first local testing-disabled production compilation failed in Turbopack's virtual Google-font resolver (`test-results/disabled-build-2480/build.log`). A fresh `npm ci` in the isolated release worktree at the identical commit, followed by `TEST_DATABASE_URL=postgresql://postgres@localhost:55435/consilium npm run test:build-disabled`, passed (`test-results/disabled-build-5857/build.log`). Font settings, bundler selection, build checks and application assertions were unchanged. This distinguishes the observed local dependency/build artifact failure from a source-code regression rather than discarding its log.
+
+Publishing the temporary reconciliation branch unnecessarily queued an unconfigured auxiliary preview. That queued deployment was canceled and the temporary remote branch removed; its local worktree/history remain. No production deployment was started. Vercel's single commit-status context was overwritten by that cancellation despite the actual configured feature preview being READY. This documentation follow-up creates a fresh feature-branch deployment/status; its automatic application CI is allowed to finish and its exact results are retained in `evidence/final-ci.json` and PR checks. No status was manually forged or failing check deleted.
