@@ -1,9 +1,8 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { requirePortalRole } from '@/lib/portalAccess'
 import { prisma } from '@/lib/prisma'
 import { ArticleEditor } from '@/components/admin/ArticleEditor'
 import { formatEditorialScheduleInput } from '@/lib/editorialSchedule'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { articleVersion } from '@/lib/articleVersion'
 import type { Metadata } from 'next'
 import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
@@ -19,9 +18,7 @@ export const metadata: Metadata = {
 }
 
 export default async function EditorialEditArticlePage({ params }: Props) {
-  const session = await getServerSession(authOptions)
-  if (!session) redirect('/editorial/login')
-  if (session.user.role === 'GROWTH') redirect('/editorial')
+  const session = await requirePortalRole(['ADMIN', 'EDITOR', 'WRITER'])
 
   const { id } = await params
   const isEditorOrAdmin = session.user.role === 'ADMIN' || session.user.role === 'EDITOR'
@@ -35,7 +32,7 @@ export default async function EditorialEditArticlePage({ params }: Props) {
     include: { tags: { include: { tag: true } } },
   }).catch(() => null)
 
-  if (!article) notFound()
+  if (!article || article.deletedAt) notFound()
 
   const editorScope = session.user.role === 'EDITOR'
     ? await loadEditorCategoryScope(session.user.id)

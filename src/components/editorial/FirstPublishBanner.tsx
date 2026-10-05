@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 import { GAMIFICATION_API_ROUTES } from '@/lib/constants'
 
 /**
@@ -13,18 +14,22 @@ import { GAMIFICATION_API_ROUTES } from '@/lib/constants'
  */
 export function FirstPublishBanner({ achievementId }: { achievementId: string }) {
   const [dismissed, setDismissed] = useState(false)
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState('')
 
   if (dismissed) return null
 
-  const dismiss = () => {
-    // Hide optimistically. A failed mark-seen only means the banner reappears on
-    // the next load, which is acceptable, so this is fire-and-forget.
-    setDismissed(true)
-    fetch(GAMIFICATION_API_ROUTES.achievementsMarkSeen, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: [achievementId] }),
-    }).catch(() => {})
+  const dismiss = async () => {
+    if (pending) return
+    setPending(true); setError('')
+    try {
+      await apiRequest(GAMIFICATION_API_ROUTES.achievementsMarkSeen, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [achievementId] }),
+      })
+      setDismissed(true)
+    } catch (cause) { setError(asApiError(cause).message) }
+    finally { setPending(false) }
   }
 
   return (
@@ -35,9 +40,11 @@ export function FirstPublishBanner({ achievementId }: { achievementId: string })
       <p className="text-sm font-medium" style={{ fontFamily: 'var(--font-serif)' }}>
         Your first article has been published.
       </p>
+      {error && <p role="alert" className="text-red-500 text-sm">{error}</p>}
       <button
         type="button"
-        onClick={dismiss}
+        onClick={() => void dismiss()}
+        disabled={pending}
         aria-label="Dismiss"
         className="flex h-11 w-11 shrink-0 items-center justify-center text-navy/60 hover:text-navy"
       >

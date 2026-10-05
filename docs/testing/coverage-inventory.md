@@ -1,19 +1,30 @@
-# Coverage inventory
+# Role and action coverage inventory
 
 What each kind of account can open and do, and which automated test exercises it. Current appointment/testing-mode evidence and remaining limitations are in [acceptance-and-evidence.md](./acceptance-and-evidence.md); checks outside its recorded selections reflect the earlier workflow audit.
 
-- **Observed** means the control list was read from the rendered page by `wf-roles.spec.ts`
-  (run with `E2E_INVENTORY_DIR=/some/dir` to regenerate the JSON), not only from source.
-- **Browser** = Playwright clicking the real control. **API/unit** = no browser.
-- Status: ✅ covered · 🟡 partly · ❌ not covered · ⛔ intentionally unavailable · 🚧 blocked in the test environment.
+Methods: **BROWSER** = an actual control/navigation/form driven by Playwright; **API_DB** = an HTTP or database assertion alone; **UNIT** = in-process isolated behaviour; **INSPECTION** = source only; **UNAVAILABLE** = intentionally absent/disabled; **UNCOVERED** = enabled action not yet exercised; **EXTERNAL_BLOCK** = unavailable controlled integration/device. Fixtures prepare representative records; database read-back verifies persistence but does not replace the listed user action. Dynamic records are action families, not literal production rows. Equivalent palette colours/table dimensions share a family; distinct table actions and permission/state transitions are exercised separately.
 
-Test files are in `tests/e2e/` unless a path says otherwise.
+## Routes and role menus
 
-## 1. Accounts and who can open what
+The complete final-source [route/control census](control-inventory.json) records every discovered page, inherited layout controls, button/link/form/input/tab/menu/switch declaration, enabled condition, handler, native dialog and dynamic map family. Its candidate tests are inspection references only. `wf-roles` validates exact Writer, Editor, Admin, Growth and Reader portal menus, clicks actual desktop menu links, and exercises all four authorised roles' phone drawer links/close/backdrop/theme/home/sign-out. Query-only navigation must close and unlock the drawer. Sensitive API boundaries remain separately identified. `wf-mobile` exercises the mobile editorial lifecycle and responsive controls. Rendered snapshots are captured automatically under each run's `inventory/<browser>/<role>.json`.
 
-Menu per role is asserted exactly by `wf-roles.spec.ts` ("the menu is exactly the documented one"),
-every entry is opened ("every menu entry opens"), and pages outside the role must be refused
-("editorial pages outside the role are refused").
+| Route family | Writer | Editor | Admin | Growth | Reader | Expected boundary / verification |
+|---|---|---|---|---|---|---|
+| `/editorial`, public `/profile` | Portal + profile | Portal + profile | Portal + profile | Portal + profile | Profile; portal denied | Role menus/pages BROWSER, `wf-roles`, `wf-reader` |
+| Team Profile | Own | Own | Admin explanation/manage | Own | Denied | BROWSER `team-profile*`; public roster and ownership read-back |
+| Articles/new/edit/My Drafts | Own | Managed/category scope | Any | Denied | Denied | BROWSER `wf-lifecycle`, `wf-articles`, `editor-scope`; direct API boundaries separate |
+| Review/queue/scheduled/series | Denied review; submitted content locked | Managed scope | Any | Denied | Denied | BROWSER lifecycle/portal/controls; exact response/state/public visibility |
+| Trash | Own permitted drafts/rejections | Managed scope | Any | Denied | Denied | BROWSER `wf-access`, `wf-articles`; restore/permanent-delete confirmations |
+| Debates/comments | Denied management | Allowed | Allowed | Denied management | Denied management | BROWSER `wf-admin-content`, `wf-remaining`; API moderation boundaries separate |
+| Calendar/predictions/users/glossary | Denied | Denied | Allowed | Denied | Denied | BROWSER `wf-portal`, `wf-admin-profile`; UNIT/API_DB boundary tests |
+| Analytics/subscribers/engagement/writer metrics | Denied reports | Denied reports | Allowed | Allowed | Denied | BROWSER ranges/tabs/search/CSV; metrics partly UNIT/API_DB |
+| Your Readers/leaderboard | Own metrics | Own | Any/management | Direct permitted leaderboard | Denied portal | BROWSER `wf-discovery` author/period/sort/detail controls; calculations UNIT/API_DB |
+| Legacy `/admin/data`, `/admin/login-attempts`, `/admin/team` | Denied | Denied | Allowed | Denied | Denied | BROWSER `wf-remaining`, Team Profile; deletion API negative checks separate |
+| Legacy `/admin/subscribers` | Denied | Allowed by existing route policy | Allowed | Denied | Denied | BROWSER navigation; portal subscriber workflows use Admin/Growth |
+| `/predictions`, detail, leaderboard trial | Denied | Denied | Allowed | Denied | Denied | BROWSER `wf-portal`; intentionally gated trial |
+| `/editorial/setup` | First-admin form only without existing admin | Same | Same | Same | Same | BROWSER conditional empty-admin fixture in owned database; existing-admin redirect/403 |
+| Public home/category/archive/search/tag/author/article/debate/team/static policies/contact | Public | Public | Public | Public | Public | BROWSER `public`, `wf-discovery` category tabs/carousel/archive filters/pagination, `footnotes`, reader/mobile; API_DB crawl separate |
+| Public login/signup/forgot/reset/unsubscribe/banned | Account/session-dependent forms | Same | Same | Same | Same | BROWSER account/access tests; captured transport only |
 
 | Page | Writer | Editor | Admin | Growth | Reader |
 |---|---|---|---|---|---|
@@ -32,7 +43,7 @@ every entry is opened ("every menu entry opens"), and pages outside the role mus
 | Leaderboard | ✅ menu | by URL | by URL | by URL | ⛔ |
 | Public site, `/profile` | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-## 2. Article workflow
+Every row maps expected behaviour to test locations and a verification method. Final run outcomes are pending; historical passes must not be described as final verification. Files live under `tests/e2e/` unless specified otherwise.
 
 | Action | Writer | Editor/Admin | Test |
 |---|---|---|---|

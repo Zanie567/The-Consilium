@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { formatDistanceToNow } from 'date-fns'
+import { useState, useRef, useEffect } from 'react'
+import { formatDistance } from 'date-fns'
 import { Trash2, RotateCcw } from 'lucide-react'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 
@@ -23,15 +23,21 @@ const STATUS_LABEL: Record<string, string> = {
   ARCHIVED: 'Archived',
 }
 
-export function TrashList({ initialArticles }: { initialArticles: TrashedArticle[] }) {
+export function TrashList({ initialArticles, referenceTime }: { initialArticles: TrashedArticle[]; referenceTime: string }) {
   const [articles, setArticles] = useState<TrashedArticle[]>(initialArticles)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [toastMsg, setToastMsg] = useState('')
+  const [toastError, setToastError] = useState(false)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (toastTimer.current !== null) clearTimeout(toastTimer.current) }, [])
 
-  function showToast(msg: string) {
+  function showToast(msg: string, error = false) {
+    if (toastTimer.current !== null) clearTimeout(toastTimer.current)
+    toastTimer.current = null
     setToastMsg(msg)
-    setTimeout(() => setToastMsg(''), 3000)
+    setToastError(error)
+    if (!error) toastTimer.current = setTimeout(() => { toastTimer.current = null; setToastMsg('') }, 3000)
   }
 
   async function restore(id: string) {
@@ -41,7 +47,7 @@ export function TrashList({ initialArticles }: { initialArticles: TrashedArticle
       setArticles((prev) => prev.filter((a) => a.id !== id))
       showToast('Article restored successfully.')
     } catch (reason) {
-      showToast(asApiError(reason).message)
+      showToast(asApiError(reason).message, true)
     } finally {
       setBusy(null)
     }
@@ -55,7 +61,7 @@ export function TrashList({ initialArticles }: { initialArticles: TrashedArticle
       setArticles((prev) => prev.filter((a) => a.id !== id))
       showToast('Article permanently deleted.')
     } catch (reason) {
-      showToast(asApiError(reason).message)
+      showToast(asApiError(reason).message, true)
     } finally {
       setBusy(null)
     }
@@ -65,7 +71,7 @@ export function TrashList({ initialArticles }: { initialArticles: TrashedArticle
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
       {/* Toast */}
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-50 bg-navy text-gold text-sm font-semibold px-5 py-3 shadow-lg border border-gold/30">
+        <div role={toastError ? 'alert' : 'status'} className="fixed bottom-6 right-6 z-50 bg-navy text-gold text-sm font-semibold px-5 py-3 shadow-lg border border-gold/30">
           {toastMsg}
         </div>
       )}
@@ -177,7 +183,7 @@ export function TrashList({ initialArticles }: { initialArticles: TrashedArticle
 
               {/* How long ago */}
               <span className="text-[var(--fg-faint)] text-xs whitespace-nowrap">
-                {formatDistanceToNow(new Date(article.deletedAt), { addSuffix: true })}
+                {formatDistance(new Date(article.deletedAt), new Date(referenceTime), { addSuffix: true })}
               </span>
 
               {/* Actions */}

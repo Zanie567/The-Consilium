@@ -7,6 +7,7 @@ import {
   resetTeamFixtures,
   type AccountKey,
 } from './helpers/teamFixtures'
+import { ArticleEditorPage } from './helpers/workflow'
 import { makePng, watch } from './helpers/e2eUtils'
 
 /**
@@ -79,9 +80,7 @@ test.describe('access by role', () => {
   })
 
   test('a reader cannot enter the portal at all', async ({ browser }) => {
-    const { context, page } = await loginAs(browser, 'reader').catch(() => {
-      throw new Error('reader login failed')
-    })
+    const { context, page } = await loginAs(browser, 'reader')
     await page.goto('/editorial/team-profile')
     await expect(page.getByText('Access Denied')).toBeVisible()
     await expect(page.locator('form')).toHaveCount(0)
@@ -664,7 +663,7 @@ test.describe('layout', () => {
     expect(form!.x).toBeGreaterThanOrEqual(nav!.x + nav!.width - 1)
     await expect(sidebarLink(page)).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-    await page.getByRole('button', { name: 'Decline' }).click().catch(() => {})
+    await new ArticleEditorPage(page).dismissCookieBanner()
     await page.waitForTimeout(800) // let the portal's fade-in finish before the screenshot
     await page.screenshot({ path: 'test-results/team-profile-desktop.png', fullPage: true })
     await context.close()

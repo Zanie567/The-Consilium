@@ -4,7 +4,7 @@ import { requireVerifiedSessionUser } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import { ALL_ROLES, ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 import type { Role } from '@prisma/client'
-import { MAX_ARTICLE_IMAGE_BYTES, MAX_AVATAR_BYTES } from '@/lib/constants'
+import { MAX_ARTICLE_IMAGE_BYTES, MAX_AVATAR_BYTES, MAX_SERVER_UPLOAD_BYTES } from '@/lib/constants'
 import { detectImageMimeType } from '@/lib/imageSniff'
 
 // Explicit allowlist of buckets callers may upload to.
@@ -32,6 +32,11 @@ const BUCKET_MAX_BYTES: Record<string, number> = {
   'article-images': MAX_ARTICLE_IMAGE_BYTES,
   avatars: MAX_AVATAR_BYTES,
 }
+
+/** Multipart boundaries, headers and bucket metadata in addition to the file. */
+const MULTIPART_OVERHEAD_BYTES = 64 * 1024
+const tooLarge = (bytes: number) =>
+  `File too large (max ${bytes / (1024 * 1024)} MB). Resize or compress the image and try again.`
 
 async function POSTHandler(request: NextRequest) {
   // Authenticate against the widest set here; the per-bucket check below narrows
@@ -65,6 +70,13 @@ async function POSTHandler(request: NextRequest) {
 
   const supabase = createClient(supabaseUrl, supabaseKey)
 
+  // Refuse an oversized body from its declared length, before reading it. (On Vercel the platform
+  // itself cuts off bodies over 4.5 MB; this covers anything between our limit and that.)
+  const declared = Number(request.headers.get('content-length') ?? 0)
+  if (declared > MAX_SERVER_UPLOAD_BYTES + MULTIPART_OVERHEAD_BYTES) {
+    return NextResponse.json({ error: tooLarge(MAX_SERVER_UPLOAD_BYTES) }, { status: 413 })
+  }
+
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
@@ -93,12 +105,9 @@ async function POSTHandler(request: NextRequest) {
       )
     }
 
-    const maxBytes = BUCKET_MAX_BYTES[bucketParam] ?? 10 * 1024 * 1024
+    const maxBytes = BUCKET_MAX_BYTES[bucketParam] ?? MAX_SERVER_UPLOAD_BYTES
     if (file.size > maxBytes) {
-      return NextResponse.json(
-        { error: `File too large (max ${Math.round(maxBytes / (1024 * 1024))} MB).` },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: tooLarge(maxBytes) }, { status: 413 })
     }
 
     // Read the file into a buffer so we can inspect its magic bytes

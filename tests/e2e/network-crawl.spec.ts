@@ -24,7 +24,8 @@ async function collectUrls(request: APIRequestContext): Promise<string[]> {
   const urls = new Set<string>(SEED_PAGES)
   for (const page of SEED_PAGES) {
     const res = await request.get(page)
-    if (res.ok()) internalLinks(await res.text()).forEach((u) => urls.add(u))
+    expect(res.status(), `crawl seed ${page}`).toBe(200)
+    internalLinks(await res.text()).forEach((u) => urls.add(u))
   }
   return [...urls].slice(0, 80) // safety cap
 }
@@ -42,14 +43,14 @@ test('single-threaded crawl: no internal URL (page or ?_rsc=) returns >= 400', a
   const failures: string[] = []
   for (const url of urls) {
     const s = await status(request, url, false)
-    if (s >= 400) failures.push(`${url} -> ${s}`)
+    if (s !== 200) failures.push(`${url} -> ${s}`)
     const rscStatus = await status(request, url, true)
-    if (rscStatus >= 400) failures.push(`${url}?_rsc -> ${rscStatus}`)
+    if (rscStatus !== 200) failures.push(`${url}?_rsc -> ${rscStatus}`)
   }
   expect(failures, `bad responses:\n${failures.join('\n')}`).toEqual([])
 })
 
-test('concurrent crawl: bursts of page + ?_rsc= requests stay < 500', async ({ request }) => {
+test('concurrent crawl: bursts of page + ?_rsc= requests return exactly 200', async ({ request }) => {
   const urls = await collectUrls(request)
 
   // Mix full renders and RSC prefetches into one concurrent burst, repeated, to
@@ -62,36 +63,34 @@ test('concurrent crawl: bursts of page + ?_rsc= requests stay < 500', async ({ r
     }
   }
   const results = await Promise.all(jobs)
-  const serverErrors = results.filter((r) => r.status >= 500)
+  const serverErrors = results.filter((r) => r.status !== 200)
   expect(
     serverErrors,
-    `5xx under concurrent load:\n${serverErrors.map((r) => `${r.url} -> ${r.status}`).join('\n')}`,
+    `non-200 under concurrent load:\n${serverErrors.map((r) => `${r.url} -> ${r.status}`).join('\n')}`,
   ).toEqual([])
 
-  // Also assert no 4xx on these public GETs (would indicate a broken link/route).
-  const clientErrors = results.filter((r) => r.status >= 400 && r.status < 500)
-  expect(clientErrors, `4xx under load:\n${clientErrors.map((r) => `${r.url} -> ${r.status}`).join('\n')}`).toEqual([])
 })
 
 // ── Broken-image guard ───────────────────────────────────────────────────────
-
-// Direct external-CDN images can flake (network/CDN) and are not the app's
-// responsibility. Everything else — the app's own assets and the /_next/image
-// optimizer (which itself proxies these CDNs) — must serve successfully, on any
-// host the audit runs against (localhost, 127.0.0.1, a preview deploy, …).
-const EXTERNAL_IMAGE_HOSTS = /(images\.unsplash\.com|lh3\.googleusercontent\.com|fonts\.gstatic\.com)/
 
 async function brokenImagesOn(page: Page, path: string): Promise<string[]> {
   const bad: string[] = []
   page.on('response', (r) => {
     if (r.request().resourceType() !== 'image') return
-    if (EXTERNAL_IMAGE_HOSTS.test(r.url())) return
-    if (r.status() >= 400) bad.push(`${path}: ${r.url()} -> ${r.status()}`)
+    if (r.status() !== 200) bad.push(`${path}: ${r.url()} -> ${r.status()}`)
   })
   await page.goto(path, { waitUntil: 'networkidle' })
   // Trigger lazy-loaded (below-the-fold) images.
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-  await page.waitForTimeout(700)
+  // Resource verification deliberately requests every rendered image, including
+  // lazy images, and waits for decoding rather than an arbitrary delay.
+  await page.locator('img').evaluateAll(async nodes => {
+    await Promise.all(nodes.map(async node => {
+      const image = node as HTMLImageElement
+      image.loading = 'eager'
+      try { await image.decode() } catch { /* The intrinsic-size assertion reports the failed asset. */ }
+    }))
+  })
   // Catch <img>s that resolved but failed to decode (e.g. 200 HTML masquerading
   // as an image): complete but zero intrinsic size.
   const decodeFailures = await page.locator('img').evaluateAll((nodes) =>

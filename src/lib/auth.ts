@@ -7,6 +7,7 @@ import { PrismaAdapter } from '@auth/prisma-adapter'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
+import { cache } from 'react'
 import { prisma } from './prisma'
 import { sendEmail } from './email'
 import { escapeHtml } from './escapeHtml'
@@ -55,6 +56,15 @@ async function notifyAdminOfLockout(lockedEmail: string, ip: string) {
     // Don't fail auth if notification fails
   }
 }
+
+/** Current role/ban/active state of an account. De-duplicated within one server render by React's cache. */
+const loadAccountState = cache(async (userId: string) => {
+  try {
+    return await prisma.user.findUnique({ where: { id: userId }, select: { role: true, isActive: true, isBanned: true } })
+  } catch {
+    return null // unverifiable: treated as restricted by the caller (fail closed)
+  }
+})
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -291,10 +301,18 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (token && session.user) {
-        session.user.role = token.role
         session.user.id = token.id
-        session.user.isBanned = token.isBanned ?? false
-        session.user.isActive = token.isActive ?? true
+        // The role, ban and active flags come from the DATABASE on every session read, not from the
+        // signed cookie. The cookie caches them for up to a minute, and server components read
+        // protected data straight from the database after trusting session.user.role, so a demoted,
+        // banned, deactivated or deleted account kept receiving other people's drafts and review
+        // pages from its old cookie. An account that is restricted, missing, or unverifiable reads
+        // as an inactive READER, so every role check fails closed.
+        const account = await loadAccountState(token.id)
+        const restricted = !account || !account.isActive || account.isBanned
+        session.user.role = restricted ? 'READER' : account.role
+        session.user.isBanned = account?.isBanned ?? true
+        session.user.isActive = account?.isActive ?? false
       }
       if (process.env.TESTING_MODE_ENABLED === '1' && session.user?.id) {
         const realId = session.user.id

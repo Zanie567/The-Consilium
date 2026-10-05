@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
-import { ADMIN_ONLY, EDITORIAL_MANAGEMENT_ROLES, isRole } from '@/lib/rbac'
+import { ADMIN_ONLY, isRole } from '@/lib/rbac'
 interface Props {
   params: Promise<{ id: string }>
 }
@@ -19,7 +19,7 @@ function hasOnlyKeys(keys: string[], allowed: Set<string>) {
 }
 
 export async function GET(_req: Request, { params }: Props) {
-  const caller = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  const caller = await getVerifiedSessionUser(ADMIN_ONLY)
   if (!caller) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -87,6 +87,20 @@ async function PATCHHandler(req: Request, { params }: Props) {
     return NextResponse.json({ error: 'Request includes fields you cannot update.' }, { status: 400 })
   }
 
+  if (categoryIds !== undefined) {
+    if (!Array.isArray(categoryIds) || categoryIds.some((id) => typeof id !== 'string' || !id)) {
+      return NextResponse.json({ error: 'categoryIds must be an array of category IDs.' }, { status: 400 })
+    }
+    if (new Set(categoryIds).size !== categoryIds.length) {
+      return NextResponse.json({ error: 'categoryIds must not contain duplicates.' }, { status: 400 })
+    }
+    const categories = await prisma.category.findMany({ where: { id: { in: categoryIds } }, select: { id: true } })
+    if (categories.length !== categoryIds.length) {
+      return NextResponse.json({ error: 'One or more categories no longer exist.' }, { status: 400 })
+    }
+  }
+
+  const categorySelection = categoryIds as string[] | undefined
   const updates: Record<string, unknown> = {}
   if (typeof isActive === 'boolean') updates.isActive = isActive
   if (typeof name === 'string' && name.trim()) updates.name = name.trim()
@@ -140,23 +154,14 @@ async function PATCHHandler(req: Request, { params }: Props) {
       })
     }
 
+    if (categorySelection !== undefined) {
+      await tx.categoryEditor.deleteMany({ where: { userId: id } })
+      if (categorySelection.length > 0) {
+        await tx.categoryEditor.createMany({ data: categorySelection.map((categoryId: string) => ({ userId: id, categoryId })) })
+      }
+    }
     return updated
   })
-
-  if (categoryIds !== undefined) {
-    if (caller.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Only admins can update category assignments.' }, { status: 403 })
-    }
-    if (!Array.isArray(categoryIds)) {
-      return NextResponse.json({ error: 'categoryIds must be an array.' }, { status: 400 })
-    }
-    await prisma.categoryEditor.deleteMany({ where: { userId: id } })
-    if (categoryIds.length > 0) {
-      await prisma.categoryEditor.createMany({
-        data: categoryIds.map((cid: string) => ({ userId: id, categoryId: cid })),
-      })
-    }
-  }
 
   return NextResponse.json(user)
 }

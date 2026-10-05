@@ -109,7 +109,7 @@ export function Navbar() {
         style={{ top: 'var(--testing-banner-height, 0px)' }}
         className={`sticky top-0 z-50 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ease-out ${
           scrolled
-            ? 'bg-navy/[0.85] backdrop-blur-[12px] shadow-[0_4px_24px_rgba(0,0,0,0.28)] border-b border-gold/20'
+            ? 'bg-navy/[0.85] backdrop-blur-[12px] shadow-[0_4px_24px_rgba(0,0,0,0.28)] border-b-2 border-gold/20'
             : 'bg-navy border-b-2 border-gold'
         }`}
       >
@@ -258,6 +258,7 @@ export function Navbar() {
               </button>
               <button
                 type="button"
+                aria-label="Close search"
                 onClick={() => setSearchOpen(false)}
                 className="text-cream/40 hover:text-cream transition-colors"
               >

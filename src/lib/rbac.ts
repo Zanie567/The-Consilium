@@ -4,6 +4,10 @@ export const ALL_ROLES = ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'] as co
 export const ADMIN_ONLY = ['ADMIN'] as const satisfies readonly Role[]
 export const EDITORIAL_MANAGEMENT_ROLES = ['ADMIN', 'EDITOR'] as const satisfies readonly Role[]
 export const ARTICLE_MUTATION_ROLES = ['ADMIN', 'EDITOR', 'WRITER'] as const satisfies readonly Role[]
+// Roles that publish under their own name, so a public author page (/author/<slug or id>) is
+// meant to exist for them. Readers and growth staff do not write, so nothing offers to share
+// a link to a page about them.
+export const PUBLIC_AUTHOR_PROFILE_ROLES = ARTICLE_MUTATION_ROLES
 export const ANALYTICS_ACCESS_ROLES = ['ADMIN', 'GROWTH'] as const satisfies readonly Role[]
 export const EDITORIAL_PORTAL_ROLES = ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH'] as const satisfies readonly Role[]
 export const EDITOR_USER_TARGET_ROLES = ['WRITER', 'READER'] as const satisfies readonly Role[]

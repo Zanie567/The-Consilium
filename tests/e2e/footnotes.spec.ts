@@ -41,7 +41,9 @@ async function prep(page: Page) {
   await page.addStyleTag({ content: 'html{scroll-behavior:auto !important}' })
   // Let the entrance animation settle so positions are stable.
   await expect(page.locator('#fnref-1')).toBeVisible()
-  await page.waitForTimeout(900)
+  await expect(page.locator('#article-body').locator('..')).toHaveCSS('opacity', '1')
+  await expect(page.locator('#article-body').locator('..')).toHaveCSS('transform', 'none')
+  await page.evaluate(() => document.fonts.ready)
 }
 
 /** Centre a marker (or its inner link) and return its viewport centre point. */
@@ -52,6 +54,9 @@ async function point(page: Page, selector: string) {
   // the unrelated one-pixel header change is attributed to opening the tip.
   await expect(page.locator('header').first()).toHaveCSS('border-bottom-width', '1px')
   return page.locator(selector).evaluate((el) => {
+    // The site scrolls smoothly (html { scroll-behavior: smooth }); measuring mid-animation returns
+    // a point the element has already left, so scroll instantly and measure the final position.
+    el.scrollIntoView({ block: 'center', behavior: 'instant' })
     const target = el.querySelector('a') ?? el
     const r = target.getBoundingClientRect()
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 }
@@ -78,6 +83,8 @@ test.describe('desktop', () => {
     const p = await point(page, '#fnref-2')
     const before = await page.evaluate(() => ({
       h: document.body.scrollHeight,
+      documentHeight: document.documentElement.scrollHeight,
+      body: document.body.getBoundingClientRect().toJSON(),
       box: document.getElementById('fnref-2')!.getBoundingClientRect().toJSON(),
     }))
 
@@ -91,8 +98,11 @@ test.describe('desktop', () => {
     // Opening the popover must not move the page or the marker
     const after = await page.evaluate(() => ({
       h: document.body.scrollHeight,
+      documentHeight: document.documentElement.scrollHeight,
+      body: document.body.getBoundingClientRect().toJSON(),
       box: document.getElementById('fnref-2')!.getBoundingClientRect().toJSON(),
     }))
+    await test.info().attach('popover-geometry.json', { body: JSON.stringify({ before, after }), contentType: 'application/json' })
     expect(after.h).toBe(before.h)
     expect(after.box).toEqual(before.box)
 

@@ -45,7 +45,8 @@ export function validateAvatarUrl(value: string): AvatarUrlResult {
     return { ok: false, error: 'That is not a valid image URL.' }
   }
 
-  if (parsed.protocol !== 'https:') {
+  const localTestStorage = process.env.E2E_ISOLATED === '1' && process.env.NEXT_IMAGE_ALLOW_LOCAL_STORAGE === '1' && parsed.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(parsed.hostname) && trimmed.startsWith(prefix)
+  if (parsed.protocol !== 'https:' && !localTestStorage) {
     return { ok: false, error: 'Profile images must be served over https.' }
   }
 

@@ -1,0 +1,15 @@
+# Reconciliation of PR #111 and PR #112
+
+This branch combines PR #112 public appointments/testing identities with PR #111 draft recovery, publication confirmation, fresh account authorization, account-data/reset security, upload limits, image cancellation backport, accessibility and the full workflow audit. The original working trees and their unrelated/uncommitted changes are preserved. No production database, storage, permissions, GitHub secrets or production deployment is changed.
+
+Public articles keep the owner's confirmed house style. Semantic content, figures and captions remain; draft/editor presentation settings are retained in JSON. The conflicting public CSS preservation in #111 is deliberately not applied. Unit and browser assertions retain this policy.
+
+The actual application uses the same effective testing account across new recovery pages, normal handlers and upload changes. Self-service public appointments remain read-only; administrator permissions do not determine masthead placement.
+
+The automated launcher combines #111's independently owned disposable database, artifacts, authentication state and email outbox with #112's schema/readiness checks, seeded verified personas, database mutation leases and storage/profile suites. TEST_DATABASE_URL remains its source of truth; hosted Supabase, production destinations, unsafe base URLs, unknown listeners and cached builds are refused. A run drops only its own database, after waiting for its owned services. Existing standalone SQL suites retain scoped fixtures and the database host guard; browser runs additionally require exact per-run ownership.
+
+CI preserves all public/mobile, editor-scope, lifecycle, desktop workflow, simulator and profile projects. Desktop workflow matching includes new #111 screens automatically. Separate runners own their respective local resources. Browser retries stay zero; individual action deadlines remain unchanged. Reports exclude captured outbox messages and authentication state. The inherited narrow WebKit canceled-localhost-RSC diagnostic exception and its unit test remain explicit; application/API/other page errors remain assertions.
+
+Recent failure notifications reviewed on 5 October include repeated development CI failures on #111/#112 and superseded canceled runs. The latest #111 build at 478c260 failed on /editorial/setup querying a database during static prerender. Setup now waits for connection() before that live decision; its regression proves no database read occurs before an incoming request. Latest production scheduled trophy/streak/engagement runs in the inspected recent list passed. Historical scheduled-job failures remain historical; this integration does not claim to fix unknown current secret, endpoint or infrastructure failures merely by merging.
+
+Verification is in progress. Exact results, remaining failures, source SHA and release reconciliation will be recorded before the review handoff. Production release still requires the separately reviewed additive migration/backfill and appointment ambiguity resolution described in appointments-and-testing-mode.md.

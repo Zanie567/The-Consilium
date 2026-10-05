@@ -154,11 +154,13 @@ describe('publishing refreshes the hero', () => {
   })
 
   it('never turns a revalidation hiccup into a failed publish', () => {
+    const error = new Error('cache unavailable')
     revalidateTag.mockImplementationOnce(() => {
-      throw new Error('cache unavailable')
+      throw error
     })
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     expect(() => revalidateArticleLists()).not.toThrow()
+    expect(consoleError).toHaveBeenCalledWith('[revalidateArticleLists] failed:', error)
     consoleError.mockRestore()
   })
 })

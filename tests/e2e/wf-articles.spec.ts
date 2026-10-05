@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { ArticleEditorPage, articleByTitle, closeDb, db, removeMyArticles, signedIn, uniqueTitle } from './helpers/workflow'
+import { ArticleEditorPage, articleByTitle, closeDb, confirmPublicChange, db, removeMyArticles, signedIn, uniqueTitle } from './helpers/workflow'
 
 /**
  * The article list and the trash, as an editor: publish/unpublish from the list, move to
@@ -58,12 +58,14 @@ test('Publish and Unpublish in the list change what the public can see', async (
 
   const put = page.waitForResponse((r) => r.url().includes(`/api/articles/${articleId}`) && r.request().method() === 'PUT')
   await row(page).getByRole('button', { name: 'Publish', exact: true }).click()
+  await confirmPublicChange(page, 'Publish now')
   expect((await put).status()).toBe(200)
   expect((await articleByTitle(TITLE))!.status).toBe('PUBLISHED')
   expect(await publicStatus(browser)).toBe(200)
 
   const back = page.waitForResponse((r) => r.url().includes(`/api/articles/${articleId}`) && r.request().method() === 'PUT')
   await row(page).getByRole('button', { name: 'Unpublish', exact: true }).click()
+  await confirmPublicChange(page, 'Unpublish')
   expect((await back).status()).toBe(200)
   expect((await articleByTitle(TITLE))!.status).toBe('DRAFT')
   expect(await publicStatus(browser)).toBe(404)

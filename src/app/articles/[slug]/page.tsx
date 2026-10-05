@@ -335,7 +335,7 @@ export default async function ArticlePage({ params }: Props) {
                 Series: {article.series.title}
               </p>
               <p className="text-[var(--fg-faint)] text-xs">
-                Part {(article.seriesOrder ?? seriesPosition + 1)} of {seriesArticles.length}
+                Part {seriesPosition + 1} of {seriesArticles.length}
               </p>
             </div>
           </AnimateIn>
@@ -411,8 +411,8 @@ export default async function ArticlePage({ params }: Props) {
             className="prose-consilium"
             dangerouslySetInnerHTML={{ __html: glossary.html }}
           />
-          <ArticleAnchorLinks containerSelector="#article-body" />
-          {glossary.hasLinks && <GlossaryTooltips containerSelector="#article-body" />}
+          <ArticleAnchorLinks key={article.id} containerSelector="#article-body" />
+          {glossary.hasLinks && <GlossaryTooltips key={article.id} containerSelector="#article-body" />}
           {/* Keyed on the article id so client-side navigation between two
               footnoted articles remounts the effect and rebinds listeners to
               the new #article-body markers (the div's innerHTML is swapped in
@@ -558,7 +558,7 @@ export default async function ArticlePage({ params }: Props) {
                 <StaggerItem key={rel.id}>
                   <article className="relative bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden group card-hover shadow-[var(--shadow-card)] h-full flex flex-col">
                     <Link href={`/articles/${rel.slug}`} className="absolute inset-0 z-0" aria-label={rel.title} />
-                    <div className="relative h-44 bg-navy/10 overflow-hidden img-zoom flex-shrink-0">
+                    <div className="pointer-events-none relative h-44 bg-navy/10 overflow-hidden img-zoom flex-shrink-0">
                       {rel.coverImage ? (
                         <Image src={rel.coverImage} alt={rel.title} fill className="object-cover" />
                       ) : (
@@ -572,7 +572,7 @@ export default async function ArticlePage({ params }: Props) {
                         </div>
                       )}
                     </div>
-                    <div className="relative z-10 p-5 flex flex-col flex-1">
+                    <div className="pointer-events-none relative z-10 p-5 flex flex-col flex-1">
                       <h3
                         className="font-bold text-[var(--fg)] text-base leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2 mb-2 flex-1"
                         style={{ fontFamily: 'var(--font-serif)' }}
@@ -587,7 +587,7 @@ export default async function ArticlePage({ params }: Props) {
                       <div className="flex items-center justify-between text-xs text-[var(--fg-faint)] mt-auto pt-3 border-t border-[var(--border)]">
                         <Link
                           href={`/author/${rel.author.slug ?? rel.author.id}`}
-                          className="relative z-10 font-semibold text-[var(--fg-muted)] hover:text-gold transition-colors"
+                          className="pointer-events-auto relative z-10 font-semibold text-[var(--fg-muted)] hover:text-gold transition-colors"
                         >
                           {displayAuthorName(rel.author.name)}
                         </Link>

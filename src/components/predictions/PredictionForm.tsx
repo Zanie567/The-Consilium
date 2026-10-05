@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 
@@ -20,6 +20,7 @@ export function PredictionForm({ eventId, unitLabel, minValue, maxValue, current
   const router = useRouter()
   const [value, setValue] = useState(currentValue !== null ? String(currentValue) : '')
   const [saving, setSaving] = useState(false)
+  const [refreshing, startRefresh] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
@@ -35,7 +36,7 @@ export function PredictionForm({ eventId, unitLabel, minValue, maxValue, current
         body: JSON.stringify({ value: value.trim() }),
       })
       setSaved(true)
-      router.refresh()
+      startRefresh(() => router.refresh())
     } catch (reason) {
       setError(asApiError(reason).message)
     } finally {
@@ -74,7 +75,7 @@ export function PredictionForm({ eventId, unitLabel, minValue, maxValue, current
         </div>
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || refreshing}
           className="rounded bg-gold px-5 py-2.5 text-sm font-semibold text-navy transition-opacity hover:opacity-85 disabled:opacity-50"
         >
           {saving ? 'Saving...' : currentValue !== null ? 'Update prediction' : 'Submit prediction'}

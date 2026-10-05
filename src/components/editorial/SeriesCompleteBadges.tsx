@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 import { GAMIFICATION_API_ROUTES } from '@/lib/constants'
 
 type SeriesAchievement = { id: string; title: string | null }
@@ -14,16 +15,22 @@ type SeriesAchievement = { id: string; title: string | null }
  */
 export function SeriesCompleteBadges({ items }: { items: SeriesAchievement[] }) {
   const [dismissed, setDismissed] = useState(false)
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState('')
 
   if (dismissed || items.length === 0) return null
 
-  const dismiss = () => {
-    setDismissed(true)
-    fetch(GAMIFICATION_API_ROUTES.achievementsMarkSeen, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: items.map((item) => item.id) }),
-    }).catch(() => {})
+  const dismiss = async () => {
+    if (pending) return
+    setPending(true); setError('')
+    try {
+      await apiRequest(GAMIFICATION_API_ROUTES.achievementsMarkSeen, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: items.map((item) => item.id) }),
+      })
+      setDismissed(true)
+    } catch (cause) { setError(asApiError(cause).message) }
+    finally { setPending(false) }
   }
 
   return (
@@ -36,9 +43,11 @@ export function SeriesCompleteBadges({ items }: { items: SeriesAchievement[] }) 
           Series complete{item.title ? `: ${item.title}` : ''}
         </span>
       ))}
+      {error && <p role="alert" className="text-red-500 text-sm">{error}</p>}
       <button
         type="button"
-        onClick={dismiss}
+        onClick={() => void dismiss()}
+        disabled={pending}
         aria-label="Dismiss series achievements"
         className="flex h-11 items-center justify-center px-2 text-[var(--fg-faint)] hover:text-[var(--fg)]"
       >

@@ -34,18 +34,14 @@ export function AnimateIn({
 }: AnimateInProps) {
   const prefersReducedMotion = useReducedMotion()
 
-  if (prefersReducedMotion) {
-    return <div className={className}>{children}</div>
-  }
-
   return (
     <motion.div
       initial="hidden"
       whileInView="visible"
       viewport={{ once, margin: '-40px' }}
       variants={variantMap[variant]}
-      transition={{ duration, delay, ease }}
-      className={className}
+      transition={{ duration: prefersReducedMotion ? 0 : duration, delay: prefersReducedMotion ? 0 : delay, ease }}
+      className={`consilium-reveal ${className ?? ''}`}
     >
       {children}
     </motion.div>
@@ -66,10 +62,6 @@ export function StaggerContainer({
 }) {
   const prefersReducedMotion = useReducedMotion()
 
-  if (prefersReducedMotion) {
-    return <div className={className}>{children}</div>
-  }
-
   return (
     <motion.div
       initial="hidden"
@@ -78,10 +70,10 @@ export function StaggerContainer({
       variants={{
         hidden: {},
         visible: {
-          transition: { staggerChildren: staggerDelay, delayChildren },
+          transition: { staggerChildren: prefersReducedMotion ? 0 : staggerDelay, delayChildren: prefersReducedMotion ? 0 : delayChildren },
         },
       }}
-      className={className}
+      className={`consilium-reveal ${className ?? ''}`}
     >
       {children}
     </motion.div>
@@ -100,15 +92,11 @@ export function StaggerItem({
 }) {
   const prefersReducedMotion = useReducedMotion()
 
-  if (prefersReducedMotion) {
-    return <div className={className}>{children}</div>
-  }
-
   return (
     <motion.div
       variants={variantMap[variant]}
-      transition={{ duration: 0.5, ease }}
-      className={className}
+      transition={{ duration: prefersReducedMotion ? 0 : 0.5, ease }}
+      className={`consilium-reveal ${className ?? ''}`}
     >
       {children}
     </motion.div>

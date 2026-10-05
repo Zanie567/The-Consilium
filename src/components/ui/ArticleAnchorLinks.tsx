@@ -18,12 +18,35 @@ export function ArticleAnchorLinks({ containerSelector }: { containerSelector: s
     const container = document.querySelector(containerSelector)
     if (!container) return
 
-    const headings = container.querySelectorAll<HTMLElement>('h2, h3')
-    headings.forEach((heading) => {
-      if (heading.querySelector('.anchor-link')) return
+    const headings = [...container.querySelectorAll<HTMLElement>('h2, h3')]
+    const fresh = new Set(headings.filter(heading => !heading.querySelector('.anchor-link')))
+    const used = new Set([...document.querySelectorAll<HTMLElement>('[id]')]
+      .filter(element => !fresh.has(element)).map(element => element.id))
+    const owned: { heading: HTMLElement; anchor: HTMLAnchorElement; originalId: string; id: string }[] = []
+    const controller = new AbortController()
+    const feedback = document.createElement('div')
+    feedback.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-navy text-cream border border-gold/30 px-4 py-3 shadow-xl text-sm'
+    feedback.hidden = true
+    document.body.appendChild(feedback)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let request = 0
+    const showFeedback = (message: string, ok: boolean) => {
+      if (timer !== undefined) clearTimeout(timer)
+      feedback.setAttribute('role', ok ? 'status' : 'alert')
+      feedback.textContent = message
+      feedback.hidden = false
+      if (ok) timer = setTimeout(() => { feedback.hidden = true }, 3000)
+    }
 
+    for (const heading of headings) {
+      if (!fresh.has(heading)) continue
       const text = heading.textContent ?? ''
-      const id = slugify(text)
+      const base = slugify(text) || 'section'
+      let id = base
+      let suffix = 2
+      while (used.has(id)) id = `${base}-${suffix++}`
+      used.add(id)
+      const originalId = heading.id
       heading.id = id
 
       const anchor = document.createElement('a')
@@ -31,17 +54,35 @@ export function ArticleAnchorLinks({ containerSelector }: { containerSelector: s
       anchor.className = 'anchor-link'
       anchor.setAttribute('aria-label', `Link to section: ${text}`)
       anchor.innerHTML = ANCHOR_SVG
-
-      anchor.addEventListener('click', (e) => {
-        e.preventDefault()
+      anchor.addEventListener('click', async event => {
+        event.preventDefault()
+        const current = ++request
         const url = `${window.location.pathname}#${id}`
-        navigator.clipboard.writeText(window.location.origin + url).catch(() => {})
         window.history.replaceState(null, '', url)
         heading.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      })
-
+        try {
+          await navigator.clipboard.writeText(window.location.origin + url)
+          if (!controller.signal.aborted && current === request) showFeedback('Section link copied.', true)
+        } catch {
+          if (!controller.signal.aborted && current === request) showFeedback('Section link could not be copied. Copy it from the address bar.', false)
+        }
+      }, { signal: controller.signal })
       heading.prepend(anchor)
-    })
+      owned.push({ heading, anchor, originalId, id })
+    }
+    return () => {
+      controller.abort()
+      if (timer !== undefined) clearTimeout(timer)
+      feedback.remove()
+      for (const { heading, anchor, originalId, id } of owned) {
+        anchor.remove()
+        if (heading.id === id) {
+          if (originalId) heading.id = originalId
+          else heading.removeAttribute('id')
+        }
+      }
+    }
+
   }, [containerSelector])
 
   return null

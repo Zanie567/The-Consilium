@@ -9,12 +9,15 @@ import { DRAFTS_SWR_KEY } from '@/components/editorial/DraftsSection'
 import { ApiError, apiRequest, asApiError } from '@/lib/apiClient'
 import { ARTICLE_IMAGE_TOO_LARGE_MESSAGE, MAX_ARTICLE_IMAGE_BYTES } from '@/lib/constants'
 import type {
+  StatusAction,
   ArticleEditorController,
   ArticleEditorError,
   ArticleEditorHookProps,
   SaveStatus,
   UserOption,
 } from './types'
+import { readDrafts, storeDraft, deleteDraft, type LocalDraft } from '@/lib/draftRecovery'
+import { STATUS_LABELS } from './constants'
 
 interface SavedArticleResponse {
   id?: string
@@ -65,6 +68,13 @@ function articleSaveError(reason: unknown): ArticleEditorError {
         message: `The article could not be saved: ${error.message}`,
       }
     case 'conflict':
+      if (error.code === 'PUBLICATION_CONFIRMATION_REQUIRED') {
+        return {
+          ...base,
+          label: 'Status changed elsewhere',
+          message: 'This article\'s published status was changed in another tab or by someone else, so this tab cannot save over it. Nothing was saved or published. Copy any text you need, then reload to see the current status.',
+        }
+      }
       if (error.code === 'ARTICLE_CONFLICT') {
         return {
           ...base,
@@ -167,12 +177,96 @@ export function useArticleEditorController({
   const excerptRef = useRef(excerpt)
   const coverImageRef = useRef(coverImage)
   const categoryIdRef = useRef(categoryId)
-  const statusRef = useRef(status)
+  // The status the SERVER holds. Ordinary saves (autosave, Save draft) send exactly this, so they can
+  // never change visibility; only an explicit action passes a different one.
+  const currentStatusRef = useRef(initialData?.status ?? 'DRAFT')
+  const confirmingRef = useRef(false)
   const scheduledAtRef = useRef(scheduledAt)
   const tagsRef = useRef(tags)
   const selectedAuthorIdRef = useRef(selectedAuthorId)
 
   const canEdit = !isWriter || currentStatus === 'DRAFT' || currentStatus === 'REJECTED'
+  const [recovery, setRecovery] = useState<{ at: number; stale: boolean } | null>(null)
+  const [recovered, setRecovered] = useState(false)
+  const [recoveryError, setRecoveryError] = useState('')
+  const [recoveryRevision, setRecoveryRevision] = useState(0)
+  const recoveryDraftRef = useRef<LocalDraft | null>(null)
+  const localDraftRef = useRef<LocalDraft | null>(null)
+  const tabIdRef = useRef('')
+  const recoveryBlockedRef = useRef(false)
+
+  useEffect(() => {
+    try {
+      tabIdRef.current = sessionStorage.getItem('consilium:editor-tab') ?? crypto.randomUUID()
+      sessionStorage.setItem('consilium:editor-tab', tabIdRef.current)
+      const drafts = readDrafts(localStorage, authorId, articleId ?? 'new')
+      const draft = drafts.find(d => d.fields.content !== (initialData?.content ?? '') || d.fields.title !== (initialData?.title ?? '') || d.fields.excerpt !== (initialData?.excerpt ?? '') || d.baseVersion !== initialData?.version)
+      if (draft) {
+        recoveryDraftRef.current = draft
+        recoveryBlockedRef.current = true
+        setRecovery({ at: draft.at, stale: draft.baseVersion !== initialData?.version })
+      }
+    } catch {
+      setRecoveryError('Local draft recovery is unavailable in this browser. Keep this tab open until saving succeeds.')
+    }
+  }, [authorId, articleId, initialData])
+
+  const persistLocalDraft = useCallback(() => {
+    if (!isDirtyRef.current || !tabIdRef.current) return
+    const draft: LocalDraft = {
+      userId: authorId, articleId: articleIdRef.current ?? 'new', tabId: tabIdRef.current,
+      at: Date.now(), baseVersion: versionRef.current,
+      fields: { title: titleRef.current, slug: slugRef.current, content: contentRef.current,
+        excerpt: excerptRef.current, coverImage: coverImageRef.current, categoryId: categoryIdRef.current,
+        tags: tagsRef.current, authorId: selectedAuthorIdRef.current },
+    }
+    try {
+      storeDraft(localStorage, draft)
+      if (localDraftRef.current && localDraftRef.current.articleId !== draft.articleId) deleteDraft(localStorage, localDraftRef.current)
+      localDraftRef.current = draft
+    } catch {
+      setRecoveryError('Could not retain a local recovery copy. Keep this tab open until saving succeeds.')
+    }
+  }, [authorId])
+
+  const clearLocalDraft = useCallback(() => {
+    try {
+      if (localDraftRef.current) deleteDraft(localStorage, localDraftRef.current)
+      if (recoveryDraftRef.current) deleteDraft(localStorage, recoveryDraftRef.current)
+      localDraftRef.current = null
+      recoveryDraftRef.current = null
+    } catch { setRecoveryError('Could not remove the local recovery copy.') }
+  }, [])
+
+  const discardLocalDraft = () => {
+    clearLocalDraft()
+    recoveryBlockedRef.current = false
+    setRecovery(null)
+    setRecovered(false)
+  }
+
+  const restoreLocalDraft = () => {
+    const draft = recoveryDraftRef.current
+    if (!draft || !canEdit) return
+    const f = draft.fields
+    setTitle(f.title); titleRef.current = f.title
+    setSlugState(f.slug); slugRef.current = f.slug
+    setContent(f.content); contentRef.current = f.content
+    setExcerptState(f.excerpt); excerptRef.current = f.excerpt
+    setCoverImageState(f.coverImage); coverImageRef.current = f.coverImage
+    setCategoryIdState(f.categoryId); categoryIdRef.current = f.categoryId
+    setTags(f.tags); tagsRef.current = f.tags
+    setSelectedAuthorIdState(f.authorId); selectedAuthorIdRef.current = f.authorId
+    // Keep the recovery's original base: a newer server version must produce 409.
+    versionRef.current = draft.baseVersion
+    isDirtyRef.current = true
+    editVersionRef.current++
+    recoveryBlockedRef.current = true
+    setRecovery(null); setRecovered(true); setSaveStatus('idle')
+    setRecoveryRevision(v => v + 1)
+    persistLocalDraft()
+  }
+
 
   useEffect(() => setThemeMounted(true), [])
 
@@ -192,7 +286,6 @@ export function useArticleEditorController({
   useEffect(() => { excerptRef.current = excerpt }, [excerpt])
   useEffect(() => { coverImageRef.current = coverImage }, [coverImage])
   useEffect(() => { categoryIdRef.current = categoryId }, [categoryId])
-  useEffect(() => { statusRef.current = status }, [status])
   useEffect(() => { scheduledAtRef.current = scheduledAt }, [scheduledAt])
   useEffect(() => { tagsRef.current = tags }, [tags])
   useEffect(() => { selectedAuthorIdRef.current = selectedAuthorId }, [selectedAuthorId])
@@ -211,8 +304,8 @@ export function useArticleEditorController({
     element.style.height = `${element.scrollHeight}px`
   }, [excerpt, excerptDomRef])
 
-  const performSave = useCallback((overrideStatus?: string): Promise<boolean> => {
-    const requestedStatus = overrideStatus ?? statusRef.current
+  const performSave = useCallback((explicitStatus?: string): Promise<boolean> => {
+    const requestedStatus = explicitStatus ?? currentStatusRef.current
     const requestNumber = ++saveRequestRef.current
     latestSaveRequestRef.current = requestNumber
 
@@ -224,7 +317,7 @@ export function useArticleEditorController({
 
     // A status button is an intent of its own. Remember its sequence so an
     // older publish/submit response cannot overwrite a newer status selection.
-    const statusIntentVersion = overrideStatus
+    const statusIntentVersion = explicitStatus
       ? ++statusIntentVersionRef.current
       : statusIntentVersionRef.current
 
@@ -236,11 +329,10 @@ export function useArticleEditorController({
 
     const execute = async (): Promise<boolean> => {
       try {
-        // Snapshot only when this queued save begins. This means a normal
-        // autosave queued behind a status transition observes whether that
-        // transition succeeded, instead of accidentally reverting it with the
-        // status that was visible while the earlier request was in flight.
-        const finalStatus = overrideStatus ?? statusRef.current
+        // Snapshot only when this queued save begins. An ordinary save sends the status the
+        // server holds NOW, so one queued behind a publish sees whether it succeeded (and does
+        // not revert it), and one queued behind a FAILED publish does not retry it.
+        const finalStatus = explicitStatus ?? currentStatusRef.current
         if (finalStatus === 'SCHEDULED' && !scheduledAtRef.current) {
           throw new ApiError(
             'validation',
@@ -258,6 +350,9 @@ export function useArticleEditorController({
           authorId: selectedAuthorIdRef.current,
           status: finalStatus,
           tags: tagsRef.current,
+          // Only an explicit publish / schedule / unpublish / submit action says so; the server
+          // refuses any visibility change without it (PUBLICATION_CONFIRMATION_REQUIRED).
+          ...(explicitStatus ? { publicationIntent: true } : {}),
           ...(versionRef.current ? { baseVersion: versionRef.current } : {}),
           ...(finalStatus === 'SCHEDULED' && scheduledAtRef.current
             ? { scheduledAt: scheduledAtRef.current }
@@ -307,17 +402,23 @@ export function useArticleEditorController({
           }
         }
         if (saved.version) versionRef.current = saved.version
-        if (saved.status) setCurrentStatus(saved.status)
+        if (saved.status) {
+          currentStatusRef.current = saved.status
+          setCurrentStatus(saved.status)
+        }
 
-        if (overrideStatus && statusIntentVersion === statusIntentVersionRef.current) {
-          setStatusState(overrideStatus)
-          statusRef.current = overrideStatus
+        if (explicitStatus && statusIntentVersion === statusIntentVersionRef.current) {
+          setStatusState(saved.status ?? explicitStatus)
         }
 
         // A response only acknowledges the exact snapshot it sent. Edits made
         // while this request was in flight stay dirty until their own queued save
         // succeeds.
-        if (editVersion === editVersionRef.current) isDirtyRef.current = false
+        if (editVersion === editVersionRef.current) {
+          isDirtyRef.current = false
+          clearLocalDraft()
+          setRecovered(false)
+        } else persistLocalDraft()
 
         void globalMutate(DRAFTS_SWR_KEY)
 
@@ -360,7 +461,7 @@ export function useArticleEditorController({
     const result = saveQueueRef.current.then(execute, execute)
     saveQueueRef.current = result.then(() => undefined, () => undefined)
     return result
-  }, [])
+  }, [clearLocalDraft, persistLocalDraft])
 
   const scheduleAutosave = useCallback(() => {
     if (!canEdit) return
@@ -369,15 +470,16 @@ export function useArticleEditorController({
     clearTimeout(savedFadeTimer.current)
     clearTimeout(savedTimeoutRef.current)
     setSavedVisible(false)
+    persistLocalDraft()
     clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => {
-      void performSave()
+      if (!recoveryBlockedRef.current) void performSave()
     }, 2000)
-  }, [canEdit, performSave])
+  }, [canEdit, performSave, persistLocalDraft])
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && isDirtyRef.current && canEdit) {
+      if (document.visibilityState === 'hidden' && isDirtyRef.current && canEdit && !recoveryBlockedRef.current) {
         clearTimeout(autoSaveTimer.current)
         void performSave()
       }
@@ -424,18 +526,57 @@ export function useArticleEditorController({
     setContent(nextContent)
   }, [scheduleAutosave])
 
-  const handleSave = async (overrideStatus?: string) => {
-    if (overrideStatus && overrideStatus !== 'DRAFT' && !titleRef.current.trim()) {
+  const handleSave = async (explicitStatus?: string) => {
+    if (explicitStatus && explicitStatus !== 'DRAFT' && !titleRef.current.trim()) {
       setError(localEditorError('A title is required before publishing or submitting.'))
       setSaveStatus('error')
       return
     }
     clearTimeout(autoSaveTimer.current)
     setError(null)
-    const saved = await performSave(overrideStatus)
+    if (recovery) return
+    recoveryBlockedRef.current = false
+    const saved = await performSave(explicitStatus)
 
     if (!saved || !articleIdRef.current) return
-    if (overrideStatus && articleId) router.refresh()
+    if (explicitStatus && articleId) router.refresh()
+  }
+
+  // ── Status changes that alter what the public sees are explicit, and confirmed ──────────
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null)
+
+  const requestStatusChange = (target: string) => {
+    if (target === 'SCHEDULED' && !scheduledAtRef.current) {
+      setError(localEditorError('Please pick a future date and time to schedule this article.'))
+      setSaveStatus('error')
+      return
+    }
+    if (!titleRef.current.trim() && target !== 'DRAFT') {
+      setError(localEditorError('A title is required before publishing or submitting.'))
+      setSaveStatus('error')
+      return
+    }
+    const current = currentStatusRef.current
+    const touchesPublic = ['PUBLISHED', 'SCHEDULED'].includes(target) || ['PUBLISHED', 'SCHEDULED'].includes(current)
+    if (touchesPublic) setPendingStatus(target)
+    else void handleSave(target)
+  }
+
+  const cancelStatusChange = () => {
+    if (!confirmingRef.current) setPendingStatus(null)
+  }
+
+  const confirmStatusChange = async () => {
+    const target = pendingStatus
+    // A second click while the first is in flight (double-click, key repeat) does nothing.
+    if (!target || confirmingRef.current) return
+    confirmingRef.current = true
+    try {
+      await handleSave(target)
+    } finally {
+      confirmingRef.current = false
+      setPendingStatus(null)
+    }
   }
 
   const keepMyVersion = () => {
@@ -445,11 +586,13 @@ export function useArticleEditorController({
   }
 
   const reloadLatest = () => {
+    clearLocalDraft()
     isDirtyRef.current = false // otherwise the browser asks "leave site?" for text being discarded
     window.location.reload()
   }
 
   const handleBack = async () => {
+    if (recoveryBlockedRef.current) { router.push(returnUrl ?? '/editorial'); return }
     if (isDirtyRef.current && canEdit) {
       clearTimeout(autoSaveTimer.current)
       const saved = await performSave()
@@ -527,17 +670,19 @@ export function useArticleEditorController({
     event.target.value = ''
   }
 
+  // Choosing a status only STAGES it. Nothing is saved or published until the matching
+  // button (Publish / Schedule / Unpublish / Set to …) is pressed and, where it changes
+  // what the public sees, confirmed.
   const setStatus = (value: string) => {
     statusIntentVersionRef.current += 1
     setStatusState(value)
-    statusRef.current = value
-    scheduleAutosave()
   }
 
+  // Likewise the publish time: changing it re-times a scheduled article, so it is applied by
+  // the Schedule button, not by autosave.
   const setScheduledAt = (value: string) => {
     setScheduledAtState(value)
     scheduledAtRef.current = value
-    scheduleAutosave()
   }
 
   const setCategoryId = (value: string) => {
@@ -573,8 +718,27 @@ export function useArticleEditorController({
   const removeCoverImage = () => setCoverImage('')
   const openCoverPicker = () => coverFileRef.current?.click()
 
+  // The one button that applies the staged status. Derived from what the SERVER holds
+  // (currentStatus) and what the editor staged in the dropdown (status).
+  const statusAction: StatusAction | null = (() => {
+    if (!canPublish || !canEdit) return null
+    const staged = status
+    if (staged === 'SCHEDULED') return { label: 'Schedule', target: 'SCHEDULED', tone: 'schedule' }
+    if (staged === currentStatus) {
+      return currentStatus === 'PUBLISHED'
+        ? { label: 'Unpublish', target: 'DRAFT', tone: 'unpublish' }
+        : { label: 'Publish', target: 'PUBLISHED', tone: 'publish' }
+    }
+    if (staged === 'PUBLISHED') return { label: 'Publish', target: 'PUBLISHED', tone: 'publish' }
+    return { label: `Set to ${STATUS_LABELS[staged] ?? staged}`, target: staged, tone: 'set' }
+  })()
+
   return {
     articleId: articleIdRef.current,
+    recovery, recovered, recoveryError, recoveryRevision,
+    statusAction,
+    pendingStatus,
+    scheduledAtForDialog: scheduledAt,
     categories,
     canEdit,
     canPublish,
@@ -603,6 +767,10 @@ export function useArticleEditorController({
     uploading,
     users,
     actions: {
+      restoreLocalDraft, discardLocalDraft,
+      requestStatusChange,
+      confirmStatusChange,
+      cancelStatusChange,
       addTag,
       handleBack,
       handleContentChange,

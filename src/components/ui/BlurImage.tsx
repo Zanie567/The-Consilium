@@ -2,7 +2,6 @@
 
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
-import { useReducedMotion } from 'framer-motion'
 
 interface BlurImageProps {
   src: string
@@ -25,7 +24,6 @@ interface BlurImageProps {
  */
 export function BlurImage({ src, alt, fill, className = '', priority, sizes }: BlurImageProps) {
   const [loaded, setLoaded] = useState(false)
-  const reduced = useReducedMotion()
   const imgRef = useRef<HTMLImageElement>(null)
 
   // Priority/cached images frequently finish decoding *before* React attaches the
@@ -55,16 +53,14 @@ export function BlurImage({ src, alt, fill, className = '', priority, sizes }: B
       {/* Solid overlay that fades out once the image has decoded - invisible to
           reduced-motion users. Use a dark navy colour so it blends in both light
           and dark mode without leaving a white flash. */}
-      {!reduced && (
-        <div
-          aria-hidden
-          className="absolute inset-0 pointer-events-none bg-navy/30"
-          style={{
-            opacity: loaded ? 0 : 1,
-            transition: 'opacity 0.4s ease-out',
-          }}
-        />
-      )}
+      <div
+        aria-hidden
+        className="consilium-image-overlay absolute inset-0 pointer-events-none bg-navy/30"
+        style={{
+          opacity: loaded ? 0 : 1,
+          transition: 'opacity 0.4s ease-out',
+        }}
+      />
     </>
   )
 }

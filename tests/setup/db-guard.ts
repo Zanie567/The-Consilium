@@ -7,6 +7,7 @@
  * file can connect to something it should not.
  */
 import { assertSafeTestDatabaseHost } from '../../scripts/lib/assertSafeTestDatabaseHost'
+import { assertRunDatabase } from '../../scripts/lib/assertRunDatabase'
 import { resolveTestBaseUrl } from '../../scripts/lib/testDatabase'
 
 for (const key of ['DATABASE_URL', 'DIRECT_URL', 'TEST_DATABASE_URL'] as const) {
@@ -14,3 +15,4 @@ for (const key of ['DATABASE_URL', 'DIRECT_URL', 'TEST_DATABASE_URL'] as const) 
   if (value) assertSafeTestDatabaseHost(value, key)
 }
 resolveTestBaseUrl(process.env.BASE_URL)
+if (process.env.E2E_ISOLATED === '1') assertRunDatabase()

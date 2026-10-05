@@ -28,10 +28,7 @@ let firstArticleId: string | null = null
 
 beforeAll(async () => {
   up = await serverUp(BASE)
-  if (!up) {
-    console.warn(`[api-audit] No server at ${BASE} — skipping live audit.`)
-    return
-  }
+  if (!up) throw new Error('Required isolated live server is unreachable')
   admin = new Session(BASE)
   reader = new Session(BASE)
   const [a, r] = await Promise.all([
@@ -49,7 +46,7 @@ beforeAll(async () => {
 
 describe('Comments API (503 regression)', () => {
   it('GET /api/comments?articleId returns 200 (NOT 503) with {comments,total}', async () => {
-    if (!up) return
+
     const res = await admin.get(`/api/comments?articleId=${firstArticleId}`)
     expect(res.status, `expected 200, got ${res.status}`).toBe(200)
     expect(res.status).not.toBe(503)
@@ -59,26 +56,26 @@ describe('Comments API (503 regression)', () => {
   })
 
   it('GET /api/comments?articleId works unauthenticated too (200, not 503)', async () => {
-    if (!up) return
+
     const res = await fetch(`${BASE}/api/comments?articleId=${firstArticleId}`)
     expect(res.status).toBe(200)
   })
 
   it('GET /api/comments without articleId → 400 (validation, not crash)', async () => {
-    if (!up) return
+
     const res = await admin.get('/api/comments')
     expect(res.status).toBe(400)
   })
 
   it('POST /api/comments (authenticated) → 201 with comment shape', async () => {
-    if (!up || !firstArticleId) return
+    expect(firstArticleId,'published fixture must exist').toBeTruthy()
     const res = await admin.post('/api/comments', {
       articleId: firstArticleId,
       body: `Audit test comment ${Date.now()}`,
     })
     // 429 is a legitimate response when the suite is re-run inside the
     // rate-limit window; the guarantee is the route works and never 5xx's.
-    expect([201, 429], `status ${res.status}`).toContain(res.status)
+    expect(res.status).toBe(201)
     if (res.status === 201) {
       const c = await res.json()
       expect(c).toHaveProperty('id')
@@ -88,7 +85,7 @@ describe('Comments API (503 regression)', () => {
   })
 
   it('POST /api/comments unauthenticated → 401', async () => {
-    if (!up || !firstArticleId) return
+    expect(firstArticleId,'published fixture must exist').toBeTruthy()
     const res = await fetch(`${BASE}/api/comments`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -103,7 +100,7 @@ describe('Comments API (503 regression)', () => {
 describe('Editorial comments moderation', () => {
   for (const tab of ['reported', 'recent', 'hidden']) {
     it(`GET /api/editorial/comments?tab=${tab} → 200 (NOT 503) with stats`, async () => {
-      if (!up) return
+
       const res = await admin.get(`/api/editorial/comments?tab=${tab}&page=0`)
       expect(res.status, `tab=${tab} expected 200, got ${res.status}`).toBe(200)
       expect(res.status).not.toBe(503)
@@ -118,20 +115,21 @@ describe('Editorial comments moderation', () => {
   }
 
   it('GET /api/editorial/comments unauthenticated → 401', async () => {
-    if (!up) return
+
     const res = await fetch(`${BASE}/api/editorial/comments?tab=reported`)
     expect([401, 403]).toContain(res.status)
   })
 
   it('moderate flow: hide → unhide an existing comment (PATCH 200)', async () => {
-    if (!up) return
+
     // Use a real seeded comment rather than creating one — the create path is
     // rate-limited (5/min), which would flake the moderation assertion on re-runs.
     const recent = await (await admin.get('/api/editorial/comments?tab=recent&page=0')).json()
     const target =
       (recent.comments as { id: string; isHidden: boolean }[] | undefined)?.find((c) => !c.isHidden) ??
       (recent.comments as { id: string }[] | undefined)?.[0]
-    if (!target) return
+    expect(target,'moderation fixture must exist').toBeTruthy()
+    if(!target)throw new Error('Missing moderation fixture')
     const hide = await admin.patch(`/api/editorial/comments/${target.id}`, { action: 'hide' })
     expect(hide.status, await hide.text()).toBe(200)
     // Restore state so re-runs stay idempotent.
@@ -144,14 +142,14 @@ describe('Editorial comments moderation', () => {
 
 describe('Profile', () => {
   it('GET /api/profile/comments (authed) → 200 array', async () => {
-    if (!up) return
+
     const res = await reader.get('/api/profile/comments')
     expect(res.status).toBe(200)
     expect(Array.isArray(await res.json())).toBe(true)
   })
 
   it('GET /api/profile/stats (authed) → 200 with totals', async () => {
-    if (!up) return
+
     const res = await reader.get('/api/profile/stats')
     expect(res.status).toBe(200)
     const body = await res.json()
@@ -160,12 +158,12 @@ describe('Profile', () => {
   })
 
   it('GET /api/profile/saved-articles (authed) → 200', async () => {
-    if (!up) return
+
     expect((await reader.get('/api/profile/saved-articles')).status).toBe(200)
   })
 
   it('GET /api/profile/debate-votes (authed) → 200', async () => {
-    if (!up) return
+
     expect((await reader.get('/api/profile/debate-votes')).status).toBe(200)
   })
 })
@@ -174,14 +172,14 @@ describe('Profile', () => {
 
 describe('Bookmarks', () => {
   it('GET /api/bookmarks (authed) → 200 array of ids', async () => {
-    if (!up) return
+
     const res = await reader.get('/api/bookmarks')
     expect(res.status).toBe(200)
     expect(Array.isArray(await res.json())).toBe(true)
   })
 
   it('POST /api/bookmarks toggles (200, {bookmarked}) and is reversible', async () => {
-    if (!up || !firstArticleId) return
+    expect(firstArticleId,'published fixture must exist').toBeTruthy()
     const on = await reader.post('/api/bookmarks', { articleId: firstArticleId })
     expect(on.status).toBe(200)
     const first = (await on.json()).bookmarked
@@ -190,7 +188,7 @@ describe('Bookmarks', () => {
   })
 
   it('GET /api/bookmarks unauthenticated → 401', async () => {
-    if (!up) return
+
     expect((await fetch(`${BASE}/api/bookmarks`)).status).toBe(401)
   })
 })
@@ -199,13 +197,13 @@ describe('Bookmarks', () => {
 
 describe('Search', () => {
   it('GET /api/search?q=trade → 200 array', async () => {
-    if (!up) return
+
     const res = await fetch(`${BASE}/api/search?q=trade`)
     expect(res.status).toBe(200)
     expect(Array.isArray(await res.json())).toBe(true)
   })
   it('GET /api/search?q= (empty) → 200 empty array', async () => {
-    if (!up) return
+
     const res = await fetch(`${BASE}/api/search?q=`)
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual([])
@@ -216,13 +214,13 @@ describe('Search', () => {
 
 describe('Auth / session', () => {
   it('GET /api/auth/session (authed) → 200 with user', async () => {
-    if (!up) return
+
     const res = await admin.get('/api/auth/session')
     expect(res.status).toBe(200)
     expect((await res.json()).user?.email).toBe(ADMIN_EMAIL)
   })
   it('GET /api/auth/session (anon) → 200 empty object', async () => {
-    if (!up) return
+
     const res = await fetch(`${BASE}/api/auth/session`)
     expect(res.status).toBe(200)
   })
@@ -232,18 +230,18 @@ describe('Auth / session', () => {
 
 describe('Reading progress', () => {
   it('POST /api/reading-progress (authed) → 200 {ok}', async () => {
-    if (!up || !firstArticleId) return
+    expect(firstArticleId,'published fixture must exist').toBeTruthy()
     const res = await reader.post('/api/reading-progress', { articleId: firstArticleId, progress: 42 })
     const body = await res.json()
     expect(res.status, JSON.stringify(body)).toBe(200)
     expect(body.ok).toBe(true)
   })
   it('GET /api/reading-progress (authed) → 200', async () => {
-    if (!up) return
+
     expect((await reader.get('/api/reading-progress')).status).toBe(200)
   })
   it('POST /api/reading-progress unauthenticated → 401', async () => {
-    if (!up || !firstArticleId) return
+    expect(firstArticleId,'published fixture must exist').toBeTruthy()
     const res = await fetch(`${BASE}/api/reading-progress`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -257,7 +255,7 @@ describe('Reading progress', () => {
 
 describe('Analytics tracking', () => {
   it('POST /api/analytics/track → 200', async () => {
-    if (!up) return
+
     const res = await fetch(`${BASE}/api/analytics/track`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -271,24 +269,23 @@ describe('Analytics tracking', () => {
 
 describe('Debates', () => {
   it('GET /api/debates/active → 200', async () => {
-    if (!up) return
+
     expect((await fetch(`${BASE}/api/debates/active`)).status).toBe(200)
   })
-  it('POST /api/debates/[id]/vote → 200 or 409 (already voted)', async () => {
-    if (!up) return
+  it('POST /api/debates/[id]/vote → exactly 200 on the fresh reader fixture', async () => {
+
     const debate = await (await fetch(`${BASE}/api/debates/active`)).json()
-    if (!debate?.id) return
+    expect(debate?.id,'active debate fixture').toBeTruthy()
     const res = await reader.post(`/api/debates/${debate.id}/vote`, { side: 'FOR' })
-    // 200 first vote, 409 already voted, 429 rate-limited on rapid re-runs.
-    expect([200, 409, 429]).toContain(res.status)
+    expect(res.status).toBe(200)
   })
   it('POST vote with bad side → 400', async () => {
-    if (!up) return
+
     const debate = await (await fetch(`${BASE}/api/debates/active`)).json()
-    if (!debate?.id) return
+    expect(debate?.id,'active debate fixture').toBeTruthy()
     const res = await reader.post(`/api/debates/${debate.id}/vote`, { side: 'MAYBE' })
     // 400 validates the bad side; 429 if the vote limiter fired first on re-runs.
-    expect([400, 429]).toContain(res.status)
+    expect(res.status).toBe(400)
   })
 })
 
@@ -297,14 +294,14 @@ describe('Debates', () => {
 describe('Editorial analytics', () => {
   for (const tab of ['overview', 'content', 'audience', 'engagement', 'distribution']) {
     it(`GET /api/editorial/analytics?tab=${tab} → 200`, async () => {
-      if (!up) return
+
       const res = await admin.get(`/api/editorial/analytics?tab=${tab}&period=30d`)
       expect(res.status, `tab=${tab}`).toBe(200)
     })
   }
 
   it('GET ?tab=leaderboard → 200 and lists writers (recent-articles bug)', async () => {
-    if (!up) return
+
     const res = await admin.get('/api/editorial/analytics?tab=leaderboard&period=30d')
     expect(res.status).toBe(200)
     const body = await res.json()
@@ -320,7 +317,7 @@ describe('Editorial analytics', () => {
 
 describe('Articles CRUD', () => {
   it('GET /api/articles (anon) → 200, PUBLISHED only', async () => {
-    if (!up) return
+
     const res = await fetch(`${BASE}/api/articles`)
     expect(res.status).toBe(200)
     const arr = await res.json()
@@ -329,32 +326,32 @@ describe('Articles CRUD', () => {
   })
 
   it('GET /api/articles/[id] → 200 article', async () => {
-    if (!up || !firstArticleId) return
+    expect(firstArticleId,'published fixture must exist').toBeTruthy()
     const res = await admin.get(`/api/articles/${firstArticleId}`)
     expect(res.status).toBe(200)
     expect((await res.json()).id).toBe(firstArticleId)
   })
 
   it('create → update → delete an article (2xx each)', async () => {
-    if (!up) return
+
     const create = await admin.post('/api/articles', {
       title: `Audit Draft ${Date.now()}`,
       content: JSON.stringify({ type: 'doc', content: [] }),
       status: 'DRAFT',
     })
     const created = await create.json()
-    expect(create.status, JSON.stringify(created)).toBeLessThan(300)
+    expect(create.status, JSON.stringify(created)).toBe(201)
     expect(created).toHaveProperty('id')
 
     const update = await admin.patch(`/api/articles/${created.id}`, { title: 'Audit Draft (edited)' })
-    expect(update.status).toBeLessThan(300)
+    expect(update.status).toBe(200)
 
     const del = await admin.del(`/api/articles/${created.id}`)
-    expect(del.status).toBeLessThan(300)
+    expect(del.status).toBe(200)
   })
 
   it('GET /api/articles?status=DRAFT unauthenticated → 401', async () => {
-    if (!up) return
+
     expect((await fetch(`${BASE}/api/articles?status=DRAFT`)).status).toBe(401)
   })
 })

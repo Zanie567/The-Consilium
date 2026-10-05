@@ -17,6 +17,7 @@ import type { CommentAnchorMap } from '@/components/editorial/useCommentAnchors'
 import { useArticleComments } from '@/components/editorial/useArticleComments'
 import { CommendationEditor } from '@/components/editorial/CommendationEditor'
 import { apiRequest, asApiError } from '@/lib/apiClient'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 interface Note {
   id: string
@@ -71,6 +72,10 @@ export function ReviewPanel({ article }: Props) {
   const [notes, setNotes] = useState<Note[]>(article.notes)
   const [status, setStatus] = useState(article.status)
   const [error, setError] = useState('')
+
+  // Publish / schedule / unpublish change what the public sees, so the buttons only ASK; this
+  // dialog confirms. (Return, correction and notes are not public-facing and act directly.)
+  const [pendingAct, setPendingAct] = useState<'approve' | 'schedule' | 'unpublish' | null>(null)
 
   const act = async (action: string, extra?: Record<string, unknown>) => {
     setLoading(action)
@@ -138,6 +143,27 @@ export function ReviewPanel({ article }: Props) {
 
   return (
     <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
+      <ConfirmDialog
+        open={pendingAct !== null}
+        title={pendingAct === 'approve' ? 'Publish this article?' : pendingAct === 'schedule' ? 'Schedule this article?' : 'Take this article down?'}
+        message={
+          pendingAct === 'approve'
+            ? 'It goes live on the public site immediately, visible to every reader.'
+            : pendingAct === 'schedule'
+              ? `It will be published automatically at ${scheduledAt.replace('T', ' ')} (UK editorial time).`
+              : 'It disappears from the public site immediately. Nothing is deleted.'
+        }
+        confirmLabel={pendingAct === 'approve' ? 'Publish now' : pendingAct === 'schedule' ? 'Schedule' : 'Unpublish'}
+        tone={pendingAct === 'unpublish' ? 'danger' : 'default'}
+        busy={loading !== null}
+        onConfirm={() => {
+          if (!pendingAct || loading !== null) return
+          const action = pendingAct
+          setPendingAct(null)
+          void act(action, action === 'schedule' ? { scheduledAt } : undefined)
+        }}
+        onCancel={() => { if (loading === null) setPendingAct(null) }}
+      />
       <div className="mx-auto max-w-[1440px]">
         <header className="mb-6 flex items-start gap-4 pl-10 md:pl-0">
           <Link href="/editorial/review" className="mt-1 text-[var(--fg-faint)] hover:text-gold">
@@ -245,7 +271,7 @@ export function ReviewPanel({ article }: Props) {
                   <Panel title="Review Actions">
                     <Tooltip content="Publish this article immediately: it will appear live on the public website" variant="editorial" side="left" maxWidth={260}>
                       <button
-                        onClick={() => act('approve')}
+                        onClick={() => setPendingAct('approve')}
                         disabled={loading !== null}
                         className="flex min-h-[44px] w-full items-center justify-center gap-2 bg-emerald-600 px-4 py-3 text-xs font-bold uppercase tracking-widest text-white disabled:opacity-60 hover:bg-emerald-700 transition-colors"
                       >
@@ -264,7 +290,7 @@ export function ReviewPanel({ article }: Props) {
                       className="mt-2 min-h-[44px] w-full border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-[var(--fg)] outline-none focus:border-gold"
                     />
                     <button
-                      onClick={() => act('schedule', { scheduledAt })}
+                      onClick={() => setPendingAct('schedule')}
                       disabled={loading !== null}
                       className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 bg-navy px-4 py-3 text-xs font-bold uppercase tracking-widest text-gold disabled:opacity-60"
                     >
@@ -317,7 +343,7 @@ export function ReviewPanel({ article }: Props) {
                       Save Correction
                     </button>
                     <button
-                      onClick={() => act('unpublish')}
+                      onClick={() => setPendingAct('unpublish')}
                       disabled={loading !== null}
                       className="mt-3 flex w-full items-center justify-center gap-2 border border-red-500/40 px-4 py-2 text-xs font-bold uppercase tracking-widest text-red-500 disabled:opacity-60"
                     >

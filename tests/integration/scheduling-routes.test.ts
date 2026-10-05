@@ -71,11 +71,11 @@ const baseArticle = {
   tags: [] as { tag: { name: string } }[],
 }
 
-function putRequest(body: unknown): NextRequest {
+function putRequest(body: Record<string, unknown>): NextRequest {
   return new NextRequest('http://test.local/api/articles/article-1', {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({publicationIntent:true,...body}),
   })
 }
 
@@ -83,11 +83,11 @@ function articleParams() {
   return { params: Promise.resolve({ id: 'article-1' }) }
 }
 
-function calendarRequest(body: unknown): Request {
+function calendarRequest(body: Record<string, unknown>): Request {
   return new Request('http://test.local/api/editorial/calendar', {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({publicationIntent:true,...body}),
   })
 }
 

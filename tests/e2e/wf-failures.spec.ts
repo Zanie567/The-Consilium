@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext, type Page, type Route } from '@playwright/test'
-import { ArticleEditorPage, articleByTitle, closeDb, db, removeMyArticles, signedIn, uniqueTitle, writerLoginCredentials } from './helpers/workflow'
+import { ArticleEditorPage, articleByTitle, closeDb, confirmPublicChange, db, removeMyArticles, signedIn, uniqueTitle, writerLoginCredentials } from './helpers/workflow'
 
 /**
  * What the editor does when saving goes wrong, and whether work survives. Failures are
@@ -95,12 +95,17 @@ test.describe('a failed save is visible, loses nothing, and recovers', () => {
   })
 
   test('validation error from the server (400) is shown with its reason', async ({ browser }) => {
-    const { ctx, page, ed } = await openDraft(browser, 'e400')
+    const { ctx, page, ed, title, id } = await openDraft(browser, 'e400')
     await page.route('**/api/articles/*', (route) =>
       isArticleWrite(route) ? route.fulfill({ status: 400, json: { error: 'Title is too long.' } }) : route.continue())
     await ed.moveToEnd()
     await page.keyboard.type(' x')
     await expect(alertOf(page)).toContainText('Title is too long.', { timeout: 10_000 })
+    await page.unroute('**/api/articles/*')
+    await ed.saveNow()
+    expect(await body(title)).toContain('Original text. x')
+    await ed.openExisting(id)
+    await expect(ed.body()).toContainText('Original text. x')
     await ctx.close()
   })
 })
@@ -113,12 +118,26 @@ test('typing keeps flowing across the first autosave of a new article (no keystr
   const title = uniqueTitle('firstsave')
   await ed.title().fill(title)
   await ed.body().click()
-  // Part one, a pause just long enough for the autosave to fire, then keep typing
-  // while that first save (a POST, followed by a page change) is happening.
-  await page.keyboard.type('Part one of the text.', { delay: 20 })
-  await page.waitForTimeout(2_050)
-  await page.keyboard.type(' Part two keeps going while the first save lands.', { delay: 40 })
-  await page.keyboard.type(' Part three too.', { delay: 40 })
+  let release = () => {}
+  let started = () => {}
+  const held = new Promise<void>(resolve => { release = resolve })
+  const observed = new Promise<void>(resolve => { started = resolve })
+  await page.route('**/api/articles', async route => {
+    if (route.request().method() !== 'POST') return route.continue()
+    started()
+    await held
+    await route.continue()
+  })
+  const created = page.waitForResponse(r => new URL(r.url()).pathname === '/api/articles' && r.request().method() === 'POST')
+  // Wait for the real first autosave request, then type while its response is held.
+  try {
+    await page.keyboard.type('Part one of the text.', { delay: 20 })
+    await observed
+    await page.keyboard.type(' Part two keeps going while the first save lands.', { delay: 40 })
+    release()
+    await page.keyboard.type(' Part three too.', { delay: 40 })
+    expect((await created).status()).toBe(201)
+  } finally { release() }
 
   await expect.poll(async () => (await articleByTitle(title))?.content ?? '', { timeout: 20_000 })
     .toContain('Part three too.')
@@ -127,6 +146,8 @@ test('typing keeps flowing across the first autosave of a new article (no keystr
   expect(saved).toContain('Part two keeps going while the first save lands.')
   // And what is on screen is the same text.
   await expect(ed.body()).toContainText('Part three too.')
+  await ed.openExisting((await articleByTitle(title))!.id)
+  await expect(ed.body()).toContainText('Part one of the text. Part two keeps going while the first save lands. Part three too.')
   await ctx.close()
 })
 
@@ -142,13 +163,19 @@ test('a slow save shows progress, locks the Save button, and completes', async (
   await ed.moveToEnd()
   await page.keyboard.type(' Slow words.')
   const save = ed.saveDraftButton()
+  const completed = page.waitForResponse(r => /\/api\/articles\/[^/?]+$/.test(r.url()) && ['PUT', 'PATCH'].includes(r.request().method()))
   await save.click()
   await expect(page.getByText('Saving...').first()).toBeVisible()
   await expect(save).toBeDisabled()
-  await save.click({ force: true, trial: false }).catch(() => {}) // a second click while saving must not start another write
+  await expect(save).toBeDisabled()
+  const bounds=await save.boundingBox();expect(bounds).toBeTruthy()
+  await page.mouse.click(bounds!.x+bounds!.width/2,bounds!.y+bounds!.height/2) // real repeated click on the disabled control
+  expect((await completed).status()).toBe(200)
   await expect(page.getByText('Saved').first()).toBeVisible({ timeout: 15_000 })
   expect(writes, 'one save for one click, however impatient').toBe(1)
   expect(await body(title)).toContain('Slow words.')
+  await ed.openExisting((await articleByTitle(title))!.id)
+  await expect(ed.body()).toContainText('Slow words.')
   await ctx.close()
 })
 
@@ -169,6 +196,8 @@ test('typing while a save is in flight is not lost', async ({ browser }) => {
   // The edit made during the save is saved by its own follow-up request.
   await expect.poll(async () => body(title), { timeout: 20_000 }).toContain('Second burst, typed during the save.')
   expect(await body(title)).toContain('First burst.')
+  await ed.openExisting((await articleByTitle(title))!.id)
+  await expect(ed.body()).toContainText('First burst. Second burst, typed during the save.')
   await ctx.close()
 })
 
@@ -178,9 +207,11 @@ test('Submit pressed twice submits once and shows no error', async ({ browser })
   page.on('request', (r) => {
     if (r.method() === 'PUT' && /\/api\/articles\/[^/?]+$/.test(r.url())) writes.push(r.postData() ?? '')
   })
+  const submitted = page.waitForResponse(r => r.request().method() === 'PUT' && /\/api\/articles\/[^/?]+$/.test(r.url()) && r.request().postDataJSON()?.status === 'PENDING_REVIEW')
   await page.getByRole('button', { name: 'Submit' }).dblclick()
+  expect((await submitted).status()).toBe(200)
   await expect.poll(async () => (await articleByTitle(title))!.status).toBe('PENDING_REVIEW')
-  await page.waitForTimeout(1_500)
+  await page.waitForLoadState('networkidle')
   expect(writes.filter((w) => w.includes('"PENDING_REVIEW"')).length, 'one submit request').toBe(1)
   await expect(alertOf(page)).toHaveCount(0)
   void ed
@@ -194,10 +225,14 @@ test('Save draft pressed twice before the first response creates one article', a
   await ed.openNew()
   const title = uniqueTitle('twice')
   await ed.title().fill(title)
+  const created = page.waitForResponse(r => new URL(r.url()).pathname === '/api/articles' && r.request().method() === 'POST')
   await ed.saveDraftButton().dblclick()
+  expect((await created).status()).toBe(201)
   await expect(page.getByText('Saved').first()).toBeVisible({ timeout: 15_000 })
-  await page.waitForTimeout(1_000)
+  await page.waitForLoadState('networkidle')
   expect(await db().article.count({ where: { title } })).toBe(1)
+  await ed.openExisting((await articleByTitle(title))!.id)
+  await expect(ed.title()).toHaveValue(title)
   await ctx.close()
 })
 
@@ -317,6 +352,7 @@ test('a failed publish never leaves the article public, and a later autosave doe
   await page.route('**/api/articles/*', (route) =>
     fail && isArticleWrite(route) ? route.fulfill({ status: 500, json: { error: 'boom' } }) : route.continue())
   await page.getByRole('button', { name: 'Publish', exact: true }).click()
+  await confirmPublicChange(page, 'Publish now')
   await expect(alertOf(page)).toBeVisible()
   expect((await articleByTitle(title))!.status).toBe('DRAFT')
 
@@ -369,9 +405,11 @@ test('Back to articles stays in the editor when saving fails, then saves and lea
   expect(await body(t.title)).not.toContain('Keep these unsaved words.')
   await t.page.unroute('**/api/articles/*')
   expect((await t.ed.saving(() => t.page.getByRole('button', { name: 'Back to articles' }).click())).status()).toBe(200)
-  await expect(t.page).not.toHaveURL(new RegExp(`/articles/${t.id}/edit$`))
-  await t.ed.openExisting(t.id)
-  await expect(t.ed.body()).toContainText('Keep these unsaved words.')
+  await expect(t.page).toHaveURL(/\/editorial\/articles$/)
+  await expect(t.page.getByText(t.title, { exact: true }).first()).toBeVisible()
+  const reopened = new ArticleEditorPage(await t.ctx.newPage())
+  await reopened.openExisting(t.id)
+  await expect(reopened.body()).toContainText('Keep these unsaved words.')
   expect((await articleByTitle(t.title))!.status).toBe('DRAFT')
   await t.ctx.close()
 })
