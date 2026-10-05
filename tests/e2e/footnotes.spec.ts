@@ -49,10 +49,10 @@ async function prep(page: Page) {
 /** Centre a marker (or its inner link) and return its viewport centre point. */
 async function point(page: Page, selector: string) {
   await page.locator(selector).evaluate((el) => el.scrollIntoView({ block: 'center' }))
-  // Scrolling changes the sticky navbar border from 2px to 1px. Wait for
-  // that actual layout update before measuring the marker/popover; otherwise
-  // the unrelated one-pixel header change is attributed to opening the tip.
-  await expect(page.locator('header').first()).toHaveCSS('border-bottom-width', '1px')
+  // The reconciled navbar keeps its border width at 2px while scrolling,
+  // preventing the old one-pixel layout shift. Assert that stable geometry
+  // before measuring the marker and exercising the popover.
+  await expect(page.locator('header').first()).toHaveCSS('border-bottom-width', '2px')
   return page.locator(selector).evaluate((el) => {
     // The site scrolls smoothly (html { scroll-behavior: smooth }); measuring mid-animation returns
     // a point the element has already left, so scroll instantly and measure the final position.

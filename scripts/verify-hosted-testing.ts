@@ -12,7 +12,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { HOSTED_TEST_WORKSPACE as workspace, hostedTestingConfigurationError } from '../src/lib/hostedTestingWorkspace'
 import { databaseConnection } from '../src/lib/hostedDatabaseConnection'
 import { deploymentReadiness } from '../src/lib/deploymentReadiness'
-import { ArticleEditorPage } from '../tests/e2e/helpers/workflow'
+import { ArticleEditorPage, confirmPublicChange } from '../tests/e2e/helpers/workflow'
 import { makePng } from '../tests/e2e/helpers/e2eUtils'
 import { formatEditorialScheduleInput } from '../src/lib/editorialSchedule'
 import { TESTING_COOKIE } from '../src/lib/testingSessionConstants'
@@ -214,6 +214,7 @@ async function main() {
     await scoped.page.locator('input[type=datetime-local]').fill(formatEditorialScheduleInput(new Date(Date.now() + 3_600_000)))
     const scheduled = scoped.page.waitForResponse(r => r.url().includes(`/articles/${saved.id}/review`) && r.request().method() === 'PATCH')
     await scoped.page.getByRole('button', { name: 'Schedule', exact: true }).click()
+    await confirmPublicChange(scoped.page, 'Schedule')
     expect((await scheduled).status()).toBe(200)
     const row = await db.article.findUniqueOrThrow({ where: { id: saved.id } })
     expect(row.status).toBe('SCHEDULED')
@@ -340,6 +341,7 @@ async function main() {
       await reviewer.page.goto(`/editorial/review/${saved.id}`, { waitUntil: 'networkidle' })
       const published = reviewer.page.waitForResponse(r => r.url().includes(`/articles/${saved.id}/review`) && r.request().method() === 'PATCH')
       await reviewer.page.getByRole('button', { name: 'Publish Now', exact: true }).click()
+      await confirmPublicChange(reviewer.page, 'Publish now')
       expect((await published).status()).toBe(200)
       const row = await db.article.findUniqueOrThrow({ where: { id: saved.id } })
       expect(row.status).toBe('PUBLISHED')

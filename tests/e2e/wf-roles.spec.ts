@@ -324,7 +324,7 @@ test.describe('sensitive endpoints refuse the wrong roles', () => {
     ['GET', '/api/editorial/trash', ['growth', 'reader'], 403],
     ['PATCH', '/api/editorial/articles/none/review', ['writer', 'growth', 'reader'], 403],
     ['POST', '/api/editorial/users', ['writer', 'editor', 'growth', 'reader'], 403],
-    ['GET', '/api/admin/users', ['writer', 'editor', 'growth', 'reader'], 401],
+    ['GET', '/api/admin/users', ['writer', 'editor', 'growth', 'reader'], 403],
   ]
   for (const [method, url, roles, expectedStatus] of CASES) {
     for (const who of roles) {
