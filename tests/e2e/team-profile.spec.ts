@@ -622,6 +622,38 @@ test.describe('public Our Team page', () => {
 
 // ── layout ────────────────────────────────────────────────────────────────────
 
+test('a hosting body-size rejection explains recovery and preserves the owned card', async ({ browser }, testInfo) => {
+  const original = await db().teamMember.findUniqueOrThrow({ where: { userId: ids.linked } })
+  const { context, page, errors } = await loginAs(browser, 'linked')
+  try {
+    await openProfile(page)
+    await page.getByLabel('Description').fill('Profile changes retained after a gateway rejection.')
+    await page.route('**/api/team-profile', route => route.request().method() === 'PUT'
+      ? route.fulfill({ status: 413, contentType: 'text/plain', body: 'Request Entity Too Large' })
+      : route.continue())
+    const rejected = page.waitForResponse(response => response.url().endsWith('/api/team-profile') && response.request().method() === 'PUT')
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    expect((await rejected).status()).toBe(413)
+    await expect(page.getByRole('status')).toContainText('That upload is too large for the server. Use a smaller file.')
+    await expect(page.getByLabel('Description')).toHaveValue('Profile changes retained after a gateway rejection.')
+    expect(await db().teamMember.findUniqueOrThrow({ where: { userId: ids.linked } })).toEqual(original)
+    await testInfo.attach('hosting-size-error', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' })
+    await page.unroute('**/api/team-profile')
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect(page.getByRole('status')).toContainText('has been saved')
+    await page.reload({ waitUntil: 'networkidle' })
+    await expect(page.getByLabel('Description')).toHaveValue('Profile changes retained after a gateway rejection.')
+    expect(await db().teamMember.count({ where: { userId: ids.linked } })).toBe(1)
+    expect(await db().teamMember.findUniqueOrThrow({ where: { userId: ids.linked } })).toMatchObject({
+      id: original.id, userId: original.userId, role: original.role,
+      publicTier: original.publicTier, order: original.order, image: original.image,
+    })
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toMatch(/^Failed to load resource: the server responded with a status of 413 /)
+    expect(errors[0]).toContain('/api/team-profile')
+  } finally { await context.close() }
+})
+
 test.describe('layout', () => {
   test('desktop: the sidebar stays put and the form sits beside it, not under it', async ({ browser }) => {
     const { context, page } = await loginAs(browser, 'linked', { viewport: { width: 1280, height: 800 } })

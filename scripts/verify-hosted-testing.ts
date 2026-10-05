@@ -1,6 +1,7 @@
 /** Operator browser verification, independently provisioned hosted test workspace only.
  * Never seeds/resets a database or changes account permissions. Reuses the existing
- * browser page object and actual application workflows, with read-only DB assertions.
+ * browser page object and actual application workflows. Clock fixtures are narrowly
+ * conditional on this run's test-owned article and the observed test capability.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -13,6 +14,9 @@ import { databaseConnection } from '../src/lib/hostedDatabaseConnection'
 import { deploymentReadiness } from '../src/lib/deploymentReadiness'
 import { ArticleEditorPage } from '../tests/e2e/helpers/workflow'
 import { makePng } from '../tests/e2e/helpers/e2eUtils'
+import { formatEditorialScheduleInput } from '../src/lib/editorialSchedule'
+import { TESTING_COOKIE } from '../src/lib/testingSessionConstants'
+import { acquireHostedVerificationLease } from './lib/hostedVerificationLease'
 
 async function main() {
   if (process.env.TEST_DATABASE_URL || process.env.TEST_HARNESS === '1' || process.env.E2E_ISOLATED === '1') throw new Error('Hosted verification cannot use the destructive automated fixture harness.')
@@ -23,6 +27,7 @@ async function main() {
   const env = JSON.parse(fs.readFileSync(envFile!, 'utf8')) as Record<string, string>
   const error = hostedTestingConfigurationError(env)
   if (error || env.TESTING_MODE_ENABLED !== '1') throw new Error(error ?? 'Testing is disabled.')
+  if (env.NEXTAUTH_URL !== workspace.siteOrigin || env.NEXT_PUBLIC_SITE_URL !== workspace.siteOrigin) throw new Error('This operator check requires the canonical isolated origin.')
   const password = JSON.parse(fs.readFileSync(secretFile!, 'utf8')).fixturePassword as string
   if (!password) throw new Error('Dedicated fixture password is required.')
   fs.mkdirSync(output!, { recursive: true, mode: 0o700 })
@@ -31,7 +36,10 @@ async function main() {
   const contexts: BrowserContext[] = []
   const results: { check: string; status: string }[] = []
   const browserErrors: string[] = []
+  const expectedFaultErrors: string[] = []
   const run = `Hosted ${randomUUID()}`
+  let advancedClock: { id: string; title: string } | undefined
+  let releaseLease: (() => Promise<void>) | undefined
   const id = (key: string) => `hosted-test-${workspace.projectRef}-${key}`
   const verified = (check: string) => { results.push({ check, status: 'passed' }); console.log(`PASS ${check}`) }
   const screenshot = (page: Page, name: string) => page.screenshot({ path: path.join(output!, `${name}.png`), fullPage: true })
@@ -64,11 +72,183 @@ async function main() {
     expect(response.status()).toBe(200)
     return response.json()
   }
+  async function extendedChecks(ordinary: Awaited<ReturnType<typeof login>>, admin: Awaited<ReturnType<typeof login>>, scoped: Awaited<ReturnType<typeof login>>) {
+    const alert = (page: Page) => page.locator('[role="alert"]:not(#__next-route-announcer__)')
+    for (const [label, who] of [['ordinary', ordinary], ['simulated', admin]] as const) {
+      if (label === 'simulated') {
+        await who.page.goto('/admin/testing', { waitUntil: 'networkidle' })
+        await persona(who.page, 'Writer')
+      }
+      const ed = new ArticleEditorPage(who.page)
+      await ed.openNew()
+      await ed.title().fill(`${run} resilience ${label}`)
+      await ed.typeBody('Last successfully saved content.')
+      const saved = await ed.saveNow()
+      await ed.openExisting(saved.id)
+      const before = await db.article.findUniqueOrThrow({ where: { id: saved.id } })
+      const faultStart = browserErrors.length
+      let faultResponses = 0
+      await who.page.route('**/api/articles/*', route => {
+        if (route.request().url().endsWith(`/api/articles/${saved.id}`) && ['PUT', 'PATCH'].includes(route.request().method())) {
+          faultResponses++
+          return route.fulfill({ status: 500, json: { error: 'Controlled hosted save failure' } })
+        }
+        return route.continue()
+      })
+      await ed.moveToEnd()
+      await who.page.keyboard.type(' Unsaved recovery words.')
+      await expect(alert(who.page)).toContainText('unsaved changes remain', { timeout: 20_000 })
+      await expect(ed.body()).toContainText('Unsaved recovery words.')
+      expect((await db.article.findUniqueOrThrow({ where: { id: saved.id } })).content).toBe(before.content)
+      await screenshot(who.page, `${label}-failed-save`)
+      await who.page.unroute('**/api/articles/*')
+      await ed.saveNow()
+      await expect(alert(who.page)).toHaveCount(0)
+      await ed.openExisting(saved.id)
+      await expect(ed.body()).toContainText('Unsaved recovery words.')
+      const observed = browserErrors.slice(faultStart)
+      // Retain every console message, accepting only the exact HTTP fault we injected.
+      expect(observed.length).toBeGreaterThan(0)
+      expect(observed.length).toBeLessThanOrEqual(faultResponses)
+      expect(observed, 'Only the controlled HTTP 500 may produce console errors').toEqual(Array(observed.length).fill('Failed to load resource: the server responded with a status of 500 (Internal Server Error)'))
+      expectedFaultErrors.push(...observed)
+      expect(await db.article.count({ where: { title: before.title, authorId: id('writer') } })).toBe(1)
+      verified(`${label} controlled save failure preserves stored and unsaved content; real save/reload recovers once`)
+
+      const uploadFaultStart = browserErrors.length
+      const contentBeforeUpload = (await db.article.findUniqueOrThrow({ where: { id: saved.id } })).content
+      await who.page.route('**/api/upload', route => route.fulfill({ status: 503, json: { error: 'Controlled upload service failure' } }))
+      const chooser = who.page.waitForEvent('filechooser')
+      await ed.tool('Insert image').click()
+      await (await chooser).setFiles({ name: 'controlled-upload.png', mimeType: 'image/png', buffer: makePng() })
+      await expect(alert(who.page)).toContainText('Upload failed:')
+      await expect(alert(who.page)).toContainText('Controlled upload service failure')
+      await expect(ed.body()).toContainText('Unsaved recovery words.')
+      expect((await db.article.findUniqueOrThrow({ where: { id: saved.id } })).content).toBe(contentBeforeUpload)
+      await screenshot(who.page, `${label}-failed-upload`)
+      await who.page.unroute('**/api/upload')
+      const uploadErrors = browserErrors.slice(uploadFaultStart)
+      expect(uploadErrors).toEqual(['Failed to load resource: the server responded with a status of 503 (Service Unavailable)'])
+      expectedFaultErrors.push(...uploadErrors)
+      verified(`${label} controlled upload failure is visible and preserves the last saved article`)
+
+      const owned = await db.teamMember.findUniqueOrThrow({ where: { userId: id('writer') } })
+      const identity = await headers(who.ctx)
+      for (const [file, status] of [
+        [{ name: 'invalid.png', mimeType: 'image/png', buffer: Buffer.from('not an image') }, 400],
+        // This request is rejected by Vercel's body-size gate before our handler.
+        [{ name: 'oversized.png', mimeType: 'image/png', buffer: Buffer.concat([makePng(), Buffer.alloc(5 * 1024 * 1024)]) }, 413],
+      ] as const) {
+        const rejected = await who.ctx.request.put('/api/team-profile', { headers: identity, multipart: { image: file } })
+        expect(rejected.status()).toBe(status)
+        expect(await db.teamMember.findUniqueOrThrow({ where: { userId: id('writer') } })).toEqual(owned)
+      }
+      verified(`${label} real upload validation rejects invalid/oversized bytes without changing the owned card`)
+    }
+
+    // A second tab shares the capability cookie. Refresh, history and navigation
+    // must resolve the current persona; an old form must fail before persistence.
+    const second = await admin.ctx.newPage()
+    second.on('pageerror', error => browserErrors.push(error.message))
+    second.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()) })
+    await second.goto('/editorial', { waitUntil: 'networkidle' })
+    const writerHeaders = await headers(admin.ctx)
+    await persona(admin.page, 'Editor')
+    // Let the implemented BroadcastChannel navigation finish before a deliberate
+    // reload; competing document replacements would test the harness's teardown.
+    await expect(second.getByRole('region', { name: 'Testing environment' }).locator('strong')).toContainText('Editor')
+    await second.waitForLoadState('networkidle')
+    await second.reload({ waitUntil: 'networkidle' })
+    await expect(second.getByRole('region', { name: 'Testing environment' }).locator('strong')).toContainText('Editor')
+    expect((await admin.ctx.request.put('/api/team-profile', { headers: writerHeaders, multipart: { bio: 'Denied stale tab' } })).status()).toBe(409)
+    await second.goto('/editorial/analytics', { waitUntil: 'networkidle' })
+    await second.goBack({ waitUntil: 'networkidle' })
+    await expect(second.getByRole('region', { name: 'Testing environment' }).locator('strong')).toContainText('Editor')
+    const revokedHeaders = await headers(admin.ctx)
+    const revokedCookie = (await admin.ctx.cookies()).find(cookie => cookie.name === TESTING_COOKIE)
+    expect(revokedCookie).toBeDefined()
+    await second.getByRole('button', { name: 'Exit testing mode' }).click()
+    await expect(admin.page.getByRole('region', { name: 'Testing environment' }).locator('strong')).toContainText('Administrator')
+    await admin.page.waitForLoadState('networkidle')
+    await admin.page.reload({ waitUntil: 'networkidle' })
+    expect((await (await admin.ctx.request.get('/api/auth/session')).json()).user.id).toBe(id('admin'))
+    await admin.ctx.addCookies([revokedCookie!])
+    expect((await admin.ctx.request.put('/api/team-profile', { headers: revokedHeaders, multipart: { bio: 'Denied revoked replay' } })).status()).toBe(409)
+    verified('hosted shared tabs, refresh/back navigation, switch/exit and stale-form rejection')
+
+    await admin.page.goto('/admin/testing', { waitUntil: 'networkidle' })
+    await persona(admin.page, 'Writer')
+    const session = await (await admin.ctx.request.get('/api/auth/session')).json()
+    const expiredHeaders = await headers(admin.ctx)
+    const cookie = (await admin.ctx.cookies()).find(cookie => cookie.name === TESTING_COOKIE)
+    expect(cookie).toBeDefined()
+    expect(session.testing.administratorId).toBe(id('admin'))
+    expect((await db.testingSession.updateMany({ where: { id: session.testing.id, administratorId: id('admin'), personaId: id('writer'), stoppedAt: null }, data: { expiresAt: new Date(Date.now() - 60_000) } })).count).toBe(1)
+    expect((await admin.ctx.request.put('/api/team-profile', { headers: expiredHeaders, multipart: { bio: 'Denied expired form' } })).status()).toBe(409)
+    await admin.page.reload({ waitUntil: 'networkidle' })
+    expect((await (await admin.ctx.request.get('/api/auth/session')).json()).user.id).toBe(id('admin'))
+    expect((await db.testingSession.findUniqueOrThrow({ where: { id: session.testing.id } })).stopReason).toBe('expiry')
+    await admin.ctx.addCookies([cookie!])
+    expect((await admin.ctx.request.put('/api/team-profile', { headers: expiredHeaders, multipart: { bio: 'Denied replay' } })).status()).toBe(409)
+    await admin.ctx.addCookies([{ ...cookie!, value: `${cookie!.value.slice(0, -1)}${cookie!.value.endsWith('A') ? 'B' : 'A'}` }])
+    expect((await admin.ctx.request.put('/api/team-profile', { headers: expiredHeaders, multipart: { bio: 'Denied modified capability' } })).status()).toBe(409)
+    const origin = { Origin: workspace.siteOrigin }
+    expect((await admin.ctx.request.post('/api/testing-session', { headers: origin, data: { persona: 'writer', userId: id('admin'), role: 'ADMIN' } })).status()).toBe(400)
+    expect((await admin.ctx.request.post('/api/testing-session', { headers: { Origin: 'https://example.org' }, data: { persona: 'writer' } })).status()).toBe(403)
+    expect((await ordinary.ctx.request.post('/api/testing-session', { headers: origin, data: { persona: 'writer' } })).status()).toBe(403)
+    expect((await admin.ctx.request.delete('/api/testing-session', { headers: origin })).status()).toBe(200)
+    await second.close()
+    verified('hosted deterministic expiry, expired-capability replay, real administrator restoration and forged entry denied')
+
+    // Schedule through the normal review UI. Advance only this run's owned row;
+    // refuse to trigger a job if a different run has a due article.
+    const ed = new ArticleEditorPage(ordinary.page)
+    await ed.openNew()
+    await ed.title().fill(`${run} scheduled`)
+    await ed.excerpt().fill('Deterministic isolated scheduling verification.')
+    await ordinary.page.locator('aside', { has: ordinary.page.getByPlaceholder('Add a tag, press Enter...') }).locator('select').first().selectOption({ label: 'Opinion' })
+    await ed.typeBody('Verified scheduled publication content.')
+    const saved = await ed.saveNow()
+    expect((await ed.saving(() => ordinary.page.getByRole('button', { name: 'Submit', exact: true }).click())).status()).toBe(200)
+    await scoped.page.goto(`/editorial/review/${saved.id}`, { waitUntil: 'networkidle' })
+    await scoped.page.locator('input[type=datetime-local]').fill(formatEditorialScheduleInput(new Date(Date.now() + 3_600_000)))
+    const scheduled = scoped.page.waitForResponse(r => r.url().includes(`/articles/${saved.id}/review`) && r.request().method() === 'PATCH')
+    await scoped.page.getByRole('button', { name: 'Schedule', exact: true }).click()
+    expect((await scheduled).status()).toBe(200)
+    const row = await db.article.findUniqueOrThrow({ where: { id: saved.id } })
+    expect(row.status).toBe('SCHEDULED')
+    const url = `${workspace.siteOrigin}/articles/${row.slug}`
+    expect((await fetch(url)).status).toBe(404)
+    expect(await db.article.count({ where: { status: 'SCHEDULED', scheduledAt: { lte: new Date() }, id: { not: saved.id } } })).toBe(0)
+    expect(await db.article.count({ where: { deletedAt: { lt: new Date(Date.now() - 30 * 86_400_000) } } })).toBe(0)
+    expect((await db.article.updateMany({ where: { id: saved.id, title: `${run} scheduled`, authorId: id('writer'), status: 'SCHEDULED' }, data: { scheduledAt: new Date(Date.now() - 60_000) } })).count).toBe(1)
+    advancedClock = { id: saved.id, title: `${run} scheduled` }
+    // Jobs authenticate independently using their server secret, without an
+    // administrator's browser cookies or stale simulated-form identity.
+    expect((await fetch(`${workspace.siteOrigin}/api/publish-scheduled`, { method: 'POST', headers: { Authorization: 'Bearer invalid-test-job-secret' } })).status).toBe(401)
+    const published = await fetch(`${workspace.siteOrigin}/api/publish-scheduled`, { method: 'POST', headers: { Authorization: `Bearer ${env.CRON_SECRET}` } })
+    expect(published.status).toBe(200)
+    expect((await published.json()).articles.map((item: { id: string }) => item.id)).toContain(saved.id)
+    expect((await db.article.findUniqueOrThrow({ where: { id: saved.id } })).status).toBe('PUBLISHED')
+    advancedClock = undefined
+    const publicPage = await browser.newPage()
+    try {
+      expect((await publicPage.goto(url, { waitUntil: 'networkidle' }))!.status()).toBe(200)
+      await expect(publicPage.locator('#article-body')).toContainText('Verified scheduled publication content.')
+      await screenshot(publicPage, 'scheduled-public-article')
+    } finally { await publicPage.close() }
+    verified('hosted scheduled article stays private until scoped clock fixture and authenticated real publication job')
+  }
   try {
     const marker = await db.siteSetting.findUniqueOrThrow({ where: { key: 'testing-hosted-project' } })
     expect(marker.value).toBe(JSON.stringify(workspace))
     const ready = await deploymentReadiness(db, env)
     expect(ready).toEqual({ healthy: true, gaps: [] })
+    releaseLease = await acquireHostedVerificationLease(db, run)
+    if (process.env.HOSTED_LEASE_PROBE === '1') {
+      console.log('PASS canonical hosted resource/persona lease available; no interactive mutations')
+      return
+    }
     const robots = await fetch(`${workspace.siteOrigin}/robots.txt`)
     expect(robots.headers.get('x-robots-tag')).toBe('noindex, nofollow')
     expect(await robots.text()).toContain('Disallow: /')
@@ -82,6 +262,19 @@ async function main() {
     const health = await admin.ctx.request.get('/api/admin/deployment-health')
     expect(health.status()).toBe(200)
     expect(await health.json()).toEqual({ healthy: true, gaps: [] })
+    if (process.env.HOSTED_EXTENDED_ONLY === '1') {
+      await extendedChecks(ordinary, admin, scoped)
+      const adminAfter = await db.user.findUniqueOrThrow({ where: { id: id('admin') } })
+      expect({ role: adminAfter.role, password: adminAfter.password, name: adminAfter.name }).toEqual({ role: adminBefore.role, password: adminBefore.password, name: adminBefore.name })
+      expect(await db.teamMember.findUniqueOrThrow({ where: { userId: id('admin') } })).toEqual(chiefBefore)
+      expect(browserErrors).toEqual(expectedFaultErrors)
+      const mail = await db.$queryRaw<{ recipient: string }[]>`SELECT recipient FROM testing_email_outbox WHERE html LIKE ${`%${run}%`}`
+      expect(mail.length).toBeGreaterThan(0)
+      expect(mail.every(row => row.recipient.endsWith('@consilium.test'))).toBe(true)
+      verified('administrator credentials/card unchanged, notifications captured and no unexpected console errors')
+      fs.writeFileSync(path.join(output!, 'result.json'), JSON.stringify({ origin: workspace.siteOrigin, project: workspace.projectRef, run, results, capturedEmails: mail.length, browserErrors, expectedFaultErrors, testedAt: new Date().toISOString(), limitations: ['This supplemental run uses the same workflows and covers hosted resilience/session/scheduling. Complete ordinary/simulated publication journeys are recorded separately. API failure injection does not simulate an internal Supabase outage.'] }, null, 2))
+      return
+    }
     await admin.page.goto('/admin/testing', { waitUntil: 'networkidle' })
     await persona(admin.page, 'Writer')
     const stale = await headers(admin.ctx)
@@ -222,21 +415,26 @@ async function main() {
     expect({ role: adminAfter.role, password: adminAfter.password, name: adminAfter.name }).toEqual({ role: adminBefore.role, password: adminBefore.password, name: adminBefore.name })
     expect(await db.teamMember.findUniqueOrThrow({ where: { userId: id('admin') } })).toEqual(chiefBefore)
     verified('stale mutation denied, exit restores administrator, chief card/account unchanged')
+    if (process.env.HOSTED_EXTENDED_CHECKS === '1') await extendedChecks(ordinary, admin, scoped)
     const mail = await db.$queryRaw<{ recipient: string; subject: string }[]>`SELECT recipient,subject FROM testing_email_outbox WHERE html LIKE ${`%${run}%`}`
     expect(mail.length).toBeGreaterThan(0)
     expect(mail.every(row => row.recipient.endsWith('@consilium.test'))).toBe(true)
     const notifications = await db.notification.count({ where: { article: { title: { startsWith: run } } } })
     expect(notifications).toBeGreaterThan(0)
     verified('private database email capture and persisted workflow notifications')
-    expect(browserErrors).toEqual([])
-    verified('no collected application console errors or page exceptions')
-    fs.writeFileSync(path.join(output!, 'result.json'), JSON.stringify({ origin: workspace.siteOrigin, project: workspace.projectRef, run, results, publicUrls, capturedEmails: mail.length, notifications, browserErrors, testedAt: new Date().toISOString(), limitations: ['Hosted scheduling clock/job controls, every toolbar control, expiry/revocation and controlled storage failures are covered locally; this hosted smoke is a representative parity journey.'] }, null, 2))
+    expect(browserErrors).toEqual(expectedFaultErrors)
+    verified('no unexpected application console errors or page exceptions; exact injected fault messages retained')
+    fs.writeFileSync(path.join(output!, 'result.json'), JSON.stringify({ origin: workspace.siteOrigin, project: workspace.projectRef, run, results, publicUrls, capturedEmails: mail.length, notifications, browserErrors, expectedFaultErrors, testedAt: new Date().toISOString(), limitations: process.env.HOSTED_EXTENDED_CHECKS === '1' ? ['Every toolbar control and full controlled provider-outage matrix are covered locally; hosted save-failure injection occurs at the API boundary, not inside Supabase.'] : ['Hosted scheduling clock/job controls, every toolbar control, expiry/revocation and controlled storage failures are covered locally; this hosted smoke is a representative parity journey.'] }, null, 2))
   } catch (error) {
-    fs.writeFileSync(path.join(output!, 'failure.json'), JSON.stringify({ run, results, error: error instanceof Error ? error.message : String(error) }, null, 2))
+    // Failed clock probes must not leave a due row for a subsequent run's job.
+    // Never undo a completed publication, touch another run, or alter ownership.
+    if (advancedClock) await db.article.updateMany({ where: { id: advancedClock.id, title: advancedClock.title, authorId: id('writer'), status: 'SCHEDULED' }, data: { scheduledAt: new Date(Date.now() + 3_600_000) } })
+    fs.writeFileSync(path.join(output!, 'failure.json'), JSON.stringify({ run, results, browserErrors, expectedFaultErrors, error: error instanceof Error ? error.stack : String(error) }, null, 2))
     throw error
   } finally {
     await Promise.all(contexts.map(ctx => ctx.close()))
     await browser.close()
+    await releaseLease?.()
     await db.$disconnect()
   }
 }

@@ -57,4 +57,13 @@ Before the hosted browser journeys, the database held about 15 rows in total (6 
 
 ## Pausing
 
-Pausing keeps the data and project ref; the workspace is unavailable until restored, and restoring needs a free active-project slot on the plan. Hosted ordinary/simulated writer/editor/growth, publication, profile media and captured mail journeys passed on 4 October; see [acceptance and evidence](./acceptance-and-evidence.md). Repeat readiness and the representative smoke after recreation/restoration. The complete scheduling/failure/toolbar matrix is verified locally, not claimed as a complete hosted browser matrix.
+Pausing keeps the data and project ref; the workspace is unavailable until restored, and restoring needs a free active-project slot on the plan. Hosted ordinary/simulated writer/editor/growth, publication, profile media and captured mail journeys passed on 4 October; see [acceptance and evidence](./acceptance-and-evidence.md). Repeat readiness and the representative smoke after recreation/restoration. Supplemental scheduling, save/upload rejection/recovery, shared-tab and session expiry/replay checks passed hosted on 5 October. Every toolbar control and the complete internal provider-failure matrix remain local coverage; see the acceptance report.
+
+
+## Repeat hosted verification safely
+
+Use the protected operator environment/credential files with `scripts/verify-hosted-testing.ts`; never export them into the destructive automated fixture harness. The default run covers ordinary/simulated publication journeys. `HOSTED_EXTENDED_CHECKS=1` adds resilience/session/scheduling checks; `HOSTED_EXTENDED_ONLY=1` runs only that supplemental selection. It requires the exact canonical isolated origin and its reviewed database/storage/mail attestations. `HOSTED_LEASE_PROBE=1` checks availability without interactive mutations.
+
+The operator acquires `testing-hosted-browser-lease` in this test database before signing in or changing a profile. Concurrent operators sharing these personas are refused. Scoped cleanup releases only the exact invocation's lease; a terminated process's lease expires after 30 minutes. Unparseable/null state requires review rather than replacement. Test records have UUID run-prefixed titles. Clock advancement conditionally matches the exact test-owned scheduled article; the job refuses to run if another due article or eligible old trash could be affected. An unsuccessful clock probe restores only its own still-scheduled fixture to the future. Generated review articles and media remain for inspection; nothing in production is cleaned or reset.
+
+Vercel can reject an upload request before the application handler, returning 413. The client displays actionable smaller-file feedback and retains the last saved content/card. Bucket limits do not override the hosting request-body gate.

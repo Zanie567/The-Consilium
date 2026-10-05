@@ -30,6 +30,7 @@ describe('apiRequest', () => {
     [401, 'auth'],
     [403, 'permission'],
     [400, 'validation'],
+    [413, 'validation'],
     [422, 'validation'],
     [409, 'conflict'],
     [500, 'server'],
@@ -114,6 +115,14 @@ describe('apiRequest', () => {
     const request = apiRequest('/api/article')
     await expect(request).rejects.toMatchObject({ kind: 'server', status: 502 })
     await expect(request).rejects.not.toMatchObject({ message: expect.stringContaining('private proxy detail') })
+  })
+
+  it('gives actionable upload feedback for a plain-text hosting size rejection', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Request Entity Too Large', { status: 413 })))
+    await expect(apiRequest('/api/team-profile', { method: 'PUT' })).rejects.toMatchObject({
+      kind: 'validation', status: 413,
+      message: 'That upload is too large for the server. Use a smaller file.',
+    })
   })
 
   it('classifies a timed-out request and aborts the underlying fetch', async () => {

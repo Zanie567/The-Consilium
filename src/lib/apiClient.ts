@@ -121,6 +121,15 @@ function errorForResponse(response: Response, bodyValue: unknown): ApiError {
       options,
     )
   }
+  if (status === 413) {
+    // Hosting gateways can reject multipart bodies before the application route,
+    // returning plain text rather than our normal validation JSON.
+    return new ApiError(
+      'validation',
+      suppliedMessage ?? 'That upload is too large for the server. Use a smaller file.',
+      options,
+    )
+  }
   if (status === 409) {
     return new ApiError(
       'conflict',
