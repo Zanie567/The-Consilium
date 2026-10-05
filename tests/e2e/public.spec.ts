@@ -189,14 +189,15 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
   page.on('pageerror', (e) => watch(`${e.name}: ${e.message}`))
 
   // Full document loads (exercise the removed @view-transition navigation rule)…
+  // Each page is left only once its network is idle. Every page prefetches its links; tearing the
+  // document down mid-prefetch makes WebKit report each aborted fetch as a pageerror ("due to access
+  // control checks"), which is the test interrupting itself and not a view-transition fault.
+  // (This runs against a production build, where networkidle settles; there is no HMR socket.)
   for (const path of ['/', '/category/opinion', '/opinion-debate', '/category/news', '/about', '/']) {
-    expect((await page.goto(path, { waitUntil: 'domcontentloaded' }))?.status()).toBe(200)
-    await page.waitForTimeout(150)
+    expect((await page.goto(path, { waitUntil: 'networkidle' }))?.status()).toBe(200)
   }
-  // …then rapid client-side navigations (exercise Next's SPA transitions). Use
-  // 'domcontentloaded', not 'networkidle' — the dev server's HMR socket keeps
-  // the network busy, so 'networkidle' never settles.
-  await page.goto('/', { waitUntil: 'domcontentloaded' })
+  // …then rapid client-side navigations (exercise Next's SPA transitions).
+  await page.goto('/', { waitUntil: 'networkidle' })
   const links = page.locator('header a[href^="/category/"], main article a[href^="/articles/"]')
   const targets = (await links.evaluateAll(elements => elements.map(el => el.getAttribute('href')!))).slice(0, 5)
   expect(targets.length).toBeGreaterThan(0)
@@ -207,7 +208,7 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
     await page.goBack({ waitUntil: 'domcontentloaded' })
     await expect(page).toHaveURL(/\/$/)
   }
-  await page.waitForTimeout(300)
+  await page.waitForLoadState('networkidle')
 
   expect(invalidState, `InvalidStateError fired:\n${invalidState.join('\n')}`).toEqual([])
   expect(consoleErrors, `console errors:\n${consoleErrors.join('\n')}`).toEqual([])

@@ -114,9 +114,13 @@ test.describe('glossary (admin)', () => {
     await expect.poll(linked, { message: 'the term is linked on the published article', timeout: 20_000 }).toBeGreaterThan(0)
 
     // Deactivate: the tooltip goes.
-    const row = page.locator('div', { hasText: term }).filter({ has: page.getByRole('button', { name: 'Deactivate' }) }).last()
-    await row.getByRole('button', { name: 'Deactivate' }).click()
-    await expect(row.getByRole('button', { name: 'Activate' })).toBeVisible()
+    // Anchor the row on the term's heading and its Delete button, which do not change when the term is
+    // deactivated. (Matching on the Deactivate button made the row vanish from the locator after the click.)
+    const row = page.locator('div', { has: page.getByRole('heading', { name: term, exact: true }) })
+      .filter({ has: page.getByRole('button', { name: `Delete ${term}` }) }).last()
+    await row.getByRole('button', { name: 'Deactivate', exact: true }).click()
+    // exact: 'Activate' is otherwise a substring of 'Deactivate' and would match before the toggle happens.
+    await expect(row.getByRole('button', { name: 'Activate', exact: true })).toBeVisible()
     await expect.poll(linked, { timeout: 20_000 }).toBe(0)
 
     // Delete asks first (browser confirm); cancelling keeps it, accepting removes it.
