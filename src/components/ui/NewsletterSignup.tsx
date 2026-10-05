@@ -1,17 +1,29 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { apiRequest, asApiError } from '@/lib/apiClient'
+
+// Same rule as /api/subscribe, so an address the server would reject is never sent.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function NewsletterSignup() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
+  // A ref, not `status`: a second submit can arrive before React re-renders the disabled button.
+  const inFlight = useRef(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (inFlight.current) return
     // Read the visible form value, including autofill and input before hydration.
-    const email = String(new FormData(e.currentTarget as HTMLFormElement).get('email') ?? '')
+    const email = String(new FormData(e.currentTarget as HTMLFormElement).get('email') ?? '').trim()
+    if (!EMAIL_PATTERN.test(email) || email.length > 254) {
+      setStatus('error')
+      setMessage('Enter a valid email address.')
+      return
+    }
+    inFlight.current = true
     setStatus('loading')
     try {
       await apiRequest('/api/subscribe', {
@@ -24,6 +36,8 @@ export function NewsletterSignup() {
     } catch (reason) {
       setStatus('error')
       setMessage(asApiError(reason).message)
+    } finally {
+      inFlight.current = false
     }
   }
 

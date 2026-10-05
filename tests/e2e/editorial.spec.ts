@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { collectConsoleErrors } from './helpers/console'
+import { ArticleEditorPage } from './helpers/workflow'
 
 /**
  * Every editorial sub-route must load (authenticated), render its main heading,
@@ -156,6 +157,8 @@ test('visible moderation total equals the comment counts across every users-tabl
   expect(visibleTotal).toBeGreaterThan(0)
   const first = page.waitForResponse(r => new URL(r.url()).pathname === '/api/admin/users' && r.request().method() === 'GET')
   await page.goto('/editorial/users', { waitUntil: 'networkidle' })
+  // The cookie banner is fixed over the table's pagination controls on a fresh browser.
+  await new ArticleEditorPage(page).dismissCookieBanner()
   let response = await first
   let sum = 0
   for (;;) {

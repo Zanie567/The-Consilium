@@ -423,6 +423,16 @@ test('reading-position jump/dismiss and home continuation reopen server-saved pr
   // Reaching the homepage link legitimately scrolled the first article further.
   // Compare the latest saved record at this boundary, not its initial fixture.
   const priorPosition = await db().readingProgress.findUniqueOrThrow({ where: { userId_articleId: { userId: owner.id, articleId: article.id } } })
+  // Scrolling to the destination link is itself reading: the first article's page may legitimately save a
+  // further position (at most one per 4s) as the click begins. Track what it actually saved, so the stored
+  // value can be compared exactly with the last accepted write instead of a snapshot that can go stale.
+  const acceptedWrites: number[] = []
+  fresh.on('response', response => {
+    const request = response.request()
+    if (new URL(response.url()).pathname !== '/api/reading-progress' || request.method() !== 'POST' || response.status() !== 200) return
+    const body = request.postDataJSON()
+    if (body?.articleId === article.id) acceptedWrites.push(body.scrollY)
+  })
   const emptyPosition = fresh.waitForResponse(r => new URL(r.url()).pathname === `/api/reading-progress/${nextArticle.id}`)
   await fresh.getByRole('link', { name: nextTitle, exact: true }).click()
   await arrived(fresh, `/articles/${nextArticle.slug}`, nextTitle)
@@ -430,7 +440,8 @@ test('reading-position jump/dismiss and home continuation reopen server-saved pr
   expect(response.status()).toBe(200)
   expect(await response.json()).toBeNull()
   await expect(fresh.getByText('Continue where you left off', { exact: true })).toHaveCount(0)
-  expect((await db().readingProgress.findUniqueOrThrow({ where: { userId_articleId: { userId: owner.id, articleId: article.id } } })).scrollY).toBe(priorPosition.scrollY)
+  await fresh.waitForLoadState('networkidle') // any save begun by the old page has been answered
+  expect((await db().readingProgress.findUniqueOrThrow({ where: { userId_articleId: { userId: owner.id, articleId: article.id } } })).scrollY).toBe(acceptedWrites.at(-1) ?? priorPosition.scrollY)
   expect(await db().readingProgress.findUnique({ where: { userId_articleId: { userId: owner.id, articleId: nextArticle.id } } })).toBeNull()
   await reader.close()
 })

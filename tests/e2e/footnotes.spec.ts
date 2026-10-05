@@ -49,7 +49,9 @@ async function prep(page: Page) {
 /** Centre a marker (or its inner link) and return its viewport centre point. */
 function point(page: Page, selector: string) {
   return page.locator(selector).evaluate((el) => {
-    el.scrollIntoView({ block: 'center' })
+    // The site scrolls smoothly (html { scroll-behavior: smooth }); measuring mid-animation returns
+    // a point the element has already left, so scroll instantly and measure the final position.
+    el.scrollIntoView({ block: 'center', behavior: 'instant' })
     const target = el.querySelector('a') ?? el
     const r = target.getBoundingClientRect()
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 }

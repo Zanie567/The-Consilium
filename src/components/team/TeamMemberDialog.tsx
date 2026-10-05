@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -14,6 +14,11 @@ interface TeamMemberDialogProps {
   member: TeamCardMember
   open: boolean
   onClose: () => void
+  /**
+   * The control that opened the dialog, focused again on close. Safari does not focus a
+   * button when it is clicked, so `document.activeElement` at open time cannot be relied on.
+   */
+  returnFocusRef?: RefObject<HTMLElement | null>
 }
 
 /** Elements inside the dialog that can hold focus, for the tab trap. */
@@ -27,7 +32,7 @@ const FOCUSABLE = 'a[href], button:not([disabled])'
  * on open, is trapped while it is open, and returns to the card that opened it on
  * close, so keyboard users are never dropped at the top of the page.
  */
-export function TeamMemberDialog({ member, open, onClose }: TeamMemberDialogProps) {
+export function TeamMemberDialog({ member, open, onClose, returnFocusRef }: TeamMemberDialogProps) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
   const panelRef = useRef<HTMLDivElement>(null)
@@ -47,6 +52,7 @@ export function TeamMemberDialog({ member, open, onClose }: TeamMemberDialogProp
     if (!open || !mounted) return
 
     restoreFocusRef.current = document.activeElement as HTMLElement | null
+    const invoker = returnFocusRef?.current ?? null
 
     // Lock background scrolling while the dialog is over the page.
     const previousOverflow = document.body.style.overflow
@@ -59,14 +65,22 @@ export function TeamMemberDialog({ member, open, onClose }: TeamMemberDialogProp
       }
       if (event.key !== 'Tab') return
 
-      const focusable = panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE)
-      if (!focusable || focusable.length === 0) return
+      const panel = panelRef.current
+      const focusable = panel?.querySelectorAll<HTMLElement>(FOCUSABLE)
+      if (!panel || !focusable || focusable.length === 0) return
       const first = focusable[0]
       const last = focusable[focusable.length - 1]
-      if (event.shiftKey && document.activeElement === first) {
+      const active = document.activeElement
+      // Focus on the panel itself (where it starts) or outside the dialog is placed explicitly:
+      // browsers disagree about where Tab goes from there, and WebKit left the dialog once it
+      // was portalled to the end of the body.
+      if (!active || active === panel || !panel.contains(active)) {
+        event.preventDefault()
+        ;(event.shiftKey ? last : first).focus()
+      } else if (event.shiftKey && active === first) {
         event.preventDefault()
         last.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && active === last) {
         event.preventDefault()
         first.focus()
       }
@@ -80,9 +94,9 @@ export function TeamMemberDialog({ member, open, onClose }: TeamMemberDialogProp
     return () => {
       window.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = previousOverflow
-      restoreFocusRef.current?.focus?.()
+      ;(invoker ?? restoreFocusRef.current)?.focus?.()
     }
-  }, [open, mounted])
+  }, [open, mounted, returnFocusRef])
 
   const headingId = `team-member-${member.id}`
 
