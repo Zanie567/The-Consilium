@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Request } from '@playwright/test'
 import { collectConsoleErrors } from './helpers/console'
 import {
   expectedCategoryArticles,
@@ -178,7 +178,7 @@ test('search highlights matched terms with <mark>', async ({ page }) => {
 
 test('navigating across pages throws no InvalidStateError (view-transition guard)', async ({ page }) => {
   // This case completes twelve navigations, including cold development routes.
-  test.setTimeout(90_000)
+  test.setTimeout(120_000)
   const consoleErrors = collectConsoleErrors(page)
   const invalidState: string[] = []
   const watch = (text: string) => {
@@ -186,6 +186,26 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
   }
   page.on('console', (m) => watch(m.text()))
   page.on('pageerror', (e) => watch(`${e.name}: ${e.message}`))
+
+  // Next issues <Link> prefetches (`?_rsc=`) after the network first looks idle. Leaving
+  // the page while one is in flight makes WebKit log "due to access control checks" for
+  // a request the test itself aborted. Track them and let them finish before navigating;
+  // nothing is filtered, so a genuine console error still fails the test.
+  const inFlight = new Set<Request>()
+  const isPrefetch = (r: Request) => r.url().includes('_rsc=')
+  page.on('request', (r) => { if (isPrefetch(r)) inFlight.add(r) })
+  page.on('requestfinished', (r) => inFlight.delete(r))
+  page.on('requestfailed', (r) => inFlight.delete(r))
+  const settlePrefetches = async () => {
+    // Quiet for a short window, so a prefetch that starts just after idle is also seen.
+    let quietSince = Date.now()
+    const deadline = Date.now() + 15_000
+    while (Date.now() - quietSince < 300) {
+      if (Date.now() > deadline) throw new Error(`Prefetches still in flight: ${[...inFlight].map((r) => r.url()).join(', ')}`)
+      if (inFlight.size > 0) quietSince = Date.now()
+      await page.waitForTimeout(50)
+    }
+  }
 
   // Full document loads (exercise the removed @view-transition navigation rule)…
   for (const path of ['/', '/category/opinion', '/opinion-debate', '/category/news', '/about', '/']) {
@@ -195,6 +215,7 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
     await page.goto(path, { waitUntil: 'networkidle' })
     await expect(page).toHaveURL(url => url.pathname === path)
     await expect(page.locator('main').first()).toBeVisible()
+    await settlePrefetches()
   }
   // …then client-side navigations, followed promptly by Back after the target
   // actually finishes loading. Neither clicks nor failed navigation are swallowed.
@@ -212,7 +233,7 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
     await links.nth(i).click()
     await page.waitForURL(url => url.pathname === href, { waitUntil: 'networkidle' })
     await expect(page.locator('main').first()).toBeVisible()
-    await page.waitForTimeout(200)
+    await settlePrefetches()
     await page.goBack({ waitUntil: 'networkidle' })
     await expect(page).toHaveURL(url => url.pathname === '/')
   }
