@@ -222,8 +222,11 @@ async function main() {
     expect((await fetch(url)).status).toBe(404)
     expect(await db.article.count({ where: { status: 'SCHEDULED', scheduledAt: { lte: new Date() }, id: { not: saved.id } } })).toBe(0)
     expect(await db.article.count({ where: { deletedAt: { lt: new Date(Date.now() - 30 * 86_400_000) } } })).toBe(0)
-    expect((await db.article.updateMany({ where: { id: saved.id, title: `${run} scheduled`, authorId: id('writer'), status: 'SCHEDULED' }, data: { scheduledAt: new Date(Date.now() - 60_000) } })).count).toBe(1)
     advancedClock = { id: saved.id, title: `${run} scheduled` }
+    // Register the exact cleanup identity before advancing the clock. If the
+    // database commits and the client then raises, the catch path can still
+    // restore only this run's owned fixture instead of leaving it due.
+    expect((await db.article.updateMany({ where: { id: saved.id, title: advancedClock.title, authorId: id('writer'), status: 'SCHEDULED' }, data: { scheduledAt: new Date(Date.now() - 60_000) } })).count).toBe(1)
     // Jobs authenticate independently using their server secret, without an
     // administrator's browser cookies or stale simulated-form identity.
     expect((await fetch(`${workspace.siteOrigin}/api/publish-scheduled`, { method: 'POST', headers: { Authorization: 'Bearer invalid-test-job-secret' } })).status).toBe(401)
