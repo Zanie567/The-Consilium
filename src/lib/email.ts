@@ -4,24 +4,65 @@ import { escapeHtml as esc } from '@/lib/escapeHtml'
 
 const FROM = 'The Consilium <noreply@theconsilium.co.uk>'
 
+/**
+ * Sends a transactional email via Resend. Never throws: failures are logged and
+ * reported through the return value so callers can decide whether they matter.
+ * Returns true only when Resend accepted the message.
+ */
 export async function sendEmail({
   to,
   subject,
   html,
+  replyTo,
 }: {
   to: string
   subject: string
   html: string
-}) {
+  replyTo?: string
+}): Promise<boolean> {
   if (!process.env.RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY not set - email not sent to', to)
-    return
+    return false
   }
   try {
     const resend = new Resend(process.env.RESEND_API_KEY)
-    await resend.emails.send({ from: FROM, to, subject, html })
+    const { error } = await resend.emails.send({
+      from: FROM,
+      to,
+      subject,
+      html,
+      ...(replyTo ? { replyTo } : {}),
+    })
+    if (error) {
+      console.error('[email] Resend rejected message:', error)
+      return false
+    }
+    return true
   } catch (err) {
     console.error('[email] Failed to send:', err)
+    return false
+  }
+}
+
+const CONTACT_SUBJECT_LABELS: Record<string, string> = {
+  writing: "I'd like to write for The Consilium",
+  story: 'Story tip or idea',
+  collaboration: 'Collaboration enquiry',
+  feedback: 'Feedback',
+  other: 'Other',
+}
+
+export function contactMessageEmail(name: string, email: string, subject: string, message: string) {
+  const label = CONTACT_SUBJECT_LABELS[subject] ?? 'Other'
+  return {
+    subject: `Contact form: ${label}`,
+    html: `
+      <p>A new message was sent through the contact form on The Consilium.</p>
+      <p><strong>From:</strong> ${esc(name)} (<a href="mailto:${esc(email)}">${esc(email)}</a>)</p>
+      <p><strong>Subject:</strong> ${esc(label)}</p>
+      <blockquote style="border-left:3px solid #c9a227;padding:8px 16px;margin:16px 0;color:#555;white-space:pre-wrap">${esc(message)}</blockquote>
+      <p>Reply directly to this email to respond to ${esc(name)}.</p>
+    `,
   }
 }
 

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { checkRateLimit, getIp } from '@/lib/rate-limit'
+import { sendEmail, contactMessageEmail } from '@/lib/email'
+import { CONTACT_EMAIL } from '@/lib/constants'
 
 export async function POST(req: NextRequest) {
   if (!checkRateLimit(`contact:${getIp(req)}`, 5, 5 * 60 * 1000)) {
@@ -37,6 +39,18 @@ export async function POST(req: NextRequest) {
     await prisma.contactMessage.create({
       data: { name, email, subject, message },
     })
+
+    // The message is already safely stored, so a failed notification must not
+    // turn into an error for the visitor. It is awaited (not fire-and-forget)
+    // because serverless functions can be frozen once the response is sent.
+    const notified = await sendEmail({
+      to: CONTACT_EMAIL,
+      replyTo: email,
+      ...contactMessageEmail(name, email, subject, message),
+    })
+    if (!notified) {
+      console.error('[contact] Message saved but notification email was not sent')
+    }
 
     return NextResponse.json({ ok: true })
   } catch {
