@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default async function SetupPage() {
   // Only accessible if no Admin exists yet
-  const adminExists = await prisma.user.findFirst({ where: { role: 'ADMIN' } }).catch(() => null)
+  const adminExists = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
   if (adminExists) redirect('/editorial/login')
 
   return (

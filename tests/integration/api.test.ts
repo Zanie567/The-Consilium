@@ -1,14 +1,8 @@
 /**
  * Integration tests for The Consilium API routes.
  *
- * Prerequisites:
- *   1. Dev server running: npm run dev (http://localhost:3000)
- *   2. DB seeded with at least one published article and one active debate
- *
- * To run integration tests only:
- *   BASE_URL=http://localhost:3000 npx vitest run tests/integration
- *
- * Tests that cannot run without a live server are skipped with a note.
+ * Runs inside `npm run test:audit` against its attested disposable database,
+ * isolated production app and owned fixtures. Missing services fail setup.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest'
@@ -20,7 +14,7 @@ const BASE = process.env.BASE_URL ?? 'http://localhost:3000'
 async function serverIsUp(): Promise<boolean> {
   try {
     const res = await fetch(`${BASE}/api/articles`, { signal: AbortSignal.timeout(3000) })
-    return res.status < 600
+    return res.status === 200
   } catch {
     return false
   }

@@ -61,7 +61,7 @@ const rules = [
   ['Share popups', [['wf-remaining', 'public copy']], []],
   ['Team form', [['team-profile', '.'], ['team-profile-lifecycle', '.']], []],
   ['Contact every', [['wf-discovery', 'contact failure'], ['public', 'contact|privacy|terms|about']], []],
-  ['First-admin', [], [['route-handlers', 'POST /api/editorial/setup']]],
+  ['First-admin', [['wf-bootstrap', '.']], ['bootstrap-boundaries', ['route-handlers', 'POST /api/editorial/setup']]],
 ]
 assert.equal(rows.length, rules.length, 'Every reviewed inventory family needs an explicit execution mapping')
 const executed = summary.phases.flatMap(phase => phase.tests.map(test => ({ ...test, phase: phase.phase })))

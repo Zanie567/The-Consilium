@@ -4208,6 +4208,7 @@
         "tests/e2e/wf-admin-content.spec.ts",
         "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
+        "tests/e2e/wf-bootstrap.spec.ts",
         "tests/e2e/wf-controls.spec.ts",
         "tests/e2e/wf-discovery.spec.ts",
         "tests/e2e/wf-failures.spec.ts",
@@ -4234,6 +4235,7 @@
         "tests/integration/team-profile-db.test.ts",
         "tests/unit/analytics-request-recovery.test.tsx",
         "tests/unit/auth-redirect.test.ts",
+        "tests/unit/bootstrap-boundaries.test.tsx",
         "tests/unit/editorial-calendar.test.ts",
         "tests/unit/editorial-login-recovery.test.tsx",
         "tests/unit/editorial-schedule-display.test.ts",
@@ -6109,6 +6111,7 @@
         "tests/e2e/team-profile-lifecycle.spec.ts",
         "tests/e2e/team-profile.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
+        "tests/e2e/wf-bootstrap.spec.ts",
         "tests/e2e/wf-failures.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
         "tests/e2e/wf-roles.spec.ts",
@@ -6278,18 +6281,20 @@
       ],
       "accessEvidence": "CODE_INSPECTION: see coverage-inventory.md role matrix and route guards; rendered refusals in wf-roles",
       "candidateTestFiles": [
-        "tests/integration/route-handlers.test.ts"
+        "tests/e2e/wf-bootstrap.spec.ts",
+        "tests/integration/route-handlers.test.ts",
+        "tests/unit/bootstrap-boundaries.test.tsx"
       ],
       "guardSource": [
         "src/app/editorial/setup/page.tsx: if (adminExists) redirect('/editorial/login')"
       ],
       "controls": [
-        "src/app/editorial/setup/SetupForm.tsx:39",
-        "src/app/editorial/setup/SetupForm.tsx:49",
-        "src/app/editorial/setup/SetupForm.tsx:62",
-        "src/app/editorial/setup/SetupForm.tsx:75",
-        "src/app/editorial/setup/SetupForm.tsx:88",
-        "src/app/editorial/setup/SetupForm.tsx:96",
+        "src/app/editorial/setup/SetupForm.tsx:45",
+        "src/app/editorial/setup/SetupForm.tsx:55",
+        "src/app/editorial/setup/SetupForm.tsx:69",
+        "src/app/editorial/setup/SetupForm.tsx:83",
+        "src/app/editorial/setup/SetupForm.tsx:97",
+        "src/app/editorial/setup/SetupForm.tsx:106",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -6459,6 +6464,7 @@
         "tests/e2e/team-profile-lifecycle.spec.ts",
         "tests/e2e/team-profile.spec.ts",
         "tests/e2e/wf-accounts.spec.ts",
+        "tests/e2e/wf-bootstrap.spec.ts",
         "tests/e2e/wf-failures.spec.ts",
         "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-reader.spec.ts",
@@ -10305,11 +10311,11 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/setup/SetupForm.tsx:39",
+      "id": "src/app/editorial/setup/SetupForm.tsx:45",
       "file": "src/app/editorial/setup/SetupForm.tsx",
-      "line": 39,
+      "line": 45,
       "tag": "form",
-      "label": "{error && ( <p className=\"text-red-400 text-xs bg-red-500/10 border border-red-500/20 px-4 py-3\"> {error} </p> )} Full Name Email Password Confirm Password {loading ? 'Creating account…' : 'Create Admin Account'}",
+      "label": "{error && ( <p role=\"alert\" className=\"text-red-400 text-xs bg-red-500/10 border border-red-500/20 px-4 py-3\"> {error} </p> )} Full Name Email Password Confirm Password {loading ? 'Creating account…' : 'Create Admin Account'}",
       "href": null,
       "type": null,
       "disabledWhen": null,
@@ -10322,9 +10328,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/setup/SetupForm.tsx:49",
+      "id": "src/app/editorial/setup/SetupForm.tsx:55",
       "file": "src/app/editorial/setup/SetupForm.tsx",
-      "line": 49,
+      "line": 55,
       "tag": "input",
       "label": "Your name",
       "href": null,
@@ -10335,16 +10341,17 @@
       },
       "candidateTests": [
         "tests/e2e/team-profile-lifecycle.spec.ts",
-        "tests/e2e/wf-reader.spec.ts"
+        "tests/e2e/wf-reader.spec.ts",
+        "tests/unit/bootstrap-boundaries.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/setup/SetupForm.tsx:62",
+      "id": "src/app/editorial/setup/SetupForm.tsx:69",
       "file": "src/app/editorial/setup/SetupForm.tsx",
-      "line": 62,
+      "line": 69,
       "tag": "input",
       "label": "admin@example.com",
       "href": null,
@@ -10354,16 +10361,17 @@
         "onChange": "{(e) => setForm({ ...form, email: e.target.value })}"
       },
       "candidateTests": [
-        "tests/integration/route-handlers.test.ts"
+        "tests/integration/route-handlers.test.ts",
+        "tests/unit/bootstrap-boundaries.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/setup/SetupForm.tsx:75",
+      "id": "src/app/editorial/setup/SetupForm.tsx:83",
       "file": "src/app/editorial/setup/SetupForm.tsx",
-      "line": 75,
+      "line": 83,
       "tag": "input",
       "label": "Min. 8 characters",
       "href": null,
@@ -10378,9 +10386,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/setup/SetupForm.tsx:88",
+      "id": "src/app/editorial/setup/SetupForm.tsx:97",
       "file": "src/app/editorial/setup/SetupForm.tsx",
-      "line": 88,
+      "line": 97,
       "tag": "input",
       "label": "(unnamed control)",
       "href": null,
@@ -10395,9 +10403,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/setup/SetupForm.tsx:96",
+      "id": "src/app/editorial/setup/SetupForm.tsx:106",
       "file": "src/app/editorial/setup/SetupForm.tsx",
-      "line": 96,
+      "line": 106,
       "tag": "button",
       "label": "{loading ? 'Creating account…' : 'Create Admin Account'}",
       "href": null,
@@ -17663,6 +17671,7 @@
         "tests/e2e/wf-admin-content.spec.ts",
         "tests/e2e/wf-admin-profile.spec.ts",
         "tests/e2e/wf-articles.spec.ts",
+        "tests/e2e/wf-bootstrap.spec.ts",
         "tests/e2e/wf-cache.spec.ts",
         "tests/e2e/wf-controls.spec.ts",
         "tests/e2e/wf-discovery.spec.ts",
@@ -17686,6 +17695,7 @@
         "tests/integration/team-profile-storage.test.ts",
         "tests/unit/analytics-request-recovery.test.tsx",
         "tests/unit/article-section-links.test.tsx",
+        "tests/unit/bootstrap-boundaries.test.tsx",
         "tests/unit/editorial-login-recovery.test.tsx",
         "tests/unit/featured-article-hero.test.tsx",
         "tests/unit/moderation-request-order.test.tsx",
@@ -19122,7 +19132,8 @@
       },
       "candidateTests": [
         "tests/e2e/team-profile-lifecycle.spec.ts",
-        "tests/e2e/wf-reader.spec.ts"
+        "tests/e2e/wf-reader.spec.ts",
+        "tests/unit/bootstrap-boundaries.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -20765,7 +20776,8 @@
       },
       "candidateTests": [
         "tests/e2e/team-profile-lifecycle.spec.ts",
-        "tests/e2e/wf-reader.spec.ts"
+        "tests/e2e/wf-reader.spec.ts",
+        "tests/unit/bootstrap-boundaries.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",

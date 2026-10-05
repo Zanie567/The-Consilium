@@ -5,11 +5,8 @@
  *
  * The database is whatever vitest.config.ts resolved through the central guard
  * (scripts/lib/assertSafeTestDatabaseHost.ts): TEST_DATABASE_URL or the local default, never
- * .env.local. If it is unreachable, or its schema predates `team_members.userId`,
- * the suite skips with a warning instead of failing.
- *
- *   npm run test:setup-db      # starts a local Postgres, pushes the schema, seeds
- *   npx vitest run tests/integration/team-profile-db.test.ts
+ * .env.local. Missing services or schema fail collection. Run through the
+ * attested `npm run test:audit` launcher; ordinary unit runs exclude this suite.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
@@ -33,7 +30,7 @@ async function schemaIsReady(): Promise<boolean> {
   } catch {
     return false
   } finally {
-    await client.end().catch(() => {})
+    await client.end()
   }
 }
 

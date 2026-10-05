@@ -22,7 +22,7 @@ The complete final-source [route/control census](control-inventory.json) records
 | Legacy `/admin/data`, `/admin/login-attempts`, `/admin/team` | Denied | Denied | Allowed | Denied | Denied | BROWSER `wf-remaining`, Team Profile; deletion API negative checks separate |
 | Legacy `/admin/subscribers` | Denied | Allowed by existing route policy | Allowed | Denied | Denied | BROWSER navigation; portal subscriber workflows use Admin/Growth |
 | `/predictions`, detail, leaderboard trial | Denied | Denied | Allowed | Denied | Denied | BROWSER `wf-portal`; intentionally gated trial |
-| `/editorial/setup` | First-admin form only without existing admin | Same | Same | Same | Same | UNAVAILABLE in seeded environment; UNIT route-handler creation/guards |
+| `/editorial/setup` | First-admin form only without existing admin | Same | Same | Same | Same | BROWSER conditional empty-admin fixture in owned database; existing-admin redirect/403 |
 | Public home/category/archive/search/tag/author/article/debate/team/static policies/contact | Public | Public | Public | Public | Public | BROWSER `public`, `wf-discovery` category tabs/carousel/archive filters/pagination, `footnotes`, reader/mobile; API_DB crawl separate |
 | Public login/signup/forgot/reset/unsubscribe/banned | Account/session-dependent forms | Same | Same | Same | Same | BROWSER account/access tests; captured transport only |
 
@@ -83,7 +83,7 @@ Every row maps expected behaviour to test locations and a verification method. F
 | Share popups/copy/failure/PDF | Exact destination observed without posting; clipboard real read-back Chromium; print/PDF content | BROWSER `wf-remaining`; WebKit clipboard success boundary only; native print/share destinations EXTERNAL_BLOCK |
 | Team form/photo/linking/role promotion/delete confirmation/public roster | Account-bound ownership and actual stored image/public roster across mobile layouts | BROWSER `team-profile`, `team-profile-lifecycle`; real storage policy EXTERNAL_BLOCK |
 | Contact every subject, failure/retry, validation/submission and static/public links | Visible required-field validation, exact submission; public policy/content renders | BROWSER `wf-discovery` (new, pending execution) and `public`; API_DB `api`; external social posting not exercised |
-| First-admin setup/bootstrap | Refuse takeover after admin exists; create only in empty state | UNIT/in-process route; seeded browser flow UNAVAILABLE |
+| First-admin setup/bootstrap | Validation/failure retains inputs; concurrent forms create exactly one admin; login persists; refuse takeover after admin exists | BROWSER `wf-bootstrap` (temporary seeded-role fixture, single worker, attested disposable DB); UNIT `bootstrap-boundaries` and in-process route guards |
 
 ## External limits and unresolved findings
 
