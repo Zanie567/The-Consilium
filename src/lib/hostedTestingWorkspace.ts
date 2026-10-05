@@ -8,6 +8,13 @@ export const HOSTED_TEST_WORKSPACE = {
   workspaceId: 'consilium-testing-zrieajoqosgzyesfatta',
 } as const
 
+/** Only this reviewed feature preview may share the isolated test resources. */
+export const HOSTED_FEATURE_PREVIEW = {
+  siteOrigin: 'https://the-consilium-git-feat-public-appoint-b6e6c3-zanie567s-projects.vercel.app',
+  projectId: 'prj_bapU4vXrmP3j1M0TH4UScngxQxVY',
+  branch: 'feat/public-appointments-testing-mode',
+} as const
+
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'] as const
 
 /**
@@ -29,7 +36,10 @@ export function hostedBucketSql(): string {
 export function hostedTestingConfigurationError(env: Record<string, string | undefined>): string | null {
   const w = HOSTED_TEST_WORKSPACE
   if (env.TEST_HARNESS === '1' || env.E2E_ISOLATED === '1' || env.TEST_DATABASE_URL) return 'Hosted interactive testing cannot use the automated test harness.'
-  if (env.TESTING_WORKSPACE_ID !== w.workspaceId || env.NEXT_PUBLIC_SUPABASE_URL !== w.storageOrigin || env.NEXTAUTH_URL !== w.siteOrigin || env.NEXT_PUBLIC_SITE_URL !== w.siteOrigin) return 'Hosted testing resources do not match the reviewed workspace.'
+  const preview = env.NEXTAUTH_URL === HOSTED_FEATURE_PREVIEW.siteOrigin
+  if (preview && (env.VERCEL_ENV !== 'preview' || env.VERCEL_PROJECT_ID !== HOSTED_FEATURE_PREVIEW.projectId || env.VERCEL_GIT_COMMIT_REF !== HOSTED_FEATURE_PREVIEW.branch)) return 'Hosted feature testing requires the reviewed preview project and branch.'
+  const siteOrigin = preview ? HOSTED_FEATURE_PREVIEW.siteOrigin : w.siteOrigin
+  if (env.TESTING_WORKSPACE_ID !== w.workspaceId || env.NEXT_PUBLIC_SUPABASE_URL !== w.storageOrigin || env.NEXTAUTH_URL !== siteOrigin || env.NEXT_PUBLIC_SITE_URL !== siteOrigin) return 'Hosted testing resources do not match the reviewed workspace.'
   if (env.DATABASE_URL !== env.DIRECT_URL) return 'Hosted testing requires the reviewed database connection for both clients.'
   try {
     const db = new URL(env.DATABASE_URL ?? '')

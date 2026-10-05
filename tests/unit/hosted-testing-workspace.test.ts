@@ -1,6 +1,6 @@
 import { databaseConnection, SUPABASE_DATABASE_CA } from '@/lib/hostedDatabaseConnection'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { HOSTED_TEST_WORKSPACE as w, HOSTED_TEST_BUCKETS, hostedBucketSql, hostedTestingConfigurationError } from '@/lib/hostedTestingWorkspace'
+import { HOSTED_TEST_WORKSPACE as w, HOSTED_FEATURE_PREVIEW as preview, HOSTED_TEST_BUCKETS, hostedBucketSql, hostedTestingConfigurationError } from '@/lib/hostedTestingWorkspace'
 import fs from 'node:fs'
 const mocks = vi.hoisted(() => ({ findUnique: vi.fn(), query: vi.fn(), execute: vi.fn(), send: vi.fn() }))
 vi.mock('@/lib/prisma', () => ({ prisma: { siteSetting: { findUnique: mocks.findUnique }, $queryRaw: mocks.query, $executeRaw: mocks.execute } }))
@@ -17,6 +17,14 @@ const configuration = () => ({
 afterEach(() => { vi.unstubAllEnvs(); vi.resetAllMocks() })
 describe('reviewed hosted interactive workspace', () => {
   it('accepts only its independently reviewed resources', () => expect(testingConfigurationError(configuration())).toBeNull())
+  const previewConfiguration = () => ({ ...configuration(), NEXTAUTH_URL: preview.siteOrigin, NEXT_PUBLIC_SITE_URL: preview.siteOrigin, VERCEL_ENV: 'preview', VERCEL_PROJECT_ID: preview.projectId, VERCEL_GIT_COMMIT_REF: preview.branch })
+  it('accepts the reviewed branch preview only with the same isolated database, storage and capture sink', () => {
+    expect(hostedTestingConfigurationError(previewConfiguration())).toBeNull()
+    expect(databaseConnection(previewConfiguration(), previewConfiguration().DATABASE_URL).ssl?.rejectUnauthorized).toBe(true)
+  })
+  it.each([{ VERCEL_ENV: 'production' }, { VERCEL_ENV: undefined }, { VERCEL_PROJECT_ID: 'other-project' }, { VERCEL_GIT_COMMIT_REF: 'main' }, { NEXT_PUBLIC_SITE_URL: w.siteOrigin }, { NEXTAUTH_URL: 'https://arbitrary-preview.vercel.app' }, { RESEND_API_KEY: 'real-provider' }])('refuses unreviewed or production preview drift %j', patch => {
+    expect(hostedTestingConfigurationError({ ...previewConfiguration(), ...patch })).not.toBeNull()
+  })
   it.each([
     { TESTING_MODE_ENABLED: '0' }, { TESTING_WORKSPACE_ID: 'production' }, { TESTING_WORKSPACE_KIND: 'arbitrary' },
     { TEST_DATABASE_URL: 'postgresql://localhost/test' }, { TEST_HARNESS: '1' }, { E2E_ISOLATED: '1' },
