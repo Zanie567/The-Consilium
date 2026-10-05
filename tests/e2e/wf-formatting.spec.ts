@@ -388,7 +388,7 @@ test('writer submits the draft for review through the Submit button', async ({ b
 
   // The writer can no longer edit it, and is told why.
   await page.reload({ waitUntil: 'networkidle' })
-  await expect(page.getByText('This article is under review and cannot be edited until an editor responds.')).toBeVisible()
+  await expect(page.locator('#main-content').getByText('This article is under review and cannot be edited until an editor responds.')).toBeVisible()
   await expect(ed.title()).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Submit' })).toHaveCount(0)
   await ctx.close()
