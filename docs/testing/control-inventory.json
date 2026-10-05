@@ -21,8 +21,8 @@
         "src/app/(home)/page.tsx:411",
         "src/app/(home)/page.tsx:441",
         "src/app/(home)/page.tsx:481",
-        "src/components/ui/NewsletterSignup.tsx:63",
-        "src/components/ui/NewsletterSignup.tsx:91",
+        "src/components/ui/NewsletterSignup.tsx:77",
+        "src/components/ui/NewsletterSignup.tsx:105",
         "src/components/ui/CategoryTabs.tsx:33",
         "src/components/ui/ContinueReading.tsx:101",
         "src/components/ui/ContinueReading.tsx:161",
@@ -1246,6 +1246,7 @@
         "tests/unit/console-error-collection.test.ts",
         "tests/unit/featured-article-hero.test.tsx",
         "tests/unit/notification-navigation.test.tsx",
+        "tests/unit/proxy-editorial-reset.test.ts",
         "tests/unit/public-user.test.ts",
         "tests/unit/route-feedback.test.tsx"
       ],
@@ -2113,6 +2114,7 @@
         "tests/e2e/wf-stale-authorization.spec.ts",
         "tests/integration/review-route.test.ts",
         "tests/unit/notification-navigation.test.tsx",
+        "tests/unit/proxy-editorial-reset.test.ts",
         "tests/unit/route-feedback.test.tsx"
       ],
       "guardSource": [
@@ -2653,6 +2655,7 @@
         "tests/e2e/wf-stale-authorization.spec.ts",
         "tests/integration/review-route.test.ts",
         "tests/unit/notification-navigation.test.tsx",
+        "tests/unit/proxy-editorial-reset.test.ts",
         "tests/unit/route-feedback.test.tsx"
       ],
       "guardSource": [
@@ -4244,6 +4247,7 @@
         "tests/unit/portal-layout-ban.test.tsx",
         "tests/unit/portal-request-order.test.tsx",
         "tests/unit/profile-feedback.test.tsx",
+        "tests/unit/proxy-editorial-reset.test.ts",
         "tests/unit/route-feedback.test.tsx",
         "tests/unit/safe-redirect.test.ts",
         "tests/unit/trash-feedback.test.tsx",
@@ -5736,7 +5740,8 @@
         "tests/integration/api.test.ts",
         "tests/integration/management-data-protection.test.ts",
         "tests/integration/proxy.test.ts",
-        "tests/integration/team-profile-db.test.ts"
+        "tests/integration/team-profile-db.test.ts",
+        "tests/unit/proxy-editorial-reset.test.ts"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/users/[id]/page.tsx: import { getVerifiedSessionUser } from '@/lib/auth'",
@@ -5879,7 +5884,8 @@
         "tests/integration/api.test.ts",
         "tests/integration/management-data-protection.test.ts",
         "tests/integration/proxy.test.ts",
-        "tests/integration/team-profile-db.test.ts"
+        "tests/integration/team-profile-db.test.ts",
+        "tests/unit/proxy-editorial-reset.test.ts"
       ],
       "guardSource": [
         "src/app/editorial/(portal)/users/page.tsx: import { getVerifiedSessionUser } from '@/lib/auth'",
@@ -7563,17 +7569,18 @@
         "tests/integration/team-profile-storage.test.ts",
         "tests/unit/team-hierarchy.test.ts",
         "tests/unit/team-member-card.test.tsx",
+        "tests/unit/team-member-dialog-focus.test.tsx",
         "tests/unit/team-profile-accounts.test.ts",
         "tests/unit/team-profiles.test.ts"
       ],
       "guardSource": [],
       "controls": [
-        "src/components/team/TeamMemberCard.tsx:90",
-        "src/components/team/TeamMemberCard.tsx:153",
-        "src/components/team/TeamMemberDialog.tsx:105",
-        "src/components/team/TeamMemberDialog.tsx:120",
-        "src/components/team/TeamMemberDialog.tsx:181",
-        "src/components/team/TeamMemberDialog.tsx:189",
+        "src/components/team/TeamMemberCard.tsx:91",
+        "src/components/team/TeamMemberCard.tsx:155",
+        "src/components/team/TeamMemberDialog.tsx:119",
+        "src/components/team/TeamMemberDialog.tsx:134",
+        "src/components/team/TeamMemberDialog.tsx:195",
+        "src/components/team/TeamMemberDialog.tsx:203",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -15076,6 +15083,7 @@
         "tests/unit/animation-hydration.test.tsx",
         "tests/unit/auth-redirect.test.ts",
         "tests/unit/featured-article-hero.test.tsx",
+        "tests/unit/proxy-editorial-reset.test.ts",
         "tests/unit/safe-redirect.test.ts",
         "tests/unit/seo.test.ts",
         "tests/unit/test-services-isolation.test.ts"
@@ -15465,6 +15473,7 @@
         "tests/unit/portal-layout-ban.test.tsx",
         "tests/unit/portal-request-order.test.tsx",
         "tests/unit/profile-feedback.test.tsx",
+        "tests/unit/proxy-editorial-reset.test.ts",
         "tests/unit/reading-position-boundaries.test.tsx",
         "tests/unit/session-fresh-authorization.test.ts",
         "tests/unit/trash-feedback.test.tsx"
@@ -17706,6 +17715,7 @@
         "tests/unit/route-feedback.test.tsx",
         "tests/unit/signup-prompt-navigation.test.tsx",
         "tests/unit/team-hierarchy.test.ts",
+        "tests/unit/team-member-dialog-focus.test.tsx",
         "tests/unit/team-profile-accounts.test.ts",
         "tests/unit/trash-feedback.test.tsx"
       ],
@@ -18914,6 +18924,7 @@
         "tests/unit/animation-hydration.test.tsx",
         "tests/unit/auth-redirect.test.ts",
         "tests/unit/featured-article-hero.test.tsx",
+        "tests/unit/proxy-editorial-reset.test.ts",
         "tests/unit/safe-redirect.test.ts",
         "tests/unit/seo.test.ts",
         "tests/unit/test-services-isolation.test.ts"
@@ -19336,9 +19347,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/team/TeamMemberCard.tsx:90",
+      "id": "src/components/team/TeamMemberCard.tsx:91",
       "file": "src/components/team/TeamMemberCard.tsx",
-      "line": 90,
+      "line": 91,
       "tag": "button",
       "label": "{`View full profile for ${member.name}`}",
       "href": null,
@@ -19353,9 +19364,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/team/TeamMemberCard.tsx:153",
+      "id": "src/components/team/TeamMemberCard.tsx:155",
       "file": "src/components/team/TeamMemberCard.tsx",
-      "line": 153,
+      "line": 155,
       "tag": "a",
       "label": "{member.email}",
       "href": "{`mailto:${member.email}`}",
@@ -19368,9 +19379,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/team/TeamMemberDialog.tsx:105",
+      "id": "src/components/team/TeamMemberDialog.tsx:119",
       "file": "src/components/team/TeamMemberDialog.tsx",
-      "line": 105,
+      "line": 119,
       "tag": "motion.div",
       "label": "{/* Gold masthead rule, matching the site's other elevated surfaces */} {member.image ? ( <Image src={member.image} alt=\"\" width={112} height={112} className=\"h-full w-full object-cover\" /> ) : ( <span className=\"absolute inset-0 flex items-center justify-center text-3xl font-bold text-gold\" style={{ fontFamily: 'var(--font-serif)' }} aria-hidden=\"true\" > {getInitials(member.name)} </span> )} {member.name} {hasDisplayableRole(member.role) && ( <p className=\"mt-2 text-[0.72rem] font-bold uppercase tracking-[0.24em] text-gold\"> {member.role} </p> )} {member.bio ? ( // The bio is the point of the dialog: full text, left-aligned and // a step larger than the card, with paragraph breaks preserved. <p className=\"text-left text-[0.95rem] leading-relaxed text-[var(--fg-muted)] whitespace-pre-line\"> {member.bio} </p> ) : ( <p className=\"text-sm italic text-[var(--fg-faint)]\"> This member has not written a bio yet. </p> )} {(member.email || member.authorSlug) && ( <div className=\"mt-8 flex flex-col items-center gap-3\"> {member.authorSlug && ( <Link href={`/author/${member.authorSlug}`} className=\"inline-flex items-center gap-2 border border-gold/50 px-6 py-3 text-xs font-bold uppercase tracking-[-0.01em] text-gold transition-all duration-150 hover:bg-gold hover:text-navy\" > Read their articles → </Link> )} {member.email && ( <a href={`mailto:${member.email}`} className=\"inline-flex max-w-full items-center gap-2 break-all text-xs text-[var(--fg-faint)] transition-colors hover:text-gold\" > <Mail size={14} className=\"shrink-0\" aria-hidden=\"true\" /> {member.email} </a> )} </div> )}",
       "href": null,
@@ -19383,9 +19394,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/team/TeamMemberDialog.tsx:120",
+      "id": "src/components/team/TeamMemberDialog.tsx:134",
       "file": "src/components/team/TeamMemberDialog.tsx",
-      "line": 120,
+      "line": 134,
       "tag": "button",
       "label": "{`Close profile for ${member.name}`}",
       "href": null,
@@ -19400,9 +19411,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/team/TeamMemberDialog.tsx:181",
+      "id": "src/components/team/TeamMemberDialog.tsx:195",
       "file": "src/components/team/TeamMemberDialog.tsx",
-      "line": 181,
+      "line": 195,
       "tag": "Link",
       "label": "Read their articles →",
       "href": "{`/author/${member.authorSlug}`}",
@@ -19417,9 +19428,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/team/TeamMemberDialog.tsx:189",
+      "id": "src/components/team/TeamMemberDialog.tsx:203",
       "file": "src/components/team/TeamMemberDialog.tsx",
-      "line": 189,
+      "line": 203,
       "tag": "a",
       "label": "{member.email}",
       "href": "{`mailto:${member.email}`}",
@@ -20448,9 +20459,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/ui/NewsletterSignup.tsx:63",
+      "id": "src/components/ui/NewsletterSignup.tsx:77",
       "file": "src/components/ui/NewsletterSignup.tsx",
-      "line": 63,
+      "line": 77,
       "tag": "a",
       "label": "Read our Privacy Policy",
       "href": "/privacy",
@@ -20465,9 +20476,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/ui/NewsletterSignup.tsx:91",
+      "id": "src/components/ui/NewsletterSignup.tsx:105",
       "file": "src/components/ui/NewsletterSignup.tsx",
-      "line": 91,
+      "line": 105,
       "tag": "input",
       "label": "Your email address",
       "href": null,

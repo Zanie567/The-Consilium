@@ -243,10 +243,11 @@ test('legacy editorial login/reset controls retain failed requests, validate con
   try {
     const page = await ctx.newPage()
     const path = '/api/editorial/password-reset'
+    let resetRequests = 0
     const requestLink = async () => {
-      // The login page is prerendered with an ETag, so on a repeat visit WebKit revalidates and the server
-      // correctly answers 304 (Not Modified): the same page, loaded successfully. Chromium reports it as 200.
-      expect([200, 304]).toContain((await page.goto('/editorial/login', { waitUntil: 'networkidle' }))?.status())
+      // Each request starts from a fresh document URL; this tests a full successful
+      // load rather than an engine-specific ETag revalidation (304 in WebKit).
+      expect((await page.goto(`/editorial/login?reset-request=${++resetRequests}`, { waitUntil: 'networkidle' }))?.status()).toBe(200)
       await new ArticleEditorPage(page).dismissCookieBanner()
       await page.getByRole('button', { name: 'Forgot password?' }).click()
       await page.getByPlaceholder('your@email.com').fill(writer.email)
