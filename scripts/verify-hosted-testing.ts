@@ -431,7 +431,15 @@ async function main() {
     // Failed clock probes must not leave a due row for a subsequent run's job.
     // Never undo a completed publication, touch another run, or alter ownership.
     if (advancedClock) await db.article.updateMany({ where: { id: advancedClock.id, title: advancedClock.title, authorId: id('writer'), status: 'SCHEDULED' }, data: { scheduledAt: new Date(Date.now() + 3_600_000) } })
-    fs.writeFileSync(path.join(output!, 'failure.json'), JSON.stringify({ run, results, browserErrors, expectedFaultErrors, error: error instanceof Error ? error.stack : String(error) }, null, 2))
+    const failedPages = []
+    for (const [contextIndex, context] of contexts.entries()) {
+      for (const [pageIndex, page] of context.pages().entries()) {
+        const name = `failure-${contextIndex}-${pageIndex}`
+        await screenshot(page, name).catch(() => {})
+        failedPages.push({ name, pathname: new URL(page.url()).pathname, alerts: await page.locator('[role="alert"]').allTextContents().catch(() => []), recoveryVisible: await page.getByRole('button', { name: 'Recover local work' }).isVisible().catch(() => false) })
+      }
+    }
+    fs.writeFileSync(path.join(output!, 'failure.json'), JSON.stringify({ run, results, browserErrors, expectedFaultErrors, failedPages, error: error instanceof Error ? error.stack : String(error) }, null, 2))
     throw error
   } finally {
     await Promise.all(contexts.map(ctx => ctx.close()))

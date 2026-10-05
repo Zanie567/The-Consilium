@@ -35,7 +35,15 @@ export function writerLoginCredentials(context: BrowserContext) {
 /** A fresh browser context signed in as `who`: one per person, so sessions never mix. */
 export async function signedIn(browser: Browser, who: SessionName | null): Promise<BrowserContext> {
   if (!test.info().project.name.startsWith('simulator-') || !who || who === 'admin' || who === 'reader') {
-    return browser.newContext(who ? { storageState: SESSIONS[who] } : {})
+    const context = await browser.newContext(who ? { storageState: SESSIONS[who] } : {})
+    if (who) {
+      // APIRequestContext bypasses the browser fetch interceptor. Pin the current
+      // server identity just as a newly loaded ordinary page does, including a
+      // revision advanced by an earlier sign-out; stale contexts keep their old pin.
+      const session = await (await context.request.get('/api/auth/session')).json()
+      if (session.requestIdentity) await context.setExtraHTTPHeaders({ 'x-consilium-identity': session.requestIdentity })
+    }
+    return context
   }
   // One real test administrator per context; concurrent sessions never revoke another run.
   const key = `test-session-${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -189,6 +197,18 @@ export class ArticleEditorPage {
     const expected = res.request().method() === 'POST' ? 201 : 200
     expect(res.status(), `save returned ${res.status()}: ${await res.text().catch(() => '')}`).toBe(expected)
     const json = (await res.json()) as { id: string }
+    // Receiving HTTP headers is earlier than the controller acknowledging its
+    // latest queued snapshot. Reloading then can interrupt the manual save and
+    // correctly leave recovery work. Wait for the real editor's saved state.
+    await expect(this.page.getByText('Saved', { exact: true })).toHaveCount(1)
+    await expect(this.saveDraftButton()).toBeEnabled()
+    await expect.poll(() => this.page.evaluate((id) => {
+      const tab = sessionStorage.getItem('consilium:editor-tab')
+      return Object.keys(localStorage).filter(key => key.startsWith('consilium:draft:')).some(key => {
+        const draft = JSON.parse(localStorage.getItem(key)!)
+        return draft.articleId === id && draft.tabId === tab
+      })
+    }, json.id), { message: 'the acknowledged save clears only this tab’s recovery snapshot' }).toBe(false)
     return { id: json.id, status: res.status() }
   }
 
