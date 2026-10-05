@@ -22,6 +22,21 @@ function isThirdPartyResourceFailure(msg: ConsoleMessage): boolean {
   }
 }
 
+/**
+ * WebKit reports a Next.js <Link> prefetch (`?_rsc=`) cancelled by a navigation as an
+ * uncaught page error whose whole message is `<url> due to access control checks.`
+ * (CI: the WebKit view-transition test failed intermittently on it in both repositories;
+ * the trace showed the requests as "Load request cancelled" started just before the
+ * navigation). It is a same-origin cancelled fetch, not an application failure, and
+ * Chromium does not surface it. Only that exact shape, for a localhost `_rsc` URL, is
+ * tolerated: every other page error, including other `_rsc` failures, remains evidence.
+ */
+const CANCELLED_PREFETCH = /^\/localhost:\d+\/[^\s?]*\?(?:[^\s&]*&)*_rsc=\w+ due to access control checks\.$/
+
+export function isCancelledPrefetchNoise(message: string): boolean {
+  return CANCELLED_PREFETCH.test(message)
+}
+
 export function collectConsoleErrors(page: Page): string[] {
   const errors: string[] = []
   const onConsole = (msg: ConsoleMessage) => {
@@ -32,6 +47,7 @@ export function collectConsoleErrors(page: Page): string[] {
   }
   page.on('console', onConsole)
   page.on('pageerror', (err) => {
+    if (isCancelledPrefetchNoise(err.message)) return
     errors.push(`pageerror: ${err.message}`)
   })
   return errors
