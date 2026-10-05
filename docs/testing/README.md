@@ -15,7 +15,7 @@ Environment generation fails before SQL, cleanup, build or services. Occupied po
 
 Storage points to the local Supabase-compatible stand-in; email is captured and never delivered; OAuth/provider keys are blank; market data is explicitly empty and scheduler secrets are throwaway. All values Next could otherwise obtain from `.env` files are explicitly overridden before building. Only run-owned processes and databases are cleaned up.
 
-The routine GitHub Actions gate runs lint, typecheck, unit/route tests and a production build, then an isolated PostgreSQL-backed full audit on desktop Chromium, desktop Playwright WebKit, Pixel/iPhone layout emulations and Team Profile. A separate isolated critical editor/account job provides earlier feedback; the full audit runs on every PR after quality and critical checks pass. GitHub currently reports main as unprotected, so repository branch protection does not enforce these checks; no branch settings were changed. Browser retries are zero. Per-action/navigation deadlines remain 10/15 seconds. A 60-minute aggregate job budget covers installation, the build and three serialized phases (the measured local audit took about 30 minutes). It retains first-failure traces/screenshots and useful successful article evidence. Authentication storage state is outside artifact paths; captured reset-link email files are excluded from uploaded artifacts.
+The routine GitHub Actions gate runs lint, typecheck, unit/route tests and a production build, then an isolated PostgreSQL-backed full audit on desktop Chromium, desktop Playwright WebKit, Pixel/iPhone layout emulations and Team Profile. A separate isolated critical editor/account job provides earlier feedback. The full audit starts after quality and runs alongside critical checks on a different runner/database, so a critical failure cannot prevent collecting remaining coverage; both jobs remain CI gates on every PR. GitHub currently reports main as unprotected, so repository branch protection does not enforce these checks; no branch settings were changed. Browser retries are zero. Per-action/navigation deadlines remain 10/15 seconds. A 60-minute aggregate job budget covers installation, the build and three serialized phases (the measured local audit took about 30 minutes). It retains first-failure traces/screenshots and useful successful article evidence. Authentication storage state is outside artifact paths; captured reset-link email files are excluded from uploaded artifacts.
 
 A browser action must assert the exact successful response code and reopen persisted state. API/database checks do not establish the corresponding UI action. Console/page errors are collected without filters. Mutations sharing commissioning, glossary or storage state run in separate serialized phases. Fixtures and cleanup are scoped to owned accounts/records.
 
@@ -34,6 +34,7 @@ node scripts/diagnostics/webkit-cancellation.mjs test-results/webkit-cancellatio
 node scripts/diagnostics/share-popup.mjs
 node scripts/diagnostics/related-card-stack.mjs
 node scripts/diagnostics/session-cancellation.mjs
+node scripts/diagnostics/root-recovery.mjs
 node scripts/diagnostics/next-navigation.mjs
 node scripts/diagnostics/image-optimizer-abort.mjs --original --output=test-results/image-abort-before.json
 node scripts/diagnostics/image-optimizer-abort.mjs --output=test-results/image-abort-after.json
@@ -47,6 +48,7 @@ Summarise one completed full run without merging results across revisions:
 
 ```sh
 node scripts/summarize-workflow-run.mjs test-results/<run> docs/testing/verification-results.json <GitHub-run-URL>
+node scripts/build-action-results.mjs docs/testing/verification-results.json docs/testing/action-results.json
 ```
 
 GitHub PR jobs test the temporary merge commit. Record that exact hash from `commit.json`, the branch head, and their tree relationship explicitly. A report-only follow-up commit does not establish new application verification.

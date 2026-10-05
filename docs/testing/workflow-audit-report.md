@@ -52,6 +52,10 @@ First-admin bootstrap had three independently reproduced defects: overlapping re
 
 Live integration suites no longer silently pass when calendar fixture logins fail or reconciliation fixtures are missing. Cleanup errors propagate, server health requires exactly 200, and the data-layer client attests the same run database before constructing a connection. The integrated local ordinary suite passed **861 tests**; lint and typecheck passed. This is separate from the required final live/browser run, which has not yet completed.
 
+The `478c260` candidate exposed a further bootstrap defect in the required cloud production build: Next prerendered the setup page and contacted the dummy loopback database. The earlier catch had disguised that failure as an empty-admin decision; a seeded browser build could instead bake in a login redirect. The installed Next `connection()` guide was read, and setup now awaits a live request before its database decision. A controlled gate regression proves no lookup happens beforehand and preserves the fail-closed lookup test. The focused bootstrap/route batch passes 22 checks. Browser/build results for the corrected candidate remain pending.
+
+Two calendar event-order regressions failed before and pass after: native dragover/drop arriving before React commits drag-start visuals could reject the drop or lose its scheduled item ID. The active gesture now has a synchronous ref; visuals remain state-driven. This confirms a specific source defect independently of the prior WebKit drag timeout; the retained real-drag case must still verify actual browser behaviour. Integrated ordinary tests pass 864; lint/typecheck pass. [Focused probe index](focused-regressions.json) distinguishes these unit results from browser evidence.
+
 ## Confirmed fixes
 
 - Owner/account-scoped local draft recovery across refresh, closure and browser restart; explicit recovery decisions, stale-server conflicts, deliberate overwrites, deleted/missing/expired article handling and local download/discard. Recovery never submits, approves or publishes. Pending recovery locks body, title, excerpt, cover and metadata controls.

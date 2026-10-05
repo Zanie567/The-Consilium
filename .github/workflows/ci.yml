@@ -130,8 +130,10 @@ jobs:
   # A failing e2e test, a console error on any page, or any internal URL returning
   # >= 400 (including ?_rsc= prefetch requests) fails this job. Branch protection must require it to block merging.
   e2e:
-    # Preserve the full required suite while failing fast on quality/critical regressions.
-    needs: [verify, critical-e2e]
+    # Independent runners own separate databases, builds and artifacts. Begin the
+    # full audit after quality while critical checks run, so a critical failure
+    # cannot prevent collecting the remaining coverage. Both jobs stay CI gates.
+    needs: [verify]
     name: E2E (Playwright), data-layer & network checks
     runs-on: ubuntu-latest
     # Measured local full run: ~30 minutes across three serialized phases.
