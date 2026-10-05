@@ -20,6 +20,11 @@ on:
 jobs:
   recalculate:
     name: Recalculate streaks
+    # Production-only. The Testing mirror (Zanie567/The-Consilium-Testing) carries the
+    # same files but must never call production endpoints; there the job is skipped,
+    # not failed. Inside Production the steps below are unchanged, so a real endpoint
+    # failure still fails the run.
+    if: github.repository == 'Zanie567/The-Consilium'
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
