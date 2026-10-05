@@ -112,6 +112,9 @@ export const WRITER_AT_RISK = {
  */
 export const MAX_BIO_LENGTH = 600
 
+/** Longest display name an account may set. Mirrors the form's maxLength. */
+export const MAX_NAME_LENGTH = 60
+
 /**
  * Maximum size of a user-uploaded profile photo, in bytes.
  *

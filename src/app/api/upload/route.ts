@@ -33,6 +33,12 @@ const BUCKET_MAX_BYTES: Record<string, number> = {
   avatars: MAX_AVATAR_BYTES,
 }
 
+/**
+ * Avatars take a narrower set than article images: GIF (animation on every byline)
+ * and AVIF are not accepted. Buckets not listed here keep the full detected set.
+ */
+const AVATAR_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
 async function POSTHandler(request: NextRequest) {
   // Authenticate against the widest set here; the per-bucket check below narrows
   // it once we know which bucket the caller asked for.
@@ -111,9 +117,18 @@ async function POSTHandler(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            'File type not permitted. Allowed formats: JPEG, PNG, GIF, WebP, AVIF.',
+            bucketParam === 'avatars'
+              ? 'Profile photos must be JPEG, PNG or WebP.'
+              : 'File type not permitted. Allowed formats: JPEG, PNG, GIF, WebP, AVIF.',
         },
         { status: 400 }
+      )
+    }
+
+    if (bucketParam === 'avatars' && !AVATAR_MIME_TYPES.has(detectedType)) {
+      return NextResponse.json(
+        { error: 'Profile photos must be JPEG, PNG or WebP.' },
+        { status: 400 },
       )
     }
 

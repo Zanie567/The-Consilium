@@ -177,6 +177,12 @@ export function Navbar() {
                 >
                   Profile
                 </Link>
+                <Link
+                  href="/profile?tab=settings"
+                  className="text-cream/50 text-xs hover:text-cream/80 transition-colors"
+                >
+                  Edit profile
+                </Link>
                 <button
                   onClick={() => signOut()}
                   className="text-cream/50 text-xs hover:text-cream/80 transition-colors"
@@ -365,6 +371,13 @@ export function Navbar() {
                       className="text-cream/70 text-sm font-semibold uppercase tracking-widest hover:text-cream transition-colors"
                     >
                       Profile
+                    </Link>
+                    <Link
+                      href="/profile?tab=settings"
+                      onClick={() => setMobileOpen(false)}
+                      className="text-cream/70 text-sm font-semibold uppercase tracking-widest hover:text-cream transition-colors"
+                    >
+                      Edit profile
                     </Link>
                     <button
                       onClick={() => { signOut(); setMobileOpen(false) }}

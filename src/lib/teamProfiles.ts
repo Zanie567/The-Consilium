@@ -6,6 +6,7 @@
  */
 
 import type { MemberTeam } from '@/lib/teamHierarchy'
+import { resolvePublicTitleLabel } from '@/lib/displayTitles'
 
 export interface TeamMemberRow {
   id: string
@@ -28,6 +29,8 @@ export interface LinkedAccount {
 
 export interface ResolvedTeamMember extends Omit<TeamMemberRow, 'role'> {
   role: string | null
+  /** Display titles, or the role fallback. Printed only; never used for placement. */
+  titleLabel?: string | null
   authorSlug: string | null
 }
 
@@ -117,6 +120,7 @@ export interface TeamRowWithAccount extends TeamMemberRow {
     email: string
     name: string | null
     role: string
+    displayTitles?: string[]
     bio: string | null
     slug: string | null
     isActive: boolean
@@ -157,6 +161,7 @@ export function buildPublicRoster(
       name: user.name?.trim() || row.name,
       placementName: row.name,
       role: row.role.trim() || null,
+      titleLabel: resolvePublicTitleLabel({ displayTitles: user.displayTitles, cardTitle: row.role, role: user.role }),
       bio: row.bio?.trim() || user.bio?.trim() || null,
       authorSlug: user.slug,
       team: null,
@@ -206,4 +211,24 @@ export function visiblePublicAppointmentLabel(account: {
 }): string | null {
   if (!account.isActive || account.isBanned || !account.teamProfile?.isActive) return null
   return publicAppointmentLabel(account.teamProfile)
+}
+
+/**
+ * The title line on a public author page. Display titles win, then the visible team
+ * card's title, then the permission role's label. A banned or deactivated account
+ * shows nothing, and an inactive card never contributes its title.
+ */
+export function visiblePublicTitleLabel(account: {
+  isActive: boolean
+  isBanned: boolean
+  role?: string | null
+  displayTitles?: unknown
+  teamProfile: { role: string; publicTier?: string | null; isActive: boolean } | null
+}): string | null {
+  if (!account.isActive || account.isBanned) return null
+  return resolvePublicTitleLabel({
+    displayTitles: account.displayTitles,
+    cardTitle: account.teamProfile?.isActive ? publicAppointmentLabel(account.teamProfile) : null,
+    role: account.role,
+  })
 }

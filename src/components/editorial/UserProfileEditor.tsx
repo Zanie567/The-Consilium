@@ -9,6 +9,7 @@ import {
   ChevronLeft, Check, AlertCircle, Pencil, X,
 } from 'lucide-react'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { DisplayTitlesPicker } from '@/components/profile/DisplayTitlesPicker'
 
 interface Category { id: string; name: string; slug: string }
 
@@ -34,6 +35,7 @@ interface UserData {
   createdAt: string
   lastLoginAt: string | null
   adminNotes: string | null
+  displayTitles: string[]
   categoryAssignments: { category: Category }[]
   articles: ArticleItem[]
 }
@@ -165,6 +167,14 @@ export function UserProfileEditor({ user: initial, categories }: Props) {
 
   const saveField = (key: string) => async (value: string) => {
     await patch({ [key]: value })
+  }
+
+  const [titles, setTitles] = useState<string[]>(user.displayTitles ?? [])
+  const titlesChanged =
+    titles.length !== (user.displayTitles ?? []).length ||
+    titles.some((t, i) => t !== (user.displayTitles ?? [])[i])
+  const saveTitles = async () => {
+    await patch({ displayTitles: titles }, 'titles')
   }
 
   const saveRole = async (role: string) => {
@@ -299,6 +309,19 @@ export function UserProfileEditor({ user: initial, categories }: Props) {
                   <option key={r} value={r}>{r}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Display titles: public labels only, separate from the role above */}
+            <div>
+              <DisplayTitlesPicker value={titles} onChange={setTitles} disabled={loading === 'titles'} />
+              <button
+                type="button"
+                onClick={saveTitles}
+                disabled={!titlesChanged || loading === 'titles'}
+                className="mt-2 flex items-center gap-2 bg-gold px-4 py-2 text-xs font-bold uppercase tracking-widest text-navy transition-colors hover:bg-gold/90 disabled:opacity-50"
+              >
+                <Save size={13} /> {loading === 'titles' ? 'Saving...' : 'Save titles'}
+              </button>
             </div>
 
             {/* Category assignments (editor only) */}

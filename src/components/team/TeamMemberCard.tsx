@@ -12,6 +12,12 @@ export interface TeamCardMember {
   name: string
   role: string | null
   /**
+   * What to print as the title line, when it differs from `role`. `role` also drives
+   * masthead placement when no tier is set, so display titles travel separately and
+   * can never move anyone on the page.
+   */
+  titleLabel?: string | null
+  /**
    * The person's own bio when their team email matches a registered account
    * (they maintain it at /profile?tab=account), otherwise the admin-entered one
    * from /admin/team. Resolved in `resolveTeamMemberBios`.
@@ -106,7 +112,7 @@ export function TeamMemberCard({ member, variant }: TeamMemberCardProps) {
           {member.image ? (
             <Image
               src={member.image}
-              alt={`${member.name}, ${hasDisplayableRole(member.role) ? member.role : 'The Consilium'}`}
+              alt={`${member.name}, ${hasDisplayableRole(member.titleLabel ?? member.role) ? (member.titleLabel ?? member.role) : 'The Consilium'}`}
               width={style.photo}
               height={style.photo}
               className="w-full h-full object-cover"
@@ -131,8 +137,8 @@ export function TeamMemberCard({ member, variant }: TeamMemberCardProps) {
 
         {/* Roles are free text and may be absent; nothing is rendered in that
             case — no placeholder, no reserved space. */}
-        {hasDisplayableRole(member.role) && (
-          <p className={`${style.role} font-bold uppercase text-gold`}>{member.role}</p>
+        {hasDisplayableRole(member.titleLabel ?? member.role) && (
+          <p className={`${style.role} font-bold uppercase text-gold`}>{member.titleLabel ?? member.role}</p>
         )}
 
         {member.bio && (
