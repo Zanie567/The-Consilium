@@ -161,7 +161,7 @@ export function buildPublicRoster(
       name: user.name?.trim() || row.name,
       placementName: row.name,
       role: row.role.trim() || null,
-      titleLabel: resolvePublicTitleLabel({ displayTitles: user.displayTitles, cardTitle: row.role, role: user.role }),
+      titleLabel: resolvePublicTitleLabel({ displayTitles: user.displayTitles, cardTitle: row.role }),
       bio: row.bio?.trim() || user.bio?.trim() || null,
       authorSlug: user.slug,
       team: null,
@@ -215,13 +215,13 @@ export function visiblePublicAppointmentLabel(account: {
 
 /**
  * The title line on a public author page. Display titles win, then the visible team
- * card's title, then the permission role's label. A banned or deactivated account
- * shows nothing, and an inactive card never contributes its title.
+ * card's title; the caller prints "Contributor" when this is null. The permission
+ * role is never used. A banned or deactivated account shows nothing, and an
+ * inactive card never contributes its title.
  */
 export function visiblePublicTitleLabel(account: {
   isActive: boolean
   isBanned: boolean
-  role?: string | null
   displayTitles?: unknown
   teamProfile: { role: string; publicTier?: string | null; isActive: boolean } | null
 }): string | null {
@@ -229,6 +229,5 @@ export function visiblePublicTitleLabel(account: {
   return resolvePublicTitleLabel({
     displayTitles: account.displayTitles,
     cardTitle: account.teamProfile?.isActive ? publicAppointmentLabel(account.teamProfile) : null,
-    role: account.role,
   })
 }

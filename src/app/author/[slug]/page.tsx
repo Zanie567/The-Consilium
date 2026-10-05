@@ -23,7 +23,7 @@ async function getAuthor(slug: string) {
     const bySlug = await prisma.user.findUnique({
       where: { slug },
       select: {
-        id: true, name: true, slug: true, bio: true, image: true, isActive: true, isBanned: true, role: true, displayTitles: true,
+        id: true, name: true, slug: true, bio: true, image: true, isActive: true, isBanned: true, displayTitles: true,
         teamProfile: { select: { role: true, publicTier: true, isActive: true } },
       },
     })
@@ -33,7 +33,7 @@ async function getAuthor(slug: string) {
     return await prisma.user.findUnique({
       where: { id: slug },
       select: {
-        id: true, name: true, slug: true, bio: true, image: true, isActive: true, isBanned: true, role: true, displayTitles: true,
+        id: true, name: true, slug: true, bio: true, image: true, isActive: true, isBanned: true, displayTitles: true,
         teamProfile: { select: { role: true, publicTier: true, isActive: true } },
       },
     })

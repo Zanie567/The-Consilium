@@ -55,7 +55,6 @@ export default async function ProfilePage({ searchParams }: Props) {
         displayTitles={readDisplayTitles(user.displayTitles)}
         fallbackLabel={resolvePublicTitleLabel({
           cardTitle: user.teamProfile?.isActive ? publicAppointmentLabel(user.teamProfile) : null,
-          role: user.role,
         })}
         authorPath={publicAuthorPath(user)}
       />

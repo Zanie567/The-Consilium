@@ -63,35 +63,21 @@ export function readDisplayTitles(value: unknown): DisplayTitle[] {
   return out.slice(0, MAX_DISPLAY_TITLES)
 }
 
-// ADMIN and READER are deliberately absent. Administrator is a permission, not a
-// title, and naming it on a public page would advertise which accounts hold it;
-// a reader has nothing to show. Both fall through to the caller's own empty copy.
-const ROLE_LABELS: Record<string, string> = {
-  EDITOR: 'Editor',
-  WRITER: 'Writer',
-  GROWTH: 'Growth & Communications',
-}
-
-/** Public label for a permission role, used only as the last fallback. */
-export function permissionRoleLabel(role: string | null | undefined): string | null {
-  return (role && ROLE_LABELS[role]) || null
-}
-
 /**
  * The public title line. Order of preference:
  *   1. the person's display titles, joined with " · "
  *   2. the team card's title
- *   3. the permission role's label
- * Returns null when there is nothing to show, so callers pick their own empty copy.
+ * Returns null when there is nothing to show, and callers then print "Contributor".
+ *
+ * The permission role is deliberately NOT an input and has no fallback here: it
+ * controls access, it is not a title, and it must never appear on a public page.
+ * Leaving it out of the signature makes that a compile-time guarantee.
  */
 export function resolvePublicTitleLabel(input: {
   displayTitles?: unknown
   cardTitle?: string | null
-  role?: string | null
 }): string | null {
   const titles = readDisplayTitles(input.displayTitles)
   if (titles.length > 0) return titles.join(' · ')
-  const card = input.cardTitle?.trim()
-  if (card) return card
-  return permissionRoleLabel(input.role)
+  return input.cardTitle?.trim() || null
 }

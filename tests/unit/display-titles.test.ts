@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
   ALLOWED_DISPLAY_TITLES,
-  permissionRoleLabel,
   readDisplayTitles,
   resolvePublicTitleLabel,
   validateDisplayTitles,
@@ -37,18 +36,20 @@ describe('readDisplayTitles', () => {
 })
 
 describe('resolvePublicTitleLabel', () => {
-  it('prefers display titles, then the card title, then the role label', () => {
+  it('prefers display titles, then the card title, then nothing', () => {
     expect(
-      resolvePublicTitleLabel({ displayTitles: ['Deputy Editor-in-Chief', 'Writer'], cardTitle: 'Chief Designer', role: 'WRITER' }),
-    ).toBe('Deputy Editor-in-Chief · Writer')
-    expect(resolvePublicTitleLabel({ displayTitles: [], cardTitle: 'Chief Designer', role: 'WRITER' })).toBe('Chief Designer')
-    expect(resolvePublicTitleLabel({ displayTitles: [], cardTitle: null, role: 'WRITER' })).toBe('Writer')
+      resolvePublicTitleLabel({ displayTitles: ['Deputy Editor-in-Chief', 'Writer'], cardTitle: 'Chief Designer' }),
+    ).toBe('Deputy Editor-in-Chief \u00b7 Writer')
+    expect(resolvePublicTitleLabel({ displayTitles: [], cardTitle: 'Chief Designer' })).toBe('Chief Designer')
+    expect(resolvePublicTitleLabel({ displayTitles: [], cardTitle: null })).toBeNull()
+    expect(resolvePublicTitleLabel({ displayTitles: [], cardTitle: '   ' })).toBeNull()
   })
 
-  it('never names Administrator or Reader publicly', () => {
-    expect(permissionRoleLabel('ADMIN')).toBeNull()
-    expect(permissionRoleLabel('READER')).toBeNull()
-    expect(resolvePublicTitleLabel({ displayTitles: [], role: 'ADMIN' })).toBeNull()
+  it('never turns a permission role into a public label, even if one is passed in', () => {
+    for (const role of ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER']) {
+      const input = { displayTitles: [], cardTitle: null, role } as never
+      expect(resolvePublicTitleLabel(input)).toBeNull()
+    }
   })
 
   it('contains no em dash', () => {
@@ -57,21 +58,26 @@ describe('resolvePublicTitleLabel', () => {
 })
 
 describe('visiblePublicTitleLabel', () => {
-  const base = { isActive: true, isBanned: false, role: 'WRITER', displayTitles: [] as string[], teamProfile: null }
+  const base = { isActive: true, isBanned: false, displayTitles: [] as string[], teamProfile: null }
 
   it('keeps the old card label for users with no titles', () => {
     expect(visiblePublicTitleLabel({ ...base, teamProfile: { role: 'Senior Editor', isActive: true } })).toBe('Senior Editor')
   })
 
-  it('falls back to the role label, and to null for an admin with nothing set', () => {
-    expect(visiblePublicTitleLabel(base)).toBe('Writer')
-    expect(visiblePublicTitleLabel({ ...base, role: 'ADMIN' })).toBeNull()
+  it('is null when there are no titles and no card, so the page prints Contributor', () => {
+    expect(visiblePublicTitleLabel(base)).toBeNull()
+  })
+
+  it('never reveals the permission role, whatever it is', () => {
+    for (const role of ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER']) {
+      expect(visiblePublicTitleLabel({ ...base, role } as never)).toBeNull()
+    }
   })
 
   it('shows titles even when the card is inactive, but ignores the inactive card title', () => {
     const inactive = { role: 'Chief Designer', isActive: false }
     expect(visiblePublicTitleLabel({ ...base, teamProfile: inactive, displayTitles: ['Editor'] })).toBe('Editor')
-    expect(visiblePublicTitleLabel({ ...base, teamProfile: inactive })).toBe('Writer')
+    expect(visiblePublicTitleLabel({ ...base, teamProfile: inactive })).toBeNull()
   })
 
   it('shows nothing for a banned or deactivated account', () => {
