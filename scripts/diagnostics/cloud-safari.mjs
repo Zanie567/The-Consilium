@@ -102,8 +102,9 @@ try {
     try { if ((await fetch(driverBase + '/status', { signal: AbortSignal.timeout(1000) })).status === 200) break } catch { /* bounded readiness only */ }
     await new Promise(resolve => setTimeout(resolve, 100))
   }
-  const listeners = execFileSync('/usr/sbin/lsof', ['-t', '-iTCP:' + driverPort, '-sTCP:LISTEN'], { encoding: 'utf8' }).trim().split('\n')
-  assert(listeners.includes(String(driver.pid)), 'Driver port is not owned by this process')
+  const listeners = execFileSync('/usr/sbin/lsof', ['-t', '-iTCP:' + driverPort, '-sTCP:LISTEN'], { encoding: 'utf8' }).trim().split(/\r?\n/)
+  result.driverOwnership = { spawnedPID: driver.pid, listeningPIDs: listeners }
+  assert(listeners.every(pid => pid === String(driver.pid)), 'Driver port is not owned by this process')
   const created = await api('POST', '/session', { capabilities: { alwaysMatch: { browserName: 'safari', pageLoadStrategy: 'eager' } } }, 45_000)
   session = created.sessionId
   result.capabilities = created.capabilities
@@ -160,7 +161,7 @@ try {
     assert.equal(sessionResponse.status, 200)
     const image = await api('GET', `/session/${session}/screenshot`)
     await fs.writeFile(path.join(output, `${phase}-real-safari.png`), Buffer.from(image, 'base64'))
-    const serverEvents = (await fs.readFile(network, 'utf8')).trim().split('\n').filter(Boolean).map(line => JSON.parse(line))
+    const serverEvents = (await fs.readFile(network, 'utf8')).trim().split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line))
     result.cases.push({ phase, documentRoutes: ['/one', '/two', '/three', '/'], actualControls: controls, events, windowErrors,
       requests: { rscStarted: serverEvents.filter(event => event.kind === 'start' && event.url.includes('_rsc=')).length, cancelled: serverEvents.filter(event => event.kind === 'cancelled') },
       healthySessionHTTP: sessionResponse.status, screenshot: `${phase}-real-safari.png` })
