@@ -6,7 +6,7 @@ import { ALL_ROLES } from '@/lib/rbac'
 import { MAX_BIO_LENGTH, MAX_NAME_LENGTH } from '@/lib/constants'
 import { validateDisplayTitles } from '@/lib/displayTitles'
 import { removeTeamPhoto } from '@/lib/teamPhotoStorage'
-import { validateAvatarUrl } from '@/lib/avatarUrl'
+import { isInOwnAvatarFolder, validateAvatarUrl } from '@/lib/avatarUrl'
 import { apiServerErrorResponse } from '@/lib/apiResponse'
 
 // PATCH /api/profile/account - update the caller's own display name, bio, profile
@@ -70,14 +70,9 @@ async function PATCHHandler(request: NextRequest) {
   if (image !== undefined && typeof image !== 'string') {
     return NextResponse.json({ error: 'image must be a string' }, { status: 400 })
   }
-  // Only a file in our own avatars bucket is accepted. See validateAvatarUrl for
-  // why an arbitrary URL from a user is not safe to store and render publicly.
-  let nextImage: string | null | undefined
-  if (typeof image === 'string') {
-    const result = validateAvatarUrl(image)
-    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 })
-    nextImage = result.url
-  }
+  // The photo is validated below, once the stored one has been read: whether a URL
+  // is acceptable depends on whether it is the one already saved.
+  const requestedImage = typeof image === 'string' ? image.trim() : undefined
 
   let nextTitles: string[] | undefined
   if (displayTitles !== undefined) {
@@ -90,11 +85,37 @@ async function PATCHHandler(request: NextRequest) {
   }
 
   try {
-    // Read the current photo first so it can be removed once the new one is saved.
+    // Read the stored photo first: it decides whether a submitted URL is acceptable,
+    // and it is what gets removed once the new one is saved.
     const before =
-      nextImage !== undefined
+      requestedImage !== undefined
         ? await prisma.user.findUnique({ where: { id: user.id }, select: { image: true } })
         : null
+
+    // undefined = leave the photo alone, null = clear it, string = replace it.
+    let nextImage: string | null | undefined
+    if (requestedImage === '') {
+      nextImage = null
+    } else if (requestedImage !== undefined && requestedImage === before?.image) {
+      // Identical to what is already stored: never re-validated, so saving other
+      // fields cannot fail on an existing photo that predates these rules (for
+      // example a Google profile picture from sign-in). Nothing is written.
+      nextImage = undefined
+    } else if (requestedImage !== undefined) {
+      // A new photo must be a file in our own avatars bucket (see validateAvatarUrl
+      // for why an arbitrary URL is not safe to render publicly) AND sit inside this
+      // caller's own `<userId>/` folder, so nobody can point their profile at a file
+      // another account uploaded.
+      const result = validateAvatarUrl(requestedImage)
+      if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 })
+      if (result.url !== null && !isInOwnAvatarFolder(result.url, user.id)) {
+        return NextResponse.json(
+          { error: 'You can only use a photo that you uploaded yourself.' },
+          { status: 400 },
+        )
+      }
+      nextImage = result.url
+    }
 
     const updated = await prisma.user.update({
       where: { id: user.id },

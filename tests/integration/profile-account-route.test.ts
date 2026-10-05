@@ -157,6 +157,78 @@ describe('PATCH /api/profile/account', () => {
     })
   })
 
+  describe('photo ownership', () => {
+    const OWN = `${SUPABASE}/storage/v1/object/public/avatars/user-1/2-mine.png`
+    const OTHER = `${SUPABASE}/storage/v1/object/public/avatars/user-2/1-theirs.png`
+    const GOOGLE = 'https://lh3.googleusercontent.com/a/some-profile-picture'
+
+    it('accepts a file inside the caller’s own folder', async () => {
+      const response = await patch({ image: OWN })
+      expect(response.status).toBe(200)
+      expect(prismaMock.user.update.mock.calls[0][0].data).toEqual({ image: OWN })
+    })
+
+    it('rejects a file inside another user’s folder, and writes nothing', async () => {
+      const response = await patch({ image: OTHER })
+      expect(response.status).toBe(400)
+      expect(prismaMock.user.update).not.toHaveBeenCalled()
+      expect(storageMock.removeTeamPhoto).not.toHaveBeenCalled()
+    })
+
+    it('rejects nested paths and traversal inside the caller’s own folder prefix', async () => {
+      for (const image of [
+        `${SUPABASE}/storage/v1/object/public/avatars/user-1/sub/x.png`,
+        `${SUPABASE}/storage/v1/object/public/avatars/user-1/../user-2/x.png`,
+        `${SUPABASE}/storage/v1/object/public/avatars/user-10/x.png`,
+        `${SUPABASE}/storage/v1/object/public/avatars/user-1`,
+      ]) {
+        const response = await patch({ image })
+        expect(response.status).toBe(400)
+      }
+      expect(prismaMock.user.update).not.toHaveBeenCalled()
+    })
+
+    it('accepts an image identical to the stored one without re-validating or rewriting it', async () => {
+      prismaMock.user.findUnique.mockResolvedValue({ image: OTHER })
+      const response = await patch({ name: 'Same Photo', image: OTHER })
+      expect(response.status).toBe(200)
+      const { data } = prismaMock.user.update.mock.calls[0][0]
+      expect(data).toEqual({ name: 'Same Photo' })
+      expect(storageMock.removeTeamPhoto).not.toHaveBeenCalled()
+    })
+
+    it('preserves an external existing image when only the name is saved', async () => {
+      prismaMock.user.findUnique.mockResolvedValue({ image: GOOGLE })
+      const response = await patch({ name: 'New Name' })
+      expect(response.status).toBe(200)
+      expect(prismaMock.user.update.mock.calls[0][0].data).toEqual({ name: 'New Name' })
+      expect(prismaMock.user.findUnique).not.toHaveBeenCalled()
+      expect(storageMock.removeTeamPhoto).not.toHaveBeenCalled()
+    })
+
+    it('accepts the same external image sent back unchanged, but not a different external one', async () => {
+      prismaMock.user.findUnique.mockResolvedValue({ image: GOOGLE })
+      const same = await patch({ image: GOOGLE })
+      expect(same.status).toBe(200)
+      expect(prismaMock.user.update.mock.calls[0][0].data).toEqual({})
+
+      prismaMock.user.update.mockClear()
+      const different = await patch({ image: 'https://lh3.googleusercontent.com/a/another-one' })
+      expect(different.status).toBe(400)
+      expect(prismaMock.user.update).not.toHaveBeenCalled()
+    })
+
+    it('still lets a user with an external image replace it with their own upload, and clear it', async () => {
+      prismaMock.user.findUnique.mockResolvedValue({ image: GOOGLE })
+      expect((await patch({ image: OWN })).status).toBe(200)
+      expect(prismaMock.user.update.mock.calls[0][0].data).toEqual({ image: OWN })
+      // The external image is not ours to delete from storage.
+      prismaMock.user.update.mockClear()
+      expect((await patch({ image: '' })).status).toBe(200)
+      expect(prismaMock.user.update.mock.calls[0][0].data).toEqual({ image: null })
+    })
+  })
+
   describe('replacing or removing the photo', () => {
     const OLD = `${SUPABASE}/storage/v1/object/public/avatars/user-1/old.png`
 
