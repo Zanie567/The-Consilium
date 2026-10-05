@@ -90,9 +90,6 @@ const nextConfig: NextConfig = {
         : []),
     ],
   },
-  experimental: {
-    viewTransition: true,
-  },
   async redirects() {
     return [
       { source: '/news',       destination: '/category/news',      permanent: true },
