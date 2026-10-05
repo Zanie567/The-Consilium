@@ -65,6 +65,9 @@ jobs:
           E2E_REQUIRE_CLEAN=1 npm run test:e2e -- --workers=1
           --project=wf-chromium --project=wf-webkit
           wf-formatting.spec.ts wf-discovery.spec.ts wf-admin-profile.spec.ts wf-public-controls.spec.ts wf-remaining.spec.ts wf-accounts.spec.ts
+      - name: Minimal root-layout recovery diagnostic
+        if: ${{ !cancelled() }}
+        run: node scripts/diagnostics/root-recovery.mjs
       - name: Upload critical workflow evidence
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

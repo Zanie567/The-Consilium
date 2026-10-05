@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { ReadingTracker } from '@/components/ui/ReadingTracker'
 import { apiRequest } from '@/lib/apiClient'
 const { account } = vi.hoisted(() => ({ account: { current: { user: { id: 'first-reader' } } as { user: { id: string } } | null } }))
@@ -14,6 +14,17 @@ it('an article without saved progress cannot retain the previous article restore
  await screen.findByText('Continue where you left off')
  await act(async () => { rerender(<ReadingTracker articleId="second" />) })
  expect(screen.queryByText('Continue where you left off')).toBeNull()
+})
+it('a route/layout scroll cannot write reading progress until the reader interacts in this scope', async () => {
+ vi.mocked(apiRequest).mockResolvedValue(null)
+ render(<ReadingTracker articleId="destination" />)
+ await act(async () => {})
+ await act(async () => { fireEvent.scroll(window) })
+ expect(vi.mocked(apiRequest).mock.calls.filter(([, options]) => options?.method === 'POST')).toEqual([])
+ await act(async () => { fireEvent.wheel(window, { deltaY: 500 }); fireEvent.scroll(window) })
+ const writes = vi.mocked(apiRequest).mock.calls.filter(([, options]) => options?.method === 'POST')
+ expect(writes).toHaveLength(1)
+ expect(JSON.parse(writes[0][1]!.body as string).articleId).toBe('destination')
 })
 it('a different reader cannot see the previous account saved position', async () => {
  vi.mocked(apiRequest).mockImplementation(() => Promise.resolve(account.current?.user.id === 'first-reader' ? { progress: 40, scrollY: 600 } : null))

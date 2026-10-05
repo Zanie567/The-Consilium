@@ -24,7 +24,8 @@ async function collectUrls(request: APIRequestContext): Promise<string[]> {
   const urls = new Set<string>(SEED_PAGES)
   for (const page of SEED_PAGES) {
     const res = await request.get(page)
-    if (res.ok()) internalLinks(await res.text()).forEach((u) => urls.add(u))
+    expect(res.status(), `crawl seed ${page}`).toBe(200)
+    internalLinks(await res.text()).forEach((u) => urls.add(u))
   }
   return [...urls].slice(0, 80) // safety cap
 }
@@ -49,7 +50,7 @@ test('single-threaded crawl: no internal URL (page or ?_rsc=) returns >= 400', a
   expect(failures, `bad responses:\n${failures.join('\n')}`).toEqual([])
 })
 
-test('concurrent crawl: bursts of page + ?_rsc= requests stay < 500', async ({ request }) => {
+test('concurrent crawl: bursts of page + ?_rsc= requests return exactly 200', async ({ request }) => {
   const urls = await collectUrls(request)
 
   // Mix full renders and RSC prefetches into one concurrent burst, repeated, to
@@ -62,15 +63,12 @@ test('concurrent crawl: bursts of page + ?_rsc= requests stay < 500', async ({ r
     }
   }
   const results = await Promise.all(jobs)
-  const serverErrors = results.filter((r) => r.status >= 500)
+  const serverErrors = results.filter((r) => r.status !== 200)
   expect(
     serverErrors,
-    `5xx under concurrent load:\n${serverErrors.map((r) => `${r.url} -> ${r.status}`).join('\n')}`,
+    `non-200 under concurrent load:\n${serverErrors.map((r) => `${r.url} -> ${r.status}`).join('\n')}`,
   ).toEqual([])
 
-  // Also assert no 4xx on these public GETs (would indicate a broken link/route).
-  const clientErrors = results.filter((r) => r.status >= 400 && r.status < 500)
-  expect(clientErrors, `4xx under load:\n${clientErrors.map((r) => `${r.url} -> ${r.status}`).join('\n')}`).toEqual([])
 })
 
 // ── Broken-image guard ───────────────────────────────────────────────────────

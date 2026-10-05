@@ -1268,11 +1268,11 @@
         "src/app/articles/[slug]/page.tsx:588",
         "src/components/ui/BookmarkButton.tsx:22",
         "src/components/ui/BookmarkButton.tsx:50",
-        "src/components/ui/ReadingTracker.tsx:237",
-        "src/components/ui/ReadingTracker.tsx:243",
-        "src/components/ui/ReadingTracker.tsx:265",
-        "src/components/ui/ReadingTracker.tsx:280",
-        "src/components/ui/ReadingTracker.tsx:287",
+        "src/components/ui/ReadingTracker.tsx:253",
+        "src/components/ui/ReadingTracker.tsx:259",
+        "src/components/ui/ReadingTracker.tsx:281",
+        "src/components/ui/ReadingTracker.tsx:296",
+        "src/components/ui/ReadingTracker.tsx:303",
         "src/components/ui/PrintButton.tsx:9",
         "src/components/ui/SaveAsPdfButton.tsx:21",
         "src/components/ui/CommentSection.tsx:103",
@@ -4235,6 +4235,7 @@
         "tests/unit/analytics-request-recovery.test.tsx",
         "tests/unit/auth-redirect.test.ts",
         "tests/unit/editorial-calendar.test.ts",
+        "tests/unit/editorial-login-recovery.test.tsx",
         "tests/unit/editorial-schedule-display.test.ts",
         "tests/unit/moderation-request-order.test.tsx",
         "tests/unit/notification-navigation.test.tsx",
@@ -6107,21 +6108,24 @@
       "candidateTestFiles": [
         "tests/e2e/team-profile-lifecycle.spec.ts",
         "tests/e2e/team-profile.spec.ts",
+        "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-failures.spec.ts",
-        "tests/e2e/wf-remaining.spec.ts"
+        "tests/e2e/wf-remaining.spec.ts",
+        "tests/e2e/wf-roles.spec.ts",
+        "tests/unit/editorial-login-recovery.test.tsx"
       ],
       "guardSource": [],
       "controls": [
-        "src/app/editorial/login/EditorialLoginForm.tsx:56",
         "src/app/editorial/login/EditorialLoginForm.tsx:64",
-        "src/app/editorial/login/EditorialLoginForm.tsx:68",
+        "src/app/editorial/login/EditorialLoginForm.tsx:72",
         "src/app/editorial/login/EditorialLoginForm.tsx:76",
-        "src/app/editorial/login/EditorialLoginForm.tsx:83",
-        "src/app/editorial/login/EditorialLoginForm.tsx:97",
-        "src/app/editorial/login/EditorialLoginForm.tsx:107",
-        "src/app/editorial/login/EditorialLoginForm.tsx:120",
-        "src/app/editorial/login/EditorialLoginForm.tsx:128",
-        "src/app/editorial/login/EditorialLoginForm.tsx:136",
+        "src/app/editorial/login/EditorialLoginForm.tsx:84",
+        "src/app/editorial/login/EditorialLoginForm.tsx:91",
+        "src/app/editorial/login/EditorialLoginForm.tsx:105",
+        "src/app/editorial/login/EditorialLoginForm.tsx:115",
+        "src/app/editorial/login/EditorialLoginForm.tsx:129",
+        "src/app/editorial/login/EditorialLoginForm.tsx:138",
+        "src/app/editorial/login/EditorialLoginForm.tsx:146",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -6193,13 +6197,15 @@
         "ALL: unauthenticated forms; setup only when no admin exists"
       ],
       "accessEvidence": "CODE_INSPECTION: see coverage-inventory.md role matrix and route guards; rendered refusals in wf-roles",
-      "candidateTestFiles": [],
+      "candidateTestFiles": [
+        "tests/e2e/wf-accounts.spec.ts"
+      ],
       "guardSource": [],
       "controls": [
         "src/app/editorial/reset-password/ResetPasswordForm.tsx:34",
         "src/app/editorial/reset-password/ResetPasswordForm.tsx:44",
-        "src/app/editorial/reset-password/ResetPasswordForm.tsx:59",
-        "src/app/editorial/reset-password/ResetPasswordForm.tsx:69",
+        "src/app/editorial/reset-password/ResetPasswordForm.tsx:60",
+        "src/app/editorial/reset-password/ResetPasswordForm.tsx:71",
         "src/app/layout.tsx:110",
         "src/components/layout/Navbar.tsx:35",
         "src/components/layout/Navbar.tsx:119",
@@ -6457,7 +6463,9 @@
         "tests/e2e/wf-public-controls.spec.ts",
         "tests/e2e/wf-reader.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
+        "tests/e2e/wf-roles.spec.ts",
         "tests/unit/auth-redirect.test.ts",
+        "tests/unit/editorial-login-recovery.test.tsx",
         "tests/unit/safe-redirect.test.ts"
       ],
       "guardSource": [],
@@ -7164,7 +7172,9 @@
         "ANONYMOUS (profile requires sign-in)"
       ],
       "accessEvidence": "CODE_INSPECTION: see coverage-inventory.md role matrix and route guards; rendered refusals in wf-roles",
-      "candidateTestFiles": [],
+      "candidateTestFiles": [
+        "tests/e2e/wf-accounts.spec.ts"
+      ],
       "guardSource": [],
       "controls": [
         "src/app/reset-password/page.tsx:22",
@@ -7498,7 +7508,7 @@
         {
           "file": "src/app/tag/[slug]/page.tsx",
           "line": 73,
-          "source": "articles.map((article) => ( <StaggerItem key={article.id}> <article className=\"relative bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden group card-hover shadow-[var(--shadow-card)] h-full flex flex-col\"> <Link href={`/articles/${article.slug}`} className=\"absolute inset-0 z-0\" aria-label={article.title} /> <div className=\"relative h-44 bg-navy/10 overflow-hidden img-zoom flex-shrink-0\"> {article.coverImage ? ( <Image src={article.coverImage} alt={article.title} fill className=\"object-cover\" /> ) : ( <div className=\"absolute inset-0 bg-gradient-to-br from-navy to-navy-light flex items-center justify-center\"> <span className=\"text-gold/15 text-3xl font-bold\" style={{ fontFamily: 'var(--font-serif)' }}>TC</span> </div> )} {article.category && ( <div className=\"absolute top-3 left-3 z-10\"> <Link href={`/category/${article.category.slug}`} className=\"category-badge relative z-10\"> {article.category.name} </Link> </div> )} </div> <div className=\"relative z-10 p-5 flex flex-col flex-1\"> <h3 className=\"text-base font-bold text-[var(--fg)] mb-2 leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2 flex-1\" style={{ fontFamily: 'var(--font-serif)' }} > {article.title} </h3> {article.excerpt && ( <p className=\"text-[var(--fg-muted)] text-sm leading-relaxed mb-3 line-clamp-2\">{article.excerpt}</p> )} <div className=\"flex items-center justify-between text-[0.7rem] text-[var(--fg-faint)] border-t border-[var(--border)] pt-3 mt-auto\"> <Link href={`/author/${article.author.slug ?? article.author.id}`} className=\"relative z-10 hover:text-gold transition-colors font-semibold text-[var(--fg-muted)]\" > {article.author.name} </Link> <span>{article.publishedAt ? format(new Date(article.publishedAt), 'd MMM yyyy') : ''}</span> </div> </div> </article> </StaggerItem> ))"
+          "source": "articles.map((article) => ( <StaggerItem key={article.id}> <article className=\"relative bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden group card-hover shadow-[var(--shadow-card)] h-full flex flex-col\"> <Link href={`/articles/${article.slug}`} className=\"absolute inset-0 z-0\" aria-label={article.title} /> <div className=\"pointer-events-none relative h-44 bg-navy/10 overflow-hidden img-zoom flex-shrink-0\"> {article.coverImage ? ( <Image src={article.coverImage} alt={article.title} fill className=\"object-cover\" /> ) : ( <div className=\"absolute inset-0 bg-gradient-to-br from-navy to-navy-light flex items-center justify-center\"> <span className=\"text-gold/15 text-3xl font-bold\" style={{ fontFamily: 'var(--font-serif)' }}>TC</span> </div> )} {article.category && ( <div className=\"absolute top-3 left-3 z-10\"> <Link href={`/category/${article.category.slug}`} className=\"pointer-events-auto category-badge relative z-10\"> {article.category.name} </Link> </div> )} </div> <div className=\"pointer-events-none relative z-10 p-5 flex flex-col flex-1\"> <h3 className=\"text-base font-bold text-[var(--fg)] mb-2 leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2 flex-1\" style={{ fontFamily: 'var(--font-serif)' }} > {article.title} </h3> {article.excerpt && ( <p className=\"text-[var(--fg-muted)] text-sm leading-relaxed mb-3 line-clamp-2\">{article.excerpt}</p> )} <div className=\"flex items-center justify-between text-[0.7rem] text-[var(--fg-faint)] border-t border-[var(--border)] pt-3 mt-auto\"> <Link href={`/author/${article.author.slug ?? article.author.id}`} className=\"pointer-events-auto relative z-10 hover:text-gold transition-colors font-semibold text-[var(--fg-muted)]\" > {article.author.name} </Link> <span>{article.publishedAt ? format(new Date(article.publishedAt), 'd MMM yyyy') : ''}</span> </div> </div> </article> </StaggerItem> ))"
         },
         {
           "file": "src/components/layout/Footer.tsx",
@@ -8364,7 +8374,8 @@
       "expectedFromSource": "Navigate to /api/auth/signout",
       "candidateTests": [
         "tests/e2e/editorial-layout.spec.ts",
-        "tests/e2e/wf-remaining.spec.ts"
+        "tests/e2e/wf-remaining.spec.ts",
+        "tests/e2e/wf-roles.spec.ts"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -9477,6 +9488,7 @@
         "tests/unit/article-category-scope.test.ts",
         "tests/unit/article-render-formatting.test.ts",
         "tests/unit/editorial-calendar.test.ts",
+        "tests/unit/editorial-login-recovery.test.tsx",
         "tests/unit/editorial-schedule-display.test.ts",
         "tests/unit/portal-layout-ban.test.tsx",
         "tests/unit/profile-feedback.test.tsx",
@@ -10046,26 +10058,28 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/login/EditorialLoginForm.tsx:56",
+      "id": "src/app/editorial/login/EditorialLoginForm.tsx:64",
       "file": "src/app/editorial/login/EditorialLoginForm.tsx",
-      "line": 56,
+      "line": 64,
       "tag": "button",
       "label": "← Back to login",
       "href": null,
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": {
-        "onClick": "{() => { setShowReset(false); setResetSent(false) }}"
+        "onClick": "{() => { setShowReset(false); setResetSent(false); setError('') }}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-accounts.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/login/EditorialLoginForm.tsx:64",
+      "id": "src/app/editorial/login/EditorialLoginForm.tsx:72",
       "file": "src/app/editorial/login/EditorialLoginForm.tsx",
-      "line": 64,
+      "line": 72,
       "tag": "form",
       "label": "Enter your editorial email address. {resetLoading ? 'Sending…' : 'Send Reset Link'} ← Back to login",
       "href": null,
@@ -10080,9 +10094,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/login/EditorialLoginForm.tsx:68",
+      "id": "src/app/editorial/login/EditorialLoginForm.tsx:76",
       "file": "src/app/editorial/login/EditorialLoginForm.tsx",
-      "line": 68,
+      "line": 76,
       "tag": "input",
       "label": "your@email.com",
       "href": null,
@@ -10092,16 +10106,18 @@
         "onChange": "{(e) => setResetEmail(e.target.value)}"
       },
       "candidateTests": [
-        "tests/e2e/wf-discovery.spec.ts"
+        "tests/e2e/wf-accounts.spec.ts",
+        "tests/e2e/wf-discovery.spec.ts",
+        "tests/unit/editorial-login-recovery.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/login/EditorialLoginForm.tsx:76",
+      "id": "src/app/editorial/login/EditorialLoginForm.tsx:84",
       "file": "src/app/editorial/login/EditorialLoginForm.tsx",
-      "line": 76,
+      "line": 84,
       "tag": "button",
       "label": "{resetLoading ? 'Sending…' : 'Send Reset Link'}",
       "href": null,
@@ -10114,28 +10130,30 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/login/EditorialLoginForm.tsx:83",
+      "id": "src/app/editorial/login/EditorialLoginForm.tsx:91",
       "file": "src/app/editorial/login/EditorialLoginForm.tsx",
-      "line": 83,
+      "line": 91,
       "tag": "button",
       "label": "← Back to login",
       "href": null,
       "type": "button",
       "disabledWhen": null,
       "expectedFromSource": {
-        "onClick": "{() => setShowReset(false)}"
+        "onClick": "{() => { setShowReset(false); setError('') }}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-accounts.spec.ts"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/login/EditorialLoginForm.tsx:97",
+      "id": "src/app/editorial/login/EditorialLoginForm.tsx:105",
       "file": "src/app/editorial/login/EditorialLoginForm.tsx",
-      "line": 97,
+      "line": 105,
       "tag": "form",
-      "label": "{error && ( <p className=\"text-red-400 text-xs bg-red-500/10 border border-red-500/20 px-4 py-3 text-center\"> {error} </p> )} Email Password {loading ? 'Signing in…' : 'Sign In'} Forgot password?",
+      "label": "{error && ( <p role=\"alert\" className=\"text-red-400 text-xs bg-red-500/10 border border-red-500/20 px-4 py-3 text-center\"> {error} </p> )} Email Password {loading ? 'Signing in…' : 'Sign In'} Forgot password?",
       "href": null,
       "type": null,
       "disabledWhen": null,
@@ -10148,9 +10166,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/login/EditorialLoginForm.tsx:107",
+      "id": "src/app/editorial/login/EditorialLoginForm.tsx:115",
       "file": "src/app/editorial/login/EditorialLoginForm.tsx",
-      "line": 107,
+      "line": 115,
       "tag": "input",
       "label": "your@email.com",
       "href": null,
@@ -10160,16 +10178,18 @@
         "onChange": "{(e) => setForm({ ...form, email: e.target.value })}"
       },
       "candidateTests": [
-        "tests/e2e/wf-discovery.spec.ts"
+        "tests/e2e/wf-accounts.spec.ts",
+        "tests/e2e/wf-discovery.spec.ts",
+        "tests/unit/editorial-login-recovery.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/login/EditorialLoginForm.tsx:120",
+      "id": "src/app/editorial/login/EditorialLoginForm.tsx:129",
       "file": "src/app/editorial/login/EditorialLoginForm.tsx",
-      "line": 120,
+      "line": 129,
       "tag": "input",
       "label": "(unnamed control)",
       "href": null,
@@ -10184,9 +10204,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/login/EditorialLoginForm.tsx:128",
+      "id": "src/app/editorial/login/EditorialLoginForm.tsx:138",
       "file": "src/app/editorial/login/EditorialLoginForm.tsx",
-      "line": 128,
+      "line": 138,
       "tag": "button",
       "label": "{loading ? 'Signing in…' : 'Sign In'}",
       "href": null,
@@ -10199,18 +10219,21 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/login/EditorialLoginForm.tsx:136",
+      "id": "src/app/editorial/login/EditorialLoginForm.tsx:146",
       "file": "src/app/editorial/login/EditorialLoginForm.tsx",
-      "line": 136,
+      "line": 146,
       "tag": "button",
       "label": "Forgot password?",
       "href": null,
       "type": "button",
       "disabledWhen": null,
       "expectedFromSource": {
-        "onClick": "{() => setShowReset(true)}"
+        "onClick": "{() => { setShowReset(true); setError('') }}"
       },
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-accounts.spec.ts",
+        "tests/unit/editorial-login-recovery.test.tsx"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -10220,7 +10243,7 @@
       "file": "src/app/editorial/reset-password/ResetPasswordForm.tsx",
       "line": 34,
       "tag": "form",
-      "label": "{error && ( <p className=\"text-red-400 text-xs bg-red-500/10 border border-red-500/20 px-4 py-3\"> {error} </p> )} New Password Confirm Password {loading ? 'Resetting…' : 'Reset Password'}",
+      "label": "{error && ( <p role=\"alert\" className=\"text-red-400 text-xs bg-red-500/10 border border-red-500/20 px-4 py-3\"> {error} </p> )} New Password Confirm Password {loading ? 'Resetting…' : 'Reset Password'}",
       "href": null,
       "type": null,
       "disabledWhen": null,
@@ -10250,9 +10273,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/reset-password/ResetPasswordForm.tsx:59",
+      "id": "src/app/editorial/reset-password/ResetPasswordForm.tsx:60",
       "file": "src/app/editorial/reset-password/ResetPasswordForm.tsx",
-      "line": 59,
+      "line": 60,
       "tag": "input",
       "label": "(unnamed control)",
       "href": null,
@@ -10267,9 +10290,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/reset-password/ResetPasswordForm.tsx:69",
+      "id": "src/app/editorial/reset-password/ResetPasswordForm.tsx:71",
       "file": "src/app/editorial/reset-password/ResetPasswordForm.tsx",
-      "line": 69,
+      "line": 71,
       "tag": "button",
       "label": "{loading ? 'Resetting…' : 'Reset Password'}",
       "href": null,
@@ -10437,6 +10460,7 @@
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-mobile.spec.ts",
         "tests/e2e/wf-public-controls.spec.ts",
+        "tests/e2e/wf-roles.spec.ts",
         "tests/integration/api.test.ts",
         "tests/unit/seo.test.ts"
       ],
@@ -10529,6 +10553,7 @@
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-mobile.spec.ts",
         "tests/e2e/wf-public-controls.spec.ts",
+        "tests/e2e/wf-roles.spec.ts",
         "tests/integration/api.test.ts",
         "tests/unit/seo.test.ts"
       ],
@@ -10778,6 +10803,7 @@
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-mobile.spec.ts",
         "tests/e2e/wf-public-controls.spec.ts",
+        "tests/e2e/wf-roles.spec.ts",
         "tests/integration/api.test.ts",
         "tests/unit/seo.test.ts"
       ],
@@ -10907,6 +10933,7 @@
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-mobile.spec.ts",
         "tests/e2e/wf-public-controls.spec.ts",
+        "tests/e2e/wf-roles.spec.ts",
         "tests/integration/api.test.ts",
         "tests/unit/seo.test.ts"
       ],
@@ -14930,6 +14957,7 @@
         "tests/unit/article-category-scope.test.ts",
         "tests/unit/article-render-formatting.test.ts",
         "tests/unit/editorial-calendar.test.ts",
+        "tests/unit/editorial-login-recovery.test.tsx",
         "tests/unit/editorial-schedule-display.test.ts",
         "tests/unit/portal-layout-ban.test.tsx",
         "tests/unit/profile-feedback.test.tsx",
@@ -15037,6 +15065,7 @@
         "tests/integration/scheduling-routes.test.ts",
         "tests/integration/team-profile-db.test.ts",
         "tests/integration/team-profile-storage.test.ts",
+        "tests/unit/animation-hydration.test.tsx",
         "tests/unit/auth-redirect.test.ts",
         "tests/unit/featured-article-hero.test.tsx",
         "tests/unit/safe-redirect.test.ts",
@@ -15422,11 +15451,13 @@
         "tests/unit/analytics-request-recovery.test.tsx",
         "tests/unit/api-client.test.ts",
         "tests/unit/article-section-links.test.tsx",
+        "tests/unit/editorial-login-recovery.test.tsx",
         "tests/unit/newsletter-input.test.tsx",
         "tests/unit/notification-navigation.test.tsx",
         "tests/unit/portal-layout-ban.test.tsx",
         "tests/unit/portal-request-order.test.tsx",
         "tests/unit/profile-feedback.test.tsx",
+        "tests/unit/reading-position-boundaries.test.tsx",
         "tests/unit/session-fresh-authorization.test.ts",
         "tests/unit/trash-feedback.test.tsx"
       ],
@@ -15972,6 +16003,7 @@
         "tests/unit/article-category-scope.test.ts",
         "tests/unit/article-render-formatting.test.ts",
         "tests/unit/editorial-calendar.test.ts",
+        "tests/unit/editorial-login-recovery.test.tsx",
         "tests/unit/editorial-schedule-display.test.ts",
         "tests/unit/portal-layout-ban.test.tsx",
         "tests/unit/profile-feedback.test.tsx",
@@ -16179,6 +16211,7 @@
         "tests/unit/article-category-scope.test.ts",
         "tests/unit/article-render-formatting.test.ts",
         "tests/unit/editorial-calendar.test.ts",
+        "tests/unit/editorial-login-recovery.test.tsx",
         "tests/unit/editorial-schedule-display.test.ts",
         "tests/unit/portal-layout-ban.test.tsx",
         "tests/unit/profile-feedback.test.tsx",
@@ -16584,10 +16617,12 @@
       },
       "candidateTests": [
         "tests/e2e/public.spec.ts",
+        "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-failures.spec.ts",
         "tests/e2e/wf-navigation.spec.ts",
         "tests/e2e/wf-public-controls.spec.ts",
-        "tests/e2e/wf-remaining.spec.ts"
+        "tests/e2e/wf-remaining.spec.ts",
+        "tests/e2e/wf-roles.spec.ts"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -17642,6 +17677,7 @@
         "tests/e2e/wf-reader.spec.ts",
         "tests/e2e/wf-recovery.spec.ts",
         "tests/e2e/wf-remaining.spec.ts",
+        "tests/e2e/wf-roles.spec.ts",
         "tests/e2e/wf-upload.spec.ts",
         "tests/integration/api.test.ts",
         "tests/integration/profile-account-route.test.ts",
@@ -17650,6 +17686,7 @@
         "tests/integration/team-profile-storage.test.ts",
         "tests/unit/analytics-request-recovery.test.tsx",
         "tests/unit/article-section-links.test.tsx",
+        "tests/unit/editorial-login-recovery.test.tsx",
         "tests/unit/featured-article-hero.test.tsx",
         "tests/unit/moderation-request-order.test.tsx",
         "tests/unit/notification-navigation.test.tsx",
@@ -17908,6 +17945,7 @@
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-mobile.spec.ts",
         "tests/e2e/wf-public-controls.spec.ts",
+        "tests/e2e/wf-roles.spec.ts",
         "tests/integration/api.test.ts",
         "tests/unit/seo.test.ts"
       ],
@@ -17944,7 +17982,8 @@
       },
       "candidateTests": [
         "tests/e2e/editorial-layout.spec.ts",
-        "tests/e2e/wf-remaining.spec.ts"
+        "tests/e2e/wf-remaining.spec.ts",
+        "tests/e2e/wf-roles.spec.ts"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -17965,6 +18004,7 @@
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-mobile.spec.ts",
         "tests/e2e/wf-public-controls.spec.ts",
+        "tests/e2e/wf-roles.spec.ts",
         "tests/integration/api.test.ts",
         "tests/unit/seo.test.ts"
       ],
@@ -18003,7 +18043,8 @@
       },
       "candidateTests": [
         "tests/e2e/editorial-layout.spec.ts",
-        "tests/e2e/wf-remaining.spec.ts"
+        "tests/e2e/wf-remaining.spec.ts",
+        "tests/e2e/wf-roles.spec.ts"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -18041,6 +18082,7 @@
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-mobile.spec.ts",
         "tests/e2e/wf-public-controls.spec.ts",
+        "tests/e2e/wf-roles.spec.ts",
         "tests/integration/api.test.ts",
         "tests/unit/seo.test.ts"
       ],
@@ -18229,6 +18271,7 @@
         "tests/e2e/wf-accounts.spec.ts",
         "tests/e2e/wf-mobile.spec.ts",
         "tests/e2e/wf-public-controls.spec.ts",
+        "tests/e2e/wf-roles.spec.ts",
         "tests/integration/api.test.ts",
         "tests/unit/seo.test.ts"
       ],
@@ -18858,6 +18901,7 @@
         "tests/integration/scheduling-routes.test.ts",
         "tests/integration/team-profile-db.test.ts",
         "tests/integration/team-profile-storage.test.ts",
+        "tests/unit/animation-hydration.test.tsx",
         "tests/unit/auth-redirect.test.ts",
         "tests/unit/featured-article-hero.test.tsx",
         "tests/unit/safe-redirect.test.ts",
@@ -19787,7 +19831,9 @@
         "onChange": "{handleChange}"
       },
       "candidateTests": [
-        "tests/e2e/wf-discovery.spec.ts"
+        "tests/e2e/wf-accounts.spec.ts",
+        "tests/e2e/wf-discovery.spec.ts",
+        "tests/unit/editorial-login-recovery.test.tsx"
       ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
@@ -20316,7 +20362,10 @@
       "type": null,
       "disabledWhen": null,
       "expectedFromSource": "Navigate to /forgot-password",
-      "candidateTests": [],
+      "candidateTests": [
+        "tests/e2e/wf-accounts.spec.ts",
+        "tests/unit/editorial-login-recovery.test.tsx"
+      ],
       "groupTestFiles": [],
       "evidence": "CODE_INSPECTION",
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
@@ -20443,9 +20492,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/ui/ReadingTracker.tsx:237",
+      "id": "src/components/ui/ReadingTracker.tsx:253",
       "file": "src/components/ui/ReadingTracker.tsx",
-      "line": 237,
+      "line": 253,
       "tag": "button",
       "label": "Jump back",
       "href": null,
@@ -20462,9 +20511,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/ui/ReadingTracker.tsx:243",
+      "id": "src/components/ui/ReadingTracker.tsx:259",
       "file": "src/components/ui/ReadingTracker.tsx",
-      "line": 243,
+      "line": 259,
       "tag": "button",
       "label": "Dismiss",
       "href": null,
@@ -20485,9 +20534,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/ui/ReadingTracker.tsx:265",
+      "id": "src/components/ui/ReadingTracker.tsx:281",
       "file": "src/components/ui/ReadingTracker.tsx",
-      "line": 265,
+      "line": 281,
       "tag": "button",
       "label": "Dismiss",
       "href": null,
@@ -20508,9 +20557,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/ui/ReadingTracker.tsx:280",
+      "id": "src/components/ui/ReadingTracker.tsx:296",
       "file": "src/components/ui/ReadingTracker.tsx",
-      "line": 280,
+      "line": 296,
       "tag": "Link",
       "label": "Create Account",
       "href": "/signup",
@@ -20527,9 +20576,9 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/components/ui/ReadingTracker.tsx:287",
+      "id": "src/components/ui/ReadingTracker.tsx:303",
       "file": "src/components/ui/ReadingTracker.tsx",
-      "line": 287,
+      "line": 303,
       "tag": "button",
       "label": "Maybe Later",
       "href": null,
@@ -21321,7 +21370,7 @@
     {
       "file": "src/app/tag/[slug]/page.tsx",
       "line": 73,
-      "source": "articles.map((article) => ( <StaggerItem key={article.id}> <article className=\"relative bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden group card-hover shadow-[var(--shadow-card)] h-full flex flex-col\"> <Link href={`/articles/${article.slug}`} className=\"absolute inset-0 z-0\" aria-label={article.title} /> <div className=\"relative h-44 bg-navy/10 overflow-hidden img-zoom flex-shrink-0\"> {article.coverImage ? ( <Image src={article.coverImage} alt={article.title} fill className=\"object-cover\" /> ) : ( <div className=\"absolute inset-0 bg-gradient-to-br from-navy to-navy-light flex items-center justify-center\"> <span className=\"text-gold/15 text-3xl font-bold\" style={{ fontFamily: 'var(--font-serif)' }}>TC</span> </div> )} {article.category && ( <div className=\"absolute top-3 left-3 z-10\"> <Link href={`/category/${article.category.slug}`} className=\"category-badge relative z-10\"> {article.category.name} </Link> </div> )} </div> <div className=\"relative z-10 p-5 flex flex-col flex-1\"> <h3 className=\"text-base font-bold text-[var(--fg)] mb-2 leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2 flex-1\" style={{ fontFamily: 'var(--font-serif)' }} > {article.title} </h3> {article.excerpt && ( <p className=\"text-[var(--fg-muted)] text-sm leading-relaxed mb-3 line-clamp-2\">{article.excerpt}</p> )} <div className=\"flex items-center justify-between text-[0.7rem] text-[var(--fg-faint)] border-t border-[var(--border)] pt-3 mt-auto\"> <Link href={`/author/${article.author.slug ?? article.author.id}`} className=\"relative z-10 hover:text-gold transition-colors font-semibold text-[var(--fg-muted)]\" > {article.author.name} </Link> <span>{article.publishedAt ? format(new Date(article.publishedAt), 'd MMM yyyy') : ''}</span> </div> </div> </article> </StaggerItem> ))"
+      "source": "articles.map((article) => ( <StaggerItem key={article.id}> <article className=\"relative bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden group card-hover shadow-[var(--shadow-card)] h-full flex flex-col\"> <Link href={`/articles/${article.slug}`} className=\"absolute inset-0 z-0\" aria-label={article.title} /> <div className=\"pointer-events-none relative h-44 bg-navy/10 overflow-hidden img-zoom flex-shrink-0\"> {article.coverImage ? ( <Image src={article.coverImage} alt={article.title} fill className=\"object-cover\" /> ) : ( <div className=\"absolute inset-0 bg-gradient-to-br from-navy to-navy-light flex items-center justify-center\"> <span className=\"text-gold/15 text-3xl font-bold\" style={{ fontFamily: 'var(--font-serif)' }}>TC</span> </div> )} {article.category && ( <div className=\"absolute top-3 left-3 z-10\"> <Link href={`/category/${article.category.slug}`} className=\"pointer-events-auto category-badge relative z-10\"> {article.category.name} </Link> </div> )} </div> <div className=\"pointer-events-none relative z-10 p-5 flex flex-col flex-1\"> <h3 className=\"text-base font-bold text-[var(--fg)] mb-2 leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2 flex-1\" style={{ fontFamily: 'var(--font-serif)' }} > {article.title} </h3> {article.excerpt && ( <p className=\"text-[var(--fg-muted)] text-sm leading-relaxed mb-3 line-clamp-2\">{article.excerpt}</p> )} <div className=\"flex items-center justify-between text-[0.7rem] text-[var(--fg-faint)] border-t border-[var(--border)] pt-3 mt-auto\"> <Link href={`/author/${article.author.slug ?? article.author.id}`} className=\"pointer-events-auto relative z-10 hover:text-gold transition-colors font-semibold text-[var(--fg-muted)]\" > {article.author.name} </Link> <span>{article.publishedAt ? format(new Date(article.publishedAt), 'd MMM yyyy') : ''}</span> </div> </div> </article> </StaggerItem> ))"
     },
     {
       "file": "src/app/team/loading.tsx",

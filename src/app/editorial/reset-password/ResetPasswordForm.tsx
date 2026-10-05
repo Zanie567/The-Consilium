@@ -33,15 +33,16 @@ export function ResetPasswordForm({ token }: { token: string }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 px-4 py-3">
+        <p role="alert" className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 px-4 py-3">
           {error}
         </p>
       )}
       <div>
-        <label className="block text-cream/50 text-xs uppercase tracking-widest mb-1.5">
+        <label htmlFor="editorial-reset-password" className="block text-cream/50 text-xs uppercase tracking-widest mb-1.5">
           New Password
         </label>
         <input
+          id="editorial-reset-password"
           type="password"
           required
           minLength={8}
@@ -53,10 +54,11 @@ export function ResetPasswordForm({ token }: { token: string }) {
         />
       </div>
       <div>
-        <label className="block text-cream/50 text-xs uppercase tracking-widest mb-1.5">
+        <label htmlFor="editorial-reset-confirm" className="block text-cream/50 text-xs uppercase tracking-widest mb-1.5">
           Confirm Password
         </label>
         <input
+          id="editorial-reset-confirm"
           type="password"
           required
           minLength={8}

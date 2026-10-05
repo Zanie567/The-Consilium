@@ -58,7 +58,7 @@ function ScopedReadingTracker({ articleId, userId }: { articleId: string; userId
   // once it looks persistent, and take the notice away again on its own.
   const consecutiveFailures = useRef(0)
   const syncErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const hasScrolled = useRef(false)
+  const hasReadingIntent = useRef(false)
   // Mirror of the banner's saved scroll position so the scroll handler (whose
   // closure is created once) can compare against it without being re-bound.
   // Null when no banner is showing.
@@ -117,10 +117,17 @@ function ScopedReadingTracker({ articleId, userId }: { articleId: string; userId
 
   // ── Scroll handler ────────────────────────────────────────────────────────
   useEffect(() => {
+    // Navigation/layout changes can move the document before the new article's
+    // saved position loads. They must not record the previous page's offset as
+    // reading the destination. Each article/account starts with no reader input.
+    const onIntent = () => { hasReadingIntent.current = true }
+    const onKey = (event: KeyboardEvent) => {
+      if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) onIntent()
+    }
     const onScroll = () => {
       const pct = getProgress()
       rawProgress.set(pct / 100)
-      hasScrolled.current = true
+      if (!hasReadingIntent.current) return
 
       // Once the reader scrolls past their saved position the "continue where you
       // left off" banner is no longer useful, so dismiss it automatically. A small
@@ -143,8 +150,16 @@ function ScopedReadingTracker({ articleId, userId }: { articleId: string; userId
     }
 
     window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('wheel', onIntent, { passive: true })
+    window.addEventListener('touchstart', onIntent, { passive: true })
+    window.addEventListener('pointerdown', onIntent, { passive: true })
+    window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('wheel', onIntent)
+      window.removeEventListener('touchstart', onIntent)
+      window.removeEventListener('pointerdown', onIntent)
+      window.removeEventListener('keydown', onKey)
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
   }, [getProgress, persist, rawProgress, dismissBanner])
@@ -191,7 +206,8 @@ function ScopedReadingTracker({ articleId, userId }: { articleId: string; userId
   }, [articleId, userId, noteSyncFailure])
 
   const scrollToSaved = (scrollY: number) => {
-    window.scrollTo({ top: scrollY, behavior: 'smooth' })
+    hasReadingIntent.current = true
+    window.scrollTo({ top: scrollY, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
     dismissBanner()
   }
 

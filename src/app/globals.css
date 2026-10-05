@@ -1299,6 +1299,9 @@ mark {
 
 /* ─── Reduced motion ───────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
+  /* Keep the image's server/client tree identical. The user's preference is
+     applied by CSS before hydration rather than removing a server node. */
+  .consilium-image-overlay { display: none; }
   html { scroll-behavior: auto; }
   html, html * { transition: none !important; animation: none !important; }
 

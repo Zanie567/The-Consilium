@@ -10,7 +10,9 @@ const attestation = read('commit.json')
 const apiOnly = [
   [/wf-roles\.spec/, /sensitive endpoints/],
   [/wf-stale-authorization\.spec/, /./],
-  [/network-crawl\.spec/, /./],
+  [/network-crawl\.spec/, /single-threaded|concurrent crawl/],
+  [/editor-scope\.spec/, /./],
+  [/publication-lifecycle\.spec/, /./],
   [/team-profile\.spec/, /the API refuses|unauthenticated caller|a (?:admin|reader) account is refused|forged userId|public team API/],
   [/wf-admin-content\.spec/, /a writer cannot create|only an admin may change|a writer and a reader cannot/],
   [/wf-access\.spec/, /nobody below Admin|writer cannot take their own|can neither trash nor restore|writer cannot schedule/],
@@ -18,6 +20,8 @@ const apiOnly = [
   [/wf-publication-safety\.spec/, /PUT without|even with the intent flag/],
 ]
 const method = (file, title) => file === 'auth.setup.ts' ? 'BROWSER_FIXTURE_PREPARATION'
+  : file === 'network-crawl.spec.ts' && /no broken images/.test(title) ? 'BROWSER_RENDER_RESOURCE (page/image verification; no UI action)'
+  : file === 'publication-lifecycle.spec.ts' && /draft →/.test(title) ? 'API_DB_WITH_PUBLIC_PAGE_RENDER (lifecycle mutations use requests, not controls)'
   : apiOnly.some(([f, t]) => f.test(file) && t.test(title)) ? 'API_DB'
     : 'BROWSER (see individual steps; API/DB assertions may additionally verify persistence and permissions)'
 const phases = []
@@ -61,9 +65,15 @@ const vitest = read('vitest.json')
 const summary = { exactTestedCommit: attestation.commit, runURL, environment: attestation,
   isolation: read('isolation.json'), cleanup: fs.existsSync(path.join(directory, 'cleanup.json')) ? read('cleanup.json') : 'No explicit post-drop attestation in this historical run',
   scope: 'One full run. Test outcomes are not a count of distinct actions. Browser setup is preparation; API-only checks do not establish UI behaviour. Reviewed action-family expectations are in coverage-inventory.md.',
-  vitest: { total: vitest.numTotalTests, passed: vitest.numPassedTests, failed: vitest.numFailedTests, pending: vitest.numPendingTests },
+  vitest: { total: vitest.numTotalTests, passed: vitest.numPassedTests, failed: vitest.numFailedTests, pending: vitest.numPendingTests,
+    tests: (vitest.testResults ?? []).flatMap(file => (file.assertionResults ?? []).map(test => ({
+      file: path.basename(file.name), title: test.fullName, status: test.status,
+      method: /\/(?:read-through-db|api|data-layer|api-audit|calendar-access|team-profile-db|team-profile-storage)\.test\.ts$/.test(file.name) ? 'API_DB (isolated live HTTP/database/storage)' : 'UNIT (in-process helper/component/route; see test mocks)',
+      duration: test.duration, errors: test.failureMessages ?? [],
+    }))) },
   browser: { passed: phases.reduce((n, p) => n + p.stats.expected, 0), failed: phases.reduce((n, p) => n + p.stats.unexpected, 0),
     skipped: phases.reduce((n, p) => n + p.stats.skipped, 0), flaky: phases.reduce((n, p) => n + p.stats.flaky, 0) }, phases }
 fs.mkdirSync(path.dirname(output), { recursive: true })
 fs.writeFileSync(output, JSON.stringify(summary, null, 2) + '\n')
-console.log(JSON.stringify({ exactTestedCommit: summary.exactTestedCommit, vitest: summary.vitest, browser: summary.browser }))
+const { tests: unitTests, ...vitestCounts } = summary.vitest
+console.log(JSON.stringify({ exactTestedCommit: summary.exactTestedCommit, vitest: vitestCounts, unitCases: unitTests.length, browser: summary.browser }))
