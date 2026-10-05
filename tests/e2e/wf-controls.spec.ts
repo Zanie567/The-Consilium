@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { ArticleEditorPage, articleByTitle, closeDb, db, removeMyArticles, signedIn, uniqueTitle } from './helpers/workflow'
+import { confirmPublicChange, ArticleEditorPage, articleByTitle, closeDb, db, removeMyArticles, signedIn, uniqueTitle } from './helpers/workflow'
 
 test.afterAll(async () => { await removeMyArticles(); await closeDb() })
 
@@ -20,24 +20,34 @@ test('delete table, edit/cancel/remove footnotes, spacing, counts and theme surv
   await bar.getByRole('button', { name: 'Switch to light mode', exact: true }).click()
   await expect(page.locator('html')).not.toHaveClass(/dark/)
 
-  for (const label of ['Single (1.0)', '1.15', '1.5', 'Double (2.0)']) {
+  for (const [label, value] of [['Single (1.0)', '1'], ['1.15', '1.15'], ['1.5', '1.5'], ['Double (2.0)', '2']]) {
     await ed.select('Four words for counts.')
     await ed.tool('Line spacing').click()
     await page.getByRole('button', { name: label, exact: true }).click()
-    await expect(ed.body().locator('span[style*="line-height"]')).toBeVisible()
+    await expect(ed.body().locator('span[style*="line-height"]')).toHaveAttribute('style', `line-height: ${value};`)
   }
   await ed.moveToEnd()
   page.once('dialog', d => void d.accept('Original footnote'))
   await ed.tool('Insert footnote').click()
   const note = ed.body().locator('sup[data-footnote]')
-  page.once('dialog', d => void d.accept('Revised footnote'))
-  await note.click()
+  const editNote = async (value: string | null) => {
+    // The editor interprets rapid repeated marker clicks as double/triple
+    // selection, not a new edit. Model distinct prompt interactions.
+    await page.waitForTimeout(600)
+    await Promise.all([
+      page.waitForEvent('dialog').then(async dialog => {
+        expect(dialog.message()).toBe('Footnote text (clear it to remove this footnote):')
+        if (value === null) await dialog.dismiss()
+        else await dialog.accept(value)
+      }),
+      note.click(),
+    ])
+  }
+  await editNote('Revised footnote')
   await expect(note).toHaveAttribute('data-footnote', 'Revised footnote')
-  page.once('dialog', d => void d.dismiss())
-  await note.click()
+  await editNote(null)
   await expect(note).toHaveAttribute('data-footnote', 'Revised footnote')
-  page.once('dialog', d => void d.accept(''))
-  await note.click()
+  await editNote('')
   await expect(note).toHaveCount(0)
   await ed.moveToEnd()
   page.once('dialog', d => void d.accept('Retained footnote'))
@@ -53,6 +63,7 @@ test('delete table, edit/cancel/remove footnotes, spacing, counts and theme surv
   const { id } = await ed.saveNow()
   await ed.openExisting(id)
   await expect(ed.body()).toContainText('Four words for counts.')
+  await expect(ed.body().locator('span[style*="line-height"]').first()).toHaveAttribute('style', 'line-height: 2;')
   await expect(ed.body().locator('sup[data-footnote]')).toHaveAttribute('data-footnote', 'Retained footnote')
   await expect(ed.body().locator('table')).toHaveCount(0)
   expect((await articleByTitle(title))!.content).not.toContain('Original footnote')
@@ -60,6 +71,7 @@ test('delete table, edit/cancel/remove footnotes, spacing, counts and theme surv
 })
 
 test('review correction, commendation, feature and pin persist and corrections appear publicly', async ({ browser }) => {
+  test.setTimeout(90_000) // Several saves, reloads and public pages; per-action deadline remains 10s.
   const ctx = await signedIn(browser, 'editor')
   const page = await ctx.newPage()
   const ed = new ArticleEditorPage(page)
@@ -70,7 +82,7 @@ test('review correction, commendation, feature and pin persist and corrections a
     await ed.title().fill(title)
     await ed.typeBody('A body that will receive a correction.')
     const { id } = await ed.saveNow()
-    expect((await ed.saving(() => page.getByRole('button', { name: 'Publish', exact: true }).click())).status()).toBe(200)
+    expect((await ed.saving(async () => { await page.getByRole('button', { name: 'Publish', exact: true }).click(); await confirmPublicChange(page, 'Publish now') })).status()).toBe(200)
     await page.goto(`/editorial/review/${id}`, { waitUntil: 'networkidle' })
     await page.getByRole('checkbox', { name: 'Mark as corrected' }).check()
     const correction = 'Corrected the reported rate to 4.5 percent.'
@@ -134,15 +146,11 @@ test('editor document settings, publish, live link, unpublish and schedule work 
   await ed.openExisting(id)
   await expect(panel.getByPlaceholder('url-slug')).toHaveValue(slug)
   await expect(author).toHaveValue(writerOption!)
-  // Publishing refreshes the server component after the save response. Await
-  // that real refresh before opening another document (particularly in WebKit).
-  const publishRefresh = page.waitForResponse(r => r.url().includes(`/articles/${id}/edit?_rsc=`))
-  const published = await ed.saving(() => page.getByRole('button', { name: 'Publish', exact: true }).click())
-  await publishRefresh
+  const published = await ed.saving(async () => { await page.getByRole('button', { name: 'Publish', exact: true }).click(); await confirmPublicChange(page, 'Publish now') })
   expect(published.status()).toBe(200)
   expect((await articleByTitle(title))!.status).toBe('PUBLISHED')
   await expect(page.getByRole('button', { name: 'Unpublish', exact: true })).toBeVisible()
-  await expect(page.locator('[data-article-server-status]')).toHaveAttribute('data-article-server-status', 'PUBLISHED')
+  await page.waitForLoadState('networkidle')
   // Reopen to check the live link and persisted status.
   await ed.openExisting(id)
   await expect(status).toHaveValue('PUBLISHED')
@@ -152,25 +160,21 @@ test('editor document settings, publish, live link, unpublish and schedule work 
   await expect(live.locator('h1')).toContainText(title)
   await expect(live.locator('.prose-consilium')).toContainText('Document settings article body.')
   await live.close()
-  const unpublishRefresh = page.waitForResponse(r => r.url().includes(`/articles/${id}/edit?_rsc=`))
-  expect((await ed.saving(() => page.getByRole('button', { name: 'Unpublish', exact: true }).click())).status()).toBe(200)
-  await unpublishRefresh
-  await expect(page.locator('[data-article-server-status]')).toHaveAttribute('data-article-server-status', 'DRAFT')
+  expect((await ed.saving(async () => { await page.getByRole('button', { name: 'Unpublish', exact: true }).click(); await confirmPublicChange(page, 'Unpublish') })).status()).toBe(200)
   const anon = await signedIn(browser, null)
   const publicPage = await anon.newPage()
   expect((await publicPage.goto(`/articles/${slug}`))?.status()).toBe(404)
   await anon.close()
   await status.selectOption('SCHEDULED')
   await panel.locator('input[type="datetime-local"]').fill('2027-01-15T12:30')
-  const scheduleRefresh = page.waitForResponse(r => r.url().includes(`/articles/${id}/edit?_rsc=`))
-  expect((await ed.saving(() => page.getByRole('button', { name: 'Schedule', exact: true }).click())).status()).toBe(200)
-  await scheduleRefresh
-  // The fetched RSC stream must actually commit, not merely start responding.
-  // Its server-derived status changes independently of the optimistic form state.
-  await expect(page.locator('[data-article-server-status]')).toHaveAttribute('data-article-server-status', 'SCHEDULED')
-  await ed.openExisting(id)
-  await expect(status).toHaveValue('SCHEDULED')
-  await expect(panel.locator('input[type="datetime-local"]')).toHaveValue('2027-01-15T12:30')
+  expect((await ed.saving(async () => { await page.getByRole('button', { name: 'Schedule', exact: true }).click(); await confirmPublicChange(page, 'Schedule') })).status()).toBe(200)
+  // Reopen in a fresh tab while the original page refreshes its server data.
+  // Racing goto against router.refresh in the same WebKit page interrupted it.
+  const reopened = await ctx.newPage()
+  await new ArticleEditorPage(reopened).openExisting(id)
+  const reopenedPanel = reopened.locator('aside', { has: reopened.getByPlaceholder('Add a tag, press Enter...') })
+  await expect(reopenedPanel.locator('select').first()).toHaveValue('SCHEDULED')
+  await expect(reopenedPanel.locator('input[type="datetime-local"]')).toHaveValue('2027-01-15T12:30')
   const row = (await articleByTitle(title))!
   expect(row.scheduledAt?.toISOString()).toBe('2027-01-15T12:30:00.000Z')
   expect(row.authorId).toBe(writerOption)

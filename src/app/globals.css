@@ -221,8 +221,9 @@ body {
   opacity: 1;
 }
 
-/* ─── Drop cap on first paragraph ───────────────────────────────── */
-.prose-consilium > p:first-of-type::first-letter {
+/* Drop caps supply an unstyled default. Explicit paragraph/text presentation
+   belongs to the author; a floated house letter must not override it. */
+.prose-consilium > p:first-of-type:not([style]):not(:has(span[style], mark[style]))::first-letter {
   font-family: var(--font-serif);
   font-size: 3.4em;
   font-weight: 800;
@@ -234,7 +235,7 @@ body {
   padding-bottom: 0.02em;
 }
 
-.dark .prose-consilium > p:first-of-type::first-letter {
+.dark .prose-consilium > p:first-of-type:not([style]):not(:has(span[style], mark[style]))::first-letter {
   color: rgba(255, 255, 255, 0.87);
 }
 
@@ -1298,6 +1299,9 @@ mark {
 
 /* ─── Reduced motion ───────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
+  /* Keep the image's server/client tree identical. The user's preference is
+     applied by CSS before hydration rather than removing a server node. */
+  .consilium-image-overlay { display: none; }
   html { scroll-behavior: auto; }
   html, html * { transition: none !important; animation: none !important; }
 
@@ -1380,4 +1384,13 @@ mark {
 }
 @media (prefers-reduced-motion: reduce) {
   .comment-highlight.comment-highlight-active { animation: none; }
+}
+
+/* Preserve identical SSR/client animation wrappers. Reduced-motion readers see
+   the content immediately, including before hydration or intersection callbacks. */
+@media (prefers-reduced-motion: reduce) {
+  .consilium-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

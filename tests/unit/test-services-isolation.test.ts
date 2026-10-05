@@ -17,6 +17,11 @@ describe('isolated service environment for E2E', () => {
     }
   })
 
+  it('requires the offline market-data override', () => {
+    expect(() => assertIsolatedServiceEnv({ ...good(), TEST_MARKET_DATA: undefined })).toThrow('TEST_MARKET_DATA')
+    expect(() => assertIsolatedServiceEnv({ ...good(), TEST_MARKET_DATA: 'live' })).toThrow('TEST_MARKET_DATA')
+  })
+
   it('refuses a production storage URL', () => {
     expect(() => assertIsolatedServiceEnv({ ...good(), NEXT_PUBLIC_SUPABASE_URL: 'https://abc.supabase.co' })).toThrow(/not loopback/)
   })

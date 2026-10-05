@@ -5,11 +5,8 @@
  *
  * The database is whatever vitest.config.ts resolved through the central guard
  * (scripts/lib/assertSafeTestDatabaseHost.ts): TEST_DATABASE_URL or the local default, never
- * .env.local. If it is unreachable, or its schema predates `team_members.userId`,
- * the suite skips with a warning instead of failing.
- *
- *   npm run test:setup-db      # starts a local Postgres, pushes the schema, seeds
- *   npx vitest run tests/integration/team-profile-db.test.ts
+ * .env.local. Missing services or schema fail collection. Run through the
+ * attested `npm run test:audit` launcher; ordinary unit runs exclude this suite.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
@@ -33,13 +30,13 @@ async function schemaIsReady(): Promise<boolean> {
   } catch {
     return false
   } finally {
-    await client.end().catch(() => {})
+    await client.end()
   }
 }
 
 const ready = await schemaIsReady()
-if (!ready) console.warn('[team-profile-db] skipped: no local test database with the team_members.userId column')
-const suite = ready ? describe : describe.skip
+if (!ready) throw new Error('Required isolated team profile database is unavailable or missing its schema')
+const suite = describe
 
 const { state, storage } = vi.hoisted(() => ({
   state: { prisma: undefined as unknown, session: null as null | { id: string } },
@@ -158,6 +155,9 @@ suite('PUT /api/team-profile (real database)', () => {
   })
 
   afterAll(async () => {
+    // Cards created without a user or an email (the legacy cards) are only identifiable by name. They stay
+    // active on the public Team page, so a leftover one (image /team/x.png does not exist) breaks later
+    // browser specs that share this database and fail on any console error.
     await db.teamMember.deleteMany({ where: { OR: [{ user: { email: { startsWith: tag } } }, { email: { startsWith: tag } }, { name: { startsWith: tag } }] } })
     await db.user.deleteMany({ where: { email: { startsWith: tag } } })
     await db.$disconnect()

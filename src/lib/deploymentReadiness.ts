@@ -18,7 +18,7 @@ export async function deploymentReadiness(db: Pick<PrismaClient, '$queryRaw'>, e
     for (const id of ['avatars', 'article-images']) {
       const bucket = buckets.find(b => b.id === id)
       if (!bucket?.public) gaps.push(`Missing public storage bucket: ${id}`)
-      if (id === 'avatars' && bucket && (Number(bucket.file_size_limit) !== 5242880 || !['image/jpeg','image/png','image/gif','image/webp','image/avif'].every(t => bucket.allowed_mime_types?.includes(t)))) gaps.push('avatars limits/MIME configuration differs from profile upload contract')
+      if (id === 'avatars' && bucket && (Number(bucket.file_size_limit) !== 5242880 || !['image/jpeg','image/png','image/gif','image/webp','image/avif'].every(t => bucket.allowed_mime_types?.includes(t)))) gaps.push('avatars bucket capacity/MIME configuration differs from the established storage contract')
     }
   } catch { gaps.push('Storage bucket configuration cannot be read') }
   return { healthy: gaps.length === 0, gaps }

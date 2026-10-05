@@ -1,6 +1,14 @@
 import { test, expect, type Page } from '@playwright/test'
-import { ArticleEditorPage, articleByTitle, closeDb, removeMyArticles, signedIn, storedObjects, uniqueTitle } from './helpers/workflow'
+import { ArticleEditorPage, articleByTitle, closeDb, confirmPublicChange, removeMyArticles, signedIn, storedObjects, uniqueTitle } from './helpers/workflow'
 import { makePng } from './helpers/e2eUtils'
+
+const MAX_BYTES = 4 * 1024 * 1024 // MAX_SERVER_UPLOAD_BYTES
+
+/** A real, decodable PNG padded with trailing zero bytes to exactly `total` bytes. */
+function pngOfSize(total: number): Buffer {
+  const png = makePng(48)
+  return Buffer.concat([png, Buffer.alloc(Math.max(0, total - png.length))])
+}
 
 /**
  * Article image uploads through the editor: the toolbar image control, the cover image
@@ -78,21 +86,117 @@ test.describe('toolbar image (figure)', () => {
     await ctx.close()
   })
 
-  test('an image over 10 MB is refused with its limit', async ({ browser }) => {
+  // The limit comes from the platform: Vercel rejects a Function request body over 4.5 MB before our
+  // code runs, with a bare 413. The app therefore caps files at 4 MiB (MAX_SERVER_UPLOAD_BYTES) in the
+  // browser AND on the server. These tests pin the boundary on both sides.
+  test('an image exactly at the limit uploads, renders, and still renders after reopening and publishing', async ({ browser }) => {
+    const { ctx, page, ed, title } = await newArticle(browser, 'editor')
+    const stamp = Date.now().toString(36)
+    await chooseFileVia(page, () => ed.tool('Insert image').click(), {
+      name: `edge ${stamp}.png`, mimeType: 'image/png', buffer: pngOfSize(MAX_BYTES),
+    })
+    const img = ed.body().locator('figure.article-figure img')
+    await expect(img).toBeVisible({ timeout: 30_000 })
+    await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0)
+    const [stored] = await storedNamed(`edge_${stamp}.png`)
+    expect(stored.size, 'the exact bytes were stored').toBe(MAX_BYTES)
+
+    const { id } = await ed.saveNow()
+    await ed.openExisting(id)
+    const reopened = ed.body().locator('figure.article-figure img')
+    await expect(reopened).toBeVisible()
+    await expect.poll(() => reopened.evaluate((i: HTMLImageElement) => i.naturalWidth), { message: 'image renders after reopening' }).toBeGreaterThan(0)
+
+    // Publish it and check the reader's page renders the same image.
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    await confirmPublicChange(page, 'Publish now')
+    await expect.poll(async () => (await articleByTitle(title))!.status).toBe('PUBLISHED')
+    const anon = await signedIn(browser, null)
+    const pub = await anon.newPage()
+    await pub.goto(`/articles/${(await articleByTitle(title))!.slug}`, { waitUntil: 'networkidle' })
+    const publicImg = pub.locator('.prose-consilium figure img')
+    await expect(publicImg).toBeVisible()
+    expect(await publicImg.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0)
+    await anon.close()
+    await ctx.close()
+  })
+
+  test('one byte over the limit is refused in the browser with a persistent, specific message and nothing is sent', async ({ browser }) => {
     const { ctx, page, ed } = await newArticle(browser)
     const uploads: string[] = []
     page.on('request', (r) => { if (r.url().includes('/api/upload')) uploads.push(r.url()) })
-    const big = Buffer.concat([makePng(8), Buffer.alloc(10 * 1024 * 1024 + 1024)])
-    await chooseFileVia(page, () => ed.tool('Insert image').click(), { name: 'huge.png', mimeType: 'image/png', buffer: big })
-    await expect(page.getByText(/File too large \(max 10 MB\)/)).toBeVisible()
+    await chooseFileVia(page, () => ed.tool('Insert image').click(), { name: 'huge.png', mimeType: 'image/png', buffer: pngOfSize(MAX_BYTES + 1) })
+    await expect(page.getByText(/File too large \(max 4 MB\)/)).toBeVisible()
     // It stays until dismissed (it used to vanish after four seconds), wherever the page is scrolled.
     await page.waitForTimeout(5_000)
-    await expect(page.getByText(/File too large \(max 10 MB\)/)).toBeVisible()
+    await expect(page.getByText(/File too large \(max 4 MB\)/)).toBeVisible()
     await page.getByRole('button', { name: 'Dismiss upload error' }).click()
     await expect(page.getByText('Upload failed:')).toHaveCount(0)
     await expect(ed.body().locator('figure')).toHaveCount(0)
     expect(await storedNamed('huge.png')).toHaveLength(0)
     expect(uploads, 'an oversized file must be refused before it is sent').toEqual([])
+    await ctx.close()
+  })
+
+  test('the server enforces the same limit for a client that skips the browser check', async ({ browser }) => {
+    const ctx = await signedIn(browser, 'writer')
+    const over = await ctx.request.post('/api/upload', {
+      multipart: { file: { name: 'over-limit.png', mimeType: 'image/png', buffer: pngOfSize(MAX_BYTES + 1) }, bucket: 'article-images' },
+    })
+    expect(over.status()).toBe(413)
+    expect((await over.json()).error).toMatch(/File too large \(max 4 MB\)/)
+
+    // A body far past the limit is refused from its declared length, before it is parsed.
+    const way = await ctx.request.post('/api/upload', {
+      multipart: { file: { name: 'way-over.png', mimeType: 'image/png', buffer: pngOfSize(MAX_BYTES + 512 * 1024) }, bucket: 'article-images' },
+    })
+    expect(way.status()).toBe(413)
+    expect(await storedNamed('over-limit')).toHaveLength(0)
+    expect(await storedNamed('way-over')).toHaveLength(0)
+
+    const ok = await ctx.request.post('/api/upload', {
+      multipart: { file: { name: 'at-limit-api.png', mimeType: 'image/png', buffer: pngOfSize(MAX_BYTES) }, bucket: 'article-images' },
+    })
+    expect(ok.status(), await ok.text()).toBe(201)
+    await ctx.close()
+  })
+
+  test('the avatar bucket has the same server limit', async ({ browser }) => {
+    const ctx = await signedIn(browser, 'reader')
+    const over = await ctx.request.post('/api/upload', {
+      multipart: { file: { name: 'avatar-over.png', mimeType: 'image/png', buffer: pngOfSize(MAX_BYTES + 1) }, bucket: 'avatars' },
+    })
+    expect(over.status()).toBe(413)
+    await ctx.close()
+  })
+
+  test('a platform 413 (Vercel cutting the body off) is explained, not shown as a raw failure', async ({ browser }) => {
+    const { ctx, page, ed } = await newArticle(browser)
+    await page.route('**/api/upload', (route) => route.fulfill({ status: 413, contentType: 'text/plain', body: 'Request Entity Too Large' }))
+    await chooseFileVia(page, () => ed.tool('Insert image').click(), { name: 'a.png', mimeType: 'image/png', buffer: makePng(32) })
+    await expect(page.getByText('Upload failed:').first()).toBeVisible()
+    await expect(page.getByText(/too large for the server/i)).toBeVisible()
+    await expect(ed.body()).toContainText('Text before the image.')
+    await ctx.close()
+  })
+
+  test('a pasted image at the limit uploads; one over is refused with the reason and not inserted', async ({ browser }) => {
+    const { ctx, page, ed } = await newArticle(browser)
+    const paste = (bytes: number) => page.evaluate((html) => {
+      const dt = new DataTransfer()
+      dt.setData('text/html', html)
+      document.querySelector('.tiptap-editor .ProseMirror')!.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }))
+    }, `<p>Pasted</p><img src="data:image/png;base64,${pngOfSize(bytes).toString('base64')}" alt="p">`)
+
+    await ed.moveToEnd()
+    await paste(MAX_BYTES + 1)
+    await expect(page.getByText(/File too large \(max 4 MB\)/)).toBeVisible({ timeout: 30_000 })
+    await expect(ed.body().locator('img')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Dismiss upload error' }).click()
+
+    await ed.moveToEnd()
+    await paste(MAX_BYTES)
+    await expect(ed.body().locator('img').last()).toHaveAttribute('src', new RegExp(`^${storageBase()}/storage/v1/object/public/article-images/`), { timeout: 30_000 })
     await ctx.close()
   })
 

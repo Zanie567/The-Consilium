@@ -1,7 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import {
-  ArticleEditorPage, articleByTitle, closeDb, docTypes, removeMyArticles, signedIn, uniqueTitle,
-} from './helpers/workflow'
+  ArticleEditorPage, articleByTitle, closeDb, docTypes, removeMyArticles, signedIn, uniqueTitle, confirmPublicChange } from './helpers/workflow'
 import { makePng } from './helpers/e2eUtils'
 import { collectConsoleErrors } from './helpers/console'
 
@@ -255,6 +254,17 @@ test('build the article using every control', async ({ browser }) => {
   await expect(table.locator('tr')).toHaveCount(4)
   await expect(table.locator('tr').nth(2).locator('td')).toHaveText(['FR', '4.00', '-0.10'])
 
+  // Drag the actual column boundary; serialized widths must survive publication.
+  const headerCell = table.locator('th').first()
+  await headerCell.scrollIntoViewIfNeeded()
+  const bounds = (await headerCell.boundingBox())!
+  await page.mouse.move(bounds.x + bounds.width - 1, bounds.y + bounds.height / 2)
+  await expect(headerCell.locator('.column-resize-handle')).toHaveCount(1)
+  await page.mouse.down()
+  await page.mouse.move(bounds.x + bounds.width + 40, bounds.y + bounds.height / 2, { steps: 8 })
+  await page.mouse.up()
+  await expect(headerCell).toHaveAttribute('colwidth', /^[1-9][0-9]*$/)
+
   // ── Figure, caption and credit via the image control ─────────────────────────────────
   await ed.moveToEnd()
   const chooser = page.waitForEvent('filechooser')
@@ -331,6 +341,7 @@ async function expectEditorShowsEverything(page: Page) {
   await expect(body.locator('sup[data-footnote]')).toHaveAttribute('data-footnote', FOOTNOTE)
   await expect(body.locator('hr')).toHaveCount(1)
   const table = body.locator('table')
+  await expect(table.locator('th').first()).toHaveAttribute('colwidth', /^[1-9][0-9]*$/)
   await expect(table.locator('tr')).toHaveCount(4)
   await expect(table.locator('th')).toHaveText(['Region', 'Rate', 'Change'])
   await expect(table.locator('tr').nth(1).locator('td')).toHaveText(['UK', '5.25', '+0.25'])
@@ -348,6 +359,7 @@ test('reopening the saved draft shows every formatting feature intact', async ({
   const ed = new ArticleEditorPage(page)
   await ed.openExisting(articleId)
   await expectEditorShowsEverything(page)
+  await test.info().attach('representative-article-reopened-editor', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' })
   await expect(page.locator('aside', { has: page.getByPlaceholder('Add a tag, press Enter...') }).getByText('economics')).toBeVisible()
   await ctx.close()
 })
@@ -399,6 +411,7 @@ test('the editor sees every feature in the review preview, then publishes from i
   await expect(body.locator('pre')).toContainText('const answer = 42')
   await expect(body.locator('figure img')).toBeVisible()
   await expect(body.locator('figure figcaption')).toHaveText(CAPTION)
+  await test.info().attach('representative-article-preview', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' })
 
   // Nothing public yet.
   const anon = await signedIn(browser, null)
@@ -407,6 +420,7 @@ test('the editor sees every feature in the review preview, then publishes from i
 
   const publish = page.waitForResponse((r) => r.url().includes(`/api/editorial/articles/${articleId}/review`) && r.request().method() === 'PATCH')
   await page.getByRole('button', { name: 'Publish Now' }).click()
+  await confirmPublicChange(page, 'Publish now')
   const res = await publish
   expect(res.status(), await res.text()).toBe(200)
   expect((await res.json()).status).toBe('PUBLISHED')
@@ -443,6 +457,8 @@ test('the published article shows the content, semantic formatting kept, house s
 
   const table = article.locator('table')
   await expect(table, 'table must be published').toHaveCount(1)
+  // Stored editor widths are presentation; published columns use the confirmed house style.
+  await expect(table.locator('col[style]')).toHaveCount(0)
   await expect(table.locator('th')).toHaveText(['Region', 'Rate', 'Change'])
   await expect(table.locator('tr').nth(1).locator('td')).toHaveText(['UK', '5.25', '+0.25'])
   await expect(table.locator('tr').nth(2).locator('td')).toHaveText(['FR', '4.00', '-0.10'])
@@ -464,4 +480,20 @@ test('the published article shows the content, semantic formatting kept, house s
   expect(errors, `console errors on the published article:\n${errors.join('\n')}`).toEqual([])
   await page.screenshot({ path: testInfo.outputPath('public-formatting-media.png'), fullPage: true })
   await ctx.close()
+  const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' })
+  try {
+    const phone = await mobile.newPage()
+    const phoneErrors = collectConsoleErrors(phone)
+    expect((await phone.goto(`/articles/${slug}`, { waitUntil: 'networkidle' }))?.status()).toBe(200)
+    await new ArticleEditorPage(phone).dismissCookieBanner()
+    await expect(phone.locator('#article-body table')).toHaveCount(1)
+    const houseAlignment = await phone.locator('#article-body').evaluate(el => getComputedStyle(el).textAlign)
+    await expect(phone.locator('#article-body p', { hasText: 'Aligned centre paragraph.' })).toHaveCSS('text-align', houseAlignment)
+    await expect(phone.locator('#article-body mark')).toHaveCSS('background-color', 'rgba(201, 162, 39, 0.25)')
+    await expect(phone.locator('#article-body [style]')).toHaveCount(0)
+    expect(await phone.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 'published formatting must not force the whole phone page sideways').toBeLessThanOrEqual(0)
+    expect(phoneErrors, phoneErrors.join('\n')).toEqual([])
+    await test.info().attach('representative-article-published-phone', { body: await phone.screenshot({ fullPage: true }), contentType: 'image/png' })
+  } finally { await mobile.close() }
+
 })

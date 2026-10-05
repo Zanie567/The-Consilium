@@ -1,5 +1,7 @@
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import { test, expect } from '@playwright/test'
-import { closeDb, db, signedIn } from './helpers/workflow'
+import { ArticleEditorPage, closeDb, db, signedIn } from './helpers/workflow'
 import { collectConsoleErrors } from './helpers/console'
 
 /**
@@ -14,6 +16,7 @@ const EMAIL = `wf.reader.${stamp}@consilium.test`
 const PASSWORD = 'reader-pass-1234'
 const NAME = `Reader ${stamp}`
 const COMMENT = `A thoughtful comment from ${stamp}.`
+const authFile=path.resolve('tests/e2e/.auth',process.env.E2E_RUN_ID!,`reader-${stamp}.json`)
 let articlePath = ''
 
 test.afterAll(async () => {
@@ -21,9 +24,10 @@ test.afterAll(async () => {
   const user = await db().user.findUnique({ where: { email: EMAIL } })
   if (user) {
     await db().comment.deleteMany({ where: { userId: user.id } })
-    await db().bookmark.deleteMany({ where: { userId: user.id } }).catch(() => {})
-    await db().user.delete({ where: { id: user.id } }).catch(() => {})
+    await db().bookmark.deleteMany({ where: { userId: user.id } })
+    await db().user.delete({ where: { id: user.id } })
   }
+  await fs.rm(authFile,{force:true})
   await closeDb()
 })
 
@@ -32,7 +36,7 @@ test('sign up through the form lands signed in', async ({ browser }) => {
   const page = await ctx.newPage()
   const errors = collectConsoleErrors(page)
   await page.goto('/signup', { waitUntil: 'networkidle' })
-  await page.getByRole('dialog', { name: 'Cookie consent' }).getByRole('button', { name: 'Decline' }).click().catch(() => {})
+  await new ArticleEditorPage(page).dismissCookieBanner()
 
   const submit = page.locator('button[type="submit"]')
   await page.getByPlaceholder('Your name').fill(NAME)
@@ -50,12 +54,12 @@ test('sign up through the form lands signed in', async ({ browser }) => {
   expect(user?.name).toBe(NAME)
   await expect(page.getByRole('link', { name: 'PROFILE' }).first()).toBeVisible()
   expect(errors, errors.join('\n')).toEqual([])
-  await page.context().storageState({ path: `/tmp/wf-reader-${stamp}.json` })
+  await page.context().storageState({ path: authFile })
   await ctx.close()
 })
 
 async function readerPage(browser: import('@playwright/test').Browser) {
-  const ctx = await browser.newContext({ storageState: `/tmp/wf-reader-${stamp}.json` })
+  const ctx = await browser.newContext({ storageState: authFile })
   return { ctx, page: await ctx.newPage() }
 }
 
@@ -87,7 +91,7 @@ test('the reader saves the article and finds it under Saved Articles, then remov
   const save = page.getByRole('button', { name: 'Save article', exact: true }).first()
   const res = page.waitForResponse((r) => r.url().includes('/api/bookmarks') && r.request().method() === 'POST')
   await save.click()
-  expect((await res).status()).toBeLessThan(300)
+  expect((await res).status()).toBe(200)
   await expect(page.getByRole('button', { name: 'Remove bookmark' }).first()).toBeVisible()
 
   await page.goto('/profile', { waitUntil: 'networkidle' })
@@ -116,7 +120,7 @@ test('every profile tab opens without errors, and the display name can be change
   await page.getByPlaceholder('Your name').fill(newName)
   const res = page.waitForResponse((r) => /\/api\/(profile|users|account)/.test(r.url()) && ['PUT', 'PATCH', 'POST'].includes(r.request().method()))
   await page.getByRole('button', { name: /Save Changes/i }).click()
-  expect((await res).status()).toBeLessThan(300)
+  expect((await res).status()).toBe(200)
   await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeVisible()
   await page.reload({ waitUntil: 'networkidle' })
   await page.getByRole('button', { name: 'ACCOUNT SETTINGS' }).click()
@@ -140,7 +144,7 @@ test('the reader signs out, then signs back in with the same password', async ({
   await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30_000 })
   await page.goto('/profile', { waitUntil: 'networkidle' })
   await expect(page).toHaveURL(/\/profile$/)
-  await page.context().storageState({ path: `/tmp/wf-reader-${stamp}.json` })
+  await page.context().storageState({ path: authFile })
   await ctx.close()
 })
 
@@ -152,7 +156,7 @@ test('the reader deletes their account; they can no longer sign in', async ({ br
   await page.getByPlaceholder(`Type "${EMAIL}" to confirm`).fill(EMAIL)
   const res = page.waitForResponse((r) => r.request().method() === 'DELETE' && /api\//.test(r.url()))
   await page.getByRole('button', { name: /Delete|Confirm/i }).last().click()
-  expect((await res).status()).toBeLessThan(300)
+  expect((await res).status()).toBe(200)
   expect(await db().user.findUnique({ where: { email: EMAIL } })).toBeNull()
   await ctx.close()
 

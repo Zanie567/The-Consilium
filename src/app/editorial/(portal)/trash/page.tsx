@@ -37,7 +37,7 @@ export default async function TrashPage() {
       author: { select: { name: true } },
       category: { select: { name: true } },
     },
-  }).catch(() => [])
+  })
 
   // Serialize dates for the client component
   const serialized = articles.map((a) => ({
@@ -45,5 +45,5 @@ export default async function TrashPage() {
     deletedAt: a.deletedAt?.toISOString() ?? '',
   }))
 
-  return <TrashList initialArticles={serialized} />
+  return <TrashList initialArticles={serialized} referenceTime={new Date().toISOString()} />
 }

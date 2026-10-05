@@ -94,7 +94,7 @@ export function ArticleEditorTutorial({ editor }: ArticleEditorTutorialProps) {
             </TutorialSection>
 
             <TutorialSection title="What readers see">
-              <p>Strikethrough, tables, code blocks, links, lists, highlights, pull quotes, footnotes and figures are published as you see them. Text colour, alignment and line spacing show in the editor only: the published article always uses The Consilium&apos;s house style.</p>
+              <p>Publication preserves semantic formatting, tables, links, lists, quotations, footnotes, figures and captions. Text colours, alignment, line spacing and column widths remain in drafts; public articles use The Consilium&apos;s house style.</p>
             </TutorialSection>
 
             <TutorialSection title="Right panel">

@@ -10,6 +10,8 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const session = await getVerifiedSessionUser(ADMIN_ONLY)
+  if (!session) return { title: 'User Profile | Editorial', robots: { index: false, follow: false } }
   const { id } = await params
   const user = await prisma.user.findUnique({ where: { id }, select: { name: true } }).catch(() => null)
   return {

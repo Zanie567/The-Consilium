@@ -16,6 +16,17 @@ const controlFiles = new Map<string, string[]>()
 const tags = new Set(['button', 'a', 'Link', 'input', 'select', 'option', 'textarea', 'form', 'dialog', 'ToolbarBtn', 'IconToggle', 'SelectField'])
 const dynamicFamilies: { file: string; line: number; source: string }[] = []
 const nativeDialogs: { file: string; line: number; source: string }[] = []
+const imperativeControls: { file: string; line: number; source: string; evidence: string }[] = []
+function groupTests(file: string): string[] {
+  if (file.includes('components/editor/TiptapEditor')) return ['wf-formatting', 'wf-controls', 'wf-upload', 'wf-mobile']
+  if (file.includes('components/admin/article-editor/')) return ['wf-formatting', 'wf-controls', 'wf-failures', 'wf-lifecycle', 'wf-mobile']
+  if (file.includes('ReviewPanel')) return ['wf-formatting', 'wf-controls', 'wf-lifecycle', 'wf-mobile']
+  if (/TeamProfileForm|TeamManagement/.test(file)) return ['team-profile', 'team-profile-lifecycle']
+  if (/ArticleList|Trash/.test(file)) return ['wf-articles', 'wf-remaining']
+  if (/Navbar|Footer|ArticleAnchorLinks|app\/articles\/\[slug\]/.test(file)) return ['wf-public-controls', 'wf-navigation', 'public']
+  if (/NewsletterSignup/.test(file)) return ['wf-accounts']
+  return []
+}
 
 for (const file of files) {
   const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
@@ -30,6 +41,10 @@ for (const file of files) {
       }
       if (/^(?:window\.)?(?:prompt|confirm|alert)$/.test(expression)) {
         nativeDialogs.push({ file, line, source: clean(node.getText(source)) })
+      }
+      if ((expression.endsWith('.createElement') && node.arguments[0] && ts.isStringLiteral(node.arguments[0]) && ['a', 'button', 'input', 'select', 'textarea', 'form'].includes(node.arguments[0].text))
+        || (expression.endsWith('.setAttribute') && node.arguments[0] && ts.isStringLiteral(node.arguments[0]) && node.arguments[0].text === 'role' && node.arguments[1] && ts.isStringLiteral(node.arguments[1]) && ['button', 'dialog', 'menu'].includes(node.arguments[1].text))) {
+        imperativeControls.push({ file, line, source: clean(node.getText(source)), evidence: 'CODE_INSPECTION; see reviewed action families for browser execution' })
       }
     }
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
@@ -63,7 +78,8 @@ for (const file of files) {
         const candidates = literal ? testText.filter(t => t.text.includes(literal)).map(t => t.file) : []
         controls.push({ id, file, line, tag, label, href: attrs.href ?? null, type: attrs.type ?? null,
           disabledWhen: attrs.disabled ?? null, expectedFromSource: Object.keys(events).length ? events : attrs.href ? `Navigate to ${attrs.href}` : 'Input/container; inspect enclosing handler',
-          candidateTests: candidates, evidence: 'CODE_INSPECTION', coverage: candidates.length ? 'Test references label; behaviour requires matching run evidence' : 'UNCOVERED: no direct label reference; group coverage may exist',
+          candidateTests: candidates, groupTestFiles: groupTests(file).map(name => `tests/e2e/${name}.spec.ts`),
+          evidence: 'CODE_INSPECTION', coverage: 'Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results.',
         })
         ids.push(id)
       }
@@ -85,11 +101,14 @@ function reachable(file: string, seen = new Set<string>()): Set<string> {
 // These are inspection findings; individual article/category ownership still applies.
 function rolesFor(route: string): string[] {
   if (route.startsWith('/predictions')) return ['ADMIN']
-  if (route === '/admin/team' || route === '/admin/login-attempts') return ['ADMIN']
+  if (route === '/admin/testing') return ['ADMIN']
+  if (route === '/editorial/team-profile') return ['ADMIN with assigned card', 'EDITOR', 'WRITER', 'GROWTH']
+  if (route === '/admin/team' || route === '/admin/login-attempts' || route === '/admin/data') return ['ADMIN']
   if (route === '/admin/subscribers') return ['ADMIN', 'EDITOR']
   if (route.startsWith('/admin')) return ['ADMIN', 'EDITOR', 'WRITER']
   if (/^\/editorial\/(login|reset-password|setup)$/.test(route)) return ['ALL: unauthenticated forms; setup only when no admin exists']
   if (route.startsWith('/editorial')) {
+    if (route === '/editorial/recovery') return ['ADMIN', 'EDITOR', 'WRITER']
     if (/^\/editorial\/(calendar|users|predictions|glossary)(\/|$)/.test(route)) return ['ADMIN']
     if (/^\/editorial\/(analytics|growth)(\/|$)/.test(route)) return ['ADMIN', 'GROWTH']
     if (/^\/editorial\/(review|scheduled|series|debates|comments)(\/|$)/.test(route)) return ['ADMIN', 'EDITOR']
@@ -99,20 +118,23 @@ function rolesFor(route: string): string[] {
   return ['WRITER', 'EDITOR', 'ADMIN', 'GROWTH', 'READER', 'ANONYMOUS (profile requires sign-in)']
 }
 const routes = files.filter(f => f.endsWith('/page.tsx')).map(file => {
-  const route = '/' + file.replace(/^src\/app\//, '').replace(/\/page\.tsx$/, '').split('/').filter(p => !/^\(.*\)$/.test(p)).join('/')
+  const route = '/' + file.replace(/^src\/app\//, '').replace(/(?:^|\/)page\.tsx$/, '').split('/').filter(p => !/^\(.*\)$/.test(p)).join('/')
   const layouts = files.filter(f => f.endsWith('/layout.tsx') && file.startsWith(path.dirname(f) + '/'))
   const dependencies = new Set([...reachable(file), ...layouts.flatMap(f => [...reachable(f)])])
+  const literalPath = route.replace(/\/\[.*$/, '')
   return { route, file, rolesFromInspection: rolesFor(route), accessEvidence: 'CODE_INSPECTION: see coverage-inventory.md role matrix and route guards; rendered refusals in wf-roles',
-    guardSource: [...dependencies].filter(f => f === file || layouts.includes(f)).flatMap(f => fs.readFileSync(f, 'utf8').split('\n').filter(l => /getVerifiedSessionUser|session\.user\.role|redirect\(|ALLOWED_ROLES/.test(l)).map(l => `${f}: ${clean(l)}`)),
+    candidateTestFiles: literalPath.length > 1 ? testText.filter(t => t.text.includes(literalPath)).map(t => t.file) : [],
+    guardSource: [...dependencies].filter(f => f === file || layouts.includes(f)).flatMap(f => fs.readFileSync(f, 'utf8').split('\n').filter(l => /requirePortalRole|getVerifiedSessionUser|session\.user\.role|redirect\(|ALLOWED_ROLES/.test(l)).map(l => `${f}: ${clean(l)}`)),
     controls: [...dependencies].flatMap(f => controlFiles.get(f) ?? []),
     dynamicFamilies: dynamicFamilies.filter(f => dependencies.has(f.file)), nativeDialogs: nativeDialogs.filter(f => dependencies.has(f.file)),
+    imperativeControls: imperativeControls.filter(f => dependencies.has(f.file)),
   }
 })
 const output = 'docs/testing/control-inventory.json'
 fs.writeFileSync(output, JSON.stringify({
   provenance: 'Static JSX/import census. Includes conditional and disabled controls. Dynamic map expressions represent families, not enumerated runtime options. Candidate tests are references, never a claim of passing behaviour.',
   regenerate: 'npx ts-node -P tsconfig.seed.json scripts/build-workflow-inventory.ts',
-  renderedEvidence: 'test-results/inventory/<browser>/<role>.json and coverage-inventory.md',
-  routes, controls, dynamicFamilies, nativeDialogs,
+  renderedEvidence: 'test-results/<run>/inventory/<browser>/<role>.json and coverage-inventory.md',
+  routes, controls, dynamicFamilies, nativeDialogs, imperativeControls,
 }, null, 2) + '\n')
 console.log(`${routes.length} page routes, ${controls.length} control declarations -> ${path.relative(root, path.resolve(output))}`)

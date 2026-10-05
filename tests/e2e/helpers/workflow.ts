@@ -8,6 +8,7 @@ import fs from 'node:fs'
 import bcrypt from 'bcryptjs'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { assertRunDatabase } from '../../../scripts/lib/assertRunDatabase'
 import { assertSafeTestDatabaseHost } from '../../../scripts/lib/assertSafeTestDatabaseHost'
 import {
   ADMIN_STORAGE,
@@ -34,7 +35,15 @@ export function writerLoginCredentials(context: BrowserContext) {
 /** A fresh browser context signed in as `who`: one per person, so sessions never mix. */
 export async function signedIn(browser: Browser, who: SessionName | null): Promise<BrowserContext> {
   if (!test.info().project.name.startsWith('simulator-') || !who || who === 'admin' || who === 'reader') {
-    return browser.newContext(who ? { storageState: SESSIONS[who] } : {})
+    const context = await browser.newContext(who ? { storageState: SESSIONS[who] } : {})
+    if (who) {
+      // APIRequestContext bypasses the browser fetch interceptor. Pin the current
+      // server identity just as a newly loaded ordinary page does, including a
+      // revision advanced by an earlier sign-out; stale contexts keep their old pin.
+      const session = await (await context.request.get('/api/auth/session')).json()
+      if (session.requestIdentity) await context.setExtraHTTPHeaders({ 'x-consilium-identity': session.requestIdentity })
+    }
+    return context
   }
   // One real test administrator per context; concurrent sessions never revoke another run.
   const key = `test-session-${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -71,6 +80,7 @@ const testAdministrators: string[] = []
 let prisma: PrismaClient | null = null
 export function db(): PrismaClient {
   if (!prisma) {
+    assertRunDatabase()
     const url = process.env.DATABASE_URL ?? ''
     assertSafeTestDatabaseHost(url, 'DATABASE_URL')
     prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) })
@@ -107,8 +117,9 @@ async function removeArticlesTitled(prefix: string) {
   const rows = await db().article.findMany({ where: { title: { startsWith: prefix } }, select: { id: true } })
   const ids = rows.map((r) => r.id)
   if (!ids.length) return
+  await db().debate.deleteMany({ where: { OR: [{forArticleId:{in:ids}},{againstArticleId:{in:ids}}] } })
   await db().notification.deleteMany({ where: { articleId: { in: ids } } })
-  await db().articleComment.deleteMany({ where: { articleId: { in: ids } } }).catch(() => {})
+  await db().articleComment.deleteMany({ where: { articleId: { in: ids } } })
   await db().articleTag.deleteMany({ where: { articleId: { in: ids } } })
   await db().article.deleteMany({ where: { id: { in: ids } } })
 }
@@ -128,6 +139,14 @@ export async function storedObjects(): Promise<{ key: string; type: string; size
 }
 
 // ── The article editor page ───────────────────────────────────────────────────────────
+/** The confirmation shown before anything that changes what the public sees. */
+export const confirmDialog = (page: Page) => page.getByRole('alertdialog')
+export async function confirmPublicChange(page: Page, button: string | RegExp) {
+  const dialog = confirmDialog(page)
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: button }).click()
+}
+
 export class ArticleEditorPage {
   constructor(readonly page: Page) {}
 
@@ -140,7 +159,10 @@ export class ArticleEditorPage {
   /** A person's first act on a fresh browser: answer the cookie banner, which sits over the editor's lower edge. */
   async dismissCookieBanner() {
     const decline = this.page.getByRole('dialog', { name: 'Cookie consent' }).getByRole('button', { name: 'Decline' })
-    if (await decline.isVisible().catch(() => false)) await decline.click()
+    if (await decline.isVisible()) {
+      await decline.click()
+      await expect(this.page.getByRole('dialog', { name: 'Cookie consent' })).toBeHidden()
+    }
   }
 
   async openNew() {
@@ -175,6 +197,18 @@ export class ArticleEditorPage {
     const expected = res.request().method() === 'POST' ? 201 : 200
     expect(res.status(), `save returned ${res.status()}: ${await res.text().catch(() => '')}`).toBe(expected)
     const json = (await res.json()) as { id: string }
+    // Receiving HTTP headers is earlier than the controller acknowledging its
+    // latest queued snapshot. Reloading then can interrupt the manual save and
+    // correctly leave recovery work. Wait for the real editor's saved state.
+    await expect(this.page.getByText('Saved', { exact: true }).last()).toBeAttached()
+    await expect(this.saveDraftButton()).toBeEnabled()
+    await expect.poll(() => this.page.evaluate((id) => {
+      const tab = sessionStorage.getItem('consilium:editor-tab')
+      return Object.keys(localStorage).filter(key => key.startsWith('consilium:draft:')).some(key => {
+        const draft = JSON.parse(localStorage.getItem(key)!)
+        return draft.articleId === id && draft.tabId === tab
+      })
+    }, json.id), { message: 'the acknowledged save clears only this tab’s recovery snapshot' }).toBe(false)
     return { id: json.id, status: res.status() }
   }
 
@@ -246,4 +280,47 @@ export function docTypes(doc: unknown): { nodes: Set<string>; marks: Set<string>
   }
   walk(doc as never)
   return { nodes, marks }
+}
+
+// ── Throwaway accounts ─────────────────────────────────────────────────────────────────
+// Tests that change an account (ban, demote, reassign) must never touch the shared seeded users
+// the saved sessions belong to. They create their own, with a real password, and sign in through
+// the real login form like a person would.
+export interface TestAccount { id: string; email: string; name: string; role: string; password: string }
+const accounts: string[] = []
+const ACCOUNT_PASSWORD = 'wf-account-1234'
+
+export async function createAccount(role: 'ADMIN' | 'EDITOR' | 'WRITER' | 'GROWTH' | 'READER', label: string): Promise<TestAccount> {
+  const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+  const email = `wf.${label}.${stamp}@consilium.test`
+  const name = `WF ${label} ${stamp}`
+  const user = await db().user.create({
+    data: { email, name, role, password: await bcrypt.hash(ACCOUNT_PASSWORD, 10), emailVerified: new Date(), slug: `wf-${label}-${stamp}` },
+  })
+  accounts.push(user.id)
+  return { id: user.id, email, name, role, password: ACCOUNT_PASSWORD }
+}
+
+/** Removes the accounts this worker created, with what hangs off them. */
+export async function removeMyAccounts() {
+  for (const id of accounts) {
+    await db().article.deleteMany({ where: { authorId: id } })
+    await db().notification.deleteMany({ where: { userId: id } })
+    await db().adminNote.deleteMany({ where: { userId: id } })
+    await db().user.deleteMany({ where: { id } })
+  }
+}
+
+/** A new browser context signed in as `account` through the login form. */
+export async function signInAs(browser: Browser, account: TestAccount): Promise<BrowserContext> {
+  const ctx = await browser.newContext()
+  const page = await ctx.newPage()
+  const staff = account.role !== 'READER'
+  await page.goto(staff ? '/editorial/login' : '/login')
+  await page.locator('input[type="email"]').fill(account.email)
+  await page.locator('input[type="password"]').fill(account.password)
+  await page.locator('button[type="submit"]').click()
+  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 30_000 })
+  await page.close()
+  return ctx
 }

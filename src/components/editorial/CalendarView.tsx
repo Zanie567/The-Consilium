@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { apiRequest, asApiError } from '@/lib/apiClient'
@@ -90,6 +90,9 @@ export function CalendarView({
   const [moves, setMoves] = useState<Record<string, string>>({})
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  // Native dragover/drop can arrive before React commits drag-start visuals.
+  // Their acceptance and item identity cannot depend on that render completing.
+  const activeDrag = useRef<string | null>(null)
   const [dragOverKey, setDragOverKey] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dayPanel, setDayPanel] = useState<{ key: string; left: number; top: number } | null>(null)
@@ -150,15 +153,18 @@ export function CalendarView({
   const openDayPanel = (key: string, cell: HTMLElement) => {
     const rect = cell.getBoundingClientRect()
     const left = Math.min(Math.max(rect.left, 8), window.innerWidth - PANEL_WIDTH - 8)
-    let top = rect.bottom + 6
+    const bannerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--testing-banner-height')) || 0
+    const minimumTop = bannerHeight + 8
+    let top = Math.max(minimumTop, rect.bottom + 6)
     if (top + PANEL_MAX_HEIGHT > window.innerHeight - 8) {
-      top = Math.max(8, rect.top - PANEL_MAX_HEIGHT - 6)
+      top = Math.max(minimumTop, rect.top - PANEL_MAX_HEIGHT - 6)
     }
     setDayPanel({ key, left, top })
   }
 
   const handleDrop = async (targetKey: string) => {
-    const id = draggingId
+    const id = activeDrag.current
+    activeDrag.current = null
     setDraggingId(null)
     setDragOverKey(null)
     if (!id) return
@@ -332,7 +338,7 @@ export function CalendarView({
                           }
                         }}
                         onDragOver={(e) => {
-                          if (!draggingId) return
+                          if (!activeDrag.current) return
                           e.preventDefault()
                           e.dataTransfer.dropEffect = 'move'
                           if (dragOverKey !== day.key) setDragOverKey(day.key)
@@ -398,9 +404,11 @@ export function CalendarView({
                               if (item.status !== 'SCHEDULED') return
                               e.dataTransfer.setData('text/plain', item.id)
                               e.dataTransfer.effectAllowed = 'move'
+                              activeDrag.current = item.id
                               setDraggingId(item.id)
                             }}
                             onDragEnd={() => {
+                              activeDrag.current = null
                               setDraggingId(null)
                               setDragOverKey(null)
                             }}
@@ -510,7 +518,7 @@ export function CalendarView({
               left: dayPanel.left,
               top: dayPanel.top,
               width: PANEL_WIDTH,
-              maxHeight: PANEL_MAX_HEIGHT,
+              maxHeight: `min(${PANEL_MAX_HEIGHT}px, calc(100dvh - var(--testing-banner-height, 0px) - 16px))`,
               overflowY: 'auto',
             }}
           >

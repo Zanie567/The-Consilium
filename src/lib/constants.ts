@@ -123,18 +123,27 @@ export const MAX_NAME_LENGTH = 60
  * POST /api/upload and mirrored in the account form so an oversized file fails
  * before the upload rather than after it.
  */
-export const MAX_AVATAR_BYTES = 5 * 1024 * 1024
+export const MAX_AVATAR_BYTES = 4 * 1024 * 1024 // = MAX_SERVER_UPLOAD_BYTES (declared below)
 
 /**
- * Largest article/cover image POST /api/upload accepts. The editor checks it before
- * sending: the request body limit in front of the route (10 MB for the whole multipart
- * body) rejects an oversized file with an opaque "Failed to parse body as FormData"
- * before this limit is ever reached.
+ * The largest file this app accepts through ITS OWN server (POST /api/upload, /api/team-profile).
+ *
+ * Vercel limits a Function's request body to 4.5 MB, and the platform rejects anything bigger
+ * before our code runs, with a plain 413 that names no file or limit. A multipart body is the file
+ * plus a few hundred bytes of form framing, so the file must stay clear of 4.5 MB: 4 MiB leaves
+ * ~0.5 MiB of margin. The editor checks it before sending and the routes check it again.
+ * Larger images would need a direct-to-storage (signed URL) upload instead of this path.
  */
-export const MAX_ARTICLE_IMAGE_BYTES = 10 * 1024 * 1024
+export const MAX_SERVER_UPLOAD_BYTES = 4 * 1024 * 1024
+
+/** Vercel's documented Function request-body limit (4.5 MB), used to prove the margin above. */
+export const VERCEL_REQUEST_BODY_LIMIT_BYTES = 4.5 * 1024 * 1024
+
+/** Largest article/cover image accepted. */
+export const MAX_ARTICLE_IMAGE_BYTES = MAX_SERVER_UPLOAD_BYTES
 
 /** Human-readable message for an image over MAX_ARTICLE_IMAGE_BYTES. */
-export const ARTICLE_IMAGE_TOO_LARGE_MESSAGE = `File too large (max ${MAX_ARTICLE_IMAGE_BYTES / (1024 * 1024)} MB).`
+export const ARTICLE_IMAGE_TOO_LARGE_MESSAGE = `File too large (max ${MAX_ARTICLE_IMAGE_BYTES / (1024 * 1024)} MB). Resize or compress the image and try again.`
 
 // ── Site settings (key-value) ─────────────────────────────────────────────────
 
@@ -173,4 +182,4 @@ export const EDITORIAL_API_ROUTES = {
  * function request-body limit: a larger multipart upload would be cut off by the
  * platform with an unhelpful error before the route could reject it by name.
  */
-export const MAX_TEAM_PHOTO_BYTES = 4 * 1024 * 1024
+export const MAX_TEAM_PHOTO_BYTES = 4 * 1024 * 1024 // = MAX_SERVER_UPLOAD_BYTES

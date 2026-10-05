@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
-import { signedIn, closeDb, type SessionName } from './helpers/workflow'
+import { ArticleEditorPage, signedIn, closeDb, type SessionName } from './helpers/workflow'
 import { collectConsoleErrors } from './helpers/console'
 
 /**
@@ -21,10 +21,22 @@ test.afterAll(async () => { await closeDb() })
 
 type NavLink = { label: string; href: string }
 
+function navigationFailures(page: Page): string[] {
+  const failures: string[] = []
+  page.on('response', response => {
+    const request = response.request()
+    if (new URL(response.url()).origin !== new URL(process.env.E2E_BASE_URL!).origin) return
+    if (request.resourceType() !== 'document' && request.headers().rsc !== '1') return
+    if (response.status() !== 200) failures.push(`${response.url()} -> ${response.status()}`)
+  })
+  return failures
+}
+
 const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
   writer: [
     { label: 'Dashboard', href: '/editorial' },
     { label: 'Team Profile', href: '/editorial/team-profile' },
+    { label: 'Local draft recovery', href: '/editorial/recovery' },
     { label: 'My Articles', href: '/editorial/articles' },
     { label: 'My Drafts', href: '/editorial/articles?mine=true&status=DRAFT' },
     { label: 'New Article', href: '/editorial/articles/new' },
@@ -34,6 +46,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
   editor: [
     { label: 'Dashboard', href: '/editorial' },
     { label: 'Team Profile', href: '/editorial/team-profile' },
+    { label: 'Local draft recovery', href: '/editorial/recovery' },
     { label: 'All Articles', href: '/editorial/articles' },
     { label: 'My Drafts', href: '/editorial/articles?mine=true&status=DRAFT' },
     { label: 'New Article', href: '/editorial/articles/new' },
@@ -48,6 +61,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
   admin: [
     { label: 'Dashboard', href: '/editorial' },
     { label: 'Team Profile', href: '/editorial/team-profile' },
+    { label: 'Local draft recovery', href: '/editorial/recovery' },
     { label: 'All Articles', href: '/editorial/articles' },
     { label: 'My Drafts', href: '/editorial/articles?mine=true&status=DRAFT' },
     { label: 'New Article', href: '/editorial/articles/new' },
@@ -76,7 +90,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
 
 /** Every top-level editorial page, for the "not in my menu means refused" check. */
 const ALL_PAGES = [
-  '/editorial/articles', '/editorial/articles/new', '/editorial/series', '/editorial/scheduled',
+  '/editorial/recovery', '/editorial/articles', '/editorial/articles/new', '/editorial/series', '/editorial/scheduled',
   '/editorial/calendar', '/editorial/trash', '/editorial/review', '/editorial/debates',
   '/editorial/debates/new', '/editorial/comments', '/editorial/users', '/editorial/analytics',
   '/editorial/predictions', '/editorial/predictions/new', '/editorial/glossary', '/editorial/readers',
@@ -116,7 +130,7 @@ async function outcome(page: Page, url: string) {
     })
   }
   const finalPath = new URL(page.url()).pathname
-  const body = (await page.locator('body').innerText().catch(() => '')).slice(0, 4000)
+  const body = (await page.locator('body').innerText()).slice(0, 4000)
   const refused =
     (res?.status() ?? 200) >= 400 ||
     finalPath !== norm(url) ||
@@ -163,6 +177,7 @@ for (const role of ['writer', 'editor', 'admin', 'growth'] as const) {
       const ctx = await signedIn(browser, role as SessionName)
       const page = await ctx.newPage()
       const errors = collectConsoleErrors(page)
+      const badNavigation = navigationFailures(page)
       await page.goto('/editorial', { waitUntil: 'domcontentloaded' })
       await portalReady(page)
       // Testing leaves the editorial layout; exercise that link last so every
@@ -188,7 +203,74 @@ for (const role of ['writer', 'editor', 'admin', 'growth'] as const) {
         await dumpControls(page, role, link.href)
       }
       expect(errors, `console errors for ${role}:\n${errors.join('\n')}`).toEqual([])
+      expect(badNavigation, badNavigation.join('\n')).toEqual([])
       await ctx.close()
+    })
+
+    test('phone drawer close/backdrop and every role menu entry activate and unlock scrolling, including query-only navigation', async ({ browser }) => {
+      test.setTimeout(120_000) // Up to 17 actual role-specific links plus close/backdrop, with normal per-action deadlines.
+      const ctx = await signedIn(browser, role as SessionName)
+      try {
+        const page = await ctx.newPage()
+        await page.setViewportSize({ width: 390, height: 844 })
+        const errors = collectConsoleErrors(page)
+        const badNavigation = navigationFailures(page)
+        expect((await page.goto('/editorial', { waitUntil: 'networkidle' }))?.status()).toBe(200)
+        await new ArticleEditorPage(page).dismissCookieBanner()
+        const open = page.getByRole('button', { name: 'Open navigation menu', exact: true })
+        const close = page.getByRole('button', { name: 'Close navigation menu', exact: true })
+        for (const action of ['close', 'backdrop']) {
+          await open.click()
+          await expect(close).toHaveAttribute('aria-expanded', 'true')
+          // The persistent environment banner must never cover actual drawer links.
+          const bannerBottom = await page.getByRole('region', { name: 'Testing environment', exact: true }).evaluate(el => el.getBoundingClientRect().bottom)
+          const firstLinkTop = await page.getByRole('navigation', { name: 'Editorial navigation' }).locator('a[href="/editorial"]').evaluate(el => el.getBoundingClientRect().top)
+          expect(firstLinkTop).toBeGreaterThanOrEqual(bannerBottom)
+          await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('hidden')
+          if (action === 'close') await close.click()
+          else await page.mouse.click(370, 200)
+          await expect(open).toHaveAttribute('aria-expanded', 'false')
+          await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('')
+        }
+        for (const link of NAV[role]) {
+          await open.click()
+          await page.getByRole('navigation', { name: 'Editorial navigation' }).locator(`a[href="${link.href}"]`).click()
+          await expect(page).toHaveURL(new URL(link.href, process.env.E2E_BASE_URL!).href)
+          if (link.href === '/admin/testing') {
+            // Testing uses the admin/public shell rather than the editorial drawer.
+            // Prove that real menu destination, then return through browser history.
+            await expect(page.getByRole('heading', { name: 'Testing', exact: true })).toBeVisible()
+            await page.goBack({ waitUntil: 'networkidle' })
+            await portalReady(page)
+          }
+          await expect(open).toHaveAttribute('aria-expanded', 'false')
+          await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('')
+          await page.waitForLoadState('networkidle')
+          if (link.href !== '/editorial/articles/new') await expect(page.locator('h1').first()).toBeVisible()
+        }
+        await open.click()
+        const aside = page.getByRole('navigation', { name: 'Editorial navigation' }).locator('..')
+        const initialDark = await page.evaluate(() => document.documentElement.classList.contains('dark'))
+        await aside.getByRole('button', { name: initialDark ? 'Switch to light mode' : 'Switch to dark mode', exact: true }).click()
+        await expect.poll(() => page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(!initialDark)
+        await aside.getByRole('button', { name: initialDark ? 'Switch to dark mode' : 'Switch to light mode', exact: true }).click()
+        await expect.poll(() => page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(initialDark)
+        await aside.getByRole('link', { name: 'The Consilium', exact: true }).click()
+        await expect(page).toHaveURL(new URL('/', process.env.E2E_BASE_URL!).href)
+        await expect(page.locator('h1').first()).toBeVisible()
+        await page.goBack({ waitUntil: 'networkidle' })
+        await expect(open).toBeVisible()
+        await open.click()
+        const signedOut = page.waitForResponse(response => new URL(response.url()).pathname === '/api/auth/signout' && response.request().method() === 'POST')
+        await aside.getByRole('button', { name: 'Sign Out', exact: true }).click()
+        expect((await signedOut).status()).toBe(200)
+        await page.waitForURL('**/editorial/login')
+        const session = await page.request.get('/api/auth/session')
+        expect(session.status()).toBe(200)
+        expect((await session.json()).user).toBeUndefined()
+        expect(errors, errors.join('\n')).toEqual([])
+        expect(badNavigation, badNavigation.join('\n')).toEqual([])
+      } finally { await ctx.close() }
     })
 
     test('editorial pages outside the role are refused, not just hidden', async ({ browser }) => {
@@ -245,21 +327,22 @@ test.describe('reader and signed-out visitors', () => {
 
 test.describe('sensitive endpoints refuse the wrong roles', () => {
   // [method, path, roles that must be refused]
-  const CASES: [string, string, SessionName[]][] = [
-    ['GET', '/api/editorial/growth/subscribers', ['writer', 'editor', 'reader']],
-    ['GET', '/api/editorial/users', ['writer', 'growth', 'reader']],
+  const CASES: [string, string, SessionName[], number][] = [
+    ['GET', '/api/editorial/growth/subscribers', ['writer', 'editor', 'reader'], 401],
+    ['GET', '/api/editorial/users', ['writer', 'growth', 'reader'], 403],
     // Growth may READ the moderation feed on purpose (COMMENT_MODERATION_ROLES), though the page redirects it.
-    ['GET', '/api/editorial/comments', ['writer', 'reader']],
-    ['GET', '/api/editorial/trash', ['growth', 'reader']],
-    ['PATCH', '/api/editorial/articles/none/review', ['writer', 'growth', 'reader']],
-    ['GET', '/api/admin/users', ['writer', 'editor', 'growth', 'reader']],
+    ['GET', '/api/editorial/comments', ['writer', 'reader'], 401],
+    ['GET', '/api/editorial/trash', ['growth', 'reader'], 403],
+    ['PATCH', '/api/editorial/articles/none/review', ['writer', 'growth', 'reader'], 403],
+    ['POST', '/api/editorial/users', ['writer', 'editor', 'growth', 'reader'], 403],
+    ['GET', '/api/admin/users', ['writer', 'editor', 'growth', 'reader'], 403],
   ]
-  for (const [method, url, roles] of CASES) {
+  for (const [method, url, roles, expectedStatus] of CASES) {
     for (const who of roles) {
       test(`${who} ${method} ${url} is refused`, async ({ browser }) => {
         const ctx = await signedIn(browser, who)
         const res = await ctx.request.fetch(url, { method, data: method === 'GET' ? undefined : {} })
-        expect([401, 403], `${who} got ${res.status()}: ${(await res.text()).slice(0, 120)}`).toContain(res.status())
+        expect(res.status(), `${who} got ${res.status()}: ${(await res.text()).slice(0, 120)}`).toBe(expectedStatus)
         await ctx.close()
       })
     }

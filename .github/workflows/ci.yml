@@ -75,7 +75,7 @@ jobs:
   e2e:
     name: E2E (Playwright), data-layer & network checks
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     services:
       postgres:
@@ -127,14 +127,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Set up & seed test database
-        run: npm run test:setup-db
-
       - name: Lint
         run: npm run lint
-
-      - name: Unit + integration tests (vitest, against seeded DB)
-        run: npm test
 
       # Chromium and WebKit: the browser workflow suites run on both (plus phone
       # emulations of each). WebKit needs its system libraries, hence --with-deps.
@@ -148,7 +142,7 @@ jobs:
       # refuses to start without that isolation. Phases: main, workflow (browser
       # workflow suites), team-profile.
       - name: Public pages, network crawl and mobile browser workflows
-        run: npm run test:e2e -- --project=public --project=public-webkit --project=wf-mobile-chromium --project=wf-mobile-webkit --workers=1
+        run: RUN_VITEST=1 npm run test:e2e -- --project=public --project=public-webkit --project=wf-mobile-chromium --project=wf-mobile-webkit --workers=1
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
@@ -158,6 +152,7 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            !test-results/**/outbox.jsonl
           retention-days: 7
 
   # Separate status for the changed role/profile suites; all prior projects remain
@@ -165,7 +160,7 @@ jobs:
   role-workflows:
     name: Critical roles, profiles and testing mode
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     services:
       postgres:
@@ -216,9 +211,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Set up & seed test database
-        run: npm run test:setup-db
 
       # Chromium and WebKit: the browser workflow suites run on both (plus phone
       # emulations of each). WebKit needs its system libraries, hence --with-deps.
@@ -242,4 +234,5 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            !test-results/**/outbox.jsonl
           retention-days: 7

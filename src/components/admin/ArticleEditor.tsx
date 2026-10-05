@@ -11,6 +11,7 @@ import { ArticleEditorTutorial } from './article-editor/ArticleEditorTutorial'
 import { useArticleEditorController } from './article-editor/useArticleEditorController'
 import type { ArticleEditorController, ArticleEditorProps } from './article-editor/types'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { CommentsPanel } from '@/components/editorial/CommentsPanel'
 import { CommentSelectionPopover } from '@/components/editorial/CommentSelectionPopover'
 import { useArticleComments } from '@/components/editorial/useArticleComments'
@@ -127,7 +128,7 @@ export function ArticleEditor(props: ArticleEditorProps) {
             aria-hidden
           />
           <div
-            className={`min-[1100px]:hidden fixed inset-y-0 right-0 z-[206] w-[340px] max-w-[92vw] bg-[var(--bg-elevated)] shadow-2xl flex flex-col transition-transform duration-300 ease-out ${commentsDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
+            className={`min-[1100px]:hidden fixed top-[var(--testing-banner-height,0px)] bottom-0 right-0 z-[206] w-[340px] max-w-[92vw] bg-[var(--bg-elevated)] shadow-2xl flex flex-col transition-transform duration-300 ease-out ${commentsDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
             aria-hidden={!commentsDrawerOpen}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] shrink-0">
@@ -157,10 +158,34 @@ export function ArticleEditor(props: ArticleEditorProps) {
         />
       )}
 
+      <ConfirmDialog
+        open={editor.pendingStatus !== null}
+        title={confirmCopy(editor.currentStatus, editor.pendingStatus, editor.scheduledAt).title}
+        message={confirmCopy(editor.currentStatus, editor.pendingStatus, editor.scheduledAt).message}
+        confirmLabel={confirmCopy(editor.currentStatus, editor.pendingStatus, editor.scheduledAt).confirm}
+        tone={editor.pendingStatus && !['PUBLISHED', 'SCHEDULED'].includes(editor.pendingStatus) ? 'danger' : 'default'}
+        busy={editor.saveStatus === 'saving'}
+        onConfirm={() => void editor.actions.confirmStatusChange()}
+        onCancel={editor.actions.cancelStatusChange}
+      />
+
       <ArticleEditorMobileSettings editor={editor} coverFileRef={coverFileRef} />
       <ArticleEditorTutorial editor={editor} />
     </div>
   )
+}
+
+function confirmCopy(current: string, target: string | null, scheduledAt: string) {
+  if (target === 'PUBLISHED') {
+    return { title: 'Publish this article?', message: 'It goes live on the public site immediately, visible to every reader.', confirm: 'Publish now' }
+  }
+  if (target === 'SCHEDULED') {
+    return { title: 'Schedule this article?', message: `It will be published automatically at ${scheduledAt.replace('T', ' ')} (UK editorial time).`, confirm: 'Schedule' }
+  }
+  if (current === 'PUBLISHED' || current === 'SCHEDULED') {
+    return { title: 'Take this article down?', message: 'It disappears from the public site immediately. Nothing is deleted.', confirm: 'Unpublish' }
+  }
+  return { title: 'Change status?', message: '', confirm: 'Confirm' }
 }
 
 interface EditorBannersProps {
@@ -168,10 +193,20 @@ interface EditorBannersProps {
 }
 
 function EditorBanners({ editor }: EditorBannersProps) {
-  if (!editor.initialEditorNote && !editor.error && editor.canEdit) return null
+  if (!editor.initialEditorNote && !editor.error && !editor.recovery && !editor.recovered && !editor.recoveryError && editor.canEdit) return null
 
   return (
     <div className="max-w-[1120px] mx-auto px-3 sm:px-6 pt-4 sm:pt-5 space-y-3">
+      {editor.recovery && (
+        <div role="alert" className="border border-amber-500 p-4 rounded">
+          <p>Unsaved local work from {new Date(editor.recovery.at).toLocaleString()} is available on this device.</p>
+          <p>{editor.recovery.stale ? 'The server has changed since this copy. Saving recovered work will require resolving a conflict.' : 'This copy has not been saved to the server.'}</p>
+          {editor.canEdit ? <button type="button" onClick={editor.actions.restoreLocalDraft}>Recover local work</button> : <p>This article is locked. Local work cannot replace it.</p>}
+          <button type="button" onClick={editor.actions.discardLocalDraft}>Discard local recovery</button>
+        </div>
+      )}
+      {editor.recovered && <p role="status" className="border border-amber-500 p-4">Recovered local work — not server-saved. Review it and press Save draft. Recovery never changes publication status.</p>}
+      {editor.recoveryError && <p role="alert">{editor.recoveryError}</p>}
       {editor.initialEditorNote && (
         <div className="bg-amber-500/8 border border-amber-500/20 px-4 py-3 rounded">
           <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Editor feedback</p>

@@ -1,6 +1,7 @@
 import { test, expect, type Browser, type BrowserContext, type Page } from '@playwright/test'
 import bcrypt from 'bcryptjs'
 import { closeDb, db } from './helpers/teamFixtures'
+import { ArticleEditorPage } from './helpers/workflow'
 import { makePng, watch } from './helpers/e2eUtils'
 
 /**
@@ -68,7 +69,12 @@ async function signUp(browser: Browser, name: string, email: string) {
 async function grantRole(userId: string, role: Role) {
   await adminPage.goto(`/editorial/users/${userId}`)
   const select = adminPage.locator('select', { has: adminPage.locator('option[value="GROWTH"]') }).first()
+  const saved = adminPage.waitForResponse(r => new URL(r.url()).pathname === `/api/editorial/users/${userId}` && r.request().method() === 'PATCH')
   await select.selectOption(role)
+  const confirmation = adminPage.getByRole('alertdialog')
+  await expect(confirmation).toContainText(role)
+  await confirmation.getByRole('button', { name: `Change to ${role}` }).click()
+  expect((await saved).status()).toBe(200)
   await expect(adminPage.getByText('Saved.', { exact: true })).toBeVisible()
   expect((await db().user.findUniqueOrThrow({ where: { id: userId } })).role).toBe(role)
 }
@@ -96,7 +102,7 @@ async function publicPlacement(browser: Browser, name: string): Promise<{ sectio
 }
 
 async function dismissCookies(page: Page) {
-  await page.getByRole('button', { name: 'Decline' }).click({ timeout: 1500 }).catch(() => {})
+  await new ArticleEditorPage(page).dismissCookieBanner()
 }
 
 // ── new account → promotion → profile, for each of the three roles ────────────
@@ -139,7 +145,7 @@ for (const [role, section] of [
     await expect(heading(page)).toHaveText('Create your team profile')
     await expect(sidebarLink(page)).toBeVisible()
 
-    // 7. team derived from the role; nothing to choose
+    // 7. Ordinary first-card defaults are read-only; established appointments survive role changes.
     await expect(page.locator('form').getByText(TEAM_LABEL[role], { exact: true })).toBeVisible()
     await expect(page.locator('select')).toHaveCount(0)
 
@@ -178,22 +184,23 @@ for (const [role, section] of [
     expect((await fetch(after[0].image!)).status).toBe(200)
     expect(await publicPlacement(browser, name)).toEqual({ sections: [section], total: 1 })
 
-    // only the one deliberate failure the test provokes may appear in the console
-    expect(errors.filter((e) => !/status of (400|403) /.test(e))).toEqual([])
+    // APIRequestContext permission probes do not produce browser console errors.
+    // Keep the complete browser diagnostics; no broad HTTP-error filter is justified.
+    await test.info().attach('complete-console-diagnostics', { body: JSON.stringify(errors), contentType: 'application/json' })
+    expect(errors, errors.join('\n')).toEqual([])
     await context.close()
   })
 }
 
 // ── what the NextAuth session does ────────────────────────────────────────────
 
-test('session: server checks see a promotion immediately; the cached JWT role catches up within a minute, with no re-login', async ({ browser }) => {
+test('session: page, API and session response see a promotion immediately without re-login', async ({ browser }) => {
   test.setTimeout(150_000)
   const { context, page, user } = await signUp(browser, 'Newcomer session', `session${DOMAIN}`)
   await dismissCookies(page)
   expect(await sessionRole(page)).toBe('READER')
 
   await grantRole(user.id, 'WRITER')
-  const grantedAt = Date.now()
 
   // Immediately: the portal layout, the page and the API all read the role from the database.
   await page.goto('/editorial/team-profile')
@@ -201,21 +208,8 @@ test('session: server checks see a promotion immediately; the cached JWT role ca
   const created = await page.request.put('/api/team-profile', { multipart: { bio: 'immediately' } })
   expect(created.status()).toBe(201)
 
-  // The role cached inside the JWT cookie is refreshed from the database at most once a minute.
-  const immediate = await sessionRole(page)
-  let convergedAfterMs: number | null = null
-  for (let waited = 0; waited < 90_000; waited += 5_000) {
-    if ((await sessionRole(page)) === 'WRITER') {
-      convergedAfterMs = Date.now() - grantedAt
-      break
-    }
-    await page.waitForTimeout(5_000)
-  }
-  const finding = `JWT role right after the grant: ${immediate}; converged to WRITER after ${convergedAfterMs === null ? 'NEVER' : Math.round(convergedAfterMs / 1000) + 's'} without signing in again`
-  test.info().annotations.push({ type: 'session', description: finding })
-  console.warn(`[session] ${finding}`)
-  expect(convergedAfterMs, 'JWT role never caught up').not.toBeNull()
-  expect(convergedAfterMs!).toBeLessThan(90_000)
+  // A signed cookie may cache historical claims; the returned session does not trust them.
+  expect(await sessionRole(page)).toBe('WRITER')
   await context.close()
 })
 

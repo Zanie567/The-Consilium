@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { ProfileTabs } from '@/components/profile/ProfileTabs'
 import { readDisplayTitles, resolvePublicTitleLabel } from '@/lib/displayTitles'
 import { publicAppointmentLabel } from '@/lib/teamProfiles'
+import { publicAuthorPath } from '@/lib/authorUtils'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -34,7 +35,7 @@ export default async function ProfilePage({ searchParams }: Props) {
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
-      name: true, email: true, image: true, bio: true, createdAt: true, role: true, displayTitles: true,
+      id: true, slug: true, name: true, email: true, image: true, bio: true, createdAt: true, role: true, displayTitles: true,
       teamProfile: { select: { role: true, publicTier: true, isActive: true } },
     },
   }).catch(() => null)
@@ -56,6 +57,7 @@ export default async function ProfilePage({ searchParams }: Props) {
           cardTitle: user.teamProfile?.isActive ? publicAppointmentLabel(user.teamProfile) : null,
           role: user.role,
         })}
+        authorPath={publicAuthorPath(user)}
       />
     </div>
   )

@@ -1,7 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import {
-  ArticleEditorPage, articleByTitle, capturedEmails, closeDb, db, removeMyArticles, signedIn, uniqueTitle,
-} from './helpers/workflow'
+  ArticleEditorPage, articleByTitle, capturedEmails, closeDb, db, removeMyArticles, signedIn, uniqueTitle, confirmPublicChange } from './helpers/workflow'
 
 /**
  * The whole publication workflow, one person per browser session: a writer creates,
@@ -213,6 +212,7 @@ test('editor schedules it for a future time; still private, then the scheduler p
   await openReview(page)
   const res = page.waitForResponse((r) => r.url().includes('/review') && r.request().method() === 'PATCH')
   await page.getByRole('button', { name: 'Schedule', exact: true }).click()
+  await confirmPublicChange(page, 'Schedule')
   const r = await res
   expect(r.status(), await r.text()).toBe(200)
   const row = await articleByTitle(TITLE)
@@ -241,6 +241,7 @@ test('editor unpublishes from the review screen; the public URL disappears; repu
   await expect(page.getByText('Published Actions')).toBeVisible()
   const res = page.waitForResponse((r) => r.url().includes('/review') && r.request().method() === 'PATCH')
   await page.getByRole('button', { name: 'Unpublish' }).click()
+  await confirmPublicChange(page, 'Unpublish')
   expect((await res).status()).toBe(200)
   const row = await articleByTitle(TITLE)
   expect(row!.status).toBe('DRAFT')
@@ -261,6 +262,7 @@ test('editor unpublishes from the review screen; the public URL disappears; repu
   await openReview(p2)
   const pub = p2.waitForResponse((r) => r.url().includes('/review') && r.request().method() === 'PATCH')
   await p2.getByRole('button', { name: 'Publish Now' }).click()
+  await confirmPublicChange(p2, 'Publish now')
   expect((await pub).status()).toBe(200)
   await e2.close()
   expect(await publicStatus(browser)).toEqual({ page: 200, listed: true })
