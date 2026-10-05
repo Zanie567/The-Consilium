@@ -81,12 +81,28 @@ test.describe('a failed save is visible, loses nothing, and recovers', () => {
   test('a save that never answers times out visibly after 15 seconds', async ({ browser }) => {
     test.setTimeout(75_000)
     const { ctx, page, ed, title } = await openDraft(browser, 'hang')
-    await page.route('**/api/articles/*', (route) => (isArticleWrite(route) ? new Promise<void>(() => {}) : route.continue()))
+    let releaseHang!: () => void
+    let finishRoute!: () => void
+    const held = new Promise<void>((resolve) => { releaseHang = resolve })
+    const routeFinished = new Promise<void>((resolve) => { finishRoute = resolve })
+    const hangWrite = async (route: Route) => {
+      if (!isArticleWrite(route)) return route.continue()
+      await held
+      // Resolve the intercepted request as a network failure before removing
+      // the route. Otherwise Playwright continues the old timed-out PUT when
+      // unroute() is called; that late mutation advances the server version and
+      // the following manual save correctly receives a 409 conflict.
+      await route.abort('failed').catch(() => undefined)
+      finishRoute()
+    }
+    await page.route('**/api/articles/*', hangWrite)
     await ed.moveToEnd()
     await page.keyboard.type(' Hanging words.')
     await expect(alertOf(page)).toContainText('longer than 15 seconds', { timeout: 30_000 })
     await expect(ed.body()).toContainText('Hanging words.')
-    await page.unroute('**/api/articles/*')
+    releaseHang()
+    await routeFinished
+    await page.unroute('**/api/articles/*', hangWrite)
     await ed.saveNow()
     expect(await body(title)).toContain('Hanging words.')
     await ed.openExisting((await articleByTitle(title))!.id)
