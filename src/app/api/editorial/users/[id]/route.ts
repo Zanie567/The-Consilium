@@ -3,6 +3,7 @@ import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { ADMIN_ONLY, isRole } from '@/lib/rbac'
+import { MembershipError, setMemberRole } from '@/lib/membership'
 interface Props {
   params: Promise<{ id: string }>
 }
@@ -86,6 +87,25 @@ export async function PATCH(req: Request, { params }: Props) {
     return NextResponse.json({ error: 'Request includes fields you cannot update.' }, { status: 400 })
   }
 
+  // Role changes go through the membership module: users.role, the membership
+  // record and the audit log change together, and the team card is left alone.
+  if (isRoleChange) {
+    if (!isRole(role)) return NextResponse.json({ error: 'Invalid role.' }, { status: 400 })
+    try {
+      await setMemberRole(caller, id, role)
+    } catch (error) {
+      if (error instanceof MembershipError) {
+        return NextResponse.json({ error: error.message, code: error.code }, { status: error.status })
+      }
+      throw error
+    }
+    const updated = await prisma.user.findUniqueOrThrow({
+      where: { id },
+      select: { id: true, name: true, role: true, isActive: true, slug: true, email: true, bio: true, image: true, adminNotes: true },
+    })
+    return NextResponse.json(updated)
+  }
+
   if (categoryIds !== undefined) {
     if (!Array.isArray(categoryIds) || categoryIds.some((id) => typeof id !== 'string' || !id)) {
       return NextResponse.json({ error: 'categoryIds must be an array of category IDs.' }, { status: 400 })
@@ -108,7 +128,6 @@ export async function PATCH(req: Request, { params }: Props) {
   if (typeof image === 'string') updates.image = image.trim() || null
 
   if (typeof adminNotes === 'string') updates.adminNotes = adminNotes.trim() || null
-  if (role && isRole(role)) updates.role = role
 
   if (typeof slug === 'string' && slug.trim()) {
     const clean = slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -135,23 +154,6 @@ export async function PATCH(req: Request, { params }: Props) {
       data: updates,
       select: { id: true, name: true, role: true, isActive: true, slug: true, email: true, bio: true, image: true, adminNotes: true },
     })
-
-    if (updates.role && updates.role !== target.role) {
-      await tx.auditLog.create({
-        data: {
-          action: 'USER_ROLE_CHANGED',
-          targetId: id,
-          targetType: 'user',
-          performedBy: caller.id,
-          metadata: {
-            oldRole: target.role,
-            newRole: updates.role,
-            targetName: target.name,
-            targetEmail: target.email,
-          },
-        },
-      })
-    }
 
     if (categorySelection !== undefined) {
       await tx.categoryEditor.deleteMany({ where: { userId: id } })
@@ -183,6 +185,10 @@ export async function DELETE(_req: Request, { params }: Props) {
   }
 
   await prisma.$transaction(async (tx) => {
+    await tx.teamMembership.updateMany({
+      where: { userId: id },
+      data: { status: 'REVOKED', revokedAt: new Date(), revokedById: caller.id },
+    })
     await tx.articleNote.deleteMany({ where: { authorId: id } })
     await tx.article.deleteMany({ where: { authorId: id } })
     await tx.user.delete({ where: { id } })

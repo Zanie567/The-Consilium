@@ -4,6 +4,7 @@ import { sendEmail, passwordResetEmail } from '@/lib/email'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { checkRateLimit, getIp } from '@/lib/rate-limit'
+import { verifyEmailAndClaim } from '@/lib/membership'
 
 // POST /api/editorial/password-reset - request reset link
 // PATCH /api/editorial/password-reset - consume token and set new password
@@ -113,6 +114,9 @@ export async function PATCH(req: NextRequest) {
     if(error instanceof Error&&error.message==='RESET_ALREADY_USED')return NextResponse.json({error:'This link has expired or already been used.'},{status:400})
     return NextResponse.json({error:'Could not reset the password. Please try again.'},{status:503})
   }
+
+  // Completing a reset proves control of the inbox the link went to.
+  await verifyEmailAndClaim(record.userId).catch(() => null)
 
   return NextResponse.json({ ok: true })
 }

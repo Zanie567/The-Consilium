@@ -7,7 +7,9 @@ import { MAX_BIO_LENGTH, MAX_TEAM_PHOTO_BYTES } from '@/lib/constants'
 import { detectImageMimeType } from '@/lib/imageSniff'
 import {
   TEAM_LABEL,
-  TEAM_PROFILE_ROLES,
+  TEAM_PROFILE_OWNER_ROLES,
+  assessProfile,
+  resolveCardTeam,
   teamForRole,
   validateTeamBio,
 } from '@/lib/teamProfiles'
@@ -21,15 +23,13 @@ import {
 
 // PUT /api/team-profile — create or update the caller's OWN Meet the Team card.
 //
-// The client may send exactly three things: `bio`, an optional `image` file and
-// `removeImage`. Everything that identifies the card comes from the verified
-// session, never the request:
-//   - the owner   → session user id (written to the unique `userId` column)
-//   - the name    → the account's name
-//   - the team    → derived from the account's current role (`teamForRole`);
-//                   there is no team column to write to
-// Any `team`, `role`, `userId`, `order` or `isActive` a client posts is ignored
-// because nothing below reads it.
+// The client may send exactly four things: `name` (the display name), `bio`, an
+// optional `image` file and `removeImage`. Everything that identifies or places the
+// card comes from the verified session or from an administrator, never the request:
+//   - the owner      → session user id (written to the unique `userId` column)
+//   - the position, team, order and visibility → admin-only (see membership.ts);
+//     a request that names any of them (or a role/userId) is REJECTED with 400,
+//     not silently ignored, so a forged value is visible rather than a no-op.
 //
 // One card per account is guaranteed by the UNIQUE index on `userId`, not by the
 // look-up below: that look-up only decides 201 vs 200 and finds a legacy card to
@@ -38,6 +38,12 @@ import {
 /** Where new cards sit among the admin-ordered legacy ones: after them, by name. */
 const NEW_CARD_ORDER = 1000
 
+/** Fields only an administrator may set. Naming one in this request is an error. */
+const ADMIN_ONLY_FIELDS = [
+  'role', 'team', 'position', 'title', 'order', 'isActive', 'visible', 'userId', 'id', 'email', 'status', 'permissions',
+]
+const MAX_DISPLAY_NAME_LENGTH = 100
+
 /**
  * Raised when an unlinked legacy card looks like this person's. Creating a second
  * card would put them on the page twice, so an admin has to link the existing one.
@@ -45,14 +51,9 @@ const NEW_CARD_ORDER = 1000
 class LegacyCardNeedsLink extends Error {}
 
 export async function PUT(request: NextRequest) {
-  const auth = await requireVerifiedSessionUser(TEAM_PROFILE_ROLES)
+  const auth = await requireVerifiedSessionUser(TEAM_PROFILE_OWNER_ROLES)
   if (!auth.ok) return auth.response
   const user = auth.user
-
-  // Defence in depth: the role gate above already restricts to these roles.
-  if (!teamForRole(user.role)) {
-    return apiError('Your account is not on a team that has a profile.', 403, 'NO_TEAM_ROLE')
-  }
 
   let form: FormData
   try {
@@ -61,17 +62,32 @@ export async function PUT(request: NextRequest) {
     return apiError('The request must be multipart form data.', 400, 'INVALID_BODY')
   }
 
+  const forbidden = ADMIN_ONLY_FIELDS.filter((field) => form.has(field))
+  if (forbidden.length > 0) {
+    return apiError(
+      `You cannot set ${forbidden.join(', ')}. Position, team, order and visibility are managed by an administrator.`,
+      400,
+      'FORBIDDEN_FIELD',
+    )
+  }
+
   const bioField = form.get('bio')
   const bio = validateTeamBio(bioField === null ? undefined : bioField, MAX_BIO_LENGTH)
   if (!bio.ok) return apiError(bio.error, 400, 'INVALID_BIO')
 
-  const name = user.name?.trim()
+  // The display name is the member's own to choose; it falls back to the account name.
+  const nameField = form.get('name')
+  if (nameField !== null && typeof nameField !== 'string') {
+    return apiError('name must be text.', 400, 'INVALID_NAME')
+  }
+  // An empty field means "keep what I have", not "set an empty name".
+  const submittedName = typeof nameField === 'string' ? nameField.trim() || null : null
+  if (submittedName !== null && (submittedName.length < 2 || submittedName.length > MAX_DISPLAY_NAME_LENGTH)) {
+    return apiError(`Your name must be between 2 and ${MAX_DISPLAY_NAME_LENGTH} characters.`, 400, 'INVALID_NAME')
+  }
+  const name = submittedName || user.name?.trim()
   if (!name) {
-    return apiError(
-      'Add your name in your account settings before creating a team profile.',
-      400,
-      'NAME_REQUIRED',
-    )
+    return apiError('Enter the name you want shown on your team profile.', 400, 'NAME_REQUIRED')
   }
 
   const file = form.get('image')
@@ -117,6 +133,8 @@ export async function PUT(request: NextRequest) {
 
     const nextImage = uploaded ? uploaded.url : removeImage ? null : undefined
     const update = {
+      // A submitted name replaces the card's; an absent one leaves it alone.
+      ...(submittedName ? { name: submittedName } : {}),
       // An absent field leaves the bio alone; an empty one clears it.
       ...(bioField !== null ? { bio: bio.bio } : {}),
       ...(nextImage !== undefined ? { image: nextImage } : {}),
@@ -124,7 +142,7 @@ export async function PUT(request: NextRequest) {
 
     let profile
     try {
-      profile = await saveProfile(user.id, user.email, name, update, bio.bio, nextImage ?? null)
+      profile = await saveProfile(user.id, user.role, user.email, name, update, bio.bio, nextImage ?? null)
     } catch (error) {
       // The database is the source of truth: if the write failed, the new file is
       // unreferenced, so remove it rather than leave it behind.
@@ -137,14 +155,24 @@ export async function PUT(request: NextRequest) {
       await removeTeamPhoto(existing.image, user.id)
     }
 
+    const team = resolveCardTeam(profile.team, user.role)
+    const status = assessProfile({
+      name: profile.name,
+      bio: profile.bio,
+      image: profile.image,
+      position: profile.role,
+      team,
+      visible: profile.isActive,
+    })
     return NextResponse.json(
       {
         id: profile.id,
         name: profile.name,
         bio: profile.bio,
         image: profile.image,
-        team: teamForRole(user.role),
-        teamLabel: TEAM_LABEL[teamForRole(user.role)!],
+        team,
+        teamLabel: team ? TEAM_LABEL[team] : null,
+        status,
       },
       { status: existing ? 200 : 201 },
     )
@@ -165,7 +193,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-type ProfileUpdate = { bio?: string | null; image?: string | null }
+type ProfileUpdate = { name?: string; bio?: string | null; image?: string | null }
 
 /**
  * Persists the card for `userId` and returns it.
@@ -180,6 +208,7 @@ type ProfileUpdate = { bio?: string | null; image?: string | null }
  */
 async function saveProfile(
   userId: string,
+  role: string,
   email: string | null,
   name: string,
   update: ProfileUpdate,
@@ -209,10 +238,13 @@ async function saveProfile(
         userId,
         name,
         role: '',
+        // Pinned now so a later permission-role change cannot move the card.
+        team: teamForRole(role),
         bio: createBio,
         image: createImage,
         order: NEW_CARD_ORDER,
-        isActive: true,
+        // Hidden until an administrator sets the position and publishes it.
+        isActive: false,
       },
       update,
     })

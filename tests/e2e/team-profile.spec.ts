@@ -47,6 +47,9 @@ async function loginAs(
 }
 
 const cardCount = (userId: string) => db().teamMember.count({ where: { userId } })
+/** What an administrator does to put a card on the page: set a position and make it visible. */
+const publish = (userId: string, position: string) =>
+  db().teamMember.update({ where: { userId }, data: { role: position, isActive: true } })
 const storageObjects = async (): Promise<{ key: string }[]> => (await fetch(`${STORAGE_URL}/__objects`)).json()
 const sidebarLink = (page: Page) => page.getByRole('link', { name: 'Team Profile' })
 
@@ -70,12 +73,13 @@ test.describe('access by role', () => {
     })
   }
 
-  test('admin has no Team Profile link and gets an explanation, not a form', async ({ browser }) => {
+  test('an admin can edit their own card; position and team show as not set until an administrator sets them', async ({ browser }) => {
     const { context, page } = await loginAs(browser, 'admin')
-    await expect(sidebarLink(page)).toHaveCount(0)
+    await expect(sidebarLink(page)).toBeVisible()
     await openProfile(page)
-    await expect(page.locator('p[role="alert"]')).toContainText(/isn.t assigned to the Writing, Editorial or Growth/)
-    await expect(page.locator('form')).toHaveCount(0)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Create your team profile')
+    await expect(page.locator('form').getByText('Not set yet')).toHaveCount(2) // position and team
+    await expect(page.locator('select')).toHaveCount(0)
     await context.close()
   })
 
@@ -87,10 +91,20 @@ test.describe('access by role', () => {
     await context.close()
   })
 
-  test('an account with no name is asked to set one first', async ({ browser }) => {
+  test('an account with no name gets an empty name field and cannot save until one is entered', async ({ browser }) => {
     const { context, page } = await loginAs(browser, 'noname')
     await openProfile(page)
-    await expect(page.locator('p[role="alert"]')).toContainText('Add your name')
+    const name = page.getByLabel('Name shown on the page')
+    await expect(name).toHaveValue('')
+    await page.getByLabel('Description').fill('Hello.')
+    await page.getByRole('button', { name: 'Create profile' }).click()
+    await expect(page.locator('p[role="status"]')).toContainText('Enter the name you want shown')
+    expect(await cardCount(ids.noname)).toBe(0)
+    await name.fill('Nora Noname')
+    await page.getByRole('button', { name: 'Create profile' }).click()
+    await expect(page.locator('p[role="status"]')).toContainText('has been saved')
+    expect(await db().teamMember.findUniqueOrThrow({ where: { userId: ids.noname } })).toMatchObject({ name: 'Nora Noname', isActive: false })
+    await db().teamMember.delete({ where: { userId: ids.noname } })
     await context.close()
   })
 })
@@ -109,16 +123,16 @@ test.describe('writer: create then edit', () => {
     await context.close()
   })
 
-  test('create state: name and team are shown as read-only text, with no team picker', async () => {
+  test('create state: the name is editable; position and team are read-only text, with no picker', async () => {
     await openProfile(page)
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Create your team profile')
-    await expect(page.locator('form').getByText('Wendy Writer', { exact: true })).toBeVisible()
+    await expect(page.getByLabel('Name shown on the page')).toHaveValue('Wendy Writer')
     await expect(page.locator('form').getByText('Writing', { exact: true })).toBeVisible()
-    await expect(page.locator('form').getByText('Set by your role')).toBeVisible()
-    // Nothing for the user to edit or choose:
+    await expect(page.locator('form').getByText('Set by an administrator.').first()).toBeVisible()
+    // The only things to edit are the name and description; nothing technical to choose:
     await expect(page.locator('select')).toHaveCount(0)
-    await expect(page.locator('input[value="Wendy Writer"], input[value="Writing"]')).toHaveCount(0)
-    await expect(page.locator('input:not([type="file"]):not([type="hidden"])')).toHaveCount(0)
+    await expect(page.locator('input[value="Writing"]')).toHaveCount(0)
+    await expect(page.locator('input:not([type="file"]):not([type="hidden"])')).toHaveCount(1)
     await expect(page.getByRole('button', { name: 'Create profile' })).toBeEnabled()
     // placeholder, not a broken image
     await expect(page.locator('form img')).toHaveCount(0)
@@ -230,6 +244,8 @@ test.describe('writer: create then edit', () => {
   })
 
   test('the public page shows them once, under Writers, with a rendered photo', async ({ browser }) => {
+    // Nothing is public until an administrator sets a position and shows the card.
+    await publish(ids.writer, 'Staff Writer')
     const anon = await browser.newContext({ baseURL: process.env.E2E_BASE_URL })
     const pub = await anon.newPage()
     const pubErrors = watch(pub)
@@ -297,6 +313,7 @@ test.describe('other teams', () => {
     await expect(second.getByRole('status')).toContainText('has been saved')
     expect(await cardCount(ids.editor)).toBe(1)
     expect(await db().teamMember.count({ where: { name: 'Edgar Editor' } })).toBe(1)
+    await publish(ids.editor, 'Editor')
     await context.close()
   })
 
@@ -308,6 +325,7 @@ test.describe('other teams', () => {
     await page.getByRole('button', { name: 'Create profile' }).click()
     await expect(page.getByRole('status')).toContainText('has been saved')
     expect(await cardCount(ids.growth)).toBe(1)
+    await publish(ids.growth, 'Social Media Lead')
     expect(errors).toEqual([])
     await context.close()
   })
@@ -425,26 +443,35 @@ test.describe('API authorisation', () => {
     await anon.dispose()
   })
 
-  for (const key of ['reader', 'admin'] as const) {
-    test(`a ${key} account is refused`, async ({ browser }) => {
-      const { context, page } = await loginAs(browser, key)
-      const res = await page.request.put('/api/team-profile', { multipart: { bio: 'x' } })
-      expect(res.status()).toBe(403)
-      expect(await cardCount(ids[key])).toBe(0)
-      await context.close()
-    })
-  }
+  test('a reader account is refused', async ({ browser }) => {
+    const { context, page } = await loginAs(browser, 'reader')
+    const res = await page.request.put('/api/team-profile', { multipart: { bio: 'x' } })
+    expect(res.status()).toBe(403)
+    expect(await cardCount(ids.reader)).toBe(0)
+    await context.close()
+  })
 
-  test('forged userId / team / role fields change nothing about anyone', async ({ browser }) => {
+  test('an admin may create their own card, which is hidden and has no team until an administrator sets one', async ({ browser }) => {
+    const { context, page } = await loginAs(browser, 'admin')
+    const res = await page.request.put('/api/team-profile', { multipart: { bio: 'I run things.' } })
+    expect(res.status()).toBe(201)
+    expect(await db().teamMember.findUniqueOrThrow({ where: { userId: ids.admin } })).toMatchObject({ team: null, isActive: false, role: '' })
+    await db().teamMember.delete({ where: { userId: ids.admin } })
+    await context.close()
+  })
+
+  test('forged userId / team / role / position / visibility fields are rejected and change nothing about anyone', async ({ browser }) => {
     const { context, page } = await loginAs(browser, 'writer')
     const editorBefore = await db().teamMember.findUniqueOrThrow({ where: { userId: ids.editor } })
+    const writerBefore = await db().teamMember.findUniqueOrThrow({ where: { userId: ids.writer } })
     const res = await page.request.put('/api/team-profile', {
       multipart: { bio: 'forged', team: 'editorial', role: 'EDITOR', userId: ids.editor, order: '-1', isActive: 'false' },
     })
-    expect(res.status()).toBe(200)
+    expect(res.status()).toBe(400)
+    expect((await res.json()).code).toBe('FORBIDDEN_FIELD')
     expect(await db().teamMember.findUniqueOrThrow({ where: { userId: ids.editor } })).toEqual(editorBefore)
     expect((await db().user.findUniqueOrThrow({ where: { id: ids.writer } })).role).toBe('WRITER')
-    expect(await db().teamMember.findUniqueOrThrow({ where: { userId: ids.writer } })).toMatchObject({ role: '', isActive: true, bio: 'forged' })
+    expect(await db().teamMember.findUniqueOrThrow({ where: { userId: ids.writer } })).toEqual(writerBefore)
     await context.close()
   })
 })
@@ -496,16 +523,27 @@ test.describe('public Our Team page', () => {
     await anon.close()
   })
 
-  test('a banned or demoted member disappears, and returns with the same card when restored', async ({ browser }) => {
+  test('a banned member disappears and returns with the same card; losing a role does not hide the card by itself', async ({ browser }) => {
     const anon = await browser.newContext({ baseURL: process.env.E2E_BASE_URL })
     const page = await anon.newPage()
-    await db().user.update({ where: { id: ids.growth }, data: { role: 'READER' } })
+    await db().user.update({ where: { id: ids.growth }, data: { isBanned: true } })
     await page.goto('/team')
     await expect(page.getByRole('heading', { level: 3, name: 'Grace Growth' })).toHaveCount(0)
     await expect(page.locator('section[aria-labelledby="team-growth"]')).toHaveCount(0) // empty team: no empty section
-    await db().user.update({ where: { id: ids.growth }, data: { role: 'GROWTH' } })
+    await db().user.update({ where: { id: ids.growth }, data: { isBanned: false } })
     await page.goto('/team')
     await expect(page.getByRole('heading', { level: 3, name: 'Grace Growth' })).toHaveCount(1)
+
+    // Access and the public card are separate: with the permission role gone the card stays
+    // until an administrator hides it.
+    await db().user.update({ where: { id: ids.growth }, data: { role: 'READER' } })
+    await page.goto('/team')
+    await expect(page.getByRole('heading', { level: 3, name: 'Grace Growth' })).toHaveCount(1)
+    await db().teamMember.update({ where: { userId: ids.growth }, data: { isActive: false } })
+    await page.goto('/team')
+    await expect(page.getByRole('heading', { level: 3, name: 'Grace Growth' })).toHaveCount(0)
+    await db().teamMember.update({ where: { userId: ids.growth }, data: { isActive: true } })
+    await db().user.update({ where: { id: ids.growth }, data: { role: 'GROWTH' } })
     await anon.close()
   })
 

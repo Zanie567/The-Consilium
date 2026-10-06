@@ -29,8 +29,10 @@ function row(overrides: Partial<TeamRowWithAccount> = {}): TeamRowWithAccount {
   return {
     id: 'tm-1',
     name: 'Stored Name',
-    role: '',
-    bio: null,
+    // A linked card is only public with a position and a description (see
+    // buildPublicRoster); the default row is a ready one so each test varies one thing.
+    role: 'Staff Writer',
+    bio: 'A short bio.',
     image: null,
     email: null,
     order: 1000,
@@ -84,7 +86,7 @@ describe('validateTeamBio', () => {
 })
 
 describe('buildPublicRoster', () => {
-  it('derives each linked card’s team from the account role, not the stored row', () => {
+  it('derives a linked card’s team from the account role when no team is set', () => {
     const roster = buildPublicRoster(
       [
         row({ id: 'w', user: account({ email: 'w@x', role: 'WRITER' }) }),
@@ -100,21 +102,33 @@ describe('buildPublicRoster', () => {
     })
   })
 
-  it('takes the name from the account and falls back to the stored one', () => {
-    const [renamed] = buildPublicRoster([row({ user: account({ name: ' New Name ' }) })], [])
-    const [unnamed] = buildPublicRoster([row({ user: account({ name: null }) })], [])
-    expect(renamed.name).toBe('New Name')
-    expect(unnamed.name).toBe('Stored Name')
+  it('an admin-set team wins over the role, so a permission change cannot move a card', () => {
+    const [m] = buildPublicRoster([row({ team: 'editorial', user: account({ role: 'WRITER' }) })], [])
+    expect(m.team).toBe('editorial')
   })
 
-  it('prefers the card bio, then the account bio', () => {
-    const [own] = buildPublicRoster([row({ bio: 'Card bio', user: account({ bio: 'Acct bio' }) })], [])
-    const [fallback] = buildPublicRoster([row({ bio: null, user: account({ bio: 'Acct bio' }) })], [])
-    expect(own.bio).toBe('Card bio')
-    expect(fallback.bio).toBe('Acct bio')
+  it('uses the card’s own display name, falling back to the account name', () => {
+    const [own] = buildPublicRoster([row({ name: ' Preferred Name ', user: account({ name: 'Account Name' }) })], [])
+    const [fallback] = buildPublicRoster([row({ name: '  ', user: account({ name: 'Account Name' }) })], [])
+    expect(own.name).toBe('Preferred Name')
+    expect(fallback.name).toBe('Account Name')
   })
 
-  it('hides cards whose account is banned, inactive, or no longer on a team', () => {
+  it('never shows a linked card without a description, position or any name', () => {
+    const roster = buildPublicRoster(
+      [
+        row({ id: 'no-bio', bio: null, user: account({ email: 'a@x', bio: 'Account bio is not used' }) }),
+        row({ id: 'blank-bio', bio: '   ', user: account({ email: 'b@x' }) }),
+        row({ id: 'no-position', role: '  ', user: account({ email: 'c@x' }) }),
+        row({ id: 'no-name', name: '', user: account({ email: 'd@x', name: null }) }),
+        row({ id: 'ok', user: account({ email: 'e@x' }) }),
+      ],
+      [],
+    )
+    expect(roster.map((m) => m.id)).toEqual(['ok'])
+  })
+
+  it('hides cards whose account is banned, inactive, or not placed in any team', () => {
     const roster = buildPublicRoster(
       [
         row({ id: 'banned', user: account({ email: 'a@x', isBanned: true }) }),
@@ -127,10 +141,18 @@ describe('buildPublicRoster', () => {
     expect(roster.map((m) => m.id)).toEqual(['ok'])
   })
 
-  it('shows no linked card for an account without a team role, whatever the card title says', () => {
+  it('shows an ADMIN or READER account’s card only when an administrator placed it in a team', () => {
     for (const role of ['ADMIN', 'READER']) {
-      expect(buildPublicRoster([row({ role: 'Editor-in-Chief', user: account({ role }) })], [])).toEqual([])
+      expect(buildPublicRoster([row({ user: account({ role }) })], [])).toEqual([])
+      const [placed] = buildPublicRoster([row({ team: 'editorial', user: account({ role }) })], [])
+      expect(placed.team).toBe('editorial')
+      // The public position is the card's, never the permission role.
+      expect(placed.role).toBe('Staff Writer')
     }
+  })
+
+  it('ignores an unknown stored team rather than trusting it', () => {
+    expect(buildPublicRoster([row({ team: 'admin', user: account({ role: 'ADMIN' }) })], [])).toEqual([])
   })
 
   it('keeps the card title for display but derives the team from the role alone', () => {

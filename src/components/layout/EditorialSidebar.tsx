@@ -10,7 +10,7 @@ import {
   PREDICTIONS_MANAGE_ROLES,
   isAllowedRole,
 } from '@/lib/rbac'
-import { TEAM_PROFILE_ROLES } from '@/lib/teamProfiles'
+import { TEAM_PROFILE_OWNER_ROLES } from '@/lib/teamProfiles'
 import {
   CalendarDays,
   LayoutDashboard,
@@ -34,6 +34,7 @@ import {
   BookMarked,
   BookOpenCheck,
   UserRound,
+  UserPlus,
 } from 'lucide-react'
 
 interface User {
@@ -111,7 +112,7 @@ export function EditorialSidebar({
         {
           items: [
             { href: '/editorial', icon: LayoutDashboard, label: 'Dashboard', exact: true, show: true },
-            { href: '/editorial/team-profile', icon: UserRound, label: 'Team Profile', exact: true, show: isAllowedRole(user.role, TEAM_PROFILE_ROLES) },
+            { href: '/editorial/team-profile', icon: UserRound, label: 'Team Profile', exact: true, show: isAllowedRole(user.role, TEAM_PROFILE_OWNER_ROLES) },
           ],
         },
         {
@@ -139,6 +140,7 @@ export function EditorialSidebar({
           label: 'MANAGE',
           items: [
             { href: '/editorial/users', icon: Users, label: 'Users', show: isAdmin },
+            { href: '/editorial/members', icon: UserPlus, label: 'Members', show: isAdmin },
             { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
             { href: '/editorial/predictions', icon: Target, label: 'Predictions', show: isAllowedRole(user.role, PREDICTIONS_MANAGE_ROLES) },
             { href: '/editorial/glossary', icon: BookMarked, label: 'Glossary', show: isAllowedRole(user.role, GLOSSARY_MANAGE_ROLES) },

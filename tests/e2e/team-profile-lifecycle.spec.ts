@@ -81,6 +81,9 @@ async function grantRole(userId: string, role: Role) {
 
 const sessionRole = async (page: Page): Promise<string> => (await (await page.request.get('/api/auth/session')).json()).user?.role
 const cards = (userId: string) => db().teamMember.findMany({ where: { userId } })
+/** What an administrator does to put a card on the page: set a position and make it visible. */
+const publish = (userId: string, position = 'Staff Writer') =>
+  db().teamMember.update({ where: { userId }, data: { role: position, isActive: true } })
 const heading = (page: Page) => page.getByRole('heading', { level: 1 })
 const sidebarLink = (page: Page) => page.getByRole('link', { name: 'Team Profile' })
 
@@ -140,9 +143,11 @@ for (const [role, section] of [
     // 4. the normal admin workflow — nothing else is done for them
     await grantRole(user.id, role)
 
-    // 5/6. the SAME session, no sign-in: one reload and the portal recognises the role
+    // 5/6. the SAME session, no sign-in: one reload and the portal recognises the role. The
+    //      (hidden) card was made for them by the grant, so this is the edit state.
+    expect(await cards(user.id)).toHaveLength(1)
     await page.goto('/editorial/team-profile')
-    await expect(heading(page)).toHaveText('Create your team profile')
+    await expect(heading(page)).toHaveText('Edit your team profile')
     await expect(sidebarLink(page)).toBeVisible()
 
     // 7. team derived from the role; nothing to choose
@@ -152,7 +157,7 @@ for (const [role, section] of [
     // 8. create
     await page.setInputFiles('#tp-photo', { name: 'me.png', mimeType: 'image/png', buffer: makePng(64, [30, 120, 200]) })
     await page.getByLabel('Description').fill(`I am the new ${role.toLowerCase()}.`)
-    await page.getByRole('button', { name: 'Create profile' }).click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
     await expect(page.getByRole('status')).toContainText('has been saved')
 
     // 9. exactly one row, owned by this account
@@ -162,7 +167,9 @@ for (const [role, section] of [
     expect(rows[0].image).toContain(`/avatars/${user.id}/`)
     expect(await db().teamMember.count({ where: { name } })).toBe(1)
 
-    // 10. on the public page exactly once, in the right section
+    // 10. not public until an administrator sets a position and shows it; then once, in the right section
+    expect(await publicPlacement(browser, name)).toEqual({ sections: [], total: 0 })
+    await publish(user.id)
     expect(await publicPlacement(browser, name)).toEqual({ sections: [section], total: 1 })
 
     // 11. a refresh shows the edit state
@@ -205,9 +212,9 @@ test('session: server checks see a promotion immediately; the cached JWT role ca
 
   // Immediately: the portal layout, the page and the API all read the role from the database.
   await page.goto('/editorial/team-profile')
-  await expect(heading(page)).toHaveText('Create your team profile')
+  await expect(heading(page)).toHaveText('Edit your team profile')
   const created = await page.request.put('/api/team-profile', { multipart: { bio: 'immediately' } })
-  expect(created.status()).toBe(201)
+  expect(created.status()).toBe(200) // the grant already made their (hidden) card
 
   // The role cached inside the JWT cookie is refreshed from the database at most once a minute.
   const immediate = await sessionRole(page)
@@ -229,7 +236,7 @@ test('session: server checks see a promotion immediately; the cached JWT role ca
 
 // ── role changes after a profile exists ───────────────────────────────────────
 
-test('one account, one card: Writer → Editor → Growth → Reader → Writer → Admin → Editor', async ({ browser }) => {
+test('one account, one card: Writer → Editor → Growth → Reader → Writer → Admin → Editor never moves or loses it', async ({ browser }) => {
   test.setTimeout(240_000)
   const name = 'Newcomer chain'
   const { context, page, user } = await signUp(browser, name, `chain${DOMAIN}`)
@@ -240,35 +247,38 @@ test('one account, one card: Writer → Editor → Growth → Reader → Writer 
   await page.goto('/editorial/team-profile')
   await page.setInputFiles('#tp-photo', { name: 'me.png', mimeType: 'image/png', buffer: makePng(64, [90, 40, 160]) })
   await page.getByLabel('Description').fill('chain bio')
-  await page.getByRole('button', { name: 'Create profile' }).click()
+  await page.getByRole('button', { name: 'Save changes' }).click()
   await expect(page.getByRole('status')).toContainText('has been saved')
+  await publish(user.id, 'Staff Writer')
   const [original] = await cards(user.id)
   let expectedBio = 'chain bio'
 
+  // Same row, same photo, same position, same visibility, same section: a permission
+  // change is not a change to the public page.
   const sameCard = async () => {
     const rows = await cards(user.id)
     expect(rows).toHaveLength(1)
-    expect(rows[0]).toMatchObject({ id: original.id, userId: user.id, bio: expectedBio, image: original.image })
+    expect(rows[0]).toMatchObject({ id: original.id, userId: user.id, bio: expectedBio, image: original.image, role: 'Staff Writer', isActive: true })
     expect(await db().teamMember.count({ where: { name } })).toBe(1)
+    expect(await publicPlacement(browser, name)).toEqual({ sections: ['writers'], total: 1 })
   }
 
-  const eligible = async (role: 'WRITER' | 'EDITOR' | 'GROWTH', section: SectionId) => {
+  const canEditOwnCard = async (role: 'WRITER' | 'EDITOR' | 'GROWTH' | 'ADMIN') => {
     await grantRole(user.id, role)
     await sameCard()
-    expect(await publicPlacement(browser, name)).toEqual({ sections: [section], total: 1 })
     await page.goto('/editorial/team-profile')
     await expect(heading(page)).toHaveText('Edit your team profile')
-    await expect(page.locator('form').getByText(TEAM_LABEL[role], { exact: true })).toBeVisible()
+    // Team and position are shown, read-only, exactly as the administrator left them.
+    await expect(page.locator('form').getByText(TEAM_LABEL.WRITER, { exact: true })).toBeVisible()
     await expect(page.getByLabel('Description')).toHaveValue(expectedBio)
     await expect(page.locator('form img').first()).toBeVisible()
     await expect(sidebarLink(page)).toBeVisible()
   }
 
-  const ineligible = async (role: 'READER' | 'ADMIN') => {
+  const noLongerAMember = async () => {
     const objectsBefore = await storageBefore()
-    await grantRole(user.id, role)
-    await sameCard() // the row is kept…
-    expect(await publicPlacement(browser, name)).toEqual({ sections: [], total: 0 }) // …but hidden
+    await grantRole(user.id, 'READER')
+    await sameCard() // the row is kept, and stays public until an admin decides otherwise
     // every write is refused, and a refused write never reaches storage
     const attempts: Record<string, string | { name: string; mimeType: string; buffer: Buffer }>[] = [
       { bio: 'sneaky edit' },
@@ -282,16 +292,12 @@ test('one account, one card: Writer → Editor → Growth → Reader → Writer 
     expect(await storageBefore()).toBe(objectsBefore)
     await page.goto('/editorial/team-profile')
     await expect(page.locator('form')).toHaveCount(0)
-    if (role === 'READER') await expect(page.getByText('Access Denied')).toBeVisible()
-    else {
-      await expect(page.locator('p[role="alert"]')).toContainText(/isn.t assigned to the Writing, Editorial or Growth/)
-      await expect(sidebarLink(page)).toHaveCount(0)
-    }
+    await expect(page.getByText('Access Denied')).toBeVisible()
   }
 
-  await eligible('WRITER', 'writers')
+  await canEditOwnCard('WRITER')
 
-  await eligible('EDITOR', 'editorial')
+  await canEditOwnCard('EDITOR')
   // still editable after the move
   await page.getByLabel('Description').fill('chain bio, edited as an editor')
   await page.getByRole('button', { name: 'Save changes' }).click()
@@ -299,11 +305,11 @@ test('one account, one card: Writer → Editor → Growth → Reader → Writer 
   expectedBio = 'chain bio, edited as an editor'
   await sameCard()
 
-  await eligible('GROWTH', 'growth')
-  await ineligible('READER')
-  await eligible('WRITER', 'writers') // READER → WRITER: the same card is live again, bio and photo intact
-  await ineligible('ADMIN')
-  await eligible('EDITOR', 'editorial')
+  await canEditOwnCard('GROWTH')
+  await noLongerAMember()
+  await canEditOwnCard('WRITER') // READER → WRITER: the same card, bio and photo intact
+  await canEditOwnCard('ADMIN') // permissions only: they can still edit their own card, position unchanged
+  await canEditOwnCard('EDITOR')
 
   expect(await db().teamMember.count({ where: { userId: user.id } })).toBe(1)
   await context.close()

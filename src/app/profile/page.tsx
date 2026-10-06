@@ -3,6 +3,7 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { ProfileTabs } from '@/components/profile/ProfileTabs'
+import { VerifyEmailNotice } from '@/components/profile/VerifyEmailNotice'
 import { publicAuthorPath } from '@/lib/authorUtils'
 import type { Metadata } from 'next'
 
@@ -32,13 +33,14 @@ export default async function ProfilePage({ searchParams }: Props) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, slug: true, name: true, email: true, image: true, bio: true, createdAt: true, role: true },
+    select: { id: true, slug: true, name: true, email: true, image: true, bio: true, createdAt: true, role: true, emailVerified: true },
   }).catch(() => null)
 
   if (!user) redirect('/login')
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
+      {!user.emailVerified && <VerifyEmailNotice email={user.email} />}
       <ProfileTabs
         initialName={user.name}
         initialBio={user.bio}

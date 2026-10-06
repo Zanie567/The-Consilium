@@ -80,9 +80,91 @@ export function resolveTeamMemberBios(
 // account by `TeamMember.userId` (unique), and its team is NEVER stored or taken
 // from a request: it is derived from the account's role by `teamForRole`.
 
-/** Roles that may own a team profile. ADMIN and READER have none. */
+/** Roles whose team is derived from the role itself. ADMIN and READER have none. */
 export const TEAM_PROFILE_ROLES = ['WRITER', 'EDITOR', 'GROWTH'] as const
 type TeamProfileRole = (typeof TEAM_PROFILE_ROLES)[number]
+
+/**
+ * Roles that may edit their OWN card (name, photo, description). ADMIN is included:
+ * an admin can hold a public position, but its team is set by an administrator
+ * (`TeamMember.team`), never derived from the permission role. READER cannot.
+ */
+export const TEAM_PROFILE_OWNER_ROLES = ['ADMIN', ...TEAM_PROFILE_ROLES] as const
+
+/** The public team sections a card can be placed in. */
+export const MEMBER_TEAMS = ['writing', 'editorial', 'growth'] as const satisfies readonly MemberTeam[]
+
+export function isMemberTeam(value: unknown): value is MemberTeam {
+  return typeof value === 'string' && (MEMBER_TEAMS as readonly string[]).includes(value)
+}
+
+/**
+ * The team a linked card is placed in: the admin-set `team` when there is one,
+ * otherwise the account role's team. Admin-set wins so that (a) an ADMIN-permission
+ * account can hold a public position and (b) changing someone's permission role
+ * never silently moves their card.
+ */
+export function resolveCardTeam(cardTeam: string | null | undefined, role: string | null | undefined): MemberTeam | null {
+  return isMemberTeam(cardTeam) ? cardTeam : teamForRole(role)
+}
+
+export interface ProfileFacts {
+  name: string | null | undefined
+  bio: string | null | undefined
+  image: string | null | undefined
+  /** The public position/title (`TeamMember.role`). Admin-controlled. */
+  position: string | null | undefined
+  /** Effective team (see `resolveCardTeam`). */
+  team: MemberTeam | null
+  /** Admin-controlled visibility switch (`TeamMember.isActive`). */
+  visible: boolean
+}
+
+export interface ProfileAssessment {
+  /** What the member can still supply themselves. */
+  missingFromMember: ('name' | 'bio' | 'photo')[]
+  /** What only an administrator can supply. */
+  missingFromAdmin: ('position' | 'team')[]
+  /** Everything above is present. */
+  complete: boolean
+  /** Why the card is not on the public page; empty when it is. */
+  publicBlockers: ('name' | 'bio' | 'position' | 'team' | 'hidden')[]
+  publiclyVisible: boolean
+}
+
+const filled = (value: string | null | undefined) => typeof value === 'string' && value.trim().length > 0
+
+/**
+ * Single definition of "complete" and "publishable". A photo is encouraged (it is part
+ * of "complete") but not required to appear: the card draws initials without one.
+ * Name, description, position and team are required, so "Unknown User", "No Name" or
+ * a card with no role can never be shown.
+ */
+export function assessProfile(facts: ProfileFacts): ProfileAssessment {
+  const missingFromMember: ProfileAssessment['missingFromMember'] = []
+  if (!filled(facts.name)) missingFromMember.push('name')
+  if (!filled(facts.bio)) missingFromMember.push('bio')
+  if (!filled(facts.image)) missingFromMember.push('photo')
+
+  const missingFromAdmin: ProfileAssessment['missingFromAdmin'] = []
+  if (!filled(facts.position)) missingFromAdmin.push('position')
+  if (!facts.team) missingFromAdmin.push('team')
+
+  const publicBlockers: ProfileAssessment['publicBlockers'] = []
+  if (!filled(facts.name)) publicBlockers.push('name')
+  if (!filled(facts.bio)) publicBlockers.push('bio')
+  if (!filled(facts.position)) publicBlockers.push('position')
+  if (!facts.team) publicBlockers.push('team')
+  if (!facts.visible) publicBlockers.push('hidden')
+
+  return {
+    missingFromMember,
+    missingFromAdmin,
+    complete: missingFromMember.length === 0 && missingFromAdmin.length === 0,
+    publicBlockers,
+    publiclyVisible: publicBlockers.length === 0,
+  }
+}
 
 const ROLE_TEAM: Record<TeamProfileRole, MemberTeam> = {
   WRITER: 'writing',
@@ -122,6 +204,8 @@ export function validateTeamBio(value: unknown, maxLength: number): BioResult {
 
 /** A team row together with the account it is linked to, if any. */
 export interface TeamRowWithAccount extends TeamMemberRow {
+  /** Admin-set team override; see `resolveCardTeam`. */
+  team?: string | null
   user: {
     email: string
     name: string | null
@@ -140,10 +224,10 @@ export interface RosterMember extends ResolvedTeamMember {
 /**
  * Builds the public roster from every active team row.
  *
- * - Linked card: shown only while its account is active, not banned and still in
- *   a team role (WRITER / EDITOR / GROWTH). The name comes from the account, so a rename is reflected
- *   without touching the card. The card's own bio wins, falling back to the
- *   account bio. The team comes from the account's current role.
+ * - Linked card: shown only while its account is active and not banned, it has a
+ *   team (admin-set, else the role's team), and name, position and description are
+ *   all filled in. The member edits name/description/photo; position, team,
+ *   order and visibility are admin-only.
  * - Legacy card (no account link): the existing email-matched bio behaviour.
  * - A legacy card whose email belongs to an account that already has a linked
  *   card is dropped, so nobody can appear twice while old and new data coexist.
@@ -156,7 +240,7 @@ export function buildPublicRoster(
   const roster: RosterMember[] = []
   const legacy: TeamMemberRow[] = []
 
-  for (const { user, ...row } of rows) {
+  for (const { user, team: cardTeam, ...row } of rows) {
     if (!user) {
       legacy.push(row)
       continue
@@ -166,18 +250,17 @@ export function buildPublicRoster(
     // Internal test accounts (the sitemap and author pages exclude them too) must
     // never surface publicly, even if one of them creates a card.
     if (isTestAccountEmail(user.email)) continue
-    // The team is the account's role. No role-derived team (ADMIN, READER, or a
-    // demoted account) means no public card: there is no exception for titles.
-    const team = teamForRole(user.role)
+    // The team is the admin-set team when there is one, else the account role's team.
+    // Neither (an unplaced ADMIN, a READER) means no public card.
+    const team = resolveCardTeam(cardTeam, user.role)
     if (!team) continue
-    roster.push({
-      ...row,
-      name: user.name?.trim() || row.name,
-      role: row.role.trim() || null,
-      bio: row.bio?.trim() || user.bio?.trim() || null,
-      authorSlug: user.slug,
-      team,
-    })
+    // A linked card must say who the person is, what they do and a little about them.
+    // Anything less is "not ready", never a half-empty public card.
+    const name = row.name.trim() || user.name?.trim() || ''
+    const position = row.role.trim()
+    const bio = row.bio?.trim() || null
+    if (!name || !position || !bio) continue
+    roster.push({ ...row, name, role: position, bio, authorSlug: user.slug, team })
   }
 
   const unlinked = legacy.filter((row) => {

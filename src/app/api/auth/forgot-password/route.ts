@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs'
 import { checkRateLimit, getIp } from '@/lib/rate-limit'
 import { escapeHtml } from '@/lib/escapeHtml'
 import { stripControlCharacters } from '@/lib/searchText'
+import { verifyEmailAndClaim } from '@/lib/membership'
 
 // POST - request a password reset link (any user, not just editorial)
 export async function POST(req: NextRequest) {
@@ -146,6 +147,10 @@ export async function PATCH(req: NextRequest) {
       { status: 503 }
     )
   }
+
+  // The reset link went to the account's own inbox, so completing it proves control
+  // of the address: confirm it, and pick up any invitation an admin made for it.
+  await verifyEmailAndClaim(record.userId).catch(() => null)
 
   return NextResponse.json({ ok: true })
 }

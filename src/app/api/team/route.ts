@@ -4,14 +4,26 @@ import { prisma } from '@/lib/prisma'
 import { ADMIN_ONLY } from '@/lib/rbac'
 import { isUniqueViolation } from '@/lib/prismaErrors'
 import { parseLinkTarget } from './linkTarget'
+import { buildPublicRoster } from '@/lib/teamProfiles'
 
 export async function GET() {
   try {
-    const members = await prisma.teamMember.findMany({
+    const rows = await prisma.teamMember.findMany({
       where: { isActive: true },
       orderBy: { order: 'asc' },
       // userId is internal linkage, not public data.
       omit: { userId: true },
+      include: {
+        user: { select: { email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } },
+      },
+    })
+    // A card linked to an account is public only when it passes the same readiness rules as
+    // the Our Team page (name, position, description, a team; account active). Legacy cards
+    // (no account) are unchanged.
+    const ready = new Set(buildPublicRoster(rows, []).map((member) => member.id))
+    const members = rows.filter((row) => !row.user || ready.has(row.id)).map(({ user, ...row }) => {
+      void user
+      return row
     })
     return NextResponse.json(members)
   } catch {

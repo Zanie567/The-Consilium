@@ -75,7 +75,7 @@ export default defineConfig({
     // its contents, so they run serially (see `workers` in the project's spec files).
     {
       name: 'team-profile',
-      testMatch: /team-profile(-lifecycle)?\.spec\.ts/,
+      testMatch: /(team-profile(-lifecycle)?|member-onboarding)\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
     { name: 'setup', testMatch: /auth\.setup\.ts/ },

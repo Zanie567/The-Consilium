@@ -9,16 +9,20 @@ import { getInitials } from '@/lib/authorUtils'
 import { detectImageMimeType } from '@/lib/imageSniff'
 
 interface SavedProfile {
+  name?: string
   bio: string | null
   image: string | null
 }
 
 interface TeamProfileFormProps {
-  /** Account name; read-only here, edited in account settings. */
+  /** The display name shown on the card (the member's own to edit). */
   name: string
-  /** Display label of the team derived from the account's role. Read-only. */
-  teamLabel: string
+  /** Team label, or null while an administrator has not placed the card. Read-only. */
+  teamLabel: string | null
+  /** Public position/title, or null while unset. Read-only: administrators set it. */
+  position: string | null
   profile: SavedProfile | null
+  maxNameLength: number
   maxBioLength: number
   maxPhotoBytes: number
 }
@@ -27,14 +31,17 @@ const ACCEPTED = 'image/jpeg,image/png,image/gif,image/webp,image/avif'
 const labelClass = 'block text-xs uppercase tracking-widest text-[var(--fg-muted)] mb-1.5'
 
 export function TeamProfileForm({
-  name,
+  name: initialName,
   teamLabel,
+  position,
   profile,
+  maxNameLength,
   maxBioLength,
   maxPhotoBytes,
 }: TeamProfileFormProps) {
   const router = useRouter()
   const [exists, setExists] = useState(profile !== null)
+  const [name, setName] = useState(initialName)
   const [bio, setBio] = useState(profile?.bio ?? '')
   const [image, setImage] = useState(profile?.image ?? null)
   const [file, setFile] = useState<File | null>(null)
@@ -96,12 +103,14 @@ export function TeamProfileForm({
     setStatus(null)
     try {
       const body = new FormData()
+      body.set('name', name)
       body.set('bio', bio)
       if (file) body.set('image', file)
       else if (removeImage) body.set('removeImage', 'true')
 
       const saved = await apiRequest<SavedProfile>('/api/team-profile', { method: 'PUT', body })
       setExists(true)
+      if (saved.name) setName(saved.name)
       setBio(saved.bio ?? '')
       setImage(saved.image)
       setFile(null)
@@ -135,7 +144,7 @@ export function TeamProfileForm({
               className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-gold"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
-              {getInitials(name)}
+              {getInitials(name || initialName)}
             </span>
           )}
         </div>
@@ -175,16 +184,35 @@ export function TeamProfileForm({
         </div>
       </div>
 
+      <div>
+        <label htmlFor="tp-name" className={labelClass}>Name shown on the page</label>
+        <input
+          id="tp-name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={maxNameLength}
+          disabled={saving}
+          autoComplete="name"
+          className="w-full rounded border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--fg)] focus:border-gold focus:outline-none"
+        />
+        <p className="mt-1 text-xs text-[var(--fg-faint)]">Use the name you&apos;d like readers to see.</p>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <span className={labelClass}>Name</span>
-          <p className="rounded border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2 text-sm text-[var(--fg)]">{name}</p>
-          <p className="mt-1 text-xs text-[var(--fg-faint)]">Taken from your account.</p>
+          <span className={labelClass}>Position</span>
+          <p className="rounded border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2 text-sm text-[var(--fg)]">
+            {position ?? 'Not set yet'}
+          </p>
+          <p className="mt-1 text-xs text-[var(--fg-faint)]">Set by an administrator.</p>
         </div>
         <div>
           <span className={labelClass}>Team</span>
-          <p className="rounded border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2 text-sm text-[var(--fg)]">{teamLabel}</p>
-          <p className="mt-1 text-xs text-[var(--fg-faint)]">Set by your role. It can&apos;t be changed here.</p>
+          <p className="rounded border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2 text-sm text-[var(--fg)]">
+            {teamLabel ?? 'Not set yet'}
+          </p>
+          <p className="mt-1 text-xs text-[var(--fg-faint)]">Set by an administrator. It can&apos;t be changed here.</p>
         </div>
       </div>
 
