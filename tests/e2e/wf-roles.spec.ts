@@ -57,6 +57,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
   ],
   admin: [
     { label: 'Dashboard', href: '/editorial' },
+    { label: 'Team Profile', href: '/editorial/team-profile' },
     { label: 'Local draft recovery', href: '/editorial/recovery' },
     { label: 'All Articles', href: '/editorial/articles' },
     { label: 'My Drafts', href: '/editorial/articles?mine=true&status=DRAFT' },
@@ -69,6 +70,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
     { label: 'Debates', href: '/editorial/debates' },
     { label: 'Comments', href: '/editorial/comments' },
     { label: 'Users', href: '/editorial/users' },
+    { label: 'Members', href: '/editorial/members' },
     { label: 'Analytics', href: '/editorial/analytics' },
     { label: 'Predictions', href: '/editorial/predictions' },
     { label: 'Glossary', href: '/editorial/glossary' },
@@ -90,7 +92,7 @@ const ALL_PAGES = [
   '/editorial/debates/new', '/editorial/comments', '/editorial/users', '/editorial/analytics',
   '/editorial/predictions', '/editorial/predictions/new', '/editorial/glossary', '/editorial/readers',
   '/editorial/leaderboard', '/editorial/growth/subscribers', '/editorial/growth/engagement',
-  '/editorial/growth/writer-activity', '/editorial/team-profile',
+  '/editorial/growth/writer-activity', '/editorial/team-profile', '/editorial/members',
 ]
 
 /** Pages a role may open even though they are not menu entries (reached from other pages). */
@@ -99,7 +101,7 @@ const EXTRA_ALLOWED: Record<string, string[]> = {
   // Leaderboard: open to every portal role by design (page check: EDITORIAL_PORTAL_ROLES), menu entry for writers only.
   writer: ['/editorial/trash'],
   editor: ['/editorial/debates/new', '/editorial/leaderboard'],
-  // Admin: team-profile shows an explanation, not a form (covered by team-profile.spec.ts).
+  // Admin: may edit their own team card (position and team are set by an administrator; see team-profile.spec.ts).
   admin: ['/editorial/debates/new', '/editorial/predictions/new', '/editorial/growth/subscribers', '/editorial/growth/engagement', '/editorial/growth/writer-activity', '/editorial/leaderboard', '/editorial/team-profile'],
   growth: ['/editorial/growth/writer-activity', '/editorial/leaderboard'],
 }
