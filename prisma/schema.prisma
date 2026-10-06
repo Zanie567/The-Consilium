@@ -17,6 +17,16 @@ enum Role {
   GROWTH
 }
 
+// Where a pre-authorised Consilium member is in the hiring lifecycle.
+//   PENDING  invited by an admin; no verified account has claimed it yet
+//   ACTIVE   claimed by (or assigned directly to) an account; `role` is in force
+//   REVOKED  access withdrawn; the account is a plain READER again
+enum MembershipStatus {
+  PENDING
+  ACTIVE
+  REVOKED
+}
+
 enum ArticleStatus {
   DRAFT
   PENDING_REVIEW
@@ -77,6 +87,7 @@ model User {
   predictions        Prediction[]
   articleComments    ArticleComment[]
   teamProfile        TeamMember?
+  membership         TeamMembership?
   testPersonaKey     String? @unique
   testingRevision    Int @default(0)
 
@@ -413,6 +424,36 @@ model TeamMember {
   isActive Boolean @default(true)
 
   @@map("team_members")
+}
+
+// Explicit, auditable authorisation for Consilium staff. One row per email, so a
+// duplicate invitation is impossible. An admin creates it BEFORE the person has an
+// account; the first VERIFIED sign-in with that email claims it (userId is set,
+// status becomes ACTIVE) and `role` is written to users.role, which every existing
+// access gate keeps reading. Nobody can choose their own role: the only writers are
+// admin-only routes and the claim in src/lib/membership.ts.
+model TeamMembership {
+  id             String           @id @default(cuid())
+  // Lower-cased and trimmed. The identity link between an invitation and an account.
+  email          String           @unique
+  role           Role
+  status         MembershipStatus @default(PENDING)
+  userId         String?          @unique
+  user           User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  // Optional starting values for the Meet the Team card, applied when it is created.
+  displayName    String?
+  publicPosition String?
+  publicTier     String?
+  invitedById    String?
+  invitedByName  String?
+  claimedAt      DateTime?
+  revokedAt      DateTime?
+  revokedById    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([status])
+  @@map("team_memberships")
 }
 
 // ── Debate feature ──────────────────────────────────────────────────────────

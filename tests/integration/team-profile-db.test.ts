@@ -136,6 +136,9 @@ async function makeUser(role: Role, label: string, extra: Partial<Prisma.UserCre
 
 const rowsFor = (userId: string) => db.teamMember.findMany({ where: { userId } })
 
+/** What an administrator does to put a card on the page: show it (the default title stays). */
+const publish = (userId: string) => db.teamMember.update({ where: { userId }, data: { isActive: true } })
+
 suite('PUT /api/team-profile (real database)', () => {
   beforeAll(async () => {
     assertSafeTestDatabaseHost(TEST_DB!, 'TEST_DATABASE_URL')
@@ -177,7 +180,10 @@ suite('PUT /api/team-profile (real database)', () => {
 
       const rows = await rowsFor(user.id)
       expect(rows).toHaveLength(1)
-      expect(rows[0]).toMatchObject({ userId: user.id, name: user.name, bio: 'I write things.' })
+      expect(rows[0]).toMatchObject({ userId: user.id, name: user.name, bio: 'I write things.', isActive: false })
+
+      // Not public until an administrator shows it.
+      await publish(user.id)
 
       const all = await db.teamMember.findMany({
         where: { isActive: true },
@@ -190,27 +196,37 @@ suite('PUT /api/team-profile (real database)', () => {
       expect(sections.map((s) => s.id)).toEqual([section])
     })
 
-    it('ignores a team, role, userId, order or isActive posted by the client', async () => {
+    it('rejects a team, role, title, placement, userId, order or visibility posted by the client, and writes nothing', async () => {
       const victim = await makeUser('EDITOR', 'forge-victim')
       const writer = await makeUser('WRITER', 'forge-writer')
       state.session = { id: writer.id }
 
-      const res = await put({
-        bio: 'hello',
-        team: 'editorial',
-        role: 'EDITOR',
-        userId: victim.id,
-        order: '-5',
-        isActive: 'false',
-        name: 'Somebody Else',
-      })
-      expect(res.status).toBe(201)
-
+      for (const forged of [
+        { team: 'editorial' },
+        { role: 'EDITOR' },
+        { publicTier: 'editor_in_chief' },
+        { position: 'Editor-in-Chief' },
+        { userId: victim.id },
+        { order: '-5' },
+        { isActive: 'true' },
+      ] as Record<string, string>[]) {
+        const res = await put({ bio: 'hello', ...forged })
+        expect(res.status, JSON.stringify(forged)).toBe(400)
+        expect((await res.json()).code).toBe('FORBIDDEN_FIELD')
+      }
       expect(await rowsFor(victim.id)).toHaveLength(0)
-      const [mine] = await rowsFor(writer.id)
-      expect(mine).toMatchObject({ name: writer.name, role: 'Writer', publicTier: 'writer', isActive: true, order: 1000 })
-      // and the account's own role is untouched
+      expect(await rowsFor(writer.id)).toHaveLength(0)
       expect((await db.user.findUniqueOrThrow({ where: { id: writer.id } })).role).toBe('WRITER')
+    })
+
+    it('lets a member choose their own display name, and nothing about placement', async () => {
+      const writer = await makeUser('WRITER', 'name-own')
+      state.session = { id: writer.id }
+      expect((await put({ bio: 'hello', name: '  Preferred Name  ' })).status).toBe(201)
+      const [mine] = await rowsFor(writer.id)
+      expect(mine).toMatchObject({ name: 'Preferred Name', role: 'Writer', publicTier: 'writer', isActive: false, order: 1000 })
+      expect((await db.user.findUniqueOrThrow({ where: { id: writer.id } })).name).toBe(writer.name)
+      expect((await put({ bio: 'hello', name: 'x' })).status).toBe(400)
     })
   })
 
@@ -446,10 +462,10 @@ suite('PUT /api/team-profile (real database)', () => {
     ] as const)('an authorised title change moves a %s card independently of permission %s', async (role, _section) => {
       await asAdmin(`adm-team-${role}`)
       const target = await makeUser(role, `adm-team-t-${role}`)
-      const card = await db.teamMember.create({ data: { name: `${tag} team ${role}`, role: 'Writer' } })
+      const card = await db.teamMember.create({ data: { name: `${tag} team ${role}`, role: 'Writer', bio: 'Bio' } })
       // Titles from every other team, plus attempts to name a team or role directly.
       for (const title of ['Editor-in-Chief', 'Chief Designer', 'Head of Growth', 'Senior Editor', 'Writer', 'Social Media']) {
-        const res = await update(card.id, { userId: target.id, role: title, team: 'growth', userRole: 'ADMIN', section: 'masthead' })
+        const res = await update(card.id, { userId: target.id, role: title, bio: 'Bio', team: 'growth', userRole: 'ADMIN', section: 'masthead' })
         expect(res.status).toBe(200)
         const rows = await db.teamMember.findMany({
           where: { id: card.id },
@@ -587,10 +603,13 @@ suite('PUT /api/team-profile (real database)', () => {
       state.session = { id } // the SAME account, no new sign-in: the server reads the role from the database
 
       const res = await put({ bio: 'my first bio', image: photo() })
-      expect(res.status).toBe(201)
+      // The grant already made their (hidden) card, so this is an edit.
+      expect(res.status).toBe(200)
       const rows = await rowsFor(id)
       expect(rows).toHaveLength(1)
-      expect(rows[0]).toMatchObject({ userId: id, bio: 'my first bio', name: `Lifecycle ${role}` })
+      expect(rows[0]).toMatchObject({ userId: id, bio: 'my first bio', name: `Lifecycle ${role}`, isActive: false })
+      expect(await publicSections(id)).toEqual([])
+      await publish(id)
       expect(await publicSections(id)).toEqual([section])
       // repeating changes nothing structural
       expect((await put({ bio: 'edited' })).status).toBe(200)
@@ -601,14 +620,15 @@ suite('PUT /api/team-profile (real database)', () => {
       const id = await create('Lifecycle Chain', 'chain')
       await grant(id, 'WRITER')
       state.session = { id }
-      expect((await put({ bio: 'chain bio', image: photo() })).status).toBe(201)
+      expect((await put({ bio: 'chain bio', image: photo() })).status).toBe(200)
+      await publish(id)
       const [original] = await rowsFor(id)
       for (const role of ['EDITOR', 'GROWTH', 'READER', 'WRITER', 'ADMIN', 'EDITOR'] as const) {
         await grant(id, role)
         const [card] = await rowsFor(id)
         expect(card).toEqual(original)
         expect(await publicSections(id)).toEqual(['writers'])
-        expect((await put({ bio: 'chain bio', publicTier: 'editor_in_chief', order: '-1' })).status).toBe(role === 'READER' ? 403 : 200)
+        expect((await put({ bio: 'chain bio', publicTier: 'editor_in_chief', order: '-1' })).status).toBe(role === 'READER' ? 403 : 400) // forged placement: rejected, never applied
         expect((await rowsFor(id))[0]).toEqual(original)
       }
     })
@@ -679,7 +699,8 @@ suite('PUT /api/team-profile (real database)', () => {
       expect(bBefore.image).toContain(`/${b.id}/`)
 
       state.session = { id: a.id }
-      await put({ bio: 'A bio', removeImage: 'true', userId: b.id, id: bBefore.id })
+      expect((await put({ bio: 'A bio', removeImage: 'true', userId: b.id, id: bBefore.id })).status).toBe(400) // forged owner
+      await put({ bio: 'A bio', removeImage: 'true' }) // A's genuine request only ever acts on A's card
 
       const [bAfter] = await rowsFor(b.id)
       expect(bAfter).toMatchObject({ bio: 'B bio', image: bBefore.image })
@@ -708,6 +729,7 @@ suite('PUT /api/team-profile (real database)', () => {
       const user = await makeUser('WRITER', 'demote')
       state.session = { id: user.id }
       await put({ bio: 'x' })
+      await publish(user.id)
 
       const load = async () =>
         buildPublicRoster(

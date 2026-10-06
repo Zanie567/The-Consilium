@@ -14,7 +14,7 @@ import { NextRequest } from 'next/server'
 // vi.mock is hoisted above imports; vi.hoisted lets the factories reference these.
 // adminNote/auditLog/email use resolved-promise defaults because the routes call
 // them fire-and-forget with `.catch(...)`.
-const { prismaMock, authMock } = vi.hoisted(() => {
+const { prismaMock, authMock, membershipMock } = vi.hoisted(() => {
   const resolved = () => Promise.resolve({})
   return {
     prismaMock: {
@@ -26,10 +26,18 @@ const { prismaMock, authMock } = vi.hoisted(() => {
       article: { findMany: vi.fn() },
     },
     authMock: { getVerifiedSessionUser: vi.fn(), requireVerifiedSessionUser: vi.fn() },
+    membershipMock: { setMemberRole: vi.fn() },
   }
 })
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }))
 vi.mock('@/lib/auth', () => authMock)
+// The role route delegates to the membership module (users.role + membership + audit in
+// one transaction), which tests/integration/member-onboarding.test.ts covers against a
+// real database. Here only the route's own guards and hand-off are under test.
+vi.mock('@/lib/membership', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/membership')>()),
+  setMemberRole: membershipMock.setMemberRole,
+}))
 vi.mock('@/lib/email', () => ({
   sendEmail: vi.fn(() => Promise.resolve()),
   roleChangedEmail: vi.fn(() => ({ subject: 'subject', html: 'html' })),
@@ -157,12 +165,11 @@ describe('PATCH /api/admin/users/[userId]/role', () => {
       email: 'wes@consilium.test',
       role: 'READER',
     })
-    prismaMock.user.update.mockResolvedValue({})
+    membershipMock.setMemberRole.mockResolvedValue({ oldRole: 'READER', newRole: 'EDITOR' })
     const res = await call('writer-1', { role: 'EDITOR' })
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ ok: true, oldRole: 'READER', newRole: 'EDITOR' })
-    expect(prismaMock.user.update).toHaveBeenCalledOnce()
-    expect(prismaMock.auditLog.create).toHaveBeenCalledOnce()
+    expect(membershipMock.setMemberRole).toHaveBeenCalledWith(ADMIN, 'writer-1', 'EDITOR')
   })
 })
 

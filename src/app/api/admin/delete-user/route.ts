@@ -64,6 +64,13 @@ async function POSTHandler(req: NextRequest) {
         },
       })
 
+      // Keep the membership record as REVOKED: a deleted account must not leave an
+      // ACTIVE membership behind that would block (or silently honour) a later re-hire.
+      await tx.teamMembership.updateMany({
+        where: { userId: target.id },
+        data: { status: 'REVOKED', revokedAt: new Date(), revokedById: admin.id },
+      })
+
       // Remove notes authored by this user on any article
       await tx.articleNote.deleteMany({ where: { authorId: target.id } })
 

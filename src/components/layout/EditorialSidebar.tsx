@@ -34,6 +34,7 @@ import {
   BookMarked,
   BookOpenCheck,
   UserRound,
+  UserPlus,
 } from 'lucide-react'
 
 interface User {
@@ -140,6 +141,7 @@ export function EditorialSidebar({
           items: [
             { href: '/admin/testing', icon: Users, label: 'Testing', show: isAdmin },
             { href: '/editorial/users', icon: Users, label: 'Users', show: isAdmin },
+            { href: '/editorial/members', icon: UserPlus, label: 'Members', show: isAdmin },
             { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
             { href: '/editorial/predictions', icon: Target, label: 'Predictions', show: isAllowedRole(user.role, PREDICTIONS_MANAGE_ROLES) },
             { href: '/editorial/glossary', icon: BookMarked, label: 'Glossary', show: isAllowedRole(user.role, GLOSSARY_MANAGE_ROLES) },

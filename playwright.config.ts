@@ -85,7 +85,7 @@ export default defineConfig({
     },
     {
       name: 'team-profile',
-      testMatch: /team-profile(-lifecycle)?\.spec\.ts/,
+      testMatch: /(team-profile(-lifecycle)?|member-onboarding)\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
     { name: 'setup', testMatch: /auth\.setup\.ts/ },

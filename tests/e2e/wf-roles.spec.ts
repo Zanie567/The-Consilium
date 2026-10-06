@@ -74,6 +74,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
     { label: 'Comments', href: '/editorial/comments' },
     { label: 'Testing', href: '/admin/testing' },
     { label: 'Users', href: '/editorial/users' },
+    { label: 'Members', href: '/editorial/members' },
     { label: 'Analytics', href: '/editorial/analytics' },
     { label: 'Predictions', href: '/editorial/predictions' },
     { label: 'Glossary', href: '/editorial/glossary' },
@@ -95,7 +96,7 @@ const ALL_PAGES = [
   '/editorial/debates/new', '/editorial/comments', '/editorial/users', '/editorial/analytics',
   '/editorial/predictions', '/editorial/predictions/new', '/editorial/glossary', '/editorial/readers',
   '/editorial/leaderboard', '/editorial/growth/subscribers', '/editorial/growth/engagement',
-  '/editorial/growth/writer-activity', '/editorial/team-profile',
+  '/editorial/growth/writer-activity', '/editorial/team-profile', '/editorial/members',
 ]
 
 /** Pages a role may open even though they are not menu entries (reached from other pages). */

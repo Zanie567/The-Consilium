@@ -156,13 +156,20 @@ export function buildPublicRoster(
     // Internal test accounts (the sitemap and author pages exclude them too) must
     // never surface publicly, even if one of them creates a card.
     if (isTestAccountEmail(user.email) && process.env.TESTING_MODE_ENABLED !== '1') continue
+    // A linked card must say who the person is, what they do and a little about them.
+    // Anything less is "not ready", never a half-empty public card ("Unknown User",
+    // "No Role"). The member edits name and description; the title is admin-managed.
+    const name = row.name.trim() || user.name?.trim() || ''
+    const position = row.role.trim()
+    const bio = row.bio?.trim() || null
+    if (!name || !position || !bio) continue
     roster.push({
       ...row,
-      name: user.name?.trim() || row.name,
+      name,
       placementName: row.name,
-      role: row.role.trim() || null,
+      role: position,
       titleLabel: resolvePublicTitleLabel({ displayTitles: user.displayTitles, cardTitle: row.role }),
-      bio: row.bio?.trim() || user.bio?.trim() || null,
+      bio,
       authorSlug: user.slug,
       team: null,
     })
@@ -230,4 +237,61 @@ export function visiblePublicTitleLabel(account: {
     displayTitles: account.displayTitles,
     cardTitle: account.teamProfile?.isActive ? publicAppointmentLabel(account.teamProfile) : null,
   })
+}
+
+// ── Completeness ─────────────────────────────────────────────────────────────
+
+export interface ProfileFacts {
+  name: string | null | undefined
+  bio: string | null | undefined
+  image: string | null | undefined
+  /** The public title (`TeamMember.role`). Admin-managed. */
+  position: string | null | undefined
+  /** Admin-controlled visibility switch (`TeamMember.isActive`). */
+  visible: boolean
+}
+
+export interface ProfileAssessment {
+  /** What the member can still supply themselves. */
+  missingFromMember: ('name' | 'bio' | 'photo')[]
+  /** What only an administrator can supply. */
+  missingFromAdmin: 'position'[]
+  /** Everything above is present. */
+  complete: boolean
+  /** Why the card is not on the public page; empty when it is. */
+  publicBlockers: ('name' | 'bio' | 'position' | 'hidden')[]
+  publiclyVisible: boolean
+}
+
+const filled = (value: string | null | undefined) => typeof value === 'string' && value.trim().length > 0
+
+/**
+ * Single definition of "complete" and "publishable". A photo is encouraged (it is part
+ * of "complete") but not required to appear: the card draws initials without one.
+ * Name, description and position are required, so "Unknown User", "No Name" or a card
+ * with no role can never be shown. Placement (`publicTier`) is optional: without one
+ * the title decides, as on `main`.
+ */
+export function assessProfile(facts: ProfileFacts): ProfileAssessment {
+  const missingFromMember: ProfileAssessment['missingFromMember'] = []
+  if (!filled(facts.name)) missingFromMember.push('name')
+  if (!filled(facts.bio)) missingFromMember.push('bio')
+  if (!filled(facts.image)) missingFromMember.push('photo')
+
+  const missingFromAdmin: ProfileAssessment['missingFromAdmin'] = []
+  if (!filled(facts.position)) missingFromAdmin.push('position')
+
+  const publicBlockers: ProfileAssessment['publicBlockers'] = []
+  if (!filled(facts.name)) publicBlockers.push('name')
+  if (!filled(facts.bio)) publicBlockers.push('bio')
+  if (!filled(facts.position)) publicBlockers.push('position')
+  if (!facts.visible) publicBlockers.push('hidden')
+
+  return {
+    missingFromMember,
+    missingFromAdmin,
+    complete: missingFromMember.length === 0 && missingFromAdmin.length === 0,
+    publicBlockers,
+    publiclyVisible: publicBlockers.length === 0,
+  }
 }

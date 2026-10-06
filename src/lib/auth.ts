@@ -9,6 +9,8 @@ import GoogleProvider from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
 import { cache } from 'react'
 import { prisma } from './prisma'
+import { isUniqueViolation } from './prismaErrors'
+import { claimInvitationForUser, normalizeEmail, verifyEmailAndClaim } from './membership'
 import { sendEmail } from './email'
 import { escapeHtml } from './escapeHtml'
 import { apiServerErrorResponse } from './apiResponse'
@@ -86,6 +88,20 @@ export const authOptions: NextAuthOptions = {
           GoogleProvider({
             clientId: googleClientId,
             clientSecret: googleClientSecret,
+            // Emails are matched case-insensitively everywhere else; normalise here
+            // so the adapter's exact-match lookup finds the existing row instead of
+            // creating a second account that differs only by case.
+            profile(profile) {
+              return {
+                id: profile.sub,
+                name: profile.name,
+                email: normalizeEmail(profile.email),
+                image: profile.picture,
+                // The adapter creates new accounts as READER; only an admin invitation
+                // ever raises that (claimed in the `jwt` callback).
+                role: 'READER' as const,
+              }
+            },
             // Force account selection on every sign-in so users with multiple
             // Google accounts are not silently signed into the wrong one.
             authorization: {
@@ -108,8 +124,10 @@ export const authOptions: NextAuthOptions = {
           (req?.headers?.['x-real-ip'] as string) ??
           'unknown'
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+        // Case and surrounding whitespace never decide who someone is.
+        const submittedEmail = normalizeEmail(credentials.email)
+        const user = await prisma.user.findFirst({
+          where: { email: { equals: submittedEmail, mode: 'insensitive' } },
           // Override the global omit: the password hash is required here to
           // verify the supplied credentials with bcrypt.compare below.
           omit: { password: false },
@@ -163,12 +181,16 @@ export const authOptions: NextAuthOptions = {
 
         await logAttempt(credentials.email, ip, true)
 
+        // A verified account signing in with an email an admin pre-authorised picks up
+        // the assigned role now. Idempotent, and a failure must never block sign-in.
+        const claim = await claimInvitationForUser(user.id).catch(() => null)
+
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           image: user.image,
-          role: user.role,
+          role: claim?.claimed ? claim.role : user.role,
         }
       },
     }),
@@ -199,9 +221,9 @@ export const authOptions: NextAuthOptions = {
         const googleProfile = profile as { email_verified?: boolean } | undefined
         if (!googleProfile?.email_verified) return false
 
-        const dbUser = await prisma.user.findUnique({
-          where: { email: user.email },
-          select: { id: true, isBanned: true, isActive: true },
+        const dbUser = await prisma.user.findFirst({
+          where: { email: { equals: normalizeEmail(user.email), mode: 'insensitive' } },
+          select: { id: true, isBanned: true, isActive: true, emailVerified: true, password: true },
         })
 
         // No existing record: PrismaAdapter creates a new user with the
@@ -211,6 +233,14 @@ export const authOptions: NextAuthOptions = {
         // Block suspended or deactivated accounts from using Google sign-in
         // as a bypass route around the credentials checks.
         if (dbUser.isBanned || !dbUser.isActive) return false
+
+        // Pre-registration guard. A password account whose address was never confirmed may
+        // have been registered by someone other than the address's owner, and its password
+        // (and any live session) would survive a Google merge, then inherit any role an
+        // admin gives that address later. So never merge into one, invitation or not: the
+        // owner must first prove the inbox (emailed link or password reset, which also
+        // replaces that password), after which Google works as usual.
+        if (!dbUser.emailVerified && dbUser.password) return '/login?error=VerifyEmailFirst'
 
         // If the user registered with email/password and is signing in with
         // Google for the first time, link the Google account automatically
@@ -233,6 +263,11 @@ export const authOptions: NextAuthOptions = {
               id_token: account.id_token ?? null,
               session_state: account.session_state ? String(account.session_state) : null,
             },
+          }).catch((error: unknown) => {
+            // Two simultaneous first sign-ins both saw "not linked"; the unique
+            // (provider, providerAccountId) index let one win. The link exists, which
+            // is all this step wanted.
+            if (!isUniqueViolation(error)) throw error
           })
         }
 
@@ -250,9 +285,18 @@ export const authOptions: NextAuthOptions = {
       return true
     },
 
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
-        token.role = user.role
+        let role = user.role
+        if (account?.provider === 'google') {
+          // The signIn callback above already refused any Google profile whose email
+          // is not verified, so reaching here is the proof of address that lets an
+          // invitation for it be claimed. For a brand-new Google user the adapter has
+          // only just created the READER row; this is what upgrades it.
+          const claim = await verifyEmailAndClaim(user.id).catch(() => null)
+          if (claim?.claimed) role = claim.role
+        }
+        token.role = role
         token.id = user.id
         token.roleCheckedAt = Date.now()
         token.isBanned = false

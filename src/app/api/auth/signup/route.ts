@@ -35,13 +35,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Password must be between 8 and 128 characters.' }, { status: 400 })
     }
 
-    const existing = await prisma.user.findUnique({ where: { email } })
+    const existing = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+      select: { id: true },
+    })
     if (existing) {
       return NextResponse.json({ error: 'An account with that email already exists.' }, { status: 400 })
     }
 
     const hashed = await bcrypt.hash(password, 10)
     const user = await prisma.user.create({
+      // Always READER. Nothing in this request can choose a role: staff access comes only
+      // from an admin-created membership, claimed after the email is verified.
       data: { name, email, password: hashed, role: 'READER' },
     })
 

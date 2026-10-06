@@ -237,3 +237,31 @@ export function commentFlaggedEmail(
     `,
   }
 }
+
+export function verifyEmailEmail(userName: string | null, url: string) {
+  return {
+    subject: 'Confirm your email: The Consilium',
+    html: `
+      <p>Hi${userName ? ` ${esc(userName)}` : ''},</p>
+      <p>Confirm that this is your email address. If an administrator has already given this address access to The Consilium, confirming it is what switches that access on.</p>
+      <p><a href="${esc(url)}">Confirm my email →</a></p>
+      <p>The link works once and expires in 24 hours. If you didn't ask for this, you can ignore this message.</p>
+      <p>The Consilium</p>
+    `,
+  }
+}
+
+export function memberInvitedEmail(displayName: string | null, role: string) {
+  const base = process.env.NEXTAUTH_URL ?? SITE_URL
+  const label = role.charAt(0) + role.slice(1).toLowerCase()
+  return {
+    subject: `You've been added to The Consilium as ${label}`,
+    html: `
+      <p>Hi${displayName ? ` ${esc(displayName)}` : ''},</p>
+      <p>You've been given <strong>${esc(label)}</strong> access on The Consilium.</p>
+      <p>To use it, create an account (or sign in) with <strong>this email address</strong>. Google sign-in works too, as long as it is the same address. Your access switches on the first time you sign in, and you'll find a Team Profile page to add your photo and description for the Meet the Team page.</p>
+      <p><a href="${esc(base)}/signup">Create your account →</a></p>
+      <p>The Consilium</p>
+    `,
+  }
+}

@@ -81,6 +81,8 @@ async function grantRole(userId: string, role: Role) {
 
 const sessionRole = async (page: Page): Promise<string> => (await (await page.request.get('/api/auth/session')).json()).user?.role
 const cards = (userId: string) => db().teamMember.findMany({ where: { userId } })
+/** What an administrator does to put a card on the page: show it (the default title stays). */
+const publish = (userId: string) => db().teamMember.update({ where: { userId }, data: { isActive: true } })
 const heading = (page: Page) => page.getByRole('heading', { level: 1 })
 const sidebarLink = (page: Page) => page.getByRole('link', { name: 'Team Profile' })
 
@@ -144,9 +146,11 @@ for (const [role, section] of [
     // 4. the normal admin workflow — nothing else is done for them
     await grantRole(user.id, role)
 
-    // 5/6. the SAME session, no sign-in: one reload and the portal recognises the role
+    // 5/6. the SAME session, no sign-in: one reload and the portal recognises the role. The
+    //      (hidden) card was made for them by the grant, so this is the edit state.
+    expect(await cards(user.id)).toHaveLength(1)
     await page.goto('/editorial/team-profile')
-    await expect(heading(page)).toHaveText('Create your team profile')
+    await expect(heading(page)).toHaveText('Edit your team profile')
     await expect(sidebarLink(page)).toBeVisible()
 
     // 7. Ordinary first-card defaults are read-only; established appointments survive role changes.
@@ -156,7 +160,7 @@ for (const [role, section] of [
     // 8. create
     await page.setInputFiles('#tp-photo', { name: 'me.png', mimeType: 'image/png', buffer: makePng(64, [30, 120, 200]) })
     await page.getByLabel('Description').fill(`I am the new ${role.toLowerCase()}.`)
-    await page.getByRole('button', { name: 'Create profile' }).click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
     await expect(page.getByRole('status')).toContainText('has been saved')
 
     // 9. exactly one row, owned by this account
@@ -166,7 +170,9 @@ for (const [role, section] of [
     expect(rows[0].image).toContain(`/avatars/${user.id}/`)
     expect(await db().teamMember.count({ where: { name } })).toBe(1)
 
-    // 10. on the public page exactly once, in the right section
+    // 10. not public until an administrator shows it; then exactly once, in the right section
+    expect(await publicPlacement(browser, name)).toEqual({ sections: [], total: 0 })
+    await publish(user.id)
     expect(await publicPlacement(browser, name)).toEqual({ sections: [section], total: 1 })
 
     // 11. a refresh shows the edit state
@@ -208,9 +214,9 @@ test('session: page, API and session response see a promotion immediately withou
 
   // Immediately: the portal layout, the page and the API all read the role from the database.
   await page.goto('/editorial/team-profile')
-  await expect(heading(page)).toHaveText('Create your team profile')
+  await expect(heading(page)).toHaveText('Edit your team profile')
   const created = await page.request.put('/api/team-profile', { multipart: { bio: 'immediately' } })
-  expect(created.status()).toBe(201)
+  expect(created.status()).toBe(200) // the grant already made their (hidden) card
 
   // A signed cookie may cache historical claims; the returned session does not trust them.
   expect(await sessionRole(page)).toBe('WRITER')
@@ -229,8 +235,9 @@ test('one account, one card: Writer → Editor → Growth → Reader → Writer 
   await page.goto('/editorial/team-profile')
   await page.setInputFiles('#tp-photo', { name: 'me.png', mimeType: 'image/png', buffer: makePng(64, [90, 40, 160]) })
   await page.getByLabel('Description').fill('chain bio')
-  await page.getByRole('button', { name: 'Create profile' }).click()
+  await page.getByRole('button', { name: 'Save changes' }).click()
   await expect(page.getByRole('status')).toContainText('has been saved')
+  await publish(user.id)
   const [original] = await cards(user.id)
   const expectedBio = 'chain bio'
 

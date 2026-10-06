@@ -10,6 +10,7 @@ import { DraftsSection } from '@/components/editorial/DraftsSection'
 import { TrophySection, type TrophyRecord } from '@/components/editorial/TrophySection'
 import { StreakCard } from '@/components/editorial/StreakCard'
 import { StreakCadenceControl } from '@/components/editorial/StreakCadenceControl'
+import { TeamProfileNudge } from '@/components/editorial/TeamProfileNudge'
 import { FirstPublishBanner } from '@/components/editorial/FirstPublishBanner'
 import { SeriesCompleteBadges } from '@/components/editorial/SeriesCompleteBadges'
 import { CommissioningBriefEditor } from '@/components/editorial/CommissioningBriefEditor'
@@ -253,6 +254,8 @@ export default async function EditorialDashboard() {
         </div>
         <NotificationBell userId={session.user.id} />
       </PortalSection>
+
+      <TeamProfileNudge userId={userId} />
 
       {/* One-time achievement banners (first publish, then series completion) */}
       {firstPublishAchievement && (

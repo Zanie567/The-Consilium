@@ -31,7 +31,9 @@ function row(overrides: Partial<TeamRowWithAccount> = {}): TeamRowWithAccount {
     id: 'tm-1',
     name: 'Stored Name',
     role: 'Writer',
-    bio: null,
+    // A linked card is public only with a title and a description, so the default row is a
+    // ready one and each test varies a single thing.
+    bio: 'A short bio.',
     image: null,
     email: null,
     order: 1000,
@@ -114,18 +116,25 @@ describe('buildPublicRoster', () => {
     }
   })
 
-  it('takes the name from the account and falls back to the stored one', () => {
-    const [renamed] = buildPublicRoster([row({ user: account({ name: ' New Name ' }) })], [])
-    const [unnamed] = buildPublicRoster([row({ user: account({ name: null }) })], [])
-    expect(renamed.name).toBe('New Name')
-    expect(unnamed.name).toBe('Stored Name')
+  it('uses the card’s own display name, falling back to the account name', () => {
+    const [own] = buildPublicRoster([row({ name: ' Preferred Name ', user: account({ name: 'Account Name' }) })], [])
+    const [fallback] = buildPublicRoster([row({ name: '  ', user: account({ name: ' Account Name ' }) })], [])
+    expect(own.name).toBe('Preferred Name')
+    expect(fallback.name).toBe('Account Name')
   })
 
-  it('prefers the card bio, then the account bio', () => {
-    const [own] = buildPublicRoster([row({ bio: 'Card bio', user: account({ bio: 'Acct bio' }) })], [])
-    const [fallback] = buildPublicRoster([row({ bio: null, user: account({ bio: 'Acct bio' }) })], [])
-    expect(own.bio).toBe('Card bio')
-    expect(fallback.bio).toBe('Acct bio')
+  it('never shows a linked card without a description, title or any name', () => {
+    const roster = buildPublicRoster(
+      [
+        row({ id: 'no-bio', bio: null, user: account({ email: 'a@x', bio: 'The account bio is not used' }) }),
+        row({ id: 'blank-bio', bio: '   ', user: account({ email: 'b@x' }) }),
+        row({ id: 'no-title', role: '  ', user: account({ email: 'c@x' }) }),
+        row({ id: 'no-name', name: '', user: account({ email: 'd@x', name: null }) }),
+        row({ id: 'ok', user: account({ email: 'e@x' }) }),
+      ],
+      [],
+    )
+    expect(roster.map((m) => m.id)).toEqual(['ok'])
   })
 
   it('hides cards whose account is banned or inactive', () => {
@@ -138,7 +147,7 @@ describe('buildPublicRoster', () => {
       ],
       [],
     )
-    expect(roster.map((m) => m.id)).toEqual(['demoted', 'ok'])
+    expect(roster.map((m) => m.id)).toEqual(['demoted', 'ok']) // access and the public card are separate
   })
 
   it('keeps the title and appointment for ADMIN and READER without assigning privileges', () => {

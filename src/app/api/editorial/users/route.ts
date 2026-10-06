@@ -4,6 +4,7 @@ import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { ADMIN_ONLY, EDITORIAL_MANAGEMENT_ROLES, isRole } from '@/lib/rbac'
+import { MembershipError, setMemberRole, normalizeEmail } from '@/lib/membership'
 
 export async function GET() {
   const caller = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
@@ -41,7 +42,10 @@ async function POSTHandler(req: Request) {
     return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } })
+  const existing = await prisma.user.findFirst({
+    where: { email: { equals: normalizeEmail(String(email)), mode: 'insensitive' } },
+    select: { id: true },
+  })
   if (existing) {
     return NextResponse.json({ error: 'Email already in use.' }, { status: 400 })
   }
@@ -74,6 +78,16 @@ async function POSTHandler(req: Request) {
     },
     select: { id: true, name: true, email: true, role: true, slug: true },
   })
+
+  // An account created with a staff role is a member like any other: record the
+  // membership (and audit entry) so it shows in the member list.
+  if (role !== 'READER') {
+    try {
+      await setMemberRole(caller, user.id, role)
+    } catch (error) {
+      if (!(error instanceof MembershipError)) throw error
+    }
+  }
 
   return NextResponse.json(user, { status: 201 })
 }
