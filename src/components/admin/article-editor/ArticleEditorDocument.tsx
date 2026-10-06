@@ -48,7 +48,7 @@ export function ArticleEditorDocument({ editor, editorRef, excerptDomRef, titleD
   const docCoverInputRef = useRef<HTMLInputElement>(null)
 
   return (
-    <div className="flex-none w-full max-w-[960px] bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] min-h-[calc(100vh-120px)]">
+    <div className="flex-1 min-w-0 w-full max-w-[960px] bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] min-h-[calc(100vh-120px)]">
       {/* Hidden file input for the document-body cover-image button */}
       <input
         ref={docCoverInputRef}

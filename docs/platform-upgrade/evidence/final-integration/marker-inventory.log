@@ -1,0 +1,6 @@
+src/lib/auth.ts:23:const MAX_FAILED_ATTEMPTS = 5
+src/lib/auth.ts:45:        <p>The account <strong>${escapeHtml(lockedEmail)}</strong> has been temporarily locked after ${MAX_FAILED_ATTEMPTS} consecutive failed login attempts.</p>
+src/lib/auth.ts:130:          if (newCount >= MAX_FAILED_ATTEMPTS) {
+tests/integration/api.test.ts:36:  it.skip(label, () => {})
+tests/integration/api.test.ts:745:  it.skip('invalid bucket name → 400 (auth fires before bucket check in current implementation)', () => {})
+tests/unit/rbac.test.ts:78:    expect(isAllowedRole('HACKER', ALL_ROLES)).toBe(false)

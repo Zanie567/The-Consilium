@@ -42,7 +42,10 @@ export async function collectAnalytics(body: Record<string, unknown>, now = new 
       return
     if (!(await tx.articleView.findFirst({ where: { sessionHash: hash }, select: { id: true } }))) {
       await tx.articleView.create({ data: { articleId, sessionHash: hash, referrer } })
-      await tx.article.update({ where: { id: articleId }, data: { viewCount: { increment: 1 } } })
+      // Telemetry must not advance the editorial revision/dateModified or
+      // invalidate an editor's open document. Increment atomically without
+      // Prisma's automatic @updatedAt write.
+      await tx.$executeRaw`UPDATE articles SET "viewCount" = "viewCount" + 1 WHERE id = ${articleId}`
     }
     if (typeof visitId !== 'string' || !uuid.test(visitId)) return
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`visit:${visitId}`}))`

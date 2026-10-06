@@ -12,8 +12,8 @@
  * editors in, the ALLOW cases still pass and the DENY cases fail loudly, which
  * is exactly the signal that change should produce.
  *
- * Runs against a live server and skips (does not fail) when none is reachable,
- * matching the other live suites here. Seeded accounts come from
+ * Runs against a live server and fails setup when it is unavailable.
+ * Seeded accounts come from
  * `npm run test:setup-db`.
  */
 import { describe, it, expect, beforeAll } from 'vitest'
@@ -32,16 +32,15 @@ let writerOk = false
 
 beforeAll(async () => {
   up = await serverUp(BASE)
-  if (!up) {
-    console.warn(`[calendar-access] No server at ${BASE} — skipping.`)
-    return
-  }
+  if (!up) throw new Error(`Required local calendar server is not reachable at ${BASE}`)
   admin = new Session(BASE)
   writer = new Session(BASE)
   ;[adminOk, writerOk] = await Promise.all([
     admin.login(ADMIN.email, ADMIN.password),
     writer.login(WRITER.email, WRITER.password),
   ])
+  expect(adminOk, 'seeded admin login is required').toBe(true)
+  expect(writerOk, 'seeded writer login is required').toBe(true)
 })
 
 describe('editorial calendar authorisation', () => {

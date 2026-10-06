@@ -1,0 +1,67 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+Running 8 tests using 1 worker
+
+(node:85336) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85336) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [setup] › tests/e2e/auth.setup.ts:13:6 › authenticate as admin (741ms)
+  ✓  2 [setup] › tests/e2e/auth.setup.ts:50:6 › authenticate as an editor with no category assignments (371ms)
+  ✓  3 [setup] › tests/e2e/auth.setup.ts:54:6 › authenticate as an editor scoped to Opinion (375ms)
+  ✓  4 [setup] › tests/e2e/auth.setup.ts:62:6 › authenticate as the seeded writer (377ms)
+(node:85385) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85385) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  5 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:48:5 › writer paste/table/figure → repeated save/reload → editor review/edit/schedule/publish → public → replace/delete/republish (3.6s)
+(node:85449) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85449) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  6 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:270:5 › every exposed formatting control operates, including keyboard buttons and table deletion (3.9s)
+  ✓  7 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:401:5 › wide tables and standard/wide/portrait figures remain contained in editor and public layouts (1.4s)
+  ✓  8 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:519:5 › plain-text paste and cancelled upload preserve document and allow retry (742ms)
+
+
+  1) [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:48:5 › writer paste/table/figure → repeated save/reload → editor review/edit/schedule/publish → public → replace/delete/republish
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator: getByLabel('Article format', { exact: true })
+    Expected: "cmux401600001bh3679x6op23"
+    Error: strict mode violation: getByLabel('Article format', { exact: true }) resolved to 2 elements:
+        1) <select aria-label="Article format" class="w-full h-8 text-[16px] sm:text-[12px] border border-[var(--border)] rounded px-2 pr-6 bg-[var(--bg-elevated)] focus:outline-none focus:border-gold appearance-none cursor-pointer disabled:opacity-60">…</select> aka locator('#main-content').getByLabel('Article format')
+        2) <select aria-label="Article format" class="w-full h-8 text-[16px] sm:text-[12px] border border-[var(--border)] rounded px-2 pr-6 bg-[var(--bg-elevated)] focus:outline-none focus:border-gold appearance-none cursor-pointer disabled:opacity-60">…</select> aka getByLabel('Article format').nth(1)
+
+    Call log:
+      - Expect "toHaveValue" with timeout 10000ms
+      - waiting for getByLabel('Article format', { exact: true })
+
+
+      180 |     await expect(editor.getByText('Note: Forecast begins in 2027', { exact: true })).toBeVisible()
+      181 |     await editor.goto(`${base}/editorial/articles/${id}/edit`)
+    > 182 |     await expect(editor.getByLabel('Article format', { exact: true })).toHaveValue(first.categoryId)
+          |                                                                        ^
+      183 |     await editor.getByRole('button', { name: 'Remove Writer Lifecycle Inflation', exact: true }).click()
+      184 |     await editor.getByLabel('Article topics', { exact: true }).fill('Writer Lifecycle Policy')
+      185 |     await editor.getByLabel('Article topics', { exact: true }).press('Enter')
+        at /private/tmp/consilium-final-integration/tests/e2e/upgrade-rich-content.spec.ts:182:72
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-rich-content-write-5664f--→-replace-delete-republish-upgrade/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-rich-content-write-5664f--→-replace-delete-republish-upgrade/test-failed-3.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-rich-content-write-5664f--→-replace-delete-republish-upgrade/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/upgrade-rich-content-write-5664f--→-replace-delete-republish-upgrade/error-context.md
+
+  1 failed
+    [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:48:5 › writer paste/table/figure → repeated save/reload → editor review/edit/schedule/publish → public → replace/delete/republish
+  7 passed (13.2s)

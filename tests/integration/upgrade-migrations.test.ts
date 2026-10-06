@@ -31,13 +31,14 @@ async function fixture(test: (client: Client) => Promise<void>) {
 describe('upgrade migrations on isolated empty/colliding historical databases', () => {
   it('applies all additive migrations on empty tables and keeps client/DB canonical identity equal', async () =>
     fixture(async (client) => {
-      for (const file of [
+      const files = [
         '20261006153514_discovery_topic_identity',
         '20261006160355_managed_article_images',
         '20261006161413_normalized_subscriber_email',
         '20261006161505_article_active_engagement',
-      ])
-        await client.query(migration(file))
+      ]
+      for (let replay = 0; replay < 2; replay++)
+        for (const file of files) await client.query(migration(file))
       for (const label of [
         ' Investment & Finance ',
         'INVESTMENT---FINANCE',
@@ -59,6 +60,22 @@ describe('upgrade migrations on isolated empty/colliding historical databases', 
           )
         ).rows[0].count
       ).toBe('0')
+      // Catalog flags alone cannot prove RLS. Give a non-owner realistic client
+      // grants and verify default-deny on the two server-only tables.
+      await client.query("INSERT INTO articles VALUES ('security-probe'); INSERT INTO article_image_assets(url,path,\"uploaderId\") VALUES ('owner-object','owner-object','owner'); INSERT INTO article_engagement_sessions(id,\"articleId\") VALUES ('owner-visit','security-probe')")
+      const role = `consilium_rls_${randomUUID().replaceAll('-', '')}`
+      await client.query(`CREATE ROLE "${role}" NOLOGIN`)
+      try {
+        await client.query(`GRANT USAGE ON SCHEMA public TO "${role}"; GRANT SELECT, INSERT, UPDATE, DELETE ON article_image_assets, article_engagement_sessions TO "${role}"`)
+        await client.query(`SET ROLE "${role}"`)
+        for (const table of ['article_image_assets', 'article_engagement_sessions'])
+          expect((await client.query(`SELECT count(*) FROM ${table}`)).rows[0].count).toBe('0')
+        await expect(client.query(`INSERT INTO article_image_assets (url,path,"uploaderId") VALUES ('probe','probe','probe')`)).rejects.toThrow('row-level security')
+        await expect(client.query(`INSERT INTO article_engagement_sessions (id,"articleId") VALUES ('probe','security-probe')`)).rejects.toThrow('row-level security')
+      } finally {
+        await client.query('RESET ROLE')
+        await client.query(`DROP OWNED BY "${role}"; DROP ROLE "${role}"`)
+      }
     }))
   it('refuses canonical tag collisions without rewriting IDs, slugs or relations', async () =>
     fixture(async (client) => {

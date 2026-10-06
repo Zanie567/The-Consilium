@@ -5,13 +5,14 @@ import { prisma } from '@/lib/prisma'
 vi.mock('@/lib/rate-limit', () => ({ checkRateLimit: () => true, getIp: () => 'local' }))
 import { POST } from '@/app/api/subscribe/route'
 const email = `${randomUUID()}@example.test`
+const legacyEmails: string[] = []
 const request = (value: unknown) =>
   new NextRequest('http://localhost/api/subscribe', {
     method: 'POST',
     body: JSON.stringify({ email: value }),
   })
 afterAll(async () => {
-  await prisma.subscriber.deleteMany({ where: { email } })
+  await prisma.subscriber.deleteMany({ where: { email: { in: [email, ...legacyEmails] } } })
 })
 describe('newsletter persistence', () => {
   it.each(['', 'bad', 'a@b', 'x'.repeat(255) + '@a.test'])('rejects invalid %s', async (value) =>
@@ -23,6 +24,14 @@ describe('newsletter persistence', () => {
     )
     expect(responses.map((r) => r.status).sort()).toEqual([200, 200, 200, 200, 200, 201])
     expect(await prisma.subscriber.count({ where: { email } })).toBe(1)
+  })
+  it.each(['\t', '\n', '\u00a0', '\ufeff'])('reuses historical subscribers with surrounding %j whitespace', async whitespace => {
+    const address = `${randomUUID()}@example.test`
+    const stored = `${whitespace}${address.toUpperCase()}${whitespace}`
+    legacyEmails.push(stored, address)
+    await prisma.subscriber.create({ data: { email: stored } })
+    expect((await POST(request(address))).status).toBe(200)
+    await expect(prisma.subscriber.create({ data: { email: address } })).rejects.toThrow()
   })
   it('returns a friendly failure without database details', async () => {
     const spy = vi

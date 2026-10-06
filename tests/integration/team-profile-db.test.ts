@@ -6,7 +6,7 @@
  * The database is whatever vitest.config.ts resolved through the central guard
  * (scripts/lib/assertSafeTestDatabaseHost.ts): TEST_DATABASE_URL or the local default, never
  * .env.local. If it is unreachable, or its schema predates `team_members.userId`,
- * the suite skips with a warning instead of failing.
+ * the suite fails collection instead of silently passing.
  *
  *   npm run test:setup-db      # starts a local Postgres, pushes the schema, seeds
  *   npx vitest run tests/integration/team-profile-db.test.ts
@@ -38,11 +38,8 @@ async function schemaIsReady(): Promise<boolean> {
 }
 
 const ready = await schemaIsReady()
-if (!ready)
-  console.warn(
-    '[team-profile-db] skipped: no local test database with the team_members.userId column'
-  )
-const suite = ready ? describe : describe.skip
+if (!ready) throw new Error('Required local test database with team_members.userId is not ready')
+const suite = describe
 
 const { state, storage } = vi.hoisted(() => ({
   state: { prisma: undefined as unknown, session: null as null | { id: string } },

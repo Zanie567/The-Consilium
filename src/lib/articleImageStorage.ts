@@ -75,20 +75,47 @@ export function articleImageReferences(content: unknown, coverImage: unknown): s
   }
   return [...refs].sort()
 }
+/** Acquire canonical locks before touching article rows, consistently for
+ * saves and deletes, so a delete cannot deadlock against a concurrent save.
+ */
+export async function lockArticleImageReferences(
+  tx: Prisma.TransactionClient,
+  content: unknown,
+  coverImage: unknown
+): Promise<string[]> {
+  const urls = articleImageReferences(content, coverImage)
+  for (const url of urls)
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`image:${url}`}))`
+  return urls
+}
 /** Every article mutation takes these locks before storing a managed reference. */
 export async function lockArticleImages(
   tx: Prisma.TransactionClient,
   content: unknown,
   coverImage: unknown
 ): Promise<void> {
-  for (const url of articleImageReferences(content, coverImage)) {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`image:${url}`}))`
+  for (const url of await lockArticleImageReferences(tx, content, coverImage)) {
     const asset = await tx.articleImageAsset.findUnique({ where: { url }, select: { url: true } })
     if (!asset)
       throw new ArticleImageUnavailableError(
         'This uploaded image is no longer available. Upload it again before saving.'
       )
     await tx.articleImageAsset.updateMany({ where: { url }, data: { unusedSince: null } })
+  }
+}
+/** Persist cleanup eligibility in the same transaction that deletes an article.
+ * GC rechecks every remaining reference before removal, including shared images.
+ */
+export async function queueDeletedArticleImages(
+  tx: Prisma.TransactionClient,
+  content: unknown,
+  coverImage: unknown
+): Promise<void> {
+  for (const url of await lockArticleImageReferences(tx, content, coverImage)) {
+    await tx.articleImageAsset.updateMany({
+      where: { url, unusedSince: null },
+      data: { unusedSince: new Date() },
+    })
   }
 }
 /** Reference check and storage removal share the reference lock with saves. */
@@ -148,8 +175,8 @@ export async function cleanupRemovedArticleImages(
   const current = new Set(articleImageReferences(nextContent, nextCover))
   for (const url of articleImageReferences(oldContent, oldCover))
     if (!current.has(url)) {
+      await queueArticleImageCleanup(url)
       if (permanent) await removeUnreferencedArticleImage(url)
-      else await queueArticleImageCleanup(url)
     }
 }
 /** 30-day grace protects Undo/recovery; bounded cron batch, no legacy objects. */

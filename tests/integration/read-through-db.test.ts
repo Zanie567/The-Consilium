@@ -10,18 +10,13 @@
  * prisma/seed-read-through.ts (run by scripts/setup-test-db.sh), so nothing
  * here can race the other DB-backed suites running in parallel workers.
  *
- * Requires DATABASE_URL (loaded from .env.local). If the DB is unreachable or
- * the fixtures are missing, the suite is skipped with a warning, mirroring
- * data-layer.test.ts.
+ * Uses vitest.config.ts's guarded local database. Missing DB or fixtures fail
+ * setup instead of silently passing aggregation cases.
  */
-import { config } from 'dotenv'
-import { resolve } from 'path'
-config({ path: resolve(__dirname, '../../.env.local') })
-
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { assertSafeTestDatabaseHost } from '../../scripts/lib/assertSafeTestDatabaseHost'
 
-// Imported dynamically so @/lib/prisma initialises after .env.local is loaded.
+// The Vitest worker guard runs before these imports.
 const { prisma } = await import('@/lib/prisma')
 const { getArticleReadThrough, getReadStatsByArticleIds } = await import('@/lib/read-through')
 
@@ -43,7 +38,7 @@ const ids: Record<keyof typeof SLUGS, string> = {
 beforeAll(async () => {
   try {
     // Same host-safety reasoning as data-layer.test.ts: an unsafe/production
-    // host must be treated as "unreachable" and skipped, not queried.
+    // host must fail before any query.
     assertSafeTestDatabaseHost(process.env.DATABASE_URL, 'DATABASE_URL')
     const slugs = Object.values(SLUGS)
     const articles = await prisma.article.findMany({
@@ -56,12 +51,10 @@ beforeAll(async () => {
       }
       ready = true
     } else {
-      console.warn(
-        '[read-through-db] fixtures missing — skipping. Run scripts/setup-test-db.sh (it runs prisma/seed-read-through.ts).'
-      )
+      throw new Error('Read-through fixtures missing; run scripts/setup-test-db.sh.')
     }
-  } catch {
-    console.warn('[read-through-db] DB unreachable — skipping. Run scripts/setup-test-db.sh first.')
+  } catch (error) {
+    throw new Error('Required local read-through database/fixtures are unavailable.', { cause: error })
   }
 })
 

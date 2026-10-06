@@ -6,6 +6,7 @@ import {
   queueArticleImageCleanup,
   collectUnusedArticleImages,
   lockArticleImages,
+  cleanupRemovedArticleImages,
 } from '@/lib/articleImageStorage'
 let userId: string
 let articleId: string
@@ -121,6 +122,18 @@ describe('reference-safe image cleanup', () => {
       await prisma.article.update({ where: { id: articleId }, data: { coverImage: null } })
     }
   )
+  it('keeps failed permanent Storage cleanup queued for retry', async () => {
+    await prisma.article.update({ where: { id: articleId }, data: { content: '{}' } })
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    try {
+      process.env.SUPABASE_SERVICE_ROLE_KEY = ''
+      await cleanupRemovedArticleImages(JSON.stringify({ type: 'figure', attrs: { src: url } }), null, '', null, true)
+      expect((await prisma.articleImageAsset.findUniqueOrThrow({ where: { url } })).unusedSince).not.toBeNull()
+      expect((await fetch(url)).ok).toBe(true)
+    } finally {
+      process.env.SUPABASE_SERVICE_ROLE_KEY = key
+    }
+  })
   it('only removes a managed image after its last stored reference disappears', async () => {
     await prisma.article.update({ where: { id: articleId }, data: { content: '{}' } })
     await queueArticleImageCleanup(url, userId)

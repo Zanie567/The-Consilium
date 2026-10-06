@@ -55,9 +55,13 @@ test('writer paste/table/figure → repeated save/reload → editor review/edit/
   const writer = await writerContext.newPage()
   const editor = await editorContext.newPage()
   const reader = await browser.newPage()
+  await reader.emulateMedia({ reducedMotion: 'reduce' })
   const errors: string[] = []
   for (const page of [writer, editor, reader])
     page.on('pageerror', (error) => errors.push(error.message))
+  reader.on('console', message => {
+    if (/hydration|hydrated|server rendered/i.test(message.text())) errors.push(message.text())
+  })
   const base = process.env.E2E_BASE_URL!
   let id = ''
   try {
@@ -143,12 +147,19 @@ test('writer paste/table/figure → repeated save/reload → editor review/edit/
     await writer.getByLabel('Source', { exact: true }).fill('Bank of England')
     await writer.getByLabel('Source URL', { exact: true }).fill('https://www.bankofengland.co.uk/')
     await writer.getByLabel('Note', { exact: true }).fill('Forecast begins in 2027')
+    await writer.getByRole('combobox', { name: 'Article format', exact: true }).selectOption({ label: 'Analysis' })
+    for (const topic of ['Writer Lifecycle Finance', 'Writer Lifecycle Inflation']) {
+      await writer.getByRole('textbox', { name: 'Article topics', exact: true }).fill(topic)
+      await writer.getByRole('textbox', { name: 'Article topics', exact: true }).press('Enter')
+    }
     const first = await save(writer)
     id = first.id
     await writer.goto(`${base}/editorial/articles/${id}/edit`)
     await expect(writer.getByLabel('Alternative text', { exact: true })).toHaveValue(
       'Inflation declines towards two percent'
     )
+    await expect(writer.getByRole('combobox', { name: 'Article format', exact: true })).toHaveValue(first.categoryId)
+    await expect(writer.getByRole('button', { name: 'Remove Writer Lifecycle Finance', exact: true })).toBeVisible()
     const storedBefore = JSON.parse(await json(writer))
     for (let i = 0; i < 2; i++) {
       await save(writer)
@@ -168,6 +179,11 @@ test('writer paste/table/figure → repeated save/reload → editor review/edit/
     await expect(editor.locator('.ProseMirror table tr')).toHaveCount(4)
     await expect(editor.getByText('Note: Forecast begins in 2027', { exact: true })).toBeVisible()
     await editor.goto(`${base}/editorial/articles/${id}/edit`)
+    await expect(editor.getByRole('combobox', { name: 'Article format', exact: true })).toHaveCount(1)
+    await expect(editor.getByRole('combobox', { name: 'Article format', exact: true })).toHaveValue(first.categoryId)
+    await editor.getByRole('button', { name: 'Remove Writer Lifecycle Inflation', exact: true }).click()
+    await editor.getByRole('textbox', { name: 'Article topics', exact: true }).fill('Writer Lifecycle Policy')
+    await editor.getByRole('textbox', { name: 'Article topics', exact: true }).press('Enter')
     await editor.locator('.ProseMirror td').first().click()
     await editor.keyboard.press('End')
     await editor.keyboard.type(' editorial')
@@ -185,6 +201,15 @@ test('writer paste/table/figure → repeated save/reload → editor review/edit/
     for (const width of [375, 768, 1440]) {
       await reader.setViewportSize({ width, height: 900 })
       await reader.goto(`${base}/articles/${published.slug}`)
+      const decline = reader.getByRole('button', { name: 'Decline', exact: true })
+      if (await decline.isVisible()) {
+        await decline.click()
+        await expect(decline).toHaveCount(0)
+      }
+      // Reduced-motion readers must receive visible content, including below
+      // the viewport. Bounding-box visibility alone misses opacity:0 ancestors.
+      await expect(reader.locator('.prose-consilium').locator('..')).toHaveCSS('opacity', '1')
+      await expect(reader.getByRole('heading', { level: 1 }).locator('..')).toHaveCSS('opacity', '1')
       await expect(reader.locator('.prose-consilium table tr')).toHaveCount(4)
       await expect(reader.locator('.prose-consilium table th')).toHaveCount(3)
       await expect(
@@ -193,9 +218,13 @@ test('writer paste/table/figure → repeated save/reload → editor review/edit/
       await expect(reader.getByAltText('Inflation declines towards two percent')).toBeVisible()
       await expect(reader.getByText('Credit: The Consilium', { exact: true })).toBeVisible()
       await expect(reader.getByText('Note: Forecast begins in 2027', { exact: true })).toBeVisible()
+      await expect(reader.locator('#main-content a[href="/category/analysis"]').first()).toBeVisible()
+      await expect(reader.getByRole('link', { name: 'Writer Lifecycle Finance', exact: true })).toHaveAttribute('href', '/tag/writer-lifecycle-finance')
+      await expect(reader.getByRole('link', { name: 'Writer Lifecycle Policy', exact: true })).toHaveAttribute('href', '/tag/writer-lifecycle-policy')
       expect(
         await reader.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
       ).toBe(true)
+      await reader.screenshot({ path: `docs/platform-upgrade/evidence/final-integration/${width}-public-rich-article.png`, fullPage: true })
     }
     await editor.goto(`${base}/editorial/articles/${id}/edit`)
     const oldSrc = await editor.locator('.article-figure img').getAttribute('src')
@@ -468,7 +497,7 @@ test('wide tables and standard/wide/portrait figures remain contained in editor 
     }
     await page.close()
     const edit = await admin.newPage()
-    for (const width of [375, 768, 1440]) {
+    for (const width of [375, 768, 1280, 1440]) {
       await edit.setViewportSize({ width, height: 900 })
       await edit.goto(`${base}/editorial/articles/${id}/edit`)
       await expect(edit.locator('.ProseMirror .article-figure')).toHaveCount(3)
@@ -478,6 +507,18 @@ test('wide tables and standard/wide/portrait figures remain contained in editor 
       expect(
         await edit.locator('.tableWrapper').evaluate((el) => el.scrollWidth > el.clientWidth)
       ).toBe(true)
+      const headline = edit.getByRole('textbox', { name: 'Your headline here...', exact: true })
+      await expect(headline).toHaveCount(1)
+      const bounds = await headline.boundingBox()
+      expect(bounds).not.toBeNull()
+      const paneLeft = await headline.evaluate(el => el.closest('.portal-page-enter')!.getBoundingClientRect().left)
+      expect(bounds!.x).toBeGreaterThanOrEqual(paneLeft)
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width)
+      if (width >= 1100) {
+        const formatBounds = await edit.getByRole('combobox', { name: 'Article format', exact: true }).boundingBox()
+        expect(formatBounds).not.toBeNull()
+        expect(formatBounds!.x + formatBounds!.width).toBeLessThanOrEqual(width)
+      }
     }
     await edit.close()
   } finally {

@@ -1,3 +1,5 @@
+> Historical foundation evidence. Final independent integration results are in [IMPLEMENTATION-REPORT.md](IMPLEMENTATION-REPORT.md) and [MASTER-STATUS.md](MASTER-STATUS.md).
+
 # Foundation verification ledger
 
 Executed 2026-10-06 on `feature/consilium-platform-upgrade`, audit base `029eef3`. These results verify the foundation and current regression baseline. They do **not** satisfy the complete upgrade acceptance criteria in [MASTER-SPEC.md](MASTER-SPEC.md). Specialist features remain unimplemented.

@@ -1,0 +1,24 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+Running 6 tests using 1 worker
+
+(node:90457) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:90457) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [setup] › tests/e2e/auth.setup.ts:13:6 › authenticate as admin (1.3s)
+  ✓  2 [setup] › tests/e2e/auth.setup.ts:50:6 › authenticate as an editor with no category assignments (362ms)
+  ✓  3 [setup] › tests/e2e/auth.setup.ts:54:6 › authenticate as an editor scoped to Opinion (361ms)
+  ✓  4 [setup] › tests/e2e/auth.setup.ts:62:6 › authenticate as the seeded writer (345ms)
+(node:90478) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:90478) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:231:5 › slow draft creation preserves newer typing, and a failed save retains changes for retry (5.0s)
+(node:90499) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:90499) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  6 [editorial] › tests/e2e/editorial.spec.ts:101:5 › New Article editor autosaves a draft (3.6s)
+
+  6 passed (12.2s)

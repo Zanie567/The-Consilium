@@ -2,6 +2,7 @@ import { articlePublishedEmail, sendEmail } from '@/lib/email'
 import { prisma } from '@/lib/prisma'
 import { awardPublishAchievements } from '@/lib/gamification/achievements'
 import { revalidateArticleLists } from '@/lib/revalidateArticles'
+import { lockArticleImageReferences, queueDeletedArticleImages } from '@/lib/articleImageStorage'
 
 interface ScheduledPublishArticleResult {
   id: string
@@ -48,6 +49,8 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
         id: article.id,
         status: 'SCHEDULED',
         scheduledAt: { lte: now },
+        deletedAt: null,
+        updatedAt: article.updatedAt,
       },
       data: {
         status: 'PUBLISHED',
@@ -121,10 +124,32 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
   let purged = 0
   try {
-    const result = await prisma.article.deleteMany({
+    // Capture only a bounded expired batch so its managed objects can be queued
+    // after deletion. A restore/edit between the snapshot and deletion must win.
+    const expired = await prisma.article.findMany({
       where: { deletedAt: { not: null, lte: thirtyDaysAgo } },
+      select: { id: true, deletedAt: true, updatedAt: true, content: true, coverImage: true },
+      orderBy: [{ deletedAt: 'asc' }, { id: 'asc' }],
+      take: 100,
     })
-    purged = result.count
+    for (const article of expired) {
+      try {
+        const result = await prisma.$transaction(async (tx) => {
+          await lockArticleImageReferences(tx, article.content, article.coverImage)
+          const deleted = await tx.article.deleteMany({
+            where: { id: article.id, deletedAt: article.deletedAt, updatedAt: article.updatedAt },
+          })
+          if (deleted.count) await queueDeletedArticleImages(tx, article.content, article.coverImage)
+          return deleted
+        })
+        if (result.count) {
+          purged += result.count
+          // Reference-safe GC is queued atomically, without Storage I/O in cron.
+        }
+      } catch {
+        // An individual constrained row must not stop the rest of the batch.
+      }
+    }
     if (purged > 0) {
       console.warn(`[scheduledPublishing] Purged ${purged} article(s) from trash (>30 days old)`)
     }

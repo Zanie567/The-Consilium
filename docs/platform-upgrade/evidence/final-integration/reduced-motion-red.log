@@ -1,0 +1,61 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+Running 5 tests using 1 worker
+
+(node:75664) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:75664) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [setup] › tests/e2e/auth.setup.ts:13:6 › authenticate as admin (629ms)
+  ✓  2 [setup] › tests/e2e/auth.setup.ts:50:6 › authenticate as an editor with no category assignments (355ms)
+  ✓  3 [setup] › tests/e2e/auth.setup.ts:54:6 › authenticate as an editor scoped to Opinion (361ms)
+  ✓  4 [setup] › tests/e2e/auth.setup.ts:62:6 › authenticate as the seeded writer (345ms)
+(node:75683) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:75683) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  5 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:48:5 › writer paste/table/figure → repeated save/reload → editor review/edit/schedule/publish → public → replace/delete/republish (12.9s)
+
+
+  1) [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:48:5 › writer paste/table/figure → repeated save/reload → editor review/edit/schedule/publish → public → replace/delete/republish
+
+    Error: expect(locator).toHaveCSS(expected) failed
+
+    Locator:  locator('.prose-consilium').locator('..')
+    Expected: "1"
+    Received: "0"
+    Timeout:  10000ms
+
+    Call log:
+      - Expect "toHaveCSS" with timeout 10000ms
+      - waiting for locator('.prose-consilium').locator('..')
+        24 × locator resolved to <div>…</div>
+           - unexpected value "0"
+
+
+      189 |       // Reduced-motion readers must receive visible content, including below
+      190 |       // the viewport. Bounding-box visibility alone misses opacity:0 ancestors.
+    > 191 |       await expect(reader.locator('.prose-consilium').locator('..')).toHaveCSS('opacity', '1')
+          |                                                                      ^
+      192 |       await expect(reader.getByRole('heading', { level: 1 }).locator('..')).toHaveCSS('opacity', '1')
+      193 |       await expect(reader.locator('.prose-consilium table tr')).toHaveCount(4)
+      194 |       await expect(reader.locator('.prose-consilium table th')).toHaveCount(3)
+        at /private/tmp/consilium-final-integration/tests/e2e/upgrade-rich-content.spec.ts:191:70
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-rich-content-write-5664f--→-replace-delete-republish-upgrade/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-rich-content-write-5664f--→-replace-delete-republish-upgrade/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-rich-content-write-5664f--→-replace-delete-republish-upgrade/test-failed-3.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/upgrade-rich-content-write-5664f--→-replace-delete-republish-upgrade/error-context.md
+
+  1 failed
+    [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:48:5 › writer paste/table/figure → repeated save/reload → editor review/edit/schedule/publish → public → replace/delete/republish
+  4 passed (15.6s)

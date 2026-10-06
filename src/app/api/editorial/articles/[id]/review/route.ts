@@ -9,7 +9,7 @@ import { revalidateArticleLists } from '@/lib/revalidateArticles'
 import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 import { apiError, apiServerErrorResponse } from '@/lib/apiResponse'
-import type { ArticleStatus } from '@prisma/client'
+import { Prisma, type ArticleStatus } from '@prisma/client'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -143,7 +143,7 @@ export async function PATCH(req: Request, { params }: Props) {
       }
       case 'correct': {
         const updated = await prisma.article.update({
-          where: { id },
+          where: { id, status: requiredStatus, deletedAt: null, updatedAt: article.updatedAt },
           data: { corrected: corrected ?? false, correctionNote: correctionNote ?? null },
         })
         revalidateArticleLists() // correction edits a live article
@@ -157,7 +157,12 @@ export async function PATCH(req: Request, { params }: Props) {
     // a false "failed" response, or a notification with no matching state
     // change.
     const updated = await prisma.$transaction(async (tx) => {
-      const savedArticle = await tx.article.update({ where: { id }, data: updates })
+      // The source state and revision must still match at the actual write.
+      // PostgreSQL rechecks this predicate after a concurrent writer commits.
+      const savedArticle = await tx.article.update({
+        where: { id, status: requiredStatus, deletedAt: null, updatedAt: article.updatedAt },
+        data: updates,
+      })
       await tx.notification.create({
         data: {
           userId: article.authorId,
@@ -184,6 +189,14 @@ export async function PATCH(req: Request, { params }: Props) {
 
     return NextResponse.json(updated, { headers: { 'x-request-id': requestId } })
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return apiError(
+        'This article changed while you were reviewing it. Reload before retrying.',
+        409,
+        'INVALID_STATUS_TRANSITION',
+        requestId
+      )
+    }
     return apiServerErrorResponse(error, {
       operation: 'api/editorial/review',
       userMessage: 'This review action could not be completed because of a server error.',

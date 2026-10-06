@@ -88,6 +88,7 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
         <FieldLabel>Article format</FieldLabel>
         <div className="relative">
           <select
+            aria-label="Article format"
             value={editor.categoryId}
             onChange={(event) => actions.setCategoryId(event.target.value)}
             disabled={!editor.canEdit}
@@ -107,6 +108,7 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
         <input ref={coverFileRef} type="file" accept="image/*" className="hidden" onChange={(event) => void actions.handleCoverUpload(event)} />
         <input
           type="url"
+          aria-label="Cover image URL"
           value={editor.coverImage}
           onChange={(event) => actions.setCoverImage(event.target.value)}
           placeholder="https://..."
@@ -178,6 +180,7 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
         )}
         {editor.canEdit && (
           <input
+            aria-label="Article topics"
             type="text"
             value={editor.tagInput}
             onChange={(event) => actions.setTagInput(event.target.value)}

@@ -4,7 +4,7 @@ import type { TiptapNode } from '@/lib/richContent'
 
 /** Native table JSON stays native; cells reuse the normal inline renderer. */
 export function renderArticleTable(node: TiptapNode, render: (node: TiptapNode) => string): string {
-  const rows = (node.content ?? []).filter((row) => row.type === 'tableRow').slice(0, 500)
+  const rows = (node.content ?? []).filter((row) => row.type === 'tableRow')
   if (
     !rows.length ||
     !rows.some((row) =>
@@ -20,8 +20,7 @@ export function renderArticleTable(node: TiptapNode, render: (node: TiptapNode) 
   for (const row of rows) {
     html += '<tr>'
     for (const cell of (row.content ?? [])
-      .filter((c) => ['tableHeader', 'tableCell'].includes(c.type))
-      .slice(0, 100)) {
+      .filter((c) => ['tableHeader', 'tableCell'].includes(c.type))) {
       const tag = cell.type === 'tableHeader' ? 'th' : 'td'
       const span = (key: string) => {
         const n = Number(cell.attrs?.[key])

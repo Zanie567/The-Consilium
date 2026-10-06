@@ -39,6 +39,7 @@ afterAll(async () => {
 })
 describe('canonical analytics persistence', () => {
   it('deduplicates concurrent views and strips referrer paths', async () => {
+    const editorialRevision = (await prisma.article.findUniqueOrThrow({ where: { id: articleId } })).updatedAt
     await Promise.all(
       Array.from({ length: 6 }, () =>
         collectAnalytics(
@@ -57,6 +58,7 @@ describe('canonical analytics persistence', () => {
     )
     expect(await prisma.articleView.count({ where: { articleId } })).toBe(1)
     expect((await prisma.article.findUniqueOrThrow({ where: { id: articleId } })).viewCount).toBe(1)
+    expect((await prisma.article.findUniqueOrThrow({ where: { id: articleId } })).updatedAt).toEqual(editorialRevision)
     expect((await prisma.articleView.findFirstOrThrow({ where: { articleId } })).referrer).toBe(
       'https://example.test'
     )
@@ -82,6 +84,27 @@ describe('canonical analytics persistence', () => {
     expect(metrics.top.some((r) => r.id === articleId && r.engaged === 1)).toBe(true)
     expect(metrics.fiveMinuteReads).toBeGreaterThanOrEqual(1)
     expect(metrics.daily.length).toBeGreaterThanOrEqual(1)
+  })
+  it('recomputes a derived engagement score without changing the editorial revision', async () => {
+    const article = await prisma.article.findUniqueOrThrow({ where: { id: articleId } })
+    // Limit this real cron execution to our owned fixture; score computation
+    // and the database write remain real.
+    const selection = vi.spyOn(prisma.article, 'findMany').mockResolvedValueOnce([article])
+    vi.stubEnv('CRON_SECRET', 'local-engagement-regression-only')
+    try {
+      const { POST: updateScores } = await import('@/app/api/cron/update-engagement-scores/route')
+      const response = await updateScores(new Request('http://localhost/api/cron/update-engagement-scores', {
+        method: 'POST', headers: { Authorization: 'Bearer local-engagement-regression-only' },
+      }))
+      expect(response.status).toBe(200)
+      expect(await response.json()).toMatchObject({ processed: 1, errors: 0 })
+      const scored = await prisma.article.findUniqueOrThrow({ where: { id: articleId } })
+      expect(scored.engagementScore).toBe(0)
+      expect(scored.updatedAt).toEqual(article.updatedAt)
+    } finally {
+      selection.mockRestore()
+      vi.unstubAllEnvs()
+    }
   })
   it('counts returning only on an earlier UTC day with consent; decline unlinks current visit', async () => {
     const nextVisit = randomUUID()

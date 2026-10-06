@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`subscriber:${email}`}))`
       const existing = await tx.$queryRaw<
         { id: string }[]
-      >`SELECT id FROM subscribers WHERE lower(btrim(email)) = ${email} LIMIT 1`
+      >`SELECT id FROM subscribers WHERE public.consilium_subscriber_identity(email) = ${email} LIMIT 1`
       if (existing.length) return false
       await tx.subscriber.create({ data: { email } })
       return true

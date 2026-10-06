@@ -109,6 +109,14 @@ export function articleMutationErrorResponse(
   }
 
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2025' && operation === 'update') {
+      return apiError(
+        'This article changed while saving. Reload it before retrying; your unsaved changes remain in this tab.',
+        409,
+        'ARTICLE_CHANGED',
+        requestId
+      )
+    }
     if (error.code === 'P2002') {
       return apiError(
         'An article with this slug already exists. Choose a different slug.',

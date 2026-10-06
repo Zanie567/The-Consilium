@@ -1,0 +1,43 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+Running 5 tests using 1 worker
+
+(node:65718) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:65718) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [setup] › tests/e2e/auth.setup.ts:13:6 › authenticate as admin (504ms)
+  ✓  2 [setup] › tests/e2e/auth.setup.ts:50:6 › authenticate as an editor with no category assignments (412ms)
+  ✓  3 [setup] › tests/e2e/auth.setup.ts:54:6 › authenticate as an editor scoped to Opinion (400ms)
+  ✓  4 [setup] › tests/e2e/auth.setup.ts:62:6 › authenticate as the seeded writer (376ms)
+(node:65749) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:65749) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  5 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:38:5 › concurrent writer submissions notify the review queue once and reject later writer edits (232ms)
+
+
+  1) [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:38:5 › concurrent writer submissions notify the review queue once and reject later writer edits
+
+    Error: [200,200,400,400,400,400,400,400]
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 2
+    Received array:  [200, 200]
+
+      51 |       writer.request.put(`/api/articles/${id}`, { data: { status: 'PENDING_REVIEW' } })))
+      52 |     const statuses = responses.map(response => response.status())
+    > 53 |     expect(statuses.filter(status => status === 200), JSON.stringify(statuses)).toHaveLength(1)
+         |                                                                                 ^
+      54 |     expect(statuses.every(status => [200, 400, 409].includes(status))).toBe(true)
+      55 |     const notifications = await db.notification.findMany({ where: { articleId: id, type: 'article_submitted' } })
+      56 |     expect(notifications.length).toBeGreaterThan(0)
+        at /private/tmp/consilium-final-integration/tests/e2e/upgrade-final-integration.spec.ts:53:81
+
+    Error Context: test-results/upgrade-final-integration--02bb2-d-reject-later-writer-edits-upgrade/error-context.md
+
+  1 failed
+    [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:38:5 › concurrent writer submissions notify the review queue once and reject later writer edits
+  4 passed (2.9s)

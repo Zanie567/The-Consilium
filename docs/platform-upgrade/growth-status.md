@@ -1,3 +1,5 @@
+> Historical specialist handoff. The independent final audit and any corrections/verification limits are in [MASTER-STATUS.md](MASTER-STATUS.md) and [IMPLEMENTATION-REPORT.md](IMPLEMENTATION-REPORT.md). This file's completion labels are not final integration proof.
+
 # Growth workstream status
 
 Updated 2026-10-06. **VERIFIED COMPLETE** — configurable implementation verified locally; real LinkedIn URL still required before release.

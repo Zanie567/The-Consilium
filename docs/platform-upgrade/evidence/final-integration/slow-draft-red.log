@@ -1,0 +1,53 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+Running 5 tests using 1 worker
+
+(node:89975) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:89975) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [setup] › tests/e2e/auth.setup.ts:13:6 › authenticate as admin (847ms)
+  ✓  2 [setup] › tests/e2e/auth.setup.ts:50:6 › authenticate as an editor with no category assignments (354ms)
+  ✓  3 [setup] › tests/e2e/auth.setup.ts:54:6 › authenticate as an editor scoped to Opinion (362ms)
+  ✓  4 [setup] › tests/e2e/auth.setup.ts:62:6 › authenticate as the seeded writer (362ms)
+(node:89996) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:89996) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  5 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:231:5 › slow draft creation preserves newer typing, and a failed save retains changes for retry (12.4s)
+
+
+  1) [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:231:5 › slow draft creation preserves newer typing, and a failed save retains changes for retry
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator:  getByRole('textbox', { name: 'Untitled document', exact: true })
+    Expected: "Slow save 1791321545111 newer typing"
+    Received: "Slow save 1791321545111 first snapshot"
+    Timeout:  10000ms
+
+    Call log:
+      - Expect "toHaveValue" with timeout 10000ms
+      - waiting for getByRole('textbox', { name: 'Untitled document', exact: true })
+        24 × locator resolved to <input type="text" placeholder="Untitled document" value="Slow save 1791321545111 first snapshot" class="flex-1 min-w-0 bg-transparent border-none outline-none placeholder:text-[var(--fg-faint)] disabled:opacity-60 text-[var(--fg)] text-base"/>
+           - unexpected value "Slow save 1791321545111 first snapshot"
+
+
+      255 |     id = (await response.json()).id
+      256 |     await expect(page).toHaveURL(new RegExp(`/articles/${id}/edit$`))
+    > 257 |     await expect(headline).toHaveValue(`${prefix} newer typing`)
+          |                            ^
+      258 |     expect(await (await context.request.get(`/api/articles/${id}`)).json()).toMatchObject({ title: `${prefix} newer typing` })
+      259 |     let failSave = true
+      260 |     await page.route(`**/api/articles/${id}`, route => route.request().method() === 'PUT' && failSave
+        at /private/tmp/consilium-final-integration/tests/e2e/upgrade-final-integration.spec.ts:257:28
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-final-integration--f7145-e-retains-changes-for-retry-upgrade/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/upgrade-final-integration--f7145-e-retains-changes-for-retry-upgrade/error-context.md
+
+  1 failed
+    [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:231:5 › slow draft creation preserves newer typing, and a failed save retains changes for retry
+  4 passed (15.3s)

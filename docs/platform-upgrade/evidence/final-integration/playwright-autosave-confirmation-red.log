@@ -1,0 +1,192 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+Running 121 tests using 1 worker
+
+(node:88393) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88393) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓    1 [setup] › tests/e2e/auth.setup.ts:13:6 › authenticate as admin (790ms)
+  ✓    2 [setup] › tests/e2e/auth.setup.ts:50:6 › authenticate as an editor with no category assignments (399ms)
+  ✓    3 [setup] › tests/e2e/auth.setup.ts:54:6 › authenticate as an editor scoped to Opinion (391ms)
+  ✓    4 [setup] › tests/e2e/auth.setup.ts:62:6 › authenticate as the seeded writer (393ms)
+(node:88466) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88466) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓    5 [team-profile] › tests/e2e/team-profile-lifecycle.spec.ts:109:7 › new account → admin grants WRITER → creates a profile in writers (3.7s)
+  ✓    6 [team-profile] › tests/e2e/team-profile-lifecycle.spec.ts:109:7 › new account → admin grants EDITOR → creates a profile in editorial (3.5s)
+  ✓    7 [team-profile] › tests/e2e/team-profile-lifecycle.spec.ts:109:7 › new account → admin grants GROWTH → creates a profile in growth (3.5s)
+[session] JWT role right after the grant: READER; converged to WRITER after 60s without signing in again
+  ✓    8 [team-profile] › tests/e2e/team-profile-lifecycle.spec.ts:189:5 › session: server checks see a promotion immediately; the cached JWT role catches up within a minute, with no re-login (1.0m)
+  ✓    9 [team-profile] › tests/e2e/team-profile-lifecycle.spec.ts:224:5 › one account, one card: Writer → Editor → Growth → Reader → Writer → Admin → Editor (8.0s)
+  ✓   10 [team-profile] › tests/e2e/team-profile.spec.ts:65:9 › access by role › writer sees Team Profile in the portal sidebar and can open it (361ms)
+  ✓   11 [team-profile] › tests/e2e/team-profile.spec.ts:65:9 › access by role › editor sees Team Profile in the portal sidebar and can open it (364ms)
+  ✓   12 [team-profile] › tests/e2e/team-profile.spec.ts:65:9 › access by role › growth sees Team Profile in the portal sidebar and can open it (363ms)
+  ✓   13 [team-profile] › tests/e2e/team-profile.spec.ts:76:7 › access by role › admin has no Team Profile link and gets an explanation, not a form (331ms)
+  ✓   14 [team-profile] › tests/e2e/team-profile.spec.ts:89:7 › access by role › a reader cannot enter the portal at all (307ms)
+  ✓   15 [team-profile] › tests/e2e/team-profile.spec.ts:99:7 › access by role › an account with no name is asked to set one first (316ms)
+  ✓   16 [team-profile] › tests/e2e/team-profile.spec.ts:121:7 › writer: create then edit › create state: name and team are shown as read-only text, with no team picker (65ms)
+  ✓   17 [team-profile] › tests/e2e/team-profile.spec.ts:137:7 › writer: create then edit › the description counter tracks input and the field stops at the limit (17ms)
+  ✓   18 [team-profile] › tests/e2e/team-profile.spec.ts:148:7 › writer: create then edit › photo validation: an oversize file is refused in the browser, with a clear message (268ms)
+  ✓   19 [team-profile] › tests/e2e/team-profile.spec.ts:158:7 › writer: create then edit › photo validation: a non-image with an image name is refused by the server (62ms)
+  ✓   20 [team-profile] › tests/e2e/team-profile.spec.ts:173:7 › writer: create then edit › selecting a photo previews it, and Remove clears the selection (36ms)
+  ✓   21 [team-profile] › tests/e2e/team-profile.spec.ts:186:7 › writer: create then edit › saving locks the form, a double-click sends ONE request, and one card exists (2.1s)
+  ✓   22 [team-profile] › tests/e2e/team-profile.spec.ts:223:7 › writer: create then edit › after a refresh the persisted profile is shown in the edit state (62ms)
+  ✓   23 [team-profile] › tests/e2e/team-profile.spec.ts:236:7 › writer: create then edit › editing the description updates the same row (61ms)
+  ✓   24 [team-profile] › tests/e2e/team-profile.spec.ts:248:7 › writer: create then edit › replacing the photo stores the new file and deletes the old one (73ms)
+  ✓   25 [team-profile] › tests/e2e/team-profile.spec.ts:266:7 › writer: create then edit › the public page shows them once, under Writers, with a rendered photo (233ms)
+  ✓   26 [team-profile] › tests/e2e/team-profile.spec.ts:287:7 › writer: create then edit › removing the photo clears it everywhere and the card falls back to initials (342ms)
+  ✓   27 [team-profile] › tests/e2e/team-profile.spec.ts:319:7 › writer: create then edit › no console errors or page exceptions occurred during the whole flow (1ms)
+  ✓   28 [team-profile] › tests/e2e/team-profile.spec.ts:332:7 › other teams › two tabs creating at the same moment still produce exactly one card (546ms)
+  ✓   29 [team-profile] › tests/e2e/team-profile.spec.ts:353:7 › other teams › growth creates a card that appears in Growth & Communications (394ms)
+  ✓   30 [team-profile] › tests/e2e/team-profile.spec.ts:371:7 › existing members › a legacy card with no email is NOT duplicated: the member is told to ask an admin (344ms)
+  ✓   31 [team-profile] › tests/e2e/team-profile.spec.ts:390:7 › existing members › a card carrying the member’s email opens in the edit state, prefilled, and saving adopts it (400ms)
+  ✓   32 [team-profile] › tests/e2e/team-profile.spec.ts:407:7 › existing members › an already-linked member starts in the edit state (332ms)
+  ✓   33 [team-profile] › tests/e2e/team-profile.spec.ts:420:7 › admin: Linked account control › offers only Writer, Editor and Growth accounts, and linking makes the member edit their card (964ms)
+  ✓   34 [team-profile] › tests/e2e/team-profile.spec.ts:466:7 › admin: Linked account control › the API refuses an admin, a reader or a second card for one account (342ms)
+  ✓   35 [team-profile] › tests/e2e/team-profile.spec.ts:489:7 › API authorisation › an unauthenticated caller cannot modify anything (5ms)
+  ✓   36 [team-profile] › tests/e2e/team-profile.spec.ts:499:9 › API authorisation › a reader account is refused (270ms)
+  ✓   37 [team-profile] › tests/e2e/team-profile.spec.ts:499:9 › API authorisation › a admin account is refused (283ms)
+  ✓   38 [team-profile] › tests/e2e/team-profile.spec.ts:508:7 › API authorisation › forged userId / team / role fields change nothing about anyone (266ms)
+  ✓   39 [team-profile] › tests/e2e/team-profile.spec.ts:536:7 › public Our Team page › sections are right, every person appears exactly once, and every photo renders (1.2s)
+  ✓   40 [team-profile] › tests/e2e/team-profile.spec.ts:613:7 › public Our Team page › a banned or demoted member disappears, and returns with the same card when restored (224ms)
+  ✓   41 [team-profile] › tests/e2e/team-profile.spec.ts:628:7 › public Our Team page › the public team API does not leak account links (8ms)
+  ✓   42 [team-profile] › tests/e2e/team-profile.spec.ts:638:7 › layout › desktop: the sidebar stays put and the form sits beside it, not under it (1.6s)
+  ✓   43 [team-profile] › tests/e2e/team-profile.spec.ts:662:7 › layout › mobile: reachable from the menu, usable, and nothing overflows the screen (1.2s)
+  ✓   44 [team-profile] › tests/e2e/team-profile.spec.ts:711:7 › layout › mobile: the public Our Team page fits the screen (276ms)
+  ✓   45 [team-profile] › tests/e2e/team-profile.spec.ts:729:7 › layout › desktop: public page screenshot for the record (843ms)
+(node:88778) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88778) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   46 [public] › tests/e2e/footnotes.spec.ts:58:7 › desktop › markers are renumbered sequentially and the list matches (1.8s)
+  ✓   47 [public] › tests/e2e/footnotes.spec.ts:72:7 › desktop › hover shows the popover with decoded text and no layout shift (2.0s)
+  ✓   48 [public] › tests/e2e/footnotes.spec.ts:100:7 › desktop › keyboard: Tab focus shows it, Escape dismisses, focus stays put (1.8s)
+  ✓   49 [public] › tests/e2e/footnotes.spec.ts:126:7 › desktop › marker click jumps to the list entry; back-link returns to the marker (1.8s)
+  ✓   50 [public] › tests/e2e/footnotes.spec.ts:145:7 › desktop › dark mode popover uses dark surfaces (1.8s)
+  ✓   51 [public] › tests/e2e/footnotes.spec.ts:161:7 › mobile touch › tap shows the popover inside the viewport; tapping elsewhere dismisses (2.0s)
+  ✓   52 [public] › tests/e2e/footnotes.spec.ts:180:7 › mobile touch › tapping the same marker again toggles the popover closed (1.8s)
+  ✓   53 [public] › tests/e2e/network-crawl.spec.ts:38:5 › single-threaded crawl: no internal URL (page or ?_rsc=) returns >= 400 (414ms)
+  ✓   54 [public] › tests/e2e/network-crawl.spec.ts:52:5 › concurrent crawl: bursts of page + ?_rsc= requests stay < 500 (366ms)
+  ✓   55 [public] › tests/e2e/network-crawl.spec.ts:106:5 › no broken images on key public pages (7.5s)
+  ✓   56 [public] › tests/e2e/public.spec.ts:24:5 › homepage loads with zero console errors (1.0s)
+  ✓   57 [public] › tests/e2e/public.spec.ts:31:5 › each category page renders exactly the published count from the data layer (2.0s)
+  ✓   58 [public] › tests/e2e/public.spec.ts:48:5 › Priority 1 guard: EVERY published article is reachable on its category page (1.9s)
+  ✓   59 [public] › tests/e2e/public.spec.ts:72:5 › an article page renders title, body, hero image and share bar (746ms)
+  ✓   60 [public] › tests/e2e/public.spec.ts:83:5 › search "carbon" returns the carbon article (772ms)
+  ✓   61 [public] › tests/e2e/public.spec.ts:94:5 › category pages have NO duplicate article titles and count matches unique articles (2.0s)
+  ✓   62 [public] › tests/e2e/public.spec.ts:114:5 › article page: correct title/meta, share, copy-link, save controls; reading progress advances on scroll (1.5s)
+  ✓   63 [public] › tests/e2e/public.spec.ts:142:5 › debate hub: the vote flow is wired up (button → API → results) (810ms)
+  ✓   64 [public] › tests/e2e/public.spec.ts:171:5 › search highlights matched terms with <mark> (727ms)
+  ✓   65 [public] › tests/e2e/public.spec.ts:178:5 › navigating across pages throws no InvalidStateError (view-transition guard) (3.7s)
+  ✓   66 [public] › tests/e2e/public.spec.ts:209:5 › dark-mode toggle switches theme (1.5s)
+  ✓   67 [public] › tests/e2e/public.spec.ts:223:5 › contact form shows validation on empty submit (2.7s)
+  ✓   68 [public] › tests/e2e/public.spec.ts:238:9 › hero headings have visible contrast (Priority 3 regression guard) › hero h1 on /about is not the background colour (687ms)
+  ✓   69 [public] › tests/e2e/public.spec.ts:238:9 › hero headings have visible contrast (Priority 3 regression guard) › hero h1 on /opinion-debate is not the background colour (710ms)
+  ✓   70 [public] › tests/e2e/public.spec.ts:238:9 › hero headings have visible contrast (Priority 3 regression guard) › hero h1 on /category/opinion is not the background colour (747ms)
+  ✓   71 [public] › tests/e2e/public.spec.ts:238:9 › hero headings have visible contrast (Priority 3 regression guard) › hero h1 on /contact is not the background colour (698ms)
+(node:88963) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88963) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   72 [upgrade] › tests/e2e/upgrade-discovery.spec.ts:67:7 › topic OR, pagination, unselect, clear and refresh at 375px (4.2s)
+  ✓   73 [upgrade] › tests/e2e/upgrade-discovery.spec.ts:67:7 › topic OR, pagination, unselect, clear and refresh at 768px (5.7s)
+  ✓   74 [upgrade] › tests/e2e/upgrade-discovery.spec.ts:67:7 › topic OR, pagination, unselect, clear and refresh at 1440px (5.7s)
+  ✓   75 [upgrade] › tests/e2e/upgrade-discovery.spec.ts:108:5 › keyboard search discovers title, author, topic, empty and no results; failure can retry (430ms)
+  ✓   76 [upgrade] › tests/e2e/upgrade-discovery.spec.ts:142:5 › published topic assignments invalidate warm topic lists and follow unpublish/trash/restore (670ms)
+  ✓   77 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:9:5 › concurrent editorial approvals commit one transition and one notification (193ms)
+  ✓   78 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:40:5 › concurrent writer submissions notify the review queue once and reject later writer edits (142ms)
+  ✓   79 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:72:5 › large pasted tables survive save/reload/publication and scroll within the mobile article (1.2s)
+  ✓   80 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:122:5 › shuffled account-linked chief, two deputies, editors, writers and Growth render in order; one deputy stays centred (9.5s)
+  ✓   81 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:188:5 › an editor with a stale open document gets a conflict and retains unsaved changes (919ms)
+  ✓   82 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:231:5 › document settings expose one desktop form and trap/restore keyboard focus on mobile (489ms)
+  ✓   83 [upgrade] › tests/e2e/upgrade-growth-analytics.spec.ts:48:5 › newsletter validates, retries network failure, normalizes and deduplicates at mobile width (5.8s)
+  ✓   84 [upgrade] › tests/e2e/upgrade-growth-analytics.spec.ts:75:5 › canonical copy, clipboard fallback, LinkedIn, email and native sharing are keyboard accessible (358ms)
+  ✓   85 [upgrade] › tests/e2e/upgrade-growth-analytics.spec.ts:135:5 › analytics heartbeat pauses hidden, consent controls persistence, failure leaves article readable (545ms)
+  ✓   86 [upgrade] › tests/e2e/upgrade-growth-analytics.spec.ts:182:5 › existing analytics dashboard exposes active reading and rejects writer permissions (398ms)
+  ✓   87 [upgrade] › tests/e2e/upgrade-growth-analytics.spec.ts:208:5 › one publication LinkedIn setting updates footer/contact and refuses writer changes (584ms)
+  ✓   88 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:48:5 › writer paste/table/figure → repeated save/reload → editor review/edit/schedule/publish → public → replace/delete/republish (5.0s)
+  ✓   89 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:274:5 › every exposed formatting control operates, including keyboard buttons and table deletion (3.7s)
+  ✓   90 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:405:5 › wide tables and standard/wide/portrait figures remain contained in editor and public layouts (1.3s)
+  ✓   91 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:535:5 › plain-text paste and cancelled upload preserve document and allow retry (713ms)
+(node:89123) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:89123) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   92 [editorial] › tests/e2e/editorial-layout.spec.ts:53:7 › portal shell stays bounded with no horizontal overflow (desktop) (5.7s)
+  ✓   93 [editorial] › tests/e2e/editorial-layout.spec.ts:53:7 › portal shell stays bounded with no horizontal overflow (laptop) (6.3s)
+  ✓   94 [editorial] › tests/e2e/editorial-layout.spec.ts:53:7 › portal shell stays bounded with no horizontal overflow (tablet) (5.7s)
+  ✓   95 [editorial] › tests/e2e/editorial-layout.spec.ts:53:7 › portal shell stays bounded with no horizontal overflow (mobile) (5.6s)
+  ✓   96 [editorial] › tests/e2e/editorial-layout.spec.ts:71:5 › sidebar and sign out stay in view while the content region scrolls (1.2s)
+  ✓   97 [editorial] › tests/e2e/editorial.spec.ts:23:7 › /editorial loads, shows a heading, no console errors (762ms)
+  ✓   98 [editorial] › tests/e2e/editorial.spec.ts:23:7 › /editorial/articles loads, shows a heading, no console errors (783ms)
+  ✓   99 [editorial] › tests/e2e/editorial.spec.ts:23:7 › /editorial/articles/new loads, shows a heading, no console errors (799ms)
+  ✓  100 [editorial] › tests/e2e/editorial.spec.ts:23:7 › /editorial/series loads, shows a heading, no console errors (773ms)
+  ✓  101 [editorial] › tests/e2e/editorial.spec.ts:23:7 › /editorial/scheduled loads, shows a heading, no console errors (761ms)
+  ✓  102 [editorial] › tests/e2e/editorial.spec.ts:23:7 › /editorial/trash loads, shows a heading, no console errors (785ms)
+  ✓  103 [editorial] › tests/e2e/editorial.spec.ts:23:7 › /editorial/review loads, shows a heading, no console errors (764ms)
+  ✓  104 [editorial] › tests/e2e/editorial.spec.ts:23:7 › /editorial/debates loads, shows a heading, no console errors (837ms)
+  ✓  105 [editorial] › tests/e2e/editorial.spec.ts:23:7 › /editorial/comments loads, shows a heading, no console errors (774ms)
+  ✓  106 [editorial] › tests/e2e/editorial.spec.ts:23:7 › /editorial/users loads, shows a heading, no console errors (812ms)
+  ✓  107 [editorial] › tests/e2e/editorial.spec.ts:23:7 › /editorial/analytics loads, shows a heading, no console errors (800ms)
+  ✓  108 [editorial] › tests/e2e/editorial.spec.ts:42:5 › debates and comments pages have page-specific titles (Priority 5) (238ms)
+  ✓  109 [editorial] › tests/e2e/editorial.spec.ts:52:5 › Analytics: every tab loads with no console errors, and Writers shows data (14.7s)
+  ✓  110 [editorial] › tests/e2e/editorial.spec.ts:79:5 › Comment Moderation loads WITHOUT the error banner and shows real stats (2.1s)
+  ✘  111 [editorial] › tests/e2e/editorial.spec.ts:101:5 › New Article editor autosaves a draft (17.9s)
+(node:89305) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:89305) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  112 [editorial] › tests/e2e/editorial.spec.ts:117:5 › bookmarks are fetched ONCE per page, not once per card (Bug 7) (2.1s)
+  ✓  113 [editorial] › tests/e2e/editorial.spec.ts:134:5 › comments moderation total matches the users-table comment counts (Priority 4) (2.4s)
+(node:89326) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:89326) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  114 [editor] › tests/e2e/editor-scope.spec.ts:41:7 › an editor with no category assignments › can save a categorised article (88ms)
+  ✓  115 [editor] › tests/e2e/editor-scope.spec.ts:56:7 › an editor scoped to Opinion › can save an article inside their category (12ms)
+  ✓  116 [editor] › tests/e2e/editor-scope.spec.ts:64:7 › an editor scoped to Opinion › is refused, with a specific reason, outside their category (14ms)
+(node:89329) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:89329) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  117 [lifecycle] › tests/e2e/publication-cache.spec.ts:6:5 › warm category list follows create, edit, unpublish, republish, trash and restore (677ms)
+  ✓  118 [lifecycle] › tests/e2e/publication-lifecycle.spec.ts:28:7 › full article lifecycle › draft → submit → return → edit/resubmit → publish → public → unpublish → gone (282ms)
+  ✓  119 [lifecycle] › tests/e2e/publication-lifecycle.spec.ts:100:7 › full article lifecycle › editor can schedule a reviewed article for a future publish time (18ms)
+  ✓  120 [lifecycle] › tests/e2e/publication-lifecycle.spec.ts:132:7 › full article lifecycle › an illegal review transition is rejected with a structured 409 (12ms)
+  ✓  121 [lifecycle] › tests/e2e/publication-lifecycle.spec.ts:160:7 › full article lifecycle › inline article comments can be created and read back (article_comments table) (17ms)
+
+
+  1) [editorial] › tests/e2e/editorial.spec.ts:101:5 › New Article editor autosaves a draft ────────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText(/^Saved$/).first()
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 15000ms
+      - waiting for getByText(/^Saved$/).first()
+
+
+      112 |   const res = await saved
+      113 |   expect(res.status(), 'autosave request must not 5xx').toBeLessThan(500)
+    > 114 |   await expect(page.getByText(/^Saved$/).first()).toBeVisible({ timeout: 15_000 })
+          |                                                   ^
+      115 | })
+      116 |
+      117 | test('bookmarks are fetched ONCE per page, not once per card (Bug 7)', async ({ page }) => {
+        at /private/tmp/consilium-final-integration/tests/e2e/editorial.spec.ts:114:51
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editorial-New-Article-editor-autosaves-a-draft-editorial/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editorial-New-Article-editor-autosaves-a-draft-editorial/error-context.md
+
+  1 failed
+    [editorial] › tests/e2e/editorial.spec.ts:101:5 › New Article editor autosaves a draft ─────────
+  120 passed (4.5m)

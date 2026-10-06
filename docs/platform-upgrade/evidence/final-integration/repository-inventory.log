@@ -1,0 +1,147 @@
+Independent repository inventory before the local audit commit; final status is verified after commit.
+
+WORKTREE /private/tmp/consilium-final-integration
+$ git branch --show-current
+feature/consilium-platform-upgrade
+$ git rev-parse HEAD
+72c923174b39c5caf1ee7a5c726af6ffee148ac3
+$ git status --short
+ M docs/platform-upgrade/IMPLEMENTATION-REPORT.md
+ M docs/platform-upgrade/MASTER-STATUS.md
+ M docs/platform-upgrade/VERIFICATION.md
+ M docs/platform-upgrade/analytics-status.md
+ M docs/platform-upgrade/discovery-status.md
+ M docs/platform-upgrade/editor-status.md
+ M docs/platform-upgrade/figures-status.md
+ M docs/platform-upgrade/growth-status.md
+ M docs/platform-upgrade/team-status.md
+ M src/app/api/articles/[id]/route.ts
+ M src/app/api/cron/update-engagement-scores/route.ts
+ M src/app/api/editorial/analytics/route.ts
+ M src/app/api/editorial/articles/[id]/review/route.ts
+ M src/app/api/editorial/trash/[id]/route.ts
+ M src/app/api/subscribe/route.ts
+ M src/app/editorial/(portal)/analytics/EngagementTab.tsx
+ M src/app/editorial/(portal)/articles/[id]/edit/page.tsx
+ M src/components/admin/article-editor/ArticleEditorDocument.tsx
+ M src/components/admin/article-editor/ArticleEditorMetadataPanel.tsx
+ M src/components/admin/article-editor/ArticleEditorMobileSettings.tsx
+ M src/components/admin/article-editor/types.ts
+ M src/components/admin/article-editor/useArticleEditorController.ts
+ M src/components/ui/AnimateIn.tsx
+ M src/lib/analyticsCollector.ts
+ M src/lib/apiResponse.ts
+ M src/lib/articleImageStorage.ts
+ M src/lib/scheduledPublishing.ts
+ M src/lib/tableRender.ts
+ M supabase/migrations/20261006161413_normalized_subscriber_email.sql
+ M tests/e2e/upgrade-growth-analytics.spec.ts
+ M tests/e2e/upgrade-rich-content.spec.ts
+ M tests/integration/analytics-engagement.test.ts
+ M tests/integration/api-audit.test.ts
+ M tests/integration/api.test.ts
+ M tests/integration/article-image-storage.test.ts
+ M tests/integration/calendar-access.test.ts
+ M tests/integration/data-layer.test.ts
+ M tests/integration/discovery.test.ts
+ M tests/integration/growth-subscribe.test.ts
+ M tests/integration/read-through-db.test.ts
+ M tests/integration/team-profile-db.test.ts
+ M tests/integration/team-profile-storage.test.ts
+ M tests/integration/upgrade-migrations.test.ts
+ M tests/unit/rich-editor.test.ts
+?? docs/platform-upgrade/SPECIALIST-HANDOFF-STATUS.md
+?? docs/platform-upgrade/SPECIALIST-IMPLEMENTATION-REPORT.md
+?? docs/platform-upgrade/evidence/final-integration/
+?? tests/e2e/upgrade-final-integration.spec.ts
+?? tests/integration/analytics-display-period.test.ts
+?? tests/integration/scheduled-publication.test.ts
+$ git log -12 --oneline
+72c9231 Record verified six-workstream candidate and production handoff evidence
+11d9540 Retain managed images across JSON and URL aliases; isolate warm-cache fixtures
+d1ce38c Verify migration boundaries, topic cache lifecycle and rich editor recovery
+92a118f Measure consented active reading through the existing collector and analytics portal
+fefab8f Make publication links configurable and newsletter and article sharing reliable
+44183b6 Restore the public chief and deputy pyramid with deterministic team ordering
+6594343 Preserve rich paste and tables through publication; add safe managed figures
+58d79a8 Implement canonical topics, URL filters and bounded discovery search
+68b26e8 Record verified foundation commit and specialist handoff
+d1dab80 Establish platform upgrade architecture and verified foundation
+029eef3 Trigger Vercel rebuild now that Preview NEXTAUTH_SECRET is set
+e19d0ed Email contact form submissions to the editors
+
+WORKTREE /Users/zanie/The-Consilium-upgrade
+$ git branch --show-current
+feature/consilium-upgrade-six-workstreams
+$ git rev-parse HEAD
+72c923174b39c5caf1ee7a5c726af6ffee148ac3
+$ git status --short
+$ git log -12 --oneline
+72c9231 Record verified six-workstream candidate and production handoff evidence
+11d9540 Retain managed images across JSON and URL aliases; isolate warm-cache fixtures
+d1ce38c Verify migration boundaries, topic cache lifecycle and rich editor recovery
+92a118f Measure consented active reading through the existing collector and analytics portal
+fefab8f Make publication links configurable and newsletter and article sharing reliable
+44183b6 Restore the public chief and deputy pyramid with deterministic team ordering
+6594343 Preserve rich paste and tables through publication; add safe managed figures
+58d79a8 Implement canonical topics, URL filters and bounded discovery search
+68b26e8 Record verified foundation commit and specialist handoff
+d1dab80 Establish platform upgrade architecture and verified foundation
+029eef3 Trigger Vercel rebuild now that Preview NEXTAUTH_SECRET is set
+e19d0ed Email contact form submissions to the editors
+
+WORKTREE /Users/zanie/The-Consilium
+$ git branch --show-current
+feature/consilium-upgrade-implementation
+$ git rev-parse HEAD
+68b26e8c848626f518b377a8557fba09b0f377b6
+$ git status --short
+ M src/app/api/search/route.ts
+ M src/app/archive/page.tsx
+ M src/app/search/page.tsx
+ M src/lib/archivePagination.ts
+ M src/lib/articleTags.ts
+?? docs/testing/
+?? src/lib/discoveryQueries.ts
+?? supabase/.temp/
+$ git log -12 --oneline
+68b26e8 Record verified foundation commit and specialist handoff
+d1dab80 Establish platform upgrade architecture and verified foundation
+029eef3 Trigger Vercel rebuild now that Preview NEXTAUTH_SECRET is set
+e19d0ed Email contact form submissions to the editors
+e0e4114 Meet the Team member profiles, with fail-closed test database safety (#110)
+0052b0b Harden publication pipeline and test database safety (#109)
+2c39676 Article empty states, team member profiles, and self-service bio + photo (#108)
+aee0672 Fix editor saves failing with 403, and make API errors diagnosable (#107)
+c0a95ca Replace the flat team grid with an editorial masthead hierarchy
+d0fdbf9 test: cover calendar authorisation and portal layout invariants
+ea2bdf4 fix: contain the editorial portal in a bounded app shell
+a650971 feat: rotate featured homepage articles
+
+Expected-failure provenance (content-filter.test.ts)
+baseline SHA-1: ef22181812245c9dba02e5f3e0ad403ead46e4d9
+current SHA-1: ef22181812245c9dba02e5f3e0ad403ead46e4d9
+
+Original API test diff (setup strengthened; existing skip sites retained)
+diff --git a/tests/integration/api.test.ts b/tests/integration/api.test.ts
+index 5d8bf52..1299a9d 100644
+--- a/tests/integration/api.test.ts
++++ b/tests/integration/api.test.ts
+@@ -8,7 +8,7 @@
+  * To run integration tests only:
+  *   BASE_URL=http://localhost:3000 npx vitest run tests/integration
+  *
+- * Tests that cannot run without a live server are skipped with a note.
++ * A missing live server fails setup instead of silently passing HTTP cases.
+  */
+
+ import { describe, it, expect, beforeAll } from 'vitest'
+@@ -29,7 +29,7 @@ async function serverIsUp(): Promise<boolean> {
+ let up = false
+ beforeAll(async () => {
+   up = await serverIsUp()
+-  if (!up) console.warn('[integration] Dev server not reachable at', BASE, '— skipping live tests')
++  if (!up) throw new Error(`Required local integration server is not reachable at ${BASE}`)
+ })
+
+ function skip(label: string) {

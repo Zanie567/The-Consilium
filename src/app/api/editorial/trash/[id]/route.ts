@@ -1,4 +1,4 @@
-import { cleanupRemovedArticleImages } from '@/lib/articleImageStorage'
+import { cleanupRemovedArticleImages, lockArticleImageReferences, queueDeletedArticleImages } from '@/lib/articleImageStorage'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
@@ -90,7 +90,8 @@ export async function DELETE(_req: NextRequest, { params }: Props) {
         }
       }
 
-      const res = await tx.article.deleteMany({ where: { id, deletedAt: { not: null } } })
+      await lockArticleImageReferences(tx, article.content, article.coverImage)
+      const res = await tx.article.deleteMany({ where: { id, deletedAt: article.deletedAt, updatedAt: article.updatedAt } })
       if (res.count === 0) return { error: 'Not found in trash', status: 404 } as const
 
       await tx.auditLog.create({
@@ -102,6 +103,7 @@ export async function DELETE(_req: NextRequest, { params }: Props) {
           metadata: { title: article.title, authorId: article.authorId },
         },
       })
+      await queueDeletedArticleImages(tx, article.content, article.coverImage)
       return { success: true, content: article.content, coverImage: article.coverImage } as const
     })
 

@@ -129,6 +129,20 @@ export async function PUT(
     }
 
     const body = await request.json()
+    if (body.expectedUpdatedAt !== undefined) {
+      const revision = typeof body.expectedUpdatedAt === 'string' ? new Date(body.expectedUpdatedAt) : null
+      if (!revision || !Number.isFinite(revision.getTime())) {
+        return apiError('The article revision is invalid.', 400, 'VALIDATION_ERROR', requestId)
+      }
+      if (revision.getTime() !== existing.updatedAt.getTime()) {
+        return apiError(
+          'Another editor changed this article. Open a fresh copy before retrying.',
+          409,
+          'ARTICLE_CHANGED',
+          requestId
+        )
+      }
+    }
     const {
       title, slug, content, excerpt, coverImage, categoryId, status,
       corrected, correctionNote, seriesId, seriesOrder, tags, scheduledAt,
@@ -206,7 +220,12 @@ export async function PUT(
     const updated = await prisma.$transaction(async (tx) => {
       await lockArticleImages(tx, content ?? existing.content, coverImage ?? existing.coverImage)
       const savedArticle = await tx.article.update({
-        where: { id },
+        // Recheck the authorised row at the write: a concurrent submission,
+        // review, role-scoped category move or trash operation must not be undone.
+        where: {
+          id, deletedAt: null, updatedAt: existing.updatedAt,
+          status: existing.status, authorId: existing.authorId, categoryId: existing.categoryId,
+        },
         data: {
           ...(title !== undefined && { title }),
           ...(slug !== undefined && { slug }),

@@ -6,8 +6,8 @@
  * Run against an already-running server:
  *   BASE_URL=http://localhost:3000 npx vitest run tests/integration/api-audit.test.ts
  *
- * The whole suite skips (does not fail) when no server is reachable, so unit
- * runs in CI without a server stay green; `npm run test:audit` starts one first.
+ * Missing server/fixtures fail setup; use test:unit for offline unit runs.
+ * `npm run test:audit` starts the required local server first.
  *
  * Headline regression guard (the launch blocker this audit was opened for):
  *   GET /api/comments and GET /api/editorial/comments MUST return 200, never 503.
@@ -28,10 +28,7 @@ let firstArticleId: string | null = null
 
 beforeAll(async () => {
   up = await serverUp(BASE)
-  if (!up) {
-    console.warn(`[api-audit] No server at ${BASE} — skipping live audit.`)
-    return
-  }
+  if (!up) throw new Error(`Required local audit server is not reachable at ${BASE}`)
   admin = new Session(BASE)
   reader = new Session(BASE)
   const [a, r] = await Promise.all([
@@ -43,6 +40,7 @@ beforeAll(async () => {
 
   const articles = await (await admin.get('/api/articles')).json()
   firstArticleId = articles?.[0]?.id ?? null
+  expect(firstArticleId, 'seeded article fixture is required').not.toBeNull()
 })
 
 // ── Comments: the 503 regression (article threads) ──────────────────────────
@@ -292,7 +290,7 @@ describe('Debates', () => {
   it('POST /api/debates/[id]/vote → 200 or 409 (already voted)', async () => {
     if (!up) return
     const debate = await (await fetch(`${BASE}/api/debates/active`)).json()
-    if (!debate?.id) return
+    expect(debate?.id, 'seeded active debate is required').toBeTruthy()
     const res = await reader.post(`/api/debates/${debate.id}/vote`, { side: 'FOR' })
     // 200 first vote, 409 already voted, 429 rate-limited on rapid re-runs.
     expect([200, 409, 429]).toContain(res.status)
@@ -300,7 +298,7 @@ describe('Debates', () => {
   it('POST vote with bad side → 400', async () => {
     if (!up) return
     const debate = await (await fetch(`${BASE}/api/debates/active`)).json()
-    if (!debate?.id) return
+    expect(debate?.id, 'seeded active debate is required').toBeTruthy()
     const res = await reader.post(`/api/debates/${debate.id}/vote`, { side: 'MAYBE' })
     // 400 validates the bad side; 429 if the vote limiter fired first on re-runs.
     expect([400, 429]).toContain(res.status)

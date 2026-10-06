@@ -1,163 +1,127 @@
-# Platform upgrade — master status
+# Final integration master status
 
-Updated 2026-10-06. **All six workstreams VERIFIED COMPLETE as a local candidate. Production rollout has not occurred.**
+Independent audit: 2026-10-06. Authority: [MASTER-SPEC.md](MASTER-SPEC.md), repository, executed tests and observable local application. This fresh ledger supersedes [SPECIALIST-HANDOFF-STATUS.md](SPECIALIST-HANDOFF-STATUS.md) and [SPECIALIST-IMPLEMENTATION-REPORT.md](SPECIALIST-IMPLEMENTATION-REPORT.md). Earlier checkboxes are not proof.
 
-[MASTER-SPEC.md](MASTER-SPEC.md) is the full authoritative acceptance specification. [ARCHITECTURE.md](ARCHITECTURE.md) records the repository audit, complete publication lifecycle, binding contracts, ownership and risks. No acceptance criterion is waived by this status.
+## Candidate and evidence boundary
 
-## Current implementation and verification
+Final branch `feature/consilium-platform-upgrade`, worktree `/private/tmp/consilium-final-integration`. On inspection this branch already contained `72c9231` and all specialist ancestry; the clean specialist tree `/Users/zanie/The-Consilium-upgrade` had the identical commit. No merge/cherry-pick was needed. Original `/Users/zanie/The-Consilium` remains on `feature/consilium-upgrade-implementation` at `68b26e8`, with its unrelated dirty Discovery work preserved.
 
-The six assigned workstreams were implemented sequentially on `feature/consilium-upgrade-six-workstreams` in `/Users/zanie/The-Consilium-upgrade`, based on foundation handoff `68b26e8`. The original checkout and its existing Discovery edits were preserved. Shared architecture, role enums, Category/Tag model, native Tiptap JSON, existing newsletter infrastructure and analytics collector/dashboard remain in place.
+The specification's foundation-only assignment is historical; the subsequent owner instruction authorizes final integration without waiving product requirements. VERIFIED COMPLETE below means proven on the guarded local candidate, not production/provider acceptance. IMPLEMENTED BUT NOT FULLY VERIFIED and BLOCKED identify material limits. No remaining tested local feature is classified MISSING or REGRESSION. Repaired regressions are in the report; conditional/future requirements retain their original scope.
 
-| Workstream | Local state | Evidence |
+Evidence keys reference actual suites:
+
+- D: `tests/e2e/upgrade-discovery.spec.ts`; integration `discovery.test.ts`, `discovery-search-route.test.ts`; unit discovery/tag tests.
+- R: `tests/e2e/upgrade-rich-content.spec.ts`; unit rich-editor/figure-render/figure-metadata tests and realistic `google-docs-economics.html`.
+- F: integration article-image-storage/upload route suites and image-reference unit tests.
+- T: `team-profile.spec.ts`, `team-profile-lifecycle.spec.ts`; team hierarchy/account/database/storage suites.
+- G: `upgrade-growth-analytics.spec.ts`; integration growth-subscribe and unit growth-settings.
+- A: integration analytics-engagement/analytics-display-period, unit active-reading/analytics identity/route tests; G.
+- C: publication-cache/publication-lifecycle E2E and article route/revalidation suites.
+- I: `upgrade-final-integration.spec.ts`; integration scheduled-publication/upgrade-migrations.
+
+Actual commands/results, browser interactions, defects, DB applications and release limits: [IMPLEMENTATION-REPORT.md](IMPLEMENTATION-REPORT.md). Logs/screenshots: [evidence/final-integration/README.md](evidence/final-integration/README.md).
+
+## Fresh original-specification checklist
+
+Related acceptance criteria share a row only when the same evidence covers them.
+
+| Original requirement | Classification | Independent evidence and limit |
 |---|---|---|
-| Article Discovery | VERIFIED COMPLETE | [discovery-status.md](discovery-status.md) |
-| Rich Editor / Docs / Tables | VERIFIED COMPLETE | [editor-status.md](editor-status.md) |
-| Figures / Public Rendering | VERIFIED COMPLETE | [figures-status.md](figures-status.md) |
-| Team / Profiles | VERIFIED COMPLETE | [team-status.md](team-status.md) |
-| Growth Integrations | VERIFIED COMPLETE | [growth-status.md](growth-status.md) |
-| Reader Analytics | VERIFIED COMPLETE | [analytics-status.md](analytics-status.md) |
+| Audit framework/routing, ORM/schema, auth, storage, editor/rendering, publication, caching, tests | VERIFIED COMPLETE | Next 16.2.2 installed docs and all shared paths inspected; six status files/report/migrations read; integrated user journeys executed. |
+| Reconstruct all workstreams and conflicting/shared files | VERIFIED COMPLETE | Commit graph contains Discovery 58d79a8, editor/figures 6594343, Team 44183b6, Growth fefab8f, Analytics 92a118f, d1ce38c/11d9540 corrections. No workstream omitted. |
+| Dedicated final branch; unrelated work preserved | VERIFIED COMPLETE | Existing isolated final worktree reused; original dirty paths and specialist checkout untouched. |
+| No push/merge/deploy/production access or mutation | VERIFIED COMPLETE | Only local Git and guarded loopback services; no hosted query, project link, release or deployment command. |
+| One primary News/Opinion/Analysis format; extensible Category model; existing URLs | VERIFIED COMPLETE | Category FK retained; R assignment/public output; legacy Interviews/category URLs kept. |
+| Topic names/slugs canonical across case/whitespace/Unicode, without excessive taxonomy | VERIFIED COMPLETE | D real DB concurrent resolution and SQL/JS parity. Example subjects are not forced seeds. |
+| Rename keeps relationships/URLs; deletion protects in-use tags | VERIFIED COMPLETE | D rename preserves ID/slug and three article relations; resolver reuses renamed tag; FK delete rejects. |
+| Normal 1–3 tag guidance, curated 5–10 topic intent | VERIFIED COMPLETE | Editor guidance/free topic assignment; existing UI cap 10/server 25 retained. Examples are illustrative. |
+| Clean Home/News/Opinion/Analysis navigation and topic discovery links | VERIFIED COMPLETE | Public category tests and manual home/archive/search; no new excessive top-level taxonomy. |
+| Multi-topic OR combined with format AND; no duplicate articles | VERIFIED COMPLETE | D shared predicate, DB assertions and browser cases at 375/768/1440. |
+| Selected state, individual removal, clear-all, keyboard/mobile, growing list | VERIFIED COMPLETE | D interaction-based selection/unselect/clear at three widths; named controls and bounded topic options. |
+| URL reload/share state, pagination/sorting/reset and zero results | VERIFIED COMPLETE | D browser page/reset/refresh assertions and nonmatching/unknown topic predicates. |
+| Search titles/excerpts/authors/topics, partial matches and distinct results | VERIFIED COMPLETE | D structured API/UI; manual Bank of England query and Eleanor Hughes author result. Excerpt scope; no full-body search index claimed. |
+| Search empty/whitespace/no results, bounds/pagination and deduplication | VERIFIED COMPLETE | D query/token/page tests; 15 article/8 author/8 topic caps. |
+| Search loading/error/retry, keyboard/mobile, debounce/cancel stale requests | VERIFIED COMPLETE | D failure/retry/keyboard case and request control tests; no query per raw keystroke. |
+| One content format/editor/public contract, legacy compatibility | VERIFIED COMPLETE | Native Tiptap JSON in Article.content; R repeated JSON equality and shared sanitized rendering; legacy HTML/plain text preserved. |
+| Paragraph/headings, bold/italic/underline/strike, links, blockquotes, ordered/unordered lists | VERIFIED COMPLETE | R every-toolbar-control case, realistic paste and full publication lifecycle; semantic public DOM. |
+| Separators/alignment, undo/redo, colour/highlight/reset, spacing, footnote and print | VERIFIED COMPLETE | R exhaustive toolbar interactions plus retained public footnote keyboard/touch tests. |
+| Formatting survives save/autosave/reload/submit/review/edit/schedule/publish/republish | VERIFIED COMPLETE | R writer-to-editor repeated save/reload lifecycle; C existing lifecycle; I due scheduling test. Existing autosave case now verifies 201, API readback, reload and visible acknowledgement; navigation remount no longer loses “Saved” feedback. |
+| Google Docs semantic conversion and irrelevant style/class/tracking stripping | VERIFIED COMPLETE | R realistic fixture headings/marks/links/lists/table; native manual HTML paste and reload. |
+| Malformed/malicious HTML, scripts/events/javascript/embeds stripped; plain-text fallback | VERIFIED COMPLETE | R paste/render/sanitizer negatives and plain-text/cancellation browser case; input cap 2MB/ten embedded images. |
+| Mandatory three-column Docs table, header/bold/link/multiple rows | VERIFIED COMPLETE | R 4 rows/3 headers, linked ONS cell after save/reload, submit, editorial cell edit and public rendering. |
+| Table create/edit cells/marks/Tab, add/delete rows/columns, headers/delete table | VERIFIED COMPLETE | R native controls; manual row/column insertion, cell focus and metadata. |
+| Table caption/source/source URL/note optional and safe | VERIFIED COMPLETE | R persisted native attrs/public renderer; manual four-field entry and reload; no empty labels. |
+| Huge/wide/mobile tables preserve content and contain horizontal scroll | VERIFIED COMPLETE | I 501-row/101-column paste-save-reload-publish plus keyboard scrolling at 375; R 12-column layout. Silent renderer truncation repaired. |
+| Structured figures: alt/decorative/caption/credit/source/URL/note | VERIFIED COMPLETE | R upload/full lifecycle and independent multiple figures; unit metadata validation and attachment. |
+| Meaningful alt before submit/schedule/publish; filename not automatic alt | VERIFIED COMPLETE | Article/review validation negatives and R/F; decorative public alt empty. |
+| Figure replacement/delete/failure/cancel/retry/missing metadata | VERIFIED COMPLETE | R original retained on failed replacement, retry/reload/deletion/republish; metadata-only unit case emits no broken img. |
+| Upload actual MIME/signature/decode/size/dimensions and duplicate/invalid actions | VERIFIED COMPLETE | F real decoder/route tests; R browser uploads. Article limit 4MB; extension alone not trusted. |
+| Ownership/orphans/shared reference safety/abandoned uploads | VERIFIED COMPLETE | F aliases/JSON/locks/grace tests; I deletion queue atomicity and failed Storage retry. No shared object deleted. |
+| Preserve published URLs and actual storage permissions/CDN | IMPLEMENTED BUT NOT FULLY VERIFIED | No legacy rewrite/bucket-policy change; wire emulator passes. Real Supabase RLS/signing/CDN/provider limits untested. |
+| Dependable external-chart-image path | VERIFIED COMPLETE | R synthetic PNG with alt/caption/source/note; no new custom chart builder/unsupported embeds. |
+| Standard/wide/portrait layout, aspect ratio/dimensions/mobile fallback | VERIFIED COMPLETE | R three-width layout/natural-image checks and explicit dimensions. |
+| Chief centred, two deputies next, exact Editorial Team/Writers/Growth headings | VERIFIED COMPLETE | I shuffled account-linked full fixture checks order/alignment at 1440 and all tiers at 375/768; settled screenshots. |
+| One deputy centred, deterministic order and empty-section behaviour | VERIFIED COMPLETE | I removes own second deputy and checks centring; hierarchy unit shuffle/empty cases. |
+| Growth create/edit/reload own photo/bio and one public profile | VERIFIED COMPLETE | T signup/grant/profile and uniqueness/storage tests; manual Growth edit/reload/public placement. |
+| No impersonation/other-profile edit/team reassignment/self-appointed chief/deputy/role | VERIFIED COMPLETE | T forged bodies/IDs/role mutation negatives; role-derived placement/server authorization. |
+| Preserve admin/leadership and writer/editor self-service/legacy linking | VERIFIED COMPLETE | All 41 opt-in T cases retained: linking, role changes, suspension, JWT refresh and restoration. |
+| Growth without profile can find creation flow; hide empty groups | VERIFIED COMPLETE | T empty/create form and hierarchy tests; no dead Growth heading. |
+| Team mobile/tablet/desktop, crop, names/roles, no pyramid gaps/overflow | VERIFIED COMPLETE | I 375/768/1440 mixed-tier fixture; T responsive cases; manual team modal/Escape/focus. |
+| Single configurable validated LinkedIn setting; all instances/mobile/labels | VERIFIED COMPLETE | G SiteSetting update invalidates footer/contact; invalid/unset hidden; writer mutation rejects. |
+| Actual publication LinkedIn page value | BLOCKED | Real value absent; owner must supply publication_linkedin_url. No fabricated destination or ownership claim. |
+| Newsletter real Subscriber persistence and existing infrastructure | VERIFIED COMPLETE | G DB/API/mobile row assertions; existing HMAC unsubscribe preserved; no provider invented. |
+| Newsletter invalid/case/whitespace/legacy duplicates/concurrency | VERIFIED COMPLETE | G concurrent dedupe plus tabs/newline/NBSP/BOM legacy cases; canonical SQL identity now matches JS trim. |
+| Newsletter repeat click/loading/slow/failure/retry; friendly non-leaking messages | VERIFIED COMPLETE | G aborted API/retry, double-click/loading and DB failure; subscriber list permission-gated. |
+| Preserve unsubscribe/confirmation/double-opt-in if existing | VERIFIED COMPLETE | Existing HMAC/unsubscribe tests retained; no new opt-in policy. |
+| Real external mail/newsletter delivery | IMPLEMENTED BUT NOT FULLY VERIFIED | Provider credentials disabled; no external sending; storage/API/UI proven only. |
+| Canonical copy link/success/clipboard denial/manual fallback | VERIFIED COMPLETE | G keyboard copy/fallback and original public tests; manual copy interaction. |
+| Encoded LinkedIn/X/Facebook/email and compatible native share/cancel | VERIFIED COMPLETE | G captures destinations and simulated native sharing/failure. No external posts made. |
+| Actual physical-device native share/network outcomes | IMPLEMENTED BUT NOT FULLY VERIFIED | Chromium simulations/hrefs only; no iOS/Android sheet or external social/email outcome. |
+| Canonical sharing excludes local/preview when origin available | VERIFIED COMPLETE | G origin tests use https://theconsilium.co.uk fallback; owner must confirm intended release hostname. |
+| Reuse analytics architecture and existing dashboard | VERIFIED COMPLETE | Existing track route/ArticleView/SiteView extended; one clock/identity utility; shared files/duplicate audit inspected. |
+| Views deduped, private/deleted/bot/invalid dropped, failure nonblocking | VERIFIED COMPLETE | A real DB concurrency/referrer/input/failure tests; G reading continues when endpoint fails. |
+| Active time visible/focused/recent interaction; hidden/blur/idle pause/resume | VERIFIED COMPLETE | A clock tests and G browser heartbeat/visibility persistence; no inactive catch-up. |
+| Engaged read approximately five active minutes; monotonic/clamped events | VERIFIED COMPLETE | A 300 seconds per visit; elapsed bound and 7200-second cap; stale/duplicate events tested. |
+| Returning definition/privacy/consent/expiry/withdrawal/no fingerprint | VERIFIED COMPLETE | A earlier UTC-day visit within 90 days among consented readers; keyed hash, fixed expiry/unlink; no IP/account linkage. |
+| Request/retention bounds and approximate metric labels | VERIFIED COMPLETE | 30s heartbeat, 60s idle, retention batch 5000; G denominator labels. Reporting DB regression excludes historical debate votes from period ratio; UI labels votes per 100 article views, not reader conversion. |
+| Later author/tag/format comparisons possible | VERIFIED COMPLETE | Engagement FK connects existing article relations; specification puts comparison UI in later scope. |
+| ADMIN/GROWTH analytics; ordinary writer/public denied | VERIFIED COMPLETE | G admin dashboard/writer denial and API RBAC; manual Growth authorized dashboard. |
+| Publish/edit/unpublish/republish/trash/restore cache invalidation | VERIFIED COMPLETE | C warmed real Next caches before 30s TTL; D topic cache lifecycle; post-commit invalidation. |
+| Format/tag/title/slug/author invalidate home/archive/category/article/author/tag/search | VERIFIED COMPLETE | Central revalidation helper/C route tests; bounded search is no-store; D published-topic changes. |
+| Team role/profile/settings/LinkedIn public updates | VERIFIED COMPLETE | Force-dynamic team plus T role/profile refresh; G footer/contact setting updates. |
+| Complete create/save/submit/review/edit/schedule/publish/unpublish/republish/delete/restore | VERIFIED COMPLETE | R/C existing lifecycle retained; I simultaneous submission/review and writer-after-submit rejection. |
+| Due publication/notifications once, trashed snapshot rejected, purge/restore safety | VERIFIED COMPLETE | I real DB due/repeat notification count, stale-trash CAS, atomic purge/asset queue and rollback on queue failure. External delivery unverified. |
+| Stale editor tabs do not overwrite newer save; reading does not cause false conflicts | VERIFIED COMPLETE | I two tabs: 200 then 409; unsaved text retained; DB preserves first save. A view/score writes preserve editorial updatedAt; full unpublish lifecycle passes. Older API clients may omit optional revision token. |
+| Keyboard/named controls/form labels/semantic tables/alt/focus/modals/Escape | VERIFIED COMPLETE | R/T/G keyboard suites; I mobile settings trap/return at 375/768; format/cover/topic labels added and closed duplicate drawer removed. |
+| Changed contrast/heading hierarchy/focus visibility and reduced motion | VERIFIED COMPLETE | Existing contrast/footnote/modal tests; reduced-motion article body/title and team cards now assert actual ancestor opacity 1 and no hydration diagnostics. Invisible-content hydration defect repaired; no whole-site accessibility certification claimed. |
+| Approximately 375/768/1440 responsive inspection, no overflow | VERIFIED COMPLETE | D/R/I/G viewport checks and manual archive/search/team/editor; multiple figures, long captions/URLs and wide tables tested. R actual headline/format-field bounds also checked at 1280; non-shrinking desktop document clipping repaired. |
+| Async upload/profile/article/tag/newsletter/analytics failures and double submits | VERIFIED COMPLETE | R/F/T/G/D negative cases; I CAS/stale revision and held POST/newer typing/503/retry/reload checks; image cleanup retry test. Creation navigation waits for the latest typed snapshot, preventing lost text. |
+| Minimal additive schema/constraints/indexes/no accidental published-content cascade | VERIFIED COMPLETE | Four DDL files/catalog inspected; tag RESTRICT, engagement cascades telemetry only; original author FK preserved. |
+| Empty/colliding/populated migration tests, replay and rollback guidance | VERIFIED COMPLETE | I four DDL files replayed twice in disposable local DBs; historical collisions refused without rewrites; report rollback steps. |
+| Production migration drift/collision/application safety | BLOCKED | No production introspection permitted/performed; operator must verify actual schema/Postgres capability and collisions before release. |
+| Changed mutations authorized server-side, scope preserved, HTML/URLs sanitized | VERIFIED COMPLETE | Article/review/profile/settings/upload/analytics guards inspected; retained RBAC/category/XSS tests and malicious R fixtures. |
+| New tables default-deny browser RLS | VERIFIED COMPLETE | I non-owner temporary role with grants cannot see seeded owner rows or insert assets/engagement. Actual Supabase role deployment unverified. |
+| Tests cannot silently use production Supabase; safeguards remain | VERIFIED COMPLETE | Canonical DB/host/base-URL guards in config/workers/fixtures/shell/harness; hosted URL/shell refusal regressions pass. |
+| Complete applicable typecheck/lint/unit/integration/Playwright/build | VERIFIED COMPLETE | Actual final commands/results in report/logs. Missing server/login/fixtures now fail setup; offline green run discarded. |
+| Investigate failures without deleting/skipping coverage | VERIFIED COMPLETE | Seven it.fails file SHA-1 equals 68b26e8; eighteen explicit skips unchanged. New failure probes led to fixes, no weakened assertions. |
+| Actual interaction QA, console/hydration/network/images/loading/errors | VERIFIED COMPLETE | Manual flows plus public/network crawl and feature exception assertions; intentional negative responses/provider/aborted-request warnings recorded. |
+| Physical devices/cross-browser/provider and manual file upload QA | IMPLEMENTED BUT NOT FULLY VERIFIED | Chromium only. Extension file-URL permission blocked manual upload; automated upload lifecycle passes. No production/provider or Firefox/WebKit acceptance. |
+| Performance bounded selectors/indexes/analytics/images; no N+1/full-body cards | VERIFIED COMPLETE | Discovery selects metadata/relations with bounds; indexes verified; code audit found no competing role/editor/analytics implementation. |
+| SEO titles/excerpts/canonical/author/social/tag indexing; filter duplicate indexing | VERIFIED COMPLETE | Existing metadata/public tests; central helpers; filtered combinations noindex/follow and unfiltered canonical. |
+| Production/high-volume load performance | IMPLEMENTED BUT NOT FULLY VERIFIED | Local concurrent crawl passes; GC 20 objects/day, purge 100/run and retention 5000/run can backlog. |
+| Final master evidence/reviewable candidate; no production release | VERIFIED COMPLETE | Fresh audit ledger/report and local committed fixes/evidence; owner controls PR publication/deployment separately. |
 
-Final verification: **996 Vitest passes across 72 files**, 7 unchanged expected failures and 18 unchanged skips; **115/115 Playwright passes**, including 41 opt-in team cases; whole-repository typecheck/lint and production build passed. Responsive/keyboard/error-state browser QA used guarded local services at 375/768/1440. Exact evidence, test scope, migrations, outstanding production configuration and commits are in [IMPLEMENTATION-REPORT.md](IMPLEMENTATION-REPORT.md).
+## Specialist reconciliation
 
-Implementation milestones are `58d79a8`, `6594343`, `44183b6`, `fefab8f`, `92a118f`, `d1ce38c` and final integrity fix `11d9540`. Four additive migrations were applied/tested only on isolated local Postgres. Production requires migration preflight, the owner's real LinkedIn URL, verified storage/RLS configuration and authenticated cron configuration. No push, merge, deployment, production migration or production data change was performed. Historical foundation records below describe the earlier handoff, not the current implementation state.
+| Status file inspected | Independent conclusion |
+|---|---|
+| discovery-status.md | D passes; rename/FK safety additionally verified. |
+| editor-status.md | R passes; I repaired silent table truncation, stale save, closed-drawer accessibility, desktop clipping and autosave navigation/typing loss. |
+| figures-status.md | R/F pass; scheduled/permanent cleanup queue holes repaired; real Supabase remains unverified. |
+| team-status.md | T passes; earlier claimed full shuffled two-deputy browser fixture was absent. I now supplies it and one-deputy centring. |
+| growth-status.md | G passes; legacy non-space whitespace duplicate defect repaired; real LinkedIn value blocked. |
+| analytics-status.md | A/G pass; precise local metric/privacy/permission evidence; production scheduling/load/device limits retained. |
 
-## Historical foundation handoff
+## Release judgement
 
-## Branch and foundation
-
-Integration branch: `feature/consilium-platform-upgrade`; audit base `029eef3`.
-Foundation commit: **`d1dab80b8eb72f986c2b8a2f0fffdb4722f0f19a`**. Pinned by local immutable tag `consilium-platform-foundation-20261006`. All shared code/contracts and verified evidence are in that commit. This subsequent documentation-only handoff commit records its numeric hash; specialist branches start from the foundation, not a moving integration HEAD.
-
-Pre-existing state: no tracked edits at start; many untracked `.next-e2e*` generated builds/configs, `docs/testing/` and `supabase/.temp/`. Preserved in place. New ignore rules hide generated Next artifacts without deleting them. The final tree may still show the pre-existing documentation/temp directories; they are not part of this foundation.
-
-## Implemented foundation
-
-- Complete product specification and six independently maintained status files.
-- Repository/lifecycle audit and fixed architectural/workstream/migration boundaries.
-- Shared `src/lib/richContent.ts`: document/mark JSON attributes including native table arrays; optional figure/table metadata contracts. This is a type contract, not feature support or runtime validation.
-- Extracted existing `FigureNode` to `src/components/editor/extensions/FigureNode.tsx` and public image/figure renderer to `src/lib/figureRender.ts`. Existing serialization/output preserved; Figures and Editor can work separately.
-- Shared public-list cache helper now uses Next 16 Route Handler-compatible `revalidateTag('articles', { expire: 0 })`. Added missing post-commit invalidation for directly created published articles and restored published articles.
-- TypeScript/ESLint/git generated E2E artifact handling; archived browser-report bundles excluded from source linting. No source tests disabled.
-- `scripts/platform-check.ts`: preserves existing fail-closed DB policy, isolates app/storage on loopback and blanks external email/OAuth/config credentials before local build/server/tests. Same arguments/environment used at build/runtime. Synthetic local test secrets only.
-- Shell launchers now propagate database-resolver failure before eval; the canonical host policy itself is unchanged. Live API audit reading-progress uses an owned synthetic article instead of corrupting shared sample fixtures.
-- Vitest files run serially against their shared seeded DB to avoid count/fixture races. Separate specialist DBs retain parallel workstream development.
-- Existing local image-optimizer flag now validates an HTTP loopback URL without credentials. With the additional TEST_HARNESS flag, CSP allows only that exact image origin; default production CSP remains unchanged. This permits real Tiptap figure preview in isolated tests.
-- Regression checks for figure-render compatibility/sanitization and publication-cache create/restore/auth/failure boundaries; existing cache test updated to assert supported API.
-
-No schema changes or new feature implementations. No role enum, second taxonomy, replacement editor, analytics dashboard or new newsletter provider.
-
-## Architecture decisions and shared contracts
-
-| Domain | Binding decision | Evidence / later owner |
-|---|---|---|
-| Formats | Existing Category FK; initial News/Opinion/Analysis; preserve Interviews and legacy URLs; drafts may be uncategorized. | Discovery owns future validation/presentation, not a new enum. |
-| Topics | Existing Tag + ArticleTag; stable existing IDs/slugs; normalize new names/slugs, rename label only, guard in-use deletion; display normalized name/id order; 1–3 guidance. | Discovery owns normalization/reconciliation; current code has legacy slug/case gaps. |
-| Filtering/search | Format AND topics; multi-topic OR; repeated tag query parameters, bounded pagination/sort/count; extend current search with topics/authors and proper errors. | Discovery, not yet implemented. |
-| Rich content | Tiptap 3 JSON string in Article.content; native table nodes; metadata in node attrs; optional figure src/alt/caption/credit/source/sourceUrl/note/decorative/dimensions/layout. | Editor owns tables/paste; Figures owns extracted modules; integrator owns dispatch/sanitizer. |
-| Roles | ADMIN/EDITOR/WRITER/GROWTH/READER remain auth roles; chief/deputy are admin-assigned public titles, normally EDITOR; linked section derives from actual account role. | Existing RBAC/scope/self-profile guards preserved; Team fixes tier presentation. |
-| Analytics | Extend ViewCounter→`/api/analytics/track`→existing dashboard. Active time is a new metric, not current scroll estimate; >=300 visible/focused/recently active seconds; idempotent 30s cumulative heartbeat. | Analytics owns persistence/consent/timers/metrics. |
-| Site config | Reuse SiteSetting key `publication_linkedin_url`, typed Growth loader and validation; unset hides link; canonical production origin never derives from preview host. | Growth implements. Actual LinkedIn value required before release. |
-
-Existing zero category assignments mean global editor, not no permissions. Existing Growth analytics permissions remain ADMIN/GROWTH only. ADMIN is not automatic public chief or self-profile eligibility. Legacy cards/leadership exceptions remain until explicitly addressed, not silently removed.
-
-## Migration ownership
-
-**No foundational migration is needed or created.** Existing shared structures suffice.
-
-- Discovery proposes topic reverse index, safe name-identity constraint/reconciliation and in-use Tag FK restriction. It must preserve stored tag URLs and preflight existing rows; no blind cleanup.
-- Analytics proposes engagement-session persistence, monotonic checks/idempotency/indexes/RLS and additive Article relation.
-- Editor, Figures, Team and Growth require no new schema by default. Any asset registry, appointment role or subscriber reconciliation migration requires evidence and integration review first.
-- **Integrator alone edits Prisma schema and canonical migration files**, serializes migration concepts/ordering, tests SQL against empty/populated local databases and documents rollback. Specialists submit proposals in their domain/status, not competing schema edits.
-- Local foundation DB was created/seeded using existing guarded Prisma db push. Existing storage test schema and `20261001_team_member_user_link.sql` were applied to this isolated localhost cluster for storage tests. This is not a new foundation migration or proof of historical full migration replay.
-- Historical production migration drift is documented in repository; not re-introspected in this phase. No production CLI/migration action was run.
-
-## Workstream boundaries
-
-| Workstream | Owns | Must hand off |
-|---|---|---|
-| [Discovery](discovery-status.md) | Categories/topics/query/filter/search pages/helpers and tests | Metadata/controller/API glue; schema/migration proposals. |
-| [Editor](editor-status.md) | Tiptap parent, paste, table extension/public table module/editor controls and tests | Renderer dispatch, sanitizer, controller/API glue. |
-| [Figures](figures-status.md) | Extracted FigureNode, figureRender, figure UI/upload adapter/article upload adapter and CSS/tests | Shared upload-route patch via integrator, article parent/sanitizer. |
-| [Team](team-status.md) | Hierarchy/roster/profile/photo/admin-team domains and tests | RBAC/auth/user-role route changes and shared uploads. |
-| [Growth](growth-status.md) | Newsletter/shares/settings/social/Growth subscribers and tests | Footer/layout/constants/SEO imports via integrator. |
-| [Analytics](analytics-status.md) | Tracker/collection/analytics API/dashboard/privacy/timing tests | Schema/migrations, public article/layout and reading-position integration. |
-
-Integrator-owned shared files: Prisma schema/config/migrations; auth/RBAC/proxy; richContent; articleRender dispatch/articleSanitize; article mutation/review/trash/scheduler; ArticleEditor controller/types/metadata panel; public article parent; globals.css; constants/seo/Footer/layout; next.config; test safety configs/scripts/CI. Specialists supply isolated patches/new modules, integrator applies shared edits sequentially. Do not overwrite another workstream's implementation.
-
-## Verification ledger
-
-Baseline and final results, logs and browser evidence are recorded in [VERIFICATION.md](VERIFICATION.md): typecheck/lint/build passed; 587 unit passes plus 7 existing expected failures; 306 integration passes plus 18 existing skips; full Vitest 893 passes across 58 files; 101 Playwright passes serially. Responsive inspection and figure extraction save/reload checked. Full upgrade/browser acceptance remains open; expected failures, skips and environment limits are retained explicitly.
-
-## Risks and readiness
-
-Architectural decisions permit independent development from the pinned foundation. No specialist branch/worktree was created or feature work launched. Analytics persistence/Discovery DB enforcement have explicit later integrator schema gates. Release is blocked until all MASTER-SPEC criteria pass and the owner provides/configures the real LinkedIn URL.
-
-Handoff Git state: all foundation changes committed; tracked working tree clean. Pre-existing untracked `docs/testing/` and `supabase/.temp/` remain intact. Other existing worktrees were not changed. Owned foundation app/Storage/Postgres services were stopped after verification; isolated test DB files remain under the owned temporary PGDATA path. Nothing pushed, merged or deployed; production unchanged.
-
-Known code risks owned in ARCHITECTURE: table/public-renderer parity; unsafe paste and unsupported toolbar marks; upload limits/cleanup/AVIF validation; linked-chief/deputy placement and legacy exceptions; newsletter concurrency and canonical shares; analytics consent/raw SQL column drift/active time; review/scheduler races and missing revision conflict detection; historical migration drift.
-
-Known verification limitations: archived build artifacts initially polluted checks; Playwright team fixtures need serial execution and independent test DB; Vitest files now run serially to prevent signup/count races; the live API audit formerly polluted the three-reader fixture and now uses its own article. Browser and DB suites still must not share simultaneous fixture mutation, and re-seeding does not remove extra progress rows. Use a fresh isolated test database when fixtures have been contaminated. Negative team fixture `/team/x.png` produces an image error in standalone browser inspection. Local Node 20 differs from repository Node 22. Local Storage emulator is not real Supabase RLS/CDN/signed-URL proof. No production verification performed.
-
-## Exact specialist branch/worktree instructions
-
-Use the pinned `FOUNDATION_COMMIT` below. Do not use a moving branch HEAD and do not share `/Users/zanie/The-Consilium`. Run each command from the integration checkout. New paths must not already contain someone else's work; check `git worktree list` first.
-
-```sh
-FOUNDATION_COMMIT=d1dab80b8eb72f986c2b8a2f0fffdb4722f0f19a
-
-git worktree add -b feature/consilium-upgrade-discovery /Users/zanie/The-Consilium-discovery "$FOUNDATION_COMMIT"
-git worktree add -b feature/consilium-upgrade-editor /Users/zanie/The-Consilium-editor "$FOUNDATION_COMMIT"
-git worktree add -b feature/consilium-upgrade-figures /Users/zanie/The-Consilium-figures "$FOUNDATION_COMMIT"
-git worktree add -b feature/consilium-upgrade-team /Users/zanie/The-Consilium-team "$FOUNDATION_COMMIT"
-git worktree add -b feature/consilium-upgrade-growth /Users/zanie/The-Consilium-growth "$FOUNDATION_COMMIT"
-git worktree add -b feature/consilium-upgrade-analytics /Users/zanie/The-Consilium-analytics "$FOUNDATION_COMMIT"
-```
-
-Do not create these worktrees until specialists are assigned; foundation does not launch specialist implementation. Each specialist reads AGENTS.md, MASTER-SPEC, ARCHITECTURE, MASTER-STATUS and its own status before work. Select Node 22 from `.nvmrc`. Use `npm ci` in the separate tree with local test env explicitly supplied so postinstall never loads production credentials. Do not copy `.env.local`, external secrets or generated builds from the main checkout.
-
-Use isolated local Postgres cluster/DB and app/storage ports per specialist:
-
-Before setup, check that the assigned ports have no unrelated listener and PGDATA is absent or belongs to this stream. Never reuse/reset another worktree's cluster. If a listed port/path is already occupied, the integrator records a new unused assignment before setup. Do not delete an existing path to make these commands work.
-
-| Stream | PG port | App port | Fake Storage port | PGDATA |
-|---|---:|---:|---:|---|
-| Discovery | 55500 | 3210 | 55600 | /tmp/consilium-upgrade-discovery-pg |
-| Editor | 55501 | 3211 | 55601 | /tmp/consilium-upgrade-editor-pg |
-| Figures | 55502 | 3212 | 55602 | /tmp/consilium-upgrade-figures-pg |
-| Team | 55503 | 3213 | 55603 | /tmp/consilium-upgrade-team-pg |
-| Growth | 55504 | 3214 | 55604 | /tmp/consilium-upgrade-growth-pg |
-| Analytics | 55505 | 3215 | 55605 | /tmp/consilium-upgrade-analytics-pg |
-
-Example for Discovery (substitute the exact values in the table for each stream):
-
-```sh
-cd /Users/zanie/The-Consilium-discovery
-export TEST_DATABASE_URL=postgresql://postgres@localhost:55500/consilium
-export PGPORT=55500
-export PGDATA=/tmp/consilium-upgrade-discovery-pg
-export PLATFORM_TEST_PORT=3210
-export PLATFORM_TEST_STORAGE_PORT=55600
-# The following values are local test fixtures, not external credentials.
-export DATABASE_URL="$TEST_DATABASE_URL"
-export DIRECT_URL="$TEST_DATABASE_URL"
-export TEST_HARNESS=1
-npm ci
-npx ts-node -P tsconfig.seed.json scripts/platform-check.ts npm run test:setup-db
-npx ts-node -P tsconfig.seed.json scripts/platform-check.ts npm run typecheck
-npx ts-node -P tsconfig.seed.json scripts/platform-check.ts npm run lint
-npx ts-node -P tsconfig.seed.json scripts/platform-check.ts npm run build
-```
-
-Storage setup only in that specialist's guarded local cluster (use installed psql path/PGBIN if needed):
-
-```sh
-npx ts-node -P tsconfig.seed.json scripts/platform-check.ts psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/e2e/helpers/local-storage-schema.sql -f supabase/migrations/20261001_team_member_user_link.sql
-# Terminal 1: fake Storage. Terminal 2: app, using the table's app port.
-npx ts-node -P tsconfig.seed.json scripts/platform-check.ts npx ts-node -P tsconfig.seed.json tests/e2e/helpers/fake-storage-server.ts
-npx ts-node -P tsconfig.seed.json scripts/platform-check.ts npm run start -- -p 3210
-# Terminal 3: run only after local app + Storage are ready.
-npx ts-node -P tsconfig.seed.json scripts/platform-check.ts npm test
-E2E_TEAM_PROFILE=1 npx ts-node -P tsconfig.seed.json scripts/platform-check.ts npx playwright test --workers=1
-```
-
-Terminals must inherit the same exports; use the wrapper for both build and runtime. No browser tests against arbitrary localhost servers: verify this server started with your isolated DB/env. Baseline suite uses RATE_LIMIT_DISABLED for functional load; original rate-limit unit coverage remains. Do not run DB tests concurrently with browser fixture mutation. Submit local commits and update only your stream status with actual tests, exclusions, migration proposals and shared-file patches. Integrator reviews commits/shared patches and runs full regression in the later integration assignment. No pushes, merges, deploys or production changes are authorized by this foundation handoff.
+**Ready for PR review; not cleared for production release.** Owner/operator prerequisites: real LinkedIn value, canonical origin confirmation, historical schema/collision preflight, real Storage/RLS/service credentials/CDN, deployed authenticated scheduled-publish/GC/retention jobs, provider delivery and browser/device acceptance. No production operation occurred.

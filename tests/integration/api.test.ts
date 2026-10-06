@@ -8,7 +8,7 @@
  * To run integration tests only:
  *   BASE_URL=http://localhost:3000 npx vitest run tests/integration
  *
- * Tests that cannot run without a live server are skipped with a note.
+ * A missing live server fails setup instead of silently passing HTTP cases.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest'
@@ -29,7 +29,7 @@ async function serverIsUp(): Promise<boolean> {
 let up = false
 beforeAll(async () => {
   up = await serverIsUp()
-  if (!up) console.warn('[integration] Dev server not reachable at', BASE, '— skipping live tests')
+  if (!up) throw new Error(`Required local integration server is not reachable at ${BASE}`)
 })
 
 function skip(label: string) {

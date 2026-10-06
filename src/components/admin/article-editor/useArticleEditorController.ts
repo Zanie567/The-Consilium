@@ -19,6 +19,7 @@ import type {
 
 interface SavedArticleResponse {
   id?: string
+  updatedAt?: string
 }
 
 function localEditorError(message: string): ArticleEditorError {
@@ -128,8 +129,12 @@ export function useArticleEditorController({
   const [selectedAuthorId, setSelectedAuthorIdState] = useState(initialData?.authorId ?? authorId)
   const [users, setUsers] = useState<UserOption[]>([])
 
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
-  const [savedVisible, setSavedVisible] = useState(false)
+  // Creating a draft navigates to its edit page and remounts this controller.
+  // The server-loaded revision is persisted; keep its save acknowledgement
+  // visible instead of losing it to the navigation race. Edits hide it below.
+  const loadedSavedRevision = Boolean(articleId && initialData?.updatedAt)
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>(loadedSavedRevision ? 'saved' : 'idle')
+  const [savedVisible, setSavedVisible] = useState(loadedSavedRevision)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<ArticleEditorError | null>(null)
   const [coverError, setCoverError] = useState('')
@@ -137,6 +142,7 @@ export function useArticleEditorController({
   const [tutorialOpen, setTutorialOpen] = useState(false)
 
   const articleIdRef = useRef<string | undefined>(articleId)
+  const revisionRef = useRef(initialData?.updatedAt)
   const isDirtyRef = useRef(false)
   const editVersionRef = useRef(0)
   const statusIntentVersionRef = useRef(0)
@@ -240,6 +246,7 @@ export function useArticleEditorController({
           categoryId: categoryIdRef.current || null,
           authorId: selectedAuthorIdRef.current,
           status: finalStatus,
+          ...(revisionRef.current ? { expectedUpdatedAt: revisionRef.current } : {}),
           tags: tagsRef.current,
           ...(finalStatus === 'SCHEDULED' && scheduledAtRef.current
             ? { scheduledAt: scheduledAtRef.current }
@@ -274,16 +281,18 @@ export function useArticleEditorController({
             )
           }
           articleIdRef.current = saved.id
-          router.replace(`/editorial/articles/${saved.id}/edit`)
+          revisionRef.current = saved.updatedAt
 
           if (finalStatus !== 'DRAFT') {
             saved = await apiRequest<SavedArticleResponse>(`/api/articles/${saved.id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body),
+              body: JSON.stringify({ ...body, expectedUpdatedAt: revisionRef.current }),
             })
           }
         }
+
+        revisionRef.current = saved.updatedAt ?? revisionRef.current
 
         if (overrideStatus && statusIntentVersion === statusIntentVersionRef.current) {
           setStatusState(overrideStatus)
@@ -294,6 +303,13 @@ export function useArticleEditorController({
         // while this request was in flight stay dirty until their own queued save
         // succeeds.
         if (editVersion === editVersionRef.current) isDirtyRef.current = false
+
+        // Navigation remounts the editor and cancels its pending autosave.
+        // Wait until the latest typing is persisted, not merely the first POST,
+        // so a slow creation response cannot replace newer text with its snapshot.
+        if (!articleId && articleIdRef.current && editVersion === editVersionRef.current) {
+          router.replace(`/editorial/articles/${articleIdRef.current}/edit`)
+        }
 
         void globalMutate(DRAFTS_SWR_KEY)
 
@@ -336,7 +352,7 @@ export function useArticleEditorController({
     const result = saveQueueRef.current.then(execute, execute)
     saveQueueRef.current = result.then(() => undefined, () => undefined)
     return result
-  }, [router])
+  }, [router, articleId])
 
   const scheduleAutosave = useCallback(() => {
     if (!canEdit) return

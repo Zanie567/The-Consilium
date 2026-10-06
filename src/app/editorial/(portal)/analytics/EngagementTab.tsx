@@ -341,7 +341,7 @@ export function EngagementTab({
                     </span>
                   </div>
                   <p className="text-[10px] text-[var(--fg-faint)]">
-                    {d.voteRate}% of site views in this period
+                    {d.voteRate} votes per 100 article views in this period
                   </p>
                 </div>
               ))}

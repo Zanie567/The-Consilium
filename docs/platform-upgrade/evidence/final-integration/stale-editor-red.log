@@ -1,0 +1,48 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+Running 5 tests using 1 worker
+
+(node:68816) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:68816) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [setup] › tests/e2e/auth.setup.ts:13:6 › authenticate as admin (802ms)
+  ✓  2 [setup] › tests/e2e/auth.setup.ts:50:6 › authenticate as an editor with no category assignments (354ms)
+  ✓  3 [setup] › tests/e2e/auth.setup.ts:54:6 › authenticate as an editor scoped to Opinion (358ms)
+  ✓  4 [setup] › tests/e2e/auth.setup.ts:62:6 › authenticate as the seeded writer (359ms)
+(node:68836) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:68836) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  5 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:174:5 › an editor with a stale open document gets a conflict and retains unsaved changes (890ms)
+
+
+  1) [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:174:5 › an editor with a stale open document gets a conflict and retains unsaved changes
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 409
+    Received: 200
+
+      195 |     const rejected = b.waitForResponse(response => response.url().includes(`/api/articles/${id}`) && response.request().method() === 'PUT')
+      196 |     await b.getByRole('button', { name: 'Save draft', exact: true }).click()
+    > 197 |     expect((await rejected).status()).toBe(409)
+          |                                       ^
+      198 |     await expect(b.getByText(/Another editor changed this article/).first()).toBeVisible()
+      199 |     await expect(b.getByPlaceholder('Your headline here...')).toHaveValue('Second editor unsaved title')
+      200 |     expect((await (await admin.request.get(`/api/articles/${id}`)).json()).title).toBe('First editor committed this title')
+        at /private/tmp/consilium-final-integration/tests/e2e/upgrade-final-integration.spec.ts:197:39
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-final-integration--6150f-and-retains-unsaved-changes-upgrade/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-final-integration--6150f-and-retains-unsaved-changes-upgrade/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/upgrade-final-integration--6150f-and-retains-unsaved-changes-upgrade/error-context.md
+
+  1 failed
+    [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:174:5 › an editor with a stale open document gets a conflict and retains unsaved changes
+  4 passed (3.8s)

@@ -506,7 +506,6 @@ async function handleEngagement(since: Date, prevSince: Date) {
   // ── Debate participation ──
   const debates = await prisma.debate
     .findMany({
-      include: { _count: { select: { votes: true } } },
       orderBy: { createdAt: 'desc' },
       take: 10,
     })
@@ -520,7 +519,7 @@ async function handleEngagement(since: Date, prevSince: Date) {
       const counts = await prisma.debateVote
         .groupBy({
           by: ['side'],
-          where: { debateId: d.id },
+          where: { debateId: d.id, createdAt: { gte: since } },
           _count: { side: true },
         })
         .catch(() => [])

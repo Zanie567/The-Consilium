@@ -1,0 +1,39 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+ ❯ tests/integration/growth-subscribe.test.ts (10 tests | 4 failed) 108ms
+     × reuses historical subscribers with surrounding "\t" whitespace 6ms
+     × reuses historical subscribers with surrounding "\n" whitespace 3ms
+     × reuses historical subscribers with surrounding " " whitespace 4ms
+     × reuses historical subscribers with surrounding "﻿" whitespace 7ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/growth-subscribe.test.ts > newsletter persistence > reuses historical subscribers with surrounding "\t" whitespace
+ FAIL  tests/integration/growth-subscribe.test.ts > newsletter persistence > reuses historical subscribers with surrounding "\n" whitespace
+ FAIL  tests/integration/growth-subscribe.test.ts > newsletter persistence > reuses historical subscribers with surrounding " " whitespace
+ FAIL  tests/integration/growth-subscribe.test.ts > newsletter persistence > reuses historical subscribers with surrounding "﻿" whitespace
+AssertionError: expected 201 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 201
+
+ ❯ tests/integration/growth-subscribe.test.ts:33:51
+     31|     legacyEmails.push(stored, address)
+     32|     await prisma.subscriber.create({ data: { email: stored } })
+     33|     expect((await POST(request(address))).status).toBe(200)
+       |                                                   ^
+     34|     await expect(prisma.subscriber.create({ data: { email: address } }…
+     35|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 6 passed (10)
+   Start at  21:19:46
+   Duration  296ms (transform 36ms, setup 26ms, import 85ms, tests 108ms, environment 0ms)

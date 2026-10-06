@@ -77,6 +77,19 @@ describe('Google Docs structure and repeated native JSON round-trips', () => {
   })
 })
 describe('public rich-content safety and parity', () => {
+  it('does not silently discard persisted rows or cells from large tables', () => {
+    const cell = (text: string) => ({ type: 'tableCell', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })
+    const doc = { type: 'doc', content: [
+      { type: 'table', content: Array.from({ length: 501 }, (_, i) => ({ type: 'tableRow', content: [cell(`Row ${i}`)] })) },
+      { type: 'table', content: [{ type: 'tableRow', content: Array.from({ length: 101 }, (_, i) => cell(`Column ${i}`)) }] },
+    ] }
+    const container = document.createElement('div')
+    container.innerHTML = renderContent(JSON.stringify(doc)).html
+    expect(container.querySelectorAll('table')[0].querySelectorAll('tr')).toHaveLength(501)
+    expect(container.querySelectorAll('table')[1].querySelectorAll('td')).toHaveLength(101)
+    expect(container.textContent).toContain('Row 500')
+    expect(container.textContent).toContain('Column 100')
+  })
   it('drops empty tables', () =>
     expect(renderContent('{"type":"doc","content":[{"type":"table","content":[]}]}').html).toBe(''))
   it('renders safe attached table metadata only when present', () => {

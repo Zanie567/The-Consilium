@@ -7,14 +7,9 @@
  *   - Priority 4: no duplicate published titles; dashboard user count == users
  *     page total; comment moderation total == sum of per-user comment counts.
  *
- * Requires DATABASE_URL (loaded from .env.local). If the DB is unreachable the
- * whole suite is skipped with a warning rather than failing, mirroring the
- * existing HTTP integration tests.
+ * Uses the guarded database resolved by vitest.config.ts. Missing local
+ * services fail setup; production .env files are never loaded here.
  */
-import { config } from 'dotenv'
-import { resolve } from 'path'
-config({ path: resolve(__dirname, '../../.env.local') })
-
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
@@ -32,15 +27,12 @@ beforeAll(async () => {
     // with no local test DB set up previously fell through to whatever
     // DATABASE_URL happened to be in .env.local — which can be a real
     // Supabase project. Treat an unsafe host exactly like "DB unreachable":
-    // skip rather than connect.
+    // fail before connecting.
     assertSafeTestDatabaseHost(process.env.DATABASE_URL, 'DATABASE_URL')
     await prisma.$queryRaw`SELECT 1`
     dbUp = true
   } catch (err) {
-    console.warn(
-      '[data-layer] DB unreachable or unsafe — skipping. Run scripts/setup-test-db.sh first.',
-      err instanceof Error ? err.message : err
-    )
+    throw new Error('Required safe local data-layer database is unavailable. Run scripts/setup-test-db.sh first.', { cause: err })
   }
 })
 afterAll(async () => {

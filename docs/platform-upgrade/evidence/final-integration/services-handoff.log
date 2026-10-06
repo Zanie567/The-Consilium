@@ -1,0 +1,5 @@
+waiting for server to shut down.... done
+server stopped
+
+Owned app/Storage processes interrupted after completed suites.
+Listener inventory for owned ports 3220/55620/55520: none (lsof exit 1)

@@ -192,6 +192,7 @@ test('existing analytics dashboard exposes active reading and rejects writer per
     await page.getByRole('button', { name: 'Engagement', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Active reading', exact: true })).toBeVisible()
     await expect(page.getByText('Readers with 5 active minutes', { exact: true })).toBeVisible()
+    await expect(page.getByText(/votes per 100 article views in this period/).first()).toBeVisible()
     for (const width of [375, 768, 1440]) {
       await page.setViewportSize({ width, height: 900 })
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

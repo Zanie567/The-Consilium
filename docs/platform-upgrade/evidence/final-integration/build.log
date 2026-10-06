@@ -1,0 +1,270 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+> the-consilium@0.1.0 build
+> next build
+
+▲ Next.js 16.2.2 (Turbopack)
+- Experiments (use with caution):
+  ✓ viewTransition
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 4.8s
+  Running TypeScript ...
+  Finished TypeScript in 7.3s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/89) ...
+  Generating static pages using 7 workers (22/89)
+[auth:read-session] {
+  requestId: 'eab0c798-4095-4928-929a-b5468c2b1d57',
+  error: Error: Dynamic server usage: Route /editorial/readers couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+      at m (.next/server/chunks/ssr/_08zzayt._.js:34:38162)
+      at h (.next/server/chunks/ssr/_08zzayt._.js:34:46795)
+      at r (.next/server/chunks/ssr/_08zzayt._.js:45:3355)
+      at q (.next/server/chunks/ssr/_08zzayt._.js:45:3264)
+      at k (.next/server/chunks/ssr/[root-of-the-server]__12w79nl._.js:1:3327) {
+    description: "Route /editorial/readers couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+    digest: 'DYNAMIC_SERVER_USAGE'
+  }
+}
+[auth:read-session] {
+  requestId: '8d519cc6-bf21-4840-b4dd-ae9b00dc9a45',
+  error: Error: Dynamic server usage: Route /admin/login-attempts couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+      at m (.next/server/chunks/ssr/_08zzayt._.js:34:38162)
+      at h (.next/server/chunks/ssr/_08zzayt._.js:34:46795)
+      at r (.next/server/chunks/ssr/_08zzayt._.js:45:3355)
+      at q (.next/server/chunks/ssr/_08zzayt._.js:45:3264)
+      at k (.next/server/chunks/ssr/[root-of-the-server]__0q6jw0p._.js:1:10216) {
+    description: "Route /admin/login-attempts couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+    digest: 'DYNAMIC_SERVER_USAGE'
+  }
+}
+  Generating static pages using 7 workers (44/89)
+[auth:read-session] {
+  requestId: '4d83ba0f-4a1b-4c1f-acbc-07dfd9c00fa3',
+  error: Error: Dynamic server usage: Route /admin/subscribers couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+      at m (.next/server/chunks/ssr/_08zzayt._.js:34:38162)
+      at h (.next/server/chunks/ssr/_08zzayt._.js:34:46795)
+      at r (.next/server/chunks/ssr/_08zzayt._.js:45:3355)
+      at q (.next/server/chunks/ssr/_08zzayt._.js:45:3264)
+      at k (.next/server/chunks/ssr/[root-of-the-server]__0np8jc_._.js:1:10216) {
+    description: "Route /admin/subscribers couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+    digest: 'DYNAMIC_SERVER_USAGE'
+  }
+}
+[auth:read-session] {
+  requestId: 'd291f579-ec59-4923-892f-276cba8d9bbd',
+  error: Error: Dynamic server usage: Route /admin/team couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+      at m (.next/server/chunks/ssr/_08zzayt._.js:34:38162)
+      at h (.next/server/chunks/ssr/_08zzayt._.js:34:46795)
+      at r (.next/server/chunks/ssr/_08zzayt._.js:45:3355)
+      at q (.next/server/chunks/ssr/_08zzayt._.js:45:3264)
+      at k (.next/server/chunks/ssr/[root-of-the-server]__0hszdti._.js:1:3275) {
+    description: "Route /admin/team couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+    digest: 'DYNAMIC_SERVER_USAGE'
+  }
+}
+  Generating static pages using 7 workers (66/89)
+[auth:read-session] {
+  requestId: '6ef0808f-2219-4000-b5a9-ce916ed24d18',
+  error: Error: Dynamic server usage: Route /editorial/calendar couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+      at m (.next/server/chunks/ssr/_08zzayt._.js:34:38162)
+      at h (.next/server/chunks/ssr/_08zzayt._.js:34:46795)
+      at r (.next/server/chunks/ssr/_08zzayt._.js:45:3355)
+      at q (.next/server/chunks/ssr/_08zzayt._.js:45:3264)
+      at l (.next/server/chunks/ssr/[root-of-the-server]__0bc2~y1._.js:1:6275) {
+    description: "Route /editorial/calendar couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+    digest: 'DYNAMIC_SERVER_USAGE'
+  }
+}
+[auth:read-session] {
+  requestId: 'bb0d1ad1-5d09-4b79-a47f-955ed67ed474',
+  error: Error: Dynamic server usage: Route /editorial/analytics couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+      at m (.next/server/chunks/ssr/_08zzayt._.js:34:38162)
+      at h (.next/server/chunks/ssr/_08zzayt._.js:34:46795)
+      at r (.next/server/chunks/ssr/_08zzayt._.js:45:3355)
+      at q (.next/server/chunks/ssr/_08zzayt._.js:45:3264)
+      at j (.next/server/chunks/ssr/[root-of-the-server]__033bbo.._.js:1:3337) {
+    description: "Route /editorial/analytics couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+    digest: 'DYNAMIC_SERVER_USAGE'
+  }
+}
+✓ Generating static pages using 7 workers (89/89) in 494ms
+  Finalizing page optimization ...
+
+Route (app)                                         Revalidate  Expire
+┌ ƒ /
+├ ○ /_not-found                                             1m      1y
+├ ○ /about                                                  1m      1y
+├ ƒ /admin
+├ ƒ /admin/articles
+├ ƒ /admin/articles/[id]/edit
+├ ƒ /admin/articles/new
+├ ƒ /admin/data
+├ ƒ /admin/login-attempts
+├ ƒ /admin/subscribers
+├ ƒ /admin/team
+├ ƒ /api/admin/audit-log
+├ ƒ /api/admin/delete-user
+├ ƒ /api/admin/stats
+├ ƒ /api/admin/users
+├ ƒ /api/admin/users/[userId]
+├ ƒ /api/admin/users/[userId]/ban
+├ ƒ /api/admin/users/[userId]/comments/[commentId]
+├ ƒ /api/admin/users/[userId]/notes
+├ ƒ /api/admin/users/[userId]/notes/[noteId]
+├ ƒ /api/admin/users/[userId]/role
+├ ƒ /api/admin/users/[userId]/unban
+├ ƒ /api/admin/users/[userId]/warn
+├ ƒ /api/analytics/by-author
+├ ƒ /api/analytics/by-category
+├ ƒ /api/analytics/recent-activity
+├ ƒ /api/analytics/referrers
+├ ƒ /api/analytics/summary
+├ ƒ /api/analytics/timeseries
+├ ƒ /api/analytics/top-articles
+├ ƒ /api/analytics/track
+├ ƒ /api/articles
+├ ƒ /api/articles/[id]
+├ ƒ /api/articles/[id]/comments
+├ ƒ /api/articles/[id]/comments/[commentId]
+├ ƒ /api/articles/[id]/notes
+├ ƒ /api/auth/[...nextauth]
+├ ƒ /api/auth/forgot-password
+├ ƒ /api/auth/signup
+├ ƒ /api/award-trophies
+├ ƒ /api/bookmarks
+├ ƒ /api/comments
+├ ƒ /api/comments/[commentId]
+├ ƒ /api/comments/[commentId]/report
+├ ƒ /api/comments/[commentId]/upvote
+├ ƒ /api/contact
+├ ƒ /api/cron/cleanup-article-images
+├ ƒ /api/cron/cleanup-reading-analytics
+├ ƒ /api/cron/predictions
+├ ƒ /api/cron/recalculate-streaks
+├ ƒ /api/cron/update-engagement-scores
+├ ƒ /api/debates/[debateId]/vote
+├ ƒ /api/debates/active
+├ ƒ /api/editorial/analytics
+├ ƒ /api/editorial/articles/[id]/commendation
+├ ƒ /api/editorial/articles/[id]/feature
+├ ƒ /api/editorial/articles/[id]/pin
+├ ƒ /api/editorial/articles/[id]/review
+├ ƒ /api/editorial/articles/[id]/view
+├ ƒ /api/editorial/calendar
+├ ƒ /api/editorial/comments
+├ ƒ /api/editorial/comments/[commentId]
+├ ƒ /api/editorial/commissioning-brief
+├ ƒ /api/editorial/debates
+├ ƒ /api/editorial/debates/[debateId]
+├ ƒ /api/editorial/glossary
+├ ƒ /api/editorial/glossary/[id]
+├ ƒ /api/editorial/glossary/settings
+├ ƒ /api/editorial/growth/settings
+├ ƒ /api/editorial/growth/subscribers
+├ ƒ /api/editorial/growth/writer-activity
+├ ƒ /api/editorial/leaderboard
+├ ƒ /api/editorial/notifications
+├ ƒ /api/editorial/notifications/[id]
+├ ƒ /api/editorial/password-reset
+├ ƒ /api/editorial/predictions
+├ ƒ /api/editorial/predictions/[id]
+├ ƒ /api/editorial/read-through
+├ ƒ /api/editorial/read-through/[articleId]
+├ ƒ /api/editorial/review-comments
+├ ƒ /api/editorial/series
+├ ƒ /api/editorial/setup
+├ ƒ /api/editorial/trash
+├ ƒ /api/editorial/trash/[id]
+├ ƒ /api/editorial/users
+├ ƒ /api/editorial/users/[id]
+├ ƒ /api/latest-article
+├ ƒ /api/parse-pdf
+├ ƒ /api/predictions/[eventId]
+├ ƒ /api/profile/account
+├ ƒ /api/profile/comments
+├ ƒ /api/profile/debate-votes
+├ ƒ /api/profile/reading-history
+├ ƒ /api/profile/saved-articles
+├ ƒ /api/profile/stats
+├ ƒ /api/publish-scheduled
+├ ƒ /api/reading-progress
+├ ƒ /api/reading-progress/[articleId]
+├ ƒ /api/search
+├ ƒ /api/subscribe
+├ ƒ /api/team
+├ ƒ /api/team-profile
+├ ƒ /api/team/[id]
+├ ƒ /api/ticker/macro
+├ ƒ /api/ticker/markets
+├ ƒ /api/upload
+├ ƒ /api/upload/discard
+├ ƒ /api/user/achievements
+├ ƒ /api/user/achievements/mark-seen
+├ ƒ /api/user/streak
+├ ƒ /api/user/trophies
+├ ƒ /api/user/trophies/mark-seen
+├ ○ /apple-icon.png
+├ ƒ /archive
+├ ƒ /articles/[slug]
+├ ƒ /author/[slug]
+├ ○ /banned                                                 1m      1y
+├ ƒ /category/[slug]
+├ ○ /contact                                                1m      1y
+├ ○ /corrections                                            1m      1y
+├ ƒ /editorial
+├ ƒ /editorial/analytics
+├ ƒ /editorial/articles
+├ ƒ /editorial/articles/[id]/edit
+├ ƒ /editorial/articles/new
+├ ƒ /editorial/calendar
+├ ƒ /editorial/comments
+├ ƒ /editorial/debates
+├ ƒ /editorial/debates/[debateId]
+├ ƒ /editorial/debates/[debateId]/edit
+├ ƒ /editorial/debates/new
+├ ƒ /editorial/glossary
+├ ƒ /editorial/growth/engagement
+├ ƒ /editorial/growth/subscribers
+├ ƒ /editorial/growth/writer-activity
+├ ƒ /editorial/leaderboard
+├ ○ /editorial/login                                        1m      1y
+├ ƒ /editorial/predictions
+├ ƒ /editorial/predictions/[id]/edit
+├ ƒ /editorial/predictions/new
+├ ƒ /editorial/readers
+├ ƒ /editorial/reset-password
+├ ƒ /editorial/review
+├ ƒ /editorial/review/[id]
+├ ƒ /editorial/scheduled
+├ ƒ /editorial/series
+├ ○ /editorial/setup                                        1m      1y
+├ ƒ /editorial/team-profile
+├ ƒ /editorial/trash
+├ ƒ /editorial/users
+├ ƒ /editorial/users/[id]
+├ ƒ /feed.xml
+├ ○ /forgot-password                                        1m      1y
+├ ○ /icon.png
+├ ƒ /login
+├ ƒ /opinion-debate
+├ ƒ /predictions
+├ ƒ /predictions/[id]
+├ ƒ /predictions/leaderboard
+├ ○ /privacy                                                1m      1y
+├ ƒ /profile
+├ ƒ /reset-password
+├ ○ /robots.txt
+├ ○ /search                                                 1m      1y
+├ ○ /signup                                                 1m      1y
+├ ○ /sitemap.xml
+├ ƒ /tag/[slug]
+├ ƒ /team
+├ ○ /terms                                                  1m      1y
+└ ƒ /unsubscribe
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
