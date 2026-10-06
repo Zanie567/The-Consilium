@@ -5,7 +5,8 @@ import {
   ReactNodeViewRenderer, NodeViewWrapper,
 } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
-import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model'
+import { DOMParser as ProseMirrorDOMParser, type Node as ProseMirrorNode } from '@tiptap/pm/model'
+import type { EditorView } from '@tiptap/pm/view'
 import {
   Node, mergeAttributes, type SingleCommands, type RawCommands,
 } from '@tiptap/core'
@@ -37,6 +38,17 @@ import { dataUrlToFile } from '@/lib/editor/dataUrl'
 import { ARTICLE_IMAGE_TOO_LARGE_MESSAGE, MAX_ARTICLE_IMAGE_BYTES } from '@/lib/constants'
 import { ApiError, apiRequest, asApiError } from '@/lib/apiClient'
 import { CommentHighlight } from './commentHighlight'
+
+function editFootnote(view: EditorView, _pos: number, node: ProseMirrorNode, nodePos: number) {
+  if (node.type.name !== 'footnoteRef' || !view.editable) return false
+  const next = window.prompt('Footnote text (clear it to remove this footnote):', String(node.attrs.content ?? ''))
+  if (next === null) return true
+  const tr = view.state.tr
+  if (!next.trim()) tr.delete(nodePos, nodePos + node.nodeSize)
+  else tr.setNodeMarkup(nodePos, undefined, { ...node.attrs, content: next.trim() })
+  view.dispatch(tr)
+  return true
+}
 
 // ── Module augmentations ─────────────────────────────────────────────────────
 declare module '@tiptap/core' {
@@ -390,20 +402,11 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
       editorProps: {
         // Clicking a footnote marker opens its text for editing. Clearing the
         // text removes the footnote; cancelling leaves it untouched.
-        handleClickOn(view, _pos, node, nodePos) {
-          if (node.type.name !== 'footnoteRef' || !view.editable) return false
-          const existing = String(node.attrs.content ?? '')
-          const next = window.prompt('Footnote text (clear it to remove this footnote):', existing)
-          if (next === null) return true
-          const tr = view.state.tr
-          if (next.trim() === '') {
-            tr.delete(nodePos, nodePos + node.nodeSize)
-          } else {
-            tr.setNodeMarkup(nodePos, undefined, { ...node.attrs, content: next.trim() })
-          }
-          view.dispatch(tr)
-          return true
-        },
+        handleClickOn: editFootnote,
+        // Repeated clicks must still open the edit/remove control. ProseMirror
+        // routes rapid second/third clicks to separate handlers.
+        handleDoubleClickOn: editFootnote,
+        handleTripleClickOn: editFootnote,
         handlePaste(view, event) {
           const html = event.clipboardData?.getData('text/html')
           // If no HTML in clipboard, return false and let TipTap

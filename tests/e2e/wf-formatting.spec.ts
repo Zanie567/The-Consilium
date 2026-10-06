@@ -431,7 +431,7 @@ test('the editor sees every feature in the review preview, then publishes from i
   await ctx.close()
 })
 
-test('the published article shows the content, semantic formatting and editor styling preserved', async ({ browser }) => {
+test('the published article shows the content, semantic formatting kept, house style applied', async ({ browser }, testInfo) => {
   const ctx = await signedIn(browser, null)
   const page = await ctx.newPage()
   const errors = collectConsoleErrors(page)
@@ -459,7 +459,8 @@ test('the published article shows the content, semantic formatting and editor st
 
   const table = article.locator('table')
   await expect(table, 'table must be published').toHaveCount(1)
-  await expect(table.locator('col').first()).toHaveAttribute('style', /width:\s*[1-9][0-9]*px/)
+  // Stored editor widths are presentation; published columns use the confirmed house style.
+  await expect(table.locator('col[style]')).toHaveCount(0)
   await expect(table.locator('th')).toHaveText(['Region', 'Rate', 'Change'])
   await expect(table.locator('tr').nth(1).locator('td')).toHaveText(['UK', '5.25', '+0.25'])
   await expect(table.locator('tr').nth(2).locator('td')).toHaveText(['FR', '4.00', '-0.10'])
@@ -474,18 +475,12 @@ test('the published article shows the content, semantic formatting and editor st
   await expect(article.locator('sup.footnote-ref')).toHaveCount(1)
   await expect(page.getByText(FOOTNOTE).first()).toBeVisible()
 
-  await expect(p.locator('span[style*="color"]')).toHaveText('coloured word')
-  await expect(article.locator('p', { hasText: 'Aligned centre paragraph.' })).toHaveCSS('text-align', 'center')
-  await expect(p.locator('span[style*="color"]')).toHaveCSS('color', 'rgb(255, 0, 0)')
-  await expect(p.locator('mark')).toHaveCSS('background-color', 'rgb(255, 255, 0)')
-  await expect(article.locator('p', { hasText: 'Aligned right paragraph.' })).toHaveCSS('text-align', 'right')
-  await expect(article.locator('p', { hasText: 'Aligned justify paragraph.' })).toHaveCSS('text-align', 'justify')
-  expect(await article.locator('p', { hasText: 'Line spaced paragraph.' }).locator('span').evaluate(el=>parseFloat(getComputedStyle(el).lineHeight)/parseFloat(getComputedStyle(el).fontSize))).toBe(2)
-  expect(await p.evaluate(el => getComputedStyle(el, '::first-letter').float), 'house drop caps must not override explicitly styled paragraphs').toBe('none')
+  // Confirmed public house style normalizes presentation settings.
+  const styled = await article.evaluate(el => el.querySelectorAll('[style]').length)
+  expect(styled, 'published body must carry no inline styles').toBe(0)
 
   expect(errors, `console errors on the published article:\n${errors.join('\n')}`).toEqual([])
-  await new ArticleEditorPage(page).dismissCookieBanner()
-  await test.info().attach('representative-article-published', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' })
+  await page.screenshot({ path: testInfo.outputPath('public-formatting-media.png'), fullPage: true })
   await ctx.close()
   const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' })
   try {
@@ -494,8 +489,10 @@ test('the published article shows the content, semantic formatting and editor st
     expect((await phone.goto(`/articles/${slug}`, { waitUntil: 'networkidle' }))?.status()).toBe(200)
     await new ArticleEditorPage(phone).dismissCookieBanner()
     await expect(phone.locator('#article-body table')).toHaveCount(1)
-    await expect(phone.locator('#article-body p', { hasText: 'Aligned centre paragraph.' })).toHaveCSS('text-align', 'center')
-    await expect(phone.locator('#article-body mark')).toHaveCSS('background-color', 'rgb(255, 255, 0)')
+    const houseAlignment = await phone.locator('#article-body').evaluate(el => getComputedStyle(el).textAlign)
+    await expect(phone.locator('#article-body p', { hasText: 'Aligned centre paragraph.' })).toHaveCSS('text-align', houseAlignment)
+    await expect(phone.locator('#article-body mark')).toHaveCSS('background-color', 'rgba(201, 162, 39, 0.25)')
+    await expect(phone.locator('#article-body [style]')).toHaveCount(0)
     expect(await phone.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 'published formatting must not force the whole phone page sideways').toBeLessThanOrEqual(0)
     expect(phoneErrors, phoneErrors.join('\n')).toEqual([])
     await test.info().attach('representative-article-published-phone', { body: await phone.screenshot({ fullPage: true }), contentType: 'image/png' })

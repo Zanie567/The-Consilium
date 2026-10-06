@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -10,7 +11,7 @@ import { isRealCalendarDate, moveToEditorialDate } from '@/lib/editorialCalendar
  * (in the editorial time zone) is kept, only the date changes.
  * Body: { articleId: string, date: "YYYY-MM-DD" }
  */
-export async function PATCH(req: Request) {
+async function PATCHHandler(req: Request) {
   // Role gate: re-verified against the database on every call. The allowed
   // roles live in CALENDAR_ACCESS_ROLES in src/lib/rbac.ts.
   const caller = await getVerifiedSessionUser(CALENDAR_ACCESS_ROLES)
@@ -99,3 +100,5 @@ export async function PATCH(req: Request) {
     scheduledAt: nextScheduledAt.toISOString(),
   })
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)

@@ -4,6 +4,7 @@ import { checkArticleCommentAccess } from '@/lib/articleCommentAccess'
 import type { CommentAccessGrant } from '@/lib/articleCommentAccess'
 import type { ArticleComment } from '@prisma/client'
 import { apiError, isPrismaSchemaMismatch } from '@/lib/apiResponse'
+import { withTestingAudit } from '@/lib/testingAudit'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -55,7 +56,7 @@ export async function GET(_req: Request, { params }: Props) {
   }
 }
 
-export async function POST(req: Request, { params }: Props) {
+async function postHandler(req: Request, { params }: Props) {
   const { id } = await params
   try {
     const access = await checkArticleCommentAccess(id)
@@ -148,6 +149,8 @@ export async function POST(req: Request, { params }: Props) {
     return NextResponse.json({ error: 'Failed to save the comment.' }, { status: 500 })
   }
 }
+
+export const POST = withTestingAudit(postHandler)
 
 async function notifyAboutComment({
   grant,

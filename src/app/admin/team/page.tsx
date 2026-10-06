@@ -17,7 +17,7 @@ export default async function AdminTeamPage() {
 
   const accounts = await prisma.user
     .findMany({
-      where: { role: { in: ['WRITER', 'EDITOR', 'GROWTH'] }, isActive: true, isBanned: false },
+      where: { role: { in: ['ADMIN', 'WRITER', 'EDITOR', 'GROWTH'] }, isActive: true, isBanned: false },
       select: { id: true, name: true, email: true, role: true },
       orderBy: [{ name: 'asc' }, { email: 'asc' }],
     })

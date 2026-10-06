@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 import { getVerifiedSessionUser } from '@/lib/auth'
@@ -15,7 +16,7 @@ export const dynamic = 'force-dynamic'
  * (GLOSSARY_MANAGE_ROLES), re-verified against the database.
  * Body: { enabled: boolean }
  */
-export async function PATCH(req: Request) {
+async function PATCHHandler(req: Request) {
   const caller = await getVerifiedSessionUser(GLOSSARY_MANAGE_ROLES)
   if (!caller) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -49,3 +50,5 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)

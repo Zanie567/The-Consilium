@@ -15,6 +15,8 @@ import { readTimeLabel } from '@/lib/readTime'
 import { getInitials } from '@/lib/authorUtils'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 import { MAX_AVATAR_BYTES, MAX_BIO_LENGTH } from '@/lib/constants'
+import { DisplayTitlesPicker } from '@/components/profile/DisplayTitlesPicker'
+import { ProfilePreview } from '@/components/profile/ProfilePreview'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -513,6 +515,8 @@ function AccountSettingsTab({
   initialImage,
   email,
   role,
+  initialTitles,
+  fallbackLabel,
   authorPath,
   onNameChange,
   onImageChange,
@@ -522,6 +526,8 @@ function AccountSettingsTab({
   initialImage: string | null
   email: string
   role: string
+  initialTitles: string[]
+  fallbackLabel: string | null
   /** The public author page for this account, or null when it is not meant to have one. */
   authorPath: string | null
   onNameChange: (name: string) => void
@@ -531,6 +537,10 @@ function AccountSettingsTab({
   const [name, setName] = useState(initialName ?? '')
   const [bio, setBio] = useState(initialBio ?? '')
   const [image, setImage] = useState(initialImage)
+  const [titles, setTitles] = useState<string[]>(initialTitles)
+  // Titles are admin-write. The control is read-only for everyone else; the server
+  // refuses the field from a non-admin regardless of what this renders.
+  const canEditTitles = role === 'ADMIN'
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [imageError, setImageError] = useState('')
@@ -572,8 +582,8 @@ function AccountSettingsTab({
     if (!file) return
 
     setImageError('')
-    if (!file.type.startsWith('image/')) {
-      setImageError('Choose an image file (JPEG, PNG, GIF, WebP or AVIF).')
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setImageError('Profile photos must be JPEG, PNG or WebP.')
       return
     }
     // Mirrors the server cap for the avatars bucket, so an oversized file fails
@@ -619,7 +629,7 @@ function AccountSettingsTab({
       const data = await apiRequest<{ name?: string | null }>('/api/profile/account', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, bio }),
+        body: JSON.stringify({ name, bio, ...(canEditTitles ? { displayTitles: titles } : {}) }),
       })
       onNameChange(data.name ?? name)
       setSaved(true)
@@ -662,7 +672,8 @@ function AccountSettingsTab({
   }
 
   return (
-    <div className="space-y-8 max-w-lg">
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,32rem)_minmax(0,1fr)] lg:items-start">
+      <div className="min-w-0 space-y-8">
       {/* Profile details */}
       <section>
         <h3 className="text-[var(--fg)] font-bold text-sm uppercase tracking-widest mb-4">Profile Details</h3>
@@ -689,7 +700,7 @@ function AccountSettingsTab({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
+                  accept="image/jpeg,image/png,image/webp"
                   className="sr-only"
                   onChange={handleImageSelected}
                 />
@@ -715,7 +726,7 @@ function AccountSettingsTab({
             </div>
             {imageError && <p className="mt-2 text-xs text-red-500">{imageError}</p>}
             <p className="mt-2 text-[10px] leading-relaxed text-[var(--fg-faint)]">
-              JPEG, PNG, GIF, WebP or AVIF, up to {MAX_AVATAR_BYTES / (1024 * 1024)} MB. Saved as
+              JPEG, PNG or WebP, up to {MAX_AVATAR_BYTES / (1024 * 1024)} MB. Saved as
               soon as you choose it.
             </p>
           </div>
@@ -753,6 +764,23 @@ function AccountSettingsTab({
                 {bio.length}/{MAX_BIO_LENGTH}
               </p>
             </div>
+          </div>
+          <div>
+            {canEditTitles ? (
+              <DisplayTitlesPicker value={titles} onChange={setTitles} />
+            ) : (
+              <>
+                <span className="block text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-widest mb-1.5">
+                  Display titles
+                </span>
+                <p className="text-sm text-[var(--fg)]">
+                  {titles.length > 0 ? titles.join(' \u00b7 ') : 'None set'}
+                </p>
+                <p className="text-[var(--fg-faint)] text-[10px] mt-1">
+                  Only an administrator can change your display titles.
+                </p>
+              </>
+            )}
           </div>
           <div>
             <label className="block text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-widest mb-1.5">
@@ -863,6 +891,11 @@ function AccountSettingsTab({
           )}
         </div>
       </section>
+      </div>
+
+      <aside className="min-w-0 lg:sticky lg:top-6">
+        <ProfilePreview name={name} bio={bio} image={image} titles={titles} fallbackLabel={fallbackLabel} />
+      </aside>
     </div>
   )
 }
@@ -889,10 +922,12 @@ interface ProfileTabsProps {
   createdAt: string
   initialTab?: TabId
   role: string
+  displayTitles: string[]
+  fallbackLabel: string | null
   authorPath: string | null
 }
 
-export function ProfileTabs({ initialName, initialBio, email, image, createdAt, initialTab, role, authorPath }: ProfileTabsProps) {
+export function ProfileTabs({ initialName, initialBio, email, image, createdAt, initialTab, role, displayTitles, fallbackLabel, authorPath }: ProfileTabsProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'history')
   const [displayName, setDisplayName] = useState(initialName)
@@ -1011,6 +1046,8 @@ export function ProfileTabs({ initialName, initialBio, email, image, createdAt, 
             initialImage={image}
             email={email}
             role={role}
+            initialTitles={displayTitles}
+            fallbackLabel={fallbackLabel}
             authorPath={authorPath}
             onNameChange={setDisplayName}
             onImageChange={setAvatar}

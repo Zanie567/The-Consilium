@@ -74,7 +74,7 @@ export default async function EditorialLayout({ children }: { children: React.Re
     // screen) and only the content region below scrolls. Previously the whole
     // document scrolled, which carried the sidebar off the top of the screen
     // on any page taller than the viewport.
-    <div className="h-[100dvh] bg-[var(--bg-subtle)] flex overflow-hidden">
+    <div style={{ height: 'calc(100dvh - var(--testing-banner-height, 0px))' }} className="bg-[var(--bg-subtle)] flex overflow-hidden">
       {/* Sidebar: hidden on mobile (overlay via wrapper), always visible on desktop */}
       <Suspense
         fallback={
@@ -94,7 +94,7 @@ export default async function EditorialLayout({ children }: { children: React.Re
        * would make it unreachable. A scrollbar inside this region is contained
        * and never becomes a browser-level horizontal scrollbar.
        */}
-      <div className="flex-1 min-w-0 overflow-auto">
+      <div data-editorial-scroll-region className="flex-1 min-w-0 overflow-auto">
         <PortalTransition>{children}</PortalTransition>
       </div>
       <RouteFeedback userId={session.user.id} />

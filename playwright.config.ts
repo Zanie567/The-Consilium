@@ -36,7 +36,7 @@ const BASE_URL = resolveTestBaseUrl(process.env.E2E_BASE_URL)
 const phase = process.env.E2E_PHASE
 const resultsDir = process.env.E2E_RESULTS_DIR ?? 'test-results'
 const reportDir = `playwright-report/${process.env.E2E_RUN_ID ?? 'manual'}`
-const isWorkflow = (name: string) => name.startsWith('wf-')
+const isWorkflow = (name: string) => name.startsWith('wf-') || name.startsWith('simulator-') || name === 'testing-mode'
 const inPhase = (name: string) => {
   if (phase === 'team-profile') return name === 'team-profile'
   if (phase === 'workflow') return name === 'setup' || isWorkflow(name)
@@ -73,6 +73,16 @@ export default defineConfig({
     // Part of every run now: scripts/run-e2e.sh always provides the local storage
     // server and a build pointed at it. The specs share that one server and assert on
     // its contents, so they run serially (see `workers` in the project's spec files).
+    // Playwright 1.60 final trace export uses project.timeout, independently of
+    // test.setTimeout. Preserve complete multi-page traces; control limits stay 10s.
+    {
+      name: 'testing-mode', testMatch: /testing-mode\.spec\.ts/, timeout: 120_000,
+      dependencies: ['setup'], use: { ...devices['Desktop Chrome'], trace: 'on' as const },
+    },
+    {
+      name: 'simulator-chromium', testMatch: /wf-(formatting|lifecycle|upload|roles|controls|failures)\.spec\.ts/, timeout: 120_000,
+      dependencies: ['setup'], use: { ...devices['Desktop Chrome'], trace: 'on' as const },
+    },
     {
       name: 'team-profile',
       testMatch: /team-profile(-lifecycle)?\.spec\.ts/,

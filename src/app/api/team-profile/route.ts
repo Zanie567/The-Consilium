@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -6,9 +7,9 @@ import { apiError, apiServerErrorResponse } from '@/lib/apiResponse'
 import { MAX_BIO_LENGTH, MAX_TEAM_PHOTO_BYTES } from '@/lib/constants'
 import { detectImageMimeType } from '@/lib/imageSniff'
 import {
-  TEAM_LABEL,
+  defaultPublicAppointment,
+  publicAppointmentLabel,
   TEAM_PROFILE_ROLES,
-  teamForRole,
   validateTeamBio,
 } from '@/lib/teamProfiles'
 import { matchLegacyCard } from '@/lib/teamProfileLegacy'
@@ -26,9 +27,8 @@ import {
 // session, never the request:
 //   - the owner   → session user id (written to the unique `userId` column)
 //   - the name    → the account's name
-//   - the team    → derived from the account's current role (`teamForRole`);
-//                   there is no team column to write to
-// Any `team`, `role`, `userId`, `order` or `isActive` a client posts is ignored
+//   - appointment → admin-managed title / publicTier / order, preserved on update
+// Any `team`, `role`, `publicTier`, `userId`, `order` or `isActive` a client posts is ignored
 // because nothing below reads it.
 //
 // One card per account is guaranteed by the UNIQUE index on `userId`, not by the
@@ -43,16 +43,12 @@ const NEW_CARD_ORDER = 1000
  * card would put them on the page twice, so an admin has to link the existing one.
  */
 class LegacyCardNeedsLink extends Error {}
+class NoPublicAppointment extends Error {}
 
-export async function PUT(request: NextRequest) {
+async function PUTHandler(request: NextRequest) {
   const auth = await requireVerifiedSessionUser(TEAM_PROFILE_ROLES)
   if (!auth.ok) return auth.response
   const user = auth.user
-
-  // Defence in depth: the role gate above already restricts to these roles.
-  if (!teamForRole(user.role)) {
-    return apiError('Your account is not on a team that has a profile.', 403, 'NO_TEAM_ROLE')
-  }
 
   let form: FormData
   try {
@@ -101,6 +97,10 @@ export async function PUT(request: NextRequest) {
       select: { id: true, image: true },
     })
 
+    if (user.role === 'ADMIN' && !existing) {
+      return apiError('Ask an administrator to assign and link your public appointment first.', 403, 'NO_PUBLIC_APPOINTMENT')
+    }
+
     // Upload first: a failed upload must leave the card untouched.
     let uploaded: { url: string; path: string } | null = null
     if (photo) {
@@ -124,7 +124,7 @@ export async function PUT(request: NextRequest) {
 
     let profile
     try {
-      profile = await saveProfile(user.id, user.email, name, update, bio.bio, nextImage ?? null)
+      profile = await saveProfile(user.id, user.email, name, update, bio.bio, nextImage ?? null, user.role)
     } catch (error) {
       // The database is the source of truth: if the write failed, the new file is
       // unreferenced, so remove it rather than leave it behind.
@@ -143,12 +143,12 @@ export async function PUT(request: NextRequest) {
         name: profile.name,
         bio: profile.bio,
         image: profile.image,
-        team: teamForRole(user.role),
-        teamLabel: TEAM_LABEL[teamForRole(user.role)!],
+        teamLabel: publicAppointmentLabel(profile),
       },
       { status: existing ? 200 : 201 },
     )
   } catch (error) {
+    if (error instanceof NoPublicAppointment) return apiError('Your public appointment is no longer assigned. Reload and ask an administrator.', 403, 'NO_PUBLIC_APPOINTMENT')
     if (error instanceof LegacyCardNeedsLink) {
       return apiError(
         'A team card for you already exists but is not linked to your account yet. ' +
@@ -185,9 +185,14 @@ async function saveProfile(
   update: ProfileUpdate,
   createBio: string | null,
   createImage: string | null,
+  permissionRole: string,
 ) {
   const attempt = async () => {
     const linked = await prisma.teamMember.findUnique({ where: { userId } })
+    if (permissionRole === 'ADMIN') {
+      if (!linked) throw new NoPublicAppointment()
+      return prisma.teamMember.update({ where: { userId }, data: update })
+    }
     if (!linked) {
       const match = await matchLegacyCard(prisma, { name, email })
       if (match.kind === 'blocked') throw new LegacyCardNeedsLink()
@@ -208,7 +213,7 @@ async function saveProfile(
       create: {
         userId,
         name,
-        role: '',
+        ...(defaultPublicAppointment(permissionRole) ?? { role: '' }),
         bio: createBio,
         image: createImage,
         order: NEW_CARD_ORDER,
@@ -225,3 +230,5 @@ async function saveProfile(
     return await attempt()
   }
 }
+
+export const PUT = withTestingAudit(PUTHandler)

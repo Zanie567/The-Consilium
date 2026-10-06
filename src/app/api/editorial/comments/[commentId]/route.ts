@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -11,7 +12,7 @@ interface Props {
 
 // PATCH: approve (clear isReported), hide, or unhide
 // GROWTH users can hide/unhide but cannot approve (clear reports)
-export async function PATCH(req: Request, { params }: Props) {
+async function PATCHHandler(req: Request, { params }: Props) {
   const user = await getVerifiedSessionUser(COMMENT_MODERATION_ROLES)
   if (!user) {
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
@@ -64,3 +65,5 @@ export async function PATCH(req: Request, { params }: Props) {
 
   return NextResponse.json({ ok: true })
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)

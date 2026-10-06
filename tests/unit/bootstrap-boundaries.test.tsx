@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { connection } from 'next/server'
 import SetupPage from '@/app/editorial/setup/page'
 import { SetupForm } from '@/app/editorial/setup/SetupForm'
 import { POST } from '@/app/api/editorial/setup/route'
-import { connection } from 'next/server'
 
 const { rows, prisma } = vi.hoisted(() => {
   const rows: { role: string; email: string }[] = []
@@ -24,10 +24,10 @@ const { rows, prisma } = vi.hoisted(() => {
     try { return await run(tx) } finally { release?.() }
   } } }
 })
+vi.mock('next/server', async importOriginal => ({ ...await importOriginal<typeof import('next/server')>(), connection: vi.fn(async () => {}) }))
 vi.mock('@/lib/prisma', () => ({ prisma }))
 vi.mock('bcryptjs', () => ({ default: { hash: async () => 'controlled-hash' } }))
 vi.mock('next/navigation', () => ({ redirect: vi.fn(), useRouter: () => ({ push: vi.fn() }) }))
-vi.mock('next/server', async importOriginal => ({ ...await importOriginal<typeof import('next/server')>(), connection: vi.fn(async () => {}) }))
 afterEach(() => { cleanup(); rows.length = 0; vi.clearAllMocks(); vi.unstubAllGlobals() })
 
 it('the setup decision waits for a live request before touching the database', async () => {
@@ -65,3 +65,5 @@ it('a failed setup request preserves all input and restores its submit control',
   expect((screen.getByPlaceholderText('admin@example.com') as HTMLInputElement).value).toBe('controlled@consilium.test')
   expect((screen.getByRole('button', { name: 'Create Admin Account' }) as HTMLButtonElement).disabled).toBe(false)
 })
+
+

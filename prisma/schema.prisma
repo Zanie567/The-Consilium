@@ -41,6 +41,9 @@ model User {
   bio           String?
   password      String?
   role          Role      @default(READER)
+  // Public labels only; never read for permissions. Allowed values and the cap are
+  // enforced by a CHECK in supabase/migrations/20261005_user_display_titles.sql.
+  displayTitles String[]  @default([])
   isActive              Boolean   @default(true)
   lastLoginAt           DateTime?
   lastActiveAt          DateTime?
@@ -74,6 +77,8 @@ model User {
   predictions        Prediction[]
   articleComments    ArticleComment[]
   teamProfile        TeamMember?
+  testPersonaKey     String? @unique
+  testingRevision    Int @default(0)
 
   @@map("users")
 }
@@ -395,13 +400,12 @@ model TeamMember {
   // guarantee of "one Meet the Team profile per account": a concurrent or repeated
   // create cannot produce a second row. Nullable because legacy cards were typed in
   // by an admin with no account; Postgres allows any number of NULLs under UNIQUE.
-  // There is deliberately NO team column: a linked card's team is derived from
-  // user.role at read time (see src/lib/teamProfiles.ts), so it cannot be forged
-  // or drift out of step with the account's role.
+  // Public appointment belongs to this card, independently of account permissions.
   userId   String? @unique
   user     User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   name     String
   role     String
+  publicTier String?
   bio      String? @db.Text
   image    String?
   email    String?
@@ -701,4 +705,19 @@ model AuditLog {
   @@index([performedBy])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// Opaque server-side testing capability. No credentials or tokens in URLs/audits.
+model TestingSession {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  administratorId String
+  personaId String
+  revision Int
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  stoppedAt DateTime?
+  stopReason String?
+  @@index([administratorId, stoppedAt])
+  @@map("testing_sessions")
 }

@@ -1,6 +1,8 @@
 # Testing The Consilium
 
-`npm test` runs unit and in-process route-handler tests without a live database. `npm run test:audit` owns a complete disposable database, local storage service, captured email, production build and all browser phases. Bare Playwright and unattested existing servers are rejected.
+Public appointment separation and simulator operations: [appointments-and-testing-mode.md](./appointments-and-testing-mode.md). Current acceptance/results: [acceptance-and-evidence.md](./acceptance-and-evidence.md).
+
+## The suites
 
 Start a separate disposable PostgreSQL cluster, then supply its administrative URL explicitly:
 
@@ -15,9 +17,9 @@ Environment generation fails before SQL, cleanup, build or services. Occupied po
 
 Storage points to the local Supabase-compatible stand-in; email is captured and never delivered; OAuth/provider keys are blank; market data is explicitly empty and scheduler secrets are throwaway. All values Next could otherwise obtain from `.env` files are explicitly overridden before building. Only run-owned processes and databases are cleaned up.
 
-The routine GitHub Actions gate runs lint, typecheck, unit/route tests and a production build, then an isolated PostgreSQL-backed full audit on desktop Chromium, desktop Playwright WebKit, Pixel/iPhone layout emulations and Team Profile. A separate isolated critical editor/account job provides earlier feedback. The full audit starts after quality and runs alongside critical checks on a different runner/database, so a critical failure cannot prevent collecting remaining coverage; both jobs remain CI gates on every PR. GitHub currently reports main as unprotected, so repository branch protection does not enforce these checks; no branch settings were changed. Browser retries are zero. Per-action/navigation deadlines remain 10/15 seconds. A 60-minute aggregate job budget covers installation, the build and three serialized phases (the measured local audit took about 30 minutes). It retains first-failure traces/screenshots and useful successful article evidence. Authentication storage state is outside artifact paths; captured reset-link email files are excluded from uploaded artifacts.
+The routine GitHub Actions gate runs lint, typecheck, unit/route tests and a production build, then an isolated PostgreSQL-backed full audit on desktop Chromium, desktop Playwright WebKit, Pixel/iPhone layout emulations and Team Profile. Separate isolated public/mobile and critical role/profile/testing-mode jobs run on every PR alongside quality checks; desktop workflow projects automatically include every implemented audit screen. GitHub currently reports main as unprotected, so repository branch protection does not enforce these checks; no branch settings were changed. Browser retries are zero. Per-action/navigation deadlines remain 10/15 seconds. The critical job has a 75-minute aggregate budget: its measured GitHub browser census completed all 593 cases in 46.2 minutes, while installation, the isolated build and requested trace upload made the full job slightly longer than 60 minutes. It retains first-failure traces/screenshots and useful successful article evidence. Authentication storage state is outside artifact paths; captured reset-link email files are excluded from uploaded artifacts.
 
-A browser action must assert the exact successful response code and reopen persisted state. API/database checks do not establish the corresponding UI action. Console/page errors are collected without filters. Mutations sharing commissioning, glossary or storage state run in separate serialized phases. Fixtures and cleanup are scoped to owned accounts/records.
+A browser action must assert the exact successful response code and reopen persisted state. API/database checks do not establish the corresponding UI action. Application console/page errors remain asserted; the inherited narrowly documented cancelled-localhost-RSC WebKit exception is retained and separately covered by unit tests. Mutations sharing commissioning, glossary or storage state run in separate serialized phases. Fixtures and cleanup are scoped to owned accounts/records.
 
 The source census is regenerated with:
 
@@ -27,7 +29,8 @@ npx ts-node -P tsconfig.seed.json scripts/build-workflow-inventory.ts
 
 It enumerates declarations, routes, native dialogs, conditional variants and dynamic families. It is inspection evidence, not action coverage. See [the action inventory](coverage-inventory.md) and [the report](workflow-audit-report.md) for executed results and gaps.
 
-Minimal cancellation reproductions require no database, application credentials or production services:
+The same formatting/lifecycle/upload/role/control/failure specs also run through genuine personas in `simulator-chromium`; `testing-mode` checks parity, revocation and switching. Projects: `wf-chromium`, `wf-webkit` (desktop Safari engine), `wf-mobile-chromium` (Pixel 7),
+`wf-mobile-webkit` (iPhone 14). The `team-profile` specs now run in every full run.
 
 ```sh
 node scripts/diagnostics/webkit-cancellation.mjs test-results/webkit-cancellation.json

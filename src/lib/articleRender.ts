@@ -1,5 +1,4 @@
 import { escapeHtml as escHtml } from '@/lib/escapeHtml'
-import { articleStyle } from '@/lib/articleStyles'
 import { sanitizeArticleHtml } from '@/lib/articleSanitize'
 
 /**
@@ -41,7 +40,7 @@ function spanAttr(name: 'colspan' | 'rowspan', value: unknown): string {
 
 interface TiptapMark {
   type: string
-  attrs?: Record<string, unknown>
+  attrs?: Record<string, string | number | boolean | null>
 }
 
 export interface TiptapNode {
@@ -49,7 +48,7 @@ export interface TiptapNode {
   content?: TiptapNode[]
   text?: string
   marks?: TiptapMark[]
-  attrs?: Record<string, unknown>
+  attrs?: Record<string, string | number | boolean | null>
 }
 
 export interface ArticleFootnote {
@@ -66,14 +65,14 @@ function nodeToHtml(node: TiptapNode, state: RenderState): string {
     case 'paragraph': {
       const inner = node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''
       if (!inner.trim()) return ''
-      return `<p${articleStyle(node.attrs)}>${inner}</p>`
+      return `<p>${inner}</p>`
     }
     case 'heading': {
       // Clamp to a valid h1-h6: the level is interpolated into the tag name, so an
       // unvalidated attribute (e.g. level = "1><img onerror=...>") would inject markup.
       const raw = Number(node.attrs?.level)
       const level = Number.isFinite(raw) ? Math.min(6, Math.max(1, Math.trunc(raw))) : 2
-      return `<h${level}${articleStyle(node.attrs)}>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</h${level}>`
+      return `<h${level}>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</h${level}>`
     }
     case 'text': {
       let text = escHtml(node.text ?? '')
@@ -84,8 +83,7 @@ function nodeToHtml(node: TiptapNode, state: RenderState): string {
           if (mark.type === 'underline') text = `<u>${text}</u>`
           if (mark.type === 'strike')    text = `<s>${text}</s>`
           if (mark.type === 'code')      text = `<code>${text}</code>`
-          if (mark.type === 'highlight') text = `<mark${articleStyle(mark.attrs, true)}>${text}</mark>`
-          if (mark.type === 'textStyle') text = `<span${articleStyle(mark.attrs)}>${text}</span>`
+          if (mark.type === 'highlight') text = `<mark>${text}</mark>`
           if (mark.type === 'link') {
             const href = safeHref(String(mark.attrs?.href ?? '#'))
             const target = escHtml(String(mark.attrs?.target ?? '_self'))
@@ -103,12 +101,9 @@ function nodeToHtml(node: TiptapNode, state: RenderState): string {
     // Code block: plain text only. Marks inside a code block are ignored on purpose.
     case 'codeBlock':
       return `<pre><code>${escHtml((node.content ?? []).map((n) => n.text ?? '').join(''))}</code></pre>`
-    // Keep explicitly resized columns within a bounded, numeric layout contract.
-    case 'table': {
-      const widths = node.content?.[0]?.content?.flatMap(cell => Array.isArray(cell.attrs?.colwidth) ? cell.attrs.colwidth : [null]) ?? []
-      const cols = widths.map(width => typeof width === 'number' && Number.isInteger(width) && width >= 25 && width <= 2000 ? `<col style="width:${width}px" />` : '<col />').join('')
-      return `<table>${widths.some(w => typeof w === 'number') ? `<colgroup>${cols}</colgroup>` : ''}<tbody>${node.content?.map(n => nodeToHtml(n, state)).join('') ?? ''}</tbody></table>`
-    }
+    // Tables. Semantic content, so it is published; column widths are presentation and
+    // are not (the house table style in globals.css lays the columns out).
+    case 'table':         return `<table><tbody>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</tbody></table>`
     case 'tableRow':      return `<tr>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</tr>`
     case 'tableHeader':
     case 'tableCell': {

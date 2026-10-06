@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse, NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession, requireVerifiedSessionUser } from '@/lib/auth'
@@ -90,7 +91,7 @@ export async function GET(
   }
 }
 
-export async function PUT(
+async function PUTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -354,9 +355,8 @@ export async function PUT(
 }
 
 // PATCH is an alias for PUT - used by the autosave system
-export const PATCH = PUT
 
-export async function DELETE(
+async function DELETEHandler(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -411,3 +411,9 @@ export async function DELETE(
     return articleMutationErrorResponse(error, 'delete', requestId)
   }
 }
+
+export const PUT = withTestingAudit(PUTHandler)
+
+export const DELETE = withTestingAudit(DELETEHandler)
+
+export const PATCH = PUT

@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext, type Page, type Route } from '@playwright/test'
-import { ArticleEditorPage, articleByTitle, closeDb, confirmPublicChange, db, removeMyArticles, signedIn, uniqueTitle } from './helpers/workflow'
+import { ArticleEditorPage, articleByTitle, closeDb, confirmPublicChange, db, removeMyArticles, signedIn, uniqueTitle, writerLoginCredentials } from './helpers/workflow'
 
 /**
  * What the editor does when saving goes wrong, and whether work survives. Failures are
@@ -81,12 +81,28 @@ test.describe('a failed save is visible, loses nothing, and recovers', () => {
   test('a save that never answers times out visibly after 15 seconds', async ({ browser }) => {
     test.setTimeout(75_000)
     const { ctx, page, ed, title } = await openDraft(browser, 'hang')
-    await page.route('**/api/articles/*', (route) => (isArticleWrite(route) ? new Promise<void>(() => {}) : route.continue()))
+    let releaseHang!: () => void
+    let finishRoute!: () => void
+    const held = new Promise<void>((resolve) => { releaseHang = resolve })
+    const routeFinished = new Promise<void>((resolve) => { finishRoute = resolve })
+    const hangWrite = async (route: Route) => {
+      if (!isArticleWrite(route)) return route.continue()
+      await held
+      // Resolve the intercepted request as a network failure before removing
+      // the route. Otherwise Playwright continues the old timed-out PUT when
+      // unroute() is called; that late mutation advances the server version and
+      // the following manual save correctly receives a 409 conflict.
+      await route.abort('failed').catch(() => undefined)
+      finishRoute()
+    }
+    await page.route('**/api/articles/*', hangWrite)
     await ed.moveToEnd()
     await page.keyboard.type(' Hanging words.')
     await expect(alertOf(page)).toContainText('longer than 15 seconds', { timeout: 30_000 })
     await expect(ed.body()).toContainText('Hanging words.')
-    await page.unroute('**/api/articles/*')
+    releaseHang()
+    await routeFinished
+    await page.unroute('**/api/articles/*', hangWrite)
     await ed.saveNow()
     expect(await body(title)).toContain('Hanging words.')
     await ed.openExisting((await articleByTitle(title))!.id)
@@ -238,7 +254,8 @@ test('Save draft pressed twice before the first response creates one article', a
 
 test('an expired session is reported, keeps the text, and recovers after signing in again in another tab', async ({ browser }) => {
   const { ctx, page, ed, title } = await openDraft(browser, 'expired')
-  await ctx.clearCookies() // what an expired session looks like to the browser
+  // Expire authentication only. A testing capability cannot authenticate its initiator.
+  await ctx.clearCookies({ name: /^(?:__Secure-)?next-auth\.session-token$/ })
   await ed.moveToEnd()
   await page.keyboard.type(' Words typed after the session ended.')
   await expect(alertOf(page)).toContainText('session has expired', { timeout: 10_000 })
@@ -249,8 +266,9 @@ test('an expired session is reported, keeps the text, and recovers after signing
   // Sign in again, as the page tells the user to, in a second tab of the same browser.
   const login = await ctx.newPage()
   await login.goto('/editorial/login')
-  await login.locator('input[type="email"]').fill('writer@theconsilium.com')
-  await login.locator('input[type="password"]').fill('writer2024')
+  const credentials = writerLoginCredentials(ctx)
+  await login.locator('input[type="email"]').fill(credentials.email)
+  await login.locator('input[type="password"]').fill(credentials.password)
   await login.locator('button[type="submit"]').click()
   await login.waitForURL((url) => !url.pathname.includes('/login'))
   await login.close()

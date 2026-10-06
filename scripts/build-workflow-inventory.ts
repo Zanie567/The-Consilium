@@ -101,6 +101,8 @@ function reachable(file: string, seen = new Set<string>()): Set<string> {
 // These are inspection findings; individual article/category ownership still applies.
 function rolesFor(route: string): string[] {
   if (route.startsWith('/predictions')) return ['ADMIN']
+  if (route === '/admin/testing') return ['ADMIN']
+  if (route === '/editorial/team-profile') return ['ADMIN with assigned card', 'EDITOR', 'WRITER', 'GROWTH']
   if (route === '/admin/team' || route === '/admin/login-attempts' || route === '/admin/data') return ['ADMIN']
   if (route === '/admin/subscribers') return ['ADMIN', 'EDITOR']
   if (route.startsWith('/admin')) return ['ADMIN', 'EDITOR', 'WRITER']

@@ -141,6 +141,8 @@ test('administrator warnings, private notes, detail load recovery and audit log 
   await page.getByLabel('Delete note', { exact: true }).click()
   expect((await deleted).status()).toBe(200)
   await expect(page.getByText(note, { exact: true })).toHaveCount(0)
+  const bannerBottom = await page.getByRole('region', { name: 'Testing environment' }).evaluate(el => el.getBoundingClientRect().bottom)
+  expect(await page.getByLabel('Close user details', { exact: true }).evaluate(el => el.getBoundingClientRect().top)).toBeGreaterThanOrEqual(bannerBottom)
   await page.getByLabel('Close user details', { exact: true }).click()
   await page.route('**/api/admin/audit-log', r => r.fulfill({ status: 503, json: { error: 'Audit service unavailable' } }))
   await page.getByRole('button', { name: 'Audit Log', exact: true }).click()

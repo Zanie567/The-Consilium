@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -19,7 +20,7 @@ interface Props {
  * (eventId, userId) and handled here as an upsert. Revisions are free until
  * the deadline; after that every write is rejected server-side.
  */
-export async function POST(req: Request, { params }: Props) {
+async function POSTHandler(req: Request, { params }: Props) {
   const { eventId } = await params
 
   // Visibility gate: re-verified against the database, never trusted from the
@@ -96,3 +97,5 @@ export async function POST(req: Request, { params }: Props) {
     updatedAt: prediction.updatedAt.toISOString(),
   })
 }
+
+export const POST = withTestingAudit(POSTHandler)

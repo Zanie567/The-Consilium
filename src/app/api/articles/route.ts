@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse, NextRequest } from 'next/server'
 import { articleVersion } from '@/lib/articleVersion'
 import { getServerSession } from 'next-auth'
@@ -133,7 +134,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   const requestId = crypto.randomUUID()
 
   try {
@@ -260,3 +261,5 @@ export async function POST(request: NextRequest) {
     return articleMutationErrorResponse(error, 'create', requestId)
   }
 }
+
+export const POST = withTestingAudit(POSTHandler)

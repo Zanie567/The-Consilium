@@ -10,8 +10,7 @@ export const metadata: Metadata = {
 }
 
 export default async function SetupPage() {
-  // The first-admin decision is database state at request time. Never bake a
-  // setup form or an existing-admin redirect into the production build.
+  // The database decides this at request time, never during a production build.
   await connection()
   // Only accessible if no Admin exists yet
   const adminExists = await prisma.user.findFirst({ where: { role: 'ADMIN' } })

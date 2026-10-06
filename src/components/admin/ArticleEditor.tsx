@@ -68,11 +68,12 @@ export function ArticleEditor(props: ArticleEditorProps) {
   )
 
   return (
-    <div className="min-h-full">
+    <div className="min-h-full" data-article-server-version={props.initialData?.version} data-article-server-status={props.initialData?.status}>
       <ArticleEditorTopBar editor={editor} />
 
       <div
         ref={toolbarPortalRef}
+        style={{ top: 'calc(3rem + var(--testing-banner-height, 0px))' }}
         className="fixed top-12 left-0 md:left-12 lg:left-[220px] right-0 z-[200]"
       />
 
@@ -127,7 +128,7 @@ export function ArticleEditor(props: ArticleEditorProps) {
             aria-hidden
           />
           <div
-            className={`min-[1100px]:hidden fixed inset-y-0 right-0 z-[206] w-[340px] max-w-[92vw] bg-[var(--bg-elevated)] shadow-2xl flex flex-col transition-transform duration-300 ease-out ${commentsDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
+            className={`min-[1100px]:hidden fixed top-[var(--testing-banner-height,0px)] bottom-0 right-0 z-[206] w-[340px] max-w-[92vw] bg-[var(--bg-elevated)] shadow-2xl flex flex-col transition-transform duration-300 ease-out ${commentsDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
             aria-hidden={!commentsDrawerOpen}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] shrink-0">

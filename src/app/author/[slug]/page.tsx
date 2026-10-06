@@ -10,6 +10,7 @@ import { normaliseSearchText, type SearchParamValue } from '@/lib/searchText'
 import { getInitials } from '@/lib/authorUtils'
 import { ArticleEmptyState } from '@/components/ui/ArticleEmptyState'
 import { getAuthorEmptyState } from '@/lib/sectionEmptyStates'
+import { visiblePublicTitleLabel } from '@/lib/teamProfiles'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -22,7 +23,8 @@ async function getAuthor(slug: string) {
     const bySlug = await prisma.user.findUnique({
       where: { slug },
       select: {
-        id: true, name: true, slug: true, email: true, bio: true, image: true, role: true,
+        id: true, name: true, slug: true, bio: true, image: true, isActive: true, isBanned: true, displayTitles: true,
+        teamProfile: { select: { role: true, publicTier: true, isActive: true } },
       },
     })
     if (bySlug) return bySlug
@@ -31,17 +33,11 @@ async function getAuthor(slug: string) {
     return await prisma.user.findUnique({
       where: { id: slug },
       select: {
-        id: true, name: true, slug: true, email: true, bio: true, image: true, role: true,
+        id: true, name: true, slug: true, bio: true, image: true, isActive: true, isBanned: true, displayTitles: true,
+        teamProfile: { select: { role: true, publicTier: true, isActive: true } },
       },
     })
   } catch { return null }
-}
-
-const ROLE_LABEL: Record<string, string> = {
-  ADMIN:  'Editor-in-Chief',
-  EDITOR: 'Editor',
-  WRITER: 'Writer',
-  READER: 'Contributor',
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -116,7 +112,7 @@ export default async function AuthorPage({ params, searchParams }: Props) {
           {/* Info */}
           <div className="flex-1 text-center sm:text-left">
             <p className="text-gold/60 text-[0.65rem] font-bold uppercase tracking-[0.3em] mb-2">
-              {ROLE_LABEL[author.role] ?? 'Contributor'}
+              {visiblePublicTitleLabel(author) ?? 'Contributor'}
             </p>
             <h1
               className="text-3xl sm:text-4xl font-bold text-cream mb-3 leading-tight"

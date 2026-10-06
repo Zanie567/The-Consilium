@@ -181,7 +181,10 @@ test('signed-in phone reader opens Profile and signs out; writer shortcuts open 
       const signedOut = page.waitForResponse(r => new URL(r.url()).pathname === '/api/auth/signout' && r.request().method() === 'POST')
       await drawer.getByRole('button', { name: 'Sign out', exact: true }).click()
       expect((await signedOut).status()).toBe(200)
-      await page.waitForLoadState('networkidle')
+      // The response precedes NextAuth's redirect and the protected profile's
+      // signed-out redirect. Reopening the old drawer can be lost on navigation.
+      await expect(page).toHaveURL(url => url.pathname === '/login')
+      expect((await (await ctx.request.get('/api/auth/session')).json()).user).toBeUndefined()
       await page.getByRole('button', { name: 'Open menu', exact: true }).click()
       await expect(drawer.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible()
     }
@@ -370,7 +373,10 @@ test('public team cards trap and restore focus, close by button/backdrop/Escape,
       await expect(dialog.getByRole('button', { name: `Close profile for ${owner.name}` })).toBeFocused()
       await page.keyboard.press('Escape')
     } else if (action === 'button') await dialog.getByRole('button', { name: `Close profile for ${owner.name}` }).click()
-    else await page.mouse.click(10, 10)
+    else {
+      const bannerBottom = await page.getByRole('region', { name: 'Testing environment' }).evaluate(el => el.getBoundingClientRect().bottom)
+      await page.mouse.click(10, bannerBottom + 10)
+    }
     await expect(dialog).toBeHidden()
     await expect(card).toBeFocused()
     expect(await page.locator('body').evaluate(el => el.style.overflow)).toBe('')

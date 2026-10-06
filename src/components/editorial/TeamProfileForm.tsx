@@ -16,7 +16,7 @@ interface SavedProfile {
 interface TeamProfileFormProps {
   /** Account name; read-only here, edited in account settings. */
   name: string
-  /** Display label of the team derived from the account's role. Read-only. */
+  /** Trusted public appointment label. Read-only. */
   teamLabel: string
   profile: SavedProfile | null
   maxBioLength: number
@@ -184,7 +184,7 @@ export function TeamProfileForm({
         <div>
           <span className={labelClass}>Team</span>
           <p className="rounded border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2 text-sm text-[var(--fg)]">{teamLabel}</p>
-          <p className="mt-1 text-xs text-[var(--fg-faint)]">Set by your role. It can&apos;t be changed here.</p>
+          <p className="mt-1 text-xs text-[var(--fg-faint)]">Set by an administrator. It can&apos;t be changed here.</p>
         </div>
       </div>
 

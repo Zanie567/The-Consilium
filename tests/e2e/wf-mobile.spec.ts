@@ -111,7 +111,7 @@ test('the editor tutorial opens above the toolbar and can be closed on a phone',
   await ed.openNew()
   await page.getByRole('button', { name: 'Open editor tutorial' }).click()
   await expect(page.getByRole('heading', { name: 'How to use the article editor' })).toBeVisible()
-  await expect(page.getByText("Publication preserves your formatting, text colours, highlights, alignment and line spacing. Preview shows the published layout. The Consilium's typography supplies defaults for unstyled text.", { exact: true })).toBeVisible()
+  await expect(page.getByText("Publication preserves semantic formatting, tables, links, lists, quotations, footnotes, figures and captions. Text colours, alignment, line spacing and column widths remain in drafts; public articles use The Consilium's house style.", { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Close tutorial' }).click() // fails if the toolbar covers it
   await expect(page.getByRole('heading', { name: 'How to use the article editor' })).toHaveCount(0)
   await ctx.close()

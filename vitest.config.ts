@@ -25,6 +25,10 @@ export default defineConfig({
     setupFiles: ['./tests/setup/db-guard.ts'],
     env: {
       ...testDatabase,
+      // In-process ordinary route tests have no Next request/cookie context.
+      // Dedicated simulator suites explicitly enable it with their real DB mocks;
+      // live/browser requests still exercise the enabled app server separately.
+      TESTING_MODE_ENABLED: '0',
       BASE_URL: baseUrl,
       ...(process.env.E2E_ADMIN_EMAIL ? { E2E_ADMIN_EMAIL: process.env.E2E_ADMIN_EMAIL } : {}),
       ...(process.env.E2E_ADMIN_PASSWORD ? { E2E_ADMIN_PASSWORD: process.env.E2E_ADMIN_PASSWORD } : {}),

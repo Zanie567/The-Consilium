@@ -83,10 +83,24 @@ DB_CREATED=1
 USE_EXISTING_DB=1 bash scripts/setup-test-db.sh >"$E2E_RESULTS_DIR/fixtures.log" 2>&1 || { tail -30 "$E2E_RESULTS_DIR/fixtures.log"; exit 1; }
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f tests/e2e/helpers/local-storage-schema.sql || exit 1
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/migrations/20261001_team_member_user_link.sql || exit 1
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/migrations/20261003231314_public_appointments_testing_sessions.sql || exit 1
+# The disposable database is seeded before this lease is acquired. Keep it until cleanup.
+node node_modules/ts-node/dist/bin.js -P tsconfig.seed.json scripts/acquire-test-workspace.ts "$E2E_RESULTS_DIR/database-lease.ready" &
+LEASE_PID=$!
+PIDS+=("$LEASE_PID")
+for i in $(seq 1 40); do
+  [ -f "$E2E_RESULTS_DIR/database-lease.ready" ] && break
+  kill -0 "$LEASE_PID" 2>/dev/null || exit 1
+  sleep 0.25
+  [ "$i" = 40 ] && { echo "✗ database lease unavailable" >&2; exit 1; }
+done
+npx ts-node -P tsconfig.seed.json scripts/check-deployment.ts || exit 1
 
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -qc "UPDATE articles SET \"coverImage\"='/team/sam-hunt.png' WHERE \"coverImage\" IS NOT NULL" || exit 1
 : > "$EMAIL_CAPTURE_FILE"
-node -e 'require("fs").writeFileSync(process.env.E2E_RESULTS_DIR+"/commit.json",JSON.stringify({commit:require("child_process").execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim(),run:process.env.E2E_RUN_ID,database:new URL(process.env.TEST_DATABASE_URL).pathname,app:process.env.NEXTAUTH_URL,storage:process.env.NEXT_PUBLIC_SUPABASE_URL,email:process.env.EMAIL_CAPTURE_FILE,services:"local stand-ins; OAuth off"},null,2))' 
+node -e 'require("fs").writeFileSync(process.env.E2E_RESULTS_DIR+"/commit.json",JSON.stringify({commit:require("child_process").execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim(),run:process.env.E2E_RUN_ID,database:new URL(process.env.TEST_DATABASE_URL).pathname,app:process.env.NEXTAUTH_URL,storage:process.env.NEXT_PUBLIC_SUPABASE_URL,email:process.env.EMAIL_CAPTURE_FILE,services:"local stand-ins; OAuth off"},null,2))'
+
+npx ts-node -P tsconfig.seed.json scripts/reset-testing-photos.ts || exit 1
 
 node node_modules/ts-node/dist/bin.js -P tsconfig.seed.json tests/e2e/helpers/fake-storage-server.ts & PIDS+=($!)
 
@@ -100,9 +114,12 @@ config.exclude = config.exclude.filter(entry => entry !== '.next-e2e-*')
 config.exclude.push(...fs.readdirSync('.').filter(entry => /^\.next-e2e-/.test(entry) && fs.statSync(entry).isDirectory() && entry !== process.env.NEXT_DIST_DIR))
 fs.writeFileSync(`${process.env.NEXT_DIST_DIR}.tsconfig.json`, JSON.stringify(config, null, 2))
 NODE
-npm run build >"$E2E_RESULTS_DIR/build.log" 2>&1 || { tail -40 "$E2E_RESULTS_DIR/build.log"; exit 1; }
-
-node node_modules/next/dist/bin/next start -p "$PORT" >"$E2E_RESULTS_DIR/server.log" 2>&1 &
+if [ "${TEST_WORKSPACE_DEV:-0}" = "1" ]; then
+  node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 -p "$PORT" >"$E2E_RESULTS_DIR/server.log" 2>&1 &
+else
+  npm run build >"$E2E_RESULTS_DIR/build.log" 2>&1 || { tail -40 "$E2E_RESULTS_DIR/build.log"; exit 1; }
+  node node_modules/next/dist/bin/next start -p "$PORT" >"$E2E_RESULTS_DIR/server.log" 2>&1 &
+fi
 SERVER_PID=$!
 PIDS+=("$SERVER_PID")
 for i in $(seq 1 60); do

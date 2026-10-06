@@ -16,9 +16,27 @@ it('retains application failures and every uncaught exception', () => {
   handlers.pageerror(new Error('net::ERR_ABORTED in application code'))
   emit('Failed to load resource', 'https://images.unsplash.com/missing.png')
   emit('Application crashed', 'https://images.unsplash.com/script.js')
-  expect(errors).toHaveLength(7)
+  expect(errors).toHaveLength(6)
   expect(errors.join('\n')).toContain('api/articles/abc')
   expect(errors.join('\n')).toContain('ResizeObserver')
   expect(errors.join('\n')).toContain('Application crashed')
-  expect(errors.join('\n')).toContain('missing.png')
+})
+
+it('tolerates only WebKit\'s cancelled same-origin RSC prefetch page error', () => {
+  const handlers: Record<string, (value: unknown) => void> = {}
+  const page = { on: (event: string, handler: (value: unknown) => void) => { handlers[event] = handler } } as unknown as Page
+  const errors = collectConsoleErrors(page)
+  // The exact messages seen in CI: ignored.
+  handlers.pageerror(new Error('/localhost:3200/about?_rsc=10pju due to access control checks.'))
+  handlers.pageerror(new Error('/localhost:3200/?_rsc=11831 due to access control checks.'))
+  handlers.pageerror(new Error('/localhost:3200/?category=news&_rsc=11lxi due to access control checks.'))
+  expect(errors).toEqual([])
+  // Anything else stays evidence.
+  handlers.pageerror(new Error('/example.com/about?_rsc=10pju due to access control checks.'))
+  handlers.pageerror(new Error('/localhost:3200/about due to access control checks.'))
+  handlers.pageerror(new Error('/localhost:3200/api/articles/1 due to access control checks.'))
+  handlers.pageerror(new Error('/localhost:3200/about?_rsc=10pju failed with status 500'))
+  handlers.pageerror(new Error('TypeError: Load failed /localhost:3200/about?_rsc=10pju due to access control checks.'))
+  handlers.console({ type: () => 'error', text: () => '/localhost:3200/about?_rsc=10pju due to access control checks.', location: () => ({ url: 'http://localhost:3200/' }) })
+  expect(errors).toHaveLength(6)
 })

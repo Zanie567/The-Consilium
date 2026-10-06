@@ -1,3 +1,5 @@
+import { cookies, headers } from 'next/headers'
+import { resolveTestingIdentity, TESTING_COOKIE, PERSONA_ROLES } from './testingMode'
 import { NextResponse } from 'next/server'
 import { NextAuthOptions, type Session } from 'next-auth'
 import { getServerSession } from 'next-auth'
@@ -171,6 +173,19 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+  events: {
+    async signOut({ token }) {
+      if (process.env.TESTING_MODE_ENABLED !== '1' || !token?.id) return
+      await prisma.$transaction(async (tx) => {
+        // Account deletion can precede NextAuth sign-out. Revoke any remaining
+        // capability even when the initiating account no longer exists.
+        await tx.user.updateMany({ where: { id: token.id }, data: { testingRevision: { increment: 1 } } })
+        const active = await tx.testingSession.findMany({ where: { administratorId: token.id, stoppedAt: null } })
+        await tx.testingSession.updateMany({ where: { administratorId: token.id, stoppedAt: null }, data: { stoppedAt: new Date(), stopReason: 'signout' } })
+        for (const record of active) await tx.auditLog.create({ data: { performedBy: token.id, targetId: record.personaId, targetType: 'testing', action: 'testing:signout', metadata: { sessionId: record.id } } })
+      })
+    },
+  },
   callbacks: {
     async signIn({ user, account, profile }) {
       // Only gate OAuth sign-ins here. The credentials provider handles its
@@ -299,6 +314,32 @@ export const authOptions: NextAuthOptions = {
         session.user.isBanned = account?.isBanned ?? true
         session.user.isActive = account?.isActive ?? false
       }
+      if (process.env.TESTING_MODE_ENABLED === '1' && session.user?.id) {
+        const realId = session.user.id
+        const opaque = (await cookies()).get(TESTING_COOKIE)?.value
+        const identity = await resolveTestingIdentity(realId, opaque)
+        // Invalid/expired capability restores normal navigation; mutations fail closed in proxy.
+        const real = identity?.administrator ?? await prisma.user.findUnique({ where: { id: realId } })
+        const effective = identity?.effective ?? real
+        if (!effective || !real || !real.isActive || real.isBanned) {
+          session.user.isActive = false
+          session.user.role = 'READER'
+        } else {
+          session.user = { id: effective.id, name: effective.name, email: effective.email, image: effective.image,
+            role: effective.role, isActive: effective.isActive, isBanned: effective.isBanned }
+          session.testing = identity?.testing ?? undefined
+          session.requestIdentity = `${real.id}:${real.testingRevision}:${identity?.testing?.id ?? 'normal'}`
+          // Recheck the proxy's server-owned identity inside every session read.
+          // Revocation between proxy and handler must never restore ADMIN powers
+          // to an already-authorized persona mutation.
+          const verifiedIdentity = (await headers()).get('x-consilium-verified-identity')
+          if (verifiedIdentity && verifiedIdentity !== session.requestIdentity) {
+            session.user = { id: '', role: 'READER', isActive: false }
+            session.testing = undefined
+            session.testingIdentityChanged = true
+          }
+        }
+      }
       return session
     },
 
@@ -366,6 +407,7 @@ export async function requireVerifiedSessionUser(
       }),
     }
   }
+  if (session?.testingIdentityChanged) return { ok: false, response: NextResponse.json({ error: 'Testing identity changed or expired. Reload before saving.', code: 'TESTING_IDENTITY_CHANGED' }, { status: 409 }) }
   if (!session?.user?.id) {
     // No session cookie at all. This is indistinguishable from an expired one
     // server-side, and the commonest case is a reader who simply never signed
@@ -380,11 +422,11 @@ export async function requireVerifiedSessionUser(
     }
   }
 
-  let user: (VerifiedSessionUser & { isActive: boolean; isBanned: boolean }) | null
+  let user: (VerifiedSessionUser & { isActive: boolean; isBanned: boolean; emailVerified: Date | null }) | null
   try {
     user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { id: true, role: true, name: true, email: true, isActive: true, isBanned: true },
+      select: { id: true, role: true, name: true, email: true, isActive: true, isBanned: true, emailVerified: true },
     })
   } catch (error) {
     return {
@@ -424,6 +466,9 @@ export async function requireVerifiedSessionUser(
         { status: 403 }
       ),
     }
+  }
+  if (session.testing && (user.role !== PERSONA_ROLES[session.testing.persona] || !user.emailVerified)) {
+    return { ok: false, response: NextResponse.json({ error: 'The test account changed. Reload before saving.', code: 'TESTING_IDENTITY_CHANGED' }, { status: 409 }) }
   }
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     return {

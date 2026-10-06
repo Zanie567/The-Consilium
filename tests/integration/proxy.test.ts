@@ -26,6 +26,14 @@ function get(path: string) {
 const passedThrough = (res: Response) => res.headers.get('x-middleware-next') === '1'
 
 describe('proxy() — anonymous API access', () => {
+  it('strips browser-forged server identity attestations, including on auth routes', async () => {
+    for (const path of ['/api/articles', '/api/auth/session']) {
+      const res = await proxy(new NextRequest(`http://localhost${path}`, { headers: { 'x-consilium-verified-identity': 'forged-admin' } }))
+      expect(passedThrough(res)).toBe(true)
+      expect(res.headers.get('x-middleware-request-x-consilium-verified-identity')).toBeNull()
+      expect(res.headers.get('x-middleware-override-headers')?.split(',')).not.toContain('x-consilium-verified-identity')
+    }
+  })
   it('lets the public PUBLISHED article list through to its handler', async () => {
     const res = await get('/api/articles')
     expect(res.status).not.toBe(401)

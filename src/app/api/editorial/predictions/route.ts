@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic'
  * Body: { title, description?, type, fredSeriesId?, unitLabel, deadline,
  *         releaseDate, minValue, maxValue, maxError? }
  */
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   // Role gate: re-verified against the database on every call. The allowed
   // roles live in PREDICTIONS_MANAGE_ROLES in src/lib/rbac.ts.
   const caller = await getVerifiedSessionUser(PREDICTIONS_MANAGE_ROLES)
@@ -53,3 +54,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true, id: event.id })
 }
+
+export const POST = withTestingAudit(POSTHandler)

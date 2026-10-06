@@ -20,6 +20,11 @@ on:
 jobs:
   update:
     name: Update engagement scores
+    # Production-only, default branch only. The Testing mirror (Zanie567/The-Consilium-Testing)
+    # carries the same files, and a feature branch of Production must not fire them either;
+    # in both cases the job is skipped, not failed. On Production main the steps below are
+    # unchanged, so a real endpoint failure still fails the run.
+    if: github.repository == 'Zanie567/The-Consilium' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
 

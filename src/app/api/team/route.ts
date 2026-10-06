@@ -1,3 +1,6 @@
+import { loadPublicTeam } from '@/lib/publicTeam'
+import { withTestingAudit } from '@/lib/testingAudit'
+import { TEAM_TIER_ORDER } from '@/lib/teamHierarchy'
 import { NextResponse, NextRequest } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -7,19 +10,14 @@ import { parseLinkTarget } from './linkTarget'
 
 export async function GET() {
   try {
-    const members = await prisma.teamMember.findMany({
-      where: { isActive: true },
-      orderBy: { order: 'asc' },
-      // userId is internal linkage, not public data.
-      omit: { userId: true },
-    })
+    const members = await loadPublicTeam()
     return NextResponse.json(members)
   } catch {
     return NextResponse.json({ error: 'Failed to fetch team' }, { status: 500 })
   }
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   const admin = await getVerifiedSessionUser(ADMIN_ONLY)
   if (!admin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -27,18 +25,22 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { name, role, bio, image, email, order, isActive, userId } = body
+    const { name, role, bio, image, email, order, isActive, userId, publicTier } = body
 
     if (!name) {
       return NextResponse.json({ error: 'Name required' }, { status: 400 })
     }
 
+    if (publicTier != null && publicTier !== '' && !TEAM_TIER_ORDER.includes(publicTier)) {
+      return NextResponse.json({ error: 'Invalid public placement' }, { status: 400 })
+    }
     const link = await parseLinkTarget(userId)
     if (!link.ok) return link.response
 
     const member = await prisma.teamMember.create({
       data: {
         ...(link.userId ? { userId: link.userId } : {}),
+        ...(publicTier !== undefined ? { publicTier: publicTier || null } : {}),
         name,
         // Role is optional: a member may sit on the masthead without a formal
         // title, and the public page renders no role line in that case. The
@@ -59,3 +61,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create team member' }, { status: 500 })
   }
 }
+
+export const POST = withTestingAudit(POSTHandler)

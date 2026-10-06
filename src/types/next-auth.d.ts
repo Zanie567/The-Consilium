@@ -4,6 +4,9 @@ import 'next-auth/jwt'
 
 declare module 'next-auth' {
   interface Session {
+    testing?: { id: string; administratorId: string; persona: 'writer' | 'writer-other' | 'editor' | 'editor-global' | 'growth'; expiresAt: string }
+    requestIdentity?: string
+    testingIdentityChanged?: boolean
     user: {
       id: string
       name?: string | null
