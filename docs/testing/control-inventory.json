@@ -2898,7 +2898,7 @@
     },
     {
       "route": "/editorial/articles",
-      "file": "src/app/editorial/(portal)/articles/page.tsx",
+      "file": "src/app/editorial/(portal)/articles/(list)/page.tsx",
       "rolesFromInspection": [
         "ADMIN",
         "EDITOR",
@@ -2925,14 +2925,14 @@
         "tests/unit/route-feedback.test.tsx"
       ],
       "guardSource": [
-        "src/app/editorial/(portal)/articles/page.tsx: import { requirePortalRole } from '@/lib/portalAccess'",
-        "src/app/editorial/(portal)/articles/page.tsx: const session = await requirePortalRole(['ADMIN', 'EDITOR', 'WRITER'])",
-        "src/app/editorial/(portal)/articles/page.tsx: const role = session.user.role",
+        "src/app/editorial/(portal)/articles/(list)/page.tsx: import { requirePortalRole } from '@/lib/portalAccess'",
+        "src/app/editorial/(portal)/articles/(list)/page.tsx: const session = await requirePortalRole(['ADMIN', 'EDITOR', 'WRITER'])",
+        "src/app/editorial/(portal)/articles/(list)/page.tsx: const role = session.user.role",
         "src/app/editorial/(portal)/layout.tsx: redirect('/editorial/login')"
       ],
       "controls": [
-        "src/app/editorial/(portal)/articles/page.tsx:97",
-        "src/app/editorial/(portal)/articles/page.tsx:114",
+        "src/app/editorial/(portal)/articles/(list)/page.tsx:97",
+        "src/app/editorial/(portal)/articles/(list)/page.tsx:114",
         "src/components/editorial/ArticlesList.tsx:159",
         "src/components/editorial/ArticlesList.tsx:253",
         "src/components/editorial/ArticlesList.tsx:267",
@@ -9280,8 +9280,8 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/articles/page.tsx:97",
-      "file": "src/app/editorial/(portal)/articles/page.tsx",
+      "id": "src/app/editorial/(portal)/articles/(list)/page.tsx:97",
+      "file": "src/app/editorial/(portal)/articles/(list)/page.tsx",
       "line": 97,
       "tag": "a",
       "label": "+ New",
@@ -9295,8 +9295,8 @@
       "coverage": "Inspection only. Label references neither prove nor disprove action coverage; use the reviewed action families and executed results."
     },
     {
-      "id": "src/app/editorial/(portal)/articles/page.tsx:114",
-      "file": "src/app/editorial/(portal)/articles/page.tsx",
+      "id": "src/app/editorial/(portal)/articles/(list)/page.tsx:114",
+      "file": "src/app/editorial/(portal)/articles/(list)/page.tsx",
       "line": 114,
       "tag": "Link",
       "label": "Start writing →",
