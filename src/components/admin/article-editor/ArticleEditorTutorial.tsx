@@ -33,8 +33,8 @@ export function ArticleEditorTutorial({ editor }: ArticleEditorTutorialProps) {
 
   return (
     <>
-      <div className="fixed inset-0 z-[70] bg-black/40" onClick={() => editor.actions.setTutorialOpen(false)} />
-      <div className="fixed inset-0 z-[71] flex items-center justify-center p-4 pointer-events-none">
+      <div className="fixed inset-0 z-[210] bg-black/40" onClick={() => editor.actions.setTutorialOpen(false)} />
+      <div className="fixed inset-0 z-[211] flex items-center justify-center p-4 pointer-events-none">
         <div
           className="pointer-events-auto w-full max-w-[680px] max-h-[80vh] bg-[var(--bg-elevated)] rounded-2xl shadow-2xl flex flex-col border border-[var(--border)]"
           onClick={(event) => event.stopPropagation()}
@@ -68,7 +68,7 @@ export function ArticleEditorTutorial({ editor }: ArticleEditorTutorialProps) {
 
             <TutorialSection title="Structure buttons">
               <TutorialList>
-                <TutorialItem label="Headings" icon={<Heading2 size={13} />}>H2 is a main section, H3 a sub-section.</TutorialItem>
+                <TutorialItem label="Headings" icon={<Heading2 size={13} />}>There is no heading button. Start a line with ## for a main section (H2) or ### for a sub-section (H3), then a space.</TutorialItem>
                 <TutorialItem label="Bullet list" icon={<List size={13} />}>Press Tab to indent a level deeper</TutorialItem>
                 <TutorialItem label="Numbered list" icon={<ListOrdered size={13} />}>Ordered list with automatic numbering</TutorialItem>
                 <TutorialItem label="Blockquote" icon={<Quote size={13} />}>Pull quote with gold left border</TutorialItem>
@@ -91,6 +91,10 @@ export function ArticleEditorTutorial({ editor }: ArticleEditorTutorialProps) {
                 <TutorialItem label="Align centre" icon={<AlignCenter size={13} />}>Centres the current paragraph</TutorialItem>
                 <TutorialItem label="Align right" icon={<AlignRight size={13} />}>Right-aligns the current paragraph</TutorialItem>
               </TutorialList>
+            </TutorialSection>
+
+            <TutorialSection title="What readers see">
+              <p>Publication preserves your formatting, text colours, highlights, alignment and line spacing. Preview shows the published layout. The Consilium&apos;s typography supplies defaults for unstyled text.</p>
             </TutorialSection>
 
             <TutorialSection title="Right panel">

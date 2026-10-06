@@ -12,8 +12,12 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    include: ['tests/**/*.test.{ts,tsx}'],
+    // Each database suite owns a pool. Bound concurrency so a full local audit
+    // does not exhaust Postgres/CPU while its production app is also running.
+    maxWorkers: 2,
     // E2E specs live in tests/e2e and use @playwright/test, not vitest.
-    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**', ...(!(process.env.E2E_ISOLATED === '1' && process.env.BASE_URL) ? ['tests/integration/read-through-db.test.ts','tests/integration/api.test.ts','tests/integration/data-layer.test.ts','tests/integration/api-audit.test.ts','tests/integration/calendar-access.test.ts','tests/integration/team-profile-db.test.ts','tests/integration/team-profile-storage.test.ts'] : [])],
     // Forward the live-server base URL (and seed credentials) into the test
     // workers. Read here in the main process — where an inline `BASE_URL=…`
     // prefix is reliably visible — so integration specs can reach the server

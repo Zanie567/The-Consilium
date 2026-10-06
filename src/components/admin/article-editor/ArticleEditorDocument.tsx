@@ -48,12 +48,13 @@ export function ArticleEditorDocument({ editor, editorRef, excerptDomRef, titleD
   const docCoverInputRef = useRef<HTMLInputElement>(null)
 
   return (
-    <div className="flex-none w-full max-w-[960px] bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] min-h-[calc(100vh-120px)]">
+    <div className="flex-1 min-w-0 max-w-[960px] bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)] min-h-[calc(100vh-120px)]">
       {/* Hidden file input for the document-body cover-image button */}
       <input
         ref={docCoverInputRef}
         type="file"
         accept="image/*"
+        disabled={!editor.canEdit || Boolean(editor.recovery)}
         className="hidden"
         onChange={(e) => void actions.handleCoverUpload(e)}
       />
@@ -68,7 +69,7 @@ export function ArticleEditorDocument({ editor, editorRef, excerptDomRef, titleD
               className="w-full h-full object-contain"
               onError={(event) => { event.currentTarget.style.display = 'none' }}
             />
-            {editor.canEdit && (
+            {editor.canEdit && !editor.recovery && (
               <div className="absolute inset-0 bg-black/40 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                 <button
                   type="button"
@@ -91,7 +92,7 @@ export function ArticleEditorDocument({ editor, editorRef, excerptDomRef, titleD
             )}
           </>
         ) : (
-          editor.canEdit && (
+          editor.canEdit && !editor.recovery && (
             <button
               type="button"
               onClick={() => docCoverInputRef.current?.click()}
@@ -110,7 +111,7 @@ export function ArticleEditorDocument({ editor, editorRef, excerptDomRef, titleD
           ref={titleDomRef}
           value={editor.title}
           onChange={(event) => actions.updateTitle(event.target.value)}
-          disabled={!editor.canEdit}
+          disabled={!editor.canEdit || Boolean(editor.recovery)}
           placeholder="Your headline here..."
           rows={1}
           className="w-full bg-transparent border-none outline-none resize-none text-4xl sm:text-5xl font-serif font-bold leading-tight placeholder:text-[var(--fg-faint)] disabled:opacity-60 overflow-hidden mb-4 text-[var(--fg)]"
@@ -120,7 +121,7 @@ export function ArticleEditorDocument({ editor, editorRef, excerptDomRef, titleD
           ref={excerptDomRef}
           value={editor.excerpt}
           onChange={(event) => actions.setExcerpt(event.target.value)}
-          disabled={!editor.canEdit}
+          disabled={!editor.canEdit || Boolean(editor.recovery)}
           placeholder="Write a brief summary that draws readers in..."
           rows={2}
           className="w-full bg-transparent border-none outline-none resize-none text-xl italic leading-relaxed placeholder:text-[var(--fg-faint)] disabled:opacity-60 overflow-hidden text-[var(--fg-muted)]"
@@ -128,10 +129,11 @@ export function ArticleEditorDocument({ editor, editorRef, excerptDomRef, titleD
 
         <div className="mt-6">
           <TiptapEditor
+        key={editor.recoveryRevision}
             ref={editorRef}
             content={editor.content}
             onChange={actions.handleContentChange}
-            editable={editor.canEdit}
+            editable={editor.canEdit && !editor.recovery}
             saveStatus={editor.saveStatus}
             saveError={editor.error?.label}
             toolbarPortalRef={toolbarPortalRef}

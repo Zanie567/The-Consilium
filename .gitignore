@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.next-e2e*/
 /out/
 
 # production
@@ -49,3 +50,7 @@ next-env.d.ts
 /playwright-report
 /playwright/.cache
 /tests/e2e/.auth
+
+# Per-run isolated audit build configuration and retained local evidence
+/.next-e2e*.tsconfig.json
+/docs/testing/evidence/

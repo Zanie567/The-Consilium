@@ -13,13 +13,13 @@ export function ArticleEditorMobileSettings({ editor, coverFileRef }: ArticleEdi
   return (
     <>
       <div
-        className={`fixed inset-0 z-[60] bg-black/40 transition-opacity duration-300 ${editor.settingsOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 z-[205] bg-black/40 transition-opacity duration-300 ${editor.settingsOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={() => editor.actions.setSettingsOpen(false)}
         aria-hidden
       />
 
       <div
-        className={`fixed inset-x-0 bottom-0 z-[61] bg-[var(--bg-elevated)] rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[82vh] transition-transform duration-300 ease-out ${editor.settingsOpen ? 'translate-y-0' : 'translate-y-full'}`}
+        className={`fixed inset-x-0 bottom-0 z-[206] bg-[var(--bg-elevated)] rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[82vh] transition-transform duration-300 ease-out ${editor.settingsOpen ? 'translate-y-0' : 'translate-y-full'}`}
         aria-hidden={!editor.settingsOpen}
       >
         <div className="flex justify-center pt-3 pb-1 shrink-0">

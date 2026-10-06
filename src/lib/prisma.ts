@@ -1,3 +1,4 @@
+import { assertRunDatabase } from '../../scripts/lib/assertRunDatabase'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
@@ -8,6 +9,7 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 function createPrismaClient() {
+  if (process.env.E2E_ISOLATED === '1') assertRunDatabase()
   const connectionString = process.env.DATABASE_URL!
   // Pool hardening (Priority 2 — intermittent 503s under prefetch bursts).
   //   * `max`: explicit pool size. The serverless pooler URL pins this to 1

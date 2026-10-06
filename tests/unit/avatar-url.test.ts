@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { validateAvatarUrl } from '@/lib/avatarUrl'
 
 const SUPABASE = 'https://abcdefgh.supabase.co'
@@ -12,6 +12,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.unstubAllEnvs()
   if (original === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL
   else process.env.NEXT_PUBLIC_SUPABASE_URL = original
 })
@@ -19,6 +20,18 @@ afterEach(() => {
 describe('validateAvatarUrl', () => {
   it('accepts a file in our own avatars bucket', () => {
     expect(validateAvatarUrl(VALID)).toEqual({ ok: true, url: VALID })
+  })
+
+  it('accepts HTTP only for the explicitly enabled local test storage', () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'http://127.0.0.1:54321')
+    vi.stubEnv('E2E_ISOLATED', '0')
+    vi.stubEnv('NEXT_IMAGE_ALLOW_LOCAL_STORAGE', '1')
+    const local='http://127.0.0.1:54321/storage/v1/object/public/avatars/x.png'
+    expect(validateAvatarUrl(local).ok).toBe(false)
+    vi.stubEnv('E2E_ISOLATED', '1')
+    expect(validateAvatarUrl(local)).toEqual({ok:true,url:local})
+    expect(validateAvatarUrl(local.replace('54321','54322')).ok).toBe(false)
+    expect(validateAvatarUrl(local.replace('/avatars/', '/article-images/')).ok).toBe(false)
   })
 
   it('treats an empty value as clearing the avatar', () => {

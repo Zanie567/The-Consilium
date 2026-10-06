@@ -1,4 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server'
+import { articleVersion } from '@/lib/articleVersion'
 import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession, requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -251,7 +252,7 @@ export async function POST(request: NextRequest) {
       return created
     }, { timeout: ARTICLE_SAVE_TIMEOUT_MS })
 
-    return NextResponse.json(article, {
+    return NextResponse.json({ ...article, version: articleVersion(article, normalizedTags.map((t) => t.name)) }, {
       status: 201,
       headers: { 'x-request-id': requestId },
     })

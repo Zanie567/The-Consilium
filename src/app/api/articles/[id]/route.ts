@@ -11,6 +11,7 @@ import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 import { apiError, articleMutationErrorResponse } from '@/lib/apiResponse'
 import { ARTICLE_SAVE_TIMEOUT_MS, normalizeArticleTags } from '@/lib/articleTags'
+import { articleVersion } from '@/lib/articleVersion'
 import type { ArticleStatus } from '@prisma/client'
 
 const STAFF_ARTICLE_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'ARCHIVED', 'REJECTED', 'SCHEDULED'] as const satisfies readonly ArticleStatus[]
@@ -104,7 +105,7 @@ export async function PUT(
 
     const existing = await prisma.article.findUnique({
       where: { id },
-      include: { author: true, category: true },
+      include: { author: true, category: true, tags: { include: { tag: true } } },
     })
     if (!existing || existing.deletedAt) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -130,7 +131,23 @@ export async function PUT(
       title, slug, content, excerpt, coverImage, categoryId, status,
       corrected, correctionNote, seriesId, seriesOrder, tags, scheduledAt,
       authorId: bodyAuthorId,
+      baseVersion, publicationIntent,
     } = body
+
+    // Optimistic concurrency: a client that says which version it was editing is refused
+    // when the article has changed since (another tab, another person, a review action).
+    // Clients that send no baseVersion (scripts, older pages) are not checked.
+    if (typeof baseVersion === 'string' && baseVersion) {
+      const currentVersion = articleVersion(existing, existing.tags.map((t) => t.tag.name))
+      if (baseVersion !== currentVersion) {
+        return apiError(
+          'This article was changed in another tab or by someone else since you opened it.',
+          409,
+          'ARTICLE_CONFLICT',
+          requestId
+        )
+      }
+    }
 
     const nextCategoryId = categoryId !== undefined ? (categoryId || null) : existing.categoryId
 
@@ -163,6 +180,11 @@ export async function PUT(
       if ((allowedStatuses as readonly string[]).includes(status)) {
         finalStatus = status as ArticleStatus
       }
+    }
+
+    if (isAdminOrEditor && finalStatus !== existing.status &&
+      ([existing.status,finalStatus].some(s=>s==='PUBLISHED'||s==='SCHEDULED')) && publicationIntent !== true) {
+      return apiError('Confirm this publication change before saving.',409,'PUBLICATION_CONFIRMATION_REQUIRED',requestId)
     }
 
     // Validate scheduledAt is in the future when scheduling
@@ -319,7 +341,13 @@ export async function PUT(
       }
     }
 
-    return NextResponse.json(updated, { headers: { 'x-request-id': requestId } })
+    const savedTagNames = Array.isArray(tags)
+      ? normalizedTags.map((t) => t.name)
+      : existing.tags.map((t) => t.tag.name)
+    return NextResponse.json(
+      { ...updated, version: articleVersion(updated, savedTagNames) },
+      { headers: { 'x-request-id': requestId } }
+    )
   } catch (error) {
     return articleMutationErrorResponse(error, 'update', requestId)
   }
@@ -346,6 +374,18 @@ export async function DELETE(
 
     if (!isAdminOrEditor && existing.authorId !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // A writer can delete only what they can still edit (a draft, or one returned to them). Trashing
+    // a submitted, scheduled or published article would pull it from the queue or the public site
+    // without an editor, which a writer cannot otherwise do (they cannot unpublish or edit it either).
+    if (!isAdminOrEditor && existing.status !== 'DRAFT' && existing.status !== 'REJECTED') {
+      return apiError(
+        'This article has been submitted or published, so only an editor can remove it.',
+        403,
+        'ARTICLE_LOCKED_FOR_WRITER',
+        requestId
+      )
     }
 
     if (user.role === 'EDITOR') {

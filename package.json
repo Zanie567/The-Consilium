@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postinstall": "prisma generate",
+    "postinstall": "node scripts/backport-next-image-abort.mjs && prisma generate",
     "start": "next start",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -20,7 +20,7 @@
     "test:coverage": "vitest run --coverage",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration/data-layer.test.ts",
-    "test:e2e": "playwright test",
+    "test:e2e": "bash scripts/run-e2e.sh",
     "test:audit": "bash scripts/run-audit.sh",
     "test:setup-db": "bash scripts/setup-test-db.sh",
     "db:dedupe": "ts-node -P tsconfig.seed.json prisma/dedupe-articles.ts",

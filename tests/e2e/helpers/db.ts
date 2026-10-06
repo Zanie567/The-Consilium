@@ -3,10 +3,7 @@
  * ACTUAL data layer (never hard-coded numbers), so they query Postgres directly
  * here and compare with what the browser renders.
  */
-import { config } from 'dotenv'
-import { resolve } from 'path'
-config({ path: resolve(__dirname, '../../../.env.local') })
-
+import { assertRunDatabase } from '../../../scripts/lib/assertRunDatabase'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { assertSafeTestDatabaseHost } from '../../../scripts/lib/assertSafeTestDatabaseHost'
@@ -17,6 +14,7 @@ function db(): PrismaClient {
     // Unlike the vitest DB suites, e2e assertions depend on this data being
     // the real seeded fixture set — an unsafe host should fail loudly, not
     // skip silently.
+    assertRunDatabase()
     assertSafeTestDatabaseHost(process.env.DATABASE_URL, 'DATABASE_URL')
     prisma = new PrismaClient({
       adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL ?? '' }),
@@ -26,7 +24,7 @@ function db(): PrismaClient {
 }
 
 export async function closeDb() {
-  if (prisma) await prisma.$disconnect().catch(() => {})
+  if (prisma) await prisma.$disconnect()
   prisma = null
 }
 

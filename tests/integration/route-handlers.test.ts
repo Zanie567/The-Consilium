@@ -1,8 +1,8 @@
 /**
  * In-process route-handler tests.
  *
- * Unlike `api.test.ts` (which drives a live dev server over HTTP and skips when
- * none is running), these import the App Router handlers directly and run them
+ * Unlike `api.test.ts` (which requires an attested isolated HTTP server), these
+ * import the App Router handlers directly and run them
  * with mocked `prisma` / auth / email collaborators. They need no server and no
  * database, so they execute on every `npm test` run and in CI — covering the
  * authorization and validation logic of the routes most recently changed.
@@ -18,6 +18,7 @@ const { prismaMock, authMock } = vi.hoisted(() => {
   const resolved = () => Promise.resolve({})
   return {
     prismaMock: {
+      $transaction: vi.fn(),
       user: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
       writerStreak: { findUnique: vi.fn(), upsert: vi.fn() },
       adminNote: { create: vi.fn(resolved) },
@@ -93,6 +94,7 @@ describe('POST /api/editorial/setup', () => {
   })
 
   it('creates the first admin (email lowercased, role ADMIN) → 200', async () => {
+    prismaMock.$transaction.mockImplementationOnce(run => run({ ...prismaMock, $executeRaw: vi.fn().mockResolvedValue(1) }))
     prismaMock.user.findFirst.mockResolvedValue(null)
     prismaMock.user.create.mockResolvedValue({ id: 'admin-1' })
     const res = await setupPOST(

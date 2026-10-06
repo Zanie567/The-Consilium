@@ -41,13 +41,17 @@ async function prep(page: Page) {
   await page.addStyleTag({ content: 'html{scroll-behavior:auto !important}' })
   // Let the entrance animation settle so positions are stable.
   await expect(page.locator('#fnref-1')).toBeVisible()
-  await page.waitForTimeout(900)
+  await expect(page.locator('#article-body').locator('..')).toHaveCSS('opacity', '1')
+  await expect(page.locator('#article-body').locator('..')).toHaveCSS('transform', 'none')
+  await page.evaluate(() => document.fonts.ready)
 }
 
 /** Centre a marker (or its inner link) and return its viewport centre point. */
 function point(page: Page, selector: string) {
   return page.locator(selector).evaluate((el) => {
-    el.scrollIntoView({ block: 'center' })
+    // The site scrolls smoothly (html { scroll-behavior: smooth }); measuring mid-animation returns
+    // a point the element has already left, so scroll instantly and measure the final position.
+    el.scrollIntoView({ block: 'center', behavior: 'instant' })
     const target = el.querySelector('a') ?? el
     const r = target.getBoundingClientRect()
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 }
@@ -74,6 +78,8 @@ test.describe('desktop', () => {
     const p = await point(page, '#fnref-2')
     const before = await page.evaluate(() => ({
       h: document.body.scrollHeight,
+      documentHeight: document.documentElement.scrollHeight,
+      body: document.body.getBoundingClientRect().toJSON(),
       box: document.getElementById('fnref-2')!.getBoundingClientRect().toJSON(),
     }))
 
@@ -87,8 +93,11 @@ test.describe('desktop', () => {
     // Opening the popover must not move the page or the marker
     const after = await page.evaluate(() => ({
       h: document.body.scrollHeight,
+      documentHeight: document.documentElement.scrollHeight,
+      body: document.body.getBoundingClientRect().toJSON(),
       box: document.getElementById('fnref-2')!.getBoundingClientRect().toJSON(),
     }))
+    await test.info().attach('popover-geometry.json', { body: JSON.stringify({ before, after }), contentType: 'application/json' })
     expect(after.h).toBe(before.h)
     expect(after.box).toEqual(before.box)
 
@@ -97,7 +106,7 @@ test.describe('desktop', () => {
     await expect(page.locator(POPOVER)).toBeHidden()
   })
 
-  test('keyboard: Tab focus shows it, Escape dismisses, focus stays put', async ({ page }) => {
+  test('keyboard: Tab focus shows it, Escape dismisses, focus stays put', async ({ page, browserName }) => {
     await prep(page)
     // Park focus on a probe button immediately before the first marker, then Tab
     // so the marker link gains focus from a real keyboard interaction
@@ -110,7 +119,9 @@ test.describe('desktop', () => {
       sup.parentElement!.insertBefore(probe, sup)
       probe.focus()
     })
-    await page.keyboard.press('Tab')
+    // Safari uses Option-Tab to include links in its default tab order:
+    // https://support.apple.com/en-gb/guide/safari/cpsh003/mac
+    await page.keyboard.press(browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab')
 
     const link = page.locator('#fnref-1 a')
     await expect(link).toBeFocused()
@@ -173,7 +184,11 @@ test.describe('mobile touch', () => {
     // A tap on a marker must not navigate-jump the page like a plain anchor
     expect(new URL(page.url()).hash).toBe('')
 
-    await page.touchscreen.tap(20, 400)
+    // Choose a point demonstrably outside the card. A fixed (20,400) can be
+    // INSIDE a differently sized WebKit card, which tests the opposite action.
+    const outside = { x: 2, y: 2 }
+    expect(outside.x < box.x || outside.y < box.y).toBe(true)
+    await page.touchscreen.tap(outside.x, outside.y)
     await expect(page.locator(POPOVER)).toBeHidden()
   })
 

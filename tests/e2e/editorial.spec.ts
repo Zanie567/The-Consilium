@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { collectConsoleErrors } from './helpers/console'
+import { ArticleEditorPage } from './helpers/workflow'
 
 /**
  * Every editorial sub-route must load (authenticated), render its main heading,
@@ -53,23 +54,24 @@ test('Analytics: every tab loads with no console errors, and Writers shows data'
   const errors = collectConsoleErrors(page)
   await page.goto('/editorial/analytics', { waitUntil: 'networkidle' })
 
-  for (const label of ['Overview', 'Content', 'Audience', 'Engagement', 'Writers', 'Distribution']) {
-    const tab = page.getByRole('button', { name: label, exact: true })
-    if (await tab.count()) {
-      await tab.first().click()
-      await page.waitForTimeout(600) // lazy fetch + render
-    }
+  // Overview is already loaded by the awaited initial navigation. Every other
+  // tab must complete its own exact successful request, rather than a sleep.
+  for (const [label, tabId] of [['Content', 'content'], ['Audience', 'audience'], ['Engagement', 'engagement'], ['Distribution', 'distribution']]) {
+    const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/editorial/analytics' && new URL(r.url()).searchParams.get('tab') === tabId)
+    await page.getByRole('button', { name: label, exact: true }).click()
+    expect((await response).status()).toBe(200)
+    await expect(page.getByRole('button', { name: label, exact: true })).toHaveClass(/border-gold/)
   }
 
   // Writers tab (the "No writers…" bug): open it, wait for its data, and assert
   // it renders writer rows rather than the empty state.
   const writersTab = page.getByRole('button', { name: 'Writers', exact: true })
   const analyticsResp = page.waitForResponse(
-    (r) => r.url().includes('tab=leaderboard') && r.ok(),
+    (r) => new URL(r.url()).pathname === '/api/editorial/analytics' && new URL(r.url()).searchParams.get('tab') === 'leaderboard',
     { timeout: 10_000 },
-  ).catch(() => null)
+  )
   await writersTab.first().click()
-  await analyticsResp
+  expect((await analyticsResp).status()).toBe(200)
   await expect(page.getByText('No writers have published articles')).toHaveCount(0)
   await expect(page.locator('table tbody tr').first()).toBeVisible({ timeout: 10_000 })
 
@@ -91,9 +93,12 @@ test('Comment Moderation loads WITHOUT the error banner and shows real stats', a
   expect(total?.trim()).toMatch(/^\d[\d,]*$/)
 
   // All three tabs switch without error.
-  for (const tab of ['Reported', 'Recent', 'Hidden']) {
-    await page.getByRole('button', { name: new RegExp(tab, 'i') }).first().click()
-    await page.waitForTimeout(400)
+  for (const tab of ['Recent', 'Hidden', 'Reported']) {
+    const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/editorial/comments' && new URL(r.url()).searchParams.get('tab') === tab.toLowerCase())
+    const button = page.getByRole('button', { name: new RegExp(`^${tab}`) }).first()
+    await button.click()
+    expect((await response).status()).toBe(200)
+    await expect(button).toHaveClass(/border-gold/)
   }
   expect(errors, `moderation console errors:\n${errors.join('\n')}`).toEqual([])
 })
@@ -103,15 +108,22 @@ test('New Article editor autosaves a draft', async ({ page }) => {
   const headline = page.getByPlaceholder(/Untitled document|headline/i).first()
   await expect(headline).toBeVisible()
 
-  // Typing should trigger autosave (POST/PATCH /api/articles) and a "Saved" state.
+  // Typing should trigger autosave (POST /api/articles) and a "Saved" state.
   const saved = page.waitForResponse(
     (r) => r.url().includes('/api/articles') && ['POST', 'PATCH', 'PUT'].includes(r.request().method()),
     { timeout: 15_000 },
   )
-  await headline.fill(`E2E autosave draft ${Date.now()}`)
+  const title = `E2E autosave draft ${Date.now()}`
+  await headline.fill(title)
   const res = await saved
-  expect(res.status(), 'autosave request must not 5xx').toBeLessThan(500)
+  // A successful save must be a 201 (create) / 200 (update); "not a 5xx" also passed 4xx.
+  expect(res.status(), await res.text()).toBe(201)
+  const { id } = (await res.json()) as { id: string }
   await expect(page.getByText(/^Saved$/).first()).toBeVisible({ timeout: 15_000 })
+
+  // Reopen it: the draft must really be stored, not just acknowledged.
+  await page.goto(`/editorial/articles/${id}/edit`, { waitUntil: 'networkidle' })
+  await expect(page.getByPlaceholder(/Your headline here/)).toHaveValue(title)
 })
 
 test('bookmarks are fetched ONCE per page, not once per card (Bug 7)', async ({ page }) => {
@@ -120,33 +132,46 @@ test('bookmarks are fetched ONCE per page, not once per card (Bug 7)', async ({ 
   page.on('request', (r) => {
     if (r.method() === 'GET' && r.url().includes('/api/bookmarks')) bookmarkCalls.push(r.url())
   })
+  const loaded = page.waitForResponse(r => new URL(r.url()).pathname === '/api/bookmarks' && r.request().method() === 'GET')
   await page.goto('/', { waitUntil: 'networkidle' })
-  // Wait a beat for any late client fetches.
-  await page.waitForTimeout(800)
+  expect((await loaded).status()).toBe(200)
   const cards = await page.locator('a[href^="/articles/"]').count()
   expect(cards, 'homepage should render multiple article cards').toBeGreaterThan(3)
   expect(
     bookmarkCalls.length,
     `GET /api/bookmarks fired ${bookmarkCalls.length}× for ${cards} cards (should be ≤ 1)`,
-  ).toBeLessThanOrEqual(1)
+  ).toBe(1)
 })
 
-test('comments moderation total matches the users-table comment counts (Priority 4)', async ({ page }) => {
-  // The moderation page must not show "0 total comments" when comments exist.
+test('visible moderation total equals the comment counts across every users-table page', async ({ page }) => {
+  test.setTimeout(60_000) // Two screens and every seeded user page; exact responses synchronize the rendered counts.
+  const moderation = page.waitForResponse(r => new URL(r.url()).pathname === '/api/editorial/comments' && r.request().method() === 'GET')
   await page.goto('/editorial/comments', { waitUntil: 'networkidle' })
-  const totalText = await page
-    .locator('text=Total Comments')
-    .locator('xpath=following-sibling::*[1]')
-    .textContent()
-    .catch(() => null)
-
-  // Sum the per-user comment counts shown on the users page.
+  const moderationResponse = await moderation
+  expect(moderationResponse.status()).toBe(200)
+  const stats = (await moderationResponse.json()).stats
+  const statValue = (label: string) => page.getByText(label, { exact: true }).locator('..').locator('p').nth(1)
+  await expect(statValue('Total Comments')).toHaveText(String(stats.total))
+  await expect(statValue('Hidden')).toHaveText(String(stats.hidden))
+  const visibleTotal = Number(await statValue('Total Comments').innerText()) - Number(await statValue('Hidden').innerText())
+  expect(visibleTotal).toBeGreaterThan(0)
+  const first = page.waitForResponse(r => new URL(r.url()).pathname === '/api/admin/users' && r.request().method() === 'GET')
   await page.goto('/editorial/users', { waitUntil: 'networkidle' })
-  // Wait for the table to populate.
-  await page.waitForTimeout(1000)
-
-  // Both sources should be internally consistent; the data-layer test already
-  // proves the equality at the DB level, so here we just assert the moderation
-  // page rendered a real (non-dash) number rather than silently failing.
-  expect(totalText?.trim()).toMatch(/^\d[\d,]*$/)
+  // The cookie banner is fixed over the table's pagination controls on a fresh browser.
+  await new ArticleEditorPage(page).dismissCookieBanner()
+  let response = await first
+  let sum = 0
+  for (;;) {
+    expect(response.status()).toBe(200)
+    const data = await response.json()
+    const counts = page.locator('tbody tr td:nth-child(4)')
+    await expect(counts).toHaveText(data.users.map((user: { _count: { comments: number } }) => String(user._count.comments)))
+    sum += (await counts.allInnerTexts()).reduce((total, count) => total + Number(count), 0)
+    const next = page.getByLabel('Next users page', { exact: true })
+    if (await next.isDisabled()) break
+    const changed = page.waitForResponse(r => new URL(r.url()).pathname === '/api/admin/users' && r.request().method() === 'GET')
+    await next.click()
+    response = await changed
+  }
+  expect(sum).toBe(visibleTotal)
 })

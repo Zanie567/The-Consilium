@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import Image from 'next/image'
 import { Mail } from 'lucide-react'
 import { getInitials } from '@/lib/authorUtils'
@@ -74,6 +74,7 @@ const VARIANT = {
 export function TeamMemberCard({ member, variant }: TeamMemberCardProps) {
   const style = VARIANT[variant]
   const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   // Stable identity: the dialog's open effect depends on it, and a new function
   // each render would tear down and re-run that effect (re-capturing the body's
   // overflow as 'hidden' and leaving the page unscrollable after close).
@@ -89,6 +90,7 @@ export function TeamMemberCard({ member, variant }: TeamMemberCardProps) {
             clickable — nesting an anchor inside a button is invalid markup. */}
         <button
           type="button"
+          ref={triggerRef}
           onClick={() => setOpen(true)}
           aria-haspopup="dialog"
           aria-label={`View full profile for ${member.name}`}
@@ -160,7 +162,7 @@ export function TeamMemberCard({ member, variant }: TeamMemberCardProps) {
         )}
       </div>
 
-      <TeamMemberDialog member={member} open={open} onClose={closeDialog} />
+      <TeamMemberDialog member={member} open={open} onClose={closeDialog} returnFocusRef={triggerRef} />
     </>
   )
 }

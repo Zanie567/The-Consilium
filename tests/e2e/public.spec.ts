@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { collectConsoleErrors } from './helpers/console'
+import { ArticleEditorPage, createAccount, db as workflowDb, closeDb as closeWorkflowDb, removeMyArticles, removeMyAccounts, signInAs, uniqueTitle } from './helpers/workflow'
 import {
   expectedCategoryArticles,
   allPublishedArticles,
@@ -8,6 +9,9 @@ import {
 } from './helpers/db'
 
 test.afterAll(async () => {
+  await removeMyArticles()
+  await removeMyAccounts()
+  await closeWorkflowDb()
   await closeDb()
 })
 
@@ -134,38 +138,38 @@ test('article page: correct title/meta, share, copy-link, save controls; reading
     })
   const before = await barScaleX()
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-  await page.waitForTimeout(700) // let the spring settle
-  const after = await barScaleX()
-  expect(after, `reading progress did not advance (before=${before}, after=${after})`).toBeGreaterThan(before)
+  await expect.poll(barScaleX, { message: `Reading progress must advance beyond ${before}` }).toBeGreaterThan(before)
 })
 
-test('debate hub: the vote flow is wired up (button → API → results)', async ({ page }) => {
-  await page.goto('/opinion-debate', { waitUntil: 'networkidle' })
-  await expect(page.getByLabel('Opinion debate').first()).toBeVisible()
-
-  const forBtn = page.getByLabel('Vote for the For side of this debate').first()
-  const hasButtons = (await forBtn.count()) > 0 && (await forBtn.isVisible().catch(() => false))
-
-  if (hasButtons) {
-    // Capture the actual vote API call so the test is deterministic regardless
-    // of whether this client/IP has voted before (200 = recorded, 409 = already
-    // voted). Either way the flow works and never 5xx's.
-    const votePromise = page.waitForResponse(
-      (r) => /\/api\/debates\/.+\/vote/.test(r.url()) && r.request().method() === 'POST',
-      { timeout: 8_000 },
-    )
-    await forBtn.click()
-    const voteRes = await votePromise
-    expect(voteRes.status(), 'vote endpoint must not 5xx').toBeLessThan(500)
-    expect([200, 409, 429]).toContain(voteRes.status())
-    if (voteRes.status() === 200) {
-      // A fresh vote flips the panel into its results view.
-      await expect(forBtn).toBeHidden({ timeout: 8_000 })
-    }
-  } else {
-    // Already in a results state (closed or previously voted) — totals show.
-    await expect(page.getByText(/\bvotes?\b/i).first()).toBeVisible()
-  }
+test('debate hub records one fresh reader vote with exactly 200 and reopens persisted results', async ({ browser }) => {
+  test.setTimeout(60_000)
+  const author = await createAccount('WRITER', 'public-vote-author')
+  const reader = await createAccount('READER', 'public-voter')
+  const title = uniqueTitle('Public vote')
+  const articles = await Promise.all(['for', 'against'].map(side => workflowDb().article.create({ data: {
+    title: `${title} ${side}`, slug: `${title}-${side}`.toLowerCase().replaceAll(' ', '-'),
+    authorId: author.id, content: 'Representative debate argument.', status: 'PUBLISHED', publishedAt: new Date(),
+  } })))
+  const debate = await workflowDb().debate.create({ data: { title, description: 'Fresh voting fixture.',
+    isActive: true, forArticleId: articles[0].id, againstArticleId: articles[1].id } })
+  const ctx = await signInAs(browser, reader)
+  const page = await ctx.newPage()
+  expect((await page.goto('/opinion-debate', { waitUntil: 'networkidle' }))?.status()).toBe(200)
+  await new ArticleEditorPage(page).dismissCookieBanner()
+  const panel = page.getByLabel('Opinion debate', { exact: true }).filter({ has: page.getByRole('heading', { name: title, exact: true }) })
+  const forButton = panel.getByLabel('Vote for the For side of this debate', { exact: true })
+  await expect(forButton).toBeVisible()
+  const voted = page.waitForResponse(r => new URL(r.url()).pathname === `/api/debates/${debate.id}/vote` && r.request().method() === 'POST')
+  await forButton.click()
+  expect((await voted).status()).toBe(200)
+  await expect(forButton).toHaveCount(0)
+  expect(await workflowDb().debateVote.count({ where: { debateId: debate.id, userId: reader.id, side: 'FOR' } })).toBe(1)
+  expect((await page.reload({ waitUntil: 'networkidle' }))?.status()).toBe(200)
+  await expect(forButton).toHaveCount(0)
+  await expect(panel.getByRole('meter', { name: 'For votes', exact: true })).toHaveAttribute('aria-valuenow', '100')
+  expect((await ctx.request.post(`/api/debates/${debate.id}/vote`, { data: { side: 'AGAINST' } })).status()).toBe(409)
+  expect(await workflowDb().debateVote.count({ where: { debateId: debate.id, userId: reader.id } })).toBe(1)
+  await ctx.close()
 })
 
 test('search highlights matched terms with <mark>', async ({ page }) => {
@@ -175,7 +179,7 @@ test('search highlights matched terms with <mark>', async ({ page }) => {
   expect(await marks.count()).toBeGreaterThan(0)
 })
 
-test('navigating across pages throws no InvalidStateError (view-transition guard)', async ({ page }) => {
+test('full-document and rapid client navigation complete without browser errors', async ({ browser, page }) => {
   const consoleErrors = collectConsoleErrors(page)
   const invalidState: string[] = []
   const watch = (text: string) => {
@@ -184,23 +188,62 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
   page.on('console', (m) => watch(m.text()))
   page.on('pageerror', (e) => watch(`${e.name}: ${e.message}`))
 
-  // Full document loads (exercise the removed @view-transition navigation rule)…
+  // Exercise real full-document loads without starting Next's client prefetcher. With JavaScript on,
+  // page.goto deliberately destroys the current document and WebKit reports each resulting cancelled
+  // same-origin RSC prefetch as an uncaught page error. That browser/tooling boundary has its own
+  // retained diagnostic; disabling script here isolates the document/HTTP/header path without hiding
+  // any error. The JavaScript-enabled phase below still exercises Next navigation and RSC requests.
+  const documentContext = await browser.newContext({ javaScriptEnabled: false })
+  const documentPage = await documentContext.newPage()
   for (const path of ['/', '/category/opinion', '/opinion-debate', '/category/news', '/about', '/']) {
-    await page.goto(path, { waitUntil: 'domcontentloaded' })
-    await page.waitForTimeout(150)
+    expect((await documentPage.goto(path, { waitUntil: 'load' }))?.status()).toBe(200)
   }
-  // …then rapid client-side navigations (exercise Next's SPA transitions). Use
-  // 'domcontentloaded', not 'networkidle' — the dev server's HMR socket keeps
-  // the network busy, so 'networkidle' never settles.
+  await documentContext.close()
+
+  // Rapid real controls exercise Next's client navigation, RSC fetches and back/forward history.
+  await page.goto('/', { waitUntil: 'networkidle' })
+  const links = page.locator('header a[href^="/category/"], main article a[href^="/articles/"]')
+  const targets = (await links.evaluateAll(elements => elements.map(el => el.getAttribute('href')!))).slice(0, 5)
+  expect(targets.length).toBeGreaterThan(0)
+  for (const href of targets) {
+    await page.locator(`header a[href="${href}"], main article a[href="${href}"]`).first().click()
+    await expect(page).toHaveURL(new RegExp(`${href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
+    await expect(page.locator('main')).toBeVisible()
+    await page.goBack({ waitUntil: 'domcontentloaded' })
+    await expect(page).toHaveURL(/\/$/)
+  }
+  await page.waitForLoadState('networkidle')
+
+  expect(invalidState, `InvalidStateError fired:\n${invalidState.join('\n')}`).toEqual([])
+  expect(consoleErrors, `console errors:\n${consoleErrors.join('\n')}`).toEqual([])
+})
+
+test('settled client navigation produces no browser errors', async ({ page }) => {
+  const consoleErrors = collectConsoleErrors(page)
+  const invalidState: string[] = []
+  const watch = (text: string) => {
+    if (/InvalidStateError|Transition was aborted because of invalid state/i.test(text)) invalidState.push(text)
+  }
+  page.on('console', (m) => watch(m.text()))
+  page.on('pageerror', (e) => watch(`${e.name}: ${e.message}`))
+
+  // This phase deliberately lets each client navigation settle. The preceding test keeps its
+  // client-control phase rapid, so both ordinary use and repeated back/forward are covered.
   await page.goto('/', { waitUntil: 'domcontentloaded' })
-  const links = page.locator('header a[href^="/category/"], main a[href^="/articles/"]')
-  const n = Math.min(await links.count(), 5)
-  for (let i = 0; i < n; i++) {
-    await links.nth(i).click({ timeout: 2000 }).catch(() => {})
-    await page.waitForTimeout(200)
-    await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => {})
+  await page.waitForLoadState('networkidle')
+  const links = page.locator('header a[href^="/category/"], main article a[href^="/articles/"]')
+  const targets = (await links.evaluateAll(elements => elements.map(el => el.getAttribute('href')!))).slice(0, 5)
+  expect(targets.length).toBeGreaterThan(0)
+  for (const href of targets) {
+    await page.locator(`header a[href="${href}"], main article a[href="${href}"]`).first().click()
+    await expect(page).toHaveURL(new RegExp(`${href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
+    await expect(page.locator('main')).toBeVisible()
+    await page.waitForLoadState('networkidle')
+    await page.goBack({ waitUntil: 'domcontentloaded' })
+    await expect(page).toHaveURL(/\/$/)
+    await page.waitForLoadState('networkidle')
   }
-  await page.waitForTimeout(300)
+  await page.waitForLoadState('networkidle')
 
   expect(invalidState, `InvalidStateError fired:\n${invalidState.join('\n')}`).toEqual([])
   expect(consoleErrors, `console errors:\n${consoleErrors.join('\n')}`).toEqual([])
@@ -214,10 +257,7 @@ test('dark-mode toggle switches theme', async ({ page }) => {
   // The toggle exposes one of these two labels depending on current theme.
   const toggle = page.getByLabel(startedDark ? 'Switch to light mode' : 'Switch to dark mode')
   await toggle.first().click()
-  await page.waitForTimeout(400)
-
-  const nowDark = (await html.getAttribute('class'))?.includes('dark') ?? false
-  expect(nowDark).toBe(!startedDark)
+  await expect.poll(async () => (await html.getAttribute('class'))?.includes('dark') ?? false).toBe(!startedDark)
 })
 
 test('contact form shows validation on empty submit', async ({ page }) => {

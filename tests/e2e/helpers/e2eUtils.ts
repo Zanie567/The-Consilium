@@ -1,5 +1,4 @@
 import zlib from 'node:zlib'
-import type { Page } from '@playwright/test'
 
 /** A valid solid-colour PNG, built here so no binary fixture is needed. */
 export function makePng(size = 48, [r, g, b] = [180, 40, 60]): Buffer {
@@ -36,14 +35,5 @@ export function makePng(size = 48, [r, g, b] = [180, 40, 60]): Buffer {
   ])
 }
 
-/** Collects console errors (including failed resource loads) and page exceptions. */
-export function watch(page: Page): string[] {
-  const errors: string[] = []
-  page.on('console', (m) => {
-    if (m.type() !== 'error') return
-    if (/favicon|React DevTools/i.test(m.text())) return
-    errors.push(`${m.text()} @ ${m.location().url}`)
-  })
-  page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`))
-  return errors
-}
+/** Use the same unfiltered error collector throughout the browser suites. */
+export { collectConsoleErrors as watch } from './console'

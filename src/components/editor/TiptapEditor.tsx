@@ -33,6 +33,8 @@ import React, {
 import { createPortal } from 'react-dom'
 import type { NodeViewProps } from '@tiptap/core'
 import { cleanPastedHTML } from '@/lib/editor/cleanPastedHTML'
+import { dataUrlToFile } from '@/lib/editor/dataUrl'
+import { ARTICLE_IMAGE_TOO_LARGE_MESSAGE, MAX_ARTICLE_IMAGE_BYTES } from '@/lib/constants'
 import { ApiError, apiRequest, asApiError } from '@/lib/apiClient'
 import { CommentHighlight } from './commentHighlight'
 
@@ -224,6 +226,53 @@ const GOOGLE_DOCS_COLORS: string[] = [
   '#fff8f8','#fffaf5','#fefef5','#f8fbf5','#f5fcfd','#f8faff','#f8f8ff','#fbf8ff','#fdf8fb','#fff8fb',
 ]
 
+// ── Toolbar primitives ────────────────────────────────────────────────────────
+// Defined at module level, NOT inside TiptapEditor. A component declared inside the
+// render function gets a new identity on every render, so React unmounts and remounts
+// every toolbar button whenever editor state changes. The picker buttons (table, line
+// spacing) open a dropdown on mousedown; that state change re-rendered the editor, the
+// button the user pressed was replaced, and the document-level "click outside closes
+// the dropdown" listener then saw a detached event target and closed it again straight
+// away - so those two pickers never opened.
+const ToolbarDarkContext = React.createContext(false)
+
+function ToolbarBtn({
+  onClick, active, title, disabled: dis, children, style,
+}: {
+  onClick: (e: React.MouseEvent) => void
+  active?: boolean
+  title: string
+  disabled?: boolean
+  children: ReactNode
+  style?: React.CSSProperties
+}) {
+  const darkMode = React.useContext(ToolbarDarkContext)
+  return (
+    <button
+      type="button"
+      onMouseDown={(e) => { e.preventDefault(); onClick(e) }}
+      title={title}
+      disabled={dis}
+      style={style}
+      className={`p-2 rounded min-w-[30px] h-8 flex items-center justify-center ${
+        active
+          ? darkMode
+            ? 'bg-white/20 text-white ring-1 ring-white/30'
+            : 'bg-[#1a2744]/20 text-[#1a2744] ring-1 ring-[#1a2744]/30 font-semibold'
+          : darkMode
+            ? 'text-white/70 hover:bg-white/8 transition-colors duration-100'
+            : 'text-[#444] hover:bg-black/8 transition-colors duration-100'
+      } disabled:opacity-30`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function Sep() {
+  return <div className="w-px mx-2.5 self-stretch bg-black/10 dark:bg-white/10" />
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
   function TiptapEditor({ content, onChange, editable = true, saveStatus, saveError, toolbarPortalRef, onEditorReady, noWrapper, darkMode, onCommentClick }, ref) {
@@ -255,13 +304,13 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
     >(() => Promise.resolve(null))
 
     const uploadForPasteImage = useCallback(
-      async (dataUrl: string, mimeType: string, filename: string): Promise<string | null> => {
+      async (dataUrl: string, _mimeType: string, filename: string): Promise<string | null> => {
         try {
           setUploading(true)
-          // Convert base64 data URI to Blob then to File
-          const res = await fetch(dataUrl)
-          const blob = await res.blob()
-          const file = new File([blob], filename, { type: mimeType })
+          // Decode the data URI directly: fetch(dataUrl) is blocked by the CSP.
+          const file = dataUrlToFile(dataUrl, filename)
+          if (!file) throw new ApiError('validation', 'The pasted image could not be read.')
+          if (file.size > MAX_ARTICLE_IMAGE_BYTES) throw new ApiError('validation', ARTICLE_IMAGE_TOO_LARGE_MESSAGE)
           const form = new FormData()
           form.append('file', file)
           form.append('bucket', 'article-images')
@@ -425,13 +474,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
       if (editor && onEditorReady) onEditorReady(editor)
     }, [editor]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Clear upload error after 4s
-    useEffect(() => {
-      if (!uploadError) return
-      const t = setTimeout(() => setUploadError(''), 4000)
-      return () => clearTimeout(t)
-    }, [uploadError])
-
     // Close dropdowns when clicking outside
     useEffect(() => {
       const handler = (e: MouseEvent) => {
@@ -447,8 +489,12 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
 
     const uploadImage = useCallback(async (file: File) => {
       if (!editor) return
-      setUploading(true)
       setUploadError('')
+      if (file.size > MAX_ARTICLE_IMAGE_BYTES) {
+        setUploadError(ARTICLE_IMAGE_TOO_LARGE_MESSAGE)
+        return
+      }
+      setUploading(true)
       try {
         const form = new FormData()
         form.append('file', file)
@@ -529,50 +575,8 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
     const wordCount    = editor.storage.characterCount.words()
     const readingTime  = Math.max(1, Math.round(wordCount / 200))
 
-    // ── Sub-components ───────────────────────────────────────────────────────
-    const ToolbarBtn = ({
-      onClick, active, title, disabled: dis, children, style,
-    }: {
-      onClick: (e: React.MouseEvent) => void
-      active?: boolean
-      title: string
-      disabled?: boolean
-      children: ReactNode
-      style?: React.CSSProperties
-    }) => (
-      <button
-        type="button"
-        onMouseDown={(e) => { e.preventDefault(); onClick(e) }}
-        title={title}
-        disabled={dis}
-        style={style}
-        className={`p-2 rounded min-w-[30px] h-8 flex items-center justify-center ${
-          active
-            ? darkMode
-              ? 'bg-white/20 text-white ring-1 ring-white/30'
-              : 'bg-[#1a2744]/20 text-[#1a2744] ring-1 ring-[#1a2744]/30 font-semibold'
-            : darkMode
-              ? 'text-white/70 hover:bg-white/8 transition-colors duration-100'
-              : 'text-[#444] hover:bg-black/8 transition-colors duration-100'
-        } disabled:opacity-30`}
-      >
-        {children}
-      </button>
-    )
-
-    const Sep = () => (
-      <div className="w-px mx-2.5 self-stretch bg-black/10 dark:bg-white/10" />
-    )
-
     return (
-      <div style={{ isolation: 'isolate' }}>
-
-        {/* Upload error */}
-        {uploadError && (
-          <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-2 text-red-500 text-xs flex items-center gap-2">
-            <span className="font-semibold">Upload failed:</span> {uploadError}
-          </div>
-        )}
+      <div style={{ isolation: 'isolate', position: 'relative', zIndex: 1 }}>
 
         {/* Link bar */}
         {linkBarOpen && editable && (
@@ -604,6 +608,10 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
             shouldShow={({ editor: ed }) => ed.isActive('table')}
             options={{ placement: 'top-start', offset: 8 }}
           >
+            {/* The menu is wider than a narrow document and runs over the settings panel
+                beside it. That panel painted on top and swallowed clicks, because this whole
+                editor is an isolated stacking context at z-index auto; the root now has
+                z-index 1 so everything inside, the menu included, sits above the panel. */}
             <div className={`flex items-center gap-0.5 border shadow-xl px-1.5 py-1 rounded text-[11px] font-medium ${darkMode ? 'bg-[#242424] border-white/15 text-white/80' : 'bg-white border-black/10 text-[#444]'}`}>
               <span className={`text-[9px] uppercase tracking-widest mr-1 ${darkMode ? 'text-white/30' : 'text-[#aaa]'}`}>Table</span>
               <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowBefore().run() }} className={`px-1.5 py-0.5 rounded ${darkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`} title="Add row above">+row above</button>
@@ -622,6 +630,18 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
         {editable && (() => {
           const toolbarContent = (
             <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-4 py-1.5 flex flex-wrap gap-1 items-center w-full h-full">
+
+            {/* Upload error. Lives in the pinned toolbar, not above the document, so it is
+                on screen wherever the writer has scrolled, and it stays until dismissed
+                or the next upload starts: a message that vanishes after a few seconds is
+                easy to miss. */}
+            {uploadError && (
+              <div role="alert" className="basis-full flex items-center gap-2 bg-red-500/10 border border-red-500/25 rounded px-3 py-1.5 text-red-600 dark:text-red-400 text-xs">
+                <span className="font-semibold">Upload failed:</span>
+                <span className="flex-1">{uploadError}</span>
+                <button type="button" onClick={() => setUploadError('')} aria-label="Dismiss upload error" className="font-semibold underline underline-offset-2">Dismiss</button>
+              </div>
+            )}
 
             {/* Group 1: History */}
             <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo (Ctrl+Z)">
@@ -693,6 +713,10 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                       className={`w-16 text-xs border rounded px-1 py-0.5 outline-none ${darkMode ? 'bg-[#333] border-white/15 text-white placeholder:text-white/30' : 'bg-white border-black/15 text-[#333]'}`}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
+                          // Without this, WebKit applies the Enter keypress to the editor that
+                          // setColor/toggleHighlight refocuses below: it replaced the selected
+                          // text with a paragraph break instead of colouring it.
+                          e.preventDefault()
                           const val = (e.target as HTMLInputElement).value
                           const hex = val.startsWith('#') ? val : `#${val}`
                           if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
@@ -760,6 +784,10 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
                       className={`w-16 text-xs border rounded px-1 py-0.5 outline-none ${darkMode ? 'bg-[#333] border-white/15 text-white placeholder:text-white/30' : 'bg-white border-black/15 text-[#333]'}`}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
+                          // Without this, WebKit applies the Enter keypress to the editor that
+                          // setColor/toggleHighlight refocuses below: it replaced the selected
+                          // text with a paragraph break instead of colouring it.
+                          e.preventDefault()
                           const val = (e.target as HTMLInputElement).value
                           const hex = val.startsWith('#') ? val : `#${val}`
                           if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
@@ -964,11 +992,14 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
           </div>
           )
           if (toolbarPortalRef?.current) {
-            return createPortal(toolbarContent, toolbarPortalRef.current)
+            return createPortal(
+              <ToolbarDarkContext.Provider value={!!darkMode}>{toolbarContent}</ToolbarDarkContext.Provider>,
+              toolbarPortalRef.current,
+            )
           }
           return (
             <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 sticky top-0 z-30">
-              {toolbarContent}
+              <ToolbarDarkContext.Provider value={!!darkMode}>{toolbarContent}</ToolbarDarkContext.Provider>
             </div>
           )
         })()}

@@ -1,0 +1,311 @@
+{
+  "scope": "Historical focused failing probes and corrected checks. Regression suites expanded between some probes; their counts are not combined into one run or treated as UI action coverage. The final complete-run results are separate. Raw logs are retained locally, excluded from git; hashes identify them.",
+  "probes": [
+    {
+      "defectFamily": "bootstrap",
+      "method": "UNIT/in-process focused regression, not browser evidence",
+      "currentRegressionFile": "tests/unit/bootstrap-boundaries.test.tsx",
+      "reproductionCommand": "npx vitest run tests/unit/bootstrap-boundaries.test.tsx",
+      "before": {
+        "summary": "Tests  3 failed (3)",
+        "sha256": "82898349dd03dab9e50b421afc627ef4fea00fd45f4fc46a0698da142f60bcdf",
+        "localArtifact": "test-results/focused-regressions/consilium-bootstrap-before.log",
+        "unhandledRejectionRecorded": true
+      },
+      "after": {
+        "summary": "Tests  21 passed (21)",
+        "sha256": "a3269cb934bcf121ac06e89db535641352d08eca21fab6c11684d9ac57a5573f",
+        "localArtifact": "test-results/focused-regressions/consilium-bootstrap-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    },
+    {
+      "defectFamily": "blur-hydration",
+      "method": "UNIT/in-process focused regression, not browser evidence",
+      "currentRegressionFile": "tests/unit/animation-hydration.test.tsx",
+      "reproductionCommand": "npx vitest run tests/unit/animation-hydration.test.tsx",
+      "before": {
+        "summary": "Tests  1 failed | 1 passed (2)",
+        "sha256": "dbba296ce2d3ad5802cfe83c785a982f47ebb7136b3b2d479e7d6e2f861e3d9d",
+        "localArtifact": "test-results/focused-regressions/consilium-blur-hydration-before.log",
+        "unhandledRejectionRecorded": false
+      },
+      "after": {
+        "summary": "Tests  2 passed (2)",
+        "sha256": "7e551bd0f774c31a1bb8d3f2e46e11253152c2439b929762b6e8fc40a983f243",
+        "localArtifact": "test-results/focused-regressions/consilium-blur-hydration-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    },
+    {
+      "defectFamily": "reading-intent",
+      "method": "UNIT/in-process focused regression, not browser evidence",
+      "currentRegressionFile": "tests/unit/reading-position-boundaries.test.tsx",
+      "reproductionCommand": "npx vitest run tests/unit/reading-position-boundaries.test.tsx",
+      "before": {
+        "summary": "Tests  1 failed | 2 passed (3)",
+        "sha256": "f1d385895386af725b20df8af7b266297884b1141b35384ff080782e48b2c6f7",
+        "localArtifact": "test-results/focused-regressions/consilium-reading-intent-before.log",
+        "unhandledRejectionRecorded": false
+      },
+      "after": {
+        "summary": "Tests  3 passed (3)",
+        "sha256": "386194c5d5c127dae75bc86ac71f70a93639d567b1e8103b53838972b9a54aa7",
+        "localArtifact": "test-results/focused-regressions/consilium-reading-intent-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    },
+    {
+      "defectFamily": "analytics",
+      "method": "UNIT/in-process focused regression, not browser evidence",
+      "currentRegressionFile": "tests/unit/analytics-request-recovery.test.tsx",
+      "reproductionCommand": "npx vitest run tests/unit/analytics-request-recovery.test.tsx",
+      "before": {
+        "summary": "Tests  3 failed (3)",
+        "sha256": "98a1292b6038d8e1dff15bc109bd5ea6228551ac13bedc9abd735d2e0e0683e0",
+        "localArtifact": "test-results/focused-regressions/consilium-analytics-before.log",
+        "unhandledRejectionRecorded": false
+      },
+      "after": {
+        "summary": "Tests  3 passed (3)",
+        "sha256": "f51ac8216b4529c656ca7540e83ff51daaf1aca578e46c81e76e4b451304a7bc",
+        "localArtifact": "test-results/focused-regressions/consilium-analytics-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    },
+    {
+      "defectFamily": "moderation",
+      "method": "UNIT/in-process focused regression, not browser evidence",
+      "currentRegressionFile": "tests/unit/moderation-request-order.test.tsx",
+      "reproductionCommand": "npx vitest run tests/unit/moderation-request-order.test.tsx",
+      "before": {
+        "summary": "Tests  2 failed (2)",
+        "sha256": "7263b321d2da378864b9f515883aa153f422d90f0315c1cdd327a8da42ea5286",
+        "localArtifact": "test-results/focused-regressions/consilium-moderation-before.log",
+        "unhandledRejectionRecorded": false
+      },
+      "after": {
+        "summary": "Tests  2 passed (2)",
+        "sha256": "803f76de9e5c4d3b944f7ff68fa5163001abd3534b46dcfa7c98e06b1359785e",
+        "localArtifact": "test-results/focused-regressions/consilium-moderation-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    },
+    {
+      "defectFamily": "animation",
+      "method": "UNIT/in-process focused regression, not browser evidence",
+      "currentRegressionFile": "tests/unit/animation-hydration.test.tsx",
+      "reproductionCommand": "npx vitest run tests/unit/animation-hydration.test.tsx",
+      "before": {
+        "summary": "Tests  1 failed (1)",
+        "sha256": "44dc14767dcafff9009aebd4698e823ff64dd24d60e7c9404ff1957be8ed2508",
+        "localArtifact": "test-results/focused-regressions/consilium-animation-before.log",
+        "unhandledRejectionRecorded": false
+      },
+      "after": {
+        "summary": "Tests  1 passed (1)",
+        "sha256": "d0529f283e1b2b0f68df36651610cde1139926b0058635e9153ab07732ec47e1",
+        "localArtifact": "test-results/focused-regressions/consilium-animation-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    },
+    {
+      "defectFamily": "legacy-login",
+      "method": "UNIT/in-process focused regression, not browser evidence",
+      "currentRegressionFile": "tests/unit/editorial-login-recovery.test.tsx",
+      "reproductionCommand": "npx vitest run tests/unit/editorial-login-recovery.test.tsx",
+      "before": {
+        "summary": "Tests  1 failed (1)",
+        "sha256": "bfa0f7d17d4e66f4cd67b374cfd24807663d55b87799a0a0186cf5396ce2d360",
+        "localArtifact": "test-results/focused-regressions/consilium-legacy-login-before.log",
+        "unhandledRejectionRecorded": false
+      },
+      "after": {
+        "summary": "Tests  3 passed (3)",
+        "sha256": "50a94dd89f27364997e49b0a5ddc6faccf1fb34690642da2b5614f18afc420af",
+        "localArtifact": "test-results/focused-regressions/consilium-legacy-login-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    },
+    {
+      "defectFamily": "management",
+      "method": "UNIT/in-process focused regression, not browser evidence",
+      "currentRegressionFile": "tests/integration/management-data-protection.test.ts",
+      "reproductionCommand": "npx vitest run tests/integration/management-data-protection.test.ts",
+      "before": {
+        "summary": "Tests  8 failed | 3 passed (11)",
+        "sha256": "94bf1f89efbf66171342143c584a37995f4ed0c0a5e7f2ed4a1d505a2ff54c3c",
+        "localArtifact": "test-results/focused-regressions/consilium-management-before.log",
+        "unhandledRejectionRecorded": false
+      },
+      "after": {
+        "summary": "Tests  12 passed (12)",
+        "sha256": "dad870095822cce935ca8bd44ffbb3c21c243fa6711f25b217f40fde34700a69",
+        "localArtifact": "test-results/focused-regressions/consilium-management-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    },
+    {
+      "defectFamily": "portal-order",
+      "method": "UNIT/in-process focused regression, not browser evidence",
+      "currentRegressionFile": "tests/unit/portal-request-order.test.tsx",
+      "reproductionCommand": "npx vitest run tests/unit/portal-request-order.test.tsx",
+      "before": {
+        "summary": "Tests  3 failed (3)",
+        "sha256": "43a515bdd629266a0efe74a1a66f2f1983414b975fc4f59ad9d751a54ca09695",
+        "localArtifact": "test-results/focused-regressions/consilium-portal-order-before.log",
+        "unhandledRejectionRecorded": false
+      },
+      "after": {
+        "summary": "Tests  3 passed (3)",
+        "sha256": "f4a84112288f6a382f93b62fe0cc5f21e2ea0e0b2e2b96480de4ae3478f8c1f1",
+        "localArtifact": "test-results/focused-regressions/consilium-portal-order-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    },
+    {
+      "defectFamily": "profile-feedback",
+      "method": "UNIT/in-process focused regression, not browser evidence",
+      "currentRegressionFile": "tests/unit/profile-feedback.test.tsx",
+      "reproductionCommand": "npx vitest run tests/unit/profile-feedback.test.tsx",
+      "before": {
+        "summary": "Tests  1 failed (1)",
+        "sha256": "d455a3777f84398b8c6023200939c7d1ab1b596e2f8f21284c55c7355f19b33b",
+        "localArtifact": "test-results/focused-regressions/consilium-profile-feedback-before.log",
+        "unhandledRejectionRecorded": false
+      },
+      "after": {
+        "summary": "Tests  1 passed (1)",
+        "sha256": "12ff1f5695a2ec11b47d000e295215d31045f79a89cd4a1203acacf982b97772",
+        "localArtifact": "test-results/focused-regressions/consilium-profile-feedback-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    },
+    {
+      "defectFamily": "trash-feedback",
+      "method": "UNIT/in-process focused regression, not browser evidence",
+      "currentRegressionFile": "tests/unit/trash-feedback.test.tsx",
+      "reproductionCommand": "npx vitest run tests/unit/trash-feedback.test.tsx",
+      "before": {
+        "summary": "Tests  1 failed (1)",
+        "sha256": "0e1b96b7ee30f2dff970ceb9c8306acb521112e03f35248416bb78755b1eda94",
+        "localArtifact": "test-results/focused-regressions/consilium-trash-feedback-before.log",
+        "unhandledRejectionRecorded": false
+      },
+      "after": {
+        "summary": "Tests  1 passed (1)",
+        "sha256": "789ff68e88bc739bd7f53604255307e412e2f7e9d479b2153fc37129c705c249",
+        "localArtifact": "test-results/focused-regressions/consilium-trash-feedback-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    },
+    {
+      "defectFamily": "trash-load",
+      "method": "UNIT/in-process focused regression, not browser evidence",
+      "currentRegressionFile": "tests/unit/trash-load-error.test.tsx",
+      "reproductionCommand": "npx vitest run tests/unit/trash-load-error.test.tsx",
+      "before": {
+        "summary": "Tests  1 failed (1)",
+        "sha256": "3b0fd4cf6182919a11ffcb88d3cd864a73c7ec6da5cdca5119cba6a1c8dbfcf7",
+        "localArtifact": "test-results/focused-regressions/consilium-trash-load-before.log",
+        "unhandledRejectionRecorded": false
+      },
+      "after": {
+        "summary": "Tests  1 passed (1)",
+        "sha256": "fa3b764bd551e4c582120d6eeb021c5bb628b9228130b33a6967628b29ff9277",
+        "localArtifact": "test-results/focused-regressions/consilium-trash-load-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    },
+    {
+      "defectFamily": "section-links",
+      "method": "UNIT/in-process focused regression, not browser evidence",
+      "currentRegressionFile": "tests/unit/article-section-links.test.tsx",
+      "reproductionCommand": "npx vitest run tests/unit/article-section-links.test.tsx",
+      "before": {
+        "summary": "Tests  2 failed (2)",
+        "sha256": "2ffbb1807a795a9a6d0fe2856b1a43f2b338f92f15c52724b45cd6642dd94909",
+        "localArtifact": "test-results/focused-regressions/consilium-section-links-before.log",
+        "unhandledRejectionRecorded": false
+      },
+      "after": {
+        "summary": "Tests  2 passed (2)",
+        "sha256": "0f20f4a1e317ea1cc291b2ca80ad33dcdcd1461f9257f70c6023cde635784c51",
+        "localArtifact": "test-results/focused-regressions/consilium-section-links-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    },
+    {
+      "defectFamily": "signup-navigation",
+      "method": "UNIT/in-process focused regression, not browser evidence",
+      "currentRegressionFile": "tests/unit/signup-prompt-navigation.test.tsx",
+      "reproductionCommand": "npx vitest run tests/unit/signup-prompt-navigation.test.tsx",
+      "before": {
+        "summary": "Tests  1 failed (1)",
+        "sha256": "26ab044bdd9c055a9992654a13ffd136f331b0a4871c8e18ea471b71e0c16ff9",
+        "localArtifact": "test-results/focused-regressions/consilium-signup-navigation-before.log",
+        "unhandledRejectionRecorded": false
+      },
+      "after": {
+        "summary": "Tests  1 passed (1)",
+        "sha256": "3c17380d799a737e2a940adba75f71d0a95e4f9a14de7935480668a2f85fdcbb",
+        "localArtifact": "test-results/focused-regressions/consilium-signup-navigation-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    },
+    {
+      "defectFamily": "reading-boundaries",
+      "method": "UNIT/in-process focused regression, not browser evidence",
+      "currentRegressionFile": "tests/unit/reading-position-boundaries.test.tsx",
+      "reproductionCommand": "npx vitest run tests/unit/reading-position-boundaries.test.tsx",
+      "before": {
+        "summary": "Tests  2 failed (2)",
+        "sha256": "74cfc2f994f6aec600f9b83697df0ff6714a10dfa2fb373861b781fb0815bc80",
+        "localArtifact": "test-results/focused-regressions/consilium-reading-boundaries-before.log",
+        "unhandledRejectionRecorded": false
+      },
+      "after": {
+        "summary": "Tests  2 passed (2)",
+        "sha256": "0c36a6ef845b8a844c009185ba377fb8490d5ec5c88db7e47c3df0259ca42554",
+        "localArtifact": "test-results/focused-regressions/consilium-reading-boundaries-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    },
+    {
+      "defectFamily": "project-selection",
+      "method": "UNIT/in-process focused regression, not browser evidence",
+      "currentRegressionFile": "tests/unit/workflow-project-selection.test.ts",
+      "reproductionCommand": "npx vitest run tests/unit/workflow-project-selection.test.ts",
+      "before": {
+        "summary": "Tests  1 failed (1)",
+        "sha256": "2c667cddb86aa764052824ed324fcbb3843c84cf0df36d02d6adc5ce1dd8e625",
+        "localArtifact": "test-results/focused-regressions/consilium-project-selection-before.log",
+        "unhandledRejectionRecorded": false
+      },
+      "after": {
+        "summary": "Tests  1 passed (1)",
+        "sha256": "3a7be1b179c87b2ad643f1a1baa0bb3ed09127aeafba76c133ef34abd6d01379",
+        "localArtifact": "test-results/focused-regressions/consilium-project-selection-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    },
+    {
+      "defectFamily": "calendar-drag",
+      "method": "UNIT/in-process focused regression; confirms the state/event-order defect independently of the historical WebKit drag timeout",
+      "currentRegressionFile": "tests/unit/calendar-drag-boundaries.test.tsx",
+      "reproductionCommand": "npx vitest run tests/unit/calendar-drag-boundaries.test.tsx",
+      "before": {
+        "summary": "Tests  2 failed (2)",
+        "sha256": "b7ef32dac732d7ea42f0012331cedc38cdebdc443d2b5ab6f6e1771c22e29bde",
+        "localArtifact": "test-results/focused-regressions/consilium-calendar-drag-before.log",
+        "unhandledRejectionRecorded": false
+      },
+      "after": {
+        "summary": "Tests  2 passed (2)",
+        "sha256": "300ffb74d3c83726721ebfb3c0f4a4d709b3fcd26550e3b0bf1eddfd346cc549",
+        "localArtifact": "test-results/focused-regressions/consilium-calendar-drag-after.log",
+        "unhandledRejectionRecorded": false
+      }
+    }
+  ]
+}

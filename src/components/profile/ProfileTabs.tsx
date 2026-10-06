@@ -513,6 +513,7 @@ function AccountSettingsTab({
   initialImage,
   email,
   role,
+  authorPath,
   onNameChange,
   onImageChange,
 }: {
@@ -521,6 +522,8 @@ function AccountSettingsTab({
   initialImage: string | null
   email: string
   role: string
+  /** The public author page for this account, or null when it is not meant to have one. */
+  authorPath: string | null
   onNameChange: (name: string) => void
   onImageChange: (image: string | null) => void
 }) {
@@ -541,6 +544,11 @@ function AccountSettingsTab({
   const [deleteError, setDeleteError] = useState('')
 
   const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState('')
+  // Read after mount: rendering window.location.origin directly made the server HTML ('')
+  // differ from the first client render, a hydration error (React #418) in production.
+  const [origin, setOrigin] = useState('')
+  useEffect(() => setOrigin(window.location.origin), [])
 
   // Saving the avatar is two steps: upload the file, then store the URL it
   // returns. The URL is never typed by the user — the account route only accepts
@@ -641,12 +649,16 @@ function AccountSettingsTab({
     }
   }
 
+  // /profile is this person's own private page (it shows whoever opens it their own account, or
+  // sends them to sign in), so it is never what gets copied. Only the public author page is shared.
   const handleCopyProfile = async () => {
+    if (!authorPath) return
+    setCopyError('')
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}/profile`)
+      await navigator.clipboard.writeText(`${window.location.origin}${authorPath}`)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch { /* ignore */ }
+    } catch { setCopyError('Could not copy the link. Please copy it from the text above.') }
   }
 
   return (
@@ -779,19 +791,27 @@ function AccountSettingsTab({
         </div>
       </section>
 
-      {/* Share profile */}
-      <section>
-        <h3 className="text-[var(--fg)] font-bold text-sm uppercase tracking-widest mb-4">Share Your Profile</h3>
-        <div className="flex items-center gap-3 p-3 bg-[var(--bg-elevated)] border border-[var(--border)]">
-          <p className="flex-1 text-[var(--fg-faint)] text-xs truncate">{typeof window !== 'undefined' ? window.location.origin : ''}/profile</p>
-          <button
-            onClick={handleCopyProfile}
-            className="shrink-0 flex items-center gap-1.5 text-[var(--fg-faint)] hover:text-gold text-xs font-semibold transition-colors"
-          >
-            {copied ? <><CheckCheck size={13} className="text-gold" /> Copied</> : <><Copy size={13} /> Copy link</>}
-          </button>
-        </div>
-      </section>
+      {/* Share the public author page (only for roles that have one) */}
+      {authorPath && (
+        <section>
+          <h3 className="text-[var(--fg)] font-bold text-sm uppercase tracking-widest mb-4">Share Your Author Page</h3>
+          <p className="text-[var(--fg-faint)] text-xs mb-3">
+            Anyone with this link can see your name, photo, biography and published articles, without signing in.
+            Your email address and account settings are never shown.
+          </p>
+          <div className="flex items-center gap-3 p-3 bg-[var(--bg-elevated)] border border-[var(--border)]">
+            <p className="flex-1 text-[var(--fg-faint)] text-xs truncate">{origin}{authorPath}</p>
+            <button
+              onClick={handleCopyProfile}
+              className="shrink-0 flex items-center gap-1.5 text-[var(--fg-faint)] hover:text-gold text-xs font-semibold transition-colors"
+            >
+              {copied ? <><CheckCheck size={13} className="text-gold" /> Copied</> : <><Copy size={13} /> Copy link</>}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {copyError && <p role="alert" className="text-red-500 text-xs">{copyError}</p>}
 
       {/* Danger zone */}
       <section>
@@ -869,9 +889,10 @@ interface ProfileTabsProps {
   createdAt: string
   initialTab?: TabId
   role: string
+  authorPath: string | null
 }
 
-export function ProfileTabs({ initialName, initialBio, email, image, createdAt, initialTab, role }: ProfileTabsProps) {
+export function ProfileTabs({ initialName, initialBio, email, image, createdAt, initialTab, role, authorPath }: ProfileTabsProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'history')
   const [displayName, setDisplayName] = useState(initialName)
@@ -960,6 +981,7 @@ export function ProfileTabs({ initialName, initialBio, email, image, createdAt, 
             {TABS.map((tab) => (
               <button
                 key={tab.id}
+                aria-label={tab.label}
                 onClick={() => handleTabChange(tab.id)}
                 className={`flex items-center gap-2 px-4 py-3.5 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap border-b-2 transition-colors duration-150 ${
                   activeTab === tab.id
@@ -989,6 +1011,7 @@ export function ProfileTabs({ initialName, initialBio, email, image, createdAt, 
             initialImage={image}
             email={email}
             role={role}
+            authorPath={authorPath}
             onNameChange={setDisplayName}
             onImageChange={setAvatar}
           />

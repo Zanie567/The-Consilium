@@ -3,8 +3,8 @@ import { selectHeroArticles, HERO_ROTATION_LIMIT } from '@/lib/heroArticles'
 import { publishedArticleWhere, ARTICLES_CACHE_TAG } from '@/lib/articleQueries'
 import { revalidateArticleLists } from '@/lib/revalidateArticles'
 
-const updateTag = vi.hoisted(() => vi.fn())
-vi.mock('next/cache', () => ({ updateTag }))
+const revalidateTag = vi.hoisted(() => vi.fn())
+vi.mock('next/cache', () => ({ revalidateTag }))
 
 /**
  * The homepage hero rotates through a small set of articles. These guard the
@@ -146,19 +146,21 @@ describe('hero eligibility comes from the shared published filter', () => {
  * into the rotation without a deploy — so the tag it expires is worth pinning.
  */
 describe('publishing refreshes the hero', () => {
-  beforeEach(() => updateTag.mockClear())
+  beforeEach(() => revalidateTag.mockClear())
 
   it('expires the same cache tag the homepage queries are stored under', () => {
     revalidateArticleLists()
-    expect(updateTag).toHaveBeenCalledWith(ARTICLES_CACHE_TAG)
+    expect(revalidateTag).toHaveBeenCalledWith(ARTICLES_CACHE_TAG, { expire: 0 })
   })
 
   it('never turns a revalidation hiccup into a failed publish', () => {
-    updateTag.mockImplementationOnce(() => {
-      throw new Error('cache unavailable')
+    const error = new Error('cache unavailable')
+    revalidateTag.mockImplementationOnce(() => {
+      throw error
     })
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     expect(() => revalidateArticleLists()).not.toThrow()
+    expect(consoleError).toHaveBeenCalledWith('[revalidateArticleLists] failed:', error)
     consoleError.mockRestore()
   })
 })

@@ -7,49 +7,32 @@
  *   - Priority 4: no duplicate published titles; dashboard user count == users
  *     page total; comment moderation total == sum of per-user comment counts.
  *
- * Requires DATABASE_URL (loaded from .env.local). If the DB is unreachable the
- * whole suite is skipped with a warning rather than failing, mirroring the
- * existing HTTP integration tests.
+ * The audit launcher owns the database and supplies the same guarded test URL
+ * to the application, this suite, fixture preparation and cleanup. Missing
+ * services or regression fixtures fail rather than producing empty passes.
  */
-import { config } from 'dotenv'
-import { resolve } from 'path'
-config({ path: resolve(__dirname, '../../.env.local') })
-
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { publishedArticleWhere } from '@/lib/articleQueries'
 import { assertSafeTestDatabaseHost } from '../../scripts/lib/assertSafeTestDatabaseHost'
+import { assertRunDatabase } from '../../scripts/lib/assertRunDatabase'
+assertRunDatabase()
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL ?? '' }),
 })
 
-let dbUp = false
 beforeAll(async () => {
-  try {
-    // This suite writes and deletes probe rows (below). A plain `vitest run`
-    // with no local test DB set up previously fell through to whatever
-    // DATABASE_URL happened to be in .env.local — which can be a real
-    // Supabase project. Treat an unsafe host exactly like "DB unreachable":
-    // skip rather than connect.
-    assertSafeTestDatabaseHost(process.env.DATABASE_URL, 'DATABASE_URL')
-    await prisma.$queryRaw`SELECT 1`
-    dbUp = true
-  } catch (err) {
-    console.warn(
-      '[data-layer] DB unreachable or unsafe — skipping. Run scripts/setup-test-db.sh first.',
-      err instanceof Error ? err.message : err
-    )
-  }
+  assertSafeTestDatabaseHost(process.env.DATABASE_URL, 'DATABASE_URL')
+  await prisma.$queryRaw`SELECT 1`
 })
 afterAll(async () => {
-  await prisma.$disconnect().catch(() => {})
+  await prisma.$disconnect()
 })
 
 describe('Priority 1 — published articles surface on their category page', () => {
   it('the public filter returns every PUBLISHED, non-deleted article (debates included)', async () => {
-    if (!dbUp) return
 
     // Ground truth straight from the DB, computed independently of the app filter.
     const allVisible = await prisma.article.findMany({
@@ -71,7 +54,6 @@ describe('Priority 1 — published articles surface on their category page', () 
   })
 
   it('every published article with a category is returned by that category’s query', async () => {
-    if (!dbUp) return
     const categories = await prisma.category.findMany({ select: { id: true, slug: true } })
 
     let totalReachable = 0
@@ -98,7 +80,6 @@ describe('Priority 1 — published articles surface on their category page', () 
 
 describe('Priority 4 — duplicate / count reconciliation', () => {
   it('has no duplicate titles among visible published articles', async () => {
-    if (!dbUp) return
     const visible = await prisma.article.findMany({
       where: { status: 'PUBLISHED', deletedAt: null },
       select: { title: true },
@@ -113,7 +94,6 @@ describe('Priority 4 — duplicate / count reconciliation', () => {
   })
 
   it('dashboard user count equals the users-page total (single source of truth)', async () => {
-    if (!dbUp) return
     // Dashboard now: prisma.user.count(); users page total: prisma.user.count().
     const dashboard = await prisma.user.count()
     const usersPageTotal = await prisma.user.count()
@@ -125,7 +105,6 @@ describe('Priority 4 — duplicate / count reconciliation', () => {
   })
 
   it('comment moderation total equals the sum of per-user comment counts', async () => {
-    if (!dbUp) return
     const moderationTotal = await prisma.comment.count()
     const perUser = await prisma.user.findMany({ select: { _count: { select: { comments: true } } } })
     const sumPerUser = perUser.reduce((acc, u) => acc + u._count.comments, 0)
@@ -135,7 +114,6 @@ describe('Priority 4 — duplicate / count reconciliation', () => {
   // ── Bug 6: per-user counts use the same "live/visible" definition everywhere ──
 
   it('per-user article count (admin Users route) excludes soft-deleted articles', async () => {
-    if (!dbUp) return
 
     // The admin Users routes now count `articles: { where: { deletedAt: null } }`.
     // First: the route's definition must equal an independently-computed count.
@@ -151,8 +129,7 @@ describe('Priority 4 — duplicate / count reconciliation', () => {
     // DB with no soft-deleted rows). Insert a soft-deleted article for a real
     // author and assert the filtered _count does NOT move while the unfiltered
     // total does — i.e. the `deletedAt: null` filter is genuinely doing work.
-    const author = await prisma.user.findFirst({ where: { articles: { some: {} } }, select: { id: true } })
-    if (!author) return
+    const author = await prisma.user.findFirstOrThrow({ where: { articles: { some: {} } }, select: { id: true } })
     const filtered = () =>
       prisma.user
         .findUnique({ where: { id: author.id }, select: { _count: { select: { articles: { where: { deletedAt: null } } } } } })
@@ -174,12 +151,11 @@ describe('Priority 4 — duplicate / count reconciliation', () => {
       const unfiltered = await prisma.article.count({ where: { authorId: author.id } })
       expect(unfiltered, 'unfiltered total should include the probe').toBeGreaterThan(before)
     } finally {
-      await prisma.article.delete({ where: { id: probe.id } }).catch(() => {})
+      await prisma.article.deleteMany({ where: { id: probe.id } })
     }
   })
 
   it('per-user comment count matches the Profile definition (isHidden: false)', async () => {
-    if (!dbUp) return
     // Admin Users routes now count `comments: { where: { isHidden: false } }`,
     // the same definition the Profile "My Comments" tab and stats use.
     const users = await prisma.user.findMany({
@@ -192,12 +168,11 @@ describe('Priority 4 — duplicate / count reconciliation', () => {
 
     // Regression guard (seed-independent): a hidden comment must NOT inflate the
     // per-user count the admin Users page shows.
-    const user = await prisma.user.findFirst({ where: { comments: { some: {} } }, select: { id: true } })
-    const article = await prisma.article.findFirst({
+    const user = await prisma.user.findFirstOrThrow({ where: { comments: { some: {} } }, select: { id: true } })
+    const article = await prisma.article.findFirstOrThrow({
       where: { status: 'PUBLISHED', deletedAt: null },
       select: { id: true },
     })
-    if (!user || !article) return
     const visibleCount = () =>
       prisma.user
         .findUnique({ where: { id: user.id }, select: { _count: { select: { comments: { where: { isHidden: false } } } } } })
@@ -210,7 +185,7 @@ describe('Priority 4 — duplicate / count reconciliation', () => {
     try {
       expect(await visibleCount(), 'hidden comment must be excluded from the count').toBe(before)
     } finally {
-      await prisma.comment.delete({ where: { id: probe.id } }).catch(() => {})
+      await prisma.comment.deleteMany({ where: { id: probe.id } })
     }
   })
 })

@@ -41,7 +41,10 @@ export default function SubscribersPage() {
         'Active',
       ]),
     ]
-    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\n')
+    // Subscriber addresses are public input. A cell that starts with = + - @ (or a tab/CR) is run as a
+    // formula by Excel and Sheets, so it is prefixed with an apostrophe; quotes are doubled.
+    const cell = (value: string) => `"${(/^[=+\-@\t\r]/.test(value) ? `'${value}` : value).replace(/"/g, '""')}"`
+    const csv = rows.map((r) => r.map(cell).join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')

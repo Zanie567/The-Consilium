@@ -1,5 +1,4 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { requirePortalRole } from '@/lib/portalAccess'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { format, formatDistanceToNow } from 'date-fns'
@@ -25,8 +24,7 @@ export const metadata: Metadata = {
 }
 
 export default async function EditorialDashboard() {
-  const session = await getServerSession(authOptions)
-  if (!session) return null
+  const session = await requirePortalRole(['ADMIN', 'EDITOR', 'WRITER', 'GROWTH'])
 
   const userId = session.user.id
   const role = session.user.role
@@ -250,7 +248,7 @@ export default async function EditorialDashboard() {
               : 'Write and manage your articles.'}
           </p>
         </div>
-        <NotificationBell />
+        <NotificationBell userId={session.user.id} />
       </PortalSection>
 
       {/* One-time achievement banners (first publish, then series completion) */}

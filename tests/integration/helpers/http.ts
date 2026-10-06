@@ -79,11 +79,11 @@ export class Session {
   }
 }
 
-/** Quick connectivity probe used to skip the suite when no server is running. */
+/** Required live-service probe; callers must fail when it is false. */
 export async function serverUp(base: string): Promise<boolean> {
   try {
     const res = await fetch(`${base}/api/articles`, { signal: AbortSignal.timeout(4000) })
-    return res.status < 600
+    return res.status === 200
   } catch {
     return false
   }

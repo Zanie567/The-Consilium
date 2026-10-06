@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { apiRequest, asApiError } from '@/lib/apiClient'
@@ -90,6 +90,9 @@ export function CalendarView({
   const [moves, setMoves] = useState<Record<string, string>>({})
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  // Native dragover/drop can arrive before React commits drag-start visuals.
+  // Their acceptance and item identity cannot depend on that render completing.
+  const activeDrag = useRef<string | null>(null)
   const [dragOverKey, setDragOverKey] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dayPanel, setDayPanel] = useState<{ key: string; left: number; top: number } | null>(null)
@@ -158,7 +161,8 @@ export function CalendarView({
   }
 
   const handleDrop = async (targetKey: string) => {
-    const id = draggingId
+    const id = activeDrag.current
+    activeDrag.current = null
     setDraggingId(null)
     setDragOverKey(null)
     if (!id) return
@@ -332,7 +336,7 @@ export function CalendarView({
                           }
                         }}
                         onDragOver={(e) => {
-                          if (!draggingId) return
+                          if (!activeDrag.current) return
                           e.preventDefault()
                           e.dataTransfer.dropEffect = 'move'
                           if (dragOverKey !== day.key) setDragOverKey(day.key)
@@ -398,9 +402,11 @@ export function CalendarView({
                               if (item.status !== 'SCHEDULED') return
                               e.dataTransfer.setData('text/plain', item.id)
                               e.dataTransfer.effectAllowed = 'move'
+                              activeDrag.current = item.id
                               setDraggingId(item.id)
                             }}
                             onDragEnd={() => {
+                              activeDrag.current = null
                               setDraggingId(null)
                               setDragOverKey(null)
                             }}
