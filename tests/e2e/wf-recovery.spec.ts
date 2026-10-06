@@ -175,7 +175,9 @@ test('deleted originals remain recoverable deliberately as new drafts; expired c
     .filter({ has: page.getByRole('heading', { name: title, exact: true }) })
   await card.getByRole('link', { name: 'Open original article' }).click()
   await expect(page.getByText('404', { exact: true })).toBeVisible()
-  await page.goto('/editorial/recovery', { waitUntil: 'networkidle' })
+  // Not networkidle: leaving the previous page cancels its link prefetches, which Playwright keeps counting as
+  // in flight, so the load can never be called idle. The card's own button below waits for the page to be usable.
+  await page.goto('/editorial/recovery')
   const downloaded = page.waitForEvent('download')
   await card.getByRole('button', { name: 'Download local copy' }).click()
   const copy=await downloaded

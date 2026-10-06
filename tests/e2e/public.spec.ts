@@ -179,7 +179,7 @@ test('search highlights matched terms with <mark>', async ({ page }) => {
   expect(await marks.count()).toBeGreaterThan(0)
 })
 
-test('navigating across pages throws no InvalidStateError (view-transition guard)', async ({ page }) => {
+test('navigating across pages throws no InvalidStateError after view transitions are removed', async ({ page }) => {
   // This case completes twelve navigations, including cold development routes.
   test.setTimeout(90_000)
   const consoleErrors = collectConsoleErrors(page)
@@ -191,11 +191,17 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
   page.on('pageerror', (e) => watch(`${e.name}: ${e.message}`))
 
   // Full document loads (exercise the removed @view-transition navigation rule)…
+  // Each page is left only once its network is idle. Every page prefetches its links; tearing the
+  // document down mid-prefetch makes WebKit report each aborted fetch as a pageerror ("due to access
+  // control checks"), which is the test interrupting itself and not a view-transition fault: the
+  // errors arrive within ~60ms of each goto, one per prefetched link. Nothing is filtered.
+  // (This runs against a production build, where networkidle settles; there is no HMR socket.)
   for (const path of ['/', '/category/opinion', '/opinion-debate', '/category/news', '/about', '/']) {
     // Complete each document before replacing it. WebKit reports teardown of
     // outstanding same-origin fetches as access-control errors; interrupting
     // hydration/prefetch doesn't exercise a completed navigation.
-    await page.goto(path, { waitUntil: 'networkidle' })
+    const response = await page.goto(path, { waitUntil: 'networkidle' })
+    expect(response?.status()).toBe(200)
     await expect(page).toHaveURL(url => url.pathname === path)
     await expect(page.locator('main').first()).toBeVisible()
   }
@@ -219,7 +225,7 @@ test('navigating across pages throws no InvalidStateError (view-transition guard
     await page.goBack({ waitUntil: 'networkidle' })
     await expect(page).toHaveURL(url => url.pathname === '/')
   }
-  await page.waitForTimeout(300)
+  await page.waitForLoadState('networkidle')
 
   expect(invalidState, `InvalidStateError fired:\n${invalidState.join('\n')}`).toEqual([])
   expect(consoleErrors, `console errors:\n${consoleErrors.join('\n')}`).toEqual([])

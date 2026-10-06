@@ -1,4 +1,4 @@
-import { test, expect, request } from '@playwright/test'
+import { test, expect, request, type APIRequestContext } from '@playwright/test'
 import { ADMIN_STORAGE, WRITER_STORAGE } from './helpers/authStorage'
 
 /**
@@ -24,10 +24,28 @@ function uniqueTitle(label: string) {
 const DOC = (text: string) =>
   JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })
 
+async function accountContext(storageState: string): Promise<APIRequestContext> {
+  // Mutations in the isolated testing workspace require the same server-issued
+  // identity attestation that normal browser fetches carry. Bootstrap it from
+  // the authenticated session; never manufacture a role, user id or revision.
+  const bootstrap = await request.newContext({ baseURL: BASE_URL, storageState })
+  const sessionResponse = await bootstrap.get('/api/auth/session')
+  expect(sessionResponse.status()).toBe(200)
+  const session = (await sessionResponse.json()) as { requestIdentity?: string }
+  const refreshedState = await bootstrap.storageState()
+  await bootstrap.dispose()
+  expect(session.requestIdentity).toBeTruthy()
+  return request.newContext({
+    baseURL: BASE_URL,
+    storageState: refreshedState,
+    extraHTTPHeaders: { 'x-consilium-identity': session.requestIdentity! },
+  })
+}
+
 test.describe('full article lifecycle', () => {
   test('draft → submit → return → edit/resubmit → publish → public → unpublish → gone', async ({ page }) => {
-    const writer = await request.newContext({ baseURL: BASE_URL, storageState: WRITER_STORAGE })
-    const admin = await request.newContext({ baseURL: BASE_URL, storageState: ADMIN_STORAGE })
+    const writer = await accountContext(WRITER_STORAGE)
+    const admin = await accountContext(ADMIN_STORAGE)
 
     try {
       // 1. Writer creates a draft.
@@ -98,8 +116,8 @@ test.describe('full article lifecycle', () => {
   })
 
   test('editor can schedule a reviewed article for a future publish time', async () => {
-    const writer = await request.newContext({ baseURL: BASE_URL, storageState: WRITER_STORAGE })
-    const admin = await request.newContext({ baseURL: BASE_URL, storageState: ADMIN_STORAGE })
+    const writer = await accountContext(WRITER_STORAGE)
+    const admin = await accountContext(ADMIN_STORAGE)
 
     try {
       const title = uniqueTitle('scheduled')
@@ -130,8 +148,8 @@ test.describe('full article lifecycle', () => {
   })
 
   test('an illegal review transition is rejected with a structured 409', async () => {
-    const writer = await request.newContext({ baseURL: BASE_URL, storageState: WRITER_STORAGE })
-    const admin = await request.newContext({ baseURL: BASE_URL, storageState: ADMIN_STORAGE })
+    const writer = await accountContext(WRITER_STORAGE)
+    const admin = await accountContext(ADMIN_STORAGE)
 
     try {
       // A fresh DRAFT was never submitted — "approve" has no legal source state.
@@ -158,8 +176,8 @@ test.describe('full article lifecycle', () => {
   })
 
   test('inline article comments can be created and read back (article_comments table)', async () => {
-    const writer = await request.newContext({ baseURL: BASE_URL, storageState: WRITER_STORAGE })
-    const admin = await request.newContext({ baseURL: BASE_URL, storageState: ADMIN_STORAGE })
+    const writer = await accountContext(WRITER_STORAGE)
+    const admin = await accountContext(ADMIN_STORAGE)
 
     try {
       const title = uniqueTitle('inline-comment')

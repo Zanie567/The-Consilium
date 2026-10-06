@@ -1,8 +1,27 @@
-import {test,expect} from '@playwright/test'
-import {signedIn,createAccount,signInAs,db,closeDb,removeMyAccounts,removeMyArticles,uniqueTitle,ArticleEditorPage} from './helpers/workflow'
+import {test,expect, type Locator, type Page} from '@playwright/test'
+import {signedIn,createAccount,signInAs,db,closeDb,removeMyAccounts,removeMyArticles,uniqueTitle,ArticleEditorPage,hydrated} from './helpers/workflow'
 import { collectConsoleErrors } from './helpers/console'
 let debatesToRestore: string[] = []
 test.afterAll(async()=>{await removeMyArticles();await db().debate.updateMany({where:{id:{in:debatesToRestore}},data:{isActive:true}});await removeMyAccounts();await closeDb()})
+
+async function dragCalendarItem(page: Page, source: Locator, target: Locator) {
+  await target.scrollIntoViewIfNeeded()
+  await source.scrollIntoViewIfNeeded()
+  const sourceBox = await source.boundingBox()
+  const targetBox = await target.boundingBox()
+  expect(sourceBox, 'calendar drag source has a bounding box').not.toBeNull()
+  expect(targetBox, 'calendar drag target has a bounding box').not.toBeNull()
+  await page.mouse.move(sourceBox!.x + sourceBox!.width / 2, sourceBox!.y + sourceBox!.height / 2)
+  await page.mouse.down()
+  const targetX = targetBox!.x + targetBox!.width / 2
+  const targetY = targetBox!.y + targetBox!.height / 2
+  // Two moves are required for pages that listen for dragover before drop.
+  // Resolve geometry before mouse-down so React's drag styling cannot make the
+  // automation layer wait for and then release over a shifted target.
+  await page.mouse.move(targetX, targetY)
+  await page.mouse.move(targetX + 1, targetY)
+  await page.mouse.up()
+}
 
 test('opening notifications marks nothing read; only Mark all read does, for the current account only, and a failed attempt retries', async ({ browser }) => {
   const own = await createAccount('WRITER', 'notifications')
@@ -111,10 +130,10 @@ test('calendar dragging reschedules a scheduled article and rejects a past date 
  const ctx=await signedIn(browser,'admin');const page=await ctx.newPage();const author=await db().user.findFirstOrThrow({where:{role:'WRITER'}})
  const title=uniqueTitle('calendar');const row=await db().article.create({data:{title,slug:title.toLowerCase().replaceAll(' ','-'),authorId:author.id,content:'Calendar article body',status:'SCHEDULED',scheduledAt:new Date('2027-01-15T12:30:00Z')}})
  await page.goto('/editorial/calendar?month=2027-01',{waitUntil:'networkidle'});await new ArticleEditorPage(page).dismissCookieBanner()
- const link=page.getByRole('link',{name:new RegExp(title)}).first();const target=page.getByRole('button',{name:/Saturday, 16 January 2027/});const response=page.waitForResponse(r=>r.url().endsWith('/api/editorial/calendar')&&r.request().method()==='PATCH');await link.dragTo(target);expect((await response).status()).toBe(200)
+ const link=page.getByRole('link',{name:new RegExp(title)}).first();const target=page.getByRole('button',{name:/Saturday, 16 January 2027/});const response=page.waitForResponse(r=>r.url().endsWith('/api/editorial/calendar')&&r.request().method()==='PATCH');await hydrated(target,'onDrop');await dragCalendarItem(page,link,target);expect((await response).status()).toBe(200)
  await expect.poll(async()=> (await db().article.findUniqueOrThrow({where:{id:row.id}})).scheduledAt?.toISOString()).toBe('2027-01-16T12:30:00.000Z')
  await page.reload({waitUntil:'networkidle'});await page.getByRole('button',{name:/Saturday, 16 January 2027/}).press('Enter');await expect(page.getByRole('dialog')).toContainText(title);await page.getByLabel('Close day details').click();await link.click();await expect(new ArticleEditorPage(page).title()).toHaveValue(title)
- await db().article.update({where:{id:row.id},data:{scheduledAt:new Date('2026-10-15T12:30:00Z')}});await page.goto('/editorial/calendar?month=2026-10',{waitUntil:'networkidle'});const refused=page.waitForResponse(r=>r.url().endsWith('/api/editorial/calendar')&&r.request().method()==='PATCH');await link.dragTo(page.getByRole('button',{name:/Thursday, 1 October 2026/}));expect((await refused).status()).toBe(400);await expect(page.getByText('That would schedule the article in the past. Pick a future day, or edit the article to publish it now.',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Dismiss',exact:true}).click();expect((await db().article.findUniqueOrThrow({where:{id:row.id}})).status).toBe('SCHEDULED');await ctx.close()
+ await db().article.update({where:{id:row.id},data:{scheduledAt:new Date('2026-10-15T12:30:00Z')}});await page.goto('/editorial/calendar?month=2026-10',{waitUntil:'networkidle'});const refused=page.waitForResponse(r=>r.url().endsWith('/api/editorial/calendar')&&r.request().method()==='PATCH');const pastDay=page.getByRole('button',{name:/Thursday, 1 October 2026/});await hydrated(pastDay,'onDrop');await dragCalendarItem(page,link,pastDay);expect((await refused).status()).toBe(400);await expect(page.getByText('That would schedule the article in the past. Pick a future day, or edit the article to publish it now.',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Dismiss',exact:true}).click();expect((await db().article.findUniqueOrThrow({where:{id:row.id}})).status).toBe('SCHEDULED');await ctx.close()
 })
 
 test('debate editing and cancelling preserve metadata after reopening',async({browser})=>{

@@ -160,7 +160,12 @@ jobs:
   role-workflows:
     name: Critical roles, profiles and testing mode
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # The serialized Chromium/WebKit census itself completes in about 46m on
+    # GitHub. Dependency install, the isolated production build and upload of
+    # the requested passing simulator traces pushed the measured job just past
+    # 60m even though all 593 cases had passed. Leave headroom for cleanup and
+    # evidence upload; individual action/navigation limits and retries stay put.
+    timeout-minutes: 75
 
     services:
       postgres:

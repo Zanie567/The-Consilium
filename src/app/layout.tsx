@@ -14,7 +14,6 @@ import { SignupPrompt } from '@/components/ui/SignupPrompt'
 import { CookieConsentBanner } from '@/components/ui/CookieConsent'
 import { InstallBanner } from '@/components/ui/InstallBanner'
 import { FaviconSwitcher } from '@/components/ui/FaviconSwitcher'
-import { ViewTransitionGuard } from '@/components/ui/ViewTransitionGuard'
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
 
 const playfair = Playfair_Display({
@@ -127,7 +126,6 @@ export default async function RootLayout({
         </a>
         <ThemeProvider>
           <AuthProvider session={session} testWorkspace={testWorkspace}>
-            <ViewTransitionGuard />
             <SiteChrome>
               <ScrollIndicator />
             </SiteChrome>
