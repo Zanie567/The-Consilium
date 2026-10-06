@@ -1,13 +1,8 @@
 'use client'
 
-import {
-  useEditor, EditorContent, type Editor,
-} from '@tiptap/react'
-import { BubbleMenu } from '@tiptap/react/menus'
+import { useEditor, useEditorState, EditorContent, type Editor } from '@tiptap/react'
 import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model'
-import {
-  Node, mergeAttributes, type SingleCommands, type RawCommands,
-} from '@tiptap/core'
+import { Node, mergeAttributes, type SingleCommands, type RawCommands } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Image from '@tiptap/extension-image'
@@ -16,33 +11,74 @@ import Placeholder from '@tiptap/extension-placeholder'
 import CharacterCount from '@tiptap/extension-character-count'
 import TextAlign from '@tiptap/extension-text-align'
 import Highlight from '@tiptap/extension-highlight'
-import { TextStyle, Color, FontSize as TipTapFontSize, LineHeight } from '@tiptap/extension-text-style'
-import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
 import {
-  Bold, Italic, UnderlineIcon, Strikethrough, Link2, Link2Off, Upload,
-  Minus, AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  Undo, Redo, List, ListOrdered, Quote, Code2,
-  Star, Printer, Type, Highlighter, Table as TableIcon,
-  Indent, Outdent, Superscript,
+  TextStyle,
+  Color,
+  FontSize as TipTapFontSize,
+  LineHeight,
+} from '@tiptap/extension-text-style'
+import { TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
+import {
+  Bold,
+  Italic,
+  UnderlineIcon,
+  Strikethrough,
+  Link2,
+  Link2Off,
+  Upload,
+  Minus,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  Undo,
+  Redo,
+  List,
+  ListOrdered,
+  Quote,
+  Code2,
+  Star,
+  Printer,
+  Type,
+  Highlighter,
+  Table as TableIcon,
+  Indent,
+  Outdent,
+  Superscript,
 } from 'lucide-react'
 import React, {
-  useCallback, useRef, useState, useEffect, useImperativeHandle,
-  forwardRef, type ReactNode,
+  useCallback,
+  useRef,
+  useState,
+  useEffect,
+  useImperativeHandle,
+  forwardRef,
+  type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { safeContentUrl } from '@/lib/richMetadata'
+import { ArticleTable } from './extensions/ArticleTable'
+import {
+  uploadArticleImage,
+  discardArticleImage,
+  discardPendingArticleImages,
+} from '@/lib/articleImageUpload'
 import { FigureNode } from './extensions/FigureNode'
 import { cleanPastedHTML } from '@/lib/editor/cleanPastedHTML'
-import { ApiError, apiRequest, asApiError } from '@/lib/apiClient'
+import { ApiError, asApiError } from '@/lib/apiClient'
 import { CommentHighlight } from './commentHighlight'
 
 // ── Module augmentations ─────────────────────────────────────────────────────
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
-    pullQuote:  { togglePullQuote: () => ReturnType }
+    pullQuote: { togglePullQuote: () => ReturnType }
     footnoteRef: { insertFootnote: (content: string) => ReturnType }
     // fontSize and lineHeight commands are declared by @tiptap/extension-text-style; listed here for IDE navigation only
-    fontSize:   { setFontSize: (fontSize: string) => ReturnType; unsetFontSize: () => ReturnType }
-    lineHeight: { setLineHeight: (lineHeight: string) => ReturnType; unsetLineHeight: () => ReturnType }
+    fontSize: { setFontSize: (fontSize: string) => ReturnType; unsetFontSize: () => ReturnType }
+    lineHeight: {
+      setLineHeight: (lineHeight: string) => ReturnType
+      unsetLineHeight: () => ReturnType
+    }
   }
 }
 
@@ -52,14 +88,22 @@ const PullQuote = Node.create({
   group: 'block',
   content: 'inline*',
   defining: true,
-  parseHTML() { return [{ tag: 'aside[data-type="pull-quote"]' }] },
+  parseHTML() {
+    return [{ tag: 'aside[data-type="pull-quote"]' }]
+  },
   renderHTML({ HTMLAttributes }) {
-    return ['aside', mergeAttributes(HTMLAttributes, { 'data-type': 'pull-quote', class: 'pull-quote' }), 0]
+    return [
+      'aside',
+      mergeAttributes(HTMLAttributes, { 'data-type': 'pull-quote', class: 'pull-quote' }),
+      0,
+    ]
   },
   addCommands(): Partial<RawCommands> {
     return {
-      togglePullQuote: () => ({ commands }: { commands: SingleCommands }) =>
-        commands.toggleNode(this.name, 'paragraph'),
+      togglePullQuote:
+        () =>
+        ({ commands }: { commands: SingleCommands }) =>
+          commands.toggleNode(this.name, 'paragraph'),
     }
   },
 })
@@ -72,42 +116,46 @@ const FootnoteRef = Node.create({
   atom: true,
   addAttributes() {
     return {
-      index:   { default: 1 },
+      index: { default: 1 },
       content: { default: '' },
     }
   },
-  parseHTML() { return [{ tag: 'sup[data-footnote]' }] },
+  parseHTML() {
+    return [{ tag: 'sup[data-footnote]' }]
+  },
   renderHTML({ node, HTMLAttributes }) {
     return [
       'sup',
       mergeAttributes(HTMLAttributes, {
         'data-footnote': node.attrs.content,
-        'data-index':    node.attrs.index,
-        class:           'footnote-ref',
-        title:           node.attrs.content,
+        'data-index': node.attrs.index,
+        class: 'footnote-ref',
+        title: node.attrs.content,
       }),
       `[${node.attrs.index}]`,
     ]
   },
   addCommands(): Partial<RawCommands> {
     return {
-      insertFootnote: (content: string) => ({
-        commands,
-        state,
-      }: {
-        commands: SingleCommands
-        state: import('@tiptap/pm/state').EditorState
-      }) => {
-        // Use max existing index + 1, not count + 1: after a deletion the
-        // count can collide with a surviving footnote's number. Editor numbers
-        // may still show gaps after deletions; the public page renumbers all
-        // footnotes sequentially in document order at render time.
-        let max = 0
-        state.doc.descendants((n) => {
-          if (n.type.name === 'footnoteRef') max = Math.max(max, Number(n.attrs.index) || 0)
-        })
-        return commands.insertContent({ type: 'footnoteRef', attrs: { index: max + 1, content } })
-      },
+      insertFootnote:
+        (content: string) =>
+        ({
+          commands,
+          state,
+        }: {
+          commands: SingleCommands
+          state: import('@tiptap/pm/state').EditorState
+        }) => {
+          // Use max existing index + 1, not count + 1: after a deletion the
+          // count can collide with a surviving footnote's number. Editor numbers
+          // may still show gaps after deletions; the public page renumbers all
+          // footnotes sequentially in document order at render time.
+          let max = 0
+          state.doc.descendants((n) => {
+            if (n.type.name === 'footnoteRef') max = Math.max(max, Number(n.attrs.index) || 0)
+          })
+          return commands.insertContent({ type: 'footnoteRef', attrs: { index: max + 1, content } })
+        },
     }
   },
 })
@@ -137,272 +185,425 @@ interface TiptapEditorProps {
 // Google Docs 10x10 colour palette (row-major order)
 const GOOGLE_DOCS_COLORS: string[] = [
   // Row 1: Greyscale
-  '#000000','#434343','#666666','#999999','#b7b7b7','#cccccc','#d9d9d9','#efefef','#f3f3f3','#ffffff',
+  '#000000',
+  '#434343',
+  '#666666',
+  '#999999',
+  '#b7b7b7',
+  '#cccccc',
+  '#d9d9d9',
+  '#efefef',
+  '#f3f3f3',
+  '#ffffff',
   // Row 2: Pure saturated
-  '#ff0000','#ff9900','#ffff00','#00ff00','#00ffff','#4a86e8','#0000ff','#9900ff','#ff00ff','#ff0066',
+  '#ff0000',
+  '#ff9900',
+  '#ffff00',
+  '#00ff00',
+  '#00ffff',
+  '#4a86e8',
+  '#0000ff',
+  '#9900ff',
+  '#ff00ff',
+  '#ff0066',
   // Row 3: Dark shades
-  '#980000','#c43d00','#cb8400','#2d6a0a','#00575f','#1a53a3','#0d0080','#6a0080','#9c0070','#b3003b',
+  '#980000',
+  '#c43d00',
+  '#cb8400',
+  '#2d6a0a',
+  '#00575f',
+  '#1a53a3',
+  '#0d0080',
+  '#6a0080',
+  '#9c0070',
+  '#b3003b',
   // Row 4
-  '#cc0000','#e67300','#e6a817','#428f0a','#006b7a','#2170cb','#3333cc','#7b00b3','#b3007a','#cc0044',
+  '#cc0000',
+  '#e67300',
+  '#e6a817',
+  '#428f0a',
+  '#006b7a',
+  '#2170cb',
+  '#3333cc',
+  '#7b00b3',
+  '#b3007a',
+  '#cc0044',
   // Row 5: Medium dark
-  '#e06666','#f6b26b','#ffd966','#93c47d','#76a5af','#6fa8dc','#6666cc','#a64d99','#cc4488','#e06688',
+  '#e06666',
+  '#f6b26b',
+  '#ffd966',
+  '#93c47d',
+  '#76a5af',
+  '#6fa8dc',
+  '#6666cc',
+  '#a64d99',
+  '#cc4488',
+  '#e06688',
   // Row 6: Medium
-  '#ea9999','#f9cb9c','#ffe599','#b6d7a8','#a2c4c9','#9fc5e8','#9999cc','#c2a0c2','#d5a6bd','#ea9999',
+  '#ea9999',
+  '#f9cb9c',
+  '#ffe599',
+  '#b6d7a8',
+  '#a2c4c9',
+  '#9fc5e8',
+  '#9999cc',
+  '#c2a0c2',
+  '#d5a6bd',
+  '#ea9999',
   // Row 7: Light
-  '#f4cccc','#fce5cd','#fff2cc','#d9ead3','#d0e0e3','#cfe2f3','#d9d2e9','#ead1dc','#f0d9f5','#f4ccd8',
+  '#f4cccc',
+  '#fce5cd',
+  '#fff2cc',
+  '#d9ead3',
+  '#d0e0e3',
+  '#cfe2f3',
+  '#d9d2e9',
+  '#ead1dc',
+  '#f0d9f5',
+  '#f4ccd8',
   // Row 8: Very light
-  '#fce5e5','#fef0de','#fefce6','#eaf7e2','#e4f2f5','#e8f0fc','#ede7f6','#f5e0ec','#f8f0fe','#fce5f0',
+  '#fce5e5',
+  '#fef0de',
+  '#fefce6',
+  '#eaf7e2',
+  '#e4f2f5',
+  '#e8f0fc',
+  '#ede7f6',
+  '#f5e0ec',
+  '#f8f0fe',
+  '#fce5f0',
   // Row 9: Pale
-  '#fff0f0','#fff5e5','#fdfde8','#f3fbef','#eef8fb','#f5f9ff','#f0f0ff','#f8f0ff','#fdf0f8','#fff0f5',
+  '#fff0f0',
+  '#fff5e5',
+  '#fdfde8',
+  '#f3fbef',
+  '#eef8fb',
+  '#f5f9ff',
+  '#f0f0ff',
+  '#f8f0ff',
+  '#fdf0f8',
+  '#fff0f5',
   // Row 10: Almost white
-  '#fff8f8','#fffaf5','#fefef5','#f8fbf5','#f5fcfd','#f8faff','#f8f8ff','#fbf8ff','#fdf8fb','#fff8fb',
+  '#fff8f8',
+  '#fffaf5',
+  '#fefef5',
+  '#f8fbf5',
+  '#f5fcfd',
+  '#f8faff',
+  '#f8f8ff',
+  '#fbf8ff',
+  '#fdf8fb',
+  '#fff8fb',
 ]
 
 // ── Main component ────────────────────────────────────────────────────────────
-export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
-  function TiptapEditor({ content, onChange, editable = true, saveStatus, saveError, toolbarPortalRef, onEditorReady, noWrapper, darkMode, onCommentClick }, ref) {
-    const fileInputRef      = useRef<HTMLInputElement>(null)
-    const linkInputRef      = useRef<HTMLInputElement>(null)
-    const _fontSizeRef      = useRef<HTMLInputElement>(null)
-    const colorPickerRef    = useRef<HTMLDivElement>(null)
-    const highlightRef      = useRef<HTMLDivElement>(null)
-    const tablePickerRef    = useRef<HTMLDivElement>(null)
-    const lineSpacingRef    = useRef<HTMLDivElement>(null)
+export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(function TiptapEditor(
+  {
+    content,
+    onChange,
+    editable = true,
+    saveStatus,
+    saveError,
+    toolbarPortalRef,
+    onEditorReady,
+    noWrapper,
+    darkMode,
+    onCommentClick,
+  },
+  ref
+) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const linkInputRef = useRef<HTMLInputElement>(null)
+  const _fontSizeRef = useRef<HTMLInputElement>(null)
+  const colorPickerRef = useRef<HTMLDivElement>(null)
+  const highlightRef = useRef<HTMLDivElement>(null)
+  const tablePickerRef = useRef<HTMLDivElement>(null)
+  const lineSpacingRef = useRef<HTMLDivElement>(null)
 
-    const [linkBarOpen,        setLinkBarOpen]        = useState(false)
-    const [linkUrl,            setLinkUrl]            = useState('')
-    const [uploadError,        setUploadError]        = useState('')
-    const [uploading,          setUploading]          = useState(false)
-    const [colorOpen,          setColorOpen]          = useState(false)
-    const [highlightOpen,      setHighlightOpen]      = useState(false)
-    const [tableOpen,          setTableOpen]          = useState(false)
-    const [lineSpacingOpen,    setLineSpacingOpen]    = useState(false)
-    const [tableHover,         setTableHover]         = useState({ r: 0, c: 0 })
-    const [fontSizeInput,      setFontSizeInput]      = useState('16')
-    const [activeColor,        setActiveColor]        = useState<string | null>(null)
-    const [activeHighlight,    setActiveHighlight]    = useState<string | null>(null)
+  const [linkBarOpen, setLinkBarOpen] = useState(false)
+  const [linkUrl, setLinkUrl] = useState('')
+  const [uploadError, setUploadError] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [colorOpen, setColorOpen] = useState(false)
+  const [highlightOpen, setHighlightOpen] = useState(false)
+  const [tableOpen, setTableOpen] = useState(false)
+  const [lineSpacingOpen, setLineSpacingOpen] = useState(false)
+  const [tableHover, setTableHover] = useState({ r: 0, c: 0 })
+  const [fontSizeInput, setFontSizeInput] = useState('16')
+  const [activeColor, setActiveColor] = useState<string | null>(null)
+  const [activeHighlight, setActiveHighlight] = useState<string | null>(null)
 
-    // Stable ref so handlePaste can call the upload function without
-    // a circular dependency on the editor instance.
-    const uploadForPasteRef = useRef<
-      (dataUrl: string, mimeType: string, filename: string) => Promise<string | null>
-    >(() => Promise.resolve(null))
+  // Stable ref so handlePaste can call the upload function without
+  // a circular dependency on the editor instance.
+  const uploadForPasteRef = useRef<
+    (dataUrl: string, mimeType: string, filename: string) => Promise<string | null>
+  >(() => Promise.resolve(null))
 
-    const uploadForPasteImage = useCallback(
-      async (dataUrl: string, mimeType: string, filename: string): Promise<string | null> => {
-        try {
-          setUploading(true)
-          // Convert base64 data URI to Blob then to File
-          const res = await fetch(dataUrl)
-          const blob = await res.blob()
-          const file = new File([blob], filename, { type: mimeType })
-          const form = new FormData()
-          form.append('file', file)
-          form.append('bucket', 'article-images')
-          const data = await apiRequest<{ url?: string }>('/api/upload', {
-            method: 'POST',
-            body: form,
-          })
-          if (!data.url) {
-            throw new ApiError('server', 'The upload completed without returning an image URL.')
-          }
-          return data.url
-        } catch (reason) {
-          setUploadError(asApiError(reason).message)
-          return null
-        } finally {
-          setUploading(false)
-        }
-      },
-      []
-    )
+  useEffect(() => {
+    if (!editable) return
+    window.addEventListener('pagehide', discardPendingArticleImages)
+    return () => {
+      window.removeEventListener('pagehide', discardPendingArticleImages)
+      discardPendingArticleImages()
+    }
+  }, [editable])
 
-    uploadForPasteRef.current = uploadForPasteImage
-
-    // Keep the latest callback without recreating the editor: extension
-    // options are captured once at editor creation.
-    const onCommentClickRef = useRef(onCommentClick)
-    onCommentClickRef.current = onCommentClick
-
-    const editor = useEditor({
-      editable,
-      extensions: [
-        // Bug 1: StarterKit v3 bundles Link and Underline — disable them here
-        // so the manually configured versions below are the sole registrations.
-        StarterKit.configure({
-          codeBlock: { HTMLAttributes: { class: 'code-block' } },
-          link: false,
-          underline: false,
-        }),
-        // Underline and Link registered once, with our custom options
-        Underline,
-        Link.configure({ openOnClick: false }),
-        Highlight.configure({ multicolor: true }),
-        TextAlign.configure({ types: ['heading', 'paragraph'] }),
-        Image.configure({ inline: false }),
-        Placeholder.configure({ placeholder: 'Begin writing your article…' }),
-        CharacterCount,
-        TextStyle,
-        Color,
-        TipTapFontSize,
-        // Bug 5: register LineHeight so the line-spacing toolbar picker works
-        LineHeight,
-        Table.configure({ resizable: true }),
-        TableRow,
-        TableHeader,
-        TableCell,
-        PullQuote,
-        FootnoteRef,
-        FigureNode,
-        CommentHighlight.configure({
-          onCommentClick: (id) => onCommentClickRef.current?.(id),
-        }),
-      ],
-      content: content ? tryParseContent(content) : '',
-      onUpdate: ({ editor: ed }) => {
-        onChange(JSON.stringify(ed.getJSON()))
-      },
-      onSelectionUpdate: ({ editor: ed }) => {
-        // TipTap 3: FontSize lives in textStyle.fontSize
-        const tsAttrs = ed.getAttributes('textStyle')
-        const rawSize: string = tsAttrs.fontSize ?? ''
-        const sz = rawSize ? parseInt(rawSize, 10).toString() : '16'
-        setFontSizeInput(sz)
-        setActiveColor(tsAttrs.color ?? null)
-        setActiveHighlight(ed.getAttributes('highlight').color ?? null)
-      },
-      immediatelyRender: false,
-      editorProps: {
-        // Clicking a footnote marker opens its text for editing. Clearing the
-        // text removes the footnote; cancelling leaves it untouched.
-        handleClickOn(view, _pos, node, nodePos) {
-          if (node.type.name !== 'footnoteRef' || !view.editable) return false
-          const existing = String(node.attrs.content ?? '')
-          const next = window.prompt('Footnote text (clear it to remove this footnote):', existing)
-          if (next === null) return true
-          const tr = view.state.tr
-          if (next.trim() === '') {
-            tr.delete(nodePos, nodePos + node.nodeSize)
-          } else {
-            tr.setNodeMarkup(nodePos, undefined, { ...node.attrs, content: next.trim() })
-          }
-          view.dispatch(tr)
-          return true
-        },
-        handlePaste(view, event) {
-          const html = event.clipboardData?.getData('text/html')
-          // If no HTML in clipboard, return false and let TipTap
-          // handle plain text paste normally.
-          if (!html || !/<[a-z][\s\S]*>/i.test(html)) return false
-
-          // Return true immediately to suppress the default paste.
-          // We do the real work asynchronously.
-          ;(async () => {
-            try {
-              // Parse to find base64 images before cleaning
-              const tempDiv = document.createElement('div')
-              tempDiv.innerHTML = html
-
-              const images = Array.from(
-                tempDiv.querySelectorAll<HTMLImageElement>('img[src^="data:"]')
-              )
-
-              // Upload all base64 images in parallel
-              await Promise.all(
-                images.map(async (img, index) => {
-                  const src = img.getAttribute('src') ?? ''
-                  const mimeMatch = src.match(/^data:([^;]+);base64,/)
-                  if (!mimeMatch) return
-                  const mimeType = mimeMatch[1]
-                  const ext = mimeType.split('/')[1] ?? 'png'
-                  const filename = `paste-image-${Date.now()}-${index}.${ext}`
-                  const url = await uploadForPasteRef.current(src, mimeType, filename)
-                  if (url) {
-                    img.setAttribute('src', url)
-                    img.removeAttribute('data-src')
-                  } else {
-                    // Upload failed: remove the img so we do not insert a broken
-                    // data URI into the document
-                    img.remove()
-                  }
-                })
-              )
-
-              // Run the full HTML cleaning pipeline
-              const cleanedHtml = cleanPastedHTML(tempDiv.innerHTML)
-
-              // Guard: editor may have been unmounted during the async work
-              if (!view.dom.isConnected) return
-
-              // Parse the cleaned HTML into a ProseMirror slice using the
-              // editor schema so custom node parseHTML rules apply.
-              const wrapper = document.createElement('div')
-              wrapper.innerHTML = cleanedHtml
-              const parser = ProseMirrorDOMParser.fromSchema(view.state.schema)
-              const slice = parser.parseSlice(wrapper, { preserveWhitespace: false })
-              const tr = view.state.tr.replaceSelection(slice)
-              view.dispatch(tr)
-            } catch (err) {
-              // Log but do not surface to user. The paste simply will not
-              // complete, which is recoverable with Ctrl+Z.
-              console.error('[TiptapEditor] paste processing error:', err)
-            }
-          })()
-
-          return true
-        },
-      },
-    })
-
-    // Notify parent when editor is ready
-    useEffect(() => {
-      if (editor && onEditorReady) onEditorReady(editor)
-    }, [editor]) // eslint-disable-line react-hooks/exhaustive-deps
-
-    // Clear upload error after 4s
-    useEffect(() => {
-      if (!uploadError) return
-      const t = setTimeout(() => setUploadError(''), 4000)
-      return () => clearTimeout(t)
-    }, [uploadError])
-
-    // Close dropdowns when clicking outside
-    useEffect(() => {
-      const handler = (e: MouseEvent) => {
-        const target = e.target as globalThis.Node
-        if (colorPickerRef.current && !colorPickerRef.current.contains(target)) setColorOpen(false)
-        if (highlightRef.current  && !highlightRef.current.contains(target))  setHighlightOpen(false)
-        if (tablePickerRef.current && !tablePickerRef.current.contains(target)) setTableOpen(false)
-        if (lineSpacingRef.current && !lineSpacingRef.current.contains(target)) setLineSpacingOpen(false)
-      }
-      document.addEventListener('mousedown', handler)
-      return () => document.removeEventListener('mousedown', handler)
-    }, [])
-
-    const uploadImage = useCallback(async (file: File) => {
-      if (!editor) return
-      setUploading(true)
-      setUploadError('')
+  const uploadForPasteImage = useCallback(
+    async (dataUrl: string, mimeType: string, filename: string): Promise<string | null> => {
       try {
-        const form = new FormData()
-        form.append('file', file)
-        form.append('bucket', 'article-images')
-        const data = await apiRequest<{ url?: string }>('/api/upload', {
-          method: 'POST',
-          body: form,
-        })
+        setUploading(true)
+        // Convert base64 data URI to Blob then to File
+        const res = await fetch(dataUrl)
+        const blob = await res.blob()
+        const file = new File([blob], filename, { type: mimeType })
+        const data = await uploadArticleImage(file)
         if (!data.url) {
           throw new ApiError('server', 'The upload completed without returning an image URL.')
         }
-        editor.chain().focus().insertFigure({ src: data.url }).run()
+        return data.url
       } catch (reason) {
         setUploadError(asApiError(reason).message)
+        return null
       } finally {
         setUploading(false)
       }
-    }, [editor])
+    },
+    []
+  )
 
-    useImperativeHandle(ref, () => ({
+  uploadForPasteRef.current = uploadForPasteImage
+
+  // Keep the latest callback without recreating the editor: extension
+  // options are captured once at editor creation.
+  const onCommentClickRef = useRef(onCommentClick)
+  onCommentClickRef.current = onCommentClick
+
+  const editor = useEditor({
+    editable,
+    extensions: [
+      // Bug 1: StarterKit v3 bundles Link and Underline — disable them here
+      // so the manually configured versions below are the sole registrations.
+      StarterKit.configure({
+        codeBlock: { HTMLAttributes: { class: 'code-block' } },
+        link: false,
+        underline: false,
+      }),
+      // Underline and Link registered once, with our custom options
+      Underline,
+      Link.configure({ openOnClick: false }),
+      Highlight.configure({ multicolor: true }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Image.configure({ inline: false }),
+      Placeholder.configure({ placeholder: 'Begin writing your article…' }),
+      CharacterCount,
+      TextStyle,
+      Color,
+      TipTapFontSize,
+      // Bug 5: register LineHeight so the line-spacing toolbar picker works
+      LineHeight,
+      ArticleTable.configure({ resizable: true, renderWrapper: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      PullQuote,
+      FootnoteRef,
+      FigureNode,
+      CommentHighlight.configure({
+        onCommentClick: (id) => onCommentClickRef.current?.(id),
+      }),
+    ],
+    content: content ? tryParseContent(content) : '',
+    onUpdate: ({ editor: ed }) => {
+      onChange(JSON.stringify(ed.getJSON()))
+    },
+    onSelectionUpdate: ({ editor: ed }) => {
+      // TipTap 3: FontSize lives in textStyle.fontSize
+      const tsAttrs = ed.getAttributes('textStyle')
+      const rawSize: string = tsAttrs.fontSize ?? ''
+      const sz = rawSize ? parseInt(rawSize, 10).toString() : '16'
+      setFontSizeInput(sz)
+      setActiveColor(tsAttrs.color ?? null)
+      setActiveHighlight(ed.getAttributes('highlight').color ?? null)
+    },
+    immediatelyRender: false,
+    editorProps: {
+      // Clicking a footnote marker opens its text for editing. Clearing the
+      // text removes the footnote; cancelling leaves it untouched.
+      handleClickOn(view, _pos, node, nodePos) {
+        if (node.type.name !== 'footnoteRef' || !view.editable) return false
+        const existing = String(node.attrs.content ?? '')
+        const next = window.prompt('Footnote text (clear it to remove this footnote):', existing)
+        if (next === null) return true
+        const tr = view.state.tr
+        if (next.trim() === '') {
+          tr.delete(nodePos, nodePos + node.nodeSize)
+        } else {
+          tr.setNodeMarkup(nodePos, undefined, { ...node.attrs, content: next.trim() })
+        }
+        view.dispatch(tr)
+        return true
+      },
+      handlePaste(view, event) {
+        const html = event.clipboardData?.getData('text/html')
+        // If no HTML in clipboard, return false and let TipTap
+        // handle plain text paste normally.
+        if (!html || !/<[a-z][\s\S]*>/i.test(html)) return false
+        if (html.length > 2_000_000) {
+          setUploadError(
+            'This clipboard is too large. Paste the text and upload images separately.'
+          )
+          return true
+        }
+
+        const pasteSelection = view.state.selection.getBookmark()
+        const pasteDoc = view.state.doc
+        const uploadedUrls: string[] = []
+        // Return true immediately to suppress the default paste.
+        // We do the real work asynchronously.
+        ;(async () => {
+          try {
+            // Parse to find base64 images before cleaning
+            const tempDiv = document.createElement('div')
+            tempDiv.innerHTML = html
+
+            const images = Array.from(
+              tempDiv.querySelectorAll<HTMLImageElement>('img[src^="data:"]')
+            )
+
+            if (images.length > 10) throw new Error('Paste at most 10 images at a time.')
+
+            // Upload all base64 images in parallel
+            await Promise.all(
+              images.map(async (img, index) => {
+                const src = img.getAttribute('src') ?? ''
+                const mimeMatch = src.match(/^data:([^;]+);base64,/)
+                if (!mimeMatch) return
+                const mimeType = mimeMatch[1]
+                const ext = mimeType.split('/')[1] ?? 'png'
+                const filename = `paste-image-${Date.now()}-${index}.${ext}`
+                const url = await uploadForPasteRef.current(src, mimeType, filename)
+                if (url) {
+                  uploadedUrls.push(url)
+                  img.setAttribute('src', url)
+                  img.removeAttribute('data-src')
+                } else {
+                  // Upload failed: remove the img so we do not insert a broken
+                  // data URI into the document
+                  img.remove()
+                }
+              })
+            )
+
+            // Run the full HTML cleaning pipeline
+            const cleanedHtml = cleanPastedHTML(tempDiv.innerHTML)
+
+            // Guard: editor may have been unmounted during the async work
+            if (!view.dom.isConnected || !view.state.doc.eq(pasteDoc)) {
+              uploadedUrls.forEach((url) => {
+                void discardArticleImage(url)
+              })
+              setUploadError(
+                'The document changed while pasted images were uploading. Please paste again.'
+              )
+              return
+            }
+
+            // Parse the cleaned HTML into a ProseMirror slice using the
+            // editor schema so custom node parseHTML rules apply.
+            const wrapper = document.createElement('div')
+            wrapper.innerHTML = cleanedHtml
+            const parser = ProseMirrorDOMParser.fromSchema(view.state.schema)
+            const slice = parser.parseSlice(wrapper, { preserveWhitespace: false })
+            const tr = view.state.tr
+              .setSelection(pasteSelection.resolve(view.state.doc))
+              .replaceSelection(slice)
+            view.dispatch(tr)
+          } catch (err) {
+            // Log but do not surface to user. The paste simply will not
+            // complete, which is recoverable with Ctrl+Z.
+            uploadedUrls.forEach((url) => {
+              void discardArticleImage(url)
+            })
+            setUploadError(
+              'The pasted content could not be inserted. Please try again or paste as plain text.'
+            )
+            console.error('[TiptapEditor] paste processing error:', err)
+          }
+        })()
+
+        return true
+      },
+    },
+  })
+
+  useEditorState({ editor, selector: (context) => context.editor?.state })
+
+  // Notify parent when editor is ready
+  useEffect(() => {
+    if (editor && onEditorReady) onEditorReady(editor)
+  }, [editor]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Clear upload error after 4s
+  useEffect(() => {
+    if (!uploadError) return
+    const t = setTimeout(() => setUploadError(''), 4000)
+    return () => clearTimeout(t)
+  }, [uploadError])
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as globalThis.Node
+      if (colorPickerRef.current && !colorPickerRef.current.contains(target)) setColorOpen(false)
+      if (highlightRef.current && !highlightRef.current.contains(target)) setHighlightOpen(false)
+      if (tablePickerRef.current && !tablePickerRef.current.contains(target)) setTableOpen(false)
+      if (lineSpacingRef.current && !lineSpacingRef.current.contains(target))
+        setLineSpacingOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const uploadPendingRef = useRef(false)
+  const uploadAbortRef = useRef<AbortController | null>(null)
+  const uploadImage = useCallback(
+    async (file: File) => {
+      if (!editor || uploadPendingRef.current) return
+      uploadPendingRef.current = true
+      setUploading(true)
+      setUploadError('')
+      const controller = new AbortController()
+      uploadAbortRef.current = controller
+      try {
+        const data = await uploadArticleImage(file, controller.signal)
+        if (editor.isDestroyed || controller.signal.aborted) {
+          await discardArticleImage(data.url)
+          return
+        }
+        editor
+          .chain()
+          .focus()
+          .insertFigure({ src: data.url, width: data.width, height: data.height })
+          .run()
+      } catch (reason) {
+        setUploadError(
+          controller.signal.aborted
+            ? 'Upload cancelled. You can try again.'
+            : asApiError(reason).message
+        )
+      } finally {
+        uploadPendingRef.current = false
+        uploadAbortRef.current = null
+        setUploading(false)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+      }
+    },
+    [editor]
+  )
+
+  useImperativeHandle(
+    ref,
+    () => ({
       getEditor: () => editor ?? null,
       uploadImageFile: uploadImage,
       insertTextAsContent: (text: string) => {
@@ -414,488 +615,723 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
           .map((p) => ({ type: 'paragraph', content: [{ type: 'text', text: p }] }))
         editor.chain().focus().insertContent({ type: 'doc', content: paragraphs }).run()
       },
-    }), [editor, uploadImage])
+    }),
+    [editor, uploadImage]
+  )
 
-    const openLinkBar = useCallback(() => {
-      if (!editor) return
-      const existing = editor.getAttributes('link').href ?? ''
-      setLinkUrl(existing)
-      setLinkBarOpen(true)
-      setTimeout(() => linkInputRef.current?.focus(), 50)
-    }, [editor])
+  const openLinkBar = useCallback(() => {
+    if (!editor) return
+    const existing = editor.getAttributes('link').href ?? ''
+    setLinkUrl(existing)
+    setLinkBarOpen(true)
+    setTimeout(() => linkInputRef.current?.focus(), 50)
+  }, [editor])
 
-    const commitLink = useCallback(() => {
-      if (!editor) return
-      const url = linkUrl.trim()
-      if (url) {
-        editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
-      } else {
-        editor.chain().focus().extendMarkRange('link').unsetLink().run()
-      }
-      setLinkBarOpen(false)
-      setLinkUrl('')
-    }, [editor, linkUrl])
+  const commitLink = useCallback(() => {
+    if (!editor) return
+    const url = linkUrl.trim()
+    if (url && !safeContentUrl(url, true)) {
+      setUploadError('Use a valid HTTP, HTTPS, email or relative link.')
+      return
+    }
+    if (url) {
+      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+    } else {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run()
+    }
+    setLinkBarOpen(false)
+    setLinkUrl('')
+  }, [editor, linkUrl])
 
-    const applyFontSize = useCallback((size: string) => {
+  const applyFontSize = useCallback(
+    (size: string) => {
       if (!editor) return
       const n = parseInt(size, 10)
-      if (!isNaN(n) && n > 0) {
+      if (!isNaN(n) && n >= 12 && n <= 96) {
         editor.chain().focus().setFontSize(`${n}px`).run()
         setFontSizeInput(String(n))
       }
-    }, [editor])
+    },
+    [editor]
+  )
 
-    const _changeFontSize = useCallback((delta: number) => {
+  const _changeFontSize = useCallback(
+    (delta: number) => {
       const cur = parseInt(fontSizeInput, 10) || 16
-      applyFontSize(String(Math.max(6, Math.min(96, cur + delta))))
-    }, [fontSizeInput, applyFontSize])
+      applyFontSize(String(Math.max(12, Math.min(96, cur + delta))))
+    },
+    [fontSizeInput, applyFontSize]
+  )
 
-    const applyLineSpacing = useCallback((spacing: string) => {
+  const applyLineSpacing = useCallback(
+    (spacing: string) => {
       if (!editor) return
       // Bug 5: use the LineHeight extension (from @tiptap/extension-text-style)
       // to apply line-height as an inline style on the current selection.
       editor.chain().focus().setLineHeight(spacing).run()
       setLineSpacingOpen(false)
-    }, [editor])
+    },
+    [editor]
+  )
 
-    if (!editor) return null
+  if (!editor) return null
 
-    const wordCount    = editor.storage.characterCount.words()
-    const readingTime  = Math.max(1, Math.round(wordCount / 200))
+  const wordCount = editor.storage.characterCount.words()
+  const readingTime = Math.max(1, Math.round(wordCount / 200))
 
-    // ── Sub-components ───────────────────────────────────────────────────────
-    const ToolbarBtn = ({
-      onClick, active, title, disabled: dis, children, style,
-    }: {
-      onClick: (e: React.MouseEvent) => void
-      active?: boolean
-      title: string
-      disabled?: boolean
-      children: ReactNode
-      style?: React.CSSProperties
-    }) => (
-      <button
-        type="button"
-        onMouseDown={(e) => { e.preventDefault(); onClick(e) }}
-        title={title}
-        disabled={dis}
-        style={style}
-        className={`p-2 rounded min-w-[30px] h-8 flex items-center justify-center ${
-          active
-            ? darkMode
-              ? 'bg-white/20 text-white ring-1 ring-white/30'
-              : 'bg-[#1a2744]/20 text-[#1a2744] ring-1 ring-[#1a2744]/30 font-semibold'
-            : darkMode
-              ? 'text-white/70 hover:bg-white/8 transition-colors duration-100'
-              : 'text-[#444] hover:bg-black/8 transition-colors duration-100'
-        } disabled:opacity-30`}
-      >
-        {children}
-      </button>
-    )
+  // ── Sub-components ───────────────────────────────────────────────────────
+  const ToolbarBtn = ({
+    onClick,
+    active,
+    title,
+    disabled: dis,
+    children,
+    style,
+  }: {
+    onClick: (e: React.MouseEvent) => void
+    active?: boolean
+    title: string
+    disabled?: boolean
+    children: ReactNode
+    style?: React.CSSProperties
+  }) => (
+    <button
+      type="button"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      aria-label={title}
+      aria-pressed={active === undefined ? undefined : active}
+      title={title}
+      disabled={dis}
+      style={style}
+      className={`p-2 rounded min-w-[30px] h-8 flex items-center justify-center ${
+        active
+          ? darkMode
+            ? 'bg-white/20 text-white ring-1 ring-white/30'
+            : 'bg-[#1a2744]/20 text-[#1a2744] ring-1 ring-[#1a2744]/30 font-semibold'
+          : darkMode
+            ? 'text-white/70 hover:bg-white/8 transition-colors duration-100'
+            : 'text-[#444] hover:bg-black/8 transition-colors duration-100'
+      } disabled:opacity-30`}
+    >
+      {children}
+    </button>
+  )
 
-    const Sep = () => (
-      <div className="w-px mx-2.5 self-stretch bg-black/10 dark:bg-white/10" />
-    )
+  const Sep = () => <div className="w-px mx-2.5 self-stretch bg-black/10 dark:bg-white/10" />
 
-    return (
-      <div style={{ isolation: 'isolate' }}>
+  return (
+    <div style={{ isolation: 'isolate' }}>
+      {uploading && uploadAbortRef.current && (
+        <button
+          type="button"
+          onClick={() => uploadAbortRef.current?.abort()}
+          className="text-sm underline p-2"
+        >
+          Cancel image upload
+        </button>
+      )}
+      {/* Upload error */}
+      {uploadError && (
+        <div
+          role="alert"
+          className="bg-red-500/10 border-b border-red-500/20 px-4 py-2 text-red-500 text-xs flex items-center gap-2"
+        >
+          <span className="font-semibold">Upload failed:</span> {uploadError}
+        </div>
+      )}
 
-        {/* Upload error */}
-        {uploadError && (
-          <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-2 text-red-500 text-xs flex items-center gap-2">
-            <span className="font-semibold">Upload failed:</span> {uploadError}
-          </div>
-        )}
-
-        {/* Link bar */}
-        {linkBarOpen && editable && (
-          <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-3 py-2 flex items-center gap-2">
-            <Link2 size={13} className="text-[#777] shrink-0" />
-            <input
-              ref={linkInputRef}
-              type="url"
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') { e.preventDefault(); commitLink() }
-                if (e.key === 'Escape') { setLinkBarOpen(false); setLinkUrl('') }
-              }}
-              placeholder="https://…"
-              className="flex-1 bg-transparent text-sm text-[var(--fg)] placeholder:text-[#aaa] outline-none border-b border-black/15 focus:border-[#1a2744] pb-0.5 transition-colors"
-            />
-            <button type="button" onClick={commitLink} className="text-xs font-bold text-[#1a2744] dark:text-gold hover:opacity-70 transition-opacity px-2">Apply</button>
-            <button type="button" onClick={() => { setLinkBarOpen(false); setLinkUrl('') }} className="text-xs text-[#777] hover:text-[#333] transition-colors">Cancel</button>
-          </div>
-        )}
-
-        {/* Text-selection bubble menu removed - all formatting options live in the fixed toolbar */}
-
-        {editable && (
-          <BubbleMenu
-            editor={editor}
-            pluginKey="tableControls"
-            shouldShow={({ editor: ed }) => ed.isActive('table')}
-            options={{ placement: 'top-start', offset: 8 }}
+      {/* Link bar */}
+      {linkBarOpen && editable && (
+        <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-3 py-2 flex items-center gap-2">
+          <Link2 size={13} className="text-[#777] shrink-0" />
+          <input
+            ref={linkInputRef}
+            type="url"
+            aria-label="Link URL"
+            value={linkUrl}
+            onChange={(e) => setLinkUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                commitLink()
+              }
+              if (e.key === 'Escape') {
+                setLinkBarOpen(false)
+                setLinkUrl('')
+              }
+            }}
+            placeholder="https://…"
+            className="flex-1 bg-transparent text-sm text-[var(--fg)] placeholder:text-[#aaa] outline-none border-b border-black/15 focus:border-[#1a2744] pb-0.5 transition-colors"
+          />
+          <button
+            type="button"
+            onClick={commitLink}
+            className="text-xs font-bold text-[#1a2744] dark:text-gold hover:opacity-70 transition-opacity px-2"
           >
-            <div className={`flex items-center gap-0.5 border shadow-xl px-1.5 py-1 rounded text-[11px] font-medium ${darkMode ? 'bg-[#242424] border-white/15 text-white/80' : 'bg-white border-black/10 text-[#444]'}`}>
-              <span className={`text-[9px] uppercase tracking-widest mr-1 ${darkMode ? 'text-white/30' : 'text-[#aaa]'}`}>Table</span>
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowBefore().run() }} className={`px-1.5 py-0.5 rounded ${darkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`} title="Add row above">+row above</button>
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowAfter().run() }} className={`px-1.5 py-0.5 rounded ${darkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`} title="Add row below">+row below</button>
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnBefore().run() }} className={`px-1.5 py-0.5 rounded ${darkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`} title="Add column left">+col left</button>
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnAfter().run() }} className={`px-1.5 py-0.5 rounded ${darkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`} title="Add column right">+col right</button>
-              <span className="w-px h-3 bg-current opacity-20 mx-0.5" />
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteRow().run() }} className="px-1.5 py-0.5 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" title="Delete row">-row</button>
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteColumn().run() }} className="px-1.5 py-0.5 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" title="Delete column">-col</button>
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteTable().run() }} className="px-1.5 py-0.5 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" title="Delete table">del table</button>
-            </div>
-          </BubbleMenu>
-        )}
+            Apply
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setLinkBarOpen(false)
+              setLinkUrl('')
+            }}
+            className="text-xs text-[#777] hover:text-[#333] transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
-        {/* ── Toolbar ────────────────────────────────────────────────────────── */}
-        {editable && (() => {
+      {/* Text-selection bubble menu removed - all formatting options live in the fixed toolbar */}
+
+      {editable && editor.isActive('table') && (
+        <div className="table-controls editor-toolbar-bg" aria-label="Table editing controls">
+          {(
+            [
+              ['Add row above', 'addRowBefore'],
+              ['Add row below', 'addRowAfter'],
+              ['Add column left', 'addColumnBefore'],
+              ['Add column right', 'addColumnAfter'],
+              ['Delete row', 'deleteRow'],
+              ['Delete column', 'deleteColumn'],
+              ['Toggle header row', 'toggleHeaderRow'],
+              ['Delete table', 'deleteTable'],
+            ] as const
+          ).map(([label, command]) => (
+            <button
+              key={command}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => editor.chain().focus()[command]().run()}
+            >
+              {label}
+            </button>
+          ))}
+          <details className="w-full">
+            <summary>Table caption, source and note</summary>
+            <div className="figure-fields">
+              {['caption', 'source', 'sourceUrl', 'note'].map((key) => (
+                <label key={key}>
+                  Table {key === 'sourceUrl' ? 'source URL' : key}
+                  <input
+                    aria-label={`Table ${key === 'sourceUrl' ? 'source URL' : key}`}
+                    value={editor.getAttributes('table')[key] ?? ''}
+                    maxLength={2000}
+                    onChange={(e) =>
+                      editor.commands.updateAttributes('table', { [key]: e.target.value })
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+          </details>
+        </div>
+      )}
+
+      {/* ── Toolbar ────────────────────────────────────────────────────────── */}
+      {editable &&
+        (() => {
           const toolbarContent = (
             <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-4 py-1.5 flex flex-wrap gap-1 items-center w-full h-full">
-
-            {/* Group 1: History */}
-            <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo (Ctrl+Z)">
-              <Undo size={15} />
-            </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Redo (Ctrl+Shift+Z)">
-              <Redo size={15} />
-            </ToolbarBtn>
-            <ToolbarBtn onClick={() => window.print()} title="Print">
-              <Printer size={15} />
-            </ToolbarBtn>
-
-
-            <Sep />
-
-            {/* Group 5: Text formatting */}
-            <ToolbarBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold (Ctrl+B)">
-              <Bold size={15} />
-            </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Italic (Ctrl+I)">
-              <Italic size={15} />
-            </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} title="Underline (Ctrl+U)">
-              <UnderlineIcon size={15} />
-            </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} title="Strikethrough">
-              <Strikethrough size={15} />
-            </ToolbarBtn>
-
-            <Sep />
-
-            {/* Group 6: Text color */}
-            <div className="relative" ref={colorPickerRef}>
-              <button
-                type="button"
-                onMouseDown={(e) => { e.preventDefault(); setColorOpen((o) => !o); setHighlightOpen(false) }}
-                title="Text colour"
-                className="p-1.5 rounded hover:bg-black/8 dark:hover:bg-white/10 transition-colors h-7 flex flex-col items-center justify-center gap-0.5"
-              >
-                <Type size={13} className="text-[#444] dark:text-[var(--fg-muted)]" />
-                <div className="h-1 w-4 rounded-sm" style={{ background: activeColor ?? '#000000' }} />
-              </button>
-              {colorOpen && (
-                <div className={`absolute left-0 top-full mt-1 border shadow-xl z-50 p-2 rounded ${darkMode ? 'bg-[#242424] border-white/15' : 'bg-white border-black/10'}`}>
-                  <p className={`text-[10px] mb-2 uppercase tracking-wider ${darkMode ? 'text-white/40' : 'text-[#666]'}`}>Text colour</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 16px)', gap: 2 }}>
-                    {GOOGLE_DOCS_COLORS.map((c, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        title={c}
-                        onMouseDown={(e) => {
-                          e.preventDefault()
-                          editor.chain().focus().setColor(c).run()
-                          setActiveColor(c)
-                          setColorOpen(false)
-                        }}
-                        className="rounded-full border border-black/10 hover:scale-110 transition-transform"
-                        style={{ width: 16, height: 16, background: c, flexShrink: 0 }}
-                      />
-                    ))}
-                  </div>
-                  <div className="mt-2 flex items-center gap-1.5">
-                    <span className={`text-[10px] ${darkMode ? 'text-white/40' : 'text-[#888]'}`}>#</span>
-                    <input
-                      type="text"
-                      placeholder="hex"
-                      maxLength={7}
-                      className={`w-16 text-xs border rounded px-1 py-0.5 outline-none ${darkMode ? 'bg-[#333] border-white/15 text-white placeholder:text-white/30' : 'bg-white border-black/15 text-[#333]'}`}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          const val = (e.target as HTMLInputElement).value
-                          const hex = val.startsWith('#') ? val : `#${val}`
-                          if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
-                            editor.chain().focus().setColor(hex).run()
-                            setActiveColor(hex)
-                            setColorOpen(false)
-                          }
-                        }
-                      }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault()
-                      editor.chain().focus().unsetColor().run()
-                      setActiveColor(null)
-                      setColorOpen(false)
-                    }}
-                    className={`mt-1 text-[10px] hover:opacity-70 transition-opacity px-1 ${darkMode ? 'text-white/50' : 'text-[#666]'}`}
-                  >
-                    Remove colour
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Highlight color */}
-            <div className="relative" ref={highlightRef}>
-              <button
-                type="button"
-                onMouseDown={(e) => { e.preventDefault(); setHighlightOpen((o) => !o); setColorOpen(false) }}
-                title="Highlight colour"
-                className="p-1.5 rounded hover:bg-black/8 dark:hover:bg-white/10 transition-colors h-7 flex flex-col items-center justify-center gap-0.5"
-              >
-                <Highlighter size={13} className="text-[#444] dark:text-[var(--fg-muted)]" />
-                <div className="h-1 w-4 rounded-sm" style={{ background: activeHighlight ?? '#ffff00' }} />
-              </button>
-              {highlightOpen && (
-                <div className={`absolute left-0 top-full mt-1 border shadow-xl z-50 p-2 rounded ${darkMode ? 'bg-[#242424] border-white/15' : 'bg-white border-black/10'}`}>
-                  <p className={`text-[10px] mb-2 uppercase tracking-wider ${darkMode ? 'text-white/40' : 'text-[#666]'}`}>Highlight</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 16px)', gap: 2 }}>
-                    {GOOGLE_DOCS_COLORS.map((c, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        title={c}
-                        onMouseDown={(e) => {
-                          e.preventDefault()
-                          editor.chain().focus().toggleHighlight({ color: c }).run()
-                          setActiveHighlight(c)
-                          setHighlightOpen(false)
-                        }}
-                        className="rounded-full border border-black/10 hover:scale-110 transition-transform"
-                        style={{ width: 16, height: 16, background: c, flexShrink: 0 }}
-                      />
-                    ))}
-                  </div>
-                  <div className="mt-2 flex items-center gap-1.5">
-                    <span className={`text-[10px] ${darkMode ? 'text-white/40' : 'text-[#888]'}`}>#</span>
-                    <input
-                      type="text"
-                      placeholder="hex"
-                      maxLength={7}
-                      className={`w-16 text-xs border rounded px-1 py-0.5 outline-none ${darkMode ? 'bg-[#333] border-white/15 text-white placeholder:text-white/30' : 'bg-white border-black/15 text-[#333]'}`}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          const val = (e.target as HTMLInputElement).value
-                          const hex = val.startsWith('#') ? val : `#${val}`
-                          if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
-                            editor.chain().focus().toggleHighlight({ color: hex }).run()
-                            setActiveHighlight(hex)
-                            setHighlightOpen(false)
-                          }
-                        }
-                      }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault()
-                      editor.chain().focus().unsetHighlight().run()
-                      setActiveHighlight(null)
-                      setHighlightOpen(false)
-                    }}
-                    className={`mt-1 text-[10px] hover:opacity-70 transition-opacity px-1 ${darkMode ? 'text-white/50' : 'text-[#666]'}`}
-                  >
-                    No highlight
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <Sep />
-
-            {/* Group 7: Link */}
-            <ToolbarBtn onClick={openLinkBar} active={editor.isActive('link')} title="Insert / edit link">
-              <Link2 size={15} />
-            </ToolbarBtn>
-            {editor.isActive('link') && (
-              <ToolbarBtn onClick={() => editor.chain().focus().unsetLink().run()} title="Remove link">
-                <Link2Off size={15} />
-              </ToolbarBtn>
-            )}
-
-            <Sep />
-
-            {/* Group 8: Insert */}
-            {/* Image upload – call .click() directly inside onMouseDown so the
-                browser still treats it as a trusted user gesture */}
-            <ToolbarBtn
-              onClick={() => { fileInputRef.current?.click() }}
-              title={uploading ? 'Uploading…' : 'Insert image'}
-              disabled={uploading}
-            >
-              {uploading
-                ? <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin block" />
-                : <Upload size={15} />}
-            </ToolbarBtn>
-
-            {/* Table grid picker */}
-            <div className="relative" ref={tablePickerRef}>
+              {/* Group 1: History */}
               <ToolbarBtn
-                onClick={() => { setTableOpen((o) => !o); setColorOpen(false); setHighlightOpen(false) }}
-                active={editor.isActive('table')}
-                title="Insert table"
+                onClick={() => editor.chain().focus().undo().run()}
+                disabled={!editor.can().undo()}
+                title="Undo (Ctrl+Z)"
               >
-                <TableIcon size={15} />
+                <Undo size={15} />
               </ToolbarBtn>
-              {tableOpen && (
-                <div className="absolute left-0 top-full mt-1 bg-white dark:bg-[var(--bg-elevated)] border border-black/10 dark:border-white/10 shadow-xl z-50 p-2 rounded">
-                  <p className={`text-[10px] mb-2 ${darkMode ? 'text-white/40' : 'text-[#666] dark:text-[var(--fg-faint)]'}`}>
-                    {tableHover.r > 0 ? `${tableHover.c} x ${tableHover.r} table` : 'Insert table'}
-                  </p>
-                  <div className="grid gap-0.5" style={{ gridTemplateColumns: 'repeat(10, 18px)' }}>
-                    {Array.from({ length: 80 }).map((_, i) => {
-                      const row = Math.floor(i / 10) + 1
-                      const col = (i % 10) + 1
-                      const on  = row <= tableHover.r && col <= tableHover.c
-                      return (
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().redo().run()}
+                disabled={!editor.can().redo()}
+                title="Redo (Ctrl+Shift+Z)"
+              >
+                <Redo size={15} />
+              </ToolbarBtn>
+              <ToolbarBtn onClick={() => window.print()} title="Print">
+                <Printer size={15} />
+              </ToolbarBtn>
+
+              <Sep />
+
+              <select
+                aria-label="Text style"
+                value={
+                  editor.isActive('heading')
+                    ? `h${editor.getAttributes('heading').level}`
+                    : 'paragraph'
+                }
+                onChange={(e) => {
+                  const value = e.target.value
+                  if (value === 'paragraph') editor.chain().focus().setParagraph().run()
+                  else
+                    editor
+                      .chain()
+                      .focus()
+                      .setHeading({ level: Number(value.slice(1)) as 2 | 3 | 4 })
+                      .run()
+                }}
+                className="text-sm border border-[var(--border)] rounded px-2 py-1 bg-transparent"
+              >
+                <option value="paragraph">Paragraph</option>
+                <option value="h2">Heading 2</option>
+                <option value="h3">Heading 3</option>
+                <option value="h4">Heading 4</option>
+              </select>
+              {/* Group 5: Text formatting */}
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().toggleBold().run()}
+                active={editor.isActive('bold')}
+                title="Bold (Ctrl+B)"
+              >
+                <Bold size={15} />
+              </ToolbarBtn>
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().toggleItalic().run()}
+                active={editor.isActive('italic')}
+                title="Italic (Ctrl+I)"
+              >
+                <Italic size={15} />
+              </ToolbarBtn>
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().toggleUnderline().run()}
+                active={editor.isActive('underline')}
+                title="Underline (Ctrl+U)"
+              >
+                <UnderlineIcon size={15} />
+              </ToolbarBtn>
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().toggleStrike().run()}
+                active={editor.isActive('strike')}
+                title="Strikethrough"
+              >
+                <Strikethrough size={15} />
+              </ToolbarBtn>
+
+              <Sep />
+
+              {/* Group 6: Text color */}
+              <div className="relative" ref={colorPickerRef}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setColorOpen((o) => !o)
+                    setHighlightOpen(false)
+                  }}
+                  title="Text colour"
+                  className="p-1.5 rounded hover:bg-black/8 dark:hover:bg-white/10 transition-colors h-7 flex flex-col items-center justify-center gap-0.5"
+                >
+                  <Type size={13} className="text-[#444] dark:text-[var(--fg-muted)]" />
+                  <div
+                    className="h-1 w-4 rounded-sm"
+                    style={{ background: activeColor ?? '#000000' }}
+                  />
+                </button>
+                {colorOpen && (
+                  <div
+                    className={`absolute left-0 top-full mt-1 border shadow-xl z-50 p-2 rounded ${darkMode ? 'bg-[#242424] border-white/15' : 'bg-white border-black/10'}`}
+                  >
+                    <p
+                      className={`text-[10px] mb-2 uppercase tracking-wider ${darkMode ? 'text-white/40' : 'text-[#666]'}`}
+                    >
+                      Text colour
+                    </p>
+                    <div
+                      style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 16px)', gap: 2 }}
+                    >
+                      {GOOGLE_DOCS_COLORS.map((c, i) => (
                         <button
                           key={i}
                           type="button"
-                          onMouseEnter={() => setTableHover({ r: row, c: col })}
-                          onMouseLeave={() => setTableHover({ r: 0, c: 0 })}
-                          onMouseDown={(e) => {
-                            e.preventDefault()
-                            editor.chain().focus().insertTable({ rows: row, cols: col, withHeaderRow: true }).run()
-                            setTableOpen(false)
-                            setTableHover({ r: 0, c: 0 })
+                          title={c}
+                          aria-label={`Colour ${c}`}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            editor.chain().focus().setColor(c).run()
+                            setActiveColor(c)
+                            setColorOpen(false)
                           }}
-                          className={`w-[18px] h-[18px] border transition-colors rounded-sm ${
-                            on
-                              ? 'bg-[#1a2744]/15 border-[#1a2744]/40 dark:bg-gold/20 dark:border-gold/40'
-                              : 'border-black/15 dark:border-white/15 hover:bg-black/5'
-                          }`}
+                          className="rounded-full border border-black/10 hover:scale-110 transition-transform"
+                          style={{ width: 16, height: 16, background: c, flexShrink: 0 }}
                         />
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Horizontal rule */}
-            <ToolbarBtn onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Horizontal rule">
-              <Minus size={15} />
-            </ToolbarBtn>
-
-            <Sep />
-
-            {/* Group 9: Lists */}
-            <ToolbarBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} title="Bullet list">
-              <List size={15} />
-            </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} title="Numbered list">
-              <ListOrdered size={15} />
-            </ToolbarBtn>
-            <ToolbarBtn
-              onClick={() => editor.chain().focus().sinkListItem('listItem').run()}
-              disabled={!editor.can().sinkListItem('listItem')}
-              title="Indent (Tab)"
-            >
-              <Indent size={15} />
-            </ToolbarBtn>
-            <ToolbarBtn
-              onClick={() => editor.chain().focus().liftListItem('listItem').run()}
-              disabled={!editor.can().liftListItem('listItem')}
-              title="Outdent (Shift+Tab)"
-            >
-              <Outdent size={15} />
-            </ToolbarBtn>
-
-            <Sep />
-
-            {/* Group 10: Alignment */}
-            <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="Align left">
-              <AlignLeft size={15} />
-            </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} title="Align centre">
-              <AlignCenter size={15} />
-            </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} title="Align right">
-              <AlignRight size={15} />
-            </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('justify').run()} active={editor.isActive({ textAlign: 'justify' })} title="Justify">
-              <AlignJustify size={15} />
-            </ToolbarBtn>
-
-            <Sep />
-
-            {/* Group 11: Line spacing */}
-            <div className="relative" ref={lineSpacingRef}>
-              <ToolbarBtn onClick={() => setLineSpacingOpen((o) => !o)} title="Line spacing">
-                <span className="text-xs leading-none font-bold">≡</span>
-              </ToolbarBtn>
-              {lineSpacingOpen && (
-                <div className="absolute left-0 top-full mt-1 bg-white dark:bg-[var(--bg-elevated)] border border-black/10 dark:border-white/10 shadow-xl z-50 py-1 rounded min-w-[120px]">
-                  {[
-                    { label: 'Single (1.0)', value: '1' },
-                    { label: '1.15', value: '1.15' },
-                    { label: '1.5', value: '1.5' },
-                    { label: 'Double (2.0)', value: '2' },
-                  ].map(({ label, value }) => (
+                      ))}
+                    </div>
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <span className={`text-[10px] ${darkMode ? 'text-white/40' : 'text-[#888]'}`}>
+                        #
+                      </span>
+                      <input
+                        type="text"
+                        aria-label="Custom text colour"
+                        placeholder="hex"
+                        maxLength={7}
+                        className={`w-16 text-xs border rounded px-1 py-0.5 outline-none ${darkMode ? 'bg-[#333] border-white/15 text-white placeholder:text-white/30' : 'bg-white border-black/15 text-[#333]'}`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const val = (e.target as HTMLInputElement).value
+                            const hex = val.startsWith('#') ? val : `#${val}`
+                            if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+                              editor.chain().focus().setColor(hex).run()
+                              setActiveColor(hex)
+                              setColorOpen(false)
+                            }
+                          }
+                        }}
+                      />
+                    </div>
                     <button
-                      key={value}
                       type="button"
-                      onMouseDown={(e) => { e.preventDefault(); applyLineSpacing(value) }}
-                      className="w-full text-left px-4 py-2 text-xs text-[#333] dark:text-[var(--fg)] hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        editor.chain().focus().unsetColor().run()
+                        setActiveColor(null)
+                        setColorOpen(false)
+                      }}
+                      className={`mt-1 text-[10px] hover:opacity-70 transition-opacity px-1 ${darkMode ? 'text-white/50' : 'text-[#666]'}`}
                     >
-                      {label}
+                      Remove colour
                     </button>
-                  ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Highlight color */}
+              <div className="relative" ref={highlightRef}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setHighlightOpen((o) => !o)
+                    setColorOpen(false)
+                  }}
+                  title="Highlight colour"
+                  className="p-1.5 rounded hover:bg-black/8 dark:hover:bg-white/10 transition-colors h-7 flex flex-col items-center justify-center gap-0.5"
+                >
+                  <Highlighter size={13} className="text-[#444] dark:text-[var(--fg-muted)]" />
+                  <div
+                    className="h-1 w-4 rounded-sm"
+                    style={{ background: activeHighlight ?? '#ffff00' }}
+                  />
+                </button>
+                {highlightOpen && (
+                  <div
+                    className={`absolute left-0 top-full mt-1 border shadow-xl z-50 p-2 rounded ${darkMode ? 'bg-[#242424] border-white/15' : 'bg-white border-black/10'}`}
+                  >
+                    <p
+                      className={`text-[10px] mb-2 uppercase tracking-wider ${darkMode ? 'text-white/40' : 'text-[#666]'}`}
+                    >
+                      Highlight
+                    </p>
+                    <div
+                      style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 16px)', gap: 2 }}
+                    >
+                      {GOOGLE_DOCS_COLORS.map((c, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          title={c}
+                          aria-label={`Colour ${c}`}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            editor.chain().focus().toggleHighlight({ color: c }).run()
+                            setActiveHighlight(c)
+                            setHighlightOpen(false)
+                          }}
+                          className="rounded-full border border-black/10 hover:scale-110 transition-transform"
+                          style={{ width: 16, height: 16, background: c, flexShrink: 0 }}
+                        />
+                      ))}
+                    </div>
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <span className={`text-[10px] ${darkMode ? 'text-white/40' : 'text-[#888]'}`}>
+                        #
+                      </span>
+                      <input
+                        type="text"
+                        aria-label="Custom highlight colour"
+                        placeholder="hex"
+                        maxLength={7}
+                        className={`w-16 text-xs border rounded px-1 py-0.5 outline-none ${darkMode ? 'bg-[#333] border-white/15 text-white placeholder:text-white/30' : 'bg-white border-black/15 text-[#333]'}`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const val = (e.target as HTMLInputElement).value
+                            const hex = val.startsWith('#') ? val : `#${val}`
+                            if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+                              editor.chain().focus().toggleHighlight({ color: hex }).run()
+                              setActiveHighlight(hex)
+                              setHighlightOpen(false)
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        editor.chain().focus().unsetHighlight().run()
+                        setActiveHighlight(null)
+                        setHighlightOpen(false)
+                      }}
+                      className={`mt-1 text-[10px] hover:opacity-70 transition-opacity px-1 ${darkMode ? 'text-white/50' : 'text-[#666]'}`}
+                    >
+                      No highlight
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <Sep />
+
+              {/* Group 7: Link */}
+              <ToolbarBtn
+                onClick={openLinkBar}
+                active={editor.isActive('link')}
+                title="Insert / edit link"
+              >
+                <Link2 size={15} />
+              </ToolbarBtn>
+              {editor.isActive('link') && (
+                <ToolbarBtn
+                  onClick={() => editor.chain().focus().unsetLink().run()}
+                  title="Remove link"
+                >
+                  <Link2Off size={15} />
+                </ToolbarBtn>
+              )}
+
+              <Sep />
+
+              {/* Group 8: Insert */}
+              {/* Image upload – call .click() directly inside onMouseDown so the
+                browser still treats it as a trusted user gesture */}
+              <ToolbarBtn
+                onClick={() => {
+                  fileInputRef.current?.click()
+                }}
+                title={uploading ? 'Uploading…' : 'Insert image'}
+                disabled={uploading}
+              >
+                {uploading ? (
+                  <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin block" />
+                ) : (
+                  <Upload size={15} />
+                )}
+              </ToolbarBtn>
+
+              {/* Table grid picker */}
+              <div className="relative" ref={tablePickerRef}>
+                <ToolbarBtn
+                  onClick={() => {
+                    setTableOpen((o) => !o)
+                    setColorOpen(false)
+                    setHighlightOpen(false)
+                  }}
+                  active={editor.isActive('table')}
+                  title="Insert table"
+                >
+                  <TableIcon size={15} />
+                </ToolbarBtn>
+                {tableOpen && (
+                  <div className="absolute left-0 top-full mt-1 bg-white dark:bg-[var(--bg-elevated)] border border-black/10 dark:border-white/10 shadow-xl z-50 p-2 rounded">
+                    <p
+                      className={`text-[10px] mb-2 ${darkMode ? 'text-white/40' : 'text-[#666] dark:text-[var(--fg-faint)]'}`}
+                    >
+                      {tableHover.r > 0
+                        ? `${tableHover.c} x ${tableHover.r} table`
+                        : 'Insert table'}
+                    </p>
+                    <div
+                      className="grid gap-0.5"
+                      style={{ gridTemplateColumns: 'repeat(10, 18px)' }}
+                    >
+                      {Array.from({ length: 80 }).map((_, i) => {
+                        const row = Math.floor(i / 10) + 1
+                        const col = (i % 10) + 1
+                        const on = row <= tableHover.r && col <= tableHover.c
+                        return (
+                          <button
+                            key={i}
+                            type="button"
+                            onMouseEnter={() => setTableHover({ r: row, c: col })}
+                            onMouseLeave={() => setTableHover({ r: 0, c: 0 })}
+                            aria-label={`Insert ${row} by ${col} table`}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              editor
+                                .chain()
+                                .focus()
+                                .insertTable({ rows: row, cols: col, withHeaderRow: true })
+                                .run()
+                              setTableOpen(false)
+                              setTableHover({ r: 0, c: 0 })
+                            }}
+                            className={`w-[18px] h-[18px] border transition-colors rounded-sm ${
+                              on
+                                ? 'bg-[#1a2744]/15 border-[#1a2744]/40 dark:bg-gold/20 dark:border-gold/40'
+                                : 'border-black/15 dark:border-white/15 hover:bg-black/5'
+                            }`}
+                          />
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Horizontal rule */}
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().setHorizontalRule().run()}
+                title="Horizontal rule"
+              >
+                <Minus size={15} />
+              </ToolbarBtn>
+
+              <Sep />
+
+              {/* Group 9: Lists */}
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().toggleBulletList().run()}
+                active={editor.isActive('bulletList')}
+                title="Bullet list"
+              >
+                <List size={15} />
+              </ToolbarBtn>
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                active={editor.isActive('orderedList')}
+                title="Numbered list"
+              >
+                <ListOrdered size={15} />
+              </ToolbarBtn>
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().sinkListItem('listItem').run()}
+                disabled={!editor.can().sinkListItem('listItem')}
+                title="Indent (Tab)"
+              >
+                <Indent size={15} />
+              </ToolbarBtn>
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().liftListItem('listItem').run()}
+                disabled={!editor.can().liftListItem('listItem')}
+                title="Outdent (Shift+Tab)"
+              >
+                <Outdent size={15} />
+              </ToolbarBtn>
+
+              <Sep />
+
+              {/* Group 10: Alignment */}
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().setTextAlign('left').run()}
+                active={editor.isActive({ textAlign: 'left' })}
+                title="Align left"
+              >
+                <AlignLeft size={15} />
+              </ToolbarBtn>
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().setTextAlign('center').run()}
+                active={editor.isActive({ textAlign: 'center' })}
+                title="Align centre"
+              >
+                <AlignCenter size={15} />
+              </ToolbarBtn>
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().setTextAlign('right').run()}
+                active={editor.isActive({ textAlign: 'right' })}
+                title="Align right"
+              >
+                <AlignRight size={15} />
+              </ToolbarBtn>
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().setTextAlign('justify').run()}
+                active={editor.isActive({ textAlign: 'justify' })}
+                title="Justify"
+              >
+                <AlignJustify size={15} />
+              </ToolbarBtn>
+
+              <Sep />
+
+              {/* Group 11: Line spacing */}
+              <div className="relative" ref={lineSpacingRef}>
+                <ToolbarBtn onClick={() => setLineSpacingOpen((o) => !o)} title="Line spacing">
+                  <span className="text-xs leading-none font-bold">≡</span>
+                </ToolbarBtn>
+                {lineSpacingOpen && (
+                  <div className="absolute left-0 top-full mt-1 bg-white dark:bg-[var(--bg-elevated)] border border-black/10 dark:border-white/10 shadow-xl z-50 py-1 rounded min-w-[120px]">
+                    {[
+                      { label: 'Single (1.0)', value: '1' },
+                      { label: '1.15', value: '1.15' },
+                      { label: '1.5', value: '1.5' },
+                      { label: 'Double (2.0)', value: '2' },
+                    ].map(({ label, value }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          applyLineSpacing(value)
+                        }}
+                        className="w-full text-left px-4 py-2 text-xs text-[#333] dark:text-[var(--fg)] hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <Sep />
+
+              {/* Group 12: Block formats */}
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                active={editor.isActive('blockquote')}
+                title="Block quote"
+              >
+                <Quote size={15} />
+              </ToolbarBtn>
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                active={editor.isActive('codeBlock')}
+                title="Code block"
+              >
+                <Code2 size={15} />
+              </ToolbarBtn>
+              <ToolbarBtn
+                onClick={() => editor.chain().focus().togglePullQuote().run()}
+                active={editor.isActive('pullQuote')}
+                title="Pull quote"
+              >
+                <Star size={15} />
+              </ToolbarBtn>
+              <ToolbarBtn
+                onClick={() => {
+                  const text = window.prompt('Footnote text:')
+                  if (text && text.trim()) editor.chain().focus().insertFootnote(text.trim()).run()
+                }}
+                title="Insert footnote"
+              >
+                <Superscript size={15} />
+              </ToolbarBtn>
+
+              {/* Save status indicator */}
+              {saveStatus && saveStatus !== 'idle' && (
+                <div className="ml-auto pr-1 flex items-center gap-1.5 text-xs">
+                  {saveStatus === 'saving' && <span className="text-[#999]">Saving…</span>}
+                  {saveStatus === 'saved' && (
+                    <span className="text-emerald-600 dark:text-emerald-400">Saved</span>
+                  )}
+                  {saveStatus === 'error' && (
+                    <span className="text-red-500">{saveError ?? 'Save failed'}</span>
+                  )}
                 </div>
               )}
             </div>
-
-            <Sep />
-
-            {/* Group 12: Block formats */}
-            <ToolbarBtn onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')} title="Block quote">
-              <Quote size={15} />
-            </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editor.isActive('codeBlock')} title="Code block">
-              <Code2 size={15} />
-            </ToolbarBtn>
-            <ToolbarBtn onClick={() => editor.chain().focus().togglePullQuote().run()} active={editor.isActive('pullQuote')} title="Pull quote">
-              <Star size={15} />
-            </ToolbarBtn>
-            <ToolbarBtn
-              onClick={() => {
-                const text = window.prompt('Footnote text:')
-                if (text && text.trim()) editor.chain().focus().insertFootnote(text.trim()).run()
-              }}
-              title="Insert footnote"
-            >
-              <Superscript size={15} />
-            </ToolbarBtn>
-
-            {/* Save status indicator */}
-            {saveStatus && saveStatus !== 'idle' && (
-              <div className="ml-auto pr-1 flex items-center gap-1.5 text-xs">
-                {saveStatus === 'saving' && <span className="text-[#999]">Saving…</span>}
-                {saveStatus === 'saved'  && <span className="text-emerald-600 dark:text-emerald-400">Saved</span>}
-                {saveStatus === 'error'  && <span className="text-red-500">{saveError ?? 'Save failed'}</span>}
-              </div>
-            )}
-          </div>
           )
           if (toolbarPortalRef?.current) {
             return createPortal(toolbarContent, toolbarPortalRef.current)
@@ -907,54 +1343,57 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
           )
         })()}
 
-        {/* ── Single hidden file input ─────────────────────────────────────── */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple={false}
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) void uploadImage(f)
-            e.target.value = ''
-          }}
+      {/* ── Single hidden file input ─────────────────────────────────────── */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple={false}
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) void uploadImage(f)
+          e.target.value = ''
+        }}
+      />
+
+      {/* ── Document page area ──────────────────────────────────────── */}
+      {noWrapper ? (
+        <EditorContent
+          editor={editor}
+          className={`tiptap-editor ${noWrapper ? 'tiptap-no-wrapper' : ''} ${darkMode ? 'editor-dark-mode' : ''} ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
         />
-
-        {/* ── Document page area ──────────────────────────────────────── */}
-        {noWrapper ? (
-          <EditorContent
-            editor={editor}
-            className={`tiptap-editor ${noWrapper ? 'tiptap-no-wrapper' : ''} ${darkMode ? 'editor-dark-mode' : ''} ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
-          />
-        ) : (
-          <div className="editor-outer min-h-[600px] py-8 px-4">
-            <div className="editor-page max-w-[1000px] mx-auto">
-              <EditorContent
-                editor={editor}
-                className={`tiptap-editor ${darkMode ? 'editor-dark-mode' : ''} ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
-              />
-            </div>
+      ) : (
+        <div className="editor-outer min-h-[600px] py-8 px-4">
+          <div className="editor-page max-w-[1000px] mx-auto">
+            <EditorContent
+              editor={editor}
+              className={`tiptap-editor ${darkMode ? 'editor-dark-mode' : ''} ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
+            />
           </div>
-        )}
+        </div>
+      )}
 
-        {/* ── Status bar ──────────────────────────────────────────────────── */}
-        {editable && (
-          <div className="editor-outer border-t border-black/8 dark:border-white/8 px-4 py-1.5 flex items-center justify-between">
-            <span className="text-xs text-[#888] dark:text-[var(--fg-faint)]">
-              {wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'}
-              {wordCount > 0 && <span className="ml-2 opacity-60">{readingTime} min read</span>}
-            </span>
-            <span className="text-[10px] text-[#aaa] dark:text-[var(--fg-faint)] hidden sm:block">
-              Ctrl+B bold · Ctrl+I italic · Ctrl+U underline · Ctrl+Z undo
-            </span>
-          </div>
-        )}
-      </div>
-    )
-  }
-)
+      {/* ── Status bar ──────────────────────────────────────────────────── */}
+      {editable && (
+        <div className="editor-outer border-t border-black/8 dark:border-white/8 px-4 py-1.5 flex items-center justify-between">
+          <span className="text-xs text-[#888] dark:text-[var(--fg-faint)]">
+            {wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'}
+            {wordCount > 0 && <span className="ml-2 opacity-60">{readingTime} min read</span>}
+          </span>
+          <span className="text-[10px] text-[#aaa] dark:text-[var(--fg-faint)] hidden sm:block">
+            Ctrl+B bold · Ctrl+I italic · Ctrl+U underline · Ctrl+Z undo
+          </span>
+        </div>
+      )}
+    </div>
+  )
+})
 
 function tryParseContent(content: string) {
-  try { return JSON.parse(content) } catch { return content }
+  try {
+    return JSON.parse(content)
+  } catch {
+    return content
+  }
 }

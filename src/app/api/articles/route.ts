@@ -1,3 +1,5 @@
+import { figureAltError } from '@/lib/figureValidation'
+import { ArticleImageUnavailableError, lockArticleImages } from '@/lib/articleImageStorage'
 import { resolveArticleTag } from '@/lib/resolveArticleTag'
 import { NextResponse, NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
@@ -214,11 +216,17 @@ export async function POST(request: NextRequest) {
       slug = `${slug}-${Date.now()}`
     }
 
+    if (['PENDING_REVIEW', 'SCHEDULED', 'PUBLISHED'].includes(finalStatus)) {
+      const altError = figureAltError(content)
+      if (altError) return NextResponse.json({ error: altError }, { status: 400 })
+    }
+
     // Bounded and validated before the transaction opens, so the work inside it
     // is a known quantity.
     const normalizedTags = normalizeArticleTags(tags)
 
     const article = await prisma.$transaction(async (tx) => {
+      await lockArticleImages(tx, content, coverImage)
       const created = await tx.article.create({
         data: {
           title: effectiveTitle,
@@ -256,6 +264,7 @@ export async function POST(request: NextRequest) {
       headers: { 'x-request-id': requestId },
     })
   } catch (error) {
+    if (error instanceof ArticleImageUnavailableError) return NextResponse.json({ error: error.message }, { status: 400 })
     return articleMutationErrorResponse(error, 'create', requestId)
   }
 }

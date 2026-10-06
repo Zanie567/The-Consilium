@@ -1381,3 +1381,26 @@ mark {
 @media (prefers-reduced-motion: reduce) {
   .comment-highlight.comment-highlight-active { animation: none; }
 }
+
+/* Rich blocks contain wide content; editor and publication use the same scale. */
+.table-scroll, .tiptap-editor .tableWrapper { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+.prose-consilium .article-table { min-width: 0; max-width: 100%; margin: 2rem 0; }
+.prose-consilium .article-table table { margin: 0; min-width: 30rem; }
+.tiptap-editor .tableWrapper table { min-width: 30rem; margin: 0; }
+.tiptap-editor .tableWrapper { margin: 1.5rem 0; }
+.prose-consilium th, .prose-consilium td { min-width: 7rem; overflow-wrap: anywhere; }
+.prose-consilium td p, .prose-consilium th p { margin: 0.3rem 0; }
+.prose-consilium .article-table figcaption { margin-bottom: 0.75rem; font-size: 1rem; font-style: italic; }
+.table-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.75rem; max-width: 100%; }
+.table-controls button { border: 1px solid var(--border); padding: 0.5rem; font-size: 0.8rem; }
+.figure-fields { display: grid; gap: 0.6rem; margin-top: 0.75rem; font-size: 0.85rem; min-width: 0; }
+.figure-fields label { display: grid; gap: 0.25rem; min-width: 0; }
+.figure-fields input:not([type=checkbox]), .figure-fields select { width: 100%; min-width: 0; padding: 0.5rem; background: var(--bg); border: 1px solid var(--border); font-size: 1rem; }
+.figure-fields input:focus-visible, .figure-fields select:focus-visible, .table-controls button:focus-visible { outline: 2px solid var(--gold, #c9a227); outline-offset: 2px; }
+.article-figure, .article-figure-wrapper { min-width: 0; max-width: 100%; }
+.article-figure img { max-width: 100%; height: auto; }
+.article-figure figcaption, .article-figure p { overflow-wrap: anywhere; }
+.prose-consilium .figure-source, .prose-consilium .figure-note, .prose-consilium .image-credit,
+.prose-consilium .table-source, .prose-consilium .table-note { font-size: 0.85rem; margin: 0.4rem 0; color: var(--fg-muted); }
+.figure-centered img { width: auto; max-height: 40rem; margin-inline: auto; }
+.tiptap-editor .tableWrapper table { table-layout: auto; }

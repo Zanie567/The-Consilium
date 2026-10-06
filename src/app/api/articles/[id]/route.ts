@@ -1,3 +1,5 @@
+import { figureAltError } from '@/lib/figureValidation'
+import { ArticleImageUnavailableError, lockArticleImages, cleanupRemovedArticleImages } from '@/lib/articleImageStorage'
 import { resolveArticleTag } from '@/lib/resolveArticleTag'
 import { NextResponse, NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
@@ -192,11 +194,17 @@ export async function PUT(
     const wasUnpublished =
       existing.status === 'PUBLISHED' && finalStatus !== 'PUBLISHED'
 
+    if (['PENDING_REVIEW', 'SCHEDULED', 'PUBLISHED'].includes(finalStatus)) {
+      const altError = figureAltError(content ?? existing.content)
+      if (altError) return NextResponse.json({ error: altError }, { status: 400 })
+    }
+
     // Bounded and validated before the transaction opens, so the work inside it
     // is a known quantity.
     const normalizedTags = normalizeArticleTags(tags)
 
     const updated = await prisma.$transaction(async (tx) => {
+      await lockArticleImages(tx, content ?? existing.content, coverImage ?? existing.coverImage)
       const savedArticle = await tx.article.update({
         where: { id },
         data: {
@@ -246,6 +254,8 @@ export async function PUT(
 
       return savedArticle
     }, { timeout: ARTICLE_SAVE_TIMEOUT_MS })
+
+    await cleanupRemovedArticleImages(existing.content, existing.coverImage, updated.content, updated.coverImage)
 
     // Notify category editors when submitted
     if (wasJustSubmitted) {
@@ -318,6 +328,7 @@ export async function PUT(
 
     return NextResponse.json(updated, { headers: { 'x-request-id': requestId } })
   } catch (error) {
+    if (error instanceof ArticleImageUnavailableError) return NextResponse.json({ error: error.message }, { status: 400 })
     return articleMutationErrorResponse(error, 'update', requestId)
   }
 }
@@ -365,6 +376,7 @@ export async function DELETE(
       { headers: { 'x-request-id': requestId } }
     )
   } catch (error) {
+    if (error instanceof ArticleImageUnavailableError) return NextResponse.json({ error: error.message }, { status: 400 })
     return articleMutationErrorResponse(error, 'delete', requestId)
   }
 }

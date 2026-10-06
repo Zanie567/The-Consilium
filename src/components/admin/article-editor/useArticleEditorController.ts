@@ -185,18 +185,14 @@ export function useArticleEditorController({
   useEffect(() => { selectedAuthorIdRef.current = selectedAuthorId }, [selectedAuthorId])
 
   useEffect(() => {
-    const element = titleDomRef.current
-    if (!element) return
-    element.style.height = 'auto'
-    element.style.height = `${element.scrollHeight}px`
-  }, [title, titleDomRef])
-
-  useEffect(() => {
-    const element = excerptDomRef.current
-    if (!element) return
-    element.style.height = 'auto'
-    element.style.height = `${element.scrollHeight}px`
-  }, [excerpt, excerptDomRef])
+    const elements = [titleDomRef.current, excerptDomRef.current].filter((element): element is HTMLTextAreaElement => Boolean(element))
+    const resize = () => { for (const element of elements) { element.style.height = 'auto'; element.style.height = `${element.scrollHeight}px` } }
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(resize)
+    for (const element of elements) if (element.parentElement) observer?.observe(element.parentElement)
+    resize()
+    void document.fonts?.ready.then(resize)
+    return () => observer?.disconnect()
+  }, [title, excerpt, titleDomRef, excerptDomRef])
 
   const performSave = useCallback((overrideStatus?: string): Promise<boolean> => {
     const requestedStatus = overrideStatus ?? statusRef.current

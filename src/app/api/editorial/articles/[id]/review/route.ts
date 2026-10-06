@@ -1,3 +1,4 @@
+import { figureAltError } from '@/lib/figureValidation'
 import { NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -78,6 +79,11 @@ export async function PATCH(req: Request, { params }: Props) {
         'INVALID_STATUS_TRANSITION',
         requestId
       )
+    }
+
+    if (action === 'approve' || action === 'schedule') {
+      const altError = figureAltError(article.content)
+      if (altError) return NextResponse.json({ error: altError }, { status: 400 })
     }
 
     let updates: Record<string, unknown> = {}

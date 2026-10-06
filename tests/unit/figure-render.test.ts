@@ -14,9 +14,9 @@ describe('figure extraction preserves stored-document rendering', () => {
     ])
     expect(html).toBe(
       '<figure class="article-figure"><img src="https://example.com/one.png" alt="First chart" />' +
-      '<figcaption class="caption">First</figcaption><p class="image-credit">Jane</p></figure>' +
+      '<figcaption class="caption">First</figcaption><p class="image-credit">Credit: Jane</p></figure>' +
       '<figure class="article-figure"><img src="https://example.com/two.png" alt="Second chart" />' +
-      '<figcaption class="caption">Second</figcaption><p class="image-credit">Jo</p></figure>',
+      '<figcaption class="caption">Second</figcaption><p class="image-credit">Credit: Jo</p></figure>',
     )
   })
 

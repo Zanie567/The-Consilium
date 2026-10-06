@@ -1,3 +1,4 @@
+import { cleanupRemovedArticleImages } from '@/lib/articleImageStorage'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
@@ -101,7 +102,7 @@ export async function DELETE(_req: NextRequest, { params }: Props) {
           metadata: { title: article.title, authorId: article.authorId },
         },
       })
-      return { success: true } as const
+      return { success: true, content: article.content, coverImage: article.coverImage } as const
     })
 
     if ('scopeDenied' in result) {
@@ -112,6 +113,7 @@ export async function DELETE(_req: NextRequest, { params }: Props) {
       )
     }
     if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status })
+    if ('content' in result) await cleanupRemovedArticleImages(result.content, result.coverImage, '', null, true)
     return NextResponse.json({ success: true })
   } catch {
     return NextResponse.json({ error: 'Failed to permanently delete article' }, { status: 500 })

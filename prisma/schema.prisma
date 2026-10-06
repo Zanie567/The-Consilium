@@ -703,3 +703,16 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+// Managed new uploads only; legacy Storage URLs are not rewritten or garbage-collected.
+model ArticleImageAsset {
+  url         String   @id
+  path        String   @unique
+  uploaderId  String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  unusedSince DateTime? @default(now()) @db.Timestamptz(3)
+
+  @@index([unusedSince, createdAt])
+  @@index([uploaderId])
+  @@map("article_image_assets")
+}

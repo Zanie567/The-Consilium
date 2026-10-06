@@ -1,5 +1,6 @@
 import { escapeHtml as escHtml } from '@/lib/escapeHtml'
 import { sanitizeArticleHtml } from '@/lib/articleSanitize'
+import { renderArticleTable } from '@/lib/tableRender'
 import { renderArticleFigure } from '@/lib/figureRender'
 import type { TiptapNode } from '@/lib/richContent'
 export type { TiptapNode } from '@/lib/richContent'
@@ -44,28 +45,52 @@ interface RenderState {
   footnotes: ArticleFootnote[]
 }
 
+function blockStyle(node: TiptapNode): string {
+  const alignment = node.attrs?.textAlign
+  return typeof alignment === 'string' && ['left', 'right', 'center', 'justify'].includes(alignment)
+    ? ` style="text-align:${alignment}"`
+    : ''
+}
+
 function nodeToHtml(node: TiptapNode, state: RenderState): string {
   switch (node.type) {
     case 'paragraph': {
       const inner = node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''
       if (!inner.trim()) return ''
-      return `<p>${inner}</p>`
+      return `<p${blockStyle(node)}>${inner}</p>`
     }
     case 'heading': {
       // Clamp to a valid h1-h6: the level is interpolated into the tag name, so an
       // unvalidated attribute (e.g. level = "1><img onerror=...>") would inject markup.
       const raw = Number(node.attrs?.level)
       const level = Number.isFinite(raw) ? Math.min(6, Math.max(1, Math.trunc(raw))) : 2
-      return `<h${level}>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</h${level}>`
+      return `<h${level}${blockStyle(node)}>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</h${level}>`
     }
     case 'text': {
       let text = escHtml(node.text ?? '')
       if (node.marks) {
         for (const mark of node.marks) {
-          if (mark.type === 'bold')      text = `<strong>${text}</strong>`
-          if (mark.type === 'italic')    text = `<em>${text}</em>`
+          if (mark.type === 'bold') text = `<strong>${text}</strong>`
+          if (mark.type === 'italic') text = `<em>${text}</em>`
+          if (mark.type === 'strike') text = `<s>${text}</s>`
+          if (mark.type === 'code') text = `<code>${text}</code>`
           if (mark.type === 'underline') text = `<u>${text}</u>`
-          if (mark.type === 'highlight') text = `<mark>${text}</mark>`
+          if (mark.type === 'highlight') {
+            const color = String(mark.attrs?.color ?? '')
+            text = `<mark${/^#[0-9a-f]{3,8}$/i.test(color) ? ` style="background-color:${color}"` : ''}>${text}</mark>`
+          }
+          if (mark.type === 'textStyle') {
+            const styles: string[] = []
+            const color = String(mark.attrs?.color ?? '')
+            const size = String(mark.attrs?.fontSize ?? '')
+            const height = String(mark.attrs?.lineHeight ?? '')
+            if (/^#[0-9a-f]{3,8}$/i.test(color)) styles.push(`color:${color}`)
+            if (/^\d+(\.\d+)?px$/.test(size) && parseFloat(size) >= 12 && parseFloat(size) <= 96)
+              styles.push(`font-size:${size}`)
+            if (/^\d+(\.\d+)?$/.test(height) && Number(height) >= 1 && Number(height) <= 3)
+              styles.push(`line-height:${height}`)
+            if (styles.length) text = `<span style="${styles.join(';')}">${text}</span>`
+          }
           if (mark.type === 'link') {
             const href = safeHref(String(mark.attrs?.href ?? '#'))
             const target = escHtml(String(mark.attrs?.target ?? '_self'))
@@ -75,16 +100,26 @@ function nodeToHtml(node: TiptapNode, state: RenderState): string {
       }
       return text
     }
-    case 'bulletList':    return `<ul>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</ul>`
-    case 'orderedList':   return `<ol>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</ol>`
-    case 'listItem':      return `<li>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</li>`
-    case 'blockquote':    return `<blockquote>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</blockquote>`
-    case 'horizontalRule': return `<hr />`
+    case 'bulletList':
+      return `<ul>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</ul>`
+    case 'orderedList':
+      return `<ol${Number.isInteger(node.attrs?.start) && Number(node.attrs?.start) > 1 ? ` start="${Math.min(100000, Number(node.attrs?.start))}"` : ''}>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</ol>`
+    case 'listItem':
+      return `<li>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</li>`
+    case 'blockquote':
+      return `<blockquote>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</blockquote>`
+    case 'horizontalRule':
+      return `<hr />`
+    case 'table':
+      return renderArticleTable(node, (n) => nodeToHtml(n, state))
+    case 'codeBlock':
+      return `<pre><code>${escHtml(node.content?.map((n) => n.text ?? '').join('') ?? '')}</code></pre>`
     case 'image':
       return renderArticleFigure(node.attrs, true)
     case 'figure':
       return renderArticleFigure(node.attrs)
-    case 'hardBreak': return `<br />`
+    case 'hardBreak':
+      return `<br />`
     case 'pullQuote':
       return `<aside data-type="pull-quote" class="pull-quote">${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</aside>`
     case 'footnoteRef': {
@@ -115,7 +150,9 @@ export function renderContent(content: string): { html: string; footnotes: Artic
     const parsed = JSON.parse(content)
     if (parsed?.type === 'doc') {
       const state: RenderState = { footnotes: [] }
-      const html = ((parsed.content ?? []) as TiptapNode[]).map((n) => nodeToHtml(n, state)).join('')
+      const html = ((parsed.content ?? []) as TiptapNode[])
+        .map((n) => nodeToHtml(n, state))
+        .join('')
       // Defense-in-depth: even though nodeToHtml escapes text and validates hrefs,
       // run the assembled HTML through the sanitiser so any future renderer gap (a
       // new node type, an unescaped attribute) cannot become stored XSS.
