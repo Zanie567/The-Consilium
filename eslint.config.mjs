@@ -7,6 +7,12 @@ const eslintConfig = defineConfig([
   ...nextTs,
   globalIgnores([
     ".next/**",
+    ".next-e2e*/**",
+    ".next-e2e*.tsconfig.json",
+    // Archived browser traces/reports are generated bundles, not source code.
+    "docs/testing/evidence/**",
+    "**/playwright-report/**",
+    "**/test-results/**",
     ".claude/**",
     ".vercel/**",
     "out/**",

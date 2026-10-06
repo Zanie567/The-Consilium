@@ -11,7 +11,8 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-eval "$(npx ts-node -P tsconfig.seed.json scripts/test-db-env.ts)" || { echo "✗ refusing: unsafe test database"; exit 1; }
+PLATFORM_TEST_DB_EXPORTS=$(npx ts-node -P tsconfig.seed.json scripts/test-db-env.ts) || { echo "✗ refusing: unsafe test database"; exit 1; }
+eval "$PLATFORM_TEST_DB_EXPORTS" || { echo "✗ refusing: invalid test database environment"; exit 1; }
 echo "→ test database: $(node -e 'console.log(new URL(process.env.TEST_DATABASE_URL).host)')"
 
 PORT="${E2E_APP_PORT:-3200}"

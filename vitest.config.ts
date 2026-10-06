@@ -12,6 +12,10 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    // Live HTTP and direct-DB files mutate the same seeded test database. Serial
+    // files keep count/roster assertions from racing another file's fixtures.
+    // Parallel specialist work uses separate databases, not shared workers.
+    fileParallelism: false,
     // E2E specs live in tests/e2e and use @playwright/test, not vitest.
     exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**'],
     // Forward the live-server base URL (and seed credentials) into the test

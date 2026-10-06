@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 import { apiError } from '@/lib/apiResponse'
+import { revalidateArticleLists } from '@/lib/revalidateArticles'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -54,6 +55,7 @@ export async function PATCH(_req: NextRequest, { params }: Props) {
       )
     }
     if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status })
+    if (result.restored?.status === 'PUBLISHED') revalidateArticleLists()
     return NextResponse.json(result.restored)
   } catch {
     return NextResponse.json({ error: 'Failed to restore article' }, { status: 500 })

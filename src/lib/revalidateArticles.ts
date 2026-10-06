@@ -1,4 +1,4 @@
-import { updateTag } from 'next/cache'
+import { revalidateTag } from 'next/cache'
 import { ARTICLES_CACHE_TAG } from './articleQueries'
 
 /**
@@ -12,9 +12,9 @@ import { ARTICLES_CACHE_TAG } from './articleQueries'
  */
 export function revalidateArticleLists(): void {
   try {
-    // updateTag immediately expires the tagged cache entries (read-your-writes);
-    // the time-based revalidate on each unstable_cache entry is the backstop.
-    updateTag(ARTICLES_CACHE_TAG)
+    // updateTag is Server Action-only in Next 16. Route handlers and cron use
+    // explicit expiration so the next list read waits for fresh public content.
+    revalidateTag(ARTICLES_CACHE_TAG, { expire: 0 })
   } catch (err) {
     console.error('[revalidateArticleLists] failed:', err)
   }

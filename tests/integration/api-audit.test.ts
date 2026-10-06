@@ -233,10 +233,25 @@ describe('Auth / session', () => {
 describe('Reading progress', () => {
   it('POST /api/reading-progress (authed) → 200 {ok}', async () => {
     if (!up || !firstArticleId) return
-    const res = await reader.post('/api/reading-progress', { articleId: firstArticleId, progress: 42 })
-    const body = await res.json()
-    expect(res.status, JSON.stringify(body)).toBe(200)
-    expect(body.ok).toBe(true)
+    // The newest seeded article may be the three-reader read-through fixture.
+    // Adding Alice to it corrupts the DB aggregation suite on a subsequent run.
+    // Exercise the real HTTP route on a dedicated, owned synthetic article.
+    const created = await admin.post('/api/articles', {
+      title: `Audit reading-progress fixture ${crypto.randomUUID()}`,
+      content: JSON.stringify({ type: 'doc', content: [] }),
+      status: 'PUBLISHED',
+    })
+    expect(created.status).toBe(201)
+    const article = await created.json()
+    try {
+      const res = await reader.post('/api/reading-progress', { articleId: article.id, progress: 42 })
+      const body = await res.json()
+      expect(res.status, JSON.stringify(body)).toBe(200)
+      expect(body.ok).toBe(true)
+    } finally {
+      expect((await admin.del(`/api/articles/${article.id}`)).status).toBe(200)
+      expect((await admin.del(`/api/editorial/trash/${article.id}`)).status).toBe(200)
+    }
   })
   it('GET /api/reading-progress (authed) → 200', async () => {
     if (!up) return

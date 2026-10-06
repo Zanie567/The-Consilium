@@ -71,7 +71,7 @@ export default defineConfig({
       // within a single test, so it manages its own per-role API contexts
       // rather than using one project-level storageState.
       name: 'lifecycle',
-      testMatch: /publication-lifecycle\.spec\.ts/,
+      testMatch: /publication-(lifecycle|cache)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },

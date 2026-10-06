@@ -1,0 +1,13 @@
+[platform-check] guarded test DB; app localhost:3197; storage loopback:55491; email/OAuth disabled
+
+> the-consilium@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.7 /Users/zanie/The-Consilium
+
+
+ Test Files  58 passed (58)
+      Tests  893 passed | 7 expected fail | 18 skipped (918)
+   Start at  13:55:10
+   Duration  12.39s (transform 482ms, setup 251ms, import 2.05s, tests 5.29s, environment 540ms)

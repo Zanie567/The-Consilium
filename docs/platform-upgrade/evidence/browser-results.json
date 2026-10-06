@@ -1,0 +1,106 @@
+[
+  {
+    "width": 375,
+    "route": "/",
+    "status": 200,
+    "overflow": false,
+    "errors": [],
+    "screenshot": "375-home.png"
+  },
+  {
+    "width": 375,
+    "route": "/category/news",
+    "status": 200,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "width": 375,
+    "route": "/team",
+    "status": 200,
+    "overflow": false,
+    "errors": [
+      "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+    ]
+  },
+  {
+    "width": 768,
+    "route": "/",
+    "status": 200,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "route": "/category/news",
+    "status": 200,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "route": "/team",
+    "status": 200,
+    "overflow": false,
+    "errors": [
+      "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+    ]
+  },
+  {
+    "width": 1440,
+    "route": "/",
+    "status": 200,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "route": "/category/news",
+    "status": 200,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "route": "/team",
+    "status": 200,
+    "overflow": false,
+    "errors": [
+      "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+    ],
+    "screenshot": "1440-team.png"
+  },
+  {
+    "action": "existing search for carbon",
+    "result": "article results visible"
+  },
+  {
+    "width": 375,
+    "route": "editor with uploaded figure",
+    "overflow": false,
+    "errors": [],
+    "screenshot": "375-editor.png"
+  },
+  {
+    "width": 768,
+    "route": "editor with uploaded figure",
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "route": "editor with uploaded figure",
+    "overflow": false,
+    "errors": [],
+    "screenshot": "1440-editor.png"
+  },
+  {
+    "action": "bold, upload, caption, credit, draft save/reload",
+    "result": "preserved"
+  },
+  {
+    "cleanup": "only owned synthetic article",
+    "soft": 200,
+    "hard": 200
+  }
+]

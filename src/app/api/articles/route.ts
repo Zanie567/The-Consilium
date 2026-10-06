@@ -11,6 +11,7 @@ import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 import { apiError, articleMutationErrorResponse } from '@/lib/apiResponse'
 import type { ArticleStatus } from '@prisma/client'
+import { revalidateArticleLists } from '@/lib/revalidateArticles'
 
 const STAFF_ARTICLE_STATUSES = [
   'DRAFT',
@@ -250,6 +251,8 @@ export async function POST(request: NextRequest) {
 
       return created
     }, { timeout: ARTICLE_SAVE_TIMEOUT_MS })
+
+    if (article.status === 'PUBLISHED') revalidateArticleLists()
 
     return NextResponse.json(article, {
       status: 201,

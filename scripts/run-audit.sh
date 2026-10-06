@@ -23,7 +23,8 @@ cd "$(dirname "$0")/.." || { echo "✗ could not cd to project root"; exit 1; }
 # production one in .env.local. Exporting these here means `next start` below
 # inherits them (Next never overrides an already-set variable with .env.local).
 # Aborts on an unsafe URL; the rules live in scripts/lib/assertSafeTestDatabaseHost.ts.
-eval "$(npx ts-node -P tsconfig.seed.json scripts/test-db-env.ts)" || { echo "✗ refusing: unsafe test database"; exit 1; }
+PLATFORM_TEST_DB_EXPORTS=$(npx ts-node -P tsconfig.seed.json scripts/test-db-env.ts) || { echo "✗ refusing: unsafe test database"; exit 1; }
+eval "$PLATFORM_TEST_DB_EXPORTS" || { echo "✗ refusing: invalid test database environment"; exit 1; }
 
 PORT="${AUDIT_PORT:-3100}"
 BASE="${AUDIT_BASE_URL:-http://localhost:$PORT}"

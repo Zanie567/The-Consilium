@@ -1,5 +1,8 @@
 import { escapeHtml as escHtml } from '@/lib/escapeHtml'
 import { sanitizeArticleHtml } from '@/lib/articleSanitize'
+import { renderArticleFigure } from '@/lib/figureRender'
+import type { TiptapNode } from '@/lib/richContent'
+export type { TiptapNode } from '@/lib/richContent'
 
 /**
  * TipTap JSON -> article HTML renderer, shared by the public article page and
@@ -30,19 +33,6 @@ function safeHref(href: string): string {
     return '#'
   }
   return cleaned
-}
-
-interface TiptapMark {
-  type: string
-  attrs?: Record<string, string | number | boolean | null>
-}
-
-export interface TiptapNode {
-  type: string
-  content?: TiptapNode[]
-  text?: string
-  marks?: TiptapMark[]
-  attrs?: Record<string, string | number | boolean | null>
 }
 
 export interface ArticleFootnote {
@@ -91,19 +81,9 @@ function nodeToHtml(node: TiptapNode, state: RenderState): string {
     case 'blockquote':    return `<blockquote>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</blockquote>`
     case 'horizontalRule': return `<hr />`
     case 'image':
-      // Legacy plain image nodes (new content uses 'figure')
-      return `<figure class="article-figure"><img src="${escHtml(String(node.attrs?.src ?? ''))}" alt="${escHtml(String(node.attrs?.alt ?? ''))}" /></figure>`
-    case 'figure': {
-      const src = escHtml(String(node.attrs?.src ?? ''))
-      const alt = escHtml(String(node.attrs?.alt ?? ''))
-      const caption = escHtml(String(node.attrs?.caption ?? ''))
-      const credit = escHtml(String(node.attrs?.credit ?? ''))
-      let html = `<figure class="article-figure"><img src="${src}" alt="${alt}" />`
-      if (caption) html += `<figcaption class="caption">${caption}</figcaption>`
-      if (credit) html += `<p class="image-credit">${credit}</p>`
-      html += `</figure>`
-      return html
-    }
+      return renderArticleFigure(node.attrs, true)
+    case 'figure':
+      return renderArticleFigure(node.attrs)
     case 'hardBreak': return `<br />`
     case 'pullQuote':
       return `<aside data-type="pull-quote" class="pull-quote">${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</aside>`

@@ -10,6 +10,24 @@ const scriptSrc =
     ? "script-src 'self' 'unsafe-inline'"
     : "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
 
+// Existing test-only image allowance: explicit switch and exact loopback URL.
+// Never accept arbitrary schemes/credentials, even in a test configuration.
+const localStorage = (() => {
+  if (process.env.NEXT_IMAGE_ALLOW_LOCAL_STORAGE !== '1') return null
+  try {
+    const url = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
+    return url.protocol === 'http:' && !url.username && !url.password &&
+      ['127.0.0.1', 'localhost'].includes(url.hostname) ? url : null
+  } catch {
+    return null
+  }
+})()
+// Direct Tiptap figures also need to render against the local emulator. Keep
+// production CSP unchanged; allow only this exact origin with both test flags.
+const localImageSource = process.env.TEST_HARNESS === '1' && localStorage
+  ? ` ${localStorage.origin}`
+  : ''
+
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -22,26 +40,13 @@ const securityHeaders = [
       scriptSrc,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https:",
+      `img-src 'self' data: blob: https:${localImageSource}`,
       "connect-src 'self' https:",
       "media-src 'self'",
       "frame-ancestors 'none'",
     ].join('; '),
   },
 ]
-
-// Test-only escape hatch so the E2E suite can render images from a LOCAL storage
-// server through the real /_next/image pipeline. Needs an explicit switch AND a
-// loopback storage URL, so it cannot be enabled by accident or for a real host.
-const localStorage = (() => {
-  if (process.env.NEXT_IMAGE_ALLOW_LOCAL_STORAGE !== '1') return null
-  try {
-    const url = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
-    return ['127.0.0.1', 'localhost'].includes(url.hostname) ? url : null
-  } catch {
-    return null
-  }
-})()
 
 const nextConfig: NextConfig = {
   images: {
