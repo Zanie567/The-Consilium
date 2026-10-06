@@ -306,6 +306,20 @@ test('every exposed formatting control operates, including keyboard buttons and 
     await page.getByTitle('Highlight colour', { exact: true }).click()
     await page.getByRole('button', { name: 'Colour #ffff00', exact: true }).first().click()
     expect(await json(page)).toContain('"type":"highlight"')
+    await page.getByTitle('Text colour', { exact: true }).click()
+    await page.getByLabel('Custom text colour', { exact: true }).fill('123456')
+    await page.getByLabel('Custom text colour', { exact: true }).press('Enter')
+    expect(await json(page)).toContain('#123456')
+    await page.getByTitle('Text colour', { exact: true }).click()
+    await page.getByRole('button', { name: 'Remove colour', exact: true }).click()
+    expect(await json(page)).not.toContain('#123456')
+    await page.getByTitle('Highlight colour', { exact: true }).click()
+    await page.getByLabel('Custom highlight colour', { exact: true }).fill('654321')
+    await page.getByLabel('Custom highlight colour', { exact: true }).press('Enter')
+    expect(await json(page)).toContain('#654321')
+    await page.getByTitle('Highlight colour', { exact: true }).click()
+    await page.getByRole('button', { name: 'No highlight', exact: true }).click()
+    expect(await json(page)).not.toContain('"type":"highlight"')
     await page.getByRole('button', { name: 'Line spacing', exact: true }).click()
     await page.getByRole('button', { name: 'Double (2.0)', exact: true }).click()
     expect(await json(page)).toContain('"lineHeight":"2"')
@@ -474,5 +488,59 @@ test('wide tables and standard/wide/portrait figures remain contained in editor 
     await writer.close()
     await admin.close()
     await publicPage.close()
+  }
+})
+
+test('plain-text paste and cancelled upload preserve document and allow retry', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ storageState: WRITER_STORAGE })
+  const page = await context.newPage()
+  try {
+    await page.goto('/editorial/articles/new')
+    await page.locator('.ProseMirror').click()
+    await page.locator('.ProseMirror').evaluate((el) => {
+      const data = new DataTransfer()
+      data.setData('text/plain', 'Plain text line one\n\nPlain text line two')
+      el.dispatchEvent(
+        new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true })
+      )
+    })
+    await expect(page.locator('.ProseMirror')).toContainText('Plain text line one')
+    await expect(page.locator('.ProseMirror')).toContainText('Plain text line two')
+    let resolveRoute!: () => void
+    const routed = new Promise<void>((resolve) => {
+      resolveRoute = resolve
+    })
+    let release!: () => void
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await page.route(
+      '**/api/upload',
+      async (route) => {
+        resolveRoute()
+        await held
+        await route.abort().catch(() => {})
+      },
+      { times: 1 }
+    )
+    const png = await sharp({ create: { width: 8, height: 8, channels: 3, background: 'white' } })
+      .png()
+      .toBuffer()
+    let chooser = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Insert image', exact: true }).click()
+    await (await chooser).setFiles({ name: 'chart.png', mimeType: 'image/png', buffer: png })
+    await routed
+    await page.getByRole('button', { name: 'Cancel image upload', exact: true }).click()
+    await expect(page.getByRole('alert').filter({ hasText: 'Upload cancelled' })).toBeVisible()
+    release()
+    await expect(page.locator('.ProseMirror .article-figure')).toHaveCount(0)
+    chooser = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Insert image', exact: true }).click()
+    await (await chooser).setFiles({ name: 'chart.png', mimeType: 'image/png', buffer: png })
+    await expect(page.locator('.ProseMirror .article-figure')).toHaveCount(1)
+  } finally {
+    await context.close()
   }
 })

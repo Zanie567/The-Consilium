@@ -1,6 +1,6 @@
 # Figures workstream status
 
-Updated 2026-10-06. **IMPLEMENTED BUT NOT FULLY VERIFIED** — local milestone implemented; remaining checks below.
+Updated 2026-10-06. **VERIFIED COMPLETE** — local acceptance and regression verified; production rollout not performed.
 
 Authority: [MASTER-SPEC.md](MASTER-SPEC.md). Binding contracts/ownership: [ARCHITECTURE.md](ARCHITECTURE.md). Branch/worktree and verification ledger: [MASTER-STATUS.md](MASTER-STATUS.md). Existing behaviour below is an audit finding, not a claim of full product acceptance.
 
@@ -55,4 +55,6 @@ Figures support alt/decorative semantics, caption, credit, source/link, note, di
 
 Asset registry proposal/evidence: eager autosave deletion breaks Undo; abandoned upload receipts cannot be recovered reliably without a record. Additive `ArticleImageAsset` tracks only new owned image keys, reserves before upload, serializes reference saves/cleanup under advisory locks, and defers ordinary edits for 30 days. Permanent deletion checks all draft/trash/cover/content references. Daily authenticated cleanup takes at most 20 objects; legacy URLs are untouched. Migration `20261006160355_managed_article_images.sql` applied ONLY to guarded localhost database; RLS enabled with no browser writes. Production migration/configuration remains an operator step, not performed here.
 
-Remaining verification: full repository regression, explicit aborted-network upload browser case, plain-text browser paste and custom colour reset assertions; daily cron permission tests; manual screenshots/console inspection. Linked image hosts continue using existing publication policy. Scheduled lifecycle was tested by setting a future schedule then explicitly publishing locally; the production scheduler was not run.
+Final evidence: full Vitest **988 passed / 7 existing expected failures / 18 existing skips**; explicit plain-text paste, upload cancellation/retry, custom text/highlight colours and remove/reset controls passed in Chromium. Cleanup auth/missing-secret/provider-failure cases passed. Editor screenshots at 375/768/1440 were manually inspected; long headline no longer clips, toolbar wraps, console clear. Public rich-block viewport/overflow and API/exception assertions passed. Linked image hosts continue using existing publication policy. Scheduled lifecycle was tested by setting a future schedule then explicitly publishing locally; the production scheduler was not run.
+
+Final targeted browser acceptance: **4/4 rich-content scenarios** in the full integrated run, in addition to shared setup. New metadata-only figures omit broken image elements; malicious image URLs still leave safe captions/credits, and valid alt text remains escaped. The final whole-repository typecheck/lint/build pass. Daily image GC has a 40-second batch-start deadline plus transaction timeout to stay within the configured function budget. The integration ledger records final commits and full Playwright results.

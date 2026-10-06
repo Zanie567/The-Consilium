@@ -7,7 +7,7 @@ export function renderArticleFigure(
   attrs: Record<string, RichContentAttribute> | undefined,
   legacyImage = false
 ): string {
-  const src = escapeHtml(String(attrs?.src ?? ''))
+  const src = safeContentUrl(attrs?.src)
   const alt = escapeHtml(attrs?.decorative === true ? '' : metadataText(attrs?.alt))
   const dimension = (name: string) => {
     const n = safeDimension(attrs?.[name])
@@ -16,7 +16,7 @@ export function renderArticleFigure(
   const layout = ['wide', 'centered'].includes(String(attrs?.layout))
     ? ` figure-${attrs?.layout}`
     : ''
-  let html = `<figure class="article-figure${layout}"><img src="${src}" alt="${alt}"${dimension('width')}${dimension('height')} />`
+  let html = `<figure class="article-figure${layout}">${src ? `<img src="${escapeHtml(src)}" alt="${alt}"${dimension('width')}${dimension('height')} />` : ''}`
   if (!legacyImage) {
     const caption = metadataText(attrs?.caption)
     const credit = metadataText(attrs?.credit)
@@ -29,5 +29,7 @@ export function renderArticleFigure(
     if (credit) html += `<p class="image-credit">Credit: ${escapeHtml(credit)}</p>`
     if (note) html += `<p class="figure-note">Note: ${escapeHtml(note)}</p>`
   }
-  return html + '</figure>'
+  return html.endsWith('>') && !src && !html.includes('<figcaption') && !html.includes('<p')
+    ? ''
+    : html + '</figure>'
 }

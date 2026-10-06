@@ -4,7 +4,7 @@ BEGIN;
 CREATE OR REPLACE FUNCTION public.consilium_tag_identity(label text)
 RETURNS text LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
 SET search_path = pg_catalog
-AS $$ SELECT trim(both '-' from regexp_replace(lower(normalize(label, NFKC)), '[^[:alnum:]]+', '-', 'g')) $$;
+AS $$ SELECT trim(both '-' from regexp_replace(replace(replace(lower(normalize(label, NFKC)), U&'i\0307', 'i'), U&'\03C2', U&'\03C3'), '[^[:alnum:]]+', '-', 'g')) $$;
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM public.tags WHERE public.consilium_tag_identity(name) = '') THEN

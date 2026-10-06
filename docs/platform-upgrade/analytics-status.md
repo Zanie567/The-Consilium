@@ -1,6 +1,6 @@
 # Analytics workstream status
 
-Updated 2026-10-06. **IMPLEMENTED BUT NOT FULLY VERIFIED** — targeted evidence passed; final combined Playwright run in progress.
+Updated 2026-10-06. **VERIFIED COMPLETE** — local acceptance and final regression verified.
 
 Authority: [MASTER-SPEC.md](MASTER-SPEC.md), [ARCHITECTURE.md](ARCHITECTURE.md). Sequential integration: [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md). Worktree `/Users/zanie/The-Consilium-upgrade`, branch `feature/consilium-upgrade-six-workstreams`, foundation `68b26e8`. No production actions.
 
@@ -19,7 +19,7 @@ Existing Engagement tab now shows measured visits, engaged reads, five-minute re
 ## Actual evidence
 
 - Targeted timing/identity/real-database tests **18/18**; cleanup route auth/failure **6/6**; isolated migration/preflight **3/3** (combined **27/27**). Concurrent views, monotonic heartbeat, elapsed clamp, threshold once/session, cumulative reader threshold, returning day, consent withdrawal/expiry, retention, malformed/bot/oversized events and failure covered.
-- Chromium: heartbeat/hidden pause/consent persistence+withdrawal/503 article readability and existing dashboard/writer denial cases passed in combined Growth/Analytics suite; four authentication cases also passed. Widths 375/768/1440 checked. Final integrated run verifies the final five-minute labels and complete baseline.
+- Chromium: heartbeat/hidden pause/consent persistence+withdrawal/503 article readability and existing dashboard/writer denial cases passed in combined Growth/Analytics suite; four authentication cases also passed. Widths 375/768/1440 checked. Final integrated run passed the five-minute labels and complete analytics baseline.
 - Full Vitest: **72 files, 988 passed, 7 existing expected failures, 18 existing skips** (1013 total); no new unexpected failure. Known content-filter expected failures/explicit API skips remain unchanged, detailed in foundation VERIFICATION.
 - Whole-repository typecheck/lint and production build pass. Local logs `/tmp/consilium-upgrade-analytics-tests.log`, `/tmp/consilium-upgrade-full-tests.log`, `/tmp/consilium-upgrade-growth-analytics-browser.log`.
 

@@ -55,14 +55,16 @@ function FigureNodeView({ node, updateAttributes, selected, editor, deleteNode }
         className={`article-figure ${layout === 'centered' ? 'figure-centered' : ''} ${selected ? 'ring-2 ring-gold/60' : ''}`}
         style={{ margin: 0 }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={safeContentUrl(src)}
-          alt={alt}
-          width={safeDimension(attrs.width)}
-          height={safeDimension(attrs.height)}
-          className="w-full h-auto block rounded-sm"
-        />
+        {safeContentUrl(src) && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={safeContentUrl(src)}
+            alt={alt}
+            width={safeDimension(attrs.width)}
+            height={safeDimension(attrs.height)}
+            className="w-full h-auto block rounded-sm"
+          />
+        )}
         {editor.isEditable ? (
           <div className="figure-fields" onMouseDown={(event) => event.stopPropagation()}>
             <label className="flex items-center gap-2">

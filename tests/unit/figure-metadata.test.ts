@@ -49,6 +49,16 @@ describe('structured figure metadata and managed keys', () => {
       ' class="article-figure"><img src="/decorative.png" alt="" /></figure>'
     )
   })
+  it('supports metadata-only figures without broken or empty image elements', () => {
+    const content = (attrs: object) =>
+      renderContent(JSON.stringify({ type: 'doc', content: [{ type: 'figure', attrs }] })).html
+    expect(content({ caption: 'A statistical note', source: 'Bank of England' })).toContain(
+      'A statistical note'
+    )
+    expect(content({ caption: 'A statistical note' })).not.toContain('<img')
+    expect(content({ src: 'javascript:alert(1)' })).toBe('')
+    expect(content({})).toBe('')
+  })
   it('only recognises owner-scoped managed URLs, never legacy/foreign/path-traversal keys', () => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://storage.example.test')
     const url =

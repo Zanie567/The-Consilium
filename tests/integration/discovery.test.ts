@@ -28,6 +28,17 @@ describe('topic persistence and filtering on isolated Postgres', () => {
     expect((await prisma.tag.findUniqueOrThrow({ where: { id: legacy.id } })).slug).toBe(legacy.slug)
     await expect(prisma.tag.create({ data: { name: `  ${prefix} INVESTMENT FINANCE `, slug: `${prefix}-other-url` } })).rejects.toThrow()
   })
+  it('keeps unrelated historical slug collisions separate and preserves both URLs', async () => {
+    const name=`${prefix} Distinct Topic`, slug=`${prefix}-distinct-topic`
+    const legacy=await prisma.tag.create({data:{name:`${prefix} Different Historical Name`,slug}})
+    tagIds.push(legacy.id)
+    const assigned=await prisma.$transaction(tx=>resolveArticleTag(tx,{name,slug}))
+    tagIds.push(assigned.id)
+    expect(assigned.id).not.toBe(legacy.id)
+    expect((await prisma.tag.findUniqueOrThrow({where:{id:legacy.id}})).slug).toBe(slug)
+    expect((await prisma.tag.findUniqueOrThrow({where:{id:assigned.id}})).slug).toMatch(new RegExp(`^${slug}-[a-f0-9]{10}$`))
+    expect(await prisma.$transaction(tx=>resolveArticleTag(tx,{name:name.toUpperCase(),slug}))).toEqual(assigned)
+  })
   it('relates multiple topics without duplicates and combines with format/search', async () => {
     const topics = await Promise.all(['Politics', 'History'].map(name => prisma.tag.create({ data: { name: `${prefix} ${name}`, slug: `${prefix}-${name.toLowerCase()}` } })))
     tagIds.push(...topics.map(t => t.id))

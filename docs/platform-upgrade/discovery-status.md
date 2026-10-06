@@ -1,6 +1,6 @@
 # Discovery workstream status
 
-Updated 2026-10-06. **IMPLEMENTED BUT NOT FULLY VERIFIED** — targeted verification passed; complete combined publication/cache regression remains for integration.
+Updated 2026-10-06. **VERIFIED COMPLETE** — local acceptance and complete regression verified.
 
 Authority: MASTER-SPEC.md. Contracts: ARCHITECTURE.md. Isolation/sequence: IMPLEMENTATION-PLAN.md. Original checkout work untouched.
 
@@ -23,6 +23,10 @@ Authority: MASTER-SPEC.md. Contracts: ARCHITECTURE.md. Isolation/sequence: IMPLE
 
 ## Remaining verification/limitations
 
-- Complete publication→tag edit→unpublish/restore/cache evidence will run with Editor/Figures lifecycle in integration. Expression migration must also be validated on empty schema and deliberately colliding historical fixture before final acceptance.
+- Publication→topic reassignment→unpublish→republish→trash→restore now passes against warm Next topic lists and actual public tag pages. Duplicate canonical assignment produces one relationship. Migration passes on empty schema; deliberate historical collision aborts without changing IDs/URLs/relationships.
 - No production migration/configuration performed. Historical collisions intentionally block migration and need explicit reconciliation preserving URLs.
 - Search scans bounded metadata predicates without a new search engine; full-text indexing can follow measured scale. It deliberately does not scan/load complete document bodies.
+
+## Final verification
+
+Full Vitest **988 passed, 7 existing expected failures, 18 existing skips**, all services live and isolated. Added client/PostgreSQL identity parity cases for NFKC, dotted I, Greek sigma, accented/CJK labels. A legacy slug belonging to a different canonical topic receives a deterministic suffix for the new topic; both old ID/URL and distinct identity survive. Full Chromium run includes **5/5 Discovery cases**, including warm publication/topic cache lifecycle; existing category-cache and publication lifecycle regressions are also included. Typecheck/lint/build pass. See the final integration ledger for exact full-browser counts and commit hashes.

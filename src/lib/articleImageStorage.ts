@@ -121,7 +121,9 @@ export async function collectUnusedArticleImages(now = new Date()): Promise<numb
     take: 20,
   })
   let removed = 0
+  const deadline = Date.now() + 40_000
   for (const asset of assets) {
+    if (Date.now() > deadline) break
     const result = await removeUnreferencedArticleImage(asset.url)
     if (result === 'removed') removed++
     if (result === 'retained')
