@@ -200,6 +200,7 @@ model Article {
   bookmarks       Bookmark[]
   notes           ArticleNote[]
   views           ArticleView[]
+  engagementVisits ArticleEngagementSession[]
   notifications   Notification[]
   readingProgress ReadingProgress[]
   tags            ArticleTag[]
@@ -715,4 +716,21 @@ model ArticleImageAsset {
   @@index([unusedSince, createdAt])
   @@index([uploaderId])
   @@map("article_image_assets")
+}
+
+
+model ArticleEngagementSession {
+  id String @id
+  articleId String
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  startedAt DateTime @default(now()) @db.Timestamptz(3)
+  lastSeenAt DateTime @default(now()) @db.Timestamptz(3)
+  activeSeconds Int @default(0)
+  engagedAt DateTime? @db.Timestamptz(3)
+  readerHash String?
+  returning Boolean @default(false)
+  @@index([articleId, startedAt])
+  @@index([startedAt])
+  @@index([readerHash, startedAt])
+  @@map("article_engagement_sessions")
 }

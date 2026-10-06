@@ -10,7 +10,12 @@ export type CookieConsent = 'accepted' | 'declined' | null
 
 export function getCookieConsent(): CookieConsent {
   if (typeof window === 'undefined') return null
-  const val = localStorage.getItem(CONSENT_KEY)
+  let val: string | null
+  try {
+    val = localStorage.getItem(CONSENT_KEY)
+  } catch {
+    return null
+  }
   if (val === 'accepted' || val === 'declined') return val
   return null
 }
@@ -24,12 +29,18 @@ export function CookieConsentBanner() {
   }, [])
 
   function accept() {
-    localStorage.setItem(CONSENT_KEY, 'accepted')
+    try {
+      localStorage.setItem(CONSENT_KEY, 'accepted')
+    } catch {}
+    window.dispatchEvent(new Event('consilium-consent-change'))
     setVisible(false)
   }
 
   function decline() {
-    localStorage.setItem(CONSENT_KEY, 'declined')
+    try {
+      localStorage.setItem(CONSENT_KEY, 'declined')
+    } catch {}
+    window.dispatchEvent(new Event('consilium-consent-change'))
     setVisible(false)
   }
 

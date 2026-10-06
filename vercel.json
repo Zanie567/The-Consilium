@@ -1,3 +1,6 @@
 {
-  "crons": [{ "path": "/api/cron/cleanup-article-images", "schedule": "0 3 * * *" }]
+  "crons": [
+    { "path": "/api/cron/cleanup-article-images", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/cleanup-reading-analytics", "schedule": "0 4 * * *" }
+  ]
 }
