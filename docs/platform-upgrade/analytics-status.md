@@ -26,3 +26,7 @@ Existing Engagement tab now shows measured visits, engaged reads, five-minute re
 ## Release/configuration limits
 
 No production migration or cron execution performed. Apply reviewed migration and existing CRON_SECRET before deployment; repository-only daily cron config added. Existing old metrics cannot be backfilled into active time. Reader hashes remain probabilistic device/browser readership, not exact people; consented subset is explicitly labelled. Browser bot detection is pragmatic, not an anti-fraud system.
+
+## Final integrated evidence
+
+See [IMPLEMENTATION-REPORT.md](IMPLEMENTATION-REPORT.md) for the final combined verification, migration applications, configuration requirements and Git milestones. Final Vitest: **72 files; 996 passed, 7 existing expected failures, 18 existing skips**. Full integrated Playwright: **115/115 passed**, including the opt-in team project. No tests were removed or newly skipped. These states describe the local candidate, not a production rollout.

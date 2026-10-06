@@ -1,8 +1,27 @@
 # Platform upgrade — master status
 
-Updated 2026-10-06. **Foundation phase only. The upgrade features are not complete.**
+Updated 2026-10-06. **All six workstreams VERIFIED COMPLETE as a local candidate. Production rollout has not occurred.**
 
 [MASTER-SPEC.md](MASTER-SPEC.md) is the full authoritative acceptance specification. [ARCHITECTURE.md](ARCHITECTURE.md) records the repository audit, complete publication lifecycle, binding contracts, ownership and risks. No acceptance criterion is waived by this status.
+
+## Current implementation and verification
+
+The six assigned workstreams were implemented sequentially on `feature/consilium-upgrade-six-workstreams` in `/Users/zanie/The-Consilium-upgrade`, based on foundation handoff `68b26e8`. The original checkout and its existing Discovery edits were preserved. Shared architecture, role enums, Category/Tag model, native Tiptap JSON, existing newsletter infrastructure and analytics collector/dashboard remain in place.
+
+| Workstream | Local state | Evidence |
+|---|---|---|
+| Article Discovery | VERIFIED COMPLETE | [discovery-status.md](discovery-status.md) |
+| Rich Editor / Docs / Tables | VERIFIED COMPLETE | [editor-status.md](editor-status.md) |
+| Figures / Public Rendering | VERIFIED COMPLETE | [figures-status.md](figures-status.md) |
+| Team / Profiles | VERIFIED COMPLETE | [team-status.md](team-status.md) |
+| Growth Integrations | VERIFIED COMPLETE | [growth-status.md](growth-status.md) |
+| Reader Analytics | VERIFIED COMPLETE | [analytics-status.md](analytics-status.md) |
+
+Final verification: **996 Vitest passes across 72 files**, 7 unchanged expected failures and 18 unchanged skips; **115/115 Playwright passes**, including 41 opt-in team cases; whole-repository typecheck/lint and production build passed. Responsive/keyboard/error-state browser QA used guarded local services at 375/768/1440. Exact evidence, test scope, migrations, outstanding production configuration and commits are in [IMPLEMENTATION-REPORT.md](IMPLEMENTATION-REPORT.md).
+
+Implementation milestones are `58d79a8`, `6594343`, `44183b6`, `fefab8f`, `92a118f`, `d1ce38c` and final integrity fix `11d9540`. Four additive migrations were applied/tested only on isolated local Postgres. Production requires migration preflight, the owner's real LinkedIn URL, verified storage/RLS configuration and authenticated cron configuration. No push, merge, deployment, production migration or production data change was performed. Historical foundation records below describe the earlier handoff, not the current implementation state.
+
+## Historical foundation handoff
 
 ## Branch and foundation
 

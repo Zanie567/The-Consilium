@@ -4,13 +4,13 @@ Updated 2026-10-06. **VERIFIED COMPLETE** — local acceptance and regression ve
 
 Authority: [MASTER-SPEC.md](MASTER-SPEC.md). Binding contracts/ownership: [ARCHITECTURE.md](ARCHITECTURE.md). Branch/worktree and verification ledger: [MASTER-STATUS.md](MASTER-STATUS.md). Existing behaviour below is an audit finding, not a claim of full product acceptance.
 
-## Existing implementation
+## Foundation audit (historical)
 
 Figure src/alt/caption/credit and legacy image renderer; server bucket/MIME checks and local Storage emulator. Foundation extracted FigureNode and figureRender without new behaviour.
 
 Foundation compatibility evidence: three figure rendering/sanitization regressions and existing editor bold/upload/caption/credit draft save/reload checked in local Chromium at 375/768/1440. The test-only local image configuration is verified separately. This does not verify new metadata, replacement/cleanup or the complete figure publication acceptance flow; see VERIFICATION.
 
-## Remaining required work
+## Acceptance work identified at foundation (completed below)
 
 Alt/decorative editing, source/sourceUrl/note/dimensions/layout and safe metadata; replacement/deletion; robust upload cancel/retry/failure/duplicate handling; reference-safe cleanup; preview/public parity.
 
@@ -30,7 +30,7 @@ Mandatory figure upload→preview→metadata→save/reload→review→publish; r
 
 Run current baseline suite and targeted tests; record actual counts/errors/skip reasons and browser interactions. Preserve all safety guards and production boundaries. See VERIFICATION for pre-existing baseline limitations, especially fixture isolation.
 
-## Implementation record
+## Foundation implementation record (historical)
 
 - Specialist branch/worktree: assigned from pinned foundation in MASTER-STATUS; not created by foundation.
 - Specialist commits: none.
@@ -39,7 +39,7 @@ Run current baseline suite and targeted tests; record actual counts/errors/skip 
 - Shared-file patch proposals: none yet.
 - Acceptance checklist: all remaining MASTER-SPEC criteria for this stream open.
 
-The assigned specialist maintains this file with implemented behaviour, exact commits, actual evidence, migration proposals and unresolved gaps. Do not replace or weaken requirements with status notes.
+Historical handoff instruction: the assigned specialist maintains this file with implemented behaviour, exact commits, actual evidence, migration proposals and unresolved gaps. Do not replace or weaken requirements with status notes.
 
 ## Sequential implementation milestone (2026-10-06)
 
@@ -58,3 +58,9 @@ Asset registry proposal/evidence: eager autosave deletion breaks Undo; abandoned
 Final evidence: full Vitest **988 passed / 7 existing expected failures / 18 existing skips**; explicit plain-text paste, upload cancellation/retry, custom text/highlight colours and remove/reset controls passed in Chromium. Cleanup auth/missing-secret/provider-failure cases passed. Editor screenshots at 375/768/1440 were manually inspected; long headline no longer clips, toolbar wraps, console clear. Public rich-block viewport/overflow and API/exception assertions passed. Linked image hosts continue using existing publication policy. Scheduled lifecycle was tested by setting a future schedule then explicitly publishing locally; the production scheduler was not run.
 
 Final targeted browser acceptance: **4/4 rich-content scenarios** in the full integrated run, in addition to shared setup. New metadata-only figures omit broken image elements; malicious image URLs still leave safe captions/credits, and valid alt text remains escaped. The final whole-repository typecheck/lint/build pass. Daily image GC has a 40-second batch-start deadline plus transaction timeout to stay within the configured function budget. The integration ledger records final commits and full Playwright results.
+
+## Final integrated evidence
+
+See [IMPLEMENTATION-REPORT.md](IMPLEMENTATION-REPORT.md) for the final combined verification, migration applications, configuration requirements and Git milestones. Final Vitest: **72 files; 996 passed, 7 existing expected failures, 18 existing skips**. Full integrated Playwright: **115/115 passed**, including the opt-in team project. No tests were removed or newly skipped. These states describe the local candidate, not a production rollout.
+
+Final storage-integrity regression covers JSON-escaped slashes/Unicode, query/hash aliases, percent-encoded path/filename, URL-normalised paths, covers and legacy HTML. Saves lock canonical object URLs; cleanup decodes JSON inside PostgreSQL and conservatively retains any matching unique object filename. All drafts/trash remain included; no full article bodies are returned to the application for cleanup. A foreign URL with the same unique filename may delay cleanup rather than risk deleting a referenced object. Eight additional real-database cases pass.

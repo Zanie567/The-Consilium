@@ -4,13 +4,13 @@ Updated 2026-10-06. **VERIFIED COMPLETE** — local acceptance and regression ve
 
 Authority: [MASTER-SPEC.md](MASTER-SPEC.md). Binding contracts/ownership: [ARCHITECTURE.md](ARCHITECTURE.md). Branch/worktree and verification ledger: [MASTER-STATUS.md](MASTER-STATUS.md). Existing behaviour below is an audit finding, not a claim of full product acceptance.
 
-## Existing implementation
+## Foundation audit (historical)
 
 Tiptap native tables and rich formatting, JSON saves, Google Docs cleaner, autosave queue, inline comments. Public renderer strips tables and multiple marks/styles; full paste lifecycle unverified.
 
 Foundation browser inspection also found long headline clipping at 375px in the existing document title field (no horizontal page overflow). Include field-height/wrapping in Editor responsive QA; no foundation UI redesign was made.
 
-## Remaining required work
+## Acceptance work identified at foundation (completed below)
 
 Audit every toolbar control; safe realistic Docs paste; table editing/header/cell navigation/captions/source/note; table public module and contained overflow; save/reopen/review/schedule/republish parity.
 
@@ -30,7 +30,7 @@ Mandatory three-column Docs fixture with bold/link/header/unsafe markup; native 
 
 Run current baseline suite and targeted tests; record actual counts/errors/skip reasons and browser interactions. Preserve all safety guards and production boundaries. See VERIFICATION for pre-existing baseline limitations, especially fixture isolation.
 
-## Implementation record
+## Foundation implementation record (historical)
 
 - Specialist branch/worktree: assigned from pinned foundation in MASTER-STATUS; not created by foundation.
 - Specialist commits: none.
@@ -39,7 +39,7 @@ Run current baseline suite and targeted tests; record actual counts/errors/skip 
 - Shared-file patch proposals: none yet.
 - Acceptance checklist: all remaining MASTER-SPEC criteria for this stream open.
 
-The assigned specialist maintains this file with implemented behaviour, exact commits, actual evidence, migration proposals and unresolved gaps. Do not replace or weaken requirements with status notes.
+Historical handoff instruction: the assigned specialist maintains this file with implemented behaviour, exact commits, actual evidence, migration proposals and unresolved gaps. Do not replace or weaken requirements with status notes.
 
 ## Sequential implementation milestone (2026-10-06)
 
@@ -58,3 +58,7 @@ Asset registry proposal/evidence: eager autosave deletion breaks Undo; abandoned
 Final evidence: full Vitest **988 passed / 7 existing expected failures / 18 existing skips**; explicit plain-text paste, upload cancellation/retry, custom text/highlight colours and remove/reset controls passed in Chromium. Cleanup auth/missing-secret/provider-failure cases passed. Editor screenshots at 375/768/1440 were manually inspected; long headline no longer clips, toolbar wraps, console clear. Public rich-block viewport/overflow and API/exception assertions passed. Linked image hosts continue using existing publication policy. Scheduled lifecycle was tested by setting a future schedule then explicitly publishing locally; the production scheduler was not run.
 
 Final targeted browser acceptance: **4/4 rich-content scenarios** in the full integrated run, in addition to shared setup. New metadata-only figures omit broken image elements; malicious image URLs still leave safe captions/credits, and valid alt text remains escaped. The final whole-repository typecheck/lint/build pass. Daily image GC has a 40-second batch-start deadline plus transaction timeout to stay within the configured function budget. The integration ledger records final commits and full Playwright results.
+
+## Final integrated evidence
+
+See [IMPLEMENTATION-REPORT.md](IMPLEMENTATION-REPORT.md) for the final combined verification, migration applications, configuration requirements and Git milestones. Final Vitest: **72 files; 996 passed, 7 existing expected failures, 18 existing skips**. Full integrated Playwright: **115/115 passed**, including the opt-in team project. No tests were removed or newly skipped. These states describe the local candidate, not a production rollout.

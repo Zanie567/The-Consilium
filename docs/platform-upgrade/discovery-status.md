@@ -30,3 +30,7 @@ Authority: MASTER-SPEC.md. Contracts: ARCHITECTURE.md. Isolation/sequence: IMPLE
 ## Final verification
 
 Full Vitest **988 passed, 7 existing expected failures, 18 existing skips**, all services live and isolated. Added client/PostgreSQL identity parity cases for NFKC, dotted I, Greek sigma, accented/CJK labels. A legacy slug belonging to a different canonical topic receives a deterministic suffix for the new topic; both old ID/URL and distinct identity survive. Full Chromium run includes **5/5 Discovery cases**, including warm publication/topic cache lifecycle; existing category-cache and publication lifecycle regressions are also included. Typecheck/lint/build pass. See the final integration ledger for exact full-browser counts and commit hashes.
+
+## Final integrated evidence
+
+See [IMPLEMENTATION-REPORT.md](IMPLEMENTATION-REPORT.md) for the final combined verification, migration applications, configuration requirements and Git milestones. Final Vitest: **72 files; 996 passed, 7 existing expected failures, 18 existing skips**. Full integrated Playwright: **115/115 passed**, including the opt-in team project. No tests were removed or newly skipped. These states describe the local candidate, not a production rollout.
