@@ -2,29 +2,71 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { escapeLikePattern } from '@/lib/searchText'
 
 export class ArticleImageUnavailableError extends Error {}
 
 export function articleImagePath(url: unknown, userId?: string): string | undefined {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, '')
   if (!base || typeof url !== 'string') return undefined
-  const prefix = `${base}/storage/v1/object/public/article-images/`
-  if (!url.startsWith(prefix)) return undefined
-  const path = url.slice(prefix.length)
-  if (!/^[a-zA-Z0-9_-]+\/[a-f0-9-]{36}\.(png|jpg|gif|webp|avif)$/.test(path)) return undefined
-  if (userId && path.split('/')[0] !== userId) return undefined
-  return path
+  try {
+    const configured = new URL(base)
+    const candidate = new URL(url)
+    if (candidate.origin !== configured.origin || candidate.username || candidate.password)
+      return undefined
+    const prefix = `${configured.pathname.replace(/\/+$/, '')}/storage/v1/object/public/article-images/`
+    const pathname = decodeURIComponent(candidate.pathname)
+    if (!pathname.startsWith(prefix)) return undefined
+    const path = pathname.slice(prefix.length)
+    if (!/^[a-zA-Z0-9_-]+\/[a-f0-9-]{36}\.(png|jpg|gif|webp|avif)$/.test(path)) return undefined
+    if (userId && path.split('/')[0] !== userId) return undefined
+    return path
+  } catch {
+    return undefined
+  }
 }
+function canonicalImageUrl(url: unknown, userId?: string): string | undefined {
+  const path = articleImagePath(url, userId)
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, '')
+  return path && base ? `${base}/storage/v1/object/public/article-images/${path}` : undefined
+}
+/** Decode JSON in PostgreSQL so escaped slashes/Unicode cannot hide a reference.
+ * Percent-encoded URL characters and query/hash aliases retain the same object.
+ * Match the globally unique object filename conservatively, including foreign
+ * URLs with that filename, rather than risk deleting a URL-normalised alias.
+ * The raw-text check also protects legacy HTML/plain content. Malformed JSON fails
+ * safely: cleanup catches database errors and never removes the object.
+ */
+async function storedImageReferences(tx: Prisma.TransactionClient, url: string): Promise<number> {
+  const filename = articleImagePath(url)!.split('/')[1]
+  const pattern = Array.from(filename, (character) => {
+    const literal = character.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    return `(${literal}|%${character.charCodeAt(0).toString(16).padStart(2, '0')})`
+  }).join('')
+  const rows = await tx.$queryRaw<{ count: number }[]>`
+    SELECT COUNT(*)::int AS count FROM articles a
+    WHERE a."coverImage" ~* ${pattern}
+       OR a.content ~* ${pattern}
+       OR EXISTS (
+         SELECT 1 FROM jsonb_path_query(
+           CASE WHEN a.content IS JSON THEN a.content::jsonb ELSE '{}'::jsonb END,
+           '$.**.src'
+         ) AS source(value)
+         WHERE (source.value #>> '{}') ~* ${pattern}
+       )`
+  return rows[0]?.count ?? 0
+}
+
 export function articleImageReferences(content: unknown, coverImage: unknown): string[] {
   const refs = new Set<string>()
-  if (articleImagePath(coverImage) && typeof coverImage === 'string') refs.add(coverImage)
+  const cover = canonicalImageUrl(coverImage)
+  if (cover) refs.add(cover)
   if (typeof content !== 'string') return [...refs]
   try {
     const walk = (node: unknown, depth: number) => {
       if (depth > 100 || !node || typeof node !== 'object') return
       const n = node as { attrs?: { src?: unknown }; content?: unknown[] }
-      if (articleImagePath(n.attrs?.src) && typeof n.attrs?.src === 'string') refs.add(n.attrs.src)
+      const source = canonicalImageUrl(n.attrs?.src)
+      if (source) refs.add(source)
       if (Array.isArray(n.content)) n.content.forEach((child) => walk(child, depth + 1))
     }
     walk(JSON.parse(content), 0)
@@ -57,21 +99,20 @@ export async function removeUnreferencedArticleImage(
   const path = articleImagePath(url, userId)
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!path) return 'unmanaged'
+  const canonical = canonicalImageUrl(url, userId)
+  if (!path || !canonical) return 'unmanaged'
   if (!base || !key) return 'failed'
   try {
     return await prisma.$transaction(
       async (tx) => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`image:${url}`}))`
-        const references = await tx.article.count({
-          where: { OR: [{ coverImage: url }, { content: { contains: escapeLikePattern(url) } }] },
-        })
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`image:${canonical}`}))`
+        const references = await storedImageReferences(tx, canonical)
         if (references) return 'retained'
         const { error } = await createClient(base, key)
           .storage.from('article-images')
           .remove([path])
         if (error) return 'failed'
-        await tx.articleImageAsset.deleteMany({ where: { url } })
+        await tx.articleImageAsset.deleteMany({ where: { url: canonical } })
         return 'removed'
       },
       { timeout: 15000 }
@@ -82,15 +123,14 @@ export async function removeUnreferencedArticleImage(
 }
 /** Queue ordinary-edit cleanup so the editor's Undo can still restore old images. */
 export async function queueArticleImageCleanup(url: string, userId?: string): Promise<void> {
-  if (!articleImagePath(url, userId)) return
+  const canonical = canonicalImageUrl(url, userId)
+  if (!canonical) return
   try {
     await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`image:${url}`}))`
-      const count = await tx.article.count({
-        where: { OR: [{ coverImage: url }, { content: { contains: escapeLikePattern(url) } }] },
-      })
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`image:${canonical}`}))`
+      const count = await storedImageReferences(tx, canonical)
       await tx.articleImageAsset.updateMany({
-        where: { url, unusedSince: null },
+        where: { url: canonical, unusedSince: null },
         data: { unusedSince: count ? null : new Date() },
       })
     })

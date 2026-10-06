@@ -65,7 +65,9 @@ describe('structured figure metadata and managed keys', () => {
       'https://storage.example.test/storage/v1/object/public/article-images/owner/11111111-1111-4111-8111-111111111111.png'
     expect(articleImagePath(url, 'owner')).toBe('owner/11111111-1111-4111-8111-111111111111.png')
     expect(articleImagePath(url, 'other')).toBeUndefined()
-    expect(articleImagePath(url + '?x')).toBeUndefined()
+    expect(articleImagePath(url + '?x#fragment')).toBe(articleImagePath(url))
+    expect(articleImagePath(url.replace('/owner/', '/%6Fwner%2F'))).toBe(articleImagePath(url))
+    expect(articleImagePath(url.replace('https://', 'https://user:pass@'))).toBeUndefined()
     expect(articleImagePath(url.replace('owner/', '../'))).toBeUndefined()
     expect(
       articleImagePath(
@@ -78,7 +80,8 @@ describe('structured figure metadata and managed keys', () => {
           type: 'doc',
           content: [
             { type: 'figure', attrs: { src: url } },
-            { type: 'image', attrs: { src: url } },
+            { type: 'image', attrs: { src: url + '?download=1' } },
+            { type: 'figure', attrs: { src: url.replace('/owner/', '/%6Fwner%2F') } },
           ],
         }),
         url

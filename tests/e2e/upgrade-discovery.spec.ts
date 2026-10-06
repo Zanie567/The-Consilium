@@ -1,3 +1,4 @@
+import { ADMIN_STORAGE } from './helpers/authStorage'
 import { test, expect } from '@playwright/test'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
@@ -11,7 +12,7 @@ let authorId: string
 let categoryId: string
 const tagIds: string[] = []
 const articleIds: string[] = []
-test.beforeAll(async () => {
+test.beforeAll(async ({ browser }) => {
   authorId = (
     await db.user.create({
       data: {
@@ -44,6 +45,17 @@ test.beforeAll(async () => {
         })
       ).id
     )
+  // Direct DB fixtures bypass publication invalidation. Exercise the real API
+  // once so this suite is independent of a prior warmed public topic cache.
+  const admin = await browser.newContext({ storageState: ADMIN_STORAGE })
+  try {
+    const refreshed = await admin.request.put(`/api/articles/${articleIds[0]}`, {
+      data: { title: 'Discovery Title Fixture 0' },
+    })
+    expect(refreshed.status(), await refreshed.text()).toBe(200)
+  } finally {
+    await admin.close()
+  }
 })
 test.afterAll(async () => {
   await db.article.deleteMany({ where: { id: { in: articleIds } } })
@@ -130,7 +142,6 @@ test('keyboard search discovers title, author, topic, empty and no results; fail
 test('published topic assignments invalidate warm topic lists and follow unpublish/trash/restore', async ({
   browser,
 }) => {
-  const { ADMIN_STORAGE } = await import('./helpers/authStorage')
   const admin = await browser.newContext({ storageState: ADMIN_STORAGE })
   const page = await browser.newPage()
   const marker = `Upgrade cache ${Date.now()}`,

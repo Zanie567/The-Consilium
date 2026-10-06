@@ -75,6 +75,52 @@ describe('reference-safe image cleanup', () => {
       (await prisma.articleImageAsset.findUniqueOrThrow({ where: { url } })).unusedSince
     ).toBeNull()
   })
+  it.each([
+    'slashes',
+    'unicode',
+    'query',
+    'encoded',
+    'encoded filename',
+    'cover',
+    'legacy HTML',
+    'URL-normalised path',
+  ])(
+    'retains references with %s representation and canonicalises save locks',
+    async (representation) => {
+      const variant =
+        representation === 'encoded'
+          ? url.replace('/article-images/', '/article%2Dimages%2F')
+          : representation === 'encoded filename'
+            ? url.replace('.png', '%2Epng')
+            : representation === 'URL-normalised path'
+              ? url.replace('/article-images/', '/article-images/temporary/../')
+              : `${url}?download=1#image`
+      let content = JSON.stringify({ type: 'figure', attrs: { src: variant } })
+      if (representation === 'slashes') content = content.replace(/\//g, '\\/')
+      if (representation === 'unicode')
+        content = content.replace(/[a-z0-9]/g, (character) =>
+          `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`
+        )
+      if (representation === 'legacy HTML') content = `<p><img src="${variant}" /></p>`
+      await prisma.article.update({
+        where: { id: articleId },
+        data: {
+          content: representation === 'cover' ? '{}' : content,
+          coverImage: representation === 'cover' ? variant : null,
+        },
+      })
+      await prisma.$transaction((tx) =>
+        lockArticleImages(tx, JSON.stringify({ type: 'figure', attrs: { src: variant } }), null)
+      )
+      await queueArticleImageCleanup(variant, userId)
+      expect(
+        (await prisma.articleImageAsset.findUniqueOrThrow({ where: { url } })).unusedSince
+      ).toBeNull()
+      expect(await removeUnreferencedArticleImage(variant, userId)).toBe('retained')
+      expect((await fetch(url)).ok).toBe(true)
+      await prisma.article.update({ where: { id: articleId }, data: { coverImage: null } })
+    }
+  )
   it('only removes a managed image after its last stored reference disappears', async () => {
     await prisma.article.update({ where: { id: articleId }, data: { content: '{}' } })
     await queueArticleImageCleanup(url, userId)
