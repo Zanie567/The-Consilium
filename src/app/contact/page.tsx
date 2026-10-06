@@ -1,9 +1,10 @@
+import { getPublicationLinkedIn } from '@/lib/growthSettings'
 import { ContactForm } from '@/components/ui/ContactForm'
 import { Mail, MapPin } from 'lucide-react'
 import type { Metadata } from 'next'
 import { canonicalAlternates } from '@/lib/seo'
 import { AnimateIn } from '@/components/ui/AnimateIn'
-import { CONTACT_EMAIL, INSTAGRAM_URL, LINKEDIN_URL } from '@/lib/constants'
+import { CONTACT_EMAIL, INSTAGRAM_URL } from '@/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Contact',
@@ -13,33 +14,50 @@ export const metadata: Metadata = {
 
 function InstagramIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-      <circle cx="12" cy="12" r="4"/>
-      <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" />
     </svg>
   )
 }
 
 function LinkedInIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/>
-      <rect x="2" y="9" width="4" height="12"/>
-      <circle cx="4" cy="4" r="2"/>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+      <rect x="2" y="9" width="4" height="12" />
+      <circle cx="4" cy="4" r="2" />
     </svg>
   )
 }
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const linkedinUrl = await getPublicationLinkedIn()
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Header */}
       <section className="bg-navy py-14 px-4 border-b-2 border-gold text-center">
         <AnimateIn variant="fade-in" duration={0.4}>
-          <p className="text-gold/60 text-xs tracking-[0.3em] uppercase mb-3">
-            Get In Touch
-          </p>
+          <p className="text-gold/60 text-xs tracking-[0.3em] uppercase mb-3">Get In Touch</p>
         </AnimateIn>
         <AnimateIn variant="fade-up" delay={0.08} duration={0.6}>
           <h1
@@ -62,9 +80,8 @@ export default function ContactPage() {
               We&apos;d love to hear from you
             </h2>
             <p className="text-[var(--fg-muted)] text-sm leading-relaxed mb-8">
-              Whether you&apos;re interested in writing for us, have a story tip, or
-              want to collaborate with the Edinburgh Economics Society, please
-              reach out.
+              Whether you&apos;re interested in writing for us, have a story tip, or want to
+              collaborate with the Edinburgh Economics Society, please reach out.
             </p>
 
             <div className="space-y-4">
@@ -89,7 +106,8 @@ export default function ContactPage() {
                     Location
                   </p>
                   <p className="text-[var(--fg-muted)] text-sm">
-                    University of Edinburgh<br />
+                    University of Edinburgh
+                    <br />
                     Edinburgh, Scotland
                   </p>
                 </div>
@@ -110,15 +128,17 @@ export default function ContactPage() {
                 >
                   <InstagramIcon />
                 </a>
-                <a
-                  href={LINKEDIN_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Connect with The Consilium on LinkedIn"
-                  className="w-9 h-9 border border-[var(--border)] flex items-center justify-center text-[var(--fg-faint)] hover:bg-navy hover:text-gold hover:border-navy transition-colors"
-                >
-                  <LinkedInIcon />
-                </a>
+                {linkedinUrl && (
+                  <a
+                    href={linkedinUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Connect with The Consilium on LinkedIn"
+                    className="w-9 h-9 border border-[var(--border)] flex items-center justify-center text-[var(--fg-faint)] hover:bg-navy hover:text-gold hover:border-navy transition-colors"
+                  >
+                    <LinkedInIcon />
+                  </a>
+                )}
               </div>
             </div>
           </AnimateIn>

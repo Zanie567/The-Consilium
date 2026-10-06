@@ -4,24 +4,35 @@ import { checkRateLimit, getIp } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   if (!checkRateLimit(`subscribe:${getIp(request)}`, 3, 10 * 60 * 1000)) {
-    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429 }
+    )
   }
 
   try {
     const body = await request.json()
-    const email = String(body.email ?? '').trim().toLowerCase()
+    const email = String(body.email ?? '')
+      .trim()
+      .toLowerCase()
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
       return NextResponse.json({ error: 'Valid email required' }, { status: 400 })
     }
 
-    const existing = await prisma.subscriber.findUnique({ where: { email } })
-    if (existing) {
-      return NextResponse.json({ message: 'Already subscribed' })
-    }
-
-    await prisma.subscriber.create({ data: { email } })
-    return NextResponse.json({ message: 'Subscribed successfully' }, { status: 201 })
+    const created = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`subscriber:${email}`}))`
+      const existing = await tx.$queryRaw<
+        { id: string }[]
+      >`SELECT id FROM subscribers WHERE lower(btrim(email)) = ${email} LIMIT 1`
+      if (existing.length) return false
+      await tx.subscriber.create({ data: { email } })
+      return true
+    })
+    return NextResponse.json(
+      { message: created ? 'Subscribed successfully' : 'Already subscribed' },
+      { status: created ? 201 : 200 }
+    )
   } catch (error) {
     console.error('Subscribe error:', error)
     return NextResponse.json({ error: 'Failed to subscribe' }, { status: 500 })

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 
@@ -9,28 +9,38 @@ export function NewsletterSignup() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
 
+  const pending = useRef(false)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (pending.current) return
+    pending.current = true
     setStatus('loading')
     try {
       await apiRequest('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
       })
       setStatus('success')
       setMessage('Thank you for subscribing to The Consilium.')
       setEmail('')
     } catch (reason) {
       setStatus('error')
-      setMessage(asApiError(reason).message)
+      setMessage(
+        asApiError(reason).status === 400
+          ? 'Enter a valid email address.'
+          : 'Unable to subscribe right now. Please try again.'
+      )
+    } finally {
+      pending.current = false
     }
   }
 
   return (
     <section className="bg-navy py-20 px-4 relative overflow-hidden">
       {/* Subtle background texture */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
+      <div
+        className="absolute inset-0 opacity-[0.03] pointer-events-none"
         style={{
           backgroundImage: 'radial-gradient(circle at 1px 1px, #c9a227 1px, transparent 0)',
           backgroundSize: '32px 32px',
@@ -55,8 +65,8 @@ export function NewsletterSignup() {
           </h2>
           <div className="w-12 h-px bg-gold/40 mx-auto mb-6" />
           <p className="text-cream/55 mb-6 text-sm leading-relaxed max-w-sm mx-auto">
-            Receive our latest articles and analysis directly in your inbox.
-            Join the conversation on economics, policy, and ideas.
+            Receive our latest articles and analysis directly in your inbox. Join the conversation
+            on economics, policy, and ideas.
           </p>
           <p className="text-cream/35 text-xs mb-6">
             We respect your privacy.{' '}
@@ -71,6 +81,7 @@ export function NewsletterSignup() {
           {status === 'success' ? (
             <motion.div
               key="success"
+              role="status"
               initial={{ opacity: 0, scale: 0.94, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -82,6 +93,7 @@ export function NewsletterSignup() {
             <motion.form
               key="form"
               onSubmit={handleSubmit}
+              aria-busy={status === 'loading'}
               className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto"
               initial={{ opacity: 1 }}
               exit={{ opacity: 0, y: -10 }}
@@ -90,6 +102,9 @@ export function NewsletterSignup() {
               <div className="relative flex-1 group">
                 <input
                   type="email"
+                  aria-label="Newsletter email address"
+                  autoComplete="email"
+                  maxLength={254}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Your email address"
@@ -115,7 +130,9 @@ export function NewsletterSignup() {
                     />
                     Subscribing
                   </span>
-                ) : 'Subscribe'}
+                ) : (
+                  'Subscribe'
+                )}
               </motion.button>
             </motion.form>
           )}
@@ -125,6 +142,7 @@ export function NewsletterSignup() {
           {status === 'error' && (
             <motion.p
               key="error"
+              role="alert"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
