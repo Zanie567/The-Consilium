@@ -88,3 +88,9 @@ membership `REVOKED`. The last active administrator cannot be demoted or revoked
   existing-account, role-change, admin-with-position, revoked and security cases, against real
   Postgres with the real NextAuth callbacks and route handlers.
 * `tests/e2e/member-onboarding.spec.ts` — the same journey in a browser (`scripts/run-team-profile-e2e.sh`).
+
+## Notes for whoever owns the shared files
+
+* **Schema (additive):** `team_memberships` + `MembershipStatus`, and `team_members.team` (admin-only). `Role` enum unchanged.
+* **ADMIN-permission accounts may own a card**, placed by the admin-set `team`, never derived from the permission role.
+* Shared files touched: `prisma/schema.prisma`, `src/lib/auth.ts`, `src/lib/email.ts` (two templates), the admin/editorial role routes (now delegate to `membership.ts`).
