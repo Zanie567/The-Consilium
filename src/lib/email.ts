@@ -4,15 +4,23 @@ import { escapeHtml as esc } from '@/lib/escapeHtml'
 
 const FROM = 'The Consilium <noreply@theconsilium.co.uk>'
 
+/**
+ * Resolves true only when the message was handed to the transport. It resolves
+ * false (after logging) when sending is not configured or the provider rejects
+ * it, so callers that care can react; the Resend SDK reports failures through
+ * `{ error }` rather than throwing.
+ */
 export async function sendEmail({
   to,
   subject,
   html,
+  replyTo,
 }: {
   to: string
   subject: string
   html: string
-}) {
+  replyTo?: string
+}): Promise<boolean> {
   if (process.env.TESTING_MODE_ENABLED === '1' && process.env.EMAIL_TRANSPORT !== 'capture-db' && (process.env.EMAIL_TRANSPORT !== 'capture' || !process.env.EMAIL_CAPTURE_FILE)) throw new Error('Testing requires captured email.')
   if (process.env.EMAIL_TRANSPORT === 'capture-db') {
     const { requireTestingWorkspace } = await import('./testingMode')
@@ -20,7 +28,7 @@ export async function sendEmail({
     const { prisma } = await import('./prisma')
     const { randomUUID } = await import('node:crypto')
     await prisma.$executeRaw`INSERT INTO public.testing_email_outbox (id, recipient, subject, html) VALUES (${randomUUID()}, ${to}, ${subject}, ${html})`
-    return
+    return true
   }
   // Test isolation: with EMAIL_TRANSPORT=capture nothing is ever sent. The message
   // is appended (as one JSON line) to EMAIL_CAPTURE_FILE so tests can assert what
@@ -30,21 +38,60 @@ export async function sendEmail({
     const file = process.env.EMAIL_CAPTURE_FILE
     if (!file) {
       console.error('[email] EMAIL_TRANSPORT=capture requires EMAIL_CAPTURE_FILE - email dropped')
-      return
+      return false
     }
     const { appendFile } = await import('node:fs/promises')
-    await appendFile(file, JSON.stringify({ to, subject, html, at: new Date().toISOString() }) + '\n')
-    return
+    await appendFile(
+      file,
+      JSON.stringify({ to, subject, html, ...(replyTo ? { replyTo } : {}), at: new Date().toISOString() }) + '\n',
+    )
+    return true
   }
   if (!process.env.RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY not set - email not sent to', to)
-    return
+    return false
   }
   try {
     const resend = new Resend(process.env.RESEND_API_KEY)
-    await resend.emails.send({ from: FROM, to, subject, html })
+    const { error } = await resend.emails.send({ from: FROM, to, subject, html, ...(replyTo ? { replyTo } : {}) })
+    if (error) {
+      console.error('[email] Resend rejected the message:', error)
+      return false
+    }
+    return true
   } catch (err) {
     console.error('[email] Failed to send:', err)
+    return false
+  }
+}
+
+// Fixed labels for the form's subject dropdown. The visitor's own subject text is
+// never used in the email subject; anything unrecognised falls back to "Other".
+const CONTACT_SUBJECT_LABELS: Record<string, string> = {
+  writing: 'Write for The Consilium',
+  story: 'Story tip or idea',
+  collaboration: 'Collaboration enquiry',
+  feedback: 'Feedback',
+  other: 'Other',
+}
+
+export function contactMessageEmail(input: {
+  name: string
+  email: string
+  subject: string
+  message: string
+}) {
+  const label = CONTACT_SUBJECT_LABELS[input.subject] ?? CONTACT_SUBJECT_LABELS.other
+  return {
+    subject: `Contact form: ${label}`,
+    html: `
+      <p>New message from the contact form.</p>
+      <p><strong>Name:</strong> ${esc(input.name)}<br>
+      <strong>Email:</strong> ${esc(input.email)}<br>
+      <strong>Subject:</strong> ${esc(input.subject)}</p>
+      <blockquote style="border-left:3px solid #c9a227;padding:8px 16px;margin:16px 0;color:#555">${esc(input.message).replace(/\r?\n/g, '<br>')}</blockquote>
+      <p>Replying to this email goes to the sender.</p>
+    `,
   }
 }
 

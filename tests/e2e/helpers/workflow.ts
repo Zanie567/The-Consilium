@@ -125,7 +125,7 @@ async function removeArticlesTitled(prefix: string) {
 }
 
 // ── Captured email ────────────────────────────────────────────────────────────────────
-export interface CapturedEmail { to: string; subject: string; html: string; at: string }
+export interface CapturedEmail { to: string; subject: string; html: string; replyTo?: string; at: string }
 export function capturedEmails(): CapturedEmail[] {
   const file = process.env.EMAIL_CAPTURE_FILE
   if (!file || !fs.existsSync(file)) return []
