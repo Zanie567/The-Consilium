@@ -219,18 +219,13 @@ export const authOptions: NextAuthOptions = {
         // as a bypass route around the credentials checks.
         if (dbUser.isBanned || !dbUser.isActive) return false
 
-        // Pre-registration guard. A password account whose address was never confirmed
-        // may have been registered by someone other than the address's owner, and its
-        // password would survive an automatic Google merge. If an admin has invited
-        // this address, do not merge: the owner must first prove the inbox (the emailed
-        // confirmation link or a password reset), which also replaces that password.
-        if (!dbUser.emailVerified && dbUser.password) {
-          const invited = await prisma.teamMembership.findFirst({
-            where: { email: normalizeEmail(user.email), status: 'PENDING' },
-            select: { id: true },
-          })
-          if (invited) return '/login?error=VerifyEmailFirst'
-        }
+        // Pre-registration guard. A password account whose address was never confirmed may
+        // have been registered by someone other than the address's owner, and its password
+        // (and any live session) would survive a Google merge, then inherit any role an
+        // admin gives that address later. So never merge into one, invitation or not: the
+        // owner must first prove the inbox (emailed link or password reset, which also
+        // replaces that password), after which Google works as usual.
+        if (!dbUser.emailVerified && dbUser.password) return '/login?error=VerifyEmailFirst'
 
         // If the user registered with email/password and is signing in with
         // Google for the first time, link the Google account automatically

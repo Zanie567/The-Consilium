@@ -417,6 +417,14 @@ suite('member onboarding lifecycle (real database)', () => {
       expect(await db.user.count({ where: { email: { equals: address, mode: 'insensitive' } } })).toBe(1)
     })
 
+    it('does not merge into an unconfirmed password account, even with no invitation yet', async () => {
+      const address = email('squatter-early')
+      const id = await register('Not The Owner', address, 'squatter-password')
+      expect((await googleSignIn(address)).allowed).toBe('/login?error=VerifyEmailFirst')
+      expect((await db.user.findUniqueOrThrow({ where: { id } })).emailVerified).toBeNull()
+      expect(await db.account.count({ where: { userId: id } })).toBe(0)
+    })
+
     it('does not merge into an unconfirmed password account that an invitation is waiting for', async () => {
       const address = email('squatter')
       await invite(admin.id, { email: address, role: 'WRITER' })

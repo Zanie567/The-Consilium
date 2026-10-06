@@ -14,7 +14,7 @@ const AUTH_ERRORS: Record<string, string> = {
   OAuthAccountNotLinked:
     'This email is already registered. Sign in with your password, or use the same method you used originally.',
   VerifyEmailFirst:
-    'This email has a password account that has not been confirmed yet. Confirm it first: use “Forgot password” to reset it by email, then sign in.',
+    'This email has a password account that has not been confirmed yet. Confirm it first: use “Forgot password” to reset it by email, then Google sign-in will work.',
   OAuthSignin: 'Could not start Google sign-in. Please try again.',
   OAuthCallback: 'Google sign-in failed. Please try again.',
   Callback: 'Sign-in failed. Please try again.',

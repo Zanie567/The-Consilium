@@ -74,7 +74,7 @@ membership `REVOKED`. The last active administrator cannot be demoted or revoked
   has no email parameter. Matching is case/space-insensitive; Google emails are lower-cased.
 * **Verified address required.** Password sign-up does not verify the address, so an unconfirmed
   account never claims an invitation (otherwise anyone could register an invited person's email).
-* **Pre-registration guard.** If an unconfirmed password account exists for an invited address, Google
+* **Pre-registration guard.** If an unconfirmed password account exists for an address (invited or not), Google
   sign-in is refused (`/login?error=VerifyEmailFirst`) rather than merged into it, so a squatter's
   password cannot survive onto the real owner's elevated account. Resetting the password (which proves
   the inbox) resolves it.
