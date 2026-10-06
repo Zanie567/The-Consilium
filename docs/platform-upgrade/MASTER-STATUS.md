@@ -7,7 +7,7 @@ Updated 2026-10-06. **Foundation phase only. The upgrade features are not comple
 ## Branch and foundation
 
 Integration branch: `feature/consilium-platform-upgrade`; audit base `029eef3`.
-Foundation commit is pinned by the local immutable tag `consilium-platform-foundation-20261006`. Resolve it with the exact command below; do not branch from a moving integration HEAD. The numeric hash is recorded in the handoff metadata commit after the foundation commit is created.
+Foundation commit: **`d1dab80b8eb72f986c2b8a2f0fffdb4722f0f19a`**. Pinned by local immutable tag `consilium-platform-foundation-20261006`. All shared code/contracts and verified evidence are in that commit. This subsequent documentation-only handoff commit records its numeric hash; specialist branches start from the foundation, not a moving integration HEAD.
 
 Pre-existing state: no tracked edits at start; many untracked `.next-e2e*` generated builds/configs, `docs/testing/` and `supabase/.temp/`. Preserved in place. New ignore rules hide generated Next artifacts without deleting them. The final tree may still show the pre-existing documentation/temp directories; they are not part of this foundation.
 
@@ -71,7 +71,9 @@ Baseline and final results, logs and browser evidence are recorded in [VERIFICAT
 
 ## Risks and readiness
 
-Architectural decisions permit independent development once the verified foundation hash is pinned. Release is blocked until all MASTER-SPEC criteria pass and the owner provides/configures the real LinkedIn URL.
+Architectural decisions permit independent development from the pinned foundation. No specialist branch/worktree was created or feature work launched. Analytics persistence/Discovery DB enforcement have explicit later integrator schema gates. Release is blocked until all MASTER-SPEC criteria pass and the owner provides/configures the real LinkedIn URL.
+
+Handoff Git state: all foundation changes committed; tracked working tree clean. Pre-existing untracked `docs/testing/` and `supabase/.temp/` remain intact. Other existing worktrees were not changed. Owned foundation app/Storage/Postgres services were stopped after verification; isolated test DB files remain under the owned temporary PGDATA path. Nothing pushed, merged or deployed; production unchanged.
 
 Known code risks owned in ARCHITECTURE: table/public-renderer parity; unsafe paste and unsupported toolbar marks; upload limits/cleanup/AVIF validation; linked-chief/deputy placement and legacy exceptions; newsletter concurrency and canonical shares; analytics consent/raw SQL column drift/active time; review/scheduler races and missing revision conflict detection; historical migration drift.
 
@@ -82,7 +84,7 @@ Known verification limitations: archived build artifacts initially polluted chec
 Use the pinned `FOUNDATION_COMMIT` below. Do not use a moving branch HEAD and do not share `/Users/zanie/The-Consilium`. Run each command from the integration checkout. New paths must not already contain someone else's work; check `git worktree list` first.
 
 ```sh
-FOUNDATION_COMMIT=$(git rev-parse consilium-platform-foundation-20261006)
+FOUNDATION_COMMIT=d1dab80b8eb72f986c2b8a2f0fffdb4722f0f19a
 
 git worktree add -b feature/consilium-upgrade-discovery /Users/zanie/The-Consilium-discovery "$FOUNDATION_COMMIT"
 git worktree add -b feature/consilium-upgrade-editor /Users/zanie/The-Consilium-editor "$FOUNDATION_COMMIT"

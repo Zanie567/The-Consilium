@@ -2,6 +2,8 @@
 
 Executed 2026-10-06 on `feature/consilium-platform-upgrade`, audit base `029eef3`. These results verify the foundation and current regression baseline. They do **not** satisfy the complete upgrade acceptance criteria in [MASTER-SPEC.md](MASTER-SPEC.md). Specialist features remain unimplemented.
 
+Verified foundation commit: `d1dab80b8eb72f986c2b8a2f0fffdb4722f0f19a` (local tag `consilium-platform-foundation-20261006`). Subsequent handoff edits only record this identity; no code changed after verification.
+
 ## Environment and production boundaries
 
 - Local Node 20.20.2, Next 16.2.2, Chromium via repository Playwright 1.60. Repository `.nvmrc` specifies Node 22; verification on Node 22 remains required before release.
@@ -11,6 +13,7 @@ Executed 2026-10-06 on `feature/consilium-platform-upgrade`, audit base `029eef3
 - Guarded production-mode Next server at localhost:3197, local Storage wire-contract emulator at 127.0.0.1:55491. Build/server/test processes shared explicit local DB, synthetic local auth/cron keys, local Storage keys/origins, disabled external email/OAuth/FRED and disabled telemetry. Local env-file credentials were blanked before Next/dotenv could load them. Runtime isolation was checked.
 - Functional server checks used the existing rate-limit-disable test switches; rate-limit unit coverage remains. Local Storage is not proof of real Supabase RLS, signed URLs, CDN or deployment upload limits. No production application/service was exercised.
 - No push, merge, deploy, release workflow, production database query/mutation or production content change occurred.
+- Owned foundation app, Storage and PostgreSQL services were stopped at handoff; test database files retained in the owned temporary cluster. Start that cluster and local services before reproducing live checks; do not substitute an unrelated server/database.
 
 ## Actual baseline and final results
 
