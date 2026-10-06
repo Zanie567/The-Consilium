@@ -85,7 +85,7 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
       )}
 
       <div>
-        <FieldLabel>Category</FieldLabel>
+        <FieldLabel>Article format</FieldLabel>
         <div className="relative">
           <select
             value={editor.categoryId}
@@ -188,7 +188,7 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
             className="w-full h-8 text-[16px] sm:text-[12px] border border-[var(--border)] rounded px-2 bg-[var(--bg-elevated)] focus:outline-none focus:border-gold placeholder:text-[var(--fg-faint)] disabled:opacity-50"
           />
         )}
-        <p className="text-[10px] text-[var(--fg-faint)] mt-1">Separate with Enter or comma. Up to 10.</p>
+        <p className="text-[10px] text-[var(--fg-faint)] mt-1">Choose 1–3 relevant topics. Separate with Enter or comma.</p>
       </div>
 
       {!editor.isWriter && (

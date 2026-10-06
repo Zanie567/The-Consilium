@@ -46,6 +46,7 @@ export default defineConfig({
           },
         ]
       : []),
+    { name: 'upgrade', testMatch: /upgrade-.*\.spec\.ts/, dependencies: ['setup'], use: { ...devices['Desktop Chrome'] } },
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
       name: 'public',

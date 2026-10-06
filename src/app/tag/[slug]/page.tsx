@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
+import { publishedArticleWhere } from '@/lib/articleQueries'
 import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
 import { StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
@@ -31,11 +32,12 @@ export default async function TagPage({ params }: Props) {
     where: { slug },
     include: {
       articles: {
-        where: { article: { status: 'PUBLISHED' } },
+        where: { article: publishedArticleWhere() },
+        take: 20,
         orderBy: { article: { publishedAt: { sort: 'desc', nulls: 'last' } } },
         include: {
           article: {
-            include: { author: true, category: true },
+            select: { id: true, title: true, slug: true, excerpt: true, coverImage: true, publishedAt: true, author: { select: { id: true, name: true, slug: true } }, category: { select: { name: true, slug: true } } },
           },
         },
       },
@@ -63,6 +65,7 @@ export default async function TagPage({ params }: Props) {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <Link href={`/archive?tag=${encodeURIComponent(tag.slug)}`} className="inline-block underline mb-6">Browse all {tag.name} articles and filter by format</Link>
         {articles.length === 0 ? (
           <ArticleEmptyState
             state={getTagEmptyState(tag.name)}

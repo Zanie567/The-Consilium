@@ -260,9 +260,10 @@ model ArticleTag {
   tagId     String
 
   article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Restrict)
 
   @@id([articleId, tagId])
+  @@index([tagId, articleId])
   @@map("article_tags")
 }
 

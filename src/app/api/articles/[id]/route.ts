@@ -1,3 +1,4 @@
+import { resolveArticleTag } from '@/lib/resolveArticleTag'
 import { NextResponse, NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession, requireVerifiedSessionUser } from '@/lib/auth'
@@ -231,12 +232,8 @@ export async function PUT(
       if (Array.isArray(tags)) {
         await tx.articleTag.deleteMany({ where: { articleId: id } })
         const tagRecords: Array<{ id: string }> = []
-        for (const { name, slug: tagSlug } of normalizedTags) {
-          const tag = await tx.tag.upsert({
-            where: { slug: tagSlug },
-            update: {},
-            create: { name, slug: tagSlug },
-          })
+        for (const { name, slug: tagSlug } of [...normalizedTags].sort((a, b) => a.slug.localeCompare(b.slug))) {
+          const tag = await resolveArticleTag(tx, { name, slug: tagSlug })
           tagRecords.push(tag)
         }
         if (tagRecords.length > 0) {

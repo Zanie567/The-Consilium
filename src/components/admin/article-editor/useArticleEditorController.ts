@@ -1,5 +1,7 @@
 'use client'
 
+import { topicDisplayName, canonicalTagSlug } from '@/lib/tagIdentity'
+
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
@@ -425,8 +427,8 @@ export function useArticleEditorController({
   }
 
   const addTag = (raw: string) => {
-    const name = raw.trim().toLowerCase().replace(/[^a-z0-9 ]/g, '').trim()
-    if (name && !tags.includes(name) && tags.length < 10) {
+    const name = topicDisplayName(raw)
+    if (name && !tags.some(tag => canonicalTagSlug(tag) === canonicalTagSlug(name)) && tags.length < 10) {
       const next = [...tags, name]
       setTags(next)
       tagsRef.current = next

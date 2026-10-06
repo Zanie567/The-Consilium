@@ -1,40 +1,28 @@
 # Discovery workstream status
 
-Updated 2026-10-06. **Not started: specialist features are not implemented or verified by the foundation.**
+Updated 2026-10-06. **IMPLEMENTED BUT NOT FULLY VERIFIED** — targeted verification passed; complete combined publication/cache regression remains for integration.
 
-Authority: [MASTER-SPEC.md](MASTER-SPEC.md). Binding contracts/ownership: [ARCHITECTURE.md](ARCHITECTURE.md). Branch/worktree and verification ledger: [MASTER-STATUS.md](MASTER-STATUS.md). Existing behaviour below is an audit finding, not a claim of full product acceptance.
+Authority: MASTER-SPEC.md. Contracts: ARCHITECTURE.md. Isolation/sequence: IMPLEMENTATION-PLAN.md. Original checkout work untouched.
 
-## Existing implementation
+## Implemented
 
-Existing Category/Tag/ArticleTag, tag/author/category pages, archive pagination and debounced article search. No multi-topic filtering; topics absent from search.
+- Existing Category FK retains News/Opinion/Analysis, Interviews and legacy URLs. Existing public navigation already exposes these formats.
+- Topic names use NFKC/collapsed whitespace; canonical identities collapse case, punctuation and slug separators. New URLs use canonical identity; existing IDs/slugs are resolved and retained. Editor preserves readable punctuation/case, rejects equivalent duplicates and guides 1–3 tags (existing exceptional cap remains 10 UI/25 server).
+- Additive database migration `20261006153514_discovery_topic_identity.sql`: collision/blank preflight, canonical identity unique expression index, reverse topic join index, restrictive in-use deletion FK. No historical rows renamed/deleted. Applied only to fresh isolated local Postgres. Prisma includes reverse index/restrict relation. Rollback: restore original FK cascade and drop new indexes/function after application rollback; no data rewrite to reverse.
+- Repeated `tag` query parameters use topic OR, format AND topics; GET checkbox form provides selection/removal, clear-all, page reset, shared URL refresh, bounded stable pagination and zero-results state. Filter permutations remain noindex.
+- Archive selects metadata only. Tag page excludes deleted articles, bounds recent cards to 20 and links to complete filtered/paginated archive.
+- Search keeps legacy array API; `scope=all` adds articles/authors/topics, 15 articles/page, 8 authors/topics, 200-character query/8 tokens/page cap, public-only relations, no bodies/private author fields, rate limit, no-store and friendly 503. Debounce/keyboard submit, abort stale requests, URL refresh, loading, empty/no-results/retry and mobile states.
+- Topics cached under existing `articles` tag/30s; archive/search read live data. Existing post-commit publication invalidation retained.
 
-## Remaining required work
+## Actual evidence
 
-Normalize tags without changing old URLs; curated topics and 1–3 guidance; in-use delete guard; OR multi-filter + pagination/sort/URL/SEO; distinguish topic/author results and error states.
+- Targeted Vitest: **64/64** across article-tag normalization, archive pagination, discovery queries/database, create/save routes; plus **6/6** search route cases (70 total). Local Postgres concurrent resolution reused legacy ID/URL; DB duplicate and in-use deletion rejected; OR joins produced no duplicates.
+- Playwright: **4/4 feature cases + 4/4 auth setup**. 375/768/1440 filter-select/multi-select/format/pagination/refresh/unselect/clear, no page overflow/uncaught exceptions/failed API responses. Mobile keyboard title/author/topic/no-results and mocked 503→retry passed. Initial selector ambiguity with Next's route announcer was corrected in the test; functionality was intact.
+- Typecheck, whole-repo lint and production build passed for this milestone (Node 22, guarded local env).
+- Interactive agent-browser archive navigation, topic checkbox/apply and zero-results/clear actions inspected; screenshot `/tmp/consilium-discovery-qa.png`. No browser error recorded. Full later visual matrix still required.
 
-## Exclusive ownership
+## Remaining verification/limitations
 
-articleTags.ts, searchText.ts, archivePagination.ts, archive/search/category/tag pages, api/search; exclusive new discovery modules and tests.
-
-Do not independently edit integration-owned shared files listed in ARCHITECTURE. Submit a scoped patch/proposal and coordinate additive imports. Work only in this stream's isolated worktree and guarded test cluster.
-
-## Schema ownership
-
-Propose reverse join index, normalized name identity/preflight and Tag FK RESTRICT. Integrator alone edits schema/migrations.
-
-## Required evidence
-
-Normalization/slug/collision tests; safe join/constraint integration; filters with OR/count/pagination; author/topic/title/no-results/error search; keyboard/mobile and post-publish tag revalidation.
-
-Run current baseline suite and targeted tests; record actual counts/errors/skip reasons and browser interactions. Preserve all safety guards and production boundaries. See VERIFICATION for pre-existing baseline limitations, especially fixture isolation.
-
-## Implementation record
-
-- Specialist branch/worktree: assigned from pinned foundation in MASTER-STATUS; not created by foundation.
-- Specialist commits: none.
-- New specialist migrations: none created/applied.
-- Specialist tests/browser QA: none run; foundation baseline is separate.
-- Shared-file patch proposals: none yet.
-- Acceptance checklist: all remaining MASTER-SPEC criteria for this stream open.
-
-The assigned specialist maintains this file with implemented behaviour, exact commits, actual evidence, migration proposals and unresolved gaps. Do not replace or weaken requirements with status notes.
+- Complete publication→tag edit→unpublish/restore/cache evidence will run with Editor/Figures lifecycle in integration. Expression migration must also be validated on empty schema and deliberately colliding historical fixture before final acceptance.
+- No production migration/configuration performed. Historical collisions intentionally block migration and need explicit reconciliation preserving URLs.
+- Search scans bounded metadata predicates without a new search engine; full-text indexing can follow measured scale. It deliberately does not scan/load complete document bodies.
