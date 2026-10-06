@@ -17,6 +17,7 @@
 /** Ordered from the top of the masthead downwards. */
 export type TeamTierId =
   | 'editor_in_chief'
+  | 'deputy'
   | 'leadership'
   | 'senior_editor'
   | 'editor'
@@ -43,13 +44,9 @@ export interface TeamMemberLike {
   name: string
   role: string | null
   order: number
-  /**
-   * When set, the card is in this team's section. Always. The title and `order`
-   * only affect prominence and position WITHIN that team; nothing — not
-   * "Editor-in-Chief", "Chief", "Head" or "Director" — can move a card to another
-   * team. A wrongly-roled account is fixed by changing its role, not by a
-   * rendering exception.
-   */
+  /** Account role fixes Writing/Growth placement. Only admin-appointed editorial
+   * chiefs and deputies appear in the masthead; routine self-profile fields do
+   * not change these titles. Legacy cards retain their established placement. */
   team?: MemberTeam | null
 }
 
@@ -70,6 +67,7 @@ export interface TeamSection<T extends TeamMemberLike> {
 
 const TIER_SECTION: Record<TeamTierId, TeamSectionId> = {
   editor_in_chief: 'masthead',
+  deputy: 'masthead',
   leadership: 'masthead',
   senior_editor: 'editorial',
   editor: 'editorial',
@@ -81,6 +79,7 @@ const TIER_SECTION: Record<TeamTierId, TeamSectionId> = {
 
 const TIER_VARIANT: Record<TeamTierId, TeamCardVariant> = {
   editor_in_chief: 'lead',
+  deputy: 'feature',
   leadership: 'feature',
   senior_editor: 'standard',
   editor: 'standard',
@@ -93,6 +92,7 @@ const TIER_VARIANT: Record<TeamTierId, TeamCardVariant> = {
 /** Render order of the tiers, top of the masthead first. */
 export const TEAM_TIER_ORDER: readonly TeamTierId[] = [
   'editor_in_chief',
+  'deputy',
   'leadership',
   'senior_editor',
   'editor',
@@ -102,15 +102,21 @@ export const TEAM_TIER_ORDER: readonly TeamTierId[] = [
   'other',
 ]
 
-const SECTION_ORDER: readonly TeamSectionId[] = ['masthead', 'editorial', 'writers', 'growth', 'wider']
+const SECTION_ORDER: readonly TeamSectionId[] = [
+  'masthead',
+  'editorial',
+  'writers',
+  'growth',
+  'wider',
+]
 
 const SECTION_META: Record<TeamSectionId, { label: string; labelVisible: boolean }> = {
   // The two masthead rows read as a hierarchy on their own; a visible label
   // would only restate what the cards already say.
   masthead: { label: 'Masthead', labelVisible: false },
-  editorial: { label: 'Editorial', labelVisible: true },
+  editorial: { label: 'Editorial Team', labelVisible: true },
   writers: { label: 'Writers', labelVisible: true },
-  growth: { label: 'Growth & Communications', labelVisible: true },
+  growth: { label: 'Growth & Comms', labelVisible: true },
   wider: { label: 'Wider Team', labelVisible: true },
 }
 
@@ -147,7 +153,7 @@ export function resolveTeamTier(role: string | null | undefined): TeamTierId {
   const isDeputy = /\b(deputy|associate|assistant|vice|acting|former)\b/.test(normalized)
 
   if (/\beditor in chief\b/.test(normalized)) {
-    return isDeputy ? 'leadership' : 'editor_in_chief'
+    return /\bdeputy\b/.test(normalized) ? 'deputy' : isDeputy ? 'leadership' : 'editor_in_chief'
   }
   // "Chief Designer", "Head of Design", "Creative Director" — specialist leads.
   if (/\b(chief|head|director)\b/.test(normalized)) return 'leadership'
@@ -199,7 +205,8 @@ interface Placement {
 /**
  * Where a card is rendered.
  *
- * Account-linked card (`team` set): the SECTION is fixed by the team. The title
+ * Account-linked card (`team` set): Writing/Growth stay fixed; appointed editorial
+ * chiefs and deputies lead the masthead. The title
  * chooses the prominence row inside that section — Editorial has the full ladder
  * (Editor-in-Chief, leadership, Senior, Editor, Junior); Writing and Growth &
  * Communications have one row each.
@@ -212,6 +219,7 @@ function placeMember(member: TeamMemberLike): Placement {
   if (member.team === 'growth') return { section: 'growth', tier: 'growth' }
   if (member.team === 'editorial') {
     const tier = resolveTeamTier(member.role)
+    if (tier === 'editor_in_chief' || tier === 'deputy') return { section: 'masthead', tier }
     const ladder: TeamTierId[] = ['editor_in_chief', 'leadership', 'senior_editor', 'junior_editor']
     return { section: 'editorial', tier: ladder.includes(tier) ? tier : 'editor' }
   }
@@ -228,7 +236,10 @@ function compareMembers(a: TeamMemberLike, b: TeamMemberLike): number {
   const bHasRole = hasDisplayableRole(b.role) ? 0 : 1
   if (aHasRole !== bHasRole) return aHasRole - bHasRole
   if (a.order !== b.order) return a.order - b.order
-  return a.name.localeCompare(b.name)
+  return (
+    normalizeName(a.name).localeCompare(normalizeName(b.name), 'en') ||
+    a.id.localeCompare(b.id, 'en')
+  )
 }
 
 /**
@@ -260,6 +271,12 @@ export function buildTeamMasthead<T extends TeamMemberLike>(members: T[]): TeamS
   })
 
   for (const bucket of buckets.values()) bucket.sort(compareMembers)
+  // Preserve additional appointments without crowding the two deputy cards.
+  const deputies = buckets.get(key('masthead', 'deputy'))
+  if (deputies && deputies.length > 2) {
+    for (const member of deputies.splice(2)) add('editorial', 'leadership', member)
+    buckets.get(key('editorial', 'leadership'))?.sort(compareMembers)
+  }
 
   return SECTION_ORDER.flatMap<TeamSection<T>>((sectionId) => {
     const rows = TEAM_TIER_ORDER.map((tier) => ({

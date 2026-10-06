@@ -31,7 +31,7 @@ test.afterAll(closeDb)
 async function loginAs(
   browser: Browser,
   key: AccountKey,
-  options: { viewport?: { width: number; height: number } } = {},
+  options: { viewport?: { width: number; height: number } } = {}
 ): Promise<{ context: BrowserContext; page: Page; errors: string[] }> {
   const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, ...options })
   const page = await context.newPage()
@@ -41,12 +41,16 @@ async function loginAs(
   await page.locator('input[type="password"]').fill(PASSWORD)
   await page.locator('button[type="submit"]').click()
   // NOT /editorial/ in general — that also matches /editorial/login itself.
-  await page.waitForURL((url) => url.pathname.startsWith('/editorial') && !url.pathname.includes('/login'), { timeout: 20_000 })
+  await page.waitForURL(
+    (url) => url.pathname.startsWith('/editorial') && !url.pathname.includes('/login'),
+    { timeout: 20_000 }
+  )
   return { context, page, errors }
 }
 
 const cardCount = (userId: string) => db().teamMember.count({ where: { userId } })
-const storageObjects = async (): Promise<{ key: string }[]> => (await fetch(`${STORAGE_URL}/__objects`)).json()
+const storageObjects = async (): Promise<{ key: string }[]> =>
+  (await fetch(`${STORAGE_URL}/__objects`)).json()
 const sidebarLink = (page: Page) => page.getByRole('link', { name: 'Team Profile' })
 
 async function openProfile(page: Page) {
@@ -69,11 +73,15 @@ test.describe('access by role', () => {
     })
   }
 
-  test('admin has no Team Profile link and gets an explanation, not a form', async ({ browser }) => {
+  test('admin has no Team Profile link and gets an explanation, not a form', async ({
+    browser,
+  }) => {
     const { context, page } = await loginAs(browser, 'admin')
     await expect(sidebarLink(page)).toHaveCount(0)
     await openProfile(page)
-    await expect(page.locator('p[role="alert"]')).toContainText(/isn.t assigned to the Writing, Editorial or Growth/)
+    await expect(page.locator('p[role="alert"]')).toContainText(
+      /isn.t assigned to the Writing, Editorial or Growth/
+    )
     await expect(page.locator('form')).toHaveCount(0)
     await context.close()
   })
@@ -148,16 +156,26 @@ test.describe('writer: create then edit', () => {
   })
 
   test('photo validation: a non-image with an image name is refused by the server', async () => {
-    await page.setInputFiles('#tp-photo', { name: 'evil.png', mimeType: 'image/png', buffer: Buffer.from('<svg onload=alert(1)>') })
+    await page.setInputFiles('#tp-photo', {
+      name: 'evil.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('<svg onload=alert(1)>'),
+    })
     await page.getByLabel('Description').fill('should not be saved')
     await page.getByRole('button', { name: 'Create profile' }).click()
     await expect(page.getByRole('status')).toContainText('JPEG, PNG, GIF, WebP or AVIF')
     expect(await cardCount(ids.writer)).toBe(0)
-    expect((await storageObjects()).filter((o) => o.key.startsWith(`avatars/${ids.writer}/`))).toHaveLength(0)
+    expect(
+      (await storageObjects()).filter((o) => o.key.startsWith(`avatars/${ids.writer}/`))
+    ).toHaveLength(0)
   })
 
   test('selecting a photo previews it, and Remove clears the selection', async () => {
-    await page.setInputFiles('#tp-photo', { name: 'me.png', mimeType: 'image/png', buffer: makePng() })
+    await page.setInputFiles('#tp-photo', {
+      name: 'me.png',
+      mimeType: 'image/png',
+      buffer: makePng(),
+    })
     await expect(page.getByAltText('New profile photo preview')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Remove' })).toBeVisible()
     await page.getByRole('button', { name: 'Remove' }).click()
@@ -172,9 +190,16 @@ test.describe('writer: create then edit', () => {
       await route.continue()
     })
     const puts: string[] = []
-    page.on('request', (r) => r.method() === 'PUT' && r.url().includes('/api/team-profile') && puts.push(r.url()))
+    page.on(
+      'request',
+      (r) => r.method() === 'PUT' && r.url().includes('/api/team-profile') && puts.push(r.url())
+    )
 
-    await page.setInputFiles('#tp-photo', { name: 'me.png', mimeType: 'image/png', buffer: makePng() })
+    await page.setInputFiles('#tp-photo', {
+      name: 'me.png',
+      mimeType: 'image/png',
+      buffer: makePng(),
+    })
     await page.getByLabel('Description').fill('I cover monetary policy.')
     const save = page.getByRole('button', { name: 'Create profile' })
     await save.dblclick()
@@ -203,7 +228,9 @@ test.describe('writer: create then edit', () => {
     await expect(page.getByRole('button', { name: 'Create profile' })).toHaveCount(0)
     const img = page.locator('form img').first()
     await expect(img).toBeVisible()
-    await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true)
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+      .toBe(true)
   })
 
   test('editing the description updates the same row', async () => {
@@ -220,17 +247,25 @@ test.describe('writer: create then edit', () => {
 
   test('replacing the photo stores the new file and deletes the old one', async () => {
     const before = await db().teamMember.findUniqueOrThrow({ where: { userId: ids.writer } })
-    await page.setInputFiles('#tp-photo', { name: 'new.png', mimeType: 'image/png', buffer: makePng(64, [20, 90, 200]) })
+    await page.setInputFiles('#tp-photo', {
+      name: 'new.png',
+      mimeType: 'image/png',
+      buffer: makePng(64, [20, 90, 200]),
+    })
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect(page.getByRole('status')).toContainText('has been saved')
     const after = await db().teamMember.findUniqueOrThrow({ where: { userId: ids.writer } })
     expect(after.image).not.toBe(before.image)
     expect((await fetch(after.image!)).status).toBe(200)
     expect((await fetch(before.image!)).status).toBe(404)
-    expect((await storageObjects()).filter((o) => o.key.startsWith(`avatars/${ids.writer}/`))).toHaveLength(1)
+    expect(
+      (await storageObjects()).filter((o) => o.key.startsWith(`avatars/${ids.writer}/`))
+    ).toHaveLength(1)
   })
 
-  test('the public page shows them once, under Writers, with a rendered photo', async ({ browser }) => {
+  test('the public page shows them once, under Writers, with a rendered photo', async ({
+    browser,
+  }) => {
     const anon = await browser.newContext({ baseURL: process.env.E2E_BASE_URL })
     const pub = await anon.newPage()
     const pubErrors = watch(pub)
@@ -242,29 +277,41 @@ test.describe('writer: create then edit', () => {
     // copy of the server HTML briefly coexists with the live tree (then is removed).
     const img = writers.locator('div.group img[alt^="Wendy Writer"]:visible')
     await img.scrollIntoViewIfNeeded()
-    await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true)
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+      .toBe(true)
     expect(pubErrors).toEqual([])
     await anon.close()
   })
 
-  test('removing the photo clears it everywhere and the card falls back to initials', async ({ browser }) => {
+  test('removing the photo clears it everywhere and the card falls back to initials', async ({
+    browser,
+  }) => {
     const before = await db().teamMember.findUniqueOrThrow({ where: { userId: ids.writer } })
     await page.reload()
     await page.getByRole('button', { name: 'Remove' }).click()
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect(page.getByRole('status')).toContainText('has been saved')
-    expect((await db().teamMember.findUniqueOrThrow({ where: { userId: ids.writer } })).image).toBeNull()
+    expect(
+      (await db().teamMember.findUniqueOrThrow({ where: { userId: ids.writer } })).image
+    ).toBeNull()
     expect((await fetch(before.image!)).status).toBe(404)
 
     const anon = await browser.newContext({ baseURL: process.env.E2E_BASE_URL })
     const pub = await anon.newPage()
     await pub.goto('/team')
-    const card = pub.locator('section[aria-labelledby="team-writers"]').locator('div.group', { has: pub.getByRole('heading', { name: 'Wendy Writer' }) })
+    const card = pub
+      .locator('section[aria-labelledby="team-writers"]')
+      .locator('div.group', { has: pub.getByRole('heading', { name: 'Wendy Writer' }) })
     await expect(card.getByText('WW')).toBeVisible()
     await expect(card.locator('img')).toHaveCount(0)
     await anon.close()
     // and restore a photo for the later public-page assertions
-    await page.setInputFiles('#tp-photo', { name: 'again.png', mimeType: 'image/png', buffer: makePng(64, [40, 160, 90]) })
+    await page.setInputFiles('#tp-photo', {
+      name: 'again.png',
+      mimeType: 'image/png',
+      buffer: makePng(64, [40, 160, 90]),
+    })
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect(page.getByRole('status')).toContainText('has been saved')
   })
@@ -282,7 +329,9 @@ test.describe('writer: create then edit', () => {
 // ── editor / growth ───────────────────────────────────────────────────────────
 
 test.describe('other teams', () => {
-  test('two tabs creating at the same moment still produce exactly one card', async ({ browser }) => {
+  test('two tabs creating at the same moment still produce exactly one card', async ({
+    browser,
+  }) => {
     const { context, page } = await loginAs(browser, 'editor')
     const second = await context.newPage()
     await openProfile(page)
@@ -304,7 +353,9 @@ test.describe('other teams', () => {
   test('growth creates a card that appears in Growth & Communications', async ({ browser }) => {
     const { context, page, errors } = await loginAs(browser, 'growth')
     await openProfile(page)
-    await expect(page.locator('form').getByText('Growth & Communications', { exact: true })).toBeVisible()
+    await expect(
+      page.locator('form').getByText('Growth & Communications', { exact: true })
+    ).toBeVisible()
     await page.getByLabel('Description').fill('I run our newsletter and socials.')
     await page.getByRole('button', { name: 'Create profile' }).click()
     await expect(page.getByRole('status')).toContainText('has been saved')
@@ -317,14 +368,18 @@ test.describe('other teams', () => {
 // ── people who already have a card ────────────────────────────────────────────
 
 test.describe('existing members', () => {
-  test('a legacy card with no email is NOT duplicated: the member is told to ask an admin', async ({ browser }) => {
+  test('a legacy card with no email is NOT duplicated: the member is told to ask an admin', async ({
+    browser,
+  }) => {
     const { context, page } = await loginAs(browser, 'legacy')
     await openProfile(page)
     await expect(page.locator('p[role="alert"]')).toContainText(/already exists but isn.t linked/)
     await expect(page.locator('form')).toHaveCount(0)
 
     // and the API refuses too, if someone calls it directly
-    const res = await page.request.put('/api/team-profile', { multipart: { bio: 'duplicate attempt' } })
+    const res = await page.request.put('/api/team-profile', {
+      multipart: { bio: 'duplicate attempt' },
+    })
     expect(res.status()).toBe(409)
     expect((await res.json()).code).toBe('LEGACY_CARD_NEEDS_LINK')
     expect(await cardCount(ids.legacy)).toBe(0)
@@ -332,7 +387,9 @@ test.describe('existing members', () => {
     await context.close()
   })
 
-  test('a card carrying the member’s email opens in the edit state, prefilled, and saving adopts it', async ({ browser }) => {
+  test('a card carrying the member’s email opens in the edit state, prefilled, and saving adopts it', async ({
+    browser,
+  }) => {
     const legacyCard = await db().teamMember.findFirstOrThrow({ where: { email: email('adopt') } })
     const { context, page } = await loginAs(browser, 'adopt')
     await openProfile(page)
@@ -360,8 +417,12 @@ test.describe('existing members', () => {
 // ── admin linking, in the browser ─────────────────────────────────────────────
 
 test.describe('admin: Linked account control', () => {
-  test('offers only Writer, Editor and Growth accounts, and linking makes the member edit their card', async ({ browser }) => {
-    const card = await db().teamMember.findFirstOrThrow({ where: { name: 'Lena Legacy', userId: null } })
+  test('offers only Writer, Editor and Growth accounts, and linking makes the member edit their card', async ({
+    browser,
+  }) => {
+    const card = await db().teamMember.findFirstOrThrow({
+      where: { name: 'Lena Legacy', userId: null },
+    })
     const { context, page } = await loginAs(browser, 'admin')
     await page.goto('/admin/team')
     await page.getByRole('button', { name: 'Edit Lena Legacy' }).click()
@@ -382,7 +443,9 @@ test.describe('admin: Linked account control', () => {
     await select.selectOption(ids.legacy)
     await page.getByRole('button', { name: 'Save Member' }).click()
     await expect(page.getByText('Edit Member', { exact: true })).toHaveCount(0) // the form closes only after a successful save
-    expect((await db().teamMember.findUniqueOrThrow({ where: { id: card.id } })).userId).toBe(ids.legacy)
+    expect((await db().teamMember.findUniqueOrThrow({ where: { id: card.id } })).userId).toBe(
+      ids.legacy
+    )
     await context.close()
 
     // Lena's first visit now edits that same card.
@@ -400,11 +463,17 @@ test.describe('admin: Linked account control', () => {
     await lena.context.close()
   })
 
-  test('the API refuses an admin, a reader or a second card for one account', async ({ browser }) => {
+  test('the API refuses an admin, a reader or a second card for one account', async ({
+    browser,
+  }) => {
     const { context, page } = await loginAs(browser, 'admin')
-    const card = await db().teamMember.create({ data: { name: 'Throwaway Card', role: 'Writer', order: 99 } })
+    const card = await db().teamMember.create({
+      data: { name: 'Throwaway Card', role: 'Writer', order: 99 },
+    })
     const put = (userId: string) =>
-      page.request.put(`/api/team/${card.id}`, { data: { name: 'Throwaway Card', role: 'Writer', userId } })
+      page.request.put(`/api/team/${card.id}`, {
+        data: { name: 'Throwaway Card', role: 'Writer', userId },
+      })
     expect((await put(ids.admin)).status()).toBe(400)
     expect((await put(ids.reader)).status()).toBe(400)
     expect((await put(ids.writer)).status()).toBe(409) // Wendy already owns a card
@@ -440,12 +509,23 @@ test.describe('API authorisation', () => {
     const { context, page } = await loginAs(browser, 'writer')
     const editorBefore = await db().teamMember.findUniqueOrThrow({ where: { userId: ids.editor } })
     const res = await page.request.put('/api/team-profile', {
-      multipart: { bio: 'forged', team: 'editorial', role: 'EDITOR', userId: ids.editor, order: '-1', isActive: 'false' },
+      multipart: {
+        bio: 'forged',
+        team: 'editorial',
+        role: 'EDITOR',
+        userId: ids.editor,
+        order: '-1',
+        isActive: 'false',
+      },
     })
     expect(res.status()).toBe(200)
-    expect(await db().teamMember.findUniqueOrThrow({ where: { userId: ids.editor } })).toEqual(editorBefore)
+    expect(await db().teamMember.findUniqueOrThrow({ where: { userId: ids.editor } })).toEqual(
+      editorBefore
+    )
     expect((await db().user.findUniqueOrThrow({ where: { id: ids.writer } })).role).toBe('WRITER')
-    expect(await db().teamMember.findUniqueOrThrow({ where: { userId: ids.writer } })).toMatchObject({ role: '', isActive: true, bio: 'forged' })
+    expect(
+      await db().teamMember.findUniqueOrThrow({ where: { userId: ids.writer } })
+    ).toMatchObject({ role: '', isActive: true, bio: 'forged' })
     await context.close()
   })
 })
@@ -453,7 +533,9 @@ test.describe('API authorisation', () => {
 // ── the public page ───────────────────────────────────────────────────────────
 
 test.describe('public Our Team page', () => {
-  test('sections are right, every person appears exactly once, and every photo renders', async ({ browser }) => {
+  test('sections are right, every person appears exactly once, and every photo renders', async ({
+    browser,
+  }) => {
     const anon = await browser.newContext({ baseURL: process.env.E2E_BASE_URL })
     const page = await anon.newPage()
     const errors = watch(page)
@@ -465,21 +547,46 @@ test.describe('public Our Team page', () => {
 
     // The masthead holds only LEGACY cards with no account (their title is all there is to
     // place them by). An untitled member sorts after a titled one — existing behaviour.
-    expect(await names('masthead')).toEqual(['Julia Stepniak', 'Lucas Dwyer'])
+    expect(await names('masthead')).toEqual(['Alexander Escala', 'Julia Stepniak', 'Lucas Dwyer'])
     // The Editor-in-Chief's account is an EDITOR, so they lead the Editorial section.
     const editorialNames = await names('editorial')
-    expect(editorialNames[0]).toBe('Alexander Escala')
-    expect([...editorialNames].sort()).toEqual(['Alexander Escala', 'Annika Sarawgi', 'Edgar Editor', 'Lena Legacy', 'Linda Linked', 'Sam Hunt', 'Satvik Singla'])
-    await expect(page.locator('section[aria-labelledby="team-editorial"] h3:visible', { hasText: 'Alexander Escala' })).toHaveCount(1)
+    expect((await names('masthead'))[0]).toBe('Alexander Escala')
+    expect([...editorialNames].sort()).toEqual([
+      'Annika Sarawgi',
+      'Edgar Editor',
+      'Lena Legacy',
+      'Linda Linked',
+      'Sam Hunt',
+      'Satvik Singla',
+    ])
+    await expect(
+      page.locator('section[aria-labelledby="team-masthead"] h3:visible', {
+        hasText: 'Alexander Escala',
+      })
+    ).toHaveCount(1)
     // Alan is shown under his ACCOUNT name, not the legacy card's old spelling.
     // Mira has an Editor-in-Chief TITLE on a WRITER account: she is a writer. The title never moves her.
-    expect((await names('writers')).sort()).toEqual(['Alan Adopt', 'Catherine Toh', 'Gurmehar Kaur', 'Mira Mismatch', 'Wendy Writer', 'Yaoqing Wang', 'Zara Spendiff'])
-    await expect(page.locator('section[aria-labelledby="team-writers"]', { hasText: 'Mira Mismatch' }).getByText('Editor-in-Chief')).toBeVisible()
+    expect((await names('writers')).sort()).toEqual([
+      'Alan Adopt',
+      'Catherine Toh',
+      'Gurmehar Kaur',
+      'Mira Mismatch',
+      'Wendy Writer',
+      'Yaoqing Wang',
+      'Zara Spendiff',
+    ])
+    await expect(
+      page
+        .locator('section[aria-labelledby="team-writers"]', { hasText: 'Mira Mismatch' })
+        .getByText('Editor-in-Chief')
+    ).toBeVisible()
     expect(await names('growth')).toEqual(['Grace Growth'])
-    await expect(page.getByRole('heading', { level: 2, name: 'Growth & Communications' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 2, name: 'Growth & Comms' })).toBeVisible()
 
     // Hierarchy inside Editorial survives linking: Senior before Junior.
-    expect(editorialNames.indexOf('Annika Sarawgi')).toBeLessThan(editorialNames.indexOf('Sam Hunt'))
+    expect(editorialNames.indexOf('Annika Sarawgi')).toBeLessThan(
+      editorialNames.indexOf('Sam Hunt')
+    )
 
     const all = await page.locator('section[aria-labelledby^="team-"] h3:visible').allTextContents()
     expect(all).toHaveLength(new Set(all).size)
@@ -491,13 +598,21 @@ test.describe('public Our Team page', () => {
     expect(count).toBeGreaterThanOrEqual(13)
     for (let i = 0; i < count; i++) await imgs.nth(i).scrollIntoViewIfNeeded()
     await expect
-      .poll(() => imgs.evaluateAll((els) => (els as HTMLImageElement[]).filter((e) => !(e.complete && e.naturalWidth > 0)).map((e) => e.alt)))
+      .poll(() =>
+        imgs.evaluateAll((els) =>
+          (els as HTMLImageElement[])
+            .filter((e) => !(e.complete && e.naturalWidth > 0))
+            .map((e) => e.alt)
+        )
+      )
       .toEqual([])
     expect(errors).toEqual([])
     await anon.close()
   })
 
-  test('a banned or demoted member disappears, and returns with the same card when restored', async ({ browser }) => {
+  test('a banned or demoted member disappears, and returns with the same card when restored', async ({
+    browser,
+  }) => {
     const anon = await browser.newContext({ baseURL: process.env.E2E_BASE_URL })
     const page = await anon.newPage()
     await db().user.update({ where: { id: ids.growth }, data: { role: 'READER' } })
@@ -520,23 +635,36 @@ test.describe('public Our Team page', () => {
 // ── layout ────────────────────────────────────────────────────────────────────
 
 test.describe('layout', () => {
-  test('desktop: the sidebar stays put and the form sits beside it, not under it', async ({ browser }) => {
-    const { context, page } = await loginAs(browser, 'linked', { viewport: { width: 1280, height: 800 } })
+  test('desktop: the sidebar stays put and the form sits beside it, not under it', async ({
+    browser,
+  }) => {
+    const { context, page } = await loginAs(browser, 'linked', {
+      viewport: { width: 1280, height: 800 },
+    })
     await openProfile(page)
     const nav = await page.getByRole('navigation', { name: 'Editorial navigation' }).boundingBox()
     const form = await page.locator('form').boundingBox()
     expect(nav).not.toBeNull()
     expect(form!.x).toBeGreaterThanOrEqual(nav!.x + nav!.width - 1)
     await expect(sidebarLink(page)).toBeVisible()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-    await page.getByRole('button', { name: 'Decline' }).click().catch(() => {})
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+    ).toBe(true)
+    await page
+      .getByRole('button', { name: 'Decline' })
+      .click()
+      .catch(() => {})
     await page.waitForTimeout(800) // let the portal's fade-in finish before the screenshot
     await page.screenshot({ path: 'test-results/team-profile-desktop.png', fullPage: true })
     await context.close()
   })
 
-  test('mobile: reachable from the menu, usable, and nothing overflows the screen', async ({ browser }) => {
-    const { context, page, errors } = await loginAs(browser, 'linked', { viewport: { width: 375, height: 740 } })
+  test('mobile: reachable from the menu, usable, and nothing overflows the screen', async ({
+    browser,
+  }) => {
+    const { context, page, errors } = await loginAs(browser, 'linked', {
+      viewport: { width: 375, height: 740 },
+    })
     await page.goto('/editorial')
     // First-visit cookie banner is fixed to the bottom and covers Save on a phone until dismissed.
     await page.getByRole('button', { name: 'Decline' }).click()
@@ -545,14 +673,20 @@ test.describe('layout', () => {
     await expect(page).toHaveURL(/\/editorial\/team-profile$/)
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Edit your team profile')
 
-    for (const control of [page.getByLabel('Description'), page.getByRole('button', { name: 'Save changes' }), page.getByText('Change photo')]) {
+    for (const control of [
+      page.getByLabel('Description'),
+      page.getByRole('button', { name: 'Save changes' }),
+      page.getByText('Change photo'),
+    ]) {
       await control.scrollIntoViewIfNeeded()
       const box = (await control.boundingBox())!
       expect(box.x).toBeGreaterThanOrEqual(0)
       expect(box.x + box.width).toBeLessThanOrEqual(376)
       expect(box.height).toBeGreaterThanOrEqual(30)
     }
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+    ).toBe(true)
 
     await page.getByLabel('Description').fill('Edited on a phone.')
     await page.getByRole('button', { name: 'Save changes' }).click()
@@ -566,7 +700,7 @@ test.describe('layout', () => {
           ctx.fillRect(0, 0, 1, 1)
           const [r, g] = ctx.getImageData(0, 0, 1, 1).data
           return g - r
-        }),
+        })
       )
       .toBeGreaterThan(40)
     await page.screenshot({ path: 'test-results/team-profile-mobile.png', fullPage: true })
@@ -575,20 +709,31 @@ test.describe('layout', () => {
   })
 
   test('mobile: the public Our Team page fits the screen', async ({ browser }) => {
-    const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, viewport: { width: 375, height: 740 } })
+    const context = await browser.newContext({
+      baseURL: process.env.E2E_BASE_URL,
+      viewport: { width: 375, height: 740 },
+    })
     const page = await context.newPage()
     await page.goto('/team')
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-    await page.getByRole('heading', { level: 2, name: 'Growth & Communications' }).scrollIntoViewIfNeeded()
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+    ).toBe(true)
+    await page.setViewportSize({ width: 768, height: 900 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.setViewportSize({ width: 375, height: 740 })
+    await page.getByRole('heading', { level: 2, name: 'Growth & Comms' }).scrollIntoViewIfNeeded()
     await page.screenshot({ path: 'test-results/team-public-mobile.png', fullPage: true })
     await context.close()
   })
 
   test('desktop: public page screenshot for the record', async ({ browser }) => {
-    const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, viewport: { width: 1280, height: 900 } })
+    const context = await browser.newContext({
+      baseURL: process.env.E2E_BASE_URL,
+      viewport: { width: 1280, height: 900 },
+    })
     const page = await context.newPage()
     await page.goto('/team')
-    await page.getByRole('heading', { level: 2, name: 'Growth & Communications' }).scrollIntoViewIfNeeded()
+    await page.getByRole('heading', { level: 2, name: 'Growth & Comms' }).scrollIntoViewIfNeeded()
     await page.waitForLoadState('networkidle')
     await page.screenshot({ path: 'test-results/team-public-desktop.png', fullPage: true })
     await context.close()

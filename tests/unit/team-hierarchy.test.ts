@@ -28,7 +28,7 @@ describe('resolveTeamTier', () => {
   })
 
   it('keeps deputy and acting titles out of the Editor-in-Chief slot', () => {
-    expect(resolveTeamTier('Deputy Editor-in-Chief')).toBe('leadership')
+    expect(resolveTeamTier('Deputy Editor-in-Chief')).toBe('deputy')
     expect(resolveTeamTier('Acting Editor-in-Chief')).toBe('leadership')
   })
 
@@ -171,5 +171,46 @@ describe('buildTeamMasthead', () => {
 
   it('returns nothing for an empty roster', () => {
     expect(buildTeamMasthead([])).toEqual([])
+  })
+})
+
+describe('upgrade pyramid', () => {
+  it('is stable for shuffled insertion, keeps chiefs first, caps deputy row, omits empty sections', () => {
+    const members = [
+      {
+        id: 'chief',
+        name: 'Chief',
+        role: 'Editor-in-Chief',
+        team: 'editorial' as const,
+        order: 99,
+      },
+      ...[1, 2, 3].map((i) => ({
+        id: `deputy${i}`,
+        name: `Deputy ${i}`,
+        role: 'Deputy Editor-in-Chief',
+        team: 'editorial' as const,
+        order: i,
+      })),
+      { id: 'editor', name: 'Editor', role: 'Editor', team: 'editorial' as const, order: 0 },
+      { id: 'writer', name: 'Writer', role: 'Writer', team: 'writing' as const, order: -10 },
+      {
+        id: 'growth',
+        name: 'Growth',
+        role: 'Editor-in-Chief',
+        team: 'growth' as const,
+        order: -100,
+      },
+    ]
+    const expected = buildTeamMasthead(members)
+    for (let start = 0; start < members.length; start++)
+      expect(
+        buildTeamMasthead([...members.slice(start), ...members.slice(0, start)].reverse())
+      ).toEqual(expected)
+    expect(expected.map((s) => s.id)).toEqual(['masthead', 'editorial', 'writers', 'growth'])
+    expect(expected[0].rows[0].members[0].id).toBe('chief')
+    expect(expected[0].rows[1].members.map((m) => m.id)).toEqual(['deputy1', 'deputy2'])
+    expect(expected[1].label).toBe('Editorial Team')
+    expect(expected[3].label).toBe('Growth & Comms')
+    expect(buildTeamMasthead([members[0]])).toHaveLength(1)
   })
 })

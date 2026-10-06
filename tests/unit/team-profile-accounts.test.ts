@@ -6,7 +6,7 @@ import {
   validateTeamBio,
   type TeamRowWithAccount,
 } from '@/lib/teamProfiles'
-import { buildTeamMasthead } from '@/lib/teamHierarchy'
+import { resolveTeamTier, buildTeamMasthead } from '@/lib/teamHierarchy'
 import { ownedPhotoPath } from '@/lib/teamPhotoStorage'
 import { detectImageMimeType } from '@/lib/imageSniff'
 
@@ -50,7 +50,7 @@ describe('teamForRole — the fixed role → team mapping', () => {
     'gives %s no team',
     (role) => {
       expect(teamForRole(role as string)).toBeNull()
-    },
+    }
   )
 
   it('is defined for exactly the roles allowed to own a profile', () => {
@@ -91,7 +91,7 @@ describe('buildPublicRoster', () => {
         row({ id: 'e', user: account({ email: 'e@x', role: 'EDITOR' }) }),
         row({ id: 'g', user: account({ email: 'g@x', role: 'GROWTH' }) }),
       ],
-      [],
+      []
     )
     expect(Object.fromEntries(roster.map((m) => [m.id, m.team]))).toEqual({
       w: 'writing',
@@ -108,8 +108,14 @@ describe('buildPublicRoster', () => {
   })
 
   it('prefers the card bio, then the account bio', () => {
-    const [own] = buildPublicRoster([row({ bio: 'Card bio', user: account({ bio: 'Acct bio' }) })], [])
-    const [fallback] = buildPublicRoster([row({ bio: null, user: account({ bio: 'Acct bio' }) })], [])
+    const [own] = buildPublicRoster(
+      [row({ bio: 'Card bio', user: account({ bio: 'Acct bio' }) })],
+      []
+    )
+    const [fallback] = buildPublicRoster(
+      [row({ bio: null, user: account({ bio: 'Acct bio' }) })],
+      []
+    )
     expect(own.bio).toBe('Card bio')
     expect(fallback.bio).toBe('Acct bio')
   })
@@ -122,19 +128,24 @@ describe('buildPublicRoster', () => {
         row({ id: 'demoted', user: account({ email: 'c@x', role: 'READER' }) }),
         row({ id: 'ok', user: account({ email: 'd@x' }) }),
       ],
-      [],
+      []
     )
     expect(roster.map((m) => m.id)).toEqual(['ok'])
   })
 
   it('shows no linked card for an account without a team role, whatever the card title says', () => {
     for (const role of ['ADMIN', 'READER']) {
-      expect(buildPublicRoster([row({ role: 'Editor-in-Chief', user: account({ role }) })], [])).toEqual([])
+      expect(
+        buildPublicRoster([row({ role: 'Editor-in-Chief', user: account({ role }) })], [])
+      ).toEqual([])
     }
   })
 
   it('keeps the card title for display but derives the team from the role alone', () => {
-    const [m] = buildPublicRoster([row({ role: 'Editor-in-Chief', user: account({ role: 'WRITER' }) })], [])
+    const [m] = buildPublicRoster(
+      [row({ role: 'Editor-in-Chief', user: account({ role: 'WRITER' }) })],
+      []
+    )
     expect(m).toMatchObject({ role: 'Editor-in-Chief', team: 'writing' })
   })
 
@@ -145,7 +156,7 @@ describe('buildPublicRoster', () => {
         row({ id: 'legacy', email: 'sam@ED.ac.uk', user: null }),
         row({ id: 'other-legacy', email: 'kim@ed.ac.uk', user: null }),
       ],
-      [],
+      []
     )
     expect(roster.map((m) => m.id).sort()).toEqual(['linked', 'other-legacy'])
   })
@@ -153,7 +164,7 @@ describe('buildPublicRoster', () => {
   it('still resolves legacy bios from a matching account by email', () => {
     const [legacy] = buildPublicRoster(
       [row({ user: null, email: 'kim@ed.ac.uk', bio: 'Admin bio' })],
-      [{ email: 'KIM@ed.ac.uk', bio: 'Own bio', slug: 'kim' }],
+      [{ email: 'KIM@ed.ac.uk', bio: 'Own bio', slug: 'kim' }]
     )
     expect(legacy.bio).toBe('Own bio')
     expect(legacy.team).toBeNull()
@@ -169,14 +180,32 @@ describe('masthead sections for account-linked cards', () => {
 
   it('NO title can move a linked card out of its team — checked for every title and team', () => {
     const titles = [
-      'Editor-in-Chief', 'Deputy Editor-in-Chief', 'Chief Designer', 'Head of Growth', 'Creative Director',
-      'Senior Editor', 'Junior Editor', 'Editor', 'Writer', 'Senior Writer', 'Social Media Manager',
-      'Treasurer', 'Former Editor-in-Chief', '', null, 'EDITOR-IN-CHIEF', 'editor in chief',
+      'Editor-in-Chief',
+      'Deputy Editor-in-Chief',
+      'Chief Designer',
+      'Head of Growth',
+      'Creative Director',
+      'Senior Editor',
+      'Junior Editor',
+      'Editor',
+      'Writer',
+      'Senior Writer',
+      'Social Media Manager',
+      'Treasurer',
+      'Former Editor-in-Chief',
+      '',
+      null,
+      'EDITOR-IN-CHIEF',
+      'editor in chief',
     ]
     for (const team of ['writing', 'editorial', 'growth'] as const) {
       for (const role of titles) {
         for (const name of ['M', 'Lucas Dwyer']) {
-          expect(sectionOf({ ...base, name, role, team }), `${team} / ${role} / ${name}`).toBe(TEAM_SECTION[team])
+          expect(sectionOf({ ...base, name, role, team }), `${team} / ${role} / ${name}`).toBe(
+            team === 'editorial' && ['editor_in_chief', 'deputy'].includes(resolveTeamTier(role))
+              ? 'masthead'
+              : TEAM_SECTION[team]
+          )
         }
       }
     }
@@ -194,8 +223,10 @@ describe('masthead sections for account-linked cards', () => {
       { id: 'c', name: 'C', order: 1, role: 'Editor-in-Chief', team: 'editorial' },
       { id: 'd', name: 'D', order: 3, role: 'Chief Designer', team: 'editorial' },
     ])
-    expect(sections.map((s) => s.id)).toEqual(['editorial'])
-    expect(sections[0].rows.map((r) => [r.tier, r.variant, r.members[0].id])).toEqual([
+    expect(sections.map((s) => s.id)).toEqual(['masthead', 'editorial'])
+    expect(
+      sections.flatMap((s) => s.rows).map((r) => [r.tier, r.variant, r.members[0].id])
+    ).toEqual([
       ['editor_in_chief', 'lead', 'c'],
       ['leadership', 'feature', 'd'],
       ['senior_editor', 'standard', 'a'],
@@ -234,12 +265,14 @@ describe('masthead sections for account-linked cards', () => {
       { id: '4', name: 'D', order: 4, role: 'Treasurer', team: null },
     ])
     expect(sections.map((s) => s.id)).toEqual(['writers', 'growth', 'wider'])
-    expect(sections[1].label).toBe('Growth & Communications')
+    expect(sections[1].label).toBe('Growth & Comms')
     expect(sections[1].rows[0].members.map((m) => m.id)).toEqual(['1', '2'])
   })
 
   it('omits the Growth section when nobody is in it', () => {
-    expect(buildTeamMasthead([{ ...base, role: 'Writer', team: 'writing' }]).map((s) => s.id)).toEqual(['writers'])
+    expect(
+      buildTeamMasthead([{ ...base, role: 'Writer', team: 'writing' }]).map((s) => s.id)
+    ).toEqual(['writers'])
   })
 
   it('leaves legacy cards (no linked account) exactly where their titles put them', () => {
@@ -273,8 +306,12 @@ describe('ownedPhotoPath', () => {
 describe('detectImageMimeType', () => {
   it('recognises real image headers and rejects everything else', () => {
     expect(detectImageMimeType(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe('image/jpeg')
-    expect(detectImageMimeType(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe('image/png')
-    expect(detectImageMimeType(new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>'))).toBeNull()
+    expect(
+      detectImageMimeType(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    ).toBe('image/png')
+    expect(
+      detectImageMimeType(new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>'))
+    ).toBeNull()
     expect(detectImageMimeType(new TextEncoder().encode('<?php echo 1;'))).toBeNull()
     expect(detectImageMimeType(new Uint8Array([]))).toBeNull()
   })
