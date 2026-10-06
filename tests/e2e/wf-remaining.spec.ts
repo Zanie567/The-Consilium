@@ -1,13 +1,7 @@
 import {test,expect, type Locator, type Page} from '@playwright/test'
-import {signedIn,createAccount,signInAs,db,closeDb,removeMyAccounts,removeMyArticles,uniqueTitle,ArticleEditorPage} from './helpers/workflow'
+import {signedIn,createAccount,signInAs,db,closeDb,removeMyAccounts,removeMyArticles,uniqueTitle,ArticleEditorPage,hydrated} from './helpers/workflow'
 import { collectConsoleErrors } from './helpers/console'
 let debatesToRestore: string[] = []
-// Server-rendered elements only get React's handlers when it hydrates them. A drag begun earlier is a native drag
-// with nobody listening on the target (no dragover/drop), so nothing happens and no request is made.
-const hydrated = (locator: Locator, handler: string) => expect.poll(() => locator.evaluate((el, name) => {
-  const key = Object.keys(el).find(k => k.startsWith('__reactProps$'))
-  return key !== undefined && typeof (el as unknown as Record<string, Record<string, unknown>>)[key][name] === 'function'
-}, handler), { message: `React has attached ${handler}` }).toBe(true)
 test.afterAll(async()=>{await removeMyArticles();await db().debate.updateMany({where:{id:{in:debatesToRestore}},data:{isActive:true}});await removeMyAccounts();await closeDb()})
 
 async function dragCalendarItem(page: Page, source: Locator, target: Locator) {

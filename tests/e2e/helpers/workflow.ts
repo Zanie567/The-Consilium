@@ -3,7 +3,7 @@
  * a person does (click, type, upload); the database and storage helpers only READ state
  * back for assertions, or remove the fixtures a spec created.
  */
-import { test, expect, type Browser, type BrowserContext, type Page, type Response } from '@playwright/test'
+import { test, expect, type Browser, type BrowserContext, type Locator, type Page, type Response } from '@playwright/test'
 import fs from 'node:fs'
 import bcrypt from 'bcryptjs'
 import { PrismaClient } from '@prisma/client'
@@ -313,12 +313,25 @@ export async function removeMyAccounts() {
   }
 }
 
+/**
+ * Resolves once React has hydrated the element and attached `handler` to it (React keeps a node's props under
+ * `__reactProps$…`). Server-rendered markup is only a picture until then: a click or a drag on it does nothing,
+ * and a controlled input filled before hydration is reset to its empty state.
+ */
+export const hydrated = (locator: Locator, handler: string) =>
+  expect.poll(() => locator.evaluate((el, name) => {
+    const key = Object.keys(el).find((k) => k.startsWith('__reactProps$'))
+    return key !== undefined && typeof (el as unknown as Record<string, Record<string, unknown>>)[key][name] === 'function'
+  }, handler), { message: `React has attached ${handler}` }).toBe(true)
+
 /** A new browser context signed in as `account` through the login form. */
 export async function signInAs(browser: Browser, account: TestAccount): Promise<BrowserContext> {
   const ctx = await browser.newContext()
   const page = await ctx.newPage()
   const staff = account.role !== 'READER'
   await page.goto(staff ? '/editorial/login' : '/login')
+  // Fields filled before hydration are reset by React and the submit then does nothing (no sign-in request).
+  await hydrated(page.locator('form'), 'onSubmit')
   await page.locator('input[type="email"]').fill(account.email)
   await page.locator('input[type="password"]').fill(account.password)
   await page.locator('button[type="submit"]').click()
