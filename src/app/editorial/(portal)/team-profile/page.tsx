@@ -4,12 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { MAX_BIO_LENGTH, MAX_TEAM_PHOTO_BYTES } from '@/lib/constants'
-import {
-  TEAM_LABEL,
-  TEAM_PROFILE_OWNER_ROLES,
-  assessProfile,
-  resolveCardTeam,
-} from '@/lib/teamProfiles'
+import { assessProfile, defaultPublicAppointment, publicAppointmentLabel } from '@/lib/teamProfiles'
 import { matchLegacyCard } from '@/lib/teamProfileLegacy'
 import { TeamProfileForm } from '@/components/editorial/TeamProfileForm'
 import { TeamProfileStatus } from '@/components/editorial/TeamProfileStatus'
@@ -33,31 +28,29 @@ export default async function TeamProfilePage() {
       name: true,
       email: true,
       role: true,
-      teamProfile: { select: { name: true, bio: true, image: true, role: true, team: true, isActive: true } },
+      teamProfile: { select: { name: true, bio: true, image: true, role: true, publicTier: true, isActive: true } },
     },
   })
 
-  const eligible = !!account && (TEAM_PROFILE_OWNER_ROLES as readonly string[]).includes(account.role)
-  const accountName = account?.name?.trim() ?? ''
+  const appointment = account?.teamProfile ?? defaultPublicAppointment(account?.role ?? "")
+  const name = account?.name?.trim()
 
   // Someone who already has a card from before accounts were linked must edit it,
   // not create a second one: an unambiguous match is adopted on first save (so the
   // page shows it as theirs), anything doubtful is held for an admin to link.
   const legacy =
-    account && eligible && accountName && !account.teamProfile
-      ? await matchLegacyCard(prisma, { name: accountName, email: account.email })
+    account && account.role !== 'ADMIN' && appointment && name && !account.teamProfile
+      ? await matchLegacyCard(prisma, { name, email: account.email })
       : { kind: 'none' as const }
+  const profile = account?.teamProfile ?? (legacy.kind === 'adoptable' ? legacy.card : null)
+  const label = publicAppointmentLabel(profile ?? appointment ?? {})
   const card = account?.teamProfile ?? null
-  const profile = card ?? (legacy.kind === 'adoptable' ? { ...legacy.card, name: accountName } : null)
-
-  const team = account ? resolveCardTeam(card?.team, account.role) : null
-  const displayName = card?.name?.trim() || accountName
+  const displayName = card?.name?.trim() || name || ''
   const assessment = assessProfile({
     name: displayName,
     bio: card?.bio,
     image: card?.image,
     position: card?.role,
-    team,
     visible: card?.isActive ?? false,
   })
 
@@ -68,10 +61,9 @@ export default async function TeamProfilePage() {
         {profile ? 'Edit your team profile' : 'Create your team profile'}
       </h1>
 
-      {!account || !eligible ? (
+      {!account || !appointment ? (
         <p role="alert" className="mt-6 border border-[var(--border)] bg-[var(--bg-elevated)] p-4 text-sm text-[var(--fg-muted)]">
-          Your account doesn&apos;t have a Meet the Team profile. If that&apos;s a mistake, ask an administrator to
-          check your access.
+          Your account has no assigned public appointment. Ask an administrator to assign and link your existing card.
         </p>
       ) : legacy.kind === 'blocked' ? (
         <p role="alert" className="mt-6 border border-[var(--border)] bg-[var(--bg-elevated)] p-4 text-sm text-[var(--fg-muted)]">
@@ -85,11 +77,10 @@ export default async function TeamProfilePage() {
             your name, photo and description at any time.
           </p>
           <TeamProfileStatus assessment={assessment} />
-          <div className="mt-6 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-5 sm:p-6">
+          <div className="mt-8 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-5 sm:p-6">
             <TeamProfileForm
               name={displayName}
-              teamLabel={team ? TEAM_LABEL[team] : null}
-              position={card?.role?.trim() || null}
+              positionLabel={label}
               profile={profile}
               maxNameLength={100}
               maxBioLength={MAX_BIO_LENGTH}

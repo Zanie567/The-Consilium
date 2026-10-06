@@ -153,9 +153,11 @@ export function CalendarView({
   const openDayPanel = (key: string, cell: HTMLElement) => {
     const rect = cell.getBoundingClientRect()
     const left = Math.min(Math.max(rect.left, 8), window.innerWidth - PANEL_WIDTH - 8)
-    let top = rect.bottom + 6
+    const bannerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--testing-banner-height')) || 0
+    const minimumTop = bannerHeight + 8
+    let top = Math.max(minimumTop, rect.bottom + 6)
     if (top + PANEL_MAX_HEIGHT > window.innerHeight - 8) {
-      top = Math.max(8, rect.top - PANEL_MAX_HEIGHT - 6)
+      top = Math.max(minimumTop, rect.top - PANEL_MAX_HEIGHT - 6)
     }
     setDayPanel({ key, left, top })
   }
@@ -516,7 +518,7 @@ export function CalendarView({
               left: dayPanel.left,
               top: dayPanel.top,
               width: PANEL_WIDTH,
-              maxHeight: PANEL_MAX_HEIGHT,
+              maxHeight: `min(${PANEL_MAX_HEIGHT}px, calc(100dvh - var(--testing-banner-height, 0px) - 16px))`,
               overflowY: 'auto',
             }}
           >

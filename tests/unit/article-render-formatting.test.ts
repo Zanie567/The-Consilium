@@ -4,12 +4,9 @@ import { renderContent, type TiptapNode } from '@/lib/articleRender'
 /**
  * What the public renderer does with each editor feature. The editor (TiptapEditor)
  * offers strikethrough, tables, code blocks, inline code, text colour, highlight,
- * alignment and line spacing. Owner instruction for this audit (see
- * docs/testing/coverage-inventory.md):
- *   - semantic features (strikethrough, tables, code) are PUBLISHED, because dropping
- *     them changes what the article says (struck-out text reading as asserted, a table
- *     collapsing into a run-on string);
- *   - presentation is preserved using an explicit safe CSS value contract.
+ * alignment and line spacing. The owner confirmed that public articles retain
+ * semantic formatting while presentation uses the existing publication house
+ * style. Drafts/review previews still retain every implemented editor setting.
  */
 const doc = (...content: TiptapNode[]) => JSON.stringify({ type: 'doc', content })
 const text = (value: string, ...marks: TiptapNode['marks'] extends (infer M)[] | undefined ? M[] : never) =>
@@ -79,28 +76,37 @@ describe('semantic formatting is published', () => {
   })
 })
 
-describe('editor presentation is published safely', () => {
-  it('keeps colour, font size, family and spacing', () => {
-    const out = html(para(text('styled', { type: 'textStyle', attrs: { color: '#ff0000', fontSize: '24px', fontFamily: 'Georgia', lineHeight: '2' } })))
-    for (const value of ['color:#ff0000', 'font-size:24px', 'font-family:Georgia', 'line-height:2']) expect(out).toContain(value)
+describe('presentation is stripped (confirmed public house style)', () => {
+  it('drops text colour', () => {
+    const out = html(para(text('red', { type: 'textStyle', attrs: { color: '#ff0000' } })))
+    expect(out).toContain('red')
+    expect(out).not.toMatch(/color|style=|#ff0000/i)
   })
-  it('keeps paragraph and heading alignment', () => {
-    expect(html({ type: 'paragraph', attrs: { textAlign: 'center' }, content: [text('x')] })).toContain('text-align:center')
-    expect(html({ type: 'heading', attrs: { level: 2, textAlign: 'right' }, content: [text('x')] })).toContain('text-align:right')
-  })
-  it('keeps highlight colour', () => {
-    expect(html(para(text('hi', { type: 'highlight', attrs: { color: '#ffff00' } })))).toContain('background-color:#ffff00')
-  })
-  it.each(['url(https://evil.test)', 'red;position:fixed', '\" onclick=\"alert(1)', 'expression(alert(1))', '9999px'])('rejects hostile or out-of-contract CSS: %s', value => {
-    const out = html(para(text('safe', { type: 'textStyle', attrs: { color: value, fontSize: value, lineHeight: value, fontFamily: value } })))
-    expect(out).not.toContain('style=')
-    expect(out).not.toContain('onclick')
-    expect(out).toContain('safe')
-  })
-})
 
-it('preserves bounded resized table columns and rejects hostile widths',()=>{
- const table=(colwidth:unknown)=>({type:'table',content:[{type:'tableRow',content:[{type:'tableCell',attrs:{colwidth},content:[para(text('cell'))]}]}]})
- expect(html(table([180]))).toContain('<col style="width:180px"')
- for(const value of [['180px;position:fixed'],[10000],[-1]])expect(html(table(value))).not.toContain('style=')
+  it('drops alignment on paragraphs and headings', () => {
+    const out = html(
+      { type: 'paragraph', attrs: { textAlign: 'center' }, content: [text('centred')] },
+      { type: 'heading', attrs: { level: 2, textAlign: 'right' }, content: [text('right')] },
+    )
+    expect(out).not.toMatch(/text-align|style=|center|right"/i)
+    expect(out).toContain('<p>centred</p>')
+  })
+
+  it('drops line spacing and font size', () => {
+    const out = html(para(text('spaced', { type: 'textStyle', attrs: { lineHeight: '2', fontSize: '24px' } })))
+    expect(out).not.toMatch(/line-height|font-size|style=/i)
+  })
+
+  it('renders highlight as the site mark, ignoring the chosen colour', () => {
+    const out = html(para(text('hi', { type: 'highlight', attrs: { color: '#ffff00' } })))
+    expect(out).toContain('<mark>hi</mark>')
+    expect(out).not.toContain('#ffff00')
+  })
+
+  it('excludes forged alignment, URL-bearing colours and unsupported spacing', () => {
+    const out = html({ type: 'paragraph', attrs: { textAlign: 'center;position:fixed' }, content: [text('safe',
+      { type: 'textStyle', attrs: { color: 'url(https://evil.test/track)', lineHeight: '999' } },
+      { type: 'highlight', attrs: { color: '#fff\" onclick=\"alert(1)' } })] })
+    expect(out).toBe('<p><mark>safe</mark></p>')
+  })
 })

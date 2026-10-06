@@ -30,6 +30,7 @@ describe('apiRequest', () => {
     [401, 'auth'],
     [403, 'permission'],
     [400, 'validation'],
+    [413, 'validation'],
     [422, 'validation'],
     [409, 'conflict'],
     [500, 'server'],
@@ -116,6 +117,14 @@ describe('apiRequest', () => {
     await expect(request).rejects.not.toMatchObject({ message: expect.stringContaining('private proxy detail') })
   })
 
+  it('gives actionable upload feedback for a plain-text hosting size rejection', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Request Entity Too Large', { status: 413 })))
+    await expect(apiRequest('/api/team-profile', { method: 'PUT' })).rejects.toMatchObject({
+      kind: 'validation', status: 413,
+      message: 'That upload is too large for the server. Use a smaller file.',
+    })
+  })
+
   it('classifies a timed-out request and aborts the underlying fetch', async () => {
     const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
       new Promise<Response>((_resolve, reject) => {
@@ -130,6 +139,14 @@ describe('apiRequest', () => {
       kind: 'timeout',
     })
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('enforces the deadline even when a stalled transport ignores abort', async () => {
+    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => new Promise<Response>(() => {}))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(apiRequest('/api/article', { method: 'PUT' }, { timeoutMs: 5 })).rejects.toMatchObject({ kind: 'timeout' })
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true)
   })
 
   it('classifies a network failure and never retries the mutation', async () => {

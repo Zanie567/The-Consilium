@@ -33,6 +33,12 @@ export function CategoryTabs({ categories, currentSlug }: CategoryTabsProps) {
             <Link
               key={tab.href}
               href={tab.href}
+              // Every tab targets the same route with a different query. Eagerly
+              // prefetching every variant on every response creates a swarm of
+              // overlapping RSC requests; under rapid real navigation an older
+              // variant could leave the latest click on the previous category.
+              // Fetch the selected variant when it is actually chosen.
+              prefetch={false}
               role="tab"
               aria-selected={isActive}
               className={`relative flex-shrink-0 px-5 py-3 text-[0.7rem] font-bold tracking-[-0.01em] uppercase whitespace-nowrap transition-colors duration-150 ${

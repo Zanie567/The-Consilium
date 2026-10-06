@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { ProfileTabs } from '@/components/profile/ProfileTabs'
 import { VerifyEmailNotice } from '@/components/profile/VerifyEmailNotice'
+import { readDisplayTitles, resolvePublicTitleLabel } from '@/lib/displayTitles'
+import { publicAppointmentLabel } from '@/lib/teamProfiles'
 import { publicAuthorPath } from '@/lib/authorUtils'
 import type { Metadata } from 'next'
 
@@ -33,7 +35,10 @@ export default async function ProfilePage({ searchParams }: Props) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, slug: true, name: true, email: true, image: true, bio: true, createdAt: true, role: true, emailVerified: true },
+    select: {
+      id: true, slug: true, name: true, email: true, image: true, bio: true, createdAt: true, role: true, displayTitles: true, emailVerified: true,
+      teamProfile: { select: { role: true, publicTier: true, isActive: true } },
+    },
   }).catch(() => null)
 
   if (!user) redirect('/login')
@@ -49,6 +54,10 @@ export default async function ProfilePage({ searchParams }: Props) {
         createdAt={user.createdAt.toISOString()}
         initialTab={initialTab}
         role={user.role}
+        displayTitles={readDisplayTitles(user.displayTitles)}
+        fallbackLabel={resolvePublicTitleLabel({
+          cardTitle: user.teamProfile?.isActive ? publicAppointmentLabel(user.teamProfile) : null,
+        })}
         authorPath={publicAuthorPath(user)}
       />
     </div>

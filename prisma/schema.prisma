@@ -51,6 +51,9 @@ model User {
   bio           String?
   password      String?
   role          Role      @default(READER)
+  // Public labels only; never read for permissions. Allowed values and the cap are
+  // enforced by a CHECK in supabase/migrations/20261005_user_display_titles.sql.
+  displayTitles String[]  @default([])
   isActive              Boolean   @default(true)
   lastLoginAt           DateTime?
   lastActiveAt          DateTime?
@@ -85,6 +88,8 @@ model User {
   articleComments    ArticleComment[]
   teamProfile        TeamMember?
   membership         TeamMembership?
+  testPersonaKey     String? @unique
+  testingRevision    Int @default(0)
 
   @@map("users")
 }
@@ -406,23 +411,17 @@ model TeamMember {
   // guarantee of "one Meet the Team profile per account": a concurrent or repeated
   // create cannot produce a second row. Nullable because legacy cards were typed in
   // by an admin with no account; Postgres allows any number of NULLs under UNIQUE.
-  // There is deliberately NO team column: a linked card's team is derived from
-  // user.role at read time (see src/lib/teamProfiles.ts), so it cannot be forged
-  // or drift out of step with the account's role.
+  // Public appointment belongs to this card, independently of account permissions.
   userId   String? @unique
   user     User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   name     String
   role     String
+  publicTier String?
   bio      String? @db.Text
   image    String?
   email    String?
   order    Int     @default(0)
   isActive Boolean @default(true)
-  // Public team section ('writing' | 'editorial' | 'growth'). ADMIN-ONLY: no
-  // member-facing route writes it. When set it wins over the team derived from
-  // the account's role, which is what lets an ADMIN-permission account hold a
-  // public position, and stops a role change from silently moving a card.
-  team     String?
 
   @@map("team_members")
 }
@@ -444,7 +443,7 @@ model TeamMembership {
   // Optional starting values for the Meet the Team card, applied when it is created.
   displayName    String?
   publicPosition String?
-  publicTeam     String?
+  publicTier     String?
   invitedById    String?
   invitedByName  String?
   claimedAt      DateTime?
@@ -747,4 +746,19 @@ model AuditLog {
   @@index([performedBy])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// Opaque server-side testing capability. No credentials or tokens in URLs/audits.
+model TestingSession {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  administratorId String
+  personaId String
+  revision Int
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  stoppedAt DateTime?
+  stopReason String?
+  @@index([administratorId, stoppedAt])
+  @@map("testing_sessions")
 }

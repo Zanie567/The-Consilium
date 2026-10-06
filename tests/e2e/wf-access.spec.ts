@@ -92,8 +92,7 @@ test.describe('role changes', () => {
     await expect.poll(() => capturedEmails().filter((m) => m.to === acct.email).length).toBeGreaterThan(0)
 
     // Every API call re-reads the role from the database, so no re-login is needed for the new
-    // powers to work. (Page-level guards use the cached session role, which lags by up to a
-    // minute: that is covered by team-profile-lifecycle.spec and listed in the audit report.)
+    // powers to work. Server-rendered page/session guards also read fresh account state.
     const asEditor = await person.request.get('/api/editorial/comments')
     expect(asEditor.status(), 'a promoted editor can use editor endpoints at once').toBe(200)
 

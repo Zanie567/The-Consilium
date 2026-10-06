@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -24,7 +25,7 @@ interface Props {
  *   resolve - record the actual value and score everyone (manual resolution
  *             for events with no FRED series, or to override the cron)
  */
-export async function PATCH(req: Request, { params }: Props) {
+async function PATCHHandler(req: Request, { params }: Props) {
   const { id } = await params
 
   // Role gate: re-verified against the database on every call. The allowed
@@ -147,3 +148,5 @@ export async function PATCH(req: Request, { params }: Props) {
     { status: 400 }
   )
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)

@@ -44,7 +44,7 @@ async function publicStatus(browser: import('@playwright/test').Browser) {
 const emailsFor = (to: string, needle: string) =>
   capturedEmails().filter((m) => m.to === to && m.subject.includes(needle))
 
-test('writer creates and saves a draft; it is private and listed under My Drafts', async ({ browser }) => {
+test('writer creates and saves a draft; it is private and listed under My Drafts', async ({ browser }, testInfo) => {
   const ctx = await signedIn(browser, 'writer')
   const page = await ctx.newPage()
   const ed = new ArticleEditorPage(page)
@@ -61,6 +61,7 @@ test('writer creates and saves a draft; it is private and listed under My Drafts
   slug = row!.slug
   expect(row!.status).toBe('DRAFT')
   expect(row!.content).toContain(BODY)
+  await page.screenshot({ path: testInfo.outputPath('writer-saved-draft.png'), fullPage: true })
 
   // It shows up in the writer's own draft list, found by clicking the sidebar link.
   await page.getByRole('link', { name: 'My Drafts' }).click()
@@ -100,7 +101,7 @@ test('permissions on a draft: the editor can open it, other roles cannot', async
   await editor.close()
 })
 
-test('writer submits; the editor is notified and finds it in the review queue', async ({ browser }) => {
+test('writer submits; the editor is notified and finds it in the review queue', async ({ browser }, testInfo) => {
   const ctx = await signedIn(browser, 'writer')
   const page = await ctx.newPage()
   const ed = new ArticleEditorPage(page)
@@ -119,6 +120,7 @@ test('writer submits; the editor is notified and finds it in the review queue', 
   await ep.getByRole('link', { name: TITLE }).first().click()
   await expect(ep).toHaveURL(new RegExp(`/editorial/review/${articleId}$`))
   await expect(ep.getByRole('heading', { name: TITLE })).toBeVisible()
+  await ep.screenshot({ path: testInfo.outputPath('editor-submitted-review.png'), fullPage: true })
   await editor.close()
 })
 
@@ -127,6 +129,32 @@ test('editor adds an internal note and returns the article with feedback', async
   const page = await ctx.newPage()
   await page.goto(`/editorial/review/${articleId}`, { waitUntil: 'networkidle' })
   await new ArticleEditorPage(page).dismissCookieBanner()
+
+  // Exercise the implemented anchored thread controls in the real review UI.
+  await new ArticleEditorPage(page).select(BODY)
+  await page.getByRole('button', { name: 'Add comment', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Add comment', exact: true })).toBeDisabled()
+  await page.getByPlaceholder('Add a comment...').fill('Please verify this sentence against the source.')
+  const commentResponse = page.waitForResponse(r => r.url().endsWith(`/articles/${articleId}/comments`) && r.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Add comment', exact: true }).click()
+  expect((await commentResponse).status()).toBe(201)
+  await expect(page.getByText('Please verify this sentence against the source.')).toBeVisible()
+  await page.getByRole('button', { name: 'Reply', exact: true }).click()
+  await page.getByPlaceholder('Reply...', { exact: true }).fill('Source comparison recorded.')
+  const replyResponse = page.waitForResponse(r => r.url().endsWith(`/articles/${articleId}/comments`) && r.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Post', exact: true }).click()
+  expect((await replyResponse).status()).toBe(201)
+  await page.getByRole('button', { name: 'Resolve', exact: true }).click()
+  await page.getByRole('button', { name: 'Show 1 resolved' }).click()
+  await page.getByRole('button', { name: 'Reopen', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Resolve', exact: true })).toBeVisible()
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'Comments', exact: false }).click()
+  await expect(page.getByText('Source comparison recorded.')).toBeVisible()
+  const threads = await db().articleComment.findMany({ where: { articleId } })
+  expect(threads).toHaveLength(2)
+  expect(threads.find(t => !t.parentId)).toMatchObject({ quotedText: BODY, resolved: false })
+  await page.getByRole('button', { name: 'Review', exact: true }).click()
 
   await page.getByPlaceholder('Add internal note...').fill('Check the headline claim.')
   const noteRes = page.waitForResponse((r) => r.url().includes(`/api/articles/${articleId}/notes`) && r.request().method() === 'POST')
@@ -206,7 +234,7 @@ test('editor schedules it for a future time; still private, then the scheduler p
   expect(await publicStatus(browser)).toEqual({ page: 200, listed: true })
 })
 
-test('editor unpublishes from the review screen; the public URL disappears; republish via Publish Now', async ({ browser }) => {
+test('editor unpublishes from the review screen; the public URL disappears; republish via Publish Now', async ({ browser }, testInfo) => {
   const ctx = await signedIn(browser, 'editor')
   const page = await ctx.newPage()
   await openReview(page)
@@ -244,6 +272,7 @@ test('editor unpublishes from the review screen; the public URL disappears; repu
   await page2.goto(`/articles/${slug}`)
   await expect(page2.locator('h1')).toContainText(TITLE)
   await expect(page2.locator('.prose-consilium')).toContainText('Revised with a cited source.')
+  await page2.screenshot({ path: testInfo.outputPath('public-revised-article.png'), fullPage: true })
   await anon.close()
 })
 

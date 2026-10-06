@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -48,7 +49,7 @@ export async function GET(_req: Request, { params }: Props) {
   })
 }
 
-export async function PATCH(req: Request, { params }: Props) {
+async function PATCHHandler(req: Request, { params }: Props) {
   const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
   if (!user) {
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
@@ -87,3 +88,5 @@ export async function PATCH(req: Request, { params }: Props) {
   if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json(updated)
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)

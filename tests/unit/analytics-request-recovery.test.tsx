@@ -22,7 +22,7 @@ it('a delayed old period cannot replace the selected period', async () => {
  const old = new Promise<ReturnType<typeof response>>(yes => { resolve = yes })
  vi.stubGlobal('fetch', vi.fn().mockImplementation(url => String(url).includes('period=30d') ? old : Promise.resolve(response('current'))))
  render(<AnalyticsDashboard userRole="ADMIN" />)
- fireEvent.click(screen.getByRole('button', { name: 'Last 30 days' }))
+ fireEvent.click(screen.getByRole('button', { name: 'Analytics period' }))
  fireEvent.click(screen.getByRole('button', { name: 'Last 7 days' }))
  await screen.findByText('{"marker":"current"}')
  await act(async () => { resolve(response('obsolete')); await old })

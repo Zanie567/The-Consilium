@@ -4,7 +4,7 @@
  *
  * Two concepts stay separate throughout:
  *   - AUTHORISATION  `User.role` (+ `TeamMembership.role`): what the account may do.
- *   - PUBLIC POSITION `TeamMember.role` / `.team`: what the Meet the Team card says.
+ *   - PUBLIC POSITION `TeamMember.role` / `.publicTier`: what the Meet the Team card says.
  * Nothing here ever derives one from the other after the card exists.
  *
  * Authority comes ONLY from:
@@ -22,8 +22,8 @@ import type { Prisma, Role, MembershipStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { isUniqueViolation } from '@/lib/prismaErrors'
 import { matchLegacyCard } from '@/lib/teamProfileLegacy'
-import { assessProfile as assessProfileFacts, isMemberTeam, resolveCardTeam, teamForRole } from '@/lib/teamProfiles'
-import type { MemberTeam } from '@/lib/teamHierarchy'
+import { assessProfile as assessProfileFacts, defaultPublicAppointment } from '@/lib/teamProfiles'
+import { TEAM_TIER_ORDER } from '@/lib/teamHierarchy'
 
 type Tx = Prisma.TransactionClient
 
@@ -99,8 +99,11 @@ const SYSTEM_ACTOR = 'system:invitation-claim'
 // ── Team card ────────────────────────────────────────────────────────────────
 
 interface CardOptions {
+  /** The account's permission role: only used to pick the ordinary new-member default title. */
+  role?: string
+  /** Admin-chosen public title / placement; override the ordinary defaults. */
   position?: string | null
-  team?: MemberTeam | null
+  publicTier?: string | null
   displayName?: string | null
 }
 
@@ -108,7 +111,7 @@ interface CardOptions {
  * Makes sure the account has ONE Meet the Team card, without ever overwriting one.
  *
  * - Existing card for the account: returned untouched (no reset of name, bio, photo,
- *   position, team, order or visibility).
+ *   position, placement, order or visibility).
  * - Exactly one unlinked legacy card with the account's email: adopted, again
  *   untouched except for linking it.
  * - A doubtful legacy match (ambiguous email, or same name): NO card is created, so
@@ -132,7 +135,7 @@ export async function ensureProfileCard(
   if (match.kind === 'adoptable') {
     const claimed = await tx.teamMember.updateMany({
       where: { id: match.card.id, userId: null },
-      data: { userId: account.id, ...(options.team ? { team: options.team } : {}) },
+      data: { userId: account.id },
     })
     if (claimed.count === 1) return { id: match.card.id, created: false }
   }
@@ -140,13 +143,16 @@ export async function ensureProfileCard(
   // A card with no name is the "Unknown User" card; wait for the member to supply one.
   if (!name) return null
 
+  // Ordinary members start with the default title/placement for their role (as on the
+  // self-service path); an admin-supplied position or tier overrides it. ADMIN has no default.
+  const appointment = options.role ? defaultPublicAppointment(options.role) : null
   const created = await tx.teamMember.createMany({
     data: [
       {
         userId: account.id,
         name,
-        role: options.position?.trim() ?? '',
-        team: options.team ?? null,
+        role: options.position?.trim() || appointment?.role || '',
+        publicTier: options.publicTier ?? appointment?.publicTier ?? null,
         order: NEW_CARD_ORDER,
         isActive: false,
       },
@@ -155,17 +161,6 @@ export async function ensureProfileCard(
   })
   const row = await tx.teamMember.findUnique({ where: { userId: account.id }, select: { id: true } })
   return row ? { id: row.id, created: created.count === 1 } : null
-}
-
-/**
- * Pins the card's team to what it is TODAY, before the permission role changes, so a
- * promotion or demotion never silently moves someone between public sections.
- */
-async function freezeCardTeam(tx: Tx, userId: string, currentRole: Role) {
-  const card = await tx.teamMember.findUnique({ where: { userId }, select: { id: true, team: true } })
-  if (!card || card.team) return
-  const team = teamForRole(currentRole)
-  if (team) await tx.teamMember.update({ where: { id: card.id }, data: { team } })
 }
 
 // ── Claiming ─────────────────────────────────────────────────────────────────
@@ -209,13 +204,14 @@ async function claimInTx(tx: Tx, userId: string): Promise<ClaimResult> {
   if (won.count !== 1) return { claimed: false, reason: 'raced' }
 
   await applyRole(tx, user, membership.role)
-  if (teamForRole(membership.role) || membership.publicTeam || membership.publicPosition) {
+  if (defaultPublicAppointment(membership.role) || membership.publicTier || membership.publicPosition) {
     await ensureProfileCard(
       tx,
       { id: user.id, name: user.name, email: user.email },
       {
+        role: membership.role,
         position: membership.publicPosition,
-        team: isMemberTeam(membership.publicTeam) ? membership.publicTeam : teamForRole(membership.role),
+        publicTier: membership.publicTier,
         displayName: membership.displayName,
       },
     )
@@ -250,7 +246,7 @@ export interface InviteInput {
   role: unknown
   displayName?: unknown
   position?: unknown
-  team?: unknown
+  publicTier?: unknown
 }
 
 export type InviteOutcome =
@@ -274,9 +270,11 @@ function cleanText(value: unknown, max: number, label: string): string | null {
   return text || null
 }
 
-function cleanTeam(value: unknown): MemberTeam | null {
+function cleanTier(value: unknown): string | null {
   if (value === undefined || value === null || value === '') return null
-  if (!isMemberTeam(value)) throw new MembershipError('INVALID_FIELD', 'team must be writing, editorial or growth.', 400)
+  if (typeof value !== 'string' || !(TEAM_TIER_ORDER as readonly string[]).includes(value)) {
+    throw new MembershipError('INVALID_FIELD', `publicTier must be one of ${TEAM_TIER_ORDER.join(', ')}.`, 400)
+  }
   return value
 }
 
@@ -293,7 +291,7 @@ export async function inviteMember(actor: Actor, input: InviteInput, client: typ
   const role = input.role
   const displayName = cleanText(input.displayName, MAX_DISPLAY_NAME_LENGTH, 'Name')
   const publicPosition = cleanText(input.position, MAX_POSITION_LENGTH, 'Position')
-  const publicTeam = cleanTeam(input.team)
+  const publicTier = cleanTier(input.publicTier)
 
   const attempt = () =>
     client.$transaction(async (tx) => {
@@ -310,7 +308,7 @@ export async function inviteMember(actor: Actor, input: InviteInput, client: typ
         role,
         displayName,
         publicPosition,
-        publicTeam,
+        publicTier,
         invitedById: actor.id,
         invitedByName: actorLabel(actor),
       }
@@ -332,7 +330,7 @@ export async function inviteMember(actor: Actor, input: InviteInput, client: typ
         role,
         outcome,
         position: publicPosition,
-        team: publicTeam,
+        publicTier,
       })
 
       // Hiring someone who already has an account: apply at once, but only if that
@@ -387,8 +385,8 @@ async function assertNotLastAdmin(tx: Tx, userId: string) {
 /**
  * Sets an existing account's authorisation role. Works for an account that was
  * registered long before it was hired, and for promotions/demotions. Setting READER
- * is a revocation. The Meet the Team card is never deleted or edited by a role change
- * (its team is pinned first, so it does not move sections either).
+ * is a revocation. The Meet the Team card is never deleted or edited by a role change:
+ * placement is card data (title / publicTier), not derived from permissions.
  */
 export async function setMemberRole(
   actor: Actor,
@@ -413,8 +411,7 @@ export async function setMemberRole(
 
       if (oldRole === 'READER' && role === 'READER') return { oldRole, newRole: role }
       if (oldRole === 'ADMIN' && role !== 'ADMIN') await assertNotLastAdmin(tx, userId)
-      if (oldRole !== role) await freezeCardTeam(tx, userId, oldRole)
-
+    
       if (role === 'READER') {
         await revokeInTx(tx, actor, user, { hideProfile: false })
         return { oldRole, newRole: role }
@@ -436,8 +433,8 @@ export async function setMemberRole(
         update: { role, status: 'ACTIVE', userId: user.id, revokedAt: null, revokedById: null, claimedAt: new Date() },
       })
       await applyRole(tx, user, role)
-      if (teamForRole(role)) {
-        await ensureProfileCard(tx, { id: user.id, name: user.name, email: user.email }, { team: teamForRole(role) })
+      if (defaultPublicAppointment(role)) {
+        await ensureProfileCard(tx, { id: user.id, name: user.name, email: user.email }, { role })
       }
       await audit(tx, 'USER_ROLE_CHANGED', user.id, actor.id, {
         oldRole,
@@ -481,9 +478,7 @@ async function revokeInTx(
   })
   if (user.role !== 'READER') await tx.user.update({ where: { id: user.id }, data: { role: 'READER' } })
 
-  // The card is NOT deleted. It keeps its team (pinned from the role it just lost) so
-  // the admin can keep it on the page or hide it, as a separate decision.
-  await freezeCardTeam(tx, user.id, user.role)
+  // The card is NOT deleted: the admin keeps it on the page or hides it, as a separate decision.
   if (options.hideProfile) await tx.teamMember.updateMany({ where: { userId: user.id }, data: { isActive: false } })
 
   await audit(tx, 'MEMBER_REVOKED', user.id, actor.id, {
@@ -551,7 +546,7 @@ export async function reinstateMember(
 
 export interface ProfileFieldsInput {
   position?: unknown
-  team?: unknown
+  publicTier?: unknown
   order?: unknown
   visible?: unknown
   displayName?: unknown
@@ -559,7 +554,7 @@ export interface ProfileFieldsInput {
 
 /**
  * Admin-only edit of the public organisational fields. These are the ONLY writers of
- * `TeamMember.role` (position), `.team`, `.order` and `.isActive` for linked cards;
+ * `TeamMember.role` (position), `.publicTier`, `.order` and `.isActive` for linked cards;
  * the member-facing route cannot touch them.
  */
 export async function updateMemberProfileFields(
@@ -569,7 +564,7 @@ export async function updateMemberProfileFields(
   client: typeof prisma = prisma,
 ): Promise<void> {
   const position = input.position === undefined ? undefined : (cleanText(input.position, MAX_POSITION_LENGTH, 'Position') ?? '')
-  const team = input.team === undefined ? undefined : cleanTeam(input.team)
+  const publicTier = input.publicTier === undefined ? undefined : cleanTier(input.publicTier)
   const displayName = input.displayName === undefined ? undefined : cleanText(input.displayName, MAX_DISPLAY_NAME_LENGTH, 'Name')
   let order: number | undefined
   if (input.order !== undefined) {
@@ -597,7 +592,7 @@ export async function updateMemberProfileFields(
         where: { id: membership.id },
         data: {
           ...(position !== undefined ? { publicPosition: position || null } : {}),
-          ...(team !== undefined ? { publicTeam: team } : {}),
+          ...(publicTier !== undefined ? { publicTier } : {}),
           ...(displayName !== undefined ? { displayName } : {}),
         },
       })
@@ -612,7 +607,7 @@ export async function updateMemberProfileFields(
     await ensureProfileCard(
       tx,
       { id: user.id, name: user.name, email: user.email },
-      { team: resolveCardTeam(null, user.role) ?? undefined, displayName: displayName ?? undefined },
+      { role: user.role, displayName: displayName ?? undefined },
     )
     const card = await tx.teamMember.findUnique({ where: { userId: user.id }, select: { id: true } })
     if (!card) {
@@ -626,7 +621,7 @@ export async function updateMemberProfileFields(
       where: { id: card.id },
       data: {
         ...(position !== undefined ? { role: position } : {}),
-        ...(team !== undefined ? { team } : {}),
+        ...(publicTier !== undefined ? { publicTier } : {}),
         ...(displayName ? { name: displayName } : {}),
         ...(order !== undefined ? { order } : {}),
         ...(visible !== undefined ? { isActive: visible } : {}),
@@ -634,7 +629,7 @@ export async function updateMemberProfileFields(
     })
     await audit(tx, 'MEMBER_PROFILE_ADMIN_EDIT', user.id, actor.id, {
       ...(position !== undefined ? { position } : {}),
-      ...(team !== undefined ? { team } : {}),
+      ...(publicTier !== undefined ? { publicTier } : {}),
       ...(order !== undefined ? { order } : {}),
       ...(visible !== undefined ? { visible } : {}),
     })
@@ -682,7 +677,7 @@ export interface MemberRow {
   accountStatus: AccountStatus
   profileStatus: ProfileStatus
   position: string | null
-  team: MemberTeam | null
+  tier: string | null
   order: number | null
   visible: boolean | null
   missingFromMember: string[]
@@ -699,7 +694,7 @@ interface DescribeInput {
   createdAt: Date
   invitedByName: string | null
   publicPosition: string | null
-  publicTeam: string | null
+  publicTier: string | null
   displayName: string | null
   /** For a PENDING row with no claimed account: the matching account's email state, if one exists. */
   unclaimedAccount?: { emailVerified: boolean } | null
@@ -709,7 +704,7 @@ interface DescribeInput {
     emailVerified: Date | null
     isActive: boolean
     isBanned: boolean
-    teamProfile: { name: string; bio: string | null; image: string | null; role: string; team: string | null; order: number; isActive: boolean } | null
+    teamProfile: { name: string; bio: string | null; image: string | null; role: string; publicTier: string | null; order: number; isActive: boolean } | null
   } | null
 }
 
@@ -717,7 +712,7 @@ interface DescribeInput {
 export function describeMember(input: DescribeInput): MemberRow {
   const { user } = input
   const card = user?.teamProfile ?? null
-  const team = card ? resolveCardTeam(card.team, user?.role) : isMemberTeam(input.publicTeam) ? input.publicTeam : teamForRole(input.role)
+  const tier = card ? card.publicTier : input.publicTier
 
   let accountStatus: AccountStatus
   if (input.status === 'REVOKED') accountStatus = 'revoked'
@@ -730,7 +725,6 @@ export function describeMember(input: DescribeInput): MemberRow {
     bio: card?.bio,
     image: card?.image,
     position,
-    team,
     visible: card?.isActive ?? false,
   })
 
@@ -750,7 +744,7 @@ export function describeMember(input: DescribeInput): MemberRow {
     accountStatus,
     profileStatus,
     position,
-    team,
+    tier,
     order: card?.order ?? null,
     visible: card ? card.isActive : null,
     missingFromMember: assessment.missingFromMember,
@@ -772,7 +766,7 @@ export async function listMembers(client: typeof prisma = prisma): Promise<Membe
     isBanned: true,
     email: true,
     createdAt: true,
-    teamProfile: { select: { name: true, bio: true, image: true, role: true, team: true, order: true, isActive: true } },
+    teamProfile: { select: { name: true, bio: true, image: true, role: true, publicTier: true, order: true, isActive: true } },
   } as const
 
   const [memberships, bareStaff] = await Promise.all([
@@ -804,7 +798,7 @@ export async function listMembers(client: typeof prisma = prisma): Promise<Membe
         createdAt: user.createdAt,
         invitedByName: null,
         publicPosition: null,
-        publicTeam: null,
+        publicTier: null,
         displayName: null,
         user,
       }),

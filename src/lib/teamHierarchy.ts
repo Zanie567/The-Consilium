@@ -7,8 +7,7 @@
  * roster into the sections the masthead renders. It is deliberately tolerant:
  * casing, punctuation, unfamiliar titles and missing roles all resolve to
  * something sensible rather than throwing or dropping a person off the page.
- * An untitled member defaults to the Wider Team section; `UNTITLED_MASTHEAD_MEMBERS`
- * documents the single exception to that.
+ * An untitled member defaults to Wider Team unless an admin assigns publicTier.
  *
  * Adding a person through the admin UI therefore places them automatically —
  * no code change is needed for a new writer, editor or ops role.
@@ -30,11 +29,7 @@ export type TeamCardVariant = 'lead' | 'feature' | 'standard' | 'compact'
 
 export type TeamSectionId = 'masthead' | 'editorial' | 'writers' | 'growth' | 'wider'
 
-/**
- * The team an account-linked card belongs to, derived from the account's role
- * (see `teamForRole` in teamProfiles.ts). Absent for legacy cards typed in by an
- * admin, which are placed by their free-text title as before.
- */
+/** Labels for ordinary new-member defaults. Not account permissions. */
 export type MemberTeam = 'writing' | 'editorial' | 'growth'
 
 /** Minimal shape the hierarchy needs; the Prisma `TeamMember` satisfies it. */
@@ -43,14 +38,9 @@ export interface TeamMemberLike {
   name: string
   role: string | null
   order: number
-  /**
-   * When set, the card is in this team's section. Always. The title and `order`
-   * only affect prominence and position WITHIN that team; nothing — not
-   * "Editor-in-Chief", "Chief", "Head" or "Director" — can move a card to another
-   * team. A wrongly-roled account is fixed by changing its role, not by a
-   * rendering exception.
-   */
+  placementName?: string
   team?: MemberTeam | null
+  publicTier?: string | null
 }
 
 export interface TeamRow<T extends TeamMemberLike> {
@@ -136,9 +126,8 @@ function normalizeRole(role: string | null | undefined): string {
  *
  * A member with no role at all falls to `other` (the Wider Team section): an
  * untitled person carries no evidence of seniority, so the page must not infer
- * any. The one deliberate exception to that default lives in
- * `UNTITLED_MASTHEAD_MEMBERS` and is applied by `buildTeamMasthead`, not here —
- * this function stays a pure role → tier mapping.
+ * any. Administrators can separately assign publicTier; names and account
+ * permissions never establish a public appointment.
  */
 export function resolveTeamTier(role: string | null | undefined): TeamTierId {
   const normalized = normalizeRole(role)
@@ -164,61 +153,15 @@ export function resolveTeamTier(role: string | null | undefined): TeamTierId {
 
   // Social media, growth, digital operations and anything else an admin adds
   // later: still rendered, in its own section, with its real title. The Growth &
-  // Communications section is populated only by account-linked cards (see
-  // `MemberTeam`); legacy free-text titles are deliberately not reinterpreted.
+  // Communications section uses explicitly assigned publicTier; unfamiliar
+  // legacy free-text titles are deliberately not reinterpreted.
   return 'other'
 }
 
-/**
- * Members kept in the masthead's leadership row even though they hold no title.
- *
- * This is a deliberate, narrow exception, not a general rule. Lucas Dwyer
- * stepped back from Deputy Editor-in-Chief and currently has no formal role,
- * but remains part of the publication's leadership in practice; the masthead
- * should keep him where readers expect to find him without printing an invented
- * or a former title. Every *other* untitled member falls to the Wider Team
- * section — see `resolveTeamTier`.
- *
- * Matching is on the normalised name because `TeamMember` has no rank column and
- * this needs no database migration. Remove the entry once he either takes a
- * formal role again (the role string alone will then place him) or leaves the
- * masthead; nothing else depends on it.
- */
-export const UNTITLED_MASTHEAD_MEMBERS: ReadonlySet<string> = new Set(['lucas dwyer'])
-
-/** Lowercased, whitespace-collapsed name, for matching against the set above. */
-function normalizeName(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, ' ').trim()
-}
-
-interface Placement {
-  section: TeamSectionId
-  tier: TeamTierId
-}
-
-/**
- * Where a card is rendered.
- *
- * Account-linked card (`team` set): the SECTION is fixed by the team. The title
- * chooses the prominence row inside that section — Editorial has the full ladder
- * (Editor-in-Chief, leadership, Senior, Editor, Junior); Writing and Growth &
- * Communications have one row each.
- *
- * Legacy card (no linked account, so no role to derive a team from): placed by its
- * free-text title as before, including the untitled-masthead pin.
- */
-function placeMember(member: TeamMemberLike): Placement {
-  if (member.team === 'writing') return { section: 'writers', tier: 'writer' }
-  if (member.team === 'growth') return { section: 'growth', tier: 'growth' }
-  if (member.team === 'editorial') {
-    const tier = resolveTeamTier(member.role)
-    const ladder: TeamTierId[] = ['editor_in_chief', 'leadership', 'senior_editor', 'junior_editor']
-    return { section: 'editorial', tier: ladder.includes(tier) ? tier : 'editor' }
-  }
-  const tier =
-    !hasDisplayableRole(member.role) && UNTITLED_MASTHEAD_MEMBERS.has(normalizeName(member.name))
-      ? 'leadership'
-      : resolveTeamTier(member.role)
+/** Explicit public placement is admin-managed. Otherwise the trusted title decides. */
+function placeMember(member: TeamMemberLike): { section: TeamSectionId; tier: TeamTierId } {
+  const tier = member.publicTier && TEAM_TIER_ORDER.includes(member.publicTier as TeamTierId)
+    ? member.publicTier as TeamTierId : resolveTeamTier(member.role)
   return { section: TIER_SECTION[tier], tier }
 }
 
@@ -228,7 +171,7 @@ function compareMembers(a: TeamMemberLike, b: TeamMemberLike): number {
   const bHasRole = hasDisplayableRole(b.role) ? 0 : 1
   if (aHasRole !== bHasRole) return aHasRole - bHasRole
   if (a.order !== b.order) return a.order - b.order
-  return a.name.localeCompare(b.name)
+  return (a.placementName ?? a.name).localeCompare(b.placementName ?? b.name)
 }
 
 /**

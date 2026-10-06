@@ -6,8 +6,9 @@
 # crashed in production. `npm ci` fails hard when package.json and the lockfile are
 # out of sync, so this workflow would have caught that exact bug before merge.
 #
-# Runs on every PR and on pushes to main. Quality checks use no secrets or live
-# database; browser jobs own isolated disposable databases. The build uses throwaway env values to satisfy
+# Runs on every PR and on pushes to main. No production secrets or services.
+# The verify job uses no database; the E2E job owns a local Postgres service.
+# The build step uses throwaway env values purely to satisfy
 # module-load guards (e.g. NEXTAUTH_SECRET) and inlined NEXT_PUBLIC_* vars; all
 # public pages are dynamic / force-dynamic, so the build never connects to a DB.
 
@@ -24,61 +25,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  critical-e2e:
-    name: Critical editor and account browser workflows
-    runs-on: ubuntu-latest
-    # Separate runner/database for prompt feedback. The complete audit below
-    # remains required on every PR, including navigation, mobile and Team Profile.
-    timeout-minutes: 25
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: consilium
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/consilium
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium webkit
-      - name: Critical browser regressions
-        run: >-
-          E2E_REQUIRE_CLEAN=1 npm run test:e2e -- --workers=1
-          --project=wf-chromium --project=wf-webkit
-          wf-formatting.spec.ts wf-discovery.spec.ts wf-admin-profile.spec.ts wf-public-controls.spec.ts wf-remaining.spec.ts wf-accounts.spec.ts wf-bootstrap.spec.ts
-      - name: Minimal root-layout recovery diagnostic
-        if: ${{ !cancelled() }}
-        run: node scripts/diagnostics/root-recovery.mjs
-      - name: Upload critical workflow evidence
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: critical-workflow-report
-          path: |
-            playwright-report/
-            test-results/
-            !test-results/**/outbox.jsonl
-          retention-days: 7
-
   verify:
     name: Typecheck, test, build
     runs-on: ubuntu-latest
@@ -104,14 +50,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Unit + integration tests
-        run: npm test
+      - name: Unit tests
+        run: npm run test:unit
 
       # Faithful production build. Catches missing imports, type errors, and
       # page-data collection failures. Dummy env values only — never real secrets.
@@ -128,18 +71,101 @@ jobs:
 
   # End-to-end gate: seeds a real Postgres, builds, and runs the Playwright suite.
   # A failing e2e test, a console error on any page, or any internal URL returning
-  # >= 400 (including ?_rsc= prefetch requests) fails this job. Branch protection must require it to block merging.
+  # >= 400 (including ?_rsc= prefetch requests) fails this job and blocks merge.
   e2e:
-    # Independent runners own separate databases, builds and artifacts. Begin the
-    # full audit after quality while critical checks run, so a critical failure
-    # cannot prevent collecting the remaining coverage. Both jobs stay CI gates.
-    needs: [verify]
     name: E2E (Playwright), data-layer & network checks
     runs-on: ubuntu-latest
-    # Measured local full run: ~30 minutes across three serialized phases.
-    # 60 minutes includes dependency/browser installs and first production build;
-    # individual action/navigation deadlines remain 10/15 seconds, retries zero.
     timeout-minutes: 60
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: consilium
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # TEST_DATABASE_URL is the single source of truth for tests: the tooling ignores
+      # DATABASE_URL/DIRECT_URL and overwrites them with it. localhost passes the guard
+      # (scripts/lib/assertSafeTestDatabaseHost.ts); a non-local CI database needs
+      # TEST_DB_ALLOW_HOST set to its exact host.
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/consilium
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/consilium
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/consilium
+      NEXTAUTH_SECRET: ci_dummy_secret_not_used_at_runtime
+      NEXTAUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci_dummy_anon_key
+      SUPABASE_ANON_KEY: ci_dummy_anon_key
+      SUPABASE_SERVICE_ROLE_KEY: ci_dummy_service_key
+      # No RESEND_API_KEY on purpose: this job must never be able to send real email.
+      CRON_SECRET: ci_cron_secret
+      ADMIN_EMAILS: admin@theconsilium.com
+      USE_EXISTING_DB: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Chromium and WebKit: the browser workflow suites run on both (plus phone
+      # emulations of each). WebKit needs its system libraries, hence --with-deps.
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      # scripts/run-e2e.sh is the only supported entry point. It builds the app itself
+      # into .next-e2e with storage, email and OAuth pinned to local stand-ins (a local
+      # Supabase-Storage-compatible server, captured email, no Google), so nothing in this
+      # job can reach a real service even if a secret were present. The Playwright config
+      # refuses to start without that isolation. Phases: main, workflow (browser
+      # workflow suites), team-profile.
+      - name: Public pages, network crawl and mobile browser workflows
+        run: RUN_VITEST=1 npm run test:e2e -- --project=public --project=public-webkit --project=wf-mobile-chromium --project=wf-mobile-webkit --workers=1
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+            !test-results/**/outbox.jsonl
+          retention-days: 7
+
+  # Separate status for the changed role/profile suites; all prior projects remain
+  # enabled in the two browser jobs. Each runner owns its DB, storage and mail.
+  role-workflows:
+    name: Critical roles, profiles and testing mode
+    runs-on: ubuntu-latest
+    # The serialized Chromium/WebKit census itself completes in about 46m on
+    # GitHub. Dependency install, the isolated production build and upload of
+    # the requested passing simulator traces pushed the measured job just past
+    # 60m even though all 593 cases had passed. Leave headroom for cleanup and
+    # evidence upload; individual action/navigation limits and retries stay put.
+    timeout-minutes: 75
 
     services:
       postgres:
@@ -196,29 +222,20 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium webkit
 
-      - name: Framework-free share popup diagnostic
-        run: node scripts/diagnostics/share-popup.mjs
-
-      - name: Controlled related-card stacking regression
-        run: node scripts/diagnostics/related-card-stack.mjs
-
-      - name: Isolated NextAuth cancellation diagnostic
-        run: node scripts/diagnostics/session-cancellation.mjs
-
       # scripts/run-e2e.sh is the only supported entry point. It builds the app itself
       # into .next-e2e with storage, email and OAuth pinned to local stand-ins (a local
       # Supabase-Storage-compatible server, captured email, no Google), so nothing in this
       # job can reach a real service even if a secret were present. The Playwright config
       # refuses to start without that isolation. Phases: main, workflow (browser
       # workflow suites), team-profile.
-      - name: E2E (browser workflows on Chromium + WebKit, console/network checks, team profile)
-        run: E2E_REQUIRE_CLEAN=1 npm run test:audit
+      - name: Ordinary and simulated workflows, ownership, review scope, publication and profiles
+        run: npm run test:e2e -- --project=editorial --project=editor --project=lifecycle --project=wf-chromium --project=wf-webkit --project=simulator-chromium --project=testing-mode --project=team-profile --workers=1
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: critical-role-playwright-report
           path: |
             playwright-report/
             test-results/

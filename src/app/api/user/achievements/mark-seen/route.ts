@@ -1,9 +1,10 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 /** PATCH /api/user/achievements/mark-seen: marks the given achievements seen. */
-export async function PATCH(req: Request) {
+async function PATCHHandler(req: Request) {
   const auth = await requireVerifiedSessionUser()
   if (!auth.ok) return auth.response
   const user = auth.user
@@ -40,3 +41,5 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)

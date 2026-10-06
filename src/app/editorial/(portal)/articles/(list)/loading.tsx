@@ -2,6 +2,13 @@
  * Bug 6: All Articles page showed blank content for ~2–3 s on initial load.
  * Next.js serves this file automatically while the async server component
  * (page.tsx) is fetching data via React Suspense streaming.
+ *
+ * Lives in the (list) route group so it wraps only the articles list. A loading.tsx
+ * directly under articles/ would also wrap /new and /[id]/edit, putting this table
+ * skeleton on editor pages and sending their navigations through Next's optimistic
+ * loading-shell path, where the commit can be lost and the portal content stays empty
+ * (wf-public-controls "signed-in phone ... New Article": 3 of 100 runs with the boundary
+ * at articles/, 0 of 100 without). See tests/unit/editor-routes-no-loading-boundary.test.ts.
  */
 export default function ArticlesLoading() {
   return (

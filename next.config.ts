@@ -90,6 +90,11 @@ const nextConfig: NextConfig = {
         : []),
     ],
   },
+  experimental: {
+    // Every isolated run starts fresh. Avoid cache flush/compaction stalls in
+    // this workspace's dev server; ordinary development keeps Next's default.
+    ...(process.env.E2E_ISOLATED === '1' ? { turbopackFileSystemCacheForDev: false } : {}),
+  },
   async redirects() {
     return [
       { source: '/news',       destination: '/category/news',      permanent: true },
@@ -103,7 +108,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/(.*)',
-        headers: securityHeaders,
+        headers: [...securityHeaders, ...(process.env.TESTING_MODE_ENABLED === '1' ? [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }] : [])],
       },
     ]
   },

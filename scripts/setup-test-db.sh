@@ -54,6 +54,18 @@ if [ "${USE_EXISTING_DB:-0}" != 1 ]; then
   pg_ctl -D "$PGDATA" -o "-p $PGPORT -k $PGSOCK" -l "$PGDATA/server.log" -w start
   createdb -h localhost -p "$PGPORT" -U postgres consilium
 fi
+# Hold the existing per-database mutation lease before schema and seed writes.
+SETUP_READY="/tmp/consilium-setup-$$.ready"
+node node_modules/ts-node/dist/bin.js -P tsconfig.seed.json scripts/acquire-test-workspace.ts "$SETUP_READY" &
+SETUP_LEASE_PID=$!
+trap 'kill "$SETUP_LEASE_PID" 2>/dev/null || true; wait "$SETUP_LEASE_PID" 2>/dev/null || true; rm -f "$SETUP_READY"' EXIT
+for i in $(seq 1 40); do
+  [ -f "$SETUP_READY" ] && break
+  kill -0 "$SETUP_LEASE_PID" 2>/dev/null || exit 1
+  sleep 0.25
+  [ "$i" = 40 ] && { echo "✗ database lease unavailable" >&2; exit 1; }
+done
+
 echo "→ prisma generate + db push"
 npx prisma generate >/dev/null
 npx prisma db push >/dev/null
@@ -64,5 +76,7 @@ npm run db:seed-debates
 npx ts-node -P tsconfig.seed.json prisma/dedupe-articles.ts
 npx ts-node -P tsconfig.seed.json prisma/seed-test-fixtures.ts
 npx ts-node -P tsconfig.seed.json prisma/seed-read-through.ts
+
+npx ts-node -P tsconfig.seed.json scripts/seed-testing-workspace.ts
 
 echo "✅ test database ready (port $PGPORT)"

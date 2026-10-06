@@ -121,6 +121,9 @@ export function AnalyticsDashboard({ userRole: _userRole }: { userRole: string }
         {/* Period dropdown */}
         <div ref={dropdownRef} className="relative shrink-0">
           <button
+            aria-label="Analytics period"
+            aria-haspopup="menu"
+            aria-expanded={dropdownOpen}
             onClick={() => setDropdownOpen(o => !o)}
             className="flex items-center gap-2 bg-[var(--bg-elevated)] border border-[var(--border)] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[var(--fg)] hover:border-gold transition-colors"
           >

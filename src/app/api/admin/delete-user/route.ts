@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextRequest, NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -6,7 +7,7 @@ import { CONTACT_EMAIL } from '@/lib/constants'
 import { ADMIN_ONLY } from '@/lib/rbac'
 import { escapeHtml } from '@/lib/escapeHtml'
 
-export async function POST(req: NextRequest) {
+async function POSTHandler(req: NextRequest) {
   const admin = await getVerifiedSessionUser(ADMIN_ONLY)
   if (!admin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -112,3 +113,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to delete user. Please try again.' }, { status: 500 })
   }
 }
+
+export const POST = withTestingAudit(POSTHandler)

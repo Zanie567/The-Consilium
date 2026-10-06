@@ -10,7 +10,7 @@ import {
   PREDICTIONS_MANAGE_ROLES,
   isAllowedRole,
 } from '@/lib/rbac'
-import { TEAM_PROFILE_OWNER_ROLES } from '@/lib/teamProfiles'
+import { TEAM_PROFILE_ROLES } from '@/lib/teamProfiles'
 import {
   CalendarDays,
   LayoutDashboard,
@@ -112,7 +112,7 @@ export function EditorialSidebar({
         {
           items: [
             { href: '/editorial', icon: LayoutDashboard, label: 'Dashboard', exact: true, show: true },
-            { href: '/editorial/team-profile', icon: UserRound, label: 'Team Profile', exact: true, show: isAllowedRole(user.role, TEAM_PROFILE_OWNER_ROLES) },
+            { href: '/editorial/team-profile', icon: UserRound, label: 'Team Profile', exact: true, show: isAllowedRole(user.role, TEAM_PROFILE_ROLES) },
           ],
         },
         {
@@ -139,6 +139,7 @@ export function EditorialSidebar({
         {
           label: 'MANAGE',
           items: [
+            { href: '/admin/testing', icon: Users, label: 'Testing', show: isAdmin },
             { href: '/editorial/users', icon: Users, label: 'Users', show: isAdmin },
             { href: '/editorial/members', icon: UserPlus, label: 'Members', show: isAdmin },
             { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
@@ -181,6 +182,7 @@ export function EditorialSidebar({
           ].join(' ')}
         >
           <Link
+            prefetch={false}
             href="/"
             className="text-gold font-bold text-sm tracking-widest uppercase whitespace-nowrap block"
             style={{ fontFamily: 'var(--font-serif)' }}
@@ -219,6 +221,7 @@ export function EditorialSidebar({
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={false}
                     onClick={onNavClick}
                     className={[
                       'flex items-center gap-2.5 px-3 text-[13px] font-medium border-l-2',

@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma'
 // getVerifiedSessionUser; a role in the request body is only ever a value being
 // ASSIGNED to someone else, and is validated against the assignable list.
 
-const INVITE_KEYS = new Set(['email', 'role', 'displayName', 'position', 'team'])
+const INVITE_KEYS = new Set(['email', 'role', 'displayName', 'position', 'publicTier'])
 
 export async function GET() {
   const admin = await getVerifiedSessionUser(ADMIN_ONLY)
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       role: body.role,
       displayName: body.displayName,
       position: body.position,
-      team: body.team,
+      publicTier: body.publicTier,
     })
 
     // Tell the person, best effort: a mail failure must not undo the authorisation.

@@ -13,7 +13,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { assertRunDatabase } from '../../scripts/lib/assertRunDatabase'
-assertRunDatabase()
+import { assertSafeTestDatabaseHost } from '../../scripts/lib/assertSafeTestDatabaseHost'
+function assertFixtureDatabase() {
+  if (process.env.E2E_ISOLATED === '1') assertRunDatabase()
+  else assertSafeTestDatabaseHost(process.env.TEST_DATABASE_URL, 'TEST_DATABASE_URL')
+}
+assertFixtureDatabase()
 
 // The Vitest guard has already pinned DATABASE_URL to TEST_DATABASE_URL.
 const { prisma } = await import('@/lib/prisma')
@@ -39,7 +44,7 @@ const ids: Record<keyof typeof SLUGS, string> = {
 }
 
 beforeAll(async () => {
-  assertRunDatabase()
+  assertFixtureDatabase()
   const author = await prisma.user.create({ data: { email: `${fixtureTag}@consilium.test`, role: 'WRITER' } })
   const readers = await Promise.all(Array.from({ length: 24 }, (_, i) => prisma.user.create({
     data: { email: `${fixtureTag}-${i}@consilium.test`, role: 'READER' },

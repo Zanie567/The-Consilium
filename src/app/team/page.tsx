@@ -1,10 +1,9 @@
-import { prisma } from '@/lib/prisma'
 import type { Metadata } from 'next'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { TeamMemberCard } from '@/components/team/TeamMemberCard'
 import { buildTeamMasthead } from '@/lib/teamHierarchy'
 import { canonicalAlternates } from '@/lib/seo'
-import { buildPublicRoster, teamMemberEmails } from '@/lib/teamProfiles'
+import { loadPublicTeam } from '@/lib/publicTeam'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,57 +13,10 @@ export const metadata: Metadata = {
   alternates: canonicalAlternates('/team'),
 }
 
-async function getTeamMembers() {
-  try {
-    const rows = await prisma.teamMember.findMany({
-      where: { isActive: true },
-      orderBy: { order: 'asc' },
-      include: {
-        user: {
-          select: {
-            email: true,
-            name: true,
-            role: true,
-            bio: true,
-            slug: true,
-            isActive: true,
-            isBanned: true,
-          },
-        },
-      },
-    })
-
-    // Legacy cards (no linked account) still prefer the person's self-maintained
-    // account bio, matched on email. A failure here must not cost us the whole
-    // team page, so it degrades to the admin bios.
-    const emails = teamMemberEmails(rows.filter((row) => !row.user))
-    const accounts =
-      emails.length === 0
-        ? []
-        : await prisma.user.findMany({
-            // Matched case-insensitively per address, NOT `email: { in: emails }` —
-            // Postgres compares that exactly, so an account stored as
-            // "J.Smith@ed.ac.uk" would never match the lower-cased team email.
-            where: {
-              OR: emails.map((email) => ({ email: { equals: email, mode: 'insensitive' as const } })),
-              // Banned or deactivated accounts keep the admin-entered bio:
-              // self-authored text from a suspended account must not surface.
-              isActive: true,
-              isBanned: false,
-            },
-            select: { email: true, bio: true, slug: true },
-          })
-
-    return buildPublicRoster(rows, accounts)
-  } catch {
-    return []
-  }
-}
 
 export default async function TeamPage() {
-  const members = await getTeamMembers()
-  // Tiers are derived from each member's free-text role, so a person added
-  // through /admin/team is placed without any code change here.
+  const members = await loadPublicTeam()
+  // Trusted public placement/title decides prominence; account permissions do not.
   const sections = buildTeamMasthead(members)
 
   return (

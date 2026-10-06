@@ -65,4 +65,11 @@ describe('article HTML sanitization (sanitize-html, server-side)', () => {
     expect(out).not.toContain('title=')
     expect(out).toContain('data-index="1"')
   })
+
+  it('strips stored presentation and arbitrary CSS even from raw HTML', () => {
+    const out = clean('<p style="text-align:center;position:fixed"><span style="color:#ff0000;line-height:1.5;background:url(https://evil.test)">text</span><mark style="background-color:#ffff00;z-index:999">highlight</mark></p>')
+    expect(out).toContain('text')
+    expect(out).toContain('<mark>highlight</mark>')
+    expect(out).not.toMatch(/style=|position|url\(|evil|z-index|color:|line-height/)
+  })
 })

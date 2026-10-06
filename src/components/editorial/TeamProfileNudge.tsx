@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
-import { TEAM_PROFILE_OWNER_ROLES, assessProfile, resolveCardTeam } from '@/lib/teamProfiles'
+import { TEAM_PROFILE_ROLES, assessProfile } from '@/lib/teamProfiles'
 
 /**
  * Dashboard prompt for a team member whose Meet the Team card still needs something
@@ -14,11 +14,11 @@ export async function TeamProfileNudge({ userId }: { userId: string }) {
       select: {
         name: true,
         role: true,
-        teamProfile: { select: { name: true, bio: true, image: true, role: true, team: true, isActive: true } },
+        teamProfile: { select: { name: true, bio: true, image: true, role: true, isActive: true } },
       },
     })
     .catch(() => null)
-  if (!account || !(TEAM_PROFILE_OWNER_ROLES as readonly string[]).includes(account.role)) return null
+  if (!account || !(TEAM_PROFILE_ROLES as readonly string[]).includes(account.role)) return null
 
   const card = account.teamProfile
   const assessment = assessProfile({
@@ -26,7 +26,6 @@ export async function TeamProfileNudge({ userId }: { userId: string }) {
     bio: card?.bio,
     image: card?.image,
     position: card?.role,
-    team: resolveCardTeam(card?.team, account.role),
     visible: card?.isActive ?? false,
   })
   if (assessment.missingFromMember.length === 0) return null

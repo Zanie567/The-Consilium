@@ -1,8 +1,9 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-export async function PATCH(req: Request) {
+async function PATCHHandler(req: Request) {
   const auth = await requireVerifiedSessionUser()
   if (!auth.ok) return auth.response
   const user = auth.user
@@ -41,3 +42,5 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)

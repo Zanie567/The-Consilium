@@ -100,7 +100,7 @@ describe('Comments API (503 regression)', () => {
 describe('Editorial comments moderation', () => {
   for (const tab of ['reported', 'recent', 'hidden']) {
     it(`GET /api/editorial/comments?tab=${tab} → 200 (NOT 503) with stats`, async () => {
-  
+
       const res = await admin.get(`/api/editorial/comments?tab=${tab}&page=0`)
       expect(res.status, `tab=${tab} expected 200, got ${res.status}`).toBe(200)
       expect(res.status).not.toBe(503)
@@ -294,7 +294,7 @@ describe('Debates', () => {
 describe('Editorial analytics', () => {
   for (const tab of ['overview', 'content', 'audience', 'engagement', 'distribution']) {
     it(`GET /api/editorial/analytics?tab=${tab} → 200`, async () => {
-  
+
       const res = await admin.get(`/api/editorial/analytics?tab=${tab}&period=30d`)
       expect(res.status, `tab=${tab}`).toBe(200)
     })

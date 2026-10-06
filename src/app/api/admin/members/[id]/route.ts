@@ -16,8 +16,8 @@ interface Ctx {
   params: Promise<{ id: string }>
 }
 
-const PATCH_KEYS = new Set(['role', 'position', 'team', 'order', 'visible', 'displayName'])
-const PROFILE_KEYS = ['position', 'team', 'order', 'visible', 'displayName'] as const
+const PATCH_KEYS = new Set(['role', 'position', 'publicTier', 'order', 'visible', 'displayName'])
+const PROFILE_KEYS = ['position', 'publicTier', 'order', 'visible', 'displayName'] as const
 
 /**
  * PATCH /api/admin/members/:id: change the authorisation role and/or the public
@@ -68,7 +68,7 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
           role: body.role,
           displayName: membership.displayName,
           position: membership.publicPosition,
-          team: membership.publicTeam,
+          publicTier: membership.publicTier,
         })
       }
     }

@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse, NextRequest } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import path from 'path'
@@ -104,7 +105,7 @@ function ensureDOMMatrix() {
   })
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   const user = await getVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
   if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
@@ -234,3 +235,5 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export const POST = withTestingAudit(POSTHandler)

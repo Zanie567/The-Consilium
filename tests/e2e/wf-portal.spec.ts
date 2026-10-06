@@ -337,6 +337,8 @@ test('calendar month navigation, day details and article links exercise real con
     .click()
   await expect(page.getByRole('dialog', { name: /Details for/ })).toBeVisible()
   await expect(page.getByText('Nothing scheduled or published on this day.')).toBeVisible()
+  const bannerBottom = await page.getByRole('region', { name: 'Testing environment' }).evaluate(el => el.getBoundingClientRect().bottom)
+  expect(await page.getByLabel('Close day details').evaluate(el => el.getBoundingClientRect().top)).toBeGreaterThanOrEqual(bannerBottom)
   await page.getByLabel('Close day details').click()
   await expect(page.getByRole('dialog', { name: /Details for/ })).toHaveCount(0)
   await page.getByRole('link', { name: 'Today', exact: true }).click()
@@ -352,21 +354,20 @@ test('Growth analytics requests exact date ranges and every tab through the UI',
   const page = await ctx.newPage()
   await page.goto('/editorial/analytics', { waitUntil: 'networkidle' })
   await new ArticleEditorPage(page).dismissCookieBanner()
-  let current = 'Last 30 days'
   for (const [label, value] of [
     ['Last 24 hours', '24h'],
     ['Last 7 days', '7d'],
     ['Last 90 days', '90d'],
     ['Last 30 days', '30d'],
   ]) {
-    await page.getByRole('button', { name: current, exact: true }).first().click()
+    await page.getByRole('button', { name: 'Analytics period', exact: true }).click()
     const request = page.waitForResponse((r) =>
       r.url().includes(`/api/editorial/analytics?period=${value}&tab=overview`)
     )
     await page.getByRole('button', { name: label, exact: true }).last().click()
     expect((await request).status()).toBe(200)
-    await expect(page.getByRole('button', { name: label, exact: true })).toHaveCount(1)
-    current = label
+    await expect(page.getByRole('button', { name: 'Analytics period', exact: true })).toContainText(label)
+    await expect(page.getByRole('button', { name: 'Analytics period', exact: true })).toHaveAttribute('aria-expanded', 'false')
   }
   for (const [label, tab] of [
     ['Content', 'content'],

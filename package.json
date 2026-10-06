@@ -29,6 +29,11 @@
     "audit:dup": "jscpd src",
     "audit:types": "type-coverage --strict",
     "audit:all": "npm run typecheck && npm run lint && npm run audit:types && npm run audit:dead && npm run audit:dup",
+    "check:deployment": "ts-node -P tsconfig.seed.json scripts/check-deployment.ts",
+    "test:build-disabled": "ts-node -P tsconfig.seed.json scripts/check-disabled-build.ts",
+    "testing:workspace": "INTERACTIVE_TEST_WORKSPACE=1 bash scripts/run-e2e.sh",
+    "testing:seed": "ts-node -P tsconfig.seed.json scripts/seed-testing-workspace.ts",
+    "appointments:backfill": "ts-node -P tsconfig.seed.json scripts/backfill-public-appointments.ts",
     "smoke": "node scripts/smoke.mjs"
   },
   "prisma": {

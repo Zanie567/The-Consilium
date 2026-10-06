@@ -12,7 +12,7 @@ export function ArticleEditorTopBar({ editor }: ArticleEditorTopBarProps) {
   const { actions } = editor
 
   return (
-    <div className="fixed top-0 left-0 md:left-12 lg:left-[220px] right-0 z-50 h-12 bg-[var(--bg-elevated)] border-b border-[var(--border)] flex items-center pl-[52px] md:pl-3 pr-3 gap-2">
+    <div style={{ top: 'var(--testing-banner-height, 0px)' }} className="fixed top-0 left-0 md:left-12 lg:left-[220px] right-0 z-50 h-12 bg-[var(--bg-elevated)] border-b border-[var(--border)] flex items-center pl-[52px] md:pl-3 pr-3 gap-2">
       <button
         onClick={() => void actions.handleBack()}
         className="p-1.5 rounded text-[var(--fg-muted)] hover:bg-[var(--bg-subtle)] hover:text-gold transition-colors shrink-0"

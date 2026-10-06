@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse, NextRequest } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
@@ -32,13 +33,18 @@ const BUCKET_MAX_BYTES: Record<string, number> = {
   avatars: MAX_AVATAR_BYTES,
 }
 
-/** Form framing around the file in a multipart body: boundaries, headers, the `bucket` field. */
-const MULTIPART_OVERHEAD_BYTES = 64 * 1024
+/**
+ * Avatars take a narrower set than article images: GIF (animation on every byline)
+ * and AVIF are not accepted. Buckets not listed here keep the full detected set.
+ */
+const AVATAR_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
+/** Multipart boundaries, headers and bucket metadata in addition to the file. */
+const MULTIPART_OVERHEAD_BYTES = 64 * 1024
 const tooLarge = (bytes: number) =>
   `File too large (max ${bytes / (1024 * 1024)} MB). Resize or compress the image and try again.`
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   // Authenticate against the widest set here; the per-bucket check below narrows
   // it once we know which bucket the caller asked for.
   const auth = await requireVerifiedSessionUser(ALL_ROLES)
@@ -120,9 +126,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            'File type not permitted. Allowed formats: JPEG, PNG, GIF, WebP, AVIF.',
+            bucketParam === 'avatars'
+              ? 'Profile photos must be JPEG, PNG or WebP.'
+              : 'File type not permitted. Allowed formats: JPEG, PNG, GIF, WebP, AVIF.',
         },
         { status: 400 }
+      )
+    }
+
+    if (bucketParam === 'avatars' && !AVATAR_MIME_TYPES.has(detectedType)) {
+      return NextResponse.json(
+        { error: 'Profile photos must be JPEG, PNG or WebP.' },
+        { status: 400 },
       )
     }
 
@@ -160,3 +175,5 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export const POST = withTestingAudit(POSTHandler)

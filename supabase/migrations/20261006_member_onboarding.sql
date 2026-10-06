@@ -1,5 +1,5 @@
 -- =============================================================================
--- Migration: member onboarding (pre-authorised memberships) + admin-set team
+-- Migration: member onboarding (pre-authorised memberships) + membership trail
 -- Date: 2026-10-06
 -- =============================================================================
 --
@@ -10,13 +10,14 @@
 -- 1. team_memberships: one row per email. An admin creates it BEFORE the person has
 --    an account; the first verified sign-in with that email claims it. users.role
 --    remains the value every access gate reads, so no existing check changes.
--- 2. team_members.team: admin-only public team override ('writing' | 'editorial' |
---    'growth'). NULL keeps today's behaviour (team derived from the account role).
--- 3. Backfill: every existing staff account (role <> READER) gets an ACTIVE
+-- 2. Backfill: every existing staff account (role <> READER) gets an ACTIVE
 --    membership so the admin member list and audit trail cover current staff too.
 --
+-- Public placement is NOT stored here: it is team_members.publicTier (from the public
+-- appointments migration), which this table only carries as a starting value.
+--
 -- Security: RLS on, no policies (deny-by-default for PostgREST); Prisma, as the
--- superuser, is the only writer. `team` is not added to any anon column grant.
+-- superuser, is the only writer.
 -- =============================================================================
 
 DO $$
@@ -34,7 +35,7 @@ CREATE TABLE IF NOT EXISTS team_memberships (
   "userId"         TEXT,
   "displayName"    TEXT,
   "publicPosition" TEXT,
-  "publicTeam"     TEXT,
+  "publicTier"     TEXT,
   "invitedById"    TEXT,
   "invitedByName"  TEXT,
   "claimedAt"      TIMESTAMP(3),
@@ -64,15 +65,6 @@ BEGIN
 END $$;
 
 ALTER TABLE team_memberships ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE team_members ADD COLUMN IF NOT EXISTS team TEXT;
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'team_members_team_check') THEN
-    ALTER TABLE team_members
-      ADD CONSTRAINT team_members_team_check CHECK (team IS NULL OR team IN ('writing', 'editorial', 'growth'));
-  END IF;
-END $$;
 
 -- Backfill current staff. Accounts whose lower-cased email would collide are skipped
 -- by ON CONFLICT rather than failing the whole migration.

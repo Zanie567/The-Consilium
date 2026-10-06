@@ -3,14 +3,20 @@
 import { useState } from 'react'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 import type { AccountStatus, MemberRow, ProfileStatus } from '@/lib/membership'
+import { TEAM_TIER_ORDER, type TeamTierId } from '@/lib/teamHierarchy'
 
 const ROLES = ['WRITER', 'EDITOR', 'GROWTH', 'ADMIN'] as const
-const TEAMS = [
-  { value: '', label: 'Not set' },
-  { value: 'editorial', label: 'Editorial' },
-  { value: 'writing', label: 'Writing' },
-  { value: 'growth', label: 'Growth & Communications' },
-] as const
+const TIER_LABEL: Record<TeamTierId, string> = {
+  editor_in_chief: 'Editor-in-Chief',
+  leadership: 'Leadership',
+  senior_editor: 'Senior editor',
+  editor: 'Editor',
+  junior_editor: 'Junior editor',
+  writer: 'Writer',
+  growth: 'Growth & Communications',
+  other: 'Wider team',
+}
+const TIERS = [{ value: '', label: 'Follow the public title' }, ...TEAM_TIER_ORDER.map((value) => ({ value, label: TIER_LABEL[value] }))]
 
 const ACCOUNT_LABEL: Record<AccountStatus, string> = {
   invited: 'Invited, not registered',
@@ -52,8 +58,8 @@ export function MemberManagement({ initialMembers }: { initialMembers: MemberRow
   const [openId, setOpenId] = useState<string | null>(null)
   const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null)
   const [hideOnRevoke, setHideOnRevoke] = useState(false)
-  const [invite, setInvite] = useState({ email: '', role: 'WRITER', displayName: '', position: '', team: '' })
-  const [edit, setEdit] = useState({ position: '', team: '', order: '', visible: false })
+  const [invite, setInvite] = useState({ email: '', role: 'WRITER', displayName: '', position: '', tier: '' })
+  const [edit, setEdit] = useState({ position: '', tier: '', order: '', visible: false })
   const [reinstateRole, setReinstateRole] = useState('WRITER')
 
   const reload = async () => setMembers(await apiRequest<MemberRow[]>('/api/admin/members'))
@@ -84,10 +90,10 @@ export function MemberManagement({ initialMembers }: { initialMembers: MemberRow
           role: invite.role,
           ...(invite.displayName ? { displayName: invite.displayName } : {}),
           ...(invite.position ? { position: invite.position } : {}),
-          ...(invite.team ? { team: invite.team } : {}),
+          ...(invite.tier ? { publicTier: invite.tier } : {}),
         }),
       })
-      setInvite({ email: '', role: 'WRITER', displayName: '', position: '', team: '' })
+      setInvite({ email: '', role: 'WRITER', displayName: '', position: '', tier: '' })
       return result.outcome === 'activated'
         ? 'They already had an account, so the role is active now.'
         : 'Invitation saved. The role switches on when they sign in with that email.'
@@ -109,7 +115,7 @@ export function MemberManagement({ initialMembers }: { initialMembers: MemberRow
     setConfirmRevokeId(null)
     setEdit({
       position: member.position ?? '',
-      team: member.team ?? '',
+      tier: member.tier ?? '',
       order: member.order === null ? '' : String(member.order),
       visible: member.visible ?? false,
     })
@@ -120,7 +126,7 @@ export function MemberManagement({ initialMembers }: { initialMembers: MemberRow
       member.id,
       {
         position: edit.position,
-        team: edit.team || null,
+        publicTier: edit.tier || null,
         ...(member.hasAccount && edit.order !== '' ? { order: Number(edit.order) } : {}),
         ...(member.hasAccount ? { visible: edit.visible } : {}),
       },
@@ -150,9 +156,9 @@ export function MemberManagement({ initialMembers }: { initialMembers: MemberRow
             <input id="inv-position" type="text" maxLength={100} value={invite.position} onChange={(e) => setInvite({ ...invite, position: e.target.value })} className={field} placeholder="e.g. Deputy Editor" />
           </div>
           <div>
-            <label htmlFor="inv-team" className={label}>Team (optional)</label>
-            <select id="inv-team" value={invite.team} onChange={(e) => setInvite({ ...invite, team: e.target.value })} className={field}>
-              {TEAMS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            <label htmlFor="inv-tier" className={label}>Placement (optional)</label>
+            <select id="inv-tier" value={invite.tier} onChange={(e) => setInvite({ ...invite, tier: e.target.value })} className={field}>
+              {TIERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
         </div>
@@ -230,7 +236,7 @@ interface RowProps {
   m: MemberRow
   open: boolean
   busy: boolean
-  edit: { position: string; team: string; order: string; visible: boolean }
+  edit: { position: string; tier: string; order: string; visible: boolean }
   setEdit: (value: RowProps['edit']) => void
   confirmRevoke: boolean
   hideOnRevoke: boolean
@@ -275,7 +281,7 @@ function MemberRowView(p: RowProps) {
         <td className="px-3 py-3"><Chip tone={accountTone(m.accountStatus)}>{ACCOUNT_LABEL[m.accountStatus]}</Chip></td>
         <td className="px-3 py-3">
           <p>{m.position ?? <span className="text-[var(--fg-muted)]">Not set</span>}</p>
-          <p className="text-xs text-[var(--fg-muted)]">{TEAMS.find((t) => t.value === (m.team ?? ''))?.label}</p>
+          <p className="text-xs text-[var(--fg-muted)]">{TIERS.find((t) => t.value === (m.tier ?? ''))?.label}</p>
         </td>
         <td className="px-3 py-3">
           <Chip tone={profileTone(m.profileStatus)}>{PROFILE_LABEL[m.profileStatus]}</Chip>
@@ -298,9 +304,9 @@ function MemberRowView(p: RowProps) {
                 <input id={`pos-${m.id}`} type="text" maxLength={100} value={p.edit.position} onChange={(e) => p.setEdit({ ...p.edit, position: e.target.value })} className={field} />
               </div>
               <div>
-                <label htmlFor={`team-${m.id}`} className={label}>Team</label>
-                <select id={`team-${m.id}`} value={p.edit.team} onChange={(e) => p.setEdit({ ...p.edit, team: e.target.value })} className={field}>
-                  {TEAMS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                <label htmlFor={`tier-${m.id}`} className={label}>Public placement</label>
+                <select id={`tier-${m.id}`} value={p.edit.tier} onChange={(e) => p.setEdit({ ...p.edit, tier: e.target.value })} className={field}>
+                  {TIERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
               </div>
               {m.hasAccount && (

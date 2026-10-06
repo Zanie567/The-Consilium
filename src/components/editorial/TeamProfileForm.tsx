@@ -17,10 +17,8 @@ interface SavedProfile {
 interface TeamProfileFormProps {
   /** The display name shown on the card (the member's own to edit). */
   name: string
-  /** Team label, or null while an administrator has not placed the card. Read-only. */
-  teamLabel: string | null
-  /** Public position/title, or null while unset. Read-only: administrators set it. */
-  position: string | null
+  /** Trusted public title. Read-only: administrators set it. */
+  positionLabel: string
   profile: SavedProfile | null
   maxNameLength: number
   maxBioLength: number
@@ -32,8 +30,7 @@ const labelClass = 'block text-xs uppercase tracking-widest text-[var(--fg-muted
 
 export function TeamProfileForm({
   name: initialName,
-  teamLabel,
-  position,
+  positionLabel,
   profile,
   maxNameLength,
   maxBioLength,
@@ -199,21 +196,10 @@ export function TeamProfileForm({
         <p className="mt-1 text-xs text-[var(--fg-faint)]">Use the name you&apos;d like readers to see.</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <span className={labelClass}>Position</span>
-          <p className="rounded border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2 text-sm text-[var(--fg)]">
-            {position ?? 'Not set yet'}
-          </p>
-          <p className="mt-1 text-xs text-[var(--fg-faint)]">Set by an administrator.</p>
-        </div>
-        <div>
-          <span className={labelClass}>Team</span>
-          <p className="rounded border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2 text-sm text-[var(--fg)]">
-            {teamLabel ?? 'Not set yet'}
-          </p>
-          <p className="mt-1 text-xs text-[var(--fg-faint)]">Set by an administrator. It can&apos;t be changed here.</p>
-        </div>
+      <div>
+        <span className={labelClass}>Public title</span>
+        <p className="rounded border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2 text-sm text-[var(--fg)]">{positionLabel}</p>
+        <p className="mt-1 text-xs text-[var(--fg-faint)]">Set by an administrator. It can&apos;t be changed here.</p>
       </div>
 
       <div>

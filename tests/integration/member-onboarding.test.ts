@@ -294,6 +294,8 @@ suite('member onboarding lifecycle (real database)', () => {
     },
   ])('new $role: invited before registering, via a password account', ({ role, position, section, can }) => {
     const label = `jane-${role.toLowerCase()}`
+    const defaultTitle = { WRITER: 'Writer', EDITOR: 'Editor', GROWTH: 'Growth & Communications' }[role]
+    const defaultTier = { WRITER: 'writer', EDITOR: 'editor', GROWTH: 'growth' }[role]
     const address = email(label)
     let userId: string
 
@@ -334,30 +336,31 @@ suite('member onboarding lifecycle (real database)', () => {
     it('their Team Profile is ready and hidden: no empty card appears publicly', async () => {
       const cards = await db.teamMember.findMany({ where: { userId } })
       expect(cards).toHaveLength(1)
-      expect(cards[0]).toMatchObject({ name: 'Jane Doe', role: '', isActive: false })
+      // The ordinary default title for the role, hidden until an admin shows it.
+      expect(cards[0]).toMatchObject({ name: 'Jane Doe', role: defaultTitle, publicTier: defaultTier, isActive: false })
       expect(await publicCardsFor(userId)).toHaveLength(0)
     })
 
-    it('they add a display name, photo and bio, but cannot set position, team, role or visibility', async () => {
+    it('they add a display name, photo and bio, but cannot set title, placement, role or visibility', async () => {
       actingAs(userId)
-      for (const forged of [{ role: 'ADMIN' }, { team: 'editorial' }, { position: 'Editor-in-Chief' }, { isActive: 'true' }, { order: '0' }]) {
+      for (const forged of [{ role: 'ADMIN' }, { publicTier: 'senior_editor' }, { position: 'Editor-in-Chief' }, { isActive: 'true' }, { order: '0' }]) {
         expect((await put({ bio: 'x', ...forged })).status).toBe(400)
       }
       const res = await put({ name: 'Jane D.', bio: 'I write about money.', image: photo() })
       expect(res.status).toBe(200)
-      expect(await res.json()).toMatchObject({ name: 'Jane D.', status: { complete: false, missingFromAdmin: ['position'] } })
+      expect(await res.json()).toMatchObject({ name: 'Jane D.', status: { complete: true, publiclyVisible: false, publicBlockers: ['hidden'] } })
       const [card] = await db.teamMember.findMany({ where: { userId } })
-      expect(card).toMatchObject({ name: 'Jane D.', bio: 'I write about money.', role: '', isActive: false })
+      expect(card).toMatchObject({ name: 'Jane D.', bio: 'I write about money.', role: defaultTitle, isActive: false })
       expect(card.image).toContain(`/${userId}/`)
       expect((await db.user.findUniqueOrThrow({ where: { id: userId } })).role).toBe(role)
-      expect(await publicCardsFor(userId)).toHaveLength(0) // no position yet
+      expect(await publicCardsFor(userId)).toHaveLength(0) // still hidden: an admin has not shown it
     })
 
-    it('an admin sets position, team, order and visibility; she then appears exactly once', async () => {
+    it('an admin sets title, placement, order and visibility; she then appears exactly once', async () => {
       const row = (await listMembers()).find((m) => m.email === address)!
-      expect(row).toMatchObject({ accountStatus: 'active', profileStatus: 'incomplete', missingFromAdmin: ['position'] })
+      expect(row).toMatchObject({ accountStatus: 'active', profileStatus: 'hidden', position: defaultTitle })
 
-      const res = await patch(admin.id, row.id, { position, team: section === 'writers' ? 'writing' : section, order: 7, visible: true })
+      const res = await patch(admin.id, row.id, { position, publicTier: section === 'writers' ? 'writer' : section === 'editorial' ? 'senior_editor' : 'growth', order: 7, visible: true })
       expect(res.status).toBe(200)
 
       const cards = await publicCardsFor(userId)
@@ -494,7 +497,7 @@ suite('member onboarding lifecycle (real database)', () => {
   describe('role change', () => {
     it('Writer -> Editor updates access and leaves the profile, photo, bio, position and visibility alone', async () => {
       const address = email('promote')
-      await invite(admin.id, { email: address, role: 'WRITER', position: 'Staff Writer', team: 'writing' })
+      await invite(admin.id, { email: address, role: 'WRITER', position: 'Staff Writer', publicTier: 'writer' })
       const signedIn = await googleSignIn(address, { name: 'Pat Promote' })
       const userId = signedIn.token!.id!
       actingAs(userId)
@@ -511,7 +514,7 @@ suite('member onboarding lifecycle (real database)', () => {
       expect(await membershipFor(address)).toMatchObject({ role: 'EDITOR', status: 'ACTIVE' })
       expect(await db.teamMember.findMany({ where: { userId } })).toEqual([before])
       expect(await counts(address)).toEqual({ users: 1, memberships: 1, cards: 1 })
-      expect((await publicCardsFor(userId))[0]).toMatchObject({ name: 'Pat P.', role: 'Staff Writer', team: 'writing' })
+      expect((await publicCardsFor(userId))[0]).toMatchObject({ name: 'Pat P.', role: 'Staff Writer', publicTier: 'writer' })
       expect((await reach(userId)).manageUsers).toBe(true)
       expect((await reach(userId)).admin).toBe(false)
     })
@@ -532,7 +535,7 @@ suite('member onboarding lifecycle (real database)', () => {
   describe('admin permission with a public position', () => {
     it('keeps "Deputy Editor" publicly; the page never says Admin', async () => {
       const address = email('deputy')
-      await invite(admin.id, { email: address, role: 'EDITOR', position: 'Deputy Editor', team: 'editorial' })
+      await invite(admin.id, { email: address, role: 'EDITOR', position: 'Deputy Editor', publicTier: 'senior_editor' })
       const { token } = await googleSignIn(address, { name: 'Dee Deputy' })
       const userId = token!.id!
       actingAs(userId)
@@ -557,7 +560,7 @@ suite('member onboarding lifecycle (real database)', () => {
   describe('revoked member', () => {
     it('loses access, keeps their profile data, and the public card is a separate decision', async () => {
       const address = email('leaver')
-      await invite(admin.id, { email: address, role: 'WRITER', position: 'Staff Writer', team: 'writing' })
+      await invite(admin.id, { email: address, role: 'WRITER', position: 'Staff Writer', publicTier: 'writer' })
       const { token } = await googleSignIn(address, { name: 'Lee Leaver' })
       const userId = token!.id!
       actingAs(userId)
@@ -601,7 +604,7 @@ suite('member onboarding lifecycle (real database)', () => {
 
     it('can hide the profile in the same step, and cancels a pending invitation', async () => {
       const address = email('leaver-hide')
-      await invite(admin.id, { email: address, role: 'GROWTH', position: 'Comms', team: 'growth' })
+      await invite(admin.id, { email: address, role: 'GROWTH', position: 'Comms', publicTier: 'growth' })
       const { token } = await googleSignIn(address, { name: 'Hide Me' })
       const userId = token!.id!
       actingAs(userId)
@@ -704,9 +707,9 @@ suite('member onboarding lifecycle (real database)', () => {
         expect((await patch(admin.id, row.id, body)).status).toBe(400)
       }
       expect(await membershipFor(email('forged-patch'))).toMatchObject({ role: 'WRITER', status: 'PENDING', userId: null })
-      // an invalid email, an unknown team, and an unknown extra field
+      // an invalid email, an unknown placement, and an unknown extra field
       expect((await invite(admin.id, { email: 'not-an-email', role: 'WRITER' })).status).toBe(400)
-      expect((await invite(admin.id, { email: email('t'), role: 'WRITER', team: 'admin' })).status).toBe(400)
+      expect((await invite(admin.id, { email: email('t'), role: 'WRITER', publicTier: 'admin' })).status).toBe(400)
       expect((await invite(admin.id, { email: email('t'), role: 'WRITER', status: 'ACTIVE' })).status).toBe(400)
     })
 
@@ -762,7 +765,7 @@ suite('member onboarding lifecycle (real database)', () => {
   describe('public team API', () => {
     it('never lists a visible linked card that is not ready (no position or description), and drops the account link', async () => {
       const user = await db.user.create({ data: { email: email('api-card'), name: 'Api Card', role: 'WRITER' } })
-      await db.teamMember.create({ data: { userId: user.id, name: `${tag} api card`, role: '', bio: null, team: 'writing', isActive: true } })
+      await db.teamMember.create({ data: { userId: user.id, name: `${tag} api card`, role: '', bio: null, publicTier: 'writer', isActive: true } })
       const names = async () => ((await (await publicTeamApi()).json()) as { name: string }[]).map((m) => m.name)
 
       expect(await names()).not.toContain(`${tag} api card`)

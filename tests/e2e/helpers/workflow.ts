@@ -3,7 +3,7 @@
  * a person does (click, type, upload); the database and storage helpers only READ state
  * back for assertions, or remove the fixtures a spec created.
  */
-import { expect, type Browser, type BrowserContext, type Locator, type Page, type Response } from '@playwright/test'
+import { test, expect, type Browser, type BrowserContext, type Locator, type Page, type Response } from '@playwright/test'
 import fs from 'node:fs'
 import bcrypt from 'bcryptjs'
 import { PrismaClient } from '@prisma/client'
@@ -26,10 +26,45 @@ const SESSIONS = {
   reader: READER_STORAGE,
 } as const
 export type SessionName = keyof typeof SESSIONS
+const initiatingCredentials = new WeakMap<BrowserContext, { email: string; password: string }>()
+/** Reauthenticate the actual initiator, preserving the server-controlled persona capability. */
+export function writerLoginCredentials(context: BrowserContext) {
+  return initiatingCredentials.get(context) ?? { email: 'writer@theconsilium.com', password: 'writer2024' }
+}
 
 /** A fresh browser context signed in as `who`: one per person, so sessions never mix. */
 export async function signedIn(browser: Browser, who: SessionName | null): Promise<BrowserContext> {
-  return browser.newContext(who ? { storageState: SESSIONS[who] } : {})
+  if (!test.info().project.name.startsWith('simulator-') || !who || who === 'admin' || who === 'reader') {
+    const context = await browser.newContext(who ? { storageState: SESSIONS[who] } : {})
+    if (who) {
+      // APIRequestContext bypasses the browser fetch interceptor. Pin the current
+      // server identity just as a newly loaded ordinary page does, including a
+      // revision advanced by an earlier sign-out; stale contexts keep their old pin.
+      const session = await (await context.request.get('/api/auth/session')).json()
+      if (session.requestIdentity) await context.setExtraHTTPHeaders({ 'x-consilium-identity': session.requestIdentity })
+    }
+    return context
+  }
+  // One real test administrator per context; concurrent sessions never revoke another run.
+  const key = `test-session-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const administrator = await db().user.create({ data: { email: `${key}@consilium.test`, name: 'Testing Administrator', role: 'ADMIN', emailVerified: new Date(), password: await bcrypt.hash('testing-local-1234', 10) } })
+  testAdministrators.push(administrator.id)
+  const context = await browser.newContext()
+  initiatingCredentials.set(context, { email: administrator.email, password: 'testing-local-1234' })
+  const page = await context.newPage()
+  await page.goto('/editorial/login')
+  await page.locator('input[type="email"]').fill(administrator.email)
+  await page.locator('input[type="password"]').fill('testing-local-1234')
+  await page.locator('button[type="submit"]').click()
+  await page.waitForURL(u => !u.pathname.includes('/login'))
+  await page.goto('/admin/testing')
+  const label = who === 'editor' ? 'Global Editor' : who.charAt(0).toUpperCase() + who.slice(1)
+  await page.getByRole('button', { name: `Test as ${label}`, exact: true }).last().click()
+  await expect(page.getByRole('region', { name: 'Testing environment' }).locator('strong')).toContainText(label)
+  const session = await (await context.request.get('/api/auth/session')).json()
+  await context.setExtraHTTPHeaders({ 'x-consilium-identity': session.requestIdentity })
+  await page.close()
+  return context
 }
 
 /** Titles this worker generated; only these are removed afterwards, never another worker's. */
@@ -41,6 +76,7 @@ export function uniqueTitle(label: string) {
 }
 
 // ── Database (test DB only; read-back + fixture cleanup) ────────────────────────────
+const testAdministrators: string[] = []
 let prisma: PrismaClient | null = null
 export function db(): PrismaClient {
   if (!prisma) {
@@ -52,7 +88,13 @@ export function db(): PrismaClient {
   return prisma
 }
 export async function closeDb() {
-  await prisma?.$disconnect()
+  if (prisma && testAdministrators.length) {
+    await prisma.testingSession.deleteMany({ where: { administratorId: { in: testAdministrators } } })
+    await prisma.auditLog.deleteMany({ where: { performedBy: { in: testAdministrators } } })
+    await prisma.user.deleteMany({ where: { id: { in: testAdministrators }, email: { startsWith: 'test-session-' } } })
+    testAdministrators.length = 0
+  }
+  await prisma?.$disconnect().catch(() => {})
   prisma = null
 }
 
@@ -153,8 +195,22 @@ export class ArticleEditorPage {
   async saveNow(): Promise<{ id: string; status: number }> {
     const res = await this.saving(() => this.saveDraftButton().click())
     const expected = res.request().method() === 'POST' ? 201 : 200
-    expect(res.status(), `save returned ${res.status()}: ${await res.text()}`).toBe(expected)
+    expect(res.status(), `save returned ${res.status()}: ${await res.text().catch(() => '')}`).toBe(expected)
     const json = (await res.json()) as { id: string }
+    // Receiving HTTP headers is earlier than the controller acknowledging its
+    // latest queued snapshot. Reloading then can interrupt the manual save and
+    // correctly leave recovery work. The visible "Saved" label is deliberately
+    // transient and can disappear before a slow assertion runs; the enabled
+    // control plus removal of this tab's recovery snapshot are the durable
+    // evidence that the controller acknowledged this exact save.
+    await expect(this.saveDraftButton()).toBeEnabled()
+    await expect.poll(() => this.page.evaluate((id) => {
+      const tab = sessionStorage.getItem('consilium:editor-tab')
+      return Object.keys(localStorage).filter(key => key.startsWith('consilium:draft:')).some(key => {
+        const draft = JSON.parse(localStorage.getItem(key)!)
+        return draft.articleId === id && draft.tabId === tab
+      })
+    }, json.id), { message: 'the acknowledged save clears only this tab’s recovery snapshot' }).toBe(false)
     return { id: json.id, status: res.status() }
   }
 

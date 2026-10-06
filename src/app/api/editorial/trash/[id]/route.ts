@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
@@ -11,7 +12,7 @@ interface Props {
 }
 
 // PATCH /api/editorial/trash/[id] - restore a soft-deleted article
-export async function PATCH(_req: NextRequest, { params }: Props) {
+async function PATCHHandler(_req: NextRequest, { params }: Props) {
   const auth = await requireVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
   if (!auth.ok) return auth.response
   const user = auth.user
@@ -61,7 +62,7 @@ export async function PATCH(_req: NextRequest, { params }: Props) {
 }
 
 // DELETE /api/editorial/trash/[id] - permanently delete a trashed article
-export async function DELETE(_req: NextRequest, { params }: Props) {
+async function DELETEHandler(_req: NextRequest, { params }: Props) {
   const auth = await requireVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
   if (!auth.ok) return auth.response
   const user = auth.user
@@ -115,3 +116,7 @@ export async function DELETE(_req: NextRequest, { params }: Props) {
     return NextResponse.json({ error: 'Failed to permanently delete article' }, { status: 500 })
   }
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)
+
+export const DELETE = withTestingAudit(DELETEHandler)

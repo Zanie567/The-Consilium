@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextRequest, NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -82,7 +83,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 }
 
 // DELETE /api/admin/users/[userId] - hard delete
-export async function DELETE(req: NextRequest, { params }: Ctx) {
+async function DELETEHandler(req: NextRequest, { params }: Ctx) {
   const admin = await getVerifiedSessionUser(ADMIN_ONLY)
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
@@ -154,3 +155,5 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 })
   }
 }
+
+export const DELETE = withTestingAudit(DELETEHandler)

@@ -21,7 +21,7 @@ for (const width of [1100, 1280, 1366, 1440, 1920]) {
       const sidebar = document.querySelector('nav[aria-label="Editorial navigation"]')!.closest('aside')!
       const panel = [...document.querySelectorAll('aside')].find((a) => a.querySelector('input[placeholder^="Add a tag"]'))!
       const doc = document.querySelector('textarea[placeholder="Your headline here..."]')!.closest('div.border')!
-      const scroller = document.querySelector('.h-\\[100dvh\\] > .overflow-auto') as HTMLElement
+      const scroller = document.querySelector('[data-editorial-scroll-region]') as HTMLElement
       return {
         sidebarRight: box(sidebar).right,
         docLeft: box(doc).left,

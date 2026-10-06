@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -6,11 +7,10 @@ import { apiError, apiServerErrorResponse } from '@/lib/apiResponse'
 import { MAX_BIO_LENGTH, MAX_TEAM_PHOTO_BYTES } from '@/lib/constants'
 import { detectImageMimeType } from '@/lib/imageSniff'
 import {
-  TEAM_LABEL,
-  TEAM_PROFILE_OWNER_ROLES,
   assessProfile,
-  resolveCardTeam,
-  teamForRole,
+  defaultPublicAppointment,
+  publicAppointmentLabel,
+  TEAM_PROFILE_ROLES,
   validateTeamBio,
 } from '@/lib/teamProfiles'
 import { matchLegacyCard } from '@/lib/teamProfileLegacy'
@@ -23,13 +23,13 @@ import {
 
 // PUT /api/team-profile — create or update the caller's OWN Meet the Team card.
 //
-// The client may send exactly four things: `name` (the display name), `bio`, an
-// optional `image` file and `removeImage`. Everything that identifies or places the
-// card comes from the verified session or from an administrator, never the request:
-//   - the owner      → session user id (written to the unique `userId` column)
-//   - the position, team, order and visibility → admin-only (see membership.ts);
-//     a request that names any of them (or a role/userId) is REJECTED with 400,
-//     not silently ignored, so a forged value is visible rather than a no-op.
+// The client may send exactly four things: `name` (the display name), `bio`, an optional
+// `image` file and `removeImage`. Everything that identifies or places the card comes from
+// the verified session or from an administrator, never the request:
+//   - the owner       → session user id (written to the unique `userId` column)
+//   - appointment     → admin-managed title / publicTier / order / visibility, preserved on update
+// A request that names any of those (or a role/userId) is REJECTED with 400, not silently
+// ignored, so a forged value is visible rather than a no-op.
 //
 // One card per account is guaranteed by the UNIQUE index on `userId`, not by the
 // look-up below: that look-up only decides 201 vs 200 and finds a legacy card to
@@ -40,7 +40,7 @@ const NEW_CARD_ORDER = 1000
 
 /** Fields only an administrator may set. Naming one in this request is an error. */
 const ADMIN_ONLY_FIELDS = [
-  'role', 'team', 'position', 'title', 'order', 'isActive', 'visible', 'userId', 'id', 'email', 'status', 'permissions',
+  'role', 'team', 'publicTier', 'position', 'title', 'order', 'isActive', 'visible', 'userId', 'id', 'email', 'status', 'permissions',
 ]
 const MAX_DISPLAY_NAME_LENGTH = 100
 
@@ -49,9 +49,10 @@ const MAX_DISPLAY_NAME_LENGTH = 100
  * card would put them on the page twice, so an admin has to link the existing one.
  */
 class LegacyCardNeedsLink extends Error {}
+class NoPublicAppointment extends Error {}
 
-export async function PUT(request: NextRequest) {
-  const auth = await requireVerifiedSessionUser(TEAM_PROFILE_OWNER_ROLES)
+async function PUTHandler(request: NextRequest) {
+  const auth = await requireVerifiedSessionUser(TEAM_PROFILE_ROLES)
   if (!auth.ok) return auth.response
   const user = auth.user
 
@@ -65,7 +66,7 @@ export async function PUT(request: NextRequest) {
   const forbidden = ADMIN_ONLY_FIELDS.filter((field) => form.has(field))
   if (forbidden.length > 0) {
     return apiError(
-      `You cannot set ${forbidden.join(', ')}. Position, team, order and visibility are managed by an administrator.`,
+      `You cannot set ${forbidden.join(', ')}. Position, placement, order and visibility are managed by an administrator.`,
       400,
       'FORBIDDEN_FIELD',
     )
@@ -117,6 +118,10 @@ export async function PUT(request: NextRequest) {
       select: { id: true, image: true },
     })
 
+    if (user.role === 'ADMIN' && !existing) {
+      return apiError('Ask an administrator to assign and link your public appointment first.', 403, 'NO_PUBLIC_APPOINTMENT')
+    }
+
     // Upload first: a failed upload must leave the card untouched.
     let uploaded: { url: string; path: string } | null = null
     if (photo) {
@@ -142,7 +147,7 @@ export async function PUT(request: NextRequest) {
 
     let profile
     try {
-      profile = await saveProfile(user.id, user.role, user.email, name, update, bio.bio, nextImage ?? null)
+      profile = await saveProfile(user.id, user.email, name, update, bio.bio, nextImage ?? null, user.role)
     } catch (error) {
       // The database is the source of truth: if the write failed, the new file is
       // unreferenced, so remove it rather than leave it behind.
@@ -155,28 +160,25 @@ export async function PUT(request: NextRequest) {
       await removeTeamPhoto(existing.image, user.id)
     }
 
-    const team = resolveCardTeam(profile.team, user.role)
-    const status = assessProfile({
-      name: profile.name,
-      bio: profile.bio,
-      image: profile.image,
-      position: profile.role,
-      team,
-      visible: profile.isActive,
-    })
     return NextResponse.json(
       {
         id: profile.id,
         name: profile.name,
         bio: profile.bio,
         image: profile.image,
-        team,
-        teamLabel: team ? TEAM_LABEL[team] : null,
-        status,
+        teamLabel: publicAppointmentLabel(profile),
+        status: assessProfile({
+          name: profile.name,
+          bio: profile.bio,
+          image: profile.image,
+          position: profile.role,
+          visible: profile.isActive,
+        }),
       },
       { status: existing ? 200 : 201 },
     )
   } catch (error) {
+    if (error instanceof NoPublicAppointment) return apiError('Your public appointment is no longer assigned. Reload and ask an administrator.', 403, 'NO_PUBLIC_APPOINTMENT')
     if (error instanceof LegacyCardNeedsLink) {
       return apiError(
         'A team card for you already exists but is not linked to your account yet. ' +
@@ -208,15 +210,19 @@ type ProfileUpdate = { name?: string; bio?: string | null; image?: string | null
  */
 async function saveProfile(
   userId: string,
-  role: string,
   email: string | null,
   name: string,
   update: ProfileUpdate,
   createBio: string | null,
   createImage: string | null,
+  permissionRole: string,
 ) {
   const attempt = async () => {
     const linked = await prisma.teamMember.findUnique({ where: { userId } })
+    if (permissionRole === 'ADMIN') {
+      if (!linked) throw new NoPublicAppointment()
+      return prisma.teamMember.update({ where: { userId }, data: update })
+    }
     if (!linked) {
       const match = await matchLegacyCard(prisma, { name, email })
       if (match.kind === 'blocked') throw new LegacyCardNeedsLink()
@@ -237,13 +243,11 @@ async function saveProfile(
       create: {
         userId,
         name,
-        role: '',
-        // Pinned now so a later permission-role change cannot move the card.
-        team: teamForRole(role),
+        ...(defaultPublicAppointment(permissionRole) ?? { role: '' }),
         bio: createBio,
         image: createImage,
         order: NEW_CARD_ORDER,
-        // Hidden until an administrator sets the position and publishes it.
+        // Hidden until an administrator confirms the title and shows it.
         isActive: false,
       },
       update,
@@ -257,3 +261,5 @@ async function saveProfile(
     return await attempt()
   }
 }
+
+export const PUT = withTestingAudit(PUTHandler)

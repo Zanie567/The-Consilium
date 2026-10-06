@@ -94,7 +94,7 @@ export function ArticleEditorTutorial({ editor }: ArticleEditorTutorialProps) {
             </TutorialSection>
 
             <TutorialSection title="What readers see">
-              <p>Publication preserves your formatting, text colours, highlights, alignment and line spacing. Preview shows the published layout. The Consilium&apos;s typography supplies defaults for unstyled text.</p>
+              <p>Publication preserves semantic formatting, tables, links, lists, quotations, footnotes, figures and captions. Text colours, alignment, line spacing and column widths remain in drafts; public articles use The Consilium&apos;s house style.</p>
             </TutorialSection>
 
             <TutorialSection title="Right panel">

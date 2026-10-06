@@ -5,8 +5,7 @@ const MEMBER_LABEL = { name: 'your name', bio: 'a short description', photo: 'a 
 const BLOCKER_LABEL = {
   name: 'a name',
   bio: 'a description',
-  position: 'a position (an administrator sets this)',
-  team: 'a team (an administrator sets this)',
+  position: 'a public title (an administrator sets this)',
   hidden: 'an administrator to make it visible',
 } as const
 

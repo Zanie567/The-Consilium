@@ -194,7 +194,7 @@ for (const spec of [
     // 8. The admin sees exactly where things stand, then sets position and visibility.
     await adminPage.goto('/editorial/members')
     await expect(row(adminPage, email)).toContainText('Active')
-    await expect(row(adminPage, email)).toContainText('Profile incomplete')
+    await expect(row(adminPage, email)).toContainText('Complete, hidden')
     await row(adminPage, email).getByRole('button', { name: 'Manage' }).click()
     await adminPage.getByLabel('Public position', { exact: true }).fill(spec.position)
     await adminPage.getByLabel('Display order').fill('5')

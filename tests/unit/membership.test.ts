@@ -6,7 +6,7 @@ import {
   isPlausibleEmail,
   normalizeEmail,
 } from '@/lib/membership'
-import { assessProfile, isMemberTeam, resolveCardTeam } from '@/lib/teamProfiles'
+import { assessProfile } from '@/lib/teamProfiles'
 
 describe('normalizeEmail', () => {
   it('ignores case and surrounding whitespace', () => {
@@ -30,18 +30,8 @@ describe('assignable roles', () => {
   })
 })
 
-describe('team resolution', () => {
-  it('an admin-set team wins; an unknown one is ignored; a role team is the fallback', () => {
-    expect(resolveCardTeam('editorial', 'WRITER')).toBe('editorial')
-    expect(resolveCardTeam('admin', 'WRITER')).toBe('writing')
-    expect(resolveCardTeam(null, 'GROWTH')).toBe('growth')
-    expect(resolveCardTeam(null, 'ADMIN')).toBeNull()
-    expect(isMemberTeam('__proto__')).toBe(false)
-  })
-})
-
 describe('assessProfile', () => {
-  const ready = { name: 'Jane', bio: 'Bio', image: '/p.png', position: 'Writer', team: 'writing' as const, visible: true }
+  const ready = { name: 'Jane', bio: 'Bio', image: '/p.png', position: 'Writer', visible: true }
 
   it('is complete and public when everything is present', () => {
     expect(assessProfile(ready)).toMatchObject({ complete: true, publiclyVisible: true, publicBlockers: [] })
@@ -59,7 +49,6 @@ describe('assessProfile', () => {
     ['name', { name: '  ' }],
     ['bio', { bio: null }],
     ['position', { position: '' }],
-    ['team', { team: null }],
     ['hidden', { visible: false }],
   ] as const)('is never public without %s', (blocker, change) => {
     const result = assessProfile({ ...ready, ...change })
@@ -68,9 +57,9 @@ describe('assessProfile', () => {
   })
 
   it('separates what the member can fix from what only an admin can', () => {
-    expect(assessProfile({ ...ready, bio: '', position: '', team: null })).toMatchObject({
+    expect(assessProfile({ ...ready, bio: '', position: '' })).toMatchObject({
       missingFromMember: ['bio'],
-      missingFromAdmin: ['position', 'team'],
+      missingFromAdmin: ['position'],
     })
   })
 })
@@ -84,11 +73,11 @@ describe('describeMember', () => {
     createdAt: new Date('2026-10-01T00:00:00Z'),
     invitedByName: 'Admin',
     publicPosition: null,
-    publicTeam: null,
+    publicTier: null,
     displayName: null,
     user: null,
   }
-  const card = { name: 'Jane', bio: 'Bio', image: '/p.png', role: 'Writer', team: 'writing', order: 3, isActive: true }
+  const card = { name: 'Jane', bio: 'Bio', image: '/p.png', role: 'Writer', publicTier: 'writer', order: 3, isActive: true }
   const user = { name: 'Jane', role: 'WRITER' as const, emailVerified: new Date(), isActive: true, isBanned: false, teamProfile: card }
 
   it('invited, not registered', () => {
@@ -126,8 +115,8 @@ describe('describeMember', () => {
       ...base,
       status: 'ACTIVE',
       role: 'ADMIN',
-      user: { ...user, role: 'ADMIN', teamProfile: { ...card, role: 'Deputy Editor', team: 'editorial' } },
+      user: { ...user, role: 'ADMIN', teamProfile: { ...card, role: 'Deputy Editor', publicTier: 'leadership' } },
     })
-    expect(row).toMatchObject({ role: 'ADMIN', position: 'Deputy Editor', team: 'editorial' })
+    expect(row).toMatchObject({ role: 'ADMIN', position: 'Deputy Editor', tier: 'leadership' })
   })
 })

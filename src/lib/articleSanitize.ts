@@ -1,5 +1,4 @@
 import sanitizeHtml from 'sanitize-html'
-import { SAFE_COLOUR, SAFE_FONT_SIZE, SAFE_FONT_FAMILY, SAFE_LINE_HEIGHT, SAFE_ALIGNMENT } from './articleStyles'
 
 /**
  * Sanitiser for the rendered article body. Keeps the structural tags/attributes
@@ -25,7 +24,7 @@ export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: [
     'p', 'br', 'hr',
     'strong', 'em', 'u', 's', 'mark', 'code', 'pre',
-    'table', 'colgroup', 'col', 'tbody', 'tr', 'th', 'td',
+    'table', 'tbody', 'tr', 'th', 'td',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'ul', 'ol', 'li', 'blockquote',
     'a', 'figure', 'figcaption', 'img', 'aside', 'sup',
@@ -35,12 +34,9 @@ export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     // aria-label carries the accessible name of footnote marker links.
     a: ['href', 'target', 'rel', 'aria-label'],
     img: ['src', 'alt'],
-    col: ['style'],
     th: ['colspan', 'rowspan'],
     td: ['colspan', 'rowspan'],
-    p: ['class', 'style'],
-    mark: ['style'],
-    h1: ['style'], h2: ['style'], h3: ['style'], h4: ['style'], h5: ['style'], h6: ['style'],
+    p: ['class'],
     figure: ['class'],
     figcaption: ['class'],
     aside: ['class', 'data-type'],
@@ -51,17 +47,12 @@ export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     sup: ['class', 'data-footnote', 'data-index', 'id'],
     // Glossary tooltip triggers only. data-gloss-* values are plain text the
     // tooltip reads via getAttribute/textContent, never interpreted as HTML.
-    span: ['style', 'class', 'data-gloss-term', 'data-gloss-def', 'data-gloss-url'],
+    span: ['class', 'data-gloss-term', 'data-gloss-def', 'data-gloss-url'],
   },
-  // Preserve safe editor text styles and the glossary trigger class.
+  // A span may only carry the glossary trigger class; anything else (including
+  // a class-less span from pasted content) is stripped to its text.
   allowedClasses: {
     span: ['glossary-term'],
-  },
-  allowedStyles: {
-    col: { width: [/^(?:2[5-9]|[3-9]\d|[1-9]\d{2}|1\d{3}|2000)px$/] },
-    '*': { color: [SAFE_COLOUR], 'background-color': [SAFE_COLOUR],
-      'font-size': [SAFE_FONT_SIZE], 'font-family': [SAFE_FONT_FAMILY],
-      'line-height': [SAFE_LINE_HEIGHT], 'text-align': [SAFE_ALIGNMENT] },
   },
   // Only safe URL schemes; relative/anchor hrefs (e.g. #correction-note) still pass.
   allowedSchemes: ['http', 'https', 'mailto'],

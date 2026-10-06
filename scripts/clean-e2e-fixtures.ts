@@ -1,7 +1,6 @@
 /**
- * Removes the articles earlier browser runs left behind (titles starting "WF " or
- * "E2E "), so the test database does not grow forever and list/queue assertions are not
- * working against hundreds of leftovers. Test database only: the host guard runs first.
+ * Optional reset for one explicitly selected WF run prefix, owned by a verified
+ * test persona. Default is read-only. Never deletes other runs or arbitrary cards.
  */
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
@@ -11,8 +10,13 @@ async function main() {
   const { DATABASE_URL } = testDatabaseEnv()
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: DATABASE_URL }) })
   try {
+    const prefix = process.env.E2E_CLEAN_RUN_PREFIX
+    if (!prefix || !/^WF [a-zA-Z0-9.-]+ /.test(prefix)) {
+      process.stdout.write('→ no explicit run prefix; preserving other runs\n')
+      return
+    }
     const rows = await prisma.article.findMany({
-      where: { OR: [{ title: { startsWith: 'WF ' } }, { title: { startsWith: 'E2E ' } }] },
+      where: { title: { startsWith: prefix }, author: { testPersonaKey: { not: null } } },
       select: { id: true },
     })
     const ids = rows.map((r) => r.id)
