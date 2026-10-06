@@ -41,6 +41,9 @@ model User {
   bio           String?
   password      String?
   role          Role      @default(READER)
+  // Public labels only; never read for permissions. Allowed values and the cap are
+  // enforced by a CHECK in supabase/migrations/20261005_user_display_titles.sql.
+  displayTitles String[]  @default([])
   isActive              Boolean   @default(true)
   lastLoginAt           DateTime?
   lastActiveAt          DateTime?

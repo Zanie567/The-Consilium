@@ -12,6 +12,7 @@ export async function loadPublicTeam() {
             email: true,
             name: true,
             role: true,
+            displayTitles: true,
             bio: true,
             slug: true,
             isActive: true,

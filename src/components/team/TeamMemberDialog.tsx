@@ -169,9 +169,9 @@ export function TeamMemberDialog({ member, open, onClose, returnFocusRef }: Team
                 {member.name}
               </h2>
 
-              {hasDisplayableRole(member.role) && (
+              {hasDisplayableRole(member.titleLabel ?? member.role) && (
                 <p className="mt-2 text-[0.72rem] font-bold uppercase tracking-[0.24em] text-gold">
-                  {member.role}
+                  {member.titleLabel ?? member.role}
                 </p>
               )}
 

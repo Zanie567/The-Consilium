@@ -3,12 +3,13 @@ import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import { validateDisplayTitles } from '@/lib/displayTitles'
 import { ADMIN_ONLY, isRole } from '@/lib/rbac'
 interface Props {
   params: Promise<{ id: string }>
 }
 
-const ADMIN_PROFILE_FIELDS = new Set(['name', 'email', 'bio', 'image', 'slug', 'adminNotes', 'isActive', 'categoryIds'])
+const ADMIN_PROFILE_FIELDS = new Set(['name', 'email', 'bio', 'image', 'slug', 'adminNotes', 'isActive', 'categoryIds', 'displayTitles'])
 
 function bodyKeys(body: Record<string, unknown>) {
   return Object.keys(body).filter((key) => body[key] !== undefined)
@@ -30,7 +31,7 @@ export async function GET(_req: Request, { params }: Props) {
     where: { id },
     select: {
       id: true, name: true, email: true, role: true, isActive: true,
-      slug: true, bio: true, image: true, createdAt: true, lastLoginAt: true, adminNotes: true,
+      slug: true, bio: true, image: true, createdAt: true, lastLoginAt: true, adminNotes: true, displayTitles: true,
       categoryAssignments: {
         select: { category: { select: { id: true, name: true, slug: true } } },
       },
@@ -59,7 +60,7 @@ async function PATCHHandler(req: Request, { params }: Props) {
 
   const target = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, role: true, name: true, email: true },
+    select: { id: true, role: true, name: true, email: true, displayTitles: true },
   })
   if (!target) {
     return NextResponse.json({ error: 'User not found.' }, { status: 404 })
@@ -67,7 +68,7 @@ async function PATCHHandler(req: Request, { params }: Props) {
 
   const body = await req.json() as Record<string, unknown>
   const keys = bodyKeys(body)
-  const { isActive, password, categoryIds, name, email, role, bio, image, slug, adminNotes } = body
+  const { isActive, password, categoryIds, name, email, role, bio, image, slug, adminNotes, displayTitles } = body
 
   const isRoleChange = role !== undefined
   const isPasswordChange = password !== undefined
@@ -111,6 +112,14 @@ async function PATCHHandler(req: Request, { params }: Props) {
   if (typeof adminNotes === 'string') updates.adminNotes = adminNotes.trim() || null
   if (role && isRole(role)) updates.role = role
 
+  // Display titles are labels. Writing them never touches `role`, and the check
+  // against the allowed list happens here, not in the UI.
+  if (displayTitles !== undefined) {
+    const result = validateDisplayTitles(displayTitles)
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 })
+    updates.displayTitles = result.titles
+  }
+
   if (typeof slug === 'string' && slug.trim()) {
     const clean = slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
     const conflict = await prisma.user.findFirst({ where: { slug: clean, id: { not: id } } })
@@ -134,7 +143,7 @@ async function PATCHHandler(req: Request, { params }: Props) {
     const updated = await tx.user.update({
       where: { id },
       data: updates,
-      select: { id: true, name: true, role: true, isActive: true, slug: true, email: true, bio: true, image: true, adminNotes: true },
+      select: { id: true, name: true, role: true, isActive: true, slug: true, email: true, bio: true, image: true, adminNotes: true, displayTitles: true },
     })
 
     if (updates.role && updates.role !== target.role) {
@@ -147,6 +156,23 @@ async function PATCHHandler(req: Request, { params }: Props) {
           metadata: {
             oldRole: target.role,
             newRole: updates.role,
+            targetName: target.name,
+            targetEmail: target.email,
+          },
+        },
+      })
+    }
+
+    if (updates.displayTitles) {
+      await tx.auditLog.create({
+        data: {
+          action: 'USER_DISPLAY_TITLES_CHANGED',
+          targetId: id,
+          targetType: 'user',
+          performedBy: caller.id,
+          metadata: {
+            oldTitles: target.displayTitles,
+            newTitles: updates.displayTitles,
             targetName: target.name,
             targetEmail: target.email,
           },

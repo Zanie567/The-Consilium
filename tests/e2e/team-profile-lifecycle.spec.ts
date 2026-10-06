@@ -134,8 +134,12 @@ for (const [role, section] of [
     // …and they cannot grant themselves anything, by either role route
     expect((await page.request.patch(`/api/editorial/users/${user.id}`, { data: { role } })).status()).toBe(403)
     expect((await page.request.patch(`/api/admin/users/${user.id}/role`, { data: { role } })).status()).toBe(403)
-    expect((await page.request.patch('/api/profile/account', { data: { bio: 'hi', role } })).status()).toBe(200)
-    expect((await db().user.findUniqueOrThrow({ where: { id: user.id } })).role).toBe('READER') // role in the body was ignored
+    // A role key is rejected outright (400), not silently dropped, and nothing is written.
+    expect((await page.request.patch('/api/profile/account', { data: { bio: 'hi', role } })).status()).toBe(400)
+    expect((await db().user.findUniqueOrThrow({ where: { id: user.id } })).role).toBe('READER')
+    // The same edit without the role key is an ordinary own-profile edit and succeeds.
+    expect((await page.request.patch('/api/profile/account', { data: { bio: 'hi' } })).status()).toBe(200)
+    expect((await db().user.findUniqueOrThrow({ where: { id: user.id } })).role).toBe('READER')
 
     // 4. the normal admin workflow — nothing else is done for them
     await grantRole(user.id, role)
