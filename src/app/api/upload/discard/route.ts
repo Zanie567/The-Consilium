@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 import { queueArticleImageCleanup } from '@/lib/articleImageStorage'
+import { withTestingAudit } from '@/lib/testingAudit'
 /** Beacon-compatible normal-exit cleanup. Cannot remove saved/shared images. */
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const auth = await requireVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
   if (!auth.ok) return auth.response
   try {
@@ -23,3 +24,5 @@ export async function POST(request: Request) {
     )
   }
 }
+
+export const POST = withTestingAudit(POSTHandler)

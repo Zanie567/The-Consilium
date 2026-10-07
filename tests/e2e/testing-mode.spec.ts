@@ -190,6 +190,14 @@ test('writer ownership, validation and persisted outcomes match ordinary login',
   expect(row.status).toBe('DRAFT')
   const audit = await db().auditLog.findFirstOrThrow({ where: { performedBy: administratorId, targetId: row.authorId, action: 'testing:mutation-result' }, orderBy: { createdAt: 'desc' } })
   expect(audit.metadata).toMatchObject({ method: 'POST', path: '/api/articles', status: 201 })
+  expect((await context.request.post('/api/upload/discard', { headers: simulatedHeaders, data: { urls: [] } })).status()).toBe(200)
+  const cleanupAudit = await db().auditLog.findFirstOrThrow({
+    where: {
+      performedBy: administratorId, targetId: row.authorId, action: 'testing:mutation-result',
+      metadata: { path: ['path'], equals: '/api/upload/discard' },
+    }, orderBy: { createdAt: 'desc' },
+  })
+  expect(cleanupAudit.metadata).toMatchObject({ method: 'POST', path: '/api/upload/discard', status: 200 })
   await page.screenshot({ path: test.info().outputPath('writer-draft.png'), fullPage: true })
   await ordinary.close()
 })
