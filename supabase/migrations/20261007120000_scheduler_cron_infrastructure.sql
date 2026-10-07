@@ -40,7 +40,18 @@ CREATE TABLE IF NOT EXISTS public.scheduler_invocations (
   status_code   INTEGER,                -- filled by the reconciler once the response lands
   response_body TEXT,                   -- first 2000 chars only
   error         TEXT,                   -- local failure (missing secret) or pg_net error/timeout
-  completed_at  TIMESTAMPTZ
+  completed_at  TIMESTAMPTZ,
+  -- One explicit category per call, so a failure is never inferred from free text:
+  --   pending        queued, no response yet (normal for the first minute)
+  --   success        any 2xx (the endpoint returns 200)
+  --   auth_failure   401/403: Vault secret differs from the production CRON_SECRET
+  --   http_error     any other non-2xx (307 wrong host, 404, 5xx ...)
+  --   timeout        pg_net gave up waiting (30 s)
+  --   network_error  no status and no timeout: DNS, TLS, connection refused
+  --   lost           no response recorded by pg_net 10 minutes after the call
+  --   not_sent       the call was never made (Vault secret missing or empty)
+  outcome       TEXT        NOT NULL DEFAULT 'pending'
+                CHECK (outcome IN ('pending','success','auth_failure','http_error','timeout','network_error','lost','not_sent'))
 );
 CREATE INDEX IF NOT EXISTS scheduler_invocations_job_invoked_idx
   ON public.scheduler_invocations (job, invoked_at DESC);
@@ -51,9 +62,12 @@ CREATE INDEX IF NOT EXISTS scheduler_invocations_pending_idx
 -- database owner (and the SECURITY DEFINER functions below) can read or write it.
 ALTER TABLE public.scheduler_invocations ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.scheduler_invocations FROM PUBLIC;
+-- Supabase's default privileges grant new public objects to anon, authenticated AND service_role,
+-- so all three are revoked explicitly. The owner (postgres) keeps access, and so does the dashboard.
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon')          THEN REVOKE ALL ON public.scheduler_invocations FROM anon; END IF;
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN REVOKE ALL ON public.scheduler_invocations FROM authenticated; END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role')  THEN REVOKE ALL ON public.scheduler_invocations FROM service_role; END IF;
 END $$;
 
 -- Calls the canonical production endpoint. Returns the pg_net request id (NULL if it could
@@ -74,9 +88,12 @@ BEGIN
   WHERE name = 'cron_secret'
   LIMIT 1;
 
+  -- Retention does not depend on the reconciler job staying alive: this runs every 5 minutes.
+  DELETE FROM public.scheduler_invocations WHERE invoked_at < now() - interval '30 days';
+
   IF v_secret IS NULL OR v_secret = '' THEN
-    INSERT INTO public.scheduler_invocations (job, error, completed_at)
-    VALUES ('publish-scheduled', 'vault secret "cron_secret" is missing or empty; request not sent', now());
+    INSERT INTO public.scheduler_invocations (job, error, completed_at, outcome)
+    VALUES ('publish-scheduled', 'vault secret "cron_secret" is missing or empty; request not sent', now(), 'not_sent');
     RAISE WARNING 'invoke_publish_scheduled: vault secret cron_secret is missing';
     RETURN NULL;
   END IF;
@@ -111,14 +128,21 @@ BEGIN
   SET status_code   = r.status_code,
       response_body = left(r.content, 2000),
       error         = COALESCE(r.error_msg, CASE WHEN r.timed_out THEN 'request timed out' END),
-      completed_at  = COALESCE(r.created, now())
+      completed_at  = COALESCE(r.created, now()),
+      outcome       = CASE
+                        WHEN r.timed_out                      THEN 'timeout'
+                        WHEN r.status_code BETWEEN 200 AND 299 THEN 'success'
+                        WHEN r.status_code IN (401, 403)       THEN 'auth_failure'
+                        WHEN r.status_code IS NOT NULL         THEN 'http_error'
+                        ELSE                                        'network_error'
+                      END
   FROM net._http_response r
   WHERE r.id = i.request_id
     AND i.completed_at IS NULL;
 
   -- No response after 10 minutes (and past the 30 s request timeout): record it as lost.
   UPDATE public.scheduler_invocations
-  SET error = 'no response recorded by pg_net', completed_at = now()
+  SET error = 'no response recorded by pg_net', completed_at = now(), outcome = 'lost'
   WHERE completed_at IS NULL
     AND request_id IS NOT NULL
     AND invoked_at < now() - interval '10 minutes';
@@ -139,6 +163,10 @@ DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
     REVOKE ALL ON FUNCTION public.invoke_publish_scheduled()        FROM authenticated;
     REVOKE ALL ON FUNCTION public.reconcile_scheduler_invocations() FROM authenticated;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    REVOKE ALL ON FUNCTION public.invoke_publish_scheduled()        FROM service_role;
+    REVOKE ALL ON FUNCTION public.reconcile_scheduler_invocations() FROM service_role;
   END IF;
 END $$;
 

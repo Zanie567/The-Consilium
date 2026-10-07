@@ -41,10 +41,13 @@ Never skip a step; stop and report if one fails.
    5. `pbcopy < /dev/null`  (clear the clipboard)
    6. Redeploy production (an env change only reaches a new deployment) and confirm READY.
 4. **Controlled invocation:** `select public.invoke_publish_scheduled();` returns a request id. Within about a
-   minute the reconciler fills `status_code`. Expect **200** and a body containing `"published":0`. A 401 means
-   Vault and Vercel hold different values; a 307 means the host is not the canonical `www`.
-5. Apply `20261007120100_scheduler_cron_enable_publish.sql`. Verify at least 3 consecutive automatic runs,
-   about 5 minutes apart, all 200.
+   minute the reconciler fills `status_code` and `outcome`. Expect `outcome = 'success'`, **200** and a body
+   containing `"published":0`. `auth_failure` means Vault and Vercel hold different values; `http_error` with
+   307 means the host is not the canonical `www`.
+5. Apply `20261007120100_scheduler_cron_enable_publish.sql`. **The migration enforces steps 2 to 4**: it raises,
+   and schedules nothing, unless the infrastructure exists, the Vault secret `cron_secret` exists, the reconciler
+   job is scheduled, and a successful controlled invocation is already recorded. Then verify at least 3
+   consecutive automatic runs, about 5 minutes apart, all `success`.
 6. **Remove the GitHub schedule:** delete the `schedule:` block from `.github/workflows/publish-scheduled.yml`
    and keep `workflow_dispatch` as the manual fallback. Do not leave two automatic 5-minute schedulers active.
    The scheduled-workflow guard test pins the expected cron set, so update it in the same change.
@@ -60,22 +63,40 @@ select name, created_at, updated_at from vault.secrets where name = 'cron_secret
 Recent invocations and their HTTP outcome (this is the source of truth, not `cron.job_run_details`):
 
 ```sql
-select id, invoked_at, request_id, status_code, left(response_body, 120) as body, error, completed_at
+select id, invoked_at, request_id, outcome, status_code, left(response_body, 120) as body, error, completed_at
 from public.scheduler_invocations
 where job = 'publish-scheduled'
 order by id desc
 limit 20;
 ```
 
-Failures in the last 24 hours (anything that is not a 200):
+Outcome counts over the last 24 hours (every call lands in exactly one category):
 
 ```sql
-select invoked_at, status_code, error, left(response_body, 200) as body
+select outcome, count(*) from public.scheduler_invocations
+where job = 'publish-scheduled' and invoked_at > now() - interval '24 hours'
+group by outcome order by outcome;
+```
+
+Failures in the last 24 hours (`pending` is normal for the newest row, for about a minute):
+
+```sql
+select invoked_at, outcome, status_code, error, left(response_body, 200) as body
 from public.scheduler_invocations
 where job = 'publish-scheduled'
   and invoked_at > now() - interval '24 hours'
-  and (status_code is distinct from 200)
+  and outcome not in ('success', 'pending')
 order by invoked_at desc;
+```
+
+Privileges: every value in the result must be `false` (the API roles can neither run the functions nor read the log):
+
+```sql
+select r.role,
+       has_function_privilege(r.role, 'public.invoke_publish_scheduled()', 'execute')        as can_invoke,
+       has_function_privilege(r.role, 'public.reconcile_scheduler_invocations()', 'execute') as can_reconcile,
+       has_table_privilege(r.role, 'public.scheduler_invocations', 'select')                 as can_read_log
+from (values ('anon'), ('authenticated'), ('service_role')) as r(role);
 ```
 
 Cadence: gaps between consecutive automatic runs (expect about 300 seconds):
@@ -108,17 +129,32 @@ select jobid, jobname, schedule, active from cron.job order by jobname;
 
 ## Failure modes
 
-| Symptom | Meaning |
-|---|---|
-| no new `scheduler_invocations` rows | job not scheduled, `pg_cron` not running, or the function is erroring: check `cron.job_run_details` |
-| row with `error = 'vault secret "cron_secret" is missing...'` | Vault entry missing or renamed; no request was sent |
-| `status_code = 401` | Vault `cron_secret` differs from the production `CRON_SECRET` (or Vercel was not redeployed) |
-| `status_code = 307` | wrong host; must be `https://www.theconsilium.co.uk` |
-| `status_code = 500` | the endpoint failed: see Vercel runtime logs for `/api/publish-scheduled` |
-| `error = 'request timed out'` | the app took more than 30 s |
-| `error = 'no response recorded by pg_net'` | the response never arrived within 10 minutes |
+Each call is classified into exactly one `outcome`:
 
-`pg_net` keeps raw responses for 6 hours (`pg_net.ttl`); `scheduler_invocations` keeps 30 days.
+| `outcome` | Meaning and action |
+|---|---|
+| `pending` | queued, response not reconciled yet; normal for about a minute |
+| `success` | any 2xx (the endpoint returns 200) |
+| `auth_failure` | 401/403: Vault `cron_secret` differs from the production `CRON_SECRET`, or Vercel was not redeployed after rotation |
+| `http_error` | any other non-2xx: 307 means the wrong host (must be `https://www.theconsilium.co.uk`); 5xx means the endpoint failed, see Vercel runtime logs for `/api/publish-scheduled` |
+| `timeout` | pg_net gave up after 30 s: the app was too slow or down |
+| `network_error` | no status and no timeout: DNS, TLS or connection failure |
+| `lost` | no response recorded by pg_net 10 minutes after the call |
+| `not_sent` | the call was never made: Vault `cron_secret` missing or empty |
+
+No new `scheduler_invocations` rows at all means the job is not scheduled, `pg_cron` is not running, or the
+function is erroring: check `cron.job_run_details`.
+
+`pg_net` keeps raw responses for 6 hours (`pg_net.ttl`); `scheduler_invocations` keeps 30 days. The 30-day
+bound is enforced twice in the database itself: by the 1-minute reconciler and by the publisher function on
+every call, so it holds even if the reconciler job stops.
+
+## Reproducing the tests
+
+`tests/integration/scheduler-cron-sql.test.ts` runs both migrations' real PL/pgSQL against a local Postgres
+with minimal stand-ins for `vault`, `net` and `cron` (see the header of that file for the commands). It covers
+ordering enforcement, idempotence, every outcome category, retention, secret hygiene and role lockout. It
+cannot prove the behaviour of the real extensions: that is what the controlled invocation (step 4) is for.
 
 ## Rotating the secret
 

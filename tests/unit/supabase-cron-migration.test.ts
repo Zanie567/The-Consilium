@@ -57,6 +57,54 @@ describe('Supabase Cron migrations: target and schedule', () => {
   it('applies in dependency order by filename', () => {
     expect([INFRA, ENABLE].sort()).toEqual([INFRA, ENABLE])
   })
+
+  it('the enable migration refuses to run without its prerequisites, and never decrypts the secret', () => {
+    const body = code(enable)
+    for (const guard of [
+      "to_regclass('cron.job') IS NULL",
+      "to_regclass('public.scheduler_invocations') IS NULL",
+      "to_regprocedure('public.invoke_publish_scheduled()') IS NULL",
+      "to_regprocedure('public.reconcile_scheduler_invocations()') IS NULL",
+      "FROM vault.secrets WHERE name = 'cron_secret'",
+      "jobname = 'reconcile-scheduler-invocations'",
+      "outcome = 'success'",
+    ]) {
+      expect(body).toContain(guard)
+    }
+    expect((body.match(/RAISE EXCEPTION/g) ?? []).length).toBeGreaterThanOrEqual(5)
+    expect(body).not.toContain('decrypted_secrets')
+    // every guard comes before anything is scheduled
+    expect(body.indexOf('cron.schedule(')).toBeGreaterThan(body.lastIndexOf('RAISE EXCEPTION'))
+  })
+})
+
+describe('Supabase Cron migrations: every call lands in exactly one outcome', () => {
+  const body = code(infra)
+  const OUTCOMES = ['pending', 'success', 'auth_failure', 'http_error', 'timeout', 'network_error', 'lost', 'not_sent']
+
+  it('the column is constrained to the documented categories', () => {
+    for (const o of OUTCOMES) expect(body).toContain(`'${o}'`)
+    expect(body).toMatch(/outcome\s+TEXT\s+NOT NULL DEFAULT 'pending'/)
+    expect(body).toMatch(/CHECK \(outcome IN \(('[a-z_]+',?)+\)\)/)
+  })
+
+  it('the reconciler maps timeout, 2xx, 401/403, other statuses and no status separately', () => {
+    expect(body).toContain("WHEN r.timed_out                      THEN 'timeout'")
+    expect(body).toContain("WHEN r.status_code BETWEEN 200 AND 299 THEN 'success'")
+    expect(body).toContain("WHEN r.status_code IN (401, 403)       THEN 'auth_failure'")
+    expect(body).toContain("WHEN r.status_code IS NOT NULL         THEN 'http_error'")
+    expect(body).toContain("'network_error'")
+    expect(body).toContain("outcome = 'lost'")
+    expect(body).toContain("'not_sent'")
+  })
+
+  it('retention (30 days) is enforced by both the reconciler and the publisher function', () => {
+    expect((body.match(/DELETE FROM public\.scheduler_invocations WHERE invoked_at < now\(\) - interval '30 days'/g) ?? []).length).toBe(2)
+  })
+
+  it('the runbook documents every outcome', () => {
+    for (const o of OUTCOMES) expect(docs).toContain(`\`${o}\``)
+  })
 })
 
 describe('Supabase Cron migrations: least privilege', () => {
@@ -69,12 +117,12 @@ describe('Supabase Cron migrations: least privilege', () => {
 
   it('no API role can execute them or touch the log table', () => {
     for (const fn of ['invoke_publish_scheduled', 'reconcile_scheduler_invocations']) {
-      for (const role of ['PUBLIC', 'anon', 'authenticated']) {
+      for (const role of ['PUBLIC', 'anon', 'authenticated', 'service_role']) {
         expect(body).toMatch(new RegExp(`REVOKE ALL ON FUNCTION public\\.${fn}\\(\\)\\s+FROM ${role}`))
       }
     }
     expect(body).toContain('ALTER TABLE public.scheduler_invocations ENABLE ROW LEVEL SECURITY')
-    for (const role of ['PUBLIC', 'anon', 'authenticated']) {
+    for (const role of ['PUBLIC', 'anon', 'authenticated', 'service_role']) {
       expect(body).toMatch(new RegExp(`REVOKE ALL ON public\\.scheduler_invocations FROM ${role}`))
     }
     expect(body).not.toMatch(/GRANT\s+/i)
