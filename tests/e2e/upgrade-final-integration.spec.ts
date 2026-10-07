@@ -7,6 +7,51 @@ import type { Role } from '@prisma/client'
 import { ADMIN_STORAGE, EDITOR_GLOBAL_STORAGE, WRITER_STORAGE } from './helpers/authStorage'
 import { resolveTestDatabaseUrl } from '../../scripts/lib/testDatabase'
 import { createAccount, signInAs, db as fixtureDb, removeMyAccounts, closeDb } from './helpers/workflow'
+const LINKEDIN_SETTING_KEY = 'publication_linkedin_url'
+
+test('simulated growth settings record successful and denied outcomes against both identities', async ({ browser }) => {
+  const account = await createAccount('ADMIN', 'upgrade-growth-audit')
+  const previous = await fixtureDb().siteSetting.findUnique({ where: { key: LINKEDIN_SETTING_KEY } })
+  const contexts = []
+  try {
+    const login = await signInAs(browser, account)
+    contexts.push(login)
+    const headers = { origin: process.env.E2E_BASE_URL! }
+    expect((await login.request.post('/api/testing-session', { headers, data: { persona: 'growth' } })).status()).toBe(200)
+    const growth = await pinnedContext(browser, { storageState: await login.storageState() })
+    contexts.push(growth)
+    const growthId = (await fixtureDb().user.findUniqueOrThrow({ where: { testPersonaKey: 'growth' } })).id
+    const value = 'https://www.linkedin.com/company/consilium-audit-fixture/'
+    expect((await growth.request.patch('/api/editorial/growth/settings', { data: { linkedinUrl: value } })).status()).toBe(200)
+    expect(await fixtureDb().siteSetting.findUniqueOrThrow({ where: { key: LINKEDIN_SETTING_KEY } })).toMatchObject({ value, updatedBy: growthId })
+    const success = await fixtureDb().auditLog.findFirstOrThrow({ where: {
+      performedBy: account.id, targetId: growthId, action: 'testing:mutation-result',
+      metadata: { path: ['path'], equals: '/api/editorial/growth/settings' },
+    } })
+    expect(success.metadata).toEqual({ sessionId: expect.any(String), method: 'PATCH', path: '/api/editorial/growth/settings', status: 200 })
+    expect((await login.request.post('/api/testing-session', { headers, data: { persona: 'writer' } })).status()).toBe(200)
+    const writer = await pinnedContext(browser, { storageState: await login.storageState() })
+    contexts.push(writer)
+    const writerId = (await fixtureDb().user.findUniqueOrThrow({ where: { testPersonaKey: 'writer' } })).id
+    expect((await writer.request.patch('/api/editorial/growth/settings', { data: { linkedinUrl: null } })).status()).toBe(403)
+    expect((await fixtureDb().siteSetting.findUniqueOrThrow({ where: { key: LINKEDIN_SETTING_KEY } })).value).toBe(value)
+    const denied = await fixtureDb().auditLog.findFirstOrThrow({ where: {
+      performedBy: account.id, targetId: writerId, action: 'testing:mutation-result',
+      metadata: { path: ['path'], equals: '/api/editorial/growth/settings' },
+    } })
+    expect(denied.metadata).toEqual({ sessionId: expect.any(String), method: 'PATCH', path: '/api/editorial/growth/settings', status: 403 })
+  } finally {
+    await Promise.all(contexts.map(context => context.close()))
+    await fixtureDb().siteSetting.upsert({ where: { key: LINKEDIN_SETTING_KEY },
+      create: { key: LINKEDIN_SETTING_KEY, value: previous?.value ?? null, updatedBy: previous?.updatedBy ?? null },
+      update: { value: previous?.value ?? null, updatedBy: previous?.updatedBy ?? null },
+    })
+    await fixtureDb().testingSession.deleteMany({ where: { administratorId: account.id } })
+    await fixtureDb().auditLog.deleteMany({ where: { performedBy: account.id } })
+    await removeMyAccounts()
+    await closeDb()
+  }
+})
 
 test('fixture identity pins support advanced revisions and remain stale after revocation', async ({ browser }) => {
   const account = await createAccount('WRITER', 'upgrade-identity')

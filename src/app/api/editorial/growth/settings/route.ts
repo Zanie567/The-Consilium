@@ -4,6 +4,7 @@ import { requireVerifiedSessionUser } from '@/lib/auth'
 import { ANALYTICS_ACCESS_ROLES } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { LINKEDIN_SETTING_KEY, GROWTH_SETTINGS_TAG, validLinkedInUrl } from '@/lib/growthSettings'
+import { withTestingAudit } from '@/lib/testingAudit'
 export async function GET() {
   const auth = await requireVerifiedSessionUser(ANALYTICS_ACCESS_ROLES)
   if (!auth.ok) return auth.response
@@ -13,7 +14,7 @@ export async function GET() {
   })
   return NextResponse.json({ linkedinUrl: setting?.value ?? null })
 }
-export async function PATCH(req: Request) {
+async function PATCHHandler(req: Request) {
   const auth = await requireVerifiedSessionUser(ANALYTICS_ACCESS_ROLES)
   if (!auth.ok) return auth.response
   let linkedinUrl: string | null
@@ -40,3 +41,5 @@ export async function PATCH(req: Request) {
     )
   }
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)
