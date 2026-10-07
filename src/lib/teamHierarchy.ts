@@ -39,9 +39,9 @@ export interface TeamMemberLike {
   name: string
   role: string | null
   order: number
-  /** Trusted appointment fields set by administrators determine public placement;
-   * ordinary profile editing and account permissions do not appoint a tier. */
+  /** Optional name used only to order cards that share a tier (stable, case-insensitive). */
   placementName?: string
+  /** A label for ordinary new-member defaults. It never decides placement. */
   team?: MemberTeam | null
   publicTier?: string | null
 }
@@ -170,10 +170,32 @@ export function resolveTeamTier(role: string | null | undefined): TeamTierId {
   return 'other'
 }
 
-/** Explicit public placement is admin-managed. Otherwise the trusted title decides. */
-function placeMember(member: TeamMemberLike): { section: TeamSectionId; tier: TeamTierId } {
-  const tier = member.publicTier && TEAM_TIER_ORDER.includes(member.publicTier as TeamTierId)
-    ? member.publicTier as TeamTierId : resolveTeamTier(member.role)
+/** Lowercased, whitespace-collapsed name, used only to order cards deterministically. */
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, ' ').trim()
+}
+
+interface Placement {
+  section: TeamSectionId
+  tier: TeamTierId
+}
+
+/**
+ * Where a card is rendered. Public appointment and permission role are separate concepts:
+ * nothing about the linked account's permissions decides a card's place. Precedence:
+ *
+ * 1. Explicit `publicTier`: admin-managed public placement. It always wins, and is the only
+ *    way an untitled or legacy card is placed in a specific row (there is no name-based
+ *    exception: a historical masthead position is data, not code).
+ * 2. Otherwise the trusted title decides. Titles are admin-managed: the self-service profile
+ *    API rejects a title, team, role or placement posted by the member, so a member cannot
+ *    move themselves up the masthead.
+ */
+function placeMember(member: TeamMemberLike): Placement {
+  const tier =
+    member.publicTier && TEAM_TIER_ORDER.includes(member.publicTier as TeamTierId)
+      ? (member.publicTier as TeamTierId)
+      : resolveTeamTier(member.role)
   return { section: TIER_SECTION[tier], tier }
 }
 
@@ -183,7 +205,10 @@ function compareMembers(a: TeamMemberLike, b: TeamMemberLike): number {
   const bHasRole = hasDisplayableRole(b.role) ? 0 : 1
   if (aHasRole !== bHasRole) return aHasRole - bHasRole
   if (a.order !== b.order) return a.order - b.order
-  return (a.placementName ?? a.name).localeCompare(b.placementName ?? b.name, 'en') || a.id.localeCompare(b.id, 'en')
+  return (
+    normalizeName(a.placementName ?? a.name).localeCompare(normalizeName(b.placementName ?? b.name), 'en') ||
+    a.id.localeCompare(b.id, 'en')
+  )
 }
 
 /**

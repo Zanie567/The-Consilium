@@ -66,6 +66,8 @@ export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     th: ['colspan', 'rowspan', 'scope'],
     td: ['colspan', 'rowspan'],
     ol: ['start'],
+    // No `style` attribute on any element: public house style publishes no stored
+    // presentation (colour, size, spacing, alignment), even from raw stored HTML.
     p: ['class'],
     figure: ['class'],
     figcaption: ['class'],

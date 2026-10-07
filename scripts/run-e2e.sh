@@ -160,4 +160,6 @@ E2E_PHASE=main npx playwright test || STATUS=1
 # Workflow scenarios share commissioning/glossary settings; serialize these stateful actions.
 E2E_PHASE=workflow npx playwright test --workers=1 || STATUS=1
 E2E_PHASE=team-profile npx playwright test --workers=1 || STATUS=1
+# Platform upgrade journeys publish articles and upload figures to the shared storage server.
+E2E_PHASE=upgrade npx playwright test --workers=1 || STATUS=1
 exit $STATUS

@@ -66,6 +66,7 @@ import {
 } from '@/lib/articleImageUpload'
 import { FigureNode } from './extensions/FigureNode'
 import { cleanPastedHTML } from '@/lib/editor/cleanPastedHTML'
+import { dataUrlToFile } from '@/lib/editor/dataUrl'
 import { ApiError, asApiError } from '@/lib/apiClient'
 import { CommentHighlight } from './commentHighlight'
 
@@ -411,13 +412,12 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
   }, [editable])
 
   const uploadForPasteImage = useCallback(
-    async (dataUrl: string, mimeType: string, filename: string): Promise<string | null> => {
+    async (dataUrl: string, _mimeType: string, filename: string): Promise<string | null> => {
       try {
         setUploading(true)
-        // Convert base64 data URI to Blob then to File
-        const res = await fetch(dataUrl)
-        const blob = await res.blob()
-        const file = new File([blob], filename, { type: mimeType })
+        // Decode directly: the production CSP correctly blocks fetch(data:).
+        const file = dataUrlToFile(dataUrl, filename)
+        if (!file) throw new ApiError('validation', 'The pasted image could not be read.')
         const data = await uploadArticleImage(file)
         if (!data.url) {
           throw new ApiError('server', 'The upload completed without returning an image URL.')
@@ -724,7 +724,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
 
 
   return (
-    <div style={{ isolation: 'isolate' }}>
+    <div style={{ isolation: 'isolate', position: 'relative', zIndex: 1 }}>
       {uploading && uploadAbortRef.current && (
         <button
           type="button"
@@ -973,6 +973,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
                         className={`w-16 text-xs border rounded px-1 py-0.5 outline-none ${darkMode ? 'bg-[#333] border-white/15 text-white placeholder:text-white/30' : 'bg-white border-black/15 text-[#333]'}`}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
+                            e.preventDefault()
                             const val = (e.target as HTMLInputElement).value
                             const hex = val.startsWith('#') ? val : `#${val}`
                             if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
@@ -1059,6 +1060,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
                         className={`w-16 text-xs border rounded px-1 py-0.5 outline-none ${darkMode ? 'bg-[#333] border-white/15 text-white placeholder:text-white/30' : 'bg-white border-black/15 text-[#333]'}`}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
+                            e.preventDefault()
                             const val = (e.target as HTMLInputElement).value
                             const hex = val.startsWith('#') ? val : `#${val}`
                             if (/^#[0-9a-fA-F]{6}$/.test(hex)) {

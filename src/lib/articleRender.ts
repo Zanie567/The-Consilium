@@ -45,6 +45,11 @@ interface RenderState {
   footnotes: ArticleFootnote[]
 }
 
+// PUBLIC HOUSE STYLE (confirmed): the editor lets authors choose text colour, size, line
+// spacing, alignment and highlight colour while writing, but none of it is published. Public
+// articles use the site's own typography, so this renderer emits no style attributes and a
+// plain <mark> for highlights. The editor JSON still stores the choices.
+
 function nodeToHtml(node: TiptapNode, state: RenderState): string {
   switch (node.type) {
     case 'paragraph': {
@@ -68,7 +73,8 @@ function nodeToHtml(node: TiptapNode, state: RenderState): string {
           if (mark.type === 'strike') text = `<s>${text}</s>`
           if (mark.type === 'code') text = `<code>${text}</code>`
           if (mark.type === 'underline') text = `<u>${text}</u>`
-          // Public presentation follows the publication's house style.
+          // The chosen colour is deliberately ignored (public house style). A textStyle mark
+          // (colour, size, line height) produces no markup at all.
           if (mark.type === 'highlight') text = `<mark>${text}</mark>`
           if (mark.type === 'link') {
             const href = safeHref(String(mark.attrs?.href ?? '#'))

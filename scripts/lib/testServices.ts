@@ -33,7 +33,6 @@ export function isolatedServiceEnv(opts: IsolatedServiceOptions): Record<string,
   const appUrl = `http://localhost:${opts.appPort}`
   return {
     E2E_ISOLATED: '1',
-    TEST_HARNESS: '1',
     TESTING_MODE_ENABLED: '1',
     TESTING_WORKSPACE_KIND: 'local',
     TESTING_WORKSPACE_ID: 'local-consilium-testing',
@@ -43,6 +42,9 @@ export function isolatedServiceEnv(opts: IsolatedServiceOptions): Record<string,
     SUPABASE_ANON_KEY: 'local-anon-key',
     SUPABASE_SERVICE_ROLE_KEY: 'local-service-key',
     NEXT_IMAGE_ALLOW_LOCAL_STORAGE: '1',
+    // Second half of the two-flag rule in next.config.ts: only the test harness may let the CSP
+    // allow the loopback storage origin.
+    TEST_HARNESS: '1',
     // Email: captured to a file, never sent. RESEND_API_KEY is blanked on purpose.
     EMAIL_TRANSPORT: 'capture',
     EMAIL_CAPTURE_FILE: opts.emailCaptureFile,

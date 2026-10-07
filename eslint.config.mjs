@@ -9,7 +9,8 @@ const eslintConfig = defineConfig([
     ".next/**",
     ".next-e2e*/**",
     ".next-e2e*.tsconfig.json",
-    // Archived browser traces/reports are generated bundles, not source code.
+    // Archived browser traces/reports are generated bundles, not source code. The `**/`
+    // globs also cover the top-level playwright-report/ and test-results/ directories.
     "docs/testing/evidence/**",
     "**/playwright-report/**",
     "**/test-results/**",
