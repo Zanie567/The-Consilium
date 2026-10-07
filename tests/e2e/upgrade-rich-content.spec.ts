@@ -1,3 +1,4 @@
+import { pinnedContext } from './helpers/pinnedContext'
 import { test, expect, type Page } from '@playwright/test'
 import { ADMIN_STORAGE, WRITER_STORAGE, EDITOR_GLOBAL_STORAGE } from './helpers/authStorage'
 import { readFileSync } from 'node:fs'
@@ -49,9 +50,9 @@ test('writer paste/table/figure → repeated save/reload → editor review/edit/
   browser,
 }) => {
   test.setTimeout(120_000)
-  const writerContext = await browser.newContext({ storageState: WRITER_STORAGE })
-  const editorContext = await browser.newContext({ storageState: EDITOR_GLOBAL_STORAGE })
-  const adminContext = await browser.newContext({ storageState: ADMIN_STORAGE })
+  const writerContext = await pinnedContext(browser, { storageState: WRITER_STORAGE })
+  const editorContext = await pinnedContext(browser, { storageState: EDITOR_GLOBAL_STORAGE })
+  const adminContext = await pinnedContext(browser, { storageState: ADMIN_STORAGE })
   const writer = await writerContext.newPage()
   const editor = await editorContext.newPage()
   const reader = await browser.newPage()
@@ -283,7 +284,7 @@ test('every exposed formatting control operates, including keyboard buttons and 
   browser,
 }) => {
   test.setTimeout(60_000)
-  const context = await browser.newContext({ storageState: ADMIN_STORAGE })
+  const context = await pinnedContext(browser, { storageState: ADMIN_STORAGE })
   const page = await context.newPage()
   const base = process.env.E2E_BASE_URL!
   let id = ''
@@ -414,8 +415,8 @@ test('wide tables and standard/wide/portrait figures remain contained in editor 
   browser,
 }) => {
   test.setTimeout(60_000)
-  const writer = await browser.newContext({ storageState: WRITER_STORAGE })
-  const admin = await browser.newContext({ storageState: ADMIN_STORAGE })
+  const writer = await pinnedContext(browser, { storageState: WRITER_STORAGE })
+  const admin = await pinnedContext(browser, { storageState: ADMIN_STORAGE })
   const page = await writer.newPage()
   const publicPage = await browser.newPage()
   const base = process.env.E2E_BASE_URL!
@@ -543,7 +544,7 @@ test('wide tables and standard/wide/portrait figures remain contained in editor 
 test('plain-text paste and cancelled upload preserve document and allow retry', async ({
   browser,
 }) => {
-  const context = await browser.newContext({ storageState: WRITER_STORAGE })
+  const context = await pinnedContext(browser, { storageState: WRITER_STORAGE })
   const page = await context.newPage()
   try {
     await page.goto('/editorial/articles/new')

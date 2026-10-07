@@ -1,3 +1,4 @@
+import { pinnedContext } from './helpers/pinnedContext'
 import { test, expect } from '@playwright/test'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
@@ -182,8 +183,8 @@ test('analytics heartbeat pauses hidden, consent controls persistence, failure l
 test('existing analytics dashboard exposes active reading and rejects writer permissions', async ({
   browser,
 }) => {
-  const admin = await browser.newContext({ storageState: ADMIN_STORAGE })
-  const writer = await browser.newContext({ storageState: WRITER_STORAGE })
+  const admin = await pinnedContext(browser, { storageState: ADMIN_STORAGE })
+  const writer = await pinnedContext(browser, { storageState: WRITER_STORAGE })
   const page = await admin.newPage()
   try {
     const rejected = await writer.request.get('/api/editorial/analytics?tab=engagement')
@@ -208,8 +209,8 @@ test('existing analytics dashboard exposes active reading and rejects writer per
 test('one publication LinkedIn setting updates footer/contact and refuses writer changes', async ({
   browser,
 }) => {
-  const admin = await browser.newContext({ storageState: ADMIN_STORAGE })
-  const writer = await browser.newContext({ storageState: WRITER_STORAGE })
+  const admin = await pinnedContext(browser, { storageState: ADMIN_STORAGE })
+  const writer = await pinnedContext(browser, { storageState: WRITER_STORAGE })
   const page = await browser.newPage()
   const response = await admin.request.get('/api/editorial/growth/settings')
   expect(response.status()).toBe(200)

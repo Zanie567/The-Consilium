@@ -1,3 +1,4 @@
+import { pinnedContext } from './helpers/pinnedContext'
 import { ADMIN_STORAGE } from './helpers/authStorage'
 import { test, expect } from '@playwright/test'
 import { PrismaClient } from '@prisma/client'
@@ -47,7 +48,7 @@ test.beforeAll(async ({ browser }) => {
     )
   // Direct DB fixtures bypass publication invalidation. Exercise the real API
   // once so this suite is independent of a prior warmed public topic cache.
-  const admin = await browser.newContext({ storageState: ADMIN_STORAGE })
+  const admin = await pinnedContext(browser, { storageState: ADMIN_STORAGE })
   try {
     const refreshed = await admin.request.put(`/api/articles/${articleIds[0]}`, {
       data: { title: 'Discovery Title Fixture 0' },
@@ -142,7 +143,7 @@ test('keyboard search discovers title, author, topic, empty and no results; fail
 test('published topic assignments invalidate warm topic lists and follow unpublish/trash/restore', async ({
   browser,
 }) => {
-  const admin = await browser.newContext({ storageState: ADMIN_STORAGE })
+  const admin = await pinnedContext(browser, { storageState: ADMIN_STORAGE })
   const page = await browser.newPage()
   const marker = `Upgrade cache ${Date.now()}`,
     first = `${marker} Finance`,

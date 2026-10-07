@@ -1,3 +1,4 @@
+import { pinnedContext } from './helpers/pinnedContext'
 import { test, expect } from '@playwright/test'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
@@ -5,12 +6,42 @@ import { randomUUID, randomInt } from 'node:crypto'
 import type { Role } from '@prisma/client'
 import { ADMIN_STORAGE, EDITOR_GLOBAL_STORAGE, WRITER_STORAGE } from './helpers/authStorage'
 import { resolveTestDatabaseUrl } from '../../scripts/lib/testDatabase'
+import { createAccount, signInAs, db as fixtureDb, removeMyAccounts, closeDb } from './helpers/workflow'
+
+test('fixture identity pins support advanced revisions and remain stale after revocation', async ({ browser }) => {
+  const account = await createAccount('WRITER', 'upgrade-identity')
+  const contexts = []
+  try {
+    await fixtureDb().user.update({ where: { id: account.id }, data: { testingRevision: { increment: 1 } } })
+    const login = await signInAs(browser, account)
+    contexts.push(login)
+    const options = { storageState: await login.storageState(), baseURL: process.env.E2E_BASE_URL! }
+    const first = await pinnedContext(browser, options)
+    contexts.push(first)
+    const created = await first.request.post('/api/articles', { data: { title: 'Pinned identity fixture', content: 'Original content', status: 'DRAFT' } })
+    expect(created.status()).toBe(201)
+    const article = await created.json()
+    await fixtureDb().user.update({ where: { id: account.id }, data: { testingRevision: { increment: 1 } } })
+    const stale = await first.request.put(`/api/articles/${article.id}`, { data: { content: 'Stale identity overwrite' } })
+    expect(stale.status()).toBe(409)
+    expect((await stale.json()).code).toBe('TESTING_IDENTITY_CHANGED')
+    expect((await fixtureDb().article.findUniqueOrThrow({ where: { id: article.id } })).content).toBe('Original content')
+    const fresh = await pinnedContext(browser, options)
+    contexts.push(fresh)
+    expect((await fresh.request.put(`/api/articles/${article.id}`, { data: { content: 'Fresh identity content' } })).status()).toBe(200)
+    expect((await fixtureDb().article.findUniqueOrThrow({ where: { id: article.id } })).content).toBe('Fresh identity content')
+  } finally {
+    await Promise.all(contexts.map(context => context.close()))
+    await removeMyAccounts()
+    await closeDb()
+  }
+})
 
 test('concurrent editorial approvals commit one transition and one notification', async ({ browser }) => {
   const baseURL = process.env.E2E_BASE_URL!
-  const writer = await browser.newContext({ storageState: WRITER_STORAGE, baseURL })
-  const editor = await browser.newContext({ storageState: EDITOR_GLOBAL_STORAGE, baseURL })
-  const admin = await browser.newContext({ storageState: ADMIN_STORAGE, baseURL })
+  const writer = await pinnedContext(browser, { storageState: WRITER_STORAGE, baseURL })
+  const editor = await pinnedContext(browser, { storageState: EDITOR_GLOBAL_STORAGE, baseURL })
+  const admin = await pinnedContext(browser, { storageState: ADMIN_STORAGE, baseURL })
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: resolveTestDatabaseUrl() }) })
   let id = ''
   try {
@@ -39,8 +70,8 @@ test('concurrent editorial approvals commit one transition and one notification'
 
 test('concurrent writer submissions notify the review queue once and reject later writer edits', async ({ browser }) => {
   const baseURL = process.env.E2E_BASE_URL!
-  const writer = await browser.newContext({ storageState: WRITER_STORAGE, baseURL })
-  const admin = await browser.newContext({ storageState: ADMIN_STORAGE, baseURL })
+  const writer = await pinnedContext(browser, { storageState: WRITER_STORAGE, baseURL })
+  const admin = await pinnedContext(browser, { storageState: ADMIN_STORAGE, baseURL })
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: resolveTestDatabaseUrl() }) })
   let id = ''
   try {
@@ -72,9 +103,9 @@ test('concurrent writer submissions notify the review queue once and reject late
 test('large pasted tables survive save/reload/publication and scroll within the mobile article', async ({ browser }) => {
   test.setTimeout(90000)
   const baseURL = process.env.E2E_BASE_URL!
-  const writer = await browser.newContext({ storageState: WRITER_STORAGE, baseURL })
-  const editor = await browser.newContext({ storageState: EDITOR_GLOBAL_STORAGE, baseURL })
-  const admin = await browser.newContext({ storageState: ADMIN_STORAGE, baseURL })
+  const writer = await pinnedContext(browser, { storageState: WRITER_STORAGE, baseURL })
+  const editor = await pinnedContext(browser, { storageState: EDITOR_GLOBAL_STORAGE, baseURL })
+  const admin = await pinnedContext(browser, { storageState: ADMIN_STORAGE, baseURL })
   const page = await writer.newPage()
   const reader = await browser.newPage()
   let id = ''
@@ -188,9 +219,9 @@ test('shuffled account-linked chief, two deputies, editors, writers and Growth r
 
 test('an editor with a stale open document gets a conflict and retains unsaved changes', async ({ browser }) => {
   const baseURL = process.env.E2E_BASE_URL!
-  const first = await browser.newContext({ storageState: EDITOR_GLOBAL_STORAGE, baseURL })
-  const second = await browser.newContext({ storageState: EDITOR_GLOBAL_STORAGE, baseURL })
-  const admin = await browser.newContext({ storageState: ADMIN_STORAGE, baseURL })
+  const first = await pinnedContext(browser, { storageState: EDITOR_GLOBAL_STORAGE, baseURL })
+  const second = await pinnedContext(browser, { storageState: EDITOR_GLOBAL_STORAGE, baseURL })
+  const admin = await pinnedContext(browser, { storageState: ADMIN_STORAGE, baseURL })
   let id = ''
   try {
     const created = await admin.request.post('/api/articles', { data: { title: `Revision fixture ${Date.now()}`, content: 'Initial content', status: 'PUBLISHED' } })
@@ -232,8 +263,8 @@ test('an editor with a stale open document gets a conflict and retains unsaved c
 })
 
 test('slow draft creation preserves newer typing, and a failed save retains changes for retry', async ({ browser }) => {
-  const context = await browser.newContext({ storageState: WRITER_STORAGE, baseURL: process.env.E2E_BASE_URL! })
-  const admin = await browser.newContext({ storageState: ADMIN_STORAGE, baseURL: process.env.E2E_BASE_URL! })
+  const context = await pinnedContext(browser, { storageState: WRITER_STORAGE, baseURL: process.env.E2E_BASE_URL! })
+  const admin = await pinnedContext(browser, { storageState: ADMIN_STORAGE, baseURL: process.env.E2E_BASE_URL! })
   let release!: () => void
   const held = new Promise<void>(resolve => { release = resolve })
   let started!: () => void
@@ -285,8 +316,8 @@ test('slow draft creation preserves newer typing, and a failed save retains chan
 })
 
 test('document settings expose one desktop form and trap/restore keyboard focus on mobile', async ({ browser }) => {
-  const context = await browser.newContext({ storageState: WRITER_STORAGE, baseURL: process.env.E2E_BASE_URL!, viewport: { width: 1440, height: 900 } })
-  const admin = await browser.newContext({ storageState: ADMIN_STORAGE, baseURL: process.env.E2E_BASE_URL! })
+  const context = await pinnedContext(browser, { storageState: WRITER_STORAGE, baseURL: process.env.E2E_BASE_URL!, viewport: { width: 1440, height: 900 } })
+  const admin = await pinnedContext(browser, { storageState: ADMIN_STORAGE, baseURL: process.env.E2E_BASE_URL! })
   let id = ''
   try {
     const response = await context.request.post('/api/articles', { data: { title: `Settings focus ${Date.now()}`, content: 'Local test', status: 'DRAFT' } })
