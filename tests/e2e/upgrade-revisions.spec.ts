@@ -45,6 +45,7 @@ test('list publish/unpublish sends loaded revisions, propagates successful revis
     expect(result.status()).toBe(200)
     expect(result.request().headers()['x-article-revision']).toBe(revision)
     revision = (await result.json()).updatedAt
+    await expect(row.getByRole('button', { name: endpoint === 'feature' ? 'Remove featured' : 'Unpin', exact: true })).toBeVisible()
   }
   const unpublishResponse = page.waitForResponse(res => res.url().endsWith(`/api/articles/${loaded.id}`) && res.request().method() === 'PUT')
   await row.getByRole('button', { name: 'Unpublish', exact: true }).click()

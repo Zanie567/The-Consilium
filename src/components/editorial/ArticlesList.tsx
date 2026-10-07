@@ -52,7 +52,15 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setArticles(initial)
+    // A refresh started by an earlier action can finish after a later save.
+    // Keep each newer acknowledged row rather than restore an obsolete guard.
+    setArticles(current => {
+      const rows = new Map(current.map(article => [article.id, article]))
+      return initial.map(article => {
+        const saved = rows.get(article.id)
+        return saved && Date.parse(saved.updatedAt) > Date.parse(article.updatedAt) ? saved : article
+      })
+    })
     setFilter('all')
   }, [initial])
 
