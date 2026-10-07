@@ -155,14 +155,15 @@ test('shuffled account-linked chief, two deputies, editors, writers and Growth r
       await expect(page.getByRole('heading', { name: 'Writers', exact: true })).toBeVisible()
       await expect(page.getByRole('heading', { name: 'Growth & Comms', exact: true })).toBeVisible()
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+      for (const card of await page.getByRole('button', { name: /^View full profile for QA/ }).all()) {
+        await card.scrollIntoViewIfNeeded()
+        await expect(card.locator('..').locator('..')).toHaveCSS('opacity', '1')
+        await expect(card.locator('..').locator('..')).toHaveCSS('transform', 'none')
+      }
       if (width === 1440) {
         const positions = await page.getByRole('button', { name: /^View full profile for QA Deputy/ }).evaluateAll(elements => elements.map(element => { const rect = element.getBoundingClientRect(); return { x: rect.x, y: rect.y } }))
         expect(positions[0].y).toBe(positions[1].y)
         expect(positions[0].x).toBeLessThan(positions[1].x)
-      }
-      for (const card of await page.getByRole('button', { name: /^View full profile for QA/ }).all()) {
-        await card.scrollIntoViewIfNeeded()
-        await expect(card.locator('..').locator('..')).toHaveCSS('opacity', '1')
       }
       await page.getByRole('heading', { name: 'Our Team', exact: true }).scrollIntoViewIfNeeded()
       await expect(page.getByRole('heading', { name: 'Our Team', exact: true }).locator('..')).toHaveCSS('opacity', '1')
@@ -215,7 +216,9 @@ test('an editor with a stale open document gets a conflict and retains unsaved c
     const rejected = b.waitForResponse(response => response.url().includes(`/api/articles/${id}`) && response.request().method() === 'PUT')
     await b.getByRole('button', { name: 'Save draft', exact: true }).click()
     expect((await rejected).status()).toBe(409)
-    await expect(b.getByText(/Another editor changed this article/).first()).toBeVisible()
+    await expect(b.getByText(/This article was changed in another tab or by another editor/).first()).toBeVisible()
+    await expect(b.getByRole('button', { name: 'Keep my version', exact: true })).toBeVisible()
+    await expect(b.getByRole('button', { name: 'Discard mine and reload', exact: true })).toBeVisible()
     await expect(b.getByPlaceholder('Your headline here...')).toHaveValue('Second editor unsaved title')
     expect((await (await admin.request.get(`/api/articles/${id}`)).json()).title).toBe('First editor committed this title')
     await b.screenshot({ path: test.info().outputPath('stale-editor-conflict.png'), fullPage: true })
