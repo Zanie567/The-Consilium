@@ -220,13 +220,15 @@ interface SelectFieldProps {
 }
 
 function SelectField({ children, disabled, hidden, label, onChange, value }: SelectFieldProps) {
+  const id = useId()
   if (hidden) return null
 
   return (
     <div>
-      <FieldLabel>{label}</FieldLabel>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <div className="relative">
         <select
+          id={id}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           disabled={disabled}

@@ -25,7 +25,7 @@ npx ts-node -P tsconfig.seed.json scripts/platform-check.ts <command> <arguments
 | `npm run lint` | [lint.log](lint.log) |
 | `npm run test:unit` | [unit.log](unit.log) |
 | `npx vitest run tests/integration --reporter=verbose` | [integration.log](integration.log) |
-| `npm test -- --reporter=verbose` | [all.log](all.log) |
+| `npm test` | [all.log](all.log) |
 | `env E2E_TEAM_PROFILE=1 npx playwright test --workers=1` | [playwright.log](playwright.log) |
 | `env E2E_TEAM_PROFILE=1 npx playwright test tests/e2e/upgrade-rich-content.spec.ts --workers=1` | [rich-journey-final.log](rich-journey-final.log) |
 | `npx playwright test tests/e2e/upgrade-final-integration.spec.ts tests/e2e/editorial.spec.ts --grep 'slow draft\|autosaves a draft' --workers=1` | [autosave-recovery-final.log](autosave-recovery-final.log) |
@@ -53,6 +53,8 @@ Files ending `red.log` are deliberate failing probes, retained as evidence of de
 
 `playwright-autosave-confirmation-red.log` has 120 pass/1 failure: the first draft persisted but its acknowledgement disappeared on navigation. [autosave-persistence-probe.log](autosave-persistence-probe.log) records that actual row. `slow-draft-red.log` then reproduces newer typing replaced by the first snapshot. The added browser case holds/releases the real POST, checks the latest UI/API text, forces 503 saves and verifies retained text/unchanged DB, then retries and reloads. The existing autosave test retains its “Saved” assertion and now additionally proves 201 creation, readback and reload.
 
+[playwright-before-scheduling-ui.log](playwright-before-scheduling-ui.log) retains the earlier 122-pass run. Final `playwright.log` repeats the entire suite after Status/Author label repair and genuine UI scheduling/publishing coverage. [scheduling-streaming-probe.log](scheduling-streaming-probe.log) records the locator investigation: a label-only date selector also matched transient hidden streaming markup; the accessible textbox selector excludes it without relaxing the persisted date assertion.
+
 `fixes-db.log` includes a corrected transaction-mock fixture failure; it is not a final gate. Targeted passing logs (`fixes-targeted`, `scheduler-final`, `analytics-migration-final`, `analytics-reporting-final`, `cleanup-locking-final`, `final-targeted-e2e`, `visual-fixes-final`) explain intermediate repairs; final acceptance comes from the complete live suites plus final strengthened journey.
 
 Optional Knip findings remain reported, not suppressed. Server logs include intentional negative responses, missing disabled-provider warnings and aborted navigation requests. Storage logs refer only to synthetic loopback objects. Terminal color codes/trailing whitespace are removed for diff hygiene; results and failure text are retained.
@@ -62,6 +64,8 @@ Optional Knip findings remain reported, not suppressed. Server logs include inte
 Playwright drives writer → review/edit → schedule/publish → public → replacement/deletion/republish, realistic HTML table paste, category/topic review, full shuffled team hierarchy, Growth photo/profile/permissions, discovery, subscription/share and analytics failure/privacy flows. Assertions check persistence, DOM, natural image loading, actual opacity, console/hydration diagnostics, content bounds, focus and negative responses.
 
 Independent native Chrome interactions covered home/archive/search, team modal/Escape, writer HTML paste/table edits/metadata/Analysis/topic assignment/save/reload, mobile settings focus, Growth create/edit/reload/public placement, authorized analytics, repaired 1280px desktop editor bounds, invalid subscription (native validation), valid subscription, reloaded duplicate subscription and disabled-loading/success states. Manual Copy Link showed “Link copied!” and clipboard `https://theconsilium.co.uk/articles/bank-of-england-cuts-rates-february-2025`; supported network buttons and encoded email link were present. No external social post/email was sent. Manual browser diagnostics on those latter flows returned no app error/warning. Earlier two errors were from the unrelated Zotero extension. Native upload was blocked by the extension's file-URL permission; the permission was not expanded, and automated real upload/decoder tests provide that evidence instead.
+
+Final native editorial interaction also exercised missing/past schedule validation, selected Scheduled, entered 2099-01-01 12:00 UK time, clicked Schedule and reloaded that exact date/status. It then selected Draft, clicked Publish, inspected public title/author/Analysis/topic and pasted rich table, clicked Unpublish and reloaded DRAFT Saved. This local draft remains recoverable. [Native draft screenshot](native-unpublished-draft.jpg) records that final result; [native-final-console.json](native-final-console.json) records an empty warning/error capture after sign-out. Viewport override was reset.
 
 Screenshots are from the executed local Playwright journeys, not generated mockups:
 

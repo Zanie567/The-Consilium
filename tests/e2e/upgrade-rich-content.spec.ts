@@ -187,17 +187,21 @@ test('writer paste/table/figure → repeated save/reload → editor review/edit/
     await editor.locator('.ProseMirror td').first().click()
     await editor.keyboard.press('End')
     await editor.keyboard.type(' editorial')
-    const edited = await save(editor)
-    const scheduled = await editorContext.request.patch(
-      `${base}/api/editorial/articles/${id}/review`,
-      { data: { action: 'schedule', scheduledAt: '2099-01-01T12:00' } }
-    )
-    expect(scheduled.status(), await scheduled.text()).toBe(200)
-    const publish = await editorContext.request.put(`${base}/api/articles/${id}`, {
-      data: { content: edited.content, status: 'PUBLISHED' },
-    })
-    expect(publish.status(), await publish.text()).toBe(200)
-    const published = await publish.json()
+    await save(editor)
+    await expect(editor.getByRole('combobox', { name: 'Author', exact: true })).toBeVisible()
+    await editor.getByRole('combobox', { name: 'Status', exact: true }).selectOption('SCHEDULED')
+    await editor.getByRole('textbox', { name: /^Publish At/ }).fill('2099-01-01T12:00')
+    const scheduleResponse = editor.waitForResponse(response => response.url().includes(`/api/articles/${id}`) && response.request().method() === 'PUT' && response.ok())
+    await editor.getByRole('button', { name: 'Schedule', exact: true }).click()
+    expect((await (await scheduleResponse).json()).status).toBe('SCHEDULED')
+    await editor.reload()
+    await expect(editor.getByRole('combobox', { name: 'Status', exact: true })).toHaveValue('SCHEDULED')
+    await expect(editor.getByRole('textbox', { name: /^Publish At/ })).toHaveValue('2099-01-01T12:00')
+    await editor.getByRole('combobox', { name: 'Status', exact: true }).selectOption('DRAFT')
+    const publishResponse = editor.waitForResponse(response => response.url().includes(`/api/articles/${id}`) && response.request().method() === 'PUT' && response.ok())
+    await editor.getByRole('button', { name: 'Publish', exact: true }).click()
+    const published = await (await publishResponse).json()
+    expect(published.status).toBe('PUBLISHED')
     for (const width of [375, 768, 1440]) {
       await reader.setViewportSize({ width, height: 900 })
       await reader.goto(`${base}/articles/${published.slug}`)

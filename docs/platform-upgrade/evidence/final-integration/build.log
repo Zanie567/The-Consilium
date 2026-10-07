@@ -8,14 +8,13 @@
   ✓ viewTransition
 
   Creating an optimized production build ...
-✓ Compiled successfully in 4.8s
+✓ Compiled successfully in 4.7s
   Running TypeScript ...
   Finished TypeScript in 7.3s ...
   Collecting page data using 7 workers ...
   Generating static pages using 7 workers (0/89) ...
-  Generating static pages using 7 workers (22/89)
 [auth:read-session] {
-  requestId: 'eab0c798-4095-4928-929a-b5468c2b1d57',
+  requestId: '9830876a-e54a-4138-9b11-6e6e2cf1ad97',
   error: Error: Dynamic server usage: Route /editorial/readers couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
       at m (.next/server/chunks/ssr/_08zzayt._.js:34:38162)
       at h (.next/server/chunks/ssr/_08zzayt._.js:34:46795)
@@ -26,8 +25,9 @@
     digest: 'DYNAMIC_SERVER_USAGE'
   }
 }
+  Generating static pages using 7 workers (22/89)
 [auth:read-session] {
-  requestId: '8d519cc6-bf21-4840-b4dd-ae9b00dc9a45',
+  requestId: 'c7259e21-d44c-41e5-a8ae-9f42296bf1f3',
   error: Error: Dynamic server usage: Route /admin/login-attempts couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
       at m (.next/server/chunks/ssr/_08zzayt._.js:34:38162)
       at h (.next/server/chunks/ssr/_08zzayt._.js:34:46795)
@@ -40,19 +40,7 @@
 }
   Generating static pages using 7 workers (44/89)
 [auth:read-session] {
-  requestId: '4d83ba0f-4a1b-4c1f-acbc-07dfd9c00fa3',
-  error: Error: Dynamic server usage: Route /admin/subscribers couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
-      at m (.next/server/chunks/ssr/_08zzayt._.js:34:38162)
-      at h (.next/server/chunks/ssr/_08zzayt._.js:34:46795)
-      at r (.next/server/chunks/ssr/_08zzayt._.js:45:3355)
-      at q (.next/server/chunks/ssr/_08zzayt._.js:45:3264)
-      at k (.next/server/chunks/ssr/[root-of-the-server]__0np8jc_._.js:1:10216) {
-    description: "Route /admin/subscribers couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
-    digest: 'DYNAMIC_SERVER_USAGE'
-  }
-}
-[auth:read-session] {
-  requestId: 'd291f579-ec59-4923-892f-276cba8d9bbd',
+  requestId: '05cda817-e4cc-4adc-899f-5a1d249279eb',
   error: Error: Dynamic server usage: Route /admin/team couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
       at m (.next/server/chunks/ssr/_08zzayt._.js:34:38162)
       at h (.next/server/chunks/ssr/_08zzayt._.js:34:46795)
@@ -63,21 +51,8 @@
     digest: 'DYNAMIC_SERVER_USAGE'
   }
 }
-  Generating static pages using 7 workers (66/89)
 [auth:read-session] {
-  requestId: '6ef0808f-2219-4000-b5a9-ce916ed24d18',
-  error: Error: Dynamic server usage: Route /editorial/calendar couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
-      at m (.next/server/chunks/ssr/_08zzayt._.js:34:38162)
-      at h (.next/server/chunks/ssr/_08zzayt._.js:34:46795)
-      at r (.next/server/chunks/ssr/_08zzayt._.js:45:3355)
-      at q (.next/server/chunks/ssr/_08zzayt._.js:45:3264)
-      at l (.next/server/chunks/ssr/[root-of-the-server]__0bc2~y1._.js:1:6275) {
-    description: "Route /editorial/calendar couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
-    digest: 'DYNAMIC_SERVER_USAGE'
-  }
-}
-[auth:read-session] {
-  requestId: 'bb0d1ad1-5d09-4b79-a47f-955ed67ed474',
+  requestId: '0b76a757-64bc-469a-9550-91ffd705458a',
   error: Error: Dynamic server usage: Route /editorial/analytics couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
       at m (.next/server/chunks/ssr/_08zzayt._.js:34:38162)
       at h (.next/server/chunks/ssr/_08zzayt._.js:34:46795)
@@ -88,7 +63,32 @@
     digest: 'DYNAMIC_SERVER_USAGE'
   }
 }
-✓ Generating static pages using 7 workers (89/89) in 494ms
+[auth:read-session] {
+  requestId: '38dc0480-df5a-47e9-b751-b572dab63edb',
+  error: Error: Dynamic server usage: Route /admin/subscribers couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+      at m (.next/server/chunks/ssr/_08zzayt._.js:34:38162)
+      at h (.next/server/chunks/ssr/_08zzayt._.js:34:46795)
+      at r (.next/server/chunks/ssr/_08zzayt._.js:45:3355)
+      at q (.next/server/chunks/ssr/_08zzayt._.js:45:3264)
+      at k (.next/server/chunks/ssr/[root-of-the-server]__0np8jc_._.js:1:10216) {
+    description: "Route /admin/subscribers couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+    digest: 'DYNAMIC_SERVER_USAGE'
+  }
+}
+  Generating static pages using 7 workers (66/89)
+[auth:read-session] {
+  requestId: 'db7bfbaf-6e78-4298-b4d2-917baf359497',
+  error: Error: Dynamic server usage: Route /editorial/calendar couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+      at m (.next/server/chunks/ssr/_08zzayt._.js:34:38162)
+      at h (.next/server/chunks/ssr/_08zzayt._.js:34:46795)
+      at r (.next/server/chunks/ssr/_08zzayt._.js:45:3355)
+      at q (.next/server/chunks/ssr/_08zzayt._.js:45:3264)
+      at l (.next/server/chunks/ssr/[root-of-the-server]__0bc2~y1._.js:1:6275) {
+    description: "Route /editorial/calendar couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+    digest: 'DYNAMIC_SERVER_USAGE'
+  }
+}
+✓ Generating static pages using 7 workers (89/89) in 442ms
   Finalizing page optimization ...
 
 Route (app)                                         Revalidate  Expire

@@ -3,5 +3,5 @@
 > the-consilium@0.1.0 audit:types
 > type-coverage --strict
 
-(107143 / 108802) 98.47%
+(107195 / 108853) 98.47%
 type-coverage success.
