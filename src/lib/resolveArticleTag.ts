@@ -7,10 +7,10 @@ import { canonicalTagSlug } from '@/lib/tagIdentity'
 export async function resolveArticleTag(
   tx: Prisma.TransactionClient,
   topic: NormalizedTag
-): Promise<{ id: string }> {
+): Promise<{ id: string; name: string }> {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${topic.slug}))`
-  const existing = await tx.$queryRaw<{ id: string }[]>`
-    SELECT id FROM tags WHERE public.consilium_tag_identity(name) = ${topic.slug}
+  const existing = await tx.$queryRaw<{ id: string; name: string }[]>`
+    SELECT id, name FROM tags WHERE public.consilium_tag_identity(name) = ${topic.slug}
     ORDER BY "createdAt", id LIMIT 1`
   if (existing[0]) return existing[0]
   const suffix = createHash('sha256').update(topic.slug).digest('hex').slice(0, 10)
@@ -24,7 +24,7 @@ export async function resolveArticleTag(
       create: { ...topic, slug },
       select: { id: true, name: true },
     })
-    if (canonicalTagSlug(tag.name) === topic.slug) return { id: tag.id }
+    if (canonicalTagSlug(tag.name) === topic.slug) return tag
   }
   throw new Error('Topic URL conflict. Please choose a more specific topic name.')
 }

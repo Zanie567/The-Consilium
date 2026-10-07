@@ -5,10 +5,12 @@ import { randomUUID } from 'node:crypto'
 import type { ArticleStatus } from '@prisma/client'
 import { articleVersion } from '@/lib/articleVersion'
 import { SENSITIVE_USER_FIELDS } from '@/lib/publicUser'
+import { canonicalTagSlug } from '@/lib/tagIdentity'
 
 const base = process.env.BASE_URL!
 const session = new Session(base)
 const ids: string[] = []
+const tagIds: string[] = []
 let authorId: string
 let seriesId: string
 beforeAll(async () => {
@@ -16,7 +18,10 @@ beforeAll(async () => {
   authorId = (await prisma.user.findUniqueOrThrow({ where: { email: 'admin@theconsilium.com' } })).id
   seriesId = (await prisma.series.create({ data: { title: 'Revision fixture', slug: randomUUID() } })).id
 })
-afterEach(async () => { await prisma.article.deleteMany({ where: { id: { in: ids.splice(0) } } }) })
+afterEach(async () => {
+  await prisma.article.deleteMany({ where: { id: { in: ids.splice(0) } } })
+  await prisma.tag.deleteMany({ where: { id: { in: tagIds.splice(0) } } })
+})
 afterAll(async () => { if (seriesId) await prisma.series.delete({ where: { id: seriesId } }); await prisma.$disconnect() })
 async function fixture(status: ArticleStatus = 'DRAFT') {
   const article = await prisma.article.create({ data: {
@@ -37,6 +42,27 @@ async function newer(id: string) {
   return prisma.article.update({ where: { id }, data: { title: 'Newer title', content: 'Newer content', updatedAt: new Date(Date.now() + 100) } })
 }
 describe('first-party loaded article revisions over real HTTP and PostgreSQL', () => {
+  it('create and update fingerprints use stored canonical topic names for subsequent saves', async () => {
+    const name = `Revision Topic ${randomUUID()}`
+    const topic = await prisma.tag.create({ data: { name, slug: canonicalTagSlug(name) } })
+    tagIds.push(topic.id)
+    const createdResponse = await session.post('/api/articles', {
+      title: 'Canonical fingerprint fixture', content: 'Stored content', status: 'DRAFT', tags: [name.toLowerCase()],
+    })
+    expect(createdResponse.status).toBe(201)
+    let saved = await createdResponse.json()
+    ids.push(saved.id)
+    for (const fields of [{ title: 'Next save' }, { tags: [name.toUpperCase()] }, { title: 'Final save' }]) {
+      const read = await (await session.get(`/api/articles/${saved.id}`)).json()
+      expect(saved.version).toBe(read.version)
+      const response = await send(saved.id, { ...fields, baseVersion: saved.version, expectedUpdatedAt: saved.updatedAt })
+      expect(response.status).toBe(200)
+      saved = await response.json()
+    }
+    const row = await prisma.article.findUniqueOrThrow({ where: { id: saved.id }, include: { tags: { include: { tag: true } } } })
+    expect(row.tags.map(t => t.tag)).toEqual([topic])
+    expect(saved.version).toBe(articleVersion(row, [topic.name]))
+  })
   it.each(['staff', 'owner'] as const)('%s reads the current fingerprint without unrelated account fields', async role => {
     const loaded = await fixture()
     const client = role === 'staff' ? session : new Session(base)

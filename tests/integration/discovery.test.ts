@@ -55,6 +55,6 @@ describe('topic persistence and filtering on isolated Postgres', () => {
     await prisma.tag.update({ where: { id: topics[0].id }, data: { name: `${prefix} Renamed Topic` } })
     expect((await prisma.tag.findUniqueOrThrow({ where: { id: topics[0].id } })).slug).toBe(topics[0].slug)
     expect(await prisma.articleTag.count({ where: { tagId: topics[0].id } })).toBe(3)
-    expect(await prisma.$transaction(tx => resolveArticleTag(tx, { name: `${prefix} Renamed Topic`, slug: `${prefix}-renamed-topic` }))).toEqual({ id: topics[0].id })
+    expect(await prisma.$transaction(tx => resolveArticleTag(tx, { name: `${prefix} Renamed Topic`, slug: `${prefix}-renamed-topic` }))).toEqual({ id: topics[0].id, name: `${prefix} Renamed Topic` })
   })
 })

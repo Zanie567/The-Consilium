@@ -227,7 +227,7 @@ async function POSTHandler(request: NextRequest) {
     // is a known quantity.
     const normalizedTags = normalizeArticleTags(tags)
 
-    const article = await prisma.$transaction(async (tx) => {
+    const { article, savedTagNames } = await prisma.$transaction(async (tx) => {
       await lockArticleImages(tx, content, coverImage)
       const created = await tx.article.create({
         data: {
@@ -244,8 +244,8 @@ async function POSTHandler(request: NextRequest) {
         },
       })
 
+      const tagRecords: Array<{ id: string; name: string }> = []
       if (normalizedTags.length > 0) {
-        const tagRecords = []
         for (const { name, slug: tagSlug } of [...normalizedTags].sort((a, b) => a.slug.localeCompare(b.slug))) {
           const tag = await resolveArticleTag(tx, { name, slug: tagSlug })
           tagRecords.push(tag)
@@ -256,12 +256,12 @@ async function POSTHandler(request: NextRequest) {
         })
       }
 
-      return created
+      return { article: created, savedTagNames: tagRecords.map(tag => tag.name) }
     }, { timeout: ARTICLE_SAVE_TIMEOUT_MS })
 
     if (article.status === 'PUBLISHED') revalidateArticleLists()
 
-    return NextResponse.json({ ...article, version: articleVersion(article, normalizedTags.map((t) => t.name)) }, {
+    return NextResponse.json({ ...article, version: articleVersion(article, savedTagNames) }, {
       status: 201,
       headers: { 'x-request-id': requestId },
     })

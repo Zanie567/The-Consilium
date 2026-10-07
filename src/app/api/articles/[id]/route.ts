@@ -251,7 +251,7 @@ async function PUTHandler(
     // is a known quantity.
     const normalizedTags = normalizeArticleTags(tags)
 
-    const updated = await prisma.$transaction(async (tx) => {
+    const { article: updated, savedTagNames } = await prisma.$transaction(async (tx) => {
       await lockArticleImages(tx, content ?? existing.content, coverImage ?? existing.coverImage)
       const savedArticle = await tx.article.update({
         // Recheck the authorised row at the write: a concurrent submission,
@@ -290,13 +290,15 @@ async function PUTHandler(
       // Article fields and tag associations are one save operation. Keeping
       // them in the same transaction prevents a 500 after a partial update.
       // `tags` absent means "leave them alone"; an empty array means "clear them".
+      let savedTagNames = existing.tags.map(t => t.tag.name)
       if (Array.isArray(tags)) {
         await tx.articleTag.deleteMany({ where: { articleId: id } })
-        const tagRecords: Array<{ id: string }> = []
+        const tagRecords: Array<{ id: string; name: string }> = []
         for (const { name, slug: tagSlug } of [...normalizedTags].sort((a, b) => a.slug.localeCompare(b.slug))) {
           const tag = await resolveArticleTag(tx, { name, slug: tagSlug })
           tagRecords.push(tag)
         }
+        savedTagNames = tagRecords.map(tag => tag.name)
         if (tagRecords.length > 0) {
           await tx.articleTag.createMany({
             data: tagRecords.map((tag) => ({ articleId: id, tagId: tag.id })),
@@ -305,7 +307,7 @@ async function PUTHandler(
         }
       }
 
-      return savedArticle
+      return { article: savedArticle, savedTagNames }
     }, { timeout: ARTICLE_SAVE_TIMEOUT_MS })
 
     await cleanupRemovedArticleImages(existing.content, existing.coverImage, updated.content, updated.coverImage)
@@ -379,9 +381,6 @@ async function PUTHandler(
       }
     }
 
-    const savedTagNames = Array.isArray(tags)
-      ? normalizedTags.map((t) => t.name)
-      : existing.tags.map((t) => t.tag.name)
     return NextResponse.json(
       { ...updated, version: articleVersion(updated, savedTagNames) },
       { headers: { 'x-request-id': requestId } }
