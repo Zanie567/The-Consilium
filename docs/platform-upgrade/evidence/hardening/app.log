@@ -1,0 +1,299 @@
+
+> the-consilium@0.1.0 start
+> next start -p 3221
+
+▲ Next.js 16.2.2
+- Local:         http://localhost:3221
+- Network:       http://10.94.79.227:3221
+✓ Ready in 72ms
+[email] RESEND_API_KEY not set - email not sent to theconsilium.editor@gmail.com
+[contact] Notification email was not delivered; message is saved in contact_messages
+[email] RESEND_API_KEY not set - email not sent to theconsilium.editor@gmail.com
+[contact] Notification email was not delivered; message is saved in contact_messages
+[email] RESEND_API_KEY not set - email not sent to theconsilium.editor@gmail.com
+[contact] Notification email was not delivered; message is saved in contact_messages
+[email] RESEND_API_KEY not set - email not sent to theconsilium.editor@gmail.com
+[contact] Notification email was not delivered; message is saved in contact_messages
+[publish-scheduled] No articles due for publishing
+[publish-scheduled] No articles due for publishing
+[email] RESEND_API_KEY not set - email not sent to admin@theconsilium.com
+[email] RESEND_API_KEY not set - email not sent to admin@theconsilium.com
+[email] RESEND_API_KEY not set - email not sent to admin@theconsilium.com
+[email] RESEND_API_KEY not set - email not sent to theconsilium.editor@gmail.com
+[contact] Notification email was not delivered; message is saved in contact_messages
+[email] RESEND_API_KEY not set - email not sent to theconsilium.editor@gmail.com
+[contact] Notification email was not delivered; message is saved in contact_messages
+[email] RESEND_API_KEY not set - email not sent to theconsilium.editor@gmail.com
+[contact] Notification email was not delivered; message is saved in contact_messages
+[email] RESEND_API_KEY not set - email not sent to theconsilium.editor@gmail.com
+[contact] Notification email was not delivered; message is saved in contact_messages
+[publish-scheduled] No articles due for publishing
+[publish-scheduled] No articles due for publishing
+[email] RESEND_API_KEY not set - email not sent to admin@theconsilium.com
+[email] RESEND_API_KEY not set - email not sent to admin@theconsilium.com
+[email] RESEND_API_KEY not set - email not sent to admin@theconsilium.com
+⨯ The requested resource isn't a valid image for /team/x.png received null
+⨯ The requested resource isn't a valid image for /team/x.png received null
+[ticker/macro] CPIAUCSL: FRED_API_KEY is not set
+[ticker/macro] UNRATE: FRED_API_KEY is not set
+[ticker/macro] DFF: FRED_API_KEY is not set
+[ticker/macro] ECBDFR: FRED_API_KEY is not set
+⨯ The requested resource isn't a valid image for /team/x.png received null
+⨯ The requested resource isn't a valid image for /team/x.png received null
+[ticker/macro] CPIAUCSL: FRED_API_KEY is not set
+[ticker/macro] UNRATE: FRED_API_KEY is not set
+[ticker/macro] DFF: FRED_API_KEY is not set
+[ticker/macro] ECBDFR: FRED_API_KEY is not set
+⨯ The requested resource isn't a valid image for /team/x.png received null
+⨯ The requested resource isn't a valid image for /team/x.png received null
+[ticker/macro] CPIAUCSL: FRED_API_KEY is not set
+[ticker/macro] UNRATE: FRED_API_KEY is not set
+[ticker/macro] DFF: FRED_API_KEY is not set
+[ticker/macro] ECBDFR: FRED_API_KEY is not set
+⨯ The requested resource isn't a valid image for /team/x.png received null
+⨯ The requested resource isn't a valid image for /team/x.png received null
+⨯ The requested resource isn't a valid image for /team/x.png received null
+⨯ The requested resource isn't a valid image for /team/x.png received null
+⨯ The requested resource isn't a valid image for /team/x.png received null
+⨯ The requested resource isn't a valid image for /team/x.png received null
+⨯ The requested resource isn't a valid image for /team/x.png received null
+[ticker/macro] CPIAUCSL: FRED_API_KEY is not set
+[ticker/macro] UNRATE: FRED_API_KEY is not set
+[ticker/macro] DFF: FRED_API_KEY is not set
+[ticker/macro] ECBDFR: FRED_API_KEY is not set
+[ticker/macro] CPIAUCSL: FRED_API_KEY is not set
+[ticker/macro] UNRATE: FRED_API_KEY is not set
+[ticker/macro] DFF: FRED_API_KEY is not set
+[ticker/macro] ECBDFR: FRED_API_KEY is not set
+[ticker/macro] CPIAUCSL: FRED_API_KEY is not set
+[ticker/macro] UNRATE: FRED_API_KEY is not set
+[ticker/macro] DFF: FRED_API_KEY is not set
+[ticker/macro] ECBDFR: FRED_API_KEY is not set
+[ticker/macro] CPIAUCSL: FRED_API_KEY is not set
+[ticker/macro] UNRATE: FRED_API_KEY is not set
+[ticker/macro] DFF: FRED_API_KEY is not set
+[ticker/macro] ECBDFR: FRED_API_KEY is not set
+[ticker/macro] CPIAUCSL: FRED_API_KEY is not set
+[ticker/macro] UNRATE: FRED_API_KEY is not set
+[ticker/macro] DFF: FRED_API_KEY is not set
+[ticker/macro] ECBDFR: FRED_API_KEY is not set
+[ticker/macro] CPIAUCSL: FRED_API_KEY is not set
+[ticker/macro] UNRATE: FRED_API_KEY is not set
+[ticker/macro] DFF: FRED_API_KEY is not set
+[ticker/macro] ECBDFR: FRED_API_KEY is not set
+[ticker/macro] D7G7: HTTP 429
+[ticker/macro] MGSX: HTTP 429
+[ticker/macro] CPIAUCSL: FRED_API_KEY is not set
+[ticker/macro] UNRATE: FRED_API_KEY is not set
+[ticker/macro] DFF: FRED_API_KEY is not set
+[ticker/macro] ECBDFR: FRED_API_KEY is not set
+[ticker/macro] D7G7: HTTP 429
+[ticker/macro] MGSX: HTTP 429
+[ticker/macro] CPIAUCSL: FRED_API_KEY is not set
+[ticker/macro] UNRATE: FRED_API_KEY is not set
+[ticker/macro] DFF: FRED_API_KEY is not set
+[ticker/macro] ECBDFR: FRED_API_KEY is not set
+[ticker/macro] D7G7: HTTP 429
+[ticker/macro] MGSX: HTTP 429
+[ticker/macro] CPIAUCSL: FRED_API_KEY is not set
+[ticker/macro] UNRATE: FRED_API_KEY is not set
+[ticker/macro] DFF: FRED_API_KEY is not set
+[ticker/macro] ECBDFR: FRED_API_KEY is not set
+[ticker/macro] D7G7: HTTP 429
+[ticker/macro] MGSX: HTTP 429
+[ticker/macro] CPIAUCSL: FRED_API_KEY is not set
+[ticker/macro] UNRATE: FRED_API_KEY is not set
+[ticker/macro] DFF: FRED_API_KEY is not set
+[ticker/macro] ECBDFR: FRED_API_KEY is not set
+[ticker/macro] MGSX: HTTP 429
+[ticker/macro] D7G7: HTTP 429
+[email] RESEND_API_KEY not set - email not sent to chain@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor.global@consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor.opinion@consilium.test
+[email] RESEND_API_KEY not set - email not sent to admin@theconsilium.com
+[email] RESEND_API_KEY not set - email not sent to chief@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to linked@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to admin@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to legacy@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to new-editor@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to lifecycle-admin@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to writer@theconsilium.com
+[email] RESEND_API_KEY not set - email not sent to chain@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor.global@consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor.opinion@consilium.test
+[email] RESEND_API_KEY not set - email not sent to admin@theconsilium.com
+[email] RESEND_API_KEY not set - email not sent to chief@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to linked@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to admin@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to legacy@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to new-editor@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to lifecycle-admin@lifecycle.consilium.test
+[api/articles:update] {
+  requestId: 'b3e82dc0-66c6-4a29-86b1-8dd831281e49',
+  error: Error [PrismaClientKnownRequestError]:
+  Invalid `prisma.article.update()` invocation:
+
+
+  An operation failed because it depends on one or more records that were required but not found. No record was found for an update.
+      at async u.prisma.$transaction.timeout (.next/server/chunks/_10m96wm._.js:1:4118)
+      at async v (.next/server/chunks/_10m96wm._.js:1:4012) {
+    code: 'P2025',
+    meta: { modelName: 'Article', operation: 'an update' },
+    clientVersion: '7.6.0'
+  }
+}
+[api/articles:update] {
+  requestId: '1e8656c1-e499-4652-af36-b7426381f747',
+  error: Error [PrismaClientKnownRequestError]:
+  Invalid `prisma.article.update()` invocation:
+
+
+  An operation failed because it depends on one or more records that were required but not found. No record was found for an update.
+      at async u.prisma.$transaction.timeout (.next/server/chunks/_10m96wm._.js:1:4118)
+      at async v (.next/server/chunks/_10m96wm._.js:1:4012) {
+    code: 'P2025',
+    meta: { modelName: 'Article', operation: 'an update' },
+    clientVersion: '7.6.0'
+  }
+}
+[api/articles:update] {
+  requestId: '02f299ff-27fc-447f-b953-79b06e986cd4',
+  error: Error [PrismaClientKnownRequestError]:
+  Invalid `prisma.article.update()` invocation:
+
+
+  An operation failed because it depends on one or more records that were required but not found. No record was found for an update.
+      at async u.prisma.$transaction.timeout (.next/server/chunks/_10m96wm._.js:1:4118)
+      at async v (.next/server/chunks/_10m96wm._.js:1:4012) {
+    code: 'P2025',
+    meta: { modelName: 'Article', operation: 'an update' },
+    clientVersion: '7.6.0'
+  }
+}
+[api/articles:update] {
+  requestId: '11bf386d-04f9-45b1-a4c2-e25323f38998',
+  error: Error [PrismaClientKnownRequestError]:
+  Invalid `prisma.article.update()` invocation:
+
+
+  An operation failed because it depends on one or more records that were required but not found. No record was found for an update.
+      at async u.prisma.$transaction.timeout (.next/server/chunks/_10m96wm._.js:1:4118)
+      at async v (.next/server/chunks/_10m96wm._.js:1:4012) {
+    code: 'P2025',
+    meta: { modelName: 'Article', operation: 'an update' },
+    clientVersion: '7.6.0'
+  }
+}
+[api/articles:update] {
+  requestId: 'd19c9bb7-f134-428b-94b3-df4c921df5cc',
+  error: Error [PrismaClientKnownRequestError]:
+  Invalid `prisma.article.update()` invocation:
+
+
+  An operation failed because it depends on one or more records that were required but not found. No record was found for an update.
+      at async u.prisma.$transaction.timeout (.next/server/chunks/_10m96wm._.js:1:4118)
+      at async v (.next/server/chunks/_10m96wm._.js:1:4012) {
+    code: 'P2025',
+    meta: { modelName: 'Article', operation: 'an update' },
+    clientVersion: '7.6.0'
+  }
+}
+[api/articles:update] {
+  requestId: '2fcd6db0-765c-4d15-ba39-1655d8112e71',
+  error: Error [PrismaClientKnownRequestError]:
+  Invalid `prisma.article.update()` invocation:
+
+
+  An operation failed because it depends on one or more records that were required but not found. No record was found for an update.
+      at async u.prisma.$transaction.timeout (.next/server/chunks/_10m96wm._.js:1:4118)
+      at async v (.next/server/chunks/_10m96wm._.js:1:4012) {
+    code: 'P2025',
+    meta: { modelName: 'Article', operation: 'an update' },
+    clientVersion: '7.6.0'
+  }
+}
+[email] RESEND_API_KEY not set - email not sent to chain@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor.global@consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor.opinion@consilium.test
+[email] RESEND_API_KEY not set - email not sent to admin@theconsilium.com
+[email] RESEND_API_KEY not set - email not sent to chief@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to linked@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to admin@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to legacy@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to new-editor@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to lifecycle-admin@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to writer@theconsilium.com
+[ticker/macro] CPIAUCSL: FRED_API_KEY is not set
+[ticker/macro] UNRATE: FRED_API_KEY is not set
+[ticker/macro] DFF: FRED_API_KEY is not set
+[ticker/macro] ECBDFR: FRED_API_KEY is not set
+[ticker/macro] CPIAUCSL: FRED_API_KEY is not set
+[ticker/macro] UNRATE: FRED_API_KEY is not set
+[ticker/macro] DFF: FRED_API_KEY is not set
+[ticker/macro] ECBDFR: FRED_API_KEY is not set
+[email] RESEND_API_KEY not set - email not sent to admin@theconsilium.com
+[email] RESEND_API_KEY not set - email not sent to admin@theconsilium.com
+[email] RESEND_API_KEY not set - email not sent to chain@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor.global@consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor.opinion@consilium.test
+[email] RESEND_API_KEY not set - email not sent to admin@theconsilium.com
+[email] RESEND_API_KEY not set - email not sent to chief@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to linked@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to admin@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to legacy@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to new-editor@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to lifecycle-admin@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to writer@theconsilium.com
+[api/articles:update] {
+  requestId: '972c6fde-b8cf-48a5-82a1-bef2bf625875',
+  error: Error: aborted
+      at ignore-listed frames {
+    code: 'ECONNRESET'
+  }
+}
+[api/articles:update] {
+  requestId: '123bc4b7-1aac-4ead-a899-fbe8a25deb14',
+  error: Error: aborted
+      at ignore-listed frames {
+    code: 'ECONNRESET'
+  }
+}
+[api/articles:update] {
+  requestId: 'cfbb2f96-b637-4d63-be62-a7d33897adf7',
+  error: Error: aborted
+      at ignore-listed frames {
+    code: 'ECONNRESET'
+  }
+}
+[ticker/macro] CPIAUCSL: FRED_API_KEY is not set
+[ticker/macro] UNRATE: FRED_API_KEY is not set
+[ticker/macro] DFF: FRED_API_KEY is not set
+[ticker/macro] ECBDFR: FRED_API_KEY is not set
+[email] RESEND_API_KEY not set - email not sent to chain@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor.global@consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor.opinion@consilium.test
+[email] RESEND_API_KEY not set - email not sent to admin@theconsilium.com
+[email] RESEND_API_KEY not set - email not sent to chief@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to linked@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to admin@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to legacy@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to new-editor@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to lifecycle-admin@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to writer@theconsilium.com
+[email] RESEND_API_KEY not set - email not sent to chain@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor.global@consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor.opinion@consilium.test
+[email] RESEND_API_KEY not set - email not sent to admin@theconsilium.com
+[email] RESEND_API_KEY not set - email not sent to chief@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to linked@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to admin@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to editor@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to legacy@tp.consilium.test
+[email] RESEND_API_KEY not set - email not sent to new-editor@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to lifecycle-admin@lifecycle.consilium.test
+[email] RESEND_API_KEY not set - email not sent to writer@theconsilium.com

@@ -1,5 +1,7 @@
 # Final integration and release-readiness report
 
+**2026-10-07 follow-up:** [Pre-merge hardening report](HARDENING-REPORT.md) supersedes the historical CI, revision-caller and skip limitations below; see the addendum at the end for current results. Earlier audit evidence is preserved.
+
 Independent final audit on 2026-10-06, against original [MASTER-SPEC.md](MASTER-SPEC.md) and specialist candidate `72c9231`. The [fresh requirement ledger](MASTER-STATUS.md) is authoritative for verification status. The [specialist report](SPECIALIST-IMPLEMENTATION-REPORT.md) and [earlier handoff](SPECIALIST-HANDOFF-STATUS.md) are retained as historical evidence, not proof.
 
 **Recommendation: ready for PR review of this local integrated candidate; not cleared for production release.** No push, merge, deployment, production database query/migration or production data change occurred.
@@ -148,3 +150,15 @@ Final branch: `feature/consilium-platform-upgrade`. Final code/evidence is commi
 Original dirty checkout remains at 68b26e8 with modified search API/archive/search/archivePagination/articleTags and untracked docs/testing, discoveryQueries and supabase temp files. Specialist checkout remains clean at 72c9231. Final tree is clean after the audit commit; generated auth/build/browser artifacts remain ignored.
 
 Owned app/Storage/Postgres services are stopped at handoff; their local data, helper and evidence remain. No unrelated service stopped. The owner controls PR publication, merge, deployment and production migration separately. **No push, merge to main, deployment or production change was performed.**
+
+## Pre-merge hardening follow-up — 2026-10-07
+
+The three audited merge-gate areas are fixed and locally certified. [HARDENING-REPORT.md](HARDENING-REPORT.md) contains the mutation inventory/token exceptions, all restored cases, CI clean-runner review, exact commands and retained failure probes. Evidence: [evidence/hardening/README.md](evidence/hardening/README.md). This addendum supersedes the historical CI/caller-revision/18-skip limitations above; earlier evidence and counts are unchanged.
+
+- CI now separates service-free static/unit checks from independent guarded integration/browser jobs. Generated route types precede fresh-checkout typecheck. Both service jobs provision seeded Postgres, local Storage, production app and readiness; browser is opt-in-complete and serial. Full sequence locally reproduced; hosted Actions remains unobserved and required before merge.
+- Primary editor protection is preserved. List publication, series assignment, review actions, calendar moves, commendations, feature/pin and draft/list trash operations now carry loaded revisions and preserve server CAS/state/atomic-notification protections. Success revisions propagate or reload; conflicts preserve newer rows and do not retry. Global feature choices are serialized and retain one slot. Restore/hard-delete, account cascades, separate notes/comments, creation and automated telemetry/lifecycle jobs intentionally retain their distinct resource contracts; see inventory.
+- Eighteen skipped API placeholders became 22 active boundary cases: password 8–128, READER comments 3–1000 and sanitized text, decoded local uploads with 201/4 MiB contracts, authenticated bucket validation and persisted bookmark toggles/controlled nonexistent-article 404. **Zero explicit integration skips remain.** Moderation code and seven expected failures remain byte-identical to the starting candidate.
+- Final: typecheck/lint/build pass; unit **646 + 7 expected failures / 47 files**; integration **407 passed / 28 files / 0 skips**; aggregate **1053 + 7 expected failures / 75 files / 0 skips**; serial complete Playwright **129 passed**. A first hardening feature-slot implementation failed a concurrent-choice probe; repaired and re-certified, with both red/green evidence retained. No new unexpected failures in final runs.
+- All changes local on `feature/consilium-platform-upgrade`, starting 07b1105, CI commit 8bfe128 and revision commit bfae063 followed by the coverage/evidence commit. No dependency/schema/migration changes, production access/change, push, merge or deployment. Original dirty foundation work preserved. Owned local services stopped at handoff.
+
+**READY FOR PR REVIEW, NOT READY TO MERGE.** No remaining local task blocker; hosted CI and ordinary review remain merge gates. Release-only LinkedIn/origin, historical schema/collision/migration, real Storage/provider/cron/device acceptance requirements remain unchanged. Existing moderation/dependency/provider/outbox/high-volume debt is disclosed separately; not silently waived by this pass.

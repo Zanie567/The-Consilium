@@ -1,0 +1,62 @@
+[platform-check] guarded test DB; app localhost:3221; storage loopback:55621; email/OAuth disabled
+
+Running 10 tests using 1 worker
+
+(node:79983) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:79983) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [setup] › tests/e2e/auth.setup.ts:13:6 › authenticate as admin (678ms)
+  ✓   2 [setup] › tests/e2e/auth.setup.ts:50:6 › authenticate as an editor with no category assignments (373ms)
+  ✓   3 [setup] › tests/e2e/auth.setup.ts:54:6 › authenticate as an editor scoped to Opinion (358ms)
+  ✓   4 [setup] › tests/e2e/auth.setup.ts:62:6 › authenticate as the seeded writer (362ms)
+(node:80003) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:80003) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   5 [upgrade] › tests/e2e/upgrade-revisions.spec.ts:26:5 › list publish/unpublish sends loaded revisions, propagates successful revision and reconciles stale conflicts (1.7s)
+  ✓   6 [upgrade] › tests/e2e/upgrade-revisions.spec.ts:61:5 › series assignment from stale page preserves newer article, reload then assigns successfully (416ms)
+  ✓   7 [upgrade] › tests/e2e/upgrade-revisions.spec.ts:85:5 › review rejects stale page; commendation revision propagates to successful return (481ms)
+  ✓   8 [upgrade] › tests/e2e/upgrade-revisions.spec.ts:115:7 › review UI approve with current revision succeeds, then unpublishes (397ms)
+  ✓   9 [upgrade] › tests/e2e/upgrade-revisions.spec.ts:115:7 › review UI schedule with current revision succeeds (299ms)
+  ✘  10 [upgrade] › tests/e2e/upgrade-revisions.spec.ts:139:5 › public bookmark on/off and comment persist through actual UI (30.1s)
+
+
+  1) [upgrade] › tests/e2e/upgrade-revisions.spec.ts:139:5 › public bookmark on/off and comment persist through actual UI
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.waitForResponse: Test timeout of 30000ms exceeded.
+
+      151 |   expect(await db.bookmark.count({ where: { articleId: loaded.id } })).toBe(0)
+      152 |   await page.getByPlaceholder('Join the discussion…').fill('A useful sourced discussion')
+    > 153 |   const comment = page.waitForResponse(res => res.url().endsWith('/api/comments') && res.request().method() === 'POST')
+          |                        ^
+      154 |   await page.getByRole('button', { name: 'Post comment', exact: true }).click()
+      155 |   expect((await comment).status()).toBe(201)
+      156 |   expect(await db.comment.count({ where: { articleId: loaded.id, body: 'A useful sourced discussion' } })).toBe(1)
+        at /private/tmp/consilium-final-integration/tests/e2e/upgrade-revisions.spec.ts:153:24
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'Post comment', exact: true })
+
+
+      152 |   await page.getByPlaceholder('Join the discussion…').fill('A useful sourced discussion')
+      153 |   const comment = page.waitForResponse(res => res.url().endsWith('/api/comments') && res.request().method() === 'POST')
+    > 154 |   await page.getByRole('button', { name: 'Post comment', exact: true }).click()
+          |                                                                         ^
+      155 |   expect((await comment).status()).toBe(201)
+      156 |   expect(await db.comment.count({ where: { articleId: loaded.id, body: 'A useful sourced discussion' } })).toBe(1)
+      157 |   await page.reload()
+        at /private/tmp/consilium-final-integration/tests/e2e/upgrade-revisions.spec.ts:154:73
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-revisions-public-b-d11fe-t-persist-through-actual-UI-upgrade/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/upgrade-revisions-public-b-d11fe-t-persist-through-actual-UI-upgrade/error-context.md
+
+  1 failed
+    [upgrade] › tests/e2e/upgrade-revisions.spec.ts:139:5 › public bookmark on/off and comment persist through actual UI
+  9 passed (36.1s)

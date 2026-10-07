@@ -1,0 +1,371 @@
+[platform-check] guarded test DB; app localhost:3221; storage loopback:55621; email/OAuth disabled
+Service logs: /var/folders/c3/f3cf73pj4fg2dd69gq_cphqc0000gn/T/consilium-suite-BlLzCS
+
+> the-consilium@0.1.0 test:setup-db
+> bash scripts/setup-test-db.sh
+
+→ initialising Postgres cluster at /tmp/consilium-hardening-pg-20261007
+→ starting Postgres on port 55521
+waiting for server to start.... done
+server started
+→ verifying resolved database host is safe for the test harness
+   ok: localhost
+→ prisma generate + db push
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+┌─────────────────────────────────────────────────────────┐
+│  Update available 7.6.0 -> 8.0.0-rc.20                  │
+│                                                         │
+│  This is a major update - please follow the guide at    │
+│  https://pris.ly/d/major-version-upgrade                │
+│                                                         │
+│  Run the following to update                            │
+│    npm i --save-dev prisma@latest                       │
+│    npm i @prisma/client@latest                          │
+└─────────────────────────────────────────────────────────┘
+→ seeding
+
+> the-consilium@0.1.0 db:seed
+> ts-node -P tsconfig.seed.json prisma/seed.ts
+
+Seeding database...
+Categories: News, Opinion, Analysis, Interviews
+Users: admin@theconsilium.com writer@theconsilium.com
+Articles: Bank of England Cuts Rates to 4.5% as Inflation Returns to Target
+  AI and Labour Markets: Beyond the Technopanic
+  The Housing Affordability Crisis: Comparing Policy Responses Across the OECD
+  Carbon Market Fragmentation and the Challenge of Global Climate Coordination
+Team: Alexander Escala, Annika Sarawgi, Sam Hunt, Zara Spendiff, Gurmehar Kaur, Yaoqing Wang, Catherine Toh
+
+Seeding complete.
+
+Admin: admin@theconsilium.com / consilium2024
+Writer: writer@theconsilium.com / writer2024
+
+> the-consilium@0.1.0 db:seed-debates
+> ts-node -P tsconfig.seed.json prisma/seed-debates.ts
+
+🌱 Seeding debates…
+✓ Created 3 debates and 6 debate articles
+  ✓ Seeded 240 votes for "Should the UK raise the minimum wage?" (134 FOR, 106 AGAINST)
+  ✓ Seeded 380 votes for "Should AI be broadly regulated?" (184 FOR, 196 AGAINST)
+  ✓ Seeded 190 votes for "Does free trade do more harm than good?" (100 FOR, 90 AGAINST)
+  ✓ Cover images set on all debate articles
+✅ Debate seed complete
+
+────────────────────────────────────────────────────────────
+No removable duplicates found. Database is clean. ✓
+   Editors: editor.global (unscoped), editor.opinion (Opinion only)
+✅ Test fixtures ready. Created 7 comment(s).
+   Total users: 8, total comments: 7
+Read-through fixtures ready:
+  the-long-read-experiment: 24 readers, expect finished 21%, median 58%, drop 30-40%
+  the-small-sample: 3 readers, expect the "not enough data yet" state
+  rt-edge-*: draft edge-case articles for the DB aggregation tests
+psql:supabase/migrations/20261006153514_discovery_topic_identity.sql:18: NOTICE:  relation "article_tags_tagId_articleId_idx" already exists, skipping
+psql:supabase/migrations/20261006160355_managed_article_images.sql:10: NOTICE:  relation "article_image_assets" already exists, skipping
+psql:supabase/migrations/20261006160355_managed_article_images.sql:11: NOTICE:  relation "article_image_assets_unusedSince_createdAt_idx" already exists, skipping
+psql:supabase/migrations/20261006160355_managed_article_images.sql:12: NOTICE:  relation "article_image_assets_uploaderId_idx" already exists, skipping
+psql:supabase/migrations/20261006161413_normalized_subscriber_email.sql:13: NOTICE:  index "subscribers_normalized_email_key" does not exist, skipping
+psql:supabase/migrations/20261006161505_article_active_engagement.sql:11: NOTICE:  relation "article_engagement_sessions" already exists, skipping
+psql:supabase/migrations/20261006161505_article_active_engagement.sql:12: NOTICE:  relation "article_engagement_sessions_articleId_startedAt_idx" already exists, skipping
+psql:supabase/migrations/20261006161505_article_active_engagement.sql:13: NOTICE:  relation "article_engagement_sessions_startedAt_idx" already exists, skipping
+psql:supabase/migrations/20261006161505_article_active_engagement.sql:14: NOTICE:  relation "article_engagement_sessions_readerHash_startedAt_idx" already exists, skipping
+psql:supabase/migrations/20261006161505_article_active_engagement.sql:15: NOTICE:  constraint "article_engagement_sessions_activeSeconds_check" of relation "article_engagement_sessions" does not exist, skipping
+✅ test database ready (port 55521)
+CREATE SCHEMA
+DO
+CREATE TABLE
+INSERT 0 1
+psql:supabase/migrations/20261001_team_member_user_link.sql:22: NOTICE:  column "userId" of relation "team_members" already exists, skipping
+ALTER TABLE
+psql:supabase/migrations/20261001_team_member_user_link.sql:25: NOTICE:  relation "team_members_userId_key" already exists, skipping
+CREATE INDEX
+DO
+DO
+
+> the-consilium@0.1.0 build
+> next build
+
+▲ Next.js 16.2.2 (Turbopack)
+- Experiments (use with caution):
+  ✓ viewTransition
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 5.5s
+  Running TypeScript ...
+  Finished TypeScript in 8.3s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/89) ...
+  Generating static pages using 7 workers (22/89)
+[auth:read-session] {
+  requestId: '2f3d1df1-29a0-4a72-9678-41182c4d4991',
+  error: Error: Dynamic server usage: Route /editorial/readers couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+      at m (.next/server/chunks/ssr/_0aqv9ie._.js:1:15250)
+      at h (.next/server/chunks/ssr/_0aqv9ie._.js:34:24883)
+      at r (.next/server/chunks/ssr/_0aqv9ie._.js:45:3355)
+      at q (.next/server/chunks/ssr/_0aqv9ie._.js:45:3264)
+      at k (.next/server/chunks/ssr/[root-of-the-server]__12w79nl._.js:1:3327) {
+    description: "Route /editorial/readers couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+    digest: 'DYNAMIC_SERVER_USAGE'
+  }
+}
+[auth:read-session] {
+  requestId: '157b42b4-c3aa-4bff-9371-ba99e52c8f38',
+  error: Error: Dynamic server usage: Route /admin/login-attempts couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+      at m (.next/server/chunks/ssr/_0aqv9ie._.js:1:15250)
+      at h (.next/server/chunks/ssr/_0aqv9ie._.js:34:24883)
+      at r (.next/server/chunks/ssr/_0aqv9ie._.js:45:3355)
+      at q (.next/server/chunks/ssr/_0aqv9ie._.js:45:3264)
+      at k (.next/server/chunks/ssr/[root-of-the-server]__0q6jw0p._.js:1:10216) {
+    description: "Route /admin/login-attempts couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+    digest: 'DYNAMIC_SERVER_USAGE'
+  }
+}
+  Generating static pages using 7 workers (44/89)
+[auth:read-session] {
+  requestId: '471c0e60-12d9-4541-9b7e-201e6ce4073f',
+  error: Error: Dynamic server usage: Route /admin/subscribers couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+      at m (.next/server/chunks/ssr/_0aqv9ie._.js:1:15250)
+      at h (.next/server/chunks/ssr/_0aqv9ie._.js:34:24883)
+      at r (.next/server/chunks/ssr/_0aqv9ie._.js:45:3355)
+      at q (.next/server/chunks/ssr/_0aqv9ie._.js:45:3264)
+      at k (.next/server/chunks/ssr/[root-of-the-server]__0np8jc_._.js:1:10216) {
+    description: "Route /admin/subscribers couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+    digest: 'DYNAMIC_SERVER_USAGE'
+  }
+}
+[auth:read-session] {
+  requestId: 'd985fe8f-9d9c-4e0a-bb8a-592c93e7f050',
+  error: Error: Dynamic server usage: Route /admin/team couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+      at m (.next/server/chunks/ssr/_0aqv9ie._.js:1:15250)
+      at h (.next/server/chunks/ssr/_0aqv9ie._.js:34:24883)
+      at r (.next/server/chunks/ssr/_0aqv9ie._.js:45:3355)
+      at q (.next/server/chunks/ssr/_0aqv9ie._.js:45:3264)
+      at k (.next/server/chunks/ssr/[root-of-the-server]__0hszdti._.js:1:3275) {
+    description: "Route /admin/team couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+    digest: 'DYNAMIC_SERVER_USAGE'
+  }
+}
+  Generating static pages using 7 workers (66/89)
+[auth:read-session] {
+  requestId: 'c7cf0dde-9218-4cb3-8999-4af063a107ef',
+  error: Error: Dynamic server usage: Route /editorial/analytics couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+      at m (.next/server/chunks/ssr/_08zzayt._.js:34:38162)
+      at h (.next/server/chunks/ssr/_08zzayt._.js:34:46795)
+      at r (.next/server/chunks/ssr/_08zzayt._.js:45:3355)
+      at q (.next/server/chunks/ssr/_08zzayt._.js:45:3264)
+      at j (.next/server/chunks/ssr/[root-of-the-server]__033bbo.._.js:1:3337) {
+    description: "Route /editorial/analytics couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+    digest: 'DYNAMIC_SERVER_USAGE'
+  }
+}
+[auth:read-session] {
+  requestId: '7263281a-c0ff-4e34-946e-72faafa43db9',
+  error: Error: Dynamic server usage: Route /editorial/calendar couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+      at m (.next/server/chunks/ssr/_08zzayt._.js:34:38162)
+      at h (.next/server/chunks/ssr/_08zzayt._.js:34:46795)
+      at r (.next/server/chunks/ssr/_08zzayt._.js:45:3355)
+      at q (.next/server/chunks/ssr/_08zzayt._.js:45:3264)
+      at l (.next/server/chunks/ssr/[root-of-the-server]__0bc2~y1._.js:1:6275) {
+    description: "Route /editorial/calendar couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+    digest: 'DYNAMIC_SERVER_USAGE'
+  }
+}
+✓ Generating static pages using 7 workers (89/89) in 534ms
+  Finalizing page optimization ...
+
+Route (app)                                         Revalidate  Expire
+┌ ƒ /
+├ ○ /_not-found                                             1m      1y
+├ ○ /about                                                  1m      1y
+├ ƒ /admin
+├ ƒ /admin/articles
+├ ƒ /admin/articles/[id]/edit
+├ ƒ /admin/articles/new
+├ ƒ /admin/data
+├ ƒ /admin/login-attempts
+├ ƒ /admin/subscribers
+├ ƒ /admin/team
+├ ƒ /api/admin/audit-log
+├ ƒ /api/admin/delete-user
+├ ƒ /api/admin/stats
+├ ƒ /api/admin/users
+├ ƒ /api/admin/users/[userId]
+├ ƒ /api/admin/users/[userId]/ban
+├ ƒ /api/admin/users/[userId]/comments/[commentId]
+├ ƒ /api/admin/users/[userId]/notes
+├ ƒ /api/admin/users/[userId]/notes/[noteId]
+├ ƒ /api/admin/users/[userId]/role
+├ ƒ /api/admin/users/[userId]/unban
+├ ƒ /api/admin/users/[userId]/warn
+├ ƒ /api/analytics/by-author
+├ ƒ /api/analytics/by-category
+├ ƒ /api/analytics/recent-activity
+├ ƒ /api/analytics/referrers
+├ ƒ /api/analytics/summary
+├ ƒ /api/analytics/timeseries
+├ ƒ /api/analytics/top-articles
+├ ƒ /api/analytics/track
+├ ƒ /api/articles
+├ ƒ /api/articles/[id]
+├ ƒ /api/articles/[id]/comments
+├ ƒ /api/articles/[id]/comments/[commentId]
+├ ƒ /api/articles/[id]/notes
+├ ƒ /api/auth/[...nextauth]
+├ ƒ /api/auth/forgot-password
+├ ƒ /api/auth/signup
+├ ƒ /api/award-trophies
+├ ƒ /api/bookmarks
+├ ƒ /api/comments
+├ ƒ /api/comments/[commentId]
+├ ƒ /api/comments/[commentId]/report
+├ ƒ /api/comments/[commentId]/upvote
+├ ƒ /api/contact
+├ ƒ /api/cron/cleanup-article-images
+├ ƒ /api/cron/cleanup-reading-analytics
+├ ƒ /api/cron/predictions
+├ ƒ /api/cron/recalculate-streaks
+├ ƒ /api/cron/update-engagement-scores
+├ ƒ /api/debates/[debateId]/vote
+├ ƒ /api/debates/active
+├ ƒ /api/editorial/analytics
+├ ƒ /api/editorial/articles/[id]/commendation
+├ ƒ /api/editorial/articles/[id]/feature
+├ ƒ /api/editorial/articles/[id]/pin
+├ ƒ /api/editorial/articles/[id]/review
+├ ƒ /api/editorial/articles/[id]/view
+├ ƒ /api/editorial/calendar
+├ ƒ /api/editorial/comments
+├ ƒ /api/editorial/comments/[commentId]
+├ ƒ /api/editorial/commissioning-brief
+├ ƒ /api/editorial/debates
+├ ƒ /api/editorial/debates/[debateId]
+├ ƒ /api/editorial/glossary
+├ ƒ /api/editorial/glossary/[id]
+├ ƒ /api/editorial/glossary/settings
+├ ƒ /api/editorial/growth/settings
+├ ƒ /api/editorial/growth/subscribers
+├ ƒ /api/editorial/growth/writer-activity
+├ ƒ /api/editorial/leaderboard
+├ ƒ /api/editorial/notifications
+├ ƒ /api/editorial/notifications/[id]
+├ ƒ /api/editorial/password-reset
+├ ƒ /api/editorial/predictions
+├ ƒ /api/editorial/predictions/[id]
+├ ƒ /api/editorial/read-through
+├ ƒ /api/editorial/read-through/[articleId]
+├ ƒ /api/editorial/review-comments
+├ ƒ /api/editorial/series
+├ ƒ /api/editorial/setup
+├ ƒ /api/editorial/trash
+├ ƒ /api/editorial/trash/[id]
+├ ƒ /api/editorial/users
+├ ƒ /api/editorial/users/[id]
+├ ƒ /api/latest-article
+├ ƒ /api/parse-pdf
+├ ƒ /api/predictions/[eventId]
+├ ƒ /api/profile/account
+├ ƒ /api/profile/comments
+├ ƒ /api/profile/debate-votes
+├ ƒ /api/profile/reading-history
+├ ƒ /api/profile/saved-articles
+├ ƒ /api/profile/stats
+├ ƒ /api/publish-scheduled
+├ ƒ /api/reading-progress
+├ ƒ /api/reading-progress/[articleId]
+├ ƒ /api/search
+├ ƒ /api/subscribe
+├ ƒ /api/team
+├ ƒ /api/team-profile
+├ ƒ /api/team/[id]
+├ ƒ /api/ticker/macro
+├ ƒ /api/ticker/markets
+├ ƒ /api/upload
+├ ƒ /api/upload/discard
+├ ƒ /api/user/achievements
+├ ƒ /api/user/achievements/mark-seen
+├ ƒ /api/user/streak
+├ ƒ /api/user/trophies
+├ ƒ /api/user/trophies/mark-seen
+├ ○ /apple-icon.png
+├ ƒ /archive
+├ ƒ /articles/[slug]
+├ ƒ /author/[slug]
+├ ○ /banned                                                 1m      1y
+├ ƒ /category/[slug]
+├ ○ /contact                                                1m      1y
+├ ○ /corrections                                            1m      1y
+├ ƒ /editorial
+├ ƒ /editorial/analytics
+├ ƒ /editorial/articles
+├ ƒ /editorial/articles/[id]/edit
+├ ƒ /editorial/articles/new
+├ ƒ /editorial/calendar
+├ ƒ /editorial/comments
+├ ƒ /editorial/debates
+├ ƒ /editorial/debates/[debateId]
+├ ƒ /editorial/debates/[debateId]/edit
+├ ƒ /editorial/debates/new
+├ ƒ /editorial/glossary
+├ ƒ /editorial/growth/engagement
+├ ƒ /editorial/growth/subscribers
+├ ƒ /editorial/growth/writer-activity
+├ ƒ /editorial/leaderboard
+├ ○ /editorial/login                                        1m      1y
+├ ƒ /editorial/predictions
+├ ƒ /editorial/predictions/[id]/edit
+├ ƒ /editorial/predictions/new
+├ ƒ /editorial/readers
+├ ƒ /editorial/reset-password
+├ ƒ /editorial/review
+├ ƒ /editorial/review/[id]
+├ ƒ /editorial/scheduled
+├ ƒ /editorial/series
+├ ○ /editorial/setup                                        1m      1y
+├ ƒ /editorial/team-profile
+├ ƒ /editorial/trash
+├ ƒ /editorial/users
+├ ƒ /editorial/users/[id]
+├ ƒ /feed.xml
+├ ○ /forgot-password                                        1m      1y
+├ ○ /icon.png
+├ ƒ /login
+├ ƒ /opinion-debate
+├ ƒ /predictions
+├ ƒ /predictions/[id]
+├ ƒ /predictions/leaderboard
+├ ○ /privacy                                                1m      1y
+├ ƒ /profile
+├ ƒ /reset-password
+├ ○ /robots.txt
+├ ○ /search                                                 1m      1y
+├ ○ /signup                                                 1m      1y
+├ ○ /sitemap.xml
+├ ƒ /tag/[slug]
+├ ƒ /team
+├ ○ /terms                                                  1m      1y
+└ ƒ /unsubscribe
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+
+> the-consilium@0.1.0 test:integration
+> vitest run tests/integration
+
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+
+ Test Files  27 passed (27)
+      Tests  363 passed | 18 skipped (381)
+   Start at  12:16:25
+   Duration  9.34s (transform 357ms, setup 118ms, import 2.52s, tests 4.93s, environment 1ms)

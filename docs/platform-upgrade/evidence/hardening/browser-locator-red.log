@@ -1,0 +1,59 @@
+[platform-check] guarded test DB; app localhost:3221; storage loopback:55621; email/OAuth disabled
+
+Running 8 tests using 1 worker
+
+(node:79042) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:79042) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [setup] › tests/e2e/auth.setup.ts:13:6 › authenticate as admin (774ms)
+  ✓  2 [setup] › tests/e2e/auth.setup.ts:50:6 › authenticate as an editor with no category assignments (386ms)
+  ✓  3 [setup] › tests/e2e/auth.setup.ts:54:6 › authenticate as an editor scoped to Opinion (361ms)
+  ✓  4 [setup] › tests/e2e/auth.setup.ts:62:6 › authenticate as the seeded writer (362ms)
+(node:79064) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:79064) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:188:5 › an editor with a stale open document gets a conflict and retains unsaved changes (961ms)
+  ✓  6 [upgrade] › tests/e2e/upgrade-revisions.spec.ts:26:5 › list publish/unpublish sends loaded revisions, propagates successful revision and reconciles stale conflicts (712ms)
+  ✘  7 [upgrade] › tests/e2e/upgrade-revisions.spec.ts:61:5 › series assignment from stale page preserves newer article, reload then assigns successfully (299ms)
+(node:79089) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:79089) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  8 [upgrade] › tests/e2e/upgrade-revisions.spec.ts:85:5 › review rejects stale page; commendation revision propagates to successful return (719ms)
+
+
+  1) [upgrade] › tests/e2e/upgrade-revisions.spec.ts:61:5 › series assignment from stale page preserves newer article, reload then assigns successfully
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('alert')
+    Expected pattern: /fresh copy|reload/i
+    Error: strict mode violation: getByRole('alert') resolved to 2 elements:
+        1) <p role="alert" class="text-red-500 text-sm bg-red-500/10 border border-red-500/20 px-4 py-3">Another editor changed this article. Open a fresh…</p> aka getByText('Another editor changed this')
+        2) <div role="alert" aria-live="assertive" id="__next-route-announcer__"></div> aka locator('[id="__next-route-announcer__"]')
+
+    Call log:
+      - Expect "toContainText" with timeout 10000ms
+      - waiting for getByRole('alert')
+
+
+      71 |   await page.getByRole('button', { name: 'Add', exact: true }).click()
+      72 |   expect((await conflict).status()).toBe(409)
+    > 73 |   await expect(page.getByRole('alert')).toContainText(/fresh copy|reload/i)
+         |                                         ^
+      74 |   expect(await db.article.findUniqueOrThrow({ where: { id: loaded.id } })).toEqual(newer)
+      75 |   await page.reload()
+      76 |   await page.getByRole('button', { name: new RegExp(series.title) }).click()
+        at /private/tmp/consilium-final-integration/tests/e2e/upgrade-revisions.spec.ts:73:41
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-revisions-series-a-70013-d-then-assigns-successfully-upgrade/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/upgrade-revisions-series-a-70013-d-then-assigns-successfully-upgrade/error-context.md
+
+  1 failed
+    [upgrade] › tests/e2e/upgrade-revisions.spec.ts:61:5 › series assignment from stale page preserves newer article, reload then assigns successfully
+  7 passed (6.0s)
