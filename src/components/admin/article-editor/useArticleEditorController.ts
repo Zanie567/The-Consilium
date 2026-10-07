@@ -35,7 +35,7 @@ function localEditorError(message: string): ArticleEditorError {
 
 function articleSaveError(reason: unknown): ArticleEditorError {
   const error = asApiError(reason)
-  const base = { kind: error.kind, requestId: error.requestId, code: error.code }
+  const base = { kind: error.kind, requestId: error.requestId, code: error.code === 'ARTICLE_CHANGED' ? 'ARTICLE_CONFLICT' : error.code }
 
   switch (error.kind) {
     case 'auth':
@@ -78,11 +78,11 @@ function articleSaveError(reason: unknown): ArticleEditorError {
           message: 'This article\'s published status was changed in another tab or by someone else, so this tab cannot save over it. Nothing was saved or published. Copy any text you need, then reload to see the current status.',
         }
       }
-      if (error.code === 'ARTICLE_CONFLICT') {
+      if (base.code === 'ARTICLE_CONFLICT') {
         return {
           ...base,
           label: 'Changed elsewhere',
-          message: `${error.message} Nothing was saved. Your changes are still in this tab: keep them to replace the newer version, or reload to discard them and see what changed.`,
+          message: 'This article was changed in another tab or by another editor. Nothing was saved. Your changes are still in this tab: keep them to replace the newer version, or reload to discard them and see what changed.',
         }
       }
       return {

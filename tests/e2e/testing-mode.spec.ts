@@ -98,7 +98,7 @@ test('public article hydration pins initial writes during testing and after exit
   const captureViews = (screen: Page) => screen.on('request', request => {
     if (request.url().endsWith('/api/analytics/track') && request.method() === 'POST') {
       const body = request.postDataJSON()
-      if (body.articleId === article.id) sessionIds.add(body.sessionId)
+      if (body?.articleId === article.id) sessionIds.add(body.sessionId)
     }
   })
   captureViews(page)
