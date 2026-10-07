@@ -63,6 +63,21 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
     }))
   }
 
+  const reloadChangedArticle = async (id: string) => {
+    // A rejected mutation must replace the stale row before the next action.
+    // Read it explicitly instead of depending on a background route refresh.
+    try {
+      const latest = await apiRequest<ArticleItem>(`/api/articles/${id}`, { cache: 'no-store' })
+      setArticles(prev => prev.map(article => article.id === id ? latest : article))
+    } catch (reason) {
+      const error = asApiError(reason)
+      if (error.status === 403 || error.status === 404) {
+        setArticles(prev => prev.filter(article => article.id !== id))
+      }
+      setError(message => `${message ?? 'The article changed.'} The latest version could not be loaded: ${error.message}`)
+    }
+  }
+
   const featureArticle = async (article: ArticleItem) => {
     const { id, isFeatured: current, updatedAt } = article
     setError(null)
@@ -74,7 +89,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
       toggle(id, 'isFeatured', !current)
     } catch (reason) {
       setError(asApiError(reason).message)
-      if (asApiError(reason).status === 409) router.refresh()
+      if (asApiError(reason).status === 409) await reloadChangedArticle(id)
     }
   }
 
@@ -88,7 +103,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
       toggle(id, 'isPinned', !current)
     } catch (reason) {
       setError(asApiError(reason).message)
-      if (asApiError(reason).status === 409) router.refresh()
+      if (asApiError(reason).status === 409) await reloadChangedArticle(id)
     }
   }
 
@@ -101,7 +116,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
       setArticles((prev) => prev.filter((article) => article.id !== id))
     } catch (reason) {
       setError(asApiError(reason).message)
-      if (asApiError(reason).status === 409) router.refresh()
+      if (asApiError(reason).status === 409) await reloadChangedArticle(id)
     }
   }
 
@@ -125,7 +140,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
       )))
     } catch (reason) {
       setError(asApiError(reason).message)
-      if (asApiError(reason).status === 409) router.refresh()
+      if (asApiError(reason).status === 409) await reloadChangedArticle(id)
     } finally {
       setPublishing(false)
       setPendingPublish(null)
