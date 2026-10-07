@@ -587,10 +587,25 @@ export function useArticleEditorController({
     }
   }
 
-  const keepMyVersion = () => {
-    // The user has seen the conflict and chosen their text: save without the version check.
-    versionRef.current = undefined
-    void handleSave()
+  const keepMyVersion = async () => {
+    // Rebase this explicit choice on a fresh revision, preserving both guards
+    // against another change between this read and the ensuing write.
+    clearTimeout(autoSaveTimer.current)
+    await saveQueueRef.current
+    try {
+      const latest = await apiRequest<SavedArticleResponse>(`/api/articles/${articleIdRef.current}`, { cache: 'no-store' })
+      if (!latest.version || !latest.updatedAt || !latest.status) {
+        throw new ApiError('server', 'The latest article revision could not be loaded. Your changes remain in this tab.')
+      }
+      revisionRef.current = latest.updatedAt
+      versionRef.current = latest.version
+      currentStatusRef.current = latest.status
+      setCurrentStatus(latest.status)
+      await handleSave()
+    } catch (reason) {
+      setError(articleSaveError(reason))
+      setSaveStatus('error')
+    }
   }
 
   const reloadLatest = () => {

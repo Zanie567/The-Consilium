@@ -36,6 +36,12 @@ describe('figure extraction preserves stored-document rendering', () => {
     )
   })
 
+  it('keeps existing prefixed credits without duplicating the label', () => {
+    const html = render([{ type: 'figure', attrs: { src: '/legacy.png', credit: 'Credit: Test Desk / Reuters' } }])
+    expect(html).toContain('<p class="image-credit">Credit: Test Desk / Reuters</p>')
+    expect(html).not.toContain('Credit: Credit:')
+  })
+
   it('retains legacy image nodes without manufacturing empty metadata', () => {
     const html = render([{ type: 'image', attrs: { src: '/legacy.png', alt: 'Legacy' } }])
     expect(html).toBe(

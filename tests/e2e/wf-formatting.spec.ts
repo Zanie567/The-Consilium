@@ -272,6 +272,7 @@ test('build the article using every control', async ({ browser }) => {
   ;(await chooser).setFiles({ name: 'figure.png', mimeType: 'image/png', buffer: makePng(64) })
   const figure = ed.body().locator('figure.article-figure')
   await expect(figure.locator('img')).toBeVisible({ timeout: 15_000 })
+  await figure.getByLabel('Alternative text', { exact: true }).fill('Solid red chart fixture')
   await figure.getByPlaceholder('Add a caption…').fill(CAPTION)
   await figure.getByPlaceholder(/Photo credit/).fill(CREDIT)
 

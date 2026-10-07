@@ -148,7 +148,7 @@ test('shuffled account-linked chief, two deputies, editors, writers and Growth r
       await page.goto('/team')
       const decline = page.getByRole('button', { name: 'Decline', exact: true })
       if (await decline.isVisible()) await decline.click()
-      expect(await page.locator('main h3').allTextContents()).toEqual([
+      await expect(page.locator('main h3')).toHaveText([
         'QA Chief', 'QA Deputy A', 'QA Deputy B', 'QA Editor 1', 'QA Editor 2', 'QA Editor 3', 'QA Writer 1', 'QA Writer 2', 'QA Growth 1', 'QA Growth 2',
       ])
       await expect(page.getByRole('heading', { name: 'Editorial Team', exact: true })).toBeVisible()

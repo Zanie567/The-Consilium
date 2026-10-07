@@ -341,9 +341,12 @@ test.describe('the same article in two tabs', () => {
     await t.second.saving(() => t.second.saveDraftButton().click())
     await expect(alertOf(t.secondPage)).toContainText(/changed/i)
 
+    const beforeKeep = await db().article.findUniqueOrThrow({ where: { id: t.id } })
     const keep = t.secondPage.getByRole('button', { name: 'Keep my version' })
     const res = await t.second.saving(() => keep.click())
     expect(res.status()).toBe(200)
+    expect(res.request().postDataJSON().expectedUpdatedAt).toBe(beforeKeep.updatedAt.toISOString())
+    expect(res.request().postDataJSON().baseVersion).toBeTruthy()
     await expect(alertOf(t.secondPage)).toHaveCount(0)
     const saved = await body(t.title)
     expect(saved).toContain('Tab two sentence.')

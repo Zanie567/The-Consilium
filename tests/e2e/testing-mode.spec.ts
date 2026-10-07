@@ -94,6 +94,14 @@ test('public article hydration pins initial writes during testing and after exit
     authorId: administratorId, status: 'PUBLISHED', publishedAt: new Date(),
   } })
   const errors = collectConsoleErrors(page)
+  const sessionIds = new Set<string>()
+  const captureViews = (screen: Page) => screen.on('request', request => {
+    if (request.url().endsWith('/api/analytics/track') && request.method() === 'POST') {
+      const body = request.postDataJSON()
+      if (body.articleId === article.id) sessionIds.add(body.sessionId)
+    }
+  })
+  captureViews(page)
   async function openPublished(screen: Page, ctx: BrowserContext) {
     const expected = (await identityHeaders(ctx))['x-consilium-identity']
     const tracked = screen.waitForResponse(response => response.url().endsWith('/api/analytics/track') && response.request().method() === 'POST')
@@ -101,6 +109,7 @@ test('public article hydration pins initial writes during testing and after exit
     const response = await tracked
     expect(response.request().headers()['x-consilium-identity']).toBe(expected)
     expect(response.status()).toBe(200)
+    expect(await screen.evaluate(() => [localStorage.getItem('consilium_sid'), localStorage.getItem('consilium_analytics_reader')])).toEqual([null, null])
     await expect(screen.getByRole('heading', { level: 1, name: title })).toBeVisible()
   }
   await switchTo('writer')
@@ -113,11 +122,14 @@ test('public article hydration pins initial writes during testing and after exit
   try {
     const ordinaryPage = await ordinary.newPage()
     const ordinaryErrors = collectConsoleErrors(ordinaryPage)
+    captureViews(ordinaryPage)
     await openPublished(ordinaryPage, ordinary)
     expect(ordinaryErrors).toEqual([])
   } finally { await ordinary.close() }
-  expect(await db().articleView.count({ where: { articleId: article.id } })).toBe(2)
-  expect((await db().article.findUniqueOrThrow({ where: { id: article.id } })).viewCount).toBe(2)
+  // Each document load has an ephemeral identity; heartbeats deduplicate within it.
+  expect(sessionIds.size).toBe(4)
+  expect(await db().articleView.count({ where: { articleId: article.id } })).toBe(sessionIds.size)
+  expect((await db().article.findUniqueOrThrow({ where: { id: article.id } })).viewCount).toBe(sessionIds.size)
   expect(errors).toEqual([])
 })
 

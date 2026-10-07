@@ -4,7 +4,7 @@ import type { NodeViewProps } from '@tiptap/core'
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react'
 import { useRef, useState } from 'react'
 import type { FigureAttributes } from '@/lib/richContent'
-import { metadataText, safeContentUrl, safeDimension } from '@/lib/richMetadata'
+import { creditLabel, metadataText, safeContentUrl, safeDimension } from '@/lib/richMetadata'
 import { uploadArticleImage, discardArticleImage } from '@/lib/articleImageUpload'
 
 declare module '@tiptap/core' {
@@ -99,6 +99,7 @@ function FigureNodeView({ node, updateAttributes, selected, editor, deleteNode }
                   aria-label={
                     key === 'sourceUrl' ? 'Source URL' : key[0].toUpperCase() + key.slice(1)
                   }
+                  placeholder={key === 'caption' ? 'Add a caption…' : key === 'credit' ? 'Photo credit (optional)' : undefined}
                   type={key === 'sourceUrl' ? 'url' : 'text'}
                   value={attrs[key] ?? ''}
                   maxLength={2000}
@@ -168,7 +169,7 @@ function FigureNodeView({ node, updateAttributes, selected, editor, deleteNode }
               </p>
             )}
             {metadataText(attrs.credit) && (
-              <p className="image-credit">Credit: {metadataText(attrs.credit)}</p>
+              <p className="image-credit">{creditLabel(attrs.credit)}</p>
             )}
             {metadataText(attrs.note) && (
               <p className="figure-note">Note: {metadataText(attrs.note)}</p>

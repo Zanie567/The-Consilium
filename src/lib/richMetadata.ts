@@ -27,3 +27,9 @@ export function safeDimension(value: unknown): number | undefined {
     ? value
     : undefined
 }
+
+/** Legacy credits may already include their label; preserve it exactly once. */
+export function creditLabel(value: unknown): string {
+  const credit = metadataText(value)
+  return !credit || /^credit:/i.test(credit) ? credit : `Credit: ${credit}`
+}

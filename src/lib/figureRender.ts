@@ -1,5 +1,5 @@
 import { escapeHtml } from '@/lib/escapeHtml'
-import { metadataText, safeContentUrl, safeDimension } from '@/lib/richMetadata'
+import { creditLabel, metadataText, safeContentUrl, safeDimension } from '@/lib/richMetadata'
 import type { RichContentAttribute } from '@/lib/richContent'
 
 /** Escaped structured metadata, also supported for legacy image nodes. */
@@ -26,7 +26,7 @@ export function renderArticleFigure(
     if (caption) html += `<figcaption class="caption">${escapeHtml(caption)}</figcaption>`
     if (source || url)
       html += `<p class="figure-source">Source: ${url ? `<a href="${escapeHtml(url)}" rel="noopener noreferrer">${escapeHtml(source || url)}</a>` : escapeHtml(source)}</p>`
-    if (credit) html += `<p class="image-credit">Credit: ${escapeHtml(credit)}</p>`
+    if (credit) html += `<p class="image-credit">${escapeHtml(creditLabel(credit))}</p>`
     if (note) html += `<p class="figure-note">Note: ${escapeHtml(note)}</p>`
   }
   return html.endsWith('>') && !src && !html.includes('<figcaption') && !html.includes('<p')

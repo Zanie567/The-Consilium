@@ -199,7 +199,7 @@ test('writer paste/table/figure → repeated save/reload → editor review/edit/
     await editor.reload()
     await expect(editor.getByRole('combobox', { name: 'Status', exact: true })).toHaveValue('SCHEDULED')
     await expect(editor.getByRole('textbox', { name: /^Publish At/ })).toHaveValue('2099-01-01T12:00')
-    await editor.getByRole('combobox', { name: 'Status', exact: true }).selectOption('DRAFT')
+    await editor.getByRole('combobox', { name: 'Status', exact: true }).selectOption('PUBLISHED')
     const publishResponse = editor.waitForResponse(response => response.url().includes(`/api/articles/${id}`) && response.request().method() === 'PUT' && response.ok())
     await editor.getByRole('button', { name: 'Publish', exact: true }).click()
     await expect(editor.getByRole('alertdialog')).toBeVisible()

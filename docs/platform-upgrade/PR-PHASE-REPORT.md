@@ -32,6 +32,16 @@ No production data, migrations, environment variables, Supabase configuration, S
 
 Before release: configure the real publication LinkedIn URL; inspect production schema/migration drift and topic/subscriber collisions; accept real Supabase Storage/RLS/CDN behavior; verify hosted authenticated cron jobs; accept real email/provider delivery; certify physical-device sharing and relevant browser behavior. Four upgrade migrations are additive and have only been exercised locally. **No production migration has been executed.**
 
+## Defects discovered during reconciliation verification
+
+The inherited two-tab scenario exposed a genuine integration defect: the deliberate Keep my version action cleared main's fingerprint but retained the upgrade's stale timestamp. It now fetches a fresh, uncached revision and fingerprint, keeps both guards for the ensuing write and adopts the current server publication state. A third concurrent mutation can still refuse the save. The browser regression asserts both guards remain in the deliberate save.
+
+Restore main's table tooltip titles and footnote handlers for single/double/triple clicks. Retain caption/credit input placeholders and render already-prefixed legacy credits without a duplicated label. A dedicated rendering regression preserves that compatibility. Tests supply meaningful alt text before publication rather than bypass the new validation.
+
+The old testing-mode hydration test assumed analytics IDs were persisted without consent. It now verifies no persistent identifiers, four ephemeral document-load identities, identity-pinned requests, deduplicated heartbeat counts and matching database views. Upload tests verify returned opaque URLs, owner namespace, stored bytes and complete storage key snapshots for rejected requests; original filename searches would no longer detect storage side effects. Team order is asserted after the streamed roster settles, retaining the exact ordering/count assertion. Publication scenarios explicitly stage Published and confirm the real UI.
+
+No test was removed, converted to a skip or made to ignore unknown browser/network errors. Negative revision scenarios assert the exact expected HTTP 409 console resources; all other errors remain failures.
+
 ## Certification and hosted CI
 
 Pending full certification of the reconciled committed candidate, followed by safe normal push and hosted Actions verification. Original candidate results must not be represented as certification of changed code.

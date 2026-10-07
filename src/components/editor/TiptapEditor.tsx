@@ -489,23 +489,10 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
     },
     immediatelyRender: false,
     editorProps: {
+      // All click sequences must preserve the existing footnote edit control.
+      handleClickOn: editFootnote,
       handleDoubleClickOn: editFootnote,
-      // Clicking a footnote marker opens its text for editing. Clearing the
-      // text removes the footnote; cancelling leaves it untouched.
-      handleClickOn(view, _pos, node, nodePos) {
-        if (node.type.name !== 'footnoteRef' || !view.editable) return false
-        const existing = String(node.attrs.content ?? '')
-        const next = window.prompt('Footnote text (clear it to remove this footnote):', existing)
-        if (next === null) return true
-        const tr = view.state.tr
-        if (next.trim() === '') {
-          tr.delete(nodePos, nodePos + node.nodeSize)
-        } else {
-          tr.setNodeMarkup(nodePos, undefined, { ...node.attrs, content: next.trim() })
-        }
-        view.dispatch(tr)
-        return true
-      },
+      handleTripleClickOn: editFootnote,
       handlePaste(view, event) {
         const html = event.clipboardData?.getData('text/html')
         // If no HTML in clipboard, return false and let TipTap
@@ -808,6 +795,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
           ).map(([label, command]) => (
             <button
               key={command}
+              title={label}
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => editor.chain().focus()[command]().run()}
