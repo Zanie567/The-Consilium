@@ -19,7 +19,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:unit": "vitest run tests/unit",
-    "test:integration": "vitest run tests/integration/data-layer.test.ts",
+    "test:integration": "vitest run tests/integration",
     "test:e2e": "playwright test",
     "test:audit": "bash scripts/run-audit.sh",
     "test:setup-db": "bash scripts/setup-test-db.sh",
