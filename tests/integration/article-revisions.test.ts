@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { Session } from './helpers/http'
 import { randomUUID } from 'node:crypto'
 import type { ArticleStatus } from '@prisma/client'
+import { articleVersion } from '@/lib/articleVersion'
+import { SENSITIVE_USER_FIELDS } from '@/lib/publicUser'
 
 const base = process.env.BASE_URL!
 const session = new Session(base)
@@ -35,6 +37,30 @@ async function newer(id: string) {
   return prisma.article.update({ where: { id }, data: { title: 'Newer title', content: 'Newer content', updatedAt: new Date(Date.now() + 100) } })
 }
 describe('first-party loaded article revisions over real HTTP and PostgreSQL', () => {
+  it.each(['staff', 'owner'] as const)('%s reads the current fingerprint without unrelated account fields', async role => {
+    const loaded = await fixture()
+    const client = role === 'staff' ? session : new Session(base)
+    if (role === 'owner') {
+      expect(await client.login('writer@theconsilium.com', 'writer2024')).toBe(true)
+      const writer = await prisma.user.findUniqueOrThrow({ where: { email: 'writer@theconsilium.com' } })
+      await prisma.article.update({ where: { id: loaded.id }, data: { authorId: writer.id } })
+    }
+    await prisma.articleNote.create({ data: { articleId: loaded.id, authorId, content: 'Editorial feedback' } })
+    const current = await prisma.article.findUniqueOrThrow({ where: { id: loaded.id } })
+    const response = await client.get(`/api/articles/${loaded.id}`)
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.updatedAt).toBe(current.updatedAt.toISOString())
+    expect(body.version).toBe(articleVersion(current, []))
+    const authors = role === 'staff' ? [body.author, body.notes[0].author] : [body.author]
+    for (const author of authors) {
+      expect(author.id).toBeTruthy()
+      for (const field of SENSITIVE_USER_FIELDS) expect(author).not.toHaveProperty(field)
+    }
+    if (role === 'owner') expect(body).not.toHaveProperty('notes')
+    const saved = await send(loaded.id, { title: 'Deliberately recovered title', baseVersion: body.version, expectedUpdatedAt: body.updatedAt })
+    expect(saved.status).toBe(200)
+  })
   it.each([
     ['editor save', 'DRAFT', { title: 'Stale title', content: 'Stale content' }],
     ['list publish', 'DRAFT', { status: 'PUBLISHED' }],

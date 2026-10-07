@@ -75,21 +75,31 @@ export async function GET(
     }
 
     if (!isEditorial) {
-      return NextResponse.json(article)
+      return NextResponse.json({ ...article, version: articleVersion(article, article.tags.map(t => t.tag.name)) })
     }
 
     const articleWithNotes = await prisma.article.findUnique({
       where: { id },
       include: {
-        author: true,
+        author: { select: PUBLIC_AUTHOR_SELECT },
         category: true,
-        notes: { include: { author: true }, orderBy: { createdAt: 'asc' } },
+        notes: { include: { author: { select: PUBLIC_AUTHOR_SELECT } }, orderBy: { createdAt: 'asc' } },
         series: true,
         tags: { include: { tag: true } },
       },
     })
 
-    return NextResponse.json(articleWithNotes)
+    if (!articleWithNotes || articleWithNotes.deletedAt) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+    // Return only the snapshot whose category access was checked above.
+    if (articleWithNotes.updatedAt.getTime() !== article.updatedAt.getTime()) {
+      return apiError('This article changed while loading. Please reload it.', 409, 'ARTICLE_CHANGED')
+    }
+    return NextResponse.json({
+      ...articleWithNotes,
+      version: articleVersion(articleWithNotes, articleWithNotes.tags.map(t => t.tag.name)),
+    })
   } catch {
     return NextResponse.json({ error: 'Failed to fetch article' }, { status: 500 })
   }
