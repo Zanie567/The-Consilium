@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     }
 
     const { name, email, password } = await req.json()
-    if (!name?.trim() || !email?.trim() || !password) {
+    if (typeof name !== 'string' || typeof email !== 'string' || typeof password !== 'string' || !name.trim() || !email.trim() || !password) {
       return NextResponse.json({ error: 'All fields are required.' }, { status: 400 })
     }
     if (password.length < 8) {
@@ -19,18 +19,26 @@ export async function POST(req: Request) {
 
     const hashed = await bcrypt.hash(password, 10)
     const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-    await prisma.user.create({
-      data: {
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        password: hashed,
-        role: 'ADMIN',
-        slug,
-      },
-    })
+    // Keep password hashing outside this short critical section. A transaction
+    // lock also works with transaction-pooled connections and releases on failure.
+    const created = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'consilium:first-admin'}))`
+      if (await tx.user.findFirst({ where: { role: 'ADMIN' } })) return false
+      await tx.user.create({
+        data: {
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          password: hashed,
+          role: 'ADMIN',
+          slug,
+        },
+      })
+      return true
+    }, { isolationLevel: 'ReadCommitted' })
+    if (!created) return NextResponse.json({ error: 'Setup already completed.' }, { status: 403 })
 
     return NextResponse.json({ ok: true })
   } catch {
-    return NextResponse.json({ error: 'Setup failed.' }, { status: 500 })
+    return NextResponse.json({ error: 'Setup is temporarily unavailable. Please try again.' }, { status: 503 })
   }
 }

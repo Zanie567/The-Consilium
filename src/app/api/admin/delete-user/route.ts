@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextRequest, NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -6,7 +7,7 @@ import { CONTACT_EMAIL } from '@/lib/constants'
 import { ADMIN_ONLY } from '@/lib/rbac'
 import { escapeHtml } from '@/lib/escapeHtml'
 
-export async function POST(req: NextRequest) {
+async function POSTHandler(req: NextRequest) {
   const admin = await getVerifiedSessionUser(ADMIN_ONLY)
   if (!admin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -63,6 +64,13 @@ export async function POST(req: NextRequest) {
         },
       })
 
+      // Keep the membership record as REVOKED: a deleted account must not leave an
+      // ACTIVE membership behind that would block (or silently honour) a later re-hire.
+      await tx.teamMembership.updateMany({
+        where: { userId: target.id },
+        data: { status: 'REVOKED', revokedAt: new Date(), revokedById: admin.id },
+      })
+
       // Remove notes authored by this user on any article
       await tx.articleNote.deleteMany({ where: { authorId: target.id } })
 
@@ -105,3 +113,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to delete user. Please try again.' }, { status: 500 })
   }
 }
+
+export const POST = withTestingAudit(POSTHandler)

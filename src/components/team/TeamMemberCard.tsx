@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import Image from 'next/image'
 import { Mail } from 'lucide-react'
 import { getInitials } from '@/lib/authorUtils'
@@ -11,6 +11,12 @@ export interface TeamCardMember {
   id: string
   name: string
   role: string | null
+  /**
+   * What to print as the title line, when it differs from `role`. `role` also drives
+   * masthead placement when no tier is set, so display titles travel separately and
+   * can never move anyone on the page.
+   */
+  titleLabel?: string | null
   /**
    * The person's own bio when their team email matches a registered account
    * (they maintain it at /profile?tab=account), otherwise the admin-entered one
@@ -74,6 +80,7 @@ const VARIANT = {
 export function TeamMemberCard({ member, variant }: TeamMemberCardProps) {
   const style = VARIANT[variant]
   const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   // Stable identity: the dialog's open effect depends on it, and a new function
   // each render would tear down and re-run that effect (re-capturing the body's
   // overflow as 'hidden' and leaving the page unscrollable after close).
@@ -82,6 +89,8 @@ export function TeamMemberCard({ member, variant }: TeamMemberCardProps) {
   return (
     <>
       <div
+        data-team-member-id={member.id}
+        data-team-card-variant={variant}
         className={`${style.card} group relative h-full bg-[var(--bg-elevated)] border border-[var(--border)] flex flex-col items-center justify-center text-center transition-colors duration-300 hover:border-gold/40 focus-within:border-gold/40`}
       >
         {/* The whole card opens the profile. An overlay button (rather than
@@ -89,6 +98,7 @@ export function TeamMemberCard({ member, variant }: TeamMemberCardProps) {
             clickable — nesting an anchor inside a button is invalid markup. */}
         <button
           type="button"
+          ref={triggerRef}
           onClick={() => setOpen(true)}
           aria-haspopup="dialog"
           aria-label={`View full profile for ${member.name}`}
@@ -104,7 +114,7 @@ export function TeamMemberCard({ member, variant }: TeamMemberCardProps) {
           {member.image ? (
             <Image
               src={member.image}
-              alt={`${member.name}, ${hasDisplayableRole(member.role) ? member.role : 'The Consilium'}`}
+              alt={`${member.name}, ${hasDisplayableRole(member.titleLabel ?? member.role) ? (member.titleLabel ?? member.role) : 'The Consilium'}`}
               width={style.photo}
               height={style.photo}
               className="w-full h-full object-cover"
@@ -129,8 +139,8 @@ export function TeamMemberCard({ member, variant }: TeamMemberCardProps) {
 
         {/* Roles are free text and may be absent; nothing is rendered in that
             case — no placeholder, no reserved space. */}
-        {hasDisplayableRole(member.role) && (
-          <p className={`${style.role} font-bold uppercase text-gold`}>{member.role}</p>
+        {hasDisplayableRole(member.titleLabel ?? member.role) && (
+          <p className={`${style.role} font-bold uppercase text-gold`}>{member.titleLabel ?? member.role}</p>
         )}
 
         {member.bio && (
@@ -160,7 +170,7 @@ export function TeamMemberCard({ member, variant }: TeamMemberCardProps) {
         )}
       </div>
 
-      <TeamMemberDialog member={member} open={open} onClose={closeDialog} />
+      <TeamMemberDialog member={member} open={open} onClose={closeDialog} returnFocusRef={triggerRef} />
     </>
   )
 }

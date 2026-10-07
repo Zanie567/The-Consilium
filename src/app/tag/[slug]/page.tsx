@@ -77,7 +77,7 @@ export default async function TagPage({ params }: Props) {
               <StaggerItem key={article.id}>
                 <article className="relative bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden group card-hover shadow-[var(--shadow-card)] h-full flex flex-col">
                   <Link href={`/articles/${article.slug}`} className="absolute inset-0 z-0" aria-label={article.title} />
-                  <div className="relative h-44 bg-navy/10 overflow-hidden img-zoom flex-shrink-0">
+                  <div className="pointer-events-none relative h-44 bg-navy/10 overflow-hidden img-zoom flex-shrink-0">
                     {article.coverImage ? (
                       <Image src={article.coverImage} alt={article.title} fill className="object-cover" />
                     ) : (
@@ -87,13 +87,13 @@ export default async function TagPage({ params }: Props) {
                     )}
                     {article.category && (
                       <div className="absolute top-3 left-3 z-10">
-                        <Link href={`/category/${article.category.slug}`} className="category-badge relative z-10">
+                        <Link href={`/category/${article.category.slug}`} className="pointer-events-auto category-badge relative z-10">
                           {article.category.name}
                         </Link>
                       </div>
                     )}
                   </div>
-                  <div className="relative z-10 p-5 flex flex-col flex-1">
+                  <div className="pointer-events-none relative z-10 p-5 flex flex-col flex-1">
                     <h3
                       className="text-base font-bold text-[var(--fg)] mb-2 leading-snug group-hover:text-gold transition-colors duration-200 line-clamp-2 flex-1"
                       style={{ fontFamily: 'var(--font-serif)' }}
@@ -106,7 +106,7 @@ export default async function TagPage({ params }: Props) {
                     <div className="flex items-center justify-between text-[0.7rem] text-[var(--fg-faint)] border-t border-[var(--border)] pt-3 mt-auto">
                       <Link
                         href={`/author/${article.author.slug ?? article.author.id}`}
-                        className="relative z-10 hover:text-gold transition-colors font-semibold text-[var(--fg-muted)]"
+                        className="pointer-events-auto relative z-10 hover:text-gold transition-colors font-semibold text-[var(--fg-muted)]"
                       >
                         {article.author.name}
                       </Link>

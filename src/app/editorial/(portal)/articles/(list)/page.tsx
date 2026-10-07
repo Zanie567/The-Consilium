@@ -1,7 +1,5 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { requirePortalRole } from '@/lib/portalAccess'
 import { prisma } from '@/lib/prisma'
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArticlesList } from '@/components/editorial/ArticlesList'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
@@ -19,9 +17,7 @@ export default async function EditorialArticlesPage({
 }: {
   searchParams: Promise<{ mine?: string; status?: string }>
 }) {
-  const session = await getServerSession(authOptions)
-  if (!session) redirect('/editorial/login')
-  if (session.user.role === 'GROWTH') redirect('/editorial')
+  const session = await requirePortalRole(['ADMIN', 'EDITOR', 'WRITER'])
 
   const { mine: mineParam, status: statusParam } = await searchParams
 

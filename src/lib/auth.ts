@@ -1,3 +1,5 @@
+import { cookies, headers } from 'next/headers'
+import { resolveTestingIdentity, TESTING_COOKIE, PERSONA_ROLES } from './testingMode'
 import { NextResponse } from 'next/server'
 import { NextAuthOptions, type Session } from 'next-auth'
 import { getServerSession } from 'next-auth'
@@ -5,7 +7,10 @@ import { PrismaAdapter } from '@auth/prisma-adapter'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
+import { cache } from 'react'
 import { prisma } from './prisma'
+import { isUniqueViolation } from './prismaErrors'
+import { claimInvitationForUser, normalizeEmail, verifyEmailAndClaim } from './membership'
 import { sendEmail } from './email'
 import { escapeHtml } from './escapeHtml'
 import { apiServerErrorResponse } from './apiResponse'
@@ -54,6 +59,15 @@ async function notifyAdminOfLockout(lockedEmail: string, ip: string) {
   }
 }
 
+/** Current role/ban/active state of an account. De-duplicated within one server render by React's cache. */
+const loadAccountState = cache(async (userId: string) => {
+  try {
+    return await prisma.user.findUnique({ where: { id: userId }, select: { role: true, isActive: true, isBanned: true } })
+  } catch {
+    return null // unverifiable: treated as restricted by the caller (fail closed)
+  }
+})
+
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   // The client carries a global `omit` for User.password, which changes its
@@ -74,6 +88,20 @@ export const authOptions: NextAuthOptions = {
           GoogleProvider({
             clientId: googleClientId,
             clientSecret: googleClientSecret,
+            // Emails are matched case-insensitively everywhere else; normalise here
+            // so the adapter's exact-match lookup finds the existing row instead of
+            // creating a second account that differs only by case.
+            profile(profile) {
+              return {
+                id: profile.sub,
+                name: profile.name,
+                email: normalizeEmail(profile.email),
+                image: profile.picture,
+                // The adapter creates new accounts as READER; only an admin invitation
+                // ever raises that (claimed in the `jwt` callback).
+                role: 'READER' as const,
+              }
+            },
             // Force account selection on every sign-in so users with multiple
             // Google accounts are not silently signed into the wrong one.
             authorization: {
@@ -96,8 +124,10 @@ export const authOptions: NextAuthOptions = {
           (req?.headers?.['x-real-ip'] as string) ??
           'unknown'
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+        // Case and surrounding whitespace never decide who someone is.
+        const submittedEmail = normalizeEmail(credentials.email)
+        const user = await prisma.user.findFirst({
+          where: { email: { equals: submittedEmail, mode: 'insensitive' } },
           // Override the global omit: the password hash is required here to
           // verify the supplied credentials with bcrypt.compare below.
           omit: { password: false },
@@ -151,16 +181,33 @@ export const authOptions: NextAuthOptions = {
 
         await logAttempt(credentials.email, ip, true)
 
+        // A verified account signing in with an email an admin pre-authorised picks up
+        // the assigned role now. Idempotent, and a failure must never block sign-in.
+        const claim = await claimInvitationForUser(user.id).catch(() => null)
+
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           image: user.image,
-          role: user.role,
+          role: claim?.claimed ? claim.role : user.role,
         }
       },
     }),
   ],
+  events: {
+    async signOut({ token }) {
+      if (process.env.TESTING_MODE_ENABLED !== '1' || !token?.id) return
+      await prisma.$transaction(async (tx) => {
+        // Account deletion can precede NextAuth sign-out. Revoke any remaining
+        // capability even when the initiating account no longer exists.
+        await tx.user.updateMany({ where: { id: token.id }, data: { testingRevision: { increment: 1 } } })
+        const active = await tx.testingSession.findMany({ where: { administratorId: token.id, stoppedAt: null } })
+        await tx.testingSession.updateMany({ where: { administratorId: token.id, stoppedAt: null }, data: { stoppedAt: new Date(), stopReason: 'signout' } })
+        for (const record of active) await tx.auditLog.create({ data: { performedBy: token.id, targetId: record.personaId, targetType: 'testing', action: 'testing:signout', metadata: { sessionId: record.id } } })
+      })
+    },
+  },
   callbacks: {
     async signIn({ user, account, profile }) {
       // Only gate OAuth sign-ins here. The credentials provider handles its
@@ -174,9 +221,9 @@ export const authOptions: NextAuthOptions = {
         const googleProfile = profile as { email_verified?: boolean } | undefined
         if (!googleProfile?.email_verified) return false
 
-        const dbUser = await prisma.user.findUnique({
-          where: { email: user.email },
-          select: { id: true, isBanned: true, isActive: true },
+        const dbUser = await prisma.user.findFirst({
+          where: { email: { equals: normalizeEmail(user.email), mode: 'insensitive' } },
+          select: { id: true, isBanned: true, isActive: true, emailVerified: true, password: true },
         })
 
         // No existing record: PrismaAdapter creates a new user with the
@@ -186,6 +233,14 @@ export const authOptions: NextAuthOptions = {
         // Block suspended or deactivated accounts from using Google sign-in
         // as a bypass route around the credentials checks.
         if (dbUser.isBanned || !dbUser.isActive) return false
+
+        // Pre-registration guard. A password account whose address was never confirmed may
+        // have been registered by someone other than the address's owner, and its password
+        // (and any live session) would survive a Google merge, then inherit any role an
+        // admin gives that address later. So never merge into one, invitation or not: the
+        // owner must first prove the inbox (emailed link or password reset, which also
+        // replaces that password), after which Google works as usual.
+        if (!dbUser.emailVerified && dbUser.password) return '/login?error=VerifyEmailFirst'
 
         // If the user registered with email/password and is signing in with
         // Google for the first time, link the Google account automatically
@@ -208,6 +263,11 @@ export const authOptions: NextAuthOptions = {
               id_token: account.id_token ?? null,
               session_state: account.session_state ? String(account.session_state) : null,
             },
+          }).catch((error: unknown) => {
+            // Two simultaneous first sign-ins both saw "not linked"; the unique
+            // (provider, providerAccountId) index let one win. The link exists, which
+            // is all this step wanted.
+            if (!isUniqueViolation(error)) throw error
           })
         }
 
@@ -225,9 +285,18 @@ export const authOptions: NextAuthOptions = {
       return true
     },
 
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
-        token.role = user.role
+        let role = user.role
+        if (account?.provider === 'google') {
+          // The signIn callback above already refused any Google profile whose email
+          // is not verified, so reaching here is the proof of address that lets an
+          // invitation for it be claimed. For a brand-new Google user the adapter has
+          // only just created the READER row; this is what upgrades it.
+          const claim = await verifyEmailAndClaim(user.id).catch(() => null)
+          if (claim?.claimed) role = claim.role
+        }
+        token.role = role
         token.id = user.id
         token.roleCheckedAt = Date.now()
         token.isBanned = false
@@ -276,10 +345,44 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (token && session.user) {
-        session.user.role = token.role
         session.user.id = token.id
-        session.user.isBanned = token.isBanned ?? false
-        session.user.isActive = token.isActive ?? true
+        // The role, ban and active flags come from the DATABASE on every session read, not from the
+        // signed cookie. The cookie caches them for up to a minute, and server components read
+        // protected data straight from the database after trusting session.user.role, so a demoted,
+        // banned, deactivated or deleted account kept receiving other people's drafts and review
+        // pages from its old cookie. An account that is restricted, missing, or unverifiable reads
+        // as an inactive READER, so every role check fails closed.
+        const account = await loadAccountState(token.id)
+        const restricted = !account || !account.isActive || account.isBanned
+        session.user.role = restricted ? 'READER' : account.role
+        session.user.isBanned = account?.isBanned ?? true
+        session.user.isActive = account?.isActive ?? false
+      }
+      if (process.env.TESTING_MODE_ENABLED === '1' && session.user?.id) {
+        const realId = session.user.id
+        const opaque = (await cookies()).get(TESTING_COOKIE)?.value
+        const identity = await resolveTestingIdentity(realId, opaque)
+        // Invalid/expired capability restores normal navigation; mutations fail closed in proxy.
+        const real = identity?.administrator ?? await prisma.user.findUnique({ where: { id: realId } })
+        const effective = identity?.effective ?? real
+        if (!effective || !real || !real.isActive || real.isBanned) {
+          session.user.isActive = false
+          session.user.role = 'READER'
+        } else {
+          session.user = { id: effective.id, name: effective.name, email: effective.email, image: effective.image,
+            role: effective.role, isActive: effective.isActive, isBanned: effective.isBanned }
+          session.testing = identity?.testing ?? undefined
+          session.requestIdentity = `${real.id}:${real.testingRevision}:${identity?.testing?.id ?? 'normal'}`
+          // Recheck the proxy's server-owned identity inside every session read.
+          // Revocation between proxy and handler must never restore ADMIN powers
+          // to an already-authorized persona mutation.
+          const verifiedIdentity = (await headers()).get('x-consilium-verified-identity')
+          if (verifiedIdentity && verifiedIdentity !== session.requestIdentity) {
+            session.user = { id: '', role: 'READER', isActive: false }
+            session.testing = undefined
+            session.testingIdentityChanged = true
+          }
+        }
       }
       return session
     },
@@ -348,6 +451,7 @@ export async function requireVerifiedSessionUser(
       }),
     }
   }
+  if (session?.testingIdentityChanged) return { ok: false, response: NextResponse.json({ error: 'Testing identity changed or expired. Reload before saving.', code: 'TESTING_IDENTITY_CHANGED' }, { status: 409 }) }
   if (!session?.user?.id) {
     // No session cookie at all. This is indistinguishable from an expired one
     // server-side, and the commonest case is a reader who simply never signed
@@ -362,11 +466,11 @@ export async function requireVerifiedSessionUser(
     }
   }
 
-  let user: (VerifiedSessionUser & { isActive: boolean; isBanned: boolean }) | null
+  let user: (VerifiedSessionUser & { isActive: boolean; isBanned: boolean; emailVerified: Date | null }) | null
   try {
     user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { id: true, role: true, name: true, email: true, isActive: true, isBanned: true },
+      select: { id: true, role: true, name: true, email: true, isActive: true, isBanned: true, emailVerified: true },
     })
   } catch (error) {
     return {
@@ -406,6 +510,9 @@ export async function requireVerifiedSessionUser(
         { status: 403 }
       ),
     }
+  }
+  if (session.testing && (user.role !== PERSONA_ROLES[session.testing.persona] || !user.emailVerified)) {
+    return { ok: false, response: NextResponse.json({ error: 'The test account changed. Reload before saving.', code: 'TESTING_IDENTITY_CHANGED' }, { status: 409 }) }
   }
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     return {

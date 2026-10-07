@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { formatEditorialScheduleInput, parseEditorialScheduleInput } from '@/lib/editorialSchedule'
 
 interface DebateData {
   id: string
@@ -25,12 +26,16 @@ export default function EditDebatePage({ params }: { params: Promise<{ debateId:
   }, [params])
 
   const fetchData = useCallback(async (id: string) => {
-    const res = await fetch(`/api/editorial/debates/${id}`)
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/editorial/debates/${id}`)
+      if (!res.ok) throw new Error('The debate could not be loaded. Please refresh to retry.')
       const json = await res.json()
       setData({ id: json.id, title: json.title, description: json.description, isActive: json.isActive, closesAt: json.closesAt })
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'The debate could not be loaded.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -42,28 +47,27 @@ export default function EditDebatePage({ params }: { params: Promise<{ debateId:
     if (!data) return
     setSaving(true)
     setError(null)
-    const res = await fetch(`/api/editorial/debates/${data.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: data.title,
-        description: data.description || null,
-        isActive: data.isActive,
-        closesAt: data.closesAt || null,
-      }),
-    })
-    setSaving(false)
-    if (!res.ok) {
-      const json = await res.json()
-      setError(json.error ?? 'Failed to save.')
-    } else {
+    try {
+      const res = await fetch(`/api/editorial/debates/${data.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: data.title, description: data.description || null, isActive: data.isActive, closesAt: data.closesAt || null }),
+      })
+      if (res.status !== 200) {
+        const json = await res.json()
+        throw new Error(json.error ?? 'Failed to save.')
+      }
       setSuccess(true)
-      setTimeout(() => router.push('/editorial/debates'), 800)
+      router.push('/editorial/debates')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not save. Please retry.')
+    } finally {
+      setSaving(false)
     }
   }
 
   if (loading) return <div className="p-8 text-[var(--fg-faint)] text-sm">Loading…</div>
-  if (!data) return <div className="p-8 text-red-600 text-sm">Debate not found.</div>
+  if (!data) return <div className="p-8 text-red-600 text-sm">{error ?? 'Debate not found.'}</div>
 
   return (
     <div className="p-8 max-w-2xl">
@@ -111,8 +115,8 @@ export default function EditDebatePage({ params }: { params: Promise<{ debateId:
           </label>
           <input
             type="datetime-local"
-            value={data.closesAt ? data.closesAt.slice(0, 16) : ''}
-            onChange={(e) => setData({ ...data, closesAt: e.target.value ? new Date(e.target.value).toISOString() : null })}
+            value={formatEditorialScheduleInput(data.closesAt)}
+            onChange={(e) => setData({ ...data, closesAt: e.target.value ? parseEditorialScheduleInput(e.target.value)?.toISOString() ?? null : null })}
             className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] text-[var(--fg)] text-sm p-3 focus:outline-none focus:border-gold transition-colors"
           />
         </div>
@@ -131,7 +135,7 @@ export default function EditDebatePage({ params }: { params: Promise<{ debateId:
           <p className="text-[var(--fg-faint)] text-xs ml-2">Activating will deactivate all other debates.</p>
         </div>
 
-        {error && <p className="text-red-600 text-sm">{error}</p>}
+        {error && <p role="alert" className="text-red-600 text-sm">{error}</p>}
         {success && <p className="text-green-600 text-sm">Saved! Redirecting…</p>}
 
         <div className="flex gap-3">

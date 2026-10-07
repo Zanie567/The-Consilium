@@ -45,13 +45,15 @@ describe('article image upload content, size, ownership and failures', () => {
     expect(paths[0]).toMatch(/^writer\/[a-f0-9-]{36}\.png$/)
     expect(paths[0]).not.toBe(paths[1])
   })
+  // An oversize file is 413 Payload Too Large (the route's contract, shared with avatars and the
+  // client's size message); every other unusable file is a 400.
   it.each([
-    new Uint8Array(),
-    new Uint8Array(4 * 1024 * 1024 + 1),
-    new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    new TextEncoder().encode('<script>danger</script>'),
-  ])('rejects empty, large, damaged and spoofed content before storage', async (bytes) => {
-    expect((await POST(await request(bytes))).status).toBe(400)
+    ['empty', new Uint8Array(), 400],
+    ['large', new Uint8Array(4 * 1024 * 1024 + 1), 413],
+    ['damaged', new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), 400],
+    ['spoofed', new TextEncoder().encode('<script>danger</script>'), 400],
+  ])('rejects %s content before storage', async (_label, bytes, status) => {
+    expect((await POST(await request(bytes))).status).toBe(status)
     expect(mocks.upload).not.toHaveBeenCalled()
   })
   it('rejects mismatched declared MIME', async () => {

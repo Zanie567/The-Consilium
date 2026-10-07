@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createHash } from 'crypto'
@@ -12,7 +13,7 @@ interface Props {
   params: Promise<{ debateId: string }>
 }
 
-export async function POST(req: Request, { params }: Props) {
+async function POSTHandler(req: Request, { params }: Props) {
   const { debateId } = await params
 
   // Rate limit: max 3 vote attempts per IP per hour
@@ -114,3 +115,5 @@ async function getBreakdown(debateId: string) {
   const forPct = total > 0 ? Math.round((forCount / total) * 100) : 0
   return { forCount, againstCount, forPct, againstPct: total > 0 ? 100 - forPct : 0, totalVotes: total }
 }
+
+export const POST = withTestingAudit(POSTHandler)

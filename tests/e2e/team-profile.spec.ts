@@ -7,13 +7,14 @@ import {
   resetTeamFixtures,
   type AccountKey,
 } from './helpers/teamFixtures'
+import { ArticleEditorPage } from './helpers/workflow'
 import { makePng, watch } from './helpers/e2eUtils'
 
 /**
  * Team Profile, end to end, in a real browser against a production build, a local
  * Postgres and a local Supabase-Storage-compatible server. Run through
- * scripts/run-team-profile-e2e.sh (it builds the app against those and sets
- * E2E_TEAM_PROFILE=1). Tests run in order and share fixture state.
+ * scripts/run-e2e.sh (it builds the app against those). Enabled in default CI.
+ * Tests run in order and share scoped fixture state.
  */
 test.describe.configure({ mode: 'serial' })
 
@@ -49,8 +50,9 @@ async function loginAs(
 }
 
 const cardCount = (userId: string) => db().teamMember.count({ where: { userId } })
-const storageObjects = async (): Promise<{ key: string }[]> =>
-  (await fetch(`${STORAGE_URL}/__objects`)).json()
+/** What an administrator does to put a card on the page: show it (the default title stays). */
+const publish = (userId: string) => db().teamMember.update({ where: { userId }, data: { isActive: true } })
+const storageObjects = async (): Promise<{ key: string }[]> => (await fetch(`${STORAGE_URL}/__objects`)).json()
 const sidebarLink = (page: Page) => page.getByRole('link', { name: 'Team Profile' })
 
 async function openProfile(page: Page) {
@@ -73,33 +75,36 @@ test.describe('access by role', () => {
     })
   }
 
-  test('admin has no Team Profile link and gets an explanation, not a form', async ({
-    browser,
-  }) => {
+  test('admin without an appointment gets an explanation, not a form', async ({ browser }) => {
     const { context, page } = await loginAs(browser, 'admin')
-    await expect(sidebarLink(page)).toHaveCount(0)
+    await expect(sidebarLink(page)).toHaveCount(1)
     await openProfile(page)
-    await expect(page.locator('p[role="alert"]')).toContainText(
-      /isn.t assigned to the Writing, Editorial or Growth/
-    )
+    await expect(page.locator('p[role="alert"]')).toContainText(/no assigned public appointment/)
     await expect(page.locator('form')).toHaveCount(0)
     await context.close()
   })
 
   test('a reader cannot enter the portal at all', async ({ browser }) => {
-    const { context, page } = await loginAs(browser, 'reader').catch(() => {
-      throw new Error('reader login failed')
-    })
+    const { context, page } = await loginAs(browser, 'reader')
     await page.goto('/editorial/team-profile')
     await expect(page.getByText('Access Denied')).toBeVisible()
     await expect(page.locator('form')).toHaveCount(0)
     await context.close()
   })
 
-  test('an account with no name is asked to set one first', async ({ browser }) => {
+  test('an account with no name gets an empty name field and cannot save until one is entered', async ({ browser }) => {
     const { context, page } = await loginAs(browser, 'noname')
     await openProfile(page)
-    await expect(page.locator('p[role="alert"]')).toContainText('Add your name')
+    await expect(page.getByLabel('Name shown on the page')).toHaveValue('')
+    await page.getByLabel('Description').fill('Hello.')
+    await page.getByRole('button', { name: 'Create profile' }).click()
+    await expect(page.locator('p[role="status"]')).toContainText('Enter the name you want shown')
+    expect(await cardCount(ids.noname)).toBe(0)
+    await page.getByLabel('Name shown on the page').fill('Nora Noname')
+    await page.getByRole('button', { name: 'Create profile' }).click()
+    await expect(page.locator('p[role="status"]')).toContainText('has been saved')
+    expect(await db().teamMember.findUniqueOrThrow({ where: { userId: ids.noname } })).toMatchObject({ name: 'Nora Noname', isActive: false })
+    await db().teamMember.delete({ where: { userId: ids.noname } })
     await context.close()
   })
 })
@@ -118,16 +123,16 @@ test.describe('writer: create then edit', () => {
     await context.close()
   })
 
-  test('create state: name and team are shown as read-only text, with no team picker', async () => {
+  test('create state: the name is editable; the public title is read-only text, with no picker', async () => {
     await openProfile(page)
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Create your team profile')
-    await expect(page.locator('form').getByText('Wendy Writer', { exact: true })).toBeVisible()
-    await expect(page.locator('form').getByText('Writing', { exact: true })).toBeVisible()
-    await expect(page.locator('form').getByText('Set by your role')).toBeVisible()
+    await expect(page.getByLabel('Name shown on the page')).toHaveValue('Wendy Writer')
+    await expect(page.locator('form').getByText('Writer', { exact: true })).toBeVisible()
+    await expect(page.locator('form').getByText('Set by an administrator')).toBeVisible()
     // Nothing for the user to edit or choose:
     await expect(page.locator('select')).toHaveCount(0)
-    await expect(page.locator('input[value="Wendy Writer"], input[value="Writing"]')).toHaveCount(0)
-    await expect(page.locator('input:not([type="file"]):not([type="hidden"])')).toHaveCount(0)
+    await expect(page.locator('input[value="Writing"]')).toHaveCount(0)
+    await expect(page.locator('input:not([type="file"]):not([type="hidden"])')).toHaveCount(1) // only the name
     await expect(page.getByRole('button', { name: 'Create profile' })).toBeEnabled()
     // placeholder, not a broken image
     await expect(page.locator('form img')).toHaveCount(0)
@@ -263,9 +268,9 @@ test.describe('writer: create then edit', () => {
     ).toHaveLength(1)
   })
 
-  test('the public page shows them once, under Writers, with a rendered photo', async ({
-    browser,
-  }) => {
+  test('the public page shows them once, under Writers, with a rendered photo', async ({ browser }) => {
+    // Hidden until an administrator shows the card.
+    await publish(ids.writer)
     const anon = await browser.newContext({ baseURL: process.env.E2E_BASE_URL })
     const pub = await anon.newPage()
     const pubErrors = watch(pub)
@@ -336,7 +341,7 @@ test.describe('other teams', () => {
     const second = await context.newPage()
     await openProfile(page)
     await openProfile(second)
-    await expect(page.locator('form').getByText('Editorial', { exact: true })).toBeVisible()
+    await expect(page.locator('form').getByText('Editor', { exact: true })).toBeVisible()
     await page.getByLabel('Description').fill('Tab one')
     await second.getByLabel('Description').fill('Tab two')
     await Promise.all([
@@ -347,6 +352,7 @@ test.describe('other teams', () => {
     await expect(second.getByRole('status')).toContainText('has been saved')
     expect(await cardCount(ids.editor)).toBe(1)
     expect(await db().teamMember.count({ where: { name: 'Edgar Editor' } })).toBe(1)
+    await publish(ids.editor)
     await context.close()
   })
 
@@ -360,6 +366,7 @@ test.describe('other teams', () => {
     await page.getByRole('button', { name: 'Create profile' }).click()
     await expect(page.getByRole('status')).toContainText('has been saved')
     expect(await cardCount(ids.growth)).toBe(1)
+    await publish(ids.growth)
     expect(errors).toEqual([])
     await context.close()
   })
@@ -417,12 +424,8 @@ test.describe('existing members', () => {
 // ── admin linking, in the browser ─────────────────────────────────────────────
 
 test.describe('admin: Linked account control', () => {
-  test('offers only Writer, Editor and Growth accounts, and linking makes the member edit their card', async ({
-    browser,
-  }) => {
-    const card = await db().teamMember.findFirstOrThrow({
-      where: { name: 'Lena Legacy', userId: null },
-    })
+  test('offers eligible staff including Admin accounts, and linking makes the member edit their card', async ({ browser }) => {
+    const card = await db().teamMember.findFirstOrThrow({ where: { name: 'Lena Legacy', userId: null } })
     const { context, page } = await loginAs(browser, 'admin')
     await page.goto('/admin/team')
     await page.getByRole('button', { name: 'Edit Lena Legacy' }).click()
@@ -434,10 +437,10 @@ test.describe('admin: Linked account control', () => {
     expect(joined).toContain(email('noname')) // a Writer with no card yet
     // Not offered: admin and reader accounts, and accounts that already own a card.
     expect(joined).not.toContain(email('writer'))
-    expect(joined).not.toContain(email('admin'))
+    expect(joined).toContain(email('admin'))
     expect(joined).not.toContain(email('reader'))
     expect(joined).not.toContain(email('linked'))
-    // The form has no team control at all: the role decides.
+    // Only the admin form offers public placement.
     await expect(page.getByLabel(/^team$/i)).toHaveCount(0)
 
     await select.selectOption(ids.legacy)
@@ -463,18 +466,15 @@ test.describe('admin: Linked account control', () => {
     await lena.context.close()
   })
 
-  test('the API refuses an admin, a reader or a second card for one account', async ({
-    browser,
-  }) => {
+  test('the API permits admin ownership, refuses readers and duplicate ownership', async ({ browser }) => {
     const { context, page } = await loginAs(browser, 'admin')
     const card = await db().teamMember.create({
       data: { name: 'Throwaway Card', role: 'Writer', order: 99 },
     })
     const put = (userId: string) =>
-      page.request.put(`/api/team/${card.id}`, {
-        data: { name: 'Throwaway Card', role: 'Writer', userId },
-      })
-    expect((await put(ids.admin)).status()).toBe(400)
+      page.request.put(`/api/team/${card.id}`, { data: { name: 'Throwaway Card', role: 'Writer', userId } })
+    expect((await put(ids.admin)).status()).toBe(200)
+    expect((await put('')).status()).toBe(200)
     expect((await put(ids.reader)).status()).toBe(400)
     expect((await put(ids.writer)).status()).toBe(409) // Wendy already owns a card
     expect((await db().teamMember.findUniqueOrThrow({ where: { id: card.id } })).userId).toBeNull()
@@ -505,27 +505,18 @@ test.describe('API authorisation', () => {
     })
   }
 
-  test('forged userId / team / role fields change nothing about anyone', async ({ browser }) => {
+  test('forged userId / team / role / placement fields are rejected and change nothing about anyone', async ({ browser }) => {
     const { context, page } = await loginAs(browser, 'writer')
     const editorBefore = await db().teamMember.findUniqueOrThrow({ where: { userId: ids.editor } })
+    const writerBefore = await db().teamMember.findUniqueOrThrow({ where: { userId: ids.writer } })
     const res = await page.request.put('/api/team-profile', {
-      multipart: {
-        bio: 'forged',
-        team: 'editorial',
-        role: 'EDITOR',
-        userId: ids.editor,
-        order: '-1',
-        isActive: 'false',
-      },
+      multipart: { bio: 'forged', team: 'editorial', role: 'EDITOR', publicTier: 'editor_in_chief', userId: ids.editor, order: '-1', isActive: 'false' },
     })
-    expect(res.status()).toBe(200)
-    expect(await db().teamMember.findUniqueOrThrow({ where: { userId: ids.editor } })).toEqual(
-      editorBefore
-    )
+    expect(res.status()).toBe(400)
+    expect((await res.json()).code).toBe('FORBIDDEN_FIELD')
+    expect(await db().teamMember.findUniqueOrThrow({ where: { userId: ids.editor } })).toEqual(editorBefore)
     expect((await db().user.findUniqueOrThrow({ where: { id: ids.writer } })).role).toBe('WRITER')
-    expect(
-      await db().teamMember.findUniqueOrThrow({ where: { userId: ids.writer } })
-    ).toMatchObject({ role: '', isActive: true, bio: 'forged' })
+    expect(await db().teamMember.findUniqueOrThrow({ where: { userId: ids.writer } })).toEqual(writerBefore)
     await context.close()
   })
 })
@@ -533,53 +524,90 @@ test.describe('API authorisation', () => {
 // ── the public page ───────────────────────────────────────────────────────────
 
 test.describe('public Our Team page', () => {
-  test('sections are right, every person appears exactly once, and every photo renders', async ({
-    browser,
-  }) => {
+  test('the ADMIN owner edits the original leading chief card without changing its appointment', async ({ browser }) => {
+    test.setTimeout(90_000)
+    const original = await db().teamMember.findUniqueOrThrow({ where: { userId: ids.chief } })
+    expect((await db().user.findUniqueOrThrow({ where: { id: ids.chief } })).role).toBe('ADMIN')
+    const { context, page, errors } = await loginAs(browser, 'chief')
+    await openProfile(page)
+    await expect(page.locator('form').getByText('Editor-in-Chief', { exact: true })).toBeVisible()
+    await expect(page.locator('form select')).toHaveCount(0)
+    await page.getByLabel('Description').fill('Chief description edited by its ADMIN owner.')
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect(page.getByRole('status')).toContainText('has been saved')
+    const changed = await db().teamMember.findUniqueOrThrow({ where: { userId: ids.chief } })
+    expect(changed).toMatchObject({ id: original.id, userId: original.userId, role: 'Editor-in-Chief', order: 1, image: original.image, publicTier: original.publicTier })
+    let previousImage: string | null = null
+    const colours: [number, number, number][] = [[30, 80, 150], [90, 140, 30]]
+    for (const colour of colours) {
+      await page.setInputFiles('#tp-photo', { name: 'chief.png', mimeType: 'image/png', buffer: makePng(64, colour) })
+      await expect(page.getByAltText('New profile photo preview')).toBeVisible()
+      await page.getByRole('button', { name: 'Save changes' }).click()
+      await expect(page.getByRole('status')).toContainText('has been saved')
+      const saved = await db().teamMember.findUniqueOrThrow({ where: { userId: ids.chief } })
+      expect(saved).toMatchObject({ id: original.id, userId: original.userId, role: original.role, order: original.order, publicTier: original.publicTier })
+      expect(saved.image).toContain(`/avatars/${ids.chief}/`)
+      expect((await fetch(saved.image!)).status).toBe(200)
+      if (previousImage) expect((await fetch(previousImage)).status).toBe(404)
+      previousImage = saved.image
+      await page.reload()
+      await expect(page.getByAltText('Your profile photo')).toBeVisible()
+      expect(await cardCount(ids.chief)).toBe(1)
+      expect((await db().user.findUniqueOrThrow({ where: { id: ids.chief } })).role).toBe('ADMIN')
+    }
+    await page.getByRole('button', { name: 'Remove', exact: true }).click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect(page.getByRole('status')).toContainText('has been saved')
+    expect((await db().teamMember.findUniqueOrThrow({ where: { userId: ids.chief } })).image).toBeNull()
+    expect((await fetch(previousImage!)).status).toBe(404)
+    expect((await storageObjects()).filter(object => object.key.startsWith(`avatars/${ids.chief}/`))).toHaveLength(0)
+    // Restore only this local fixture's original photo through the real authorised
+    // admin endpoint after exercising intentional self-service photo changes.
+    const restored = await page.evaluate(async ({ id, image }) => {
+      const response = await fetch(`/api/team/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image }) })
+      return { status: response.status, member: await response.json() }
+    }, { id: original.id, image: original.image })
+    expect(restored.status).toBe(200)
+    expect(restored.member).toMatchObject({ id: original.id, userId: original.userId, role: original.role, order: original.order, publicTier: original.publicTier, image: original.image })
+    await page.goto('/team')
+    const card = page.locator(`[data-team-member-id="${original.id}"]:visible`)
+    await expect(card).toHaveCount(1)
+    await expect(card).toHaveAttribute('data-team-card-variant', 'lead')
+    await expect(page.locator('section[aria-labelledby="team-masthead"] [data-team-member-id]').first()).toHaveAttribute('data-team-member-id', original.id)
+    await page.getByRole('dialog', { name: 'Cookie consent' }).getByRole('button', { name: 'Decline' }).click()
+    await expect(page.getByRole('dialog', { name: 'Cookie consent' })).toHaveCount(0)
+    await expect.poll(() => card.evaluate(el => Number(getComputedStyle(el.parentElement!).opacity))).toBe(1)
+    await page.screenshot({ path: test.info().outputPath('admin-owned-leading-chief.png'), fullPage: false })
+    await card.screenshot({ path: test.info().outputPath('admin-owned-chief-card.png') })
+    expect(errors).toEqual([])
+    await context.close()
+  })
+
+  test('sections are right, every person appears exactly once, and every photo renders', async ({ browser }) => {
     const anon = await browser.newContext({ baseURL: process.env.E2E_BASE_URL })
     const page = await anon.newPage()
     const errors = watch(page)
     await page.goto('/team')
     await page.waitForLoadState('networkidle') // streaming leaves a hidden copy of the HTML until hydration
 
-    const names = (section: string) =>
-      page.locator(`section[aria-labelledby="team-${section}"] h3:visible`).allTextContents()
+    // Assert the owned fixture cohort while preserving unrelated members and test runs.
+    const fixtures = await db().teamMember.findMany({ where: { OR: [{ id: { startsWith: 'tp-fixture-' } }, { user: { email: { endsWith: '@tp.consilium.test' } } }] }, include: { user: true } })
+    const fixtureNames = new Set(fixtures.map(card => card.user?.name ?? card.name))
+    const names = async (section: string) =>
+      (await page.locator(`section[aria-labelledby="team-${section}"] h3:visible`).allTextContents()).filter(name => fixtureNames.has(name))
 
-    // The masthead holds only LEGACY cards with no account (their title is all there is to
+    // Public appointments determine placement for linked and legacy cards with no account (their title is all there is to
     // place them by). An untitled member sorts after a titled one — existing behaviour.
-    expect(await names('masthead')).toEqual(['Alexander Escala', 'Julia Stepniak', 'Lucas Dwyer'])
-    // The Editor-in-Chief's account is an EDITOR, so they lead the Editorial section.
+    expect(await names('masthead')).toEqual(['Alexander Escala', 'Julia Stepniak', 'Mira Mismatch', 'Lucas Dwyer'])
+    // The ADMIN-owned chief leads the masthead; senior editors lead Editorial.
     const editorialNames = await names('editorial')
-    expect((await names('masthead'))[0]).toBe('Alexander Escala')
-    expect([...editorialNames].sort()).toEqual([
-      'Annika Sarawgi',
-      'Edgar Editor',
-      'Lena Legacy',
-      'Linda Linked',
-      'Sam Hunt',
-      'Satvik Singla',
-    ])
-    await expect(
-      page.locator('section[aria-labelledby="team-masthead"] h3:visible', {
-        hasText: 'Alexander Escala',
-      })
-    ).toHaveCount(1)
+    expect(editorialNames[0]).toBe('Satvik Singla')
+    expect([...editorialNames].sort()).toEqual(['Annika Sarawgi', 'Edgar Editor', 'Lena Legacy', 'Linda Linked', 'Sam Hunt', 'Satvik Singla'])
+    await expect(page.locator('section[aria-labelledby="team-masthead"] h3:visible', { hasText: 'Alexander Escala' })).toHaveCount(1)
     // Alan is shown under his ACCOUNT name, not the legacy card's old spelling.
-    // Mira has an Editor-in-Chief TITLE on a WRITER account: she is a writer. The title never moves her.
-    expect((await names('writers')).sort()).toEqual([
-      'Alan Adopt',
-      'Catherine Toh',
-      'Gurmehar Kaur',
-      'Mira Mismatch',
-      'Wendy Writer',
-      'Yaoqing Wang',
-      'Zara Spendiff',
-    ])
-    await expect(
-      page
-        .locator('section[aria-labelledby="team-writers"]', { hasText: 'Mira Mismatch' })
-        .getByText('Editor-in-Chief')
-    ).toBeVisible()
+    // Additional chiefs follow the leading chief in leadership order.
+    expect((await names('writers')).sort()).toEqual(['Alan Adopt', 'Catherine Toh', 'Gurmehar Kaur', 'Wendy Writer', 'Yaoqing Wang', 'Zara Spendiff'])
+    await expect(page.locator('[data-team-member-id]', { has: page.getByRole('heading', { name: 'Mira Mismatch', exact: true }) }).getByText('Editor-in-Chief', { exact: true })).toBeVisible()
     expect(await names('growth')).toEqual(['Grace Growth'])
     await expect(page.getByRole('heading', { level: 2, name: 'Growth & Comms' })).toBeVisible()
 
@@ -589,8 +617,13 @@ test.describe('public Our Team page', () => {
     )
 
     const all = await page.locator('section[aria-labelledby^="team-"] h3:visible').allTextContents()
-    expect(all).toHaveLength(new Set(all).size)
-    expect(all).toHaveLength(17)
+    // Names are not unique identities (independent fixtures may share a name).
+    // Every rendered card ID, including unrelated retained records, must be unique.
+    const renderedIds = await page.locator('[data-team-member-id]:visible').evaluateAll(els => els.map(el => el.getAttribute('data-team-member-id')))
+    expect(renderedIds).toHaveLength(new Set(renderedIds).size)
+    expect(renderedIds).toHaveLength(all.length)
+    expect(all.filter(name => fixtureNames.has(name))).toHaveLength(17)
+    for (const card of fixtures) await expect(page.locator(`[data-team-member-id="${card.id}"]:visible`)).toHaveCount(1)
 
     // every card photo (legacy /team/*.png and uploaded) really renders
     const imgs = page.locator('section div.group img:visible')
@@ -610,16 +643,20 @@ test.describe('public Our Team page', () => {
     await anon.close()
   })
 
-  test('a banned or demoted member disappears, and returns with the same card when restored', async ({
-    browser,
-  }) => {
+  test('a permission change preserves placement; suspension hides the card', async ({ browser }) => {
     const anon = await browser.newContext({ baseURL: process.env.E2E_BASE_URL })
     const page = await anon.newPage()
-    await db().user.update({ where: { id: ids.growth }, data: { role: 'READER' } })
+    await page.goto('/team')
+    const growthCards = page.locator('section[aria-labelledby="team-growth"] [data-team-member-id]')
+    const before = await growthCards.evaluateAll(els => els.map(el => el.getAttribute('data-team-member-id')))
+    const own = await db().teamMember.findUniqueOrThrow({ where: { userId: ids.growth } })
+    await db().user.update({ where: { id: ids.growth }, data: { isBanned: true } })
+    try {
     await page.goto('/team')
     await expect(page.getByRole('heading', { level: 3, name: 'Grace Growth' })).toHaveCount(0)
-    await expect(page.locator('section[aria-labelledby="team-growth"]')).toHaveCount(0) // empty team: no empty section
-    await db().user.update({ where: { id: ids.growth }, data: { role: 'GROWTH' } })
+    expect(await growthCards.evaluateAll(els => els.map(el => el.getAttribute('data-team-member-id')))).toEqual(before.filter(id => id !== own.id))
+    await expect(page.locator('section[aria-labelledby="team-growth"]')).toHaveCount(before.length > 1 ? 1 : 0)
+    } finally { await db().user.update({ where: { id: ids.growth }, data: { isBanned: false } }) }
     await page.goto('/team')
     await expect(page.getByRole('heading', { level: 3, name: 'Grace Growth' })).toHaveCount(1)
     await anon.close()
@@ -630,9 +667,70 @@ test.describe('public Our Team page', () => {
     expect(rows.length).toBeGreaterThan(10)
     for (const row of rows) expect(row).not.toHaveProperty('userId')
   })
+
+  test('public author labels use assigned appointments, never website permissions', async ({ browser }) => {
+    const anon = await browser.newContext({ baseURL: process.env.E2E_BASE_URL })
+    const page = await anon.newPage()
+    const original = await db().user.findUniqueOrThrow({ where: { id: ids.mismatch } })
+    const card = await db().teamMember.findUniqueOrThrow({ where: { userId: ids.mismatch } })
+    const unappointed = await db().user.create({ data: { email: email('unappointed-admin'), name: 'Unappointed Administrator', role: 'ADMIN', emailVerified: new Date() } })
+    const label = page.locator('main .bg-navy p').first()
+    try {
+      for (const role of ['ADMIN', 'WRITER', 'EDITOR', 'GROWTH'] as const) {
+        await db().user.update({ where: { id: original.id }, data: { role } })
+        await page.goto(`/author/${original.id}`, { waitUntil: 'networkidle' })
+        await expect(label).toHaveText('Editor-in-Chief')
+      }
+      await page.goto(`/author/${unappointed.id}`, { waitUntil: 'networkidle' })
+      await expect(label).toHaveText('Contributor')
+      await db().teamMember.update({ where: { id: card.id }, data: { role: 'Chief Designer' } })
+      await page.goto(`/author/${original.id}`, { waitUntil: 'networkidle' })
+      await expect(label).toHaveText('Chief Designer')
+      await db().teamMember.update({ where: { id: card.id }, data: { isActive: false } })
+      await page.goto(`/author/${original.id}`, { waitUntil: 'networkidle' })
+      await expect(label).toHaveText('Contributor')
+    } finally {
+      await db().user.update({ where: { id: original.id }, data: { role: original.role } })
+      await db().teamMember.update({ where: { id: card.id }, data: { role: card.role, isActive: card.isActive } })
+      await db().user.delete({ where: { id: unappointed.id } })
+      await anon.close()
+    }
+  })
 })
 
 // ── layout ────────────────────────────────────────────────────────────────────
+
+test('a hosting body-size rejection explains recovery and preserves the owned card', async ({ browser }, testInfo) => {
+  const original = await db().teamMember.findUniqueOrThrow({ where: { userId: ids.linked } })
+  const { context, page, errors } = await loginAs(browser, 'linked')
+  try {
+    await openProfile(page)
+    await page.getByLabel('Description').fill('Profile changes retained after a gateway rejection.')
+    await page.route('**/api/team-profile', route => route.request().method() === 'PUT'
+      ? route.fulfill({ status: 413, contentType: 'text/plain', body: 'Request Entity Too Large' })
+      : route.continue())
+    const rejected = page.waitForResponse(response => response.url().endsWith('/api/team-profile') && response.request().method() === 'PUT')
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    expect((await rejected).status()).toBe(413)
+    await expect(page.getByRole('status')).toContainText('That upload is too large for the server. Use a smaller file.')
+    await expect(page.getByLabel('Description')).toHaveValue('Profile changes retained after a gateway rejection.')
+    expect(await db().teamMember.findUniqueOrThrow({ where: { userId: ids.linked } })).toEqual(original)
+    await testInfo.attach('hosting-size-error', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' })
+    await page.unroute('**/api/team-profile')
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect(page.getByRole('status')).toContainText('has been saved')
+    await page.reload({ waitUntil: 'networkidle' })
+    await expect(page.getByLabel('Description')).toHaveValue('Profile changes retained after a gateway rejection.')
+    expect(await db().teamMember.count({ where: { userId: ids.linked } })).toBe(1)
+    expect(await db().teamMember.findUniqueOrThrow({ where: { userId: ids.linked } })).toMatchObject({
+      id: original.id, userId: original.userId, role: original.role,
+      publicTier: original.publicTier, order: original.order, image: original.image,
+    })
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toMatch(/^Failed to load resource: the server responded with a status of 413 /)
+    expect(errors[0]).toContain('/api/team-profile')
+  } finally { await context.close() }
+})
 
 test.describe('layout', () => {
   test('desktop: the sidebar stays put and the form sits beside it, not under it', async ({
@@ -647,13 +745,8 @@ test.describe('layout', () => {
     expect(nav).not.toBeNull()
     expect(form!.x).toBeGreaterThanOrEqual(nav!.x + nav!.width - 1)
     await expect(sidebarLink(page)).toBeVisible()
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
-    ).toBe(true)
-    await page
-      .getByRole('button', { name: 'Decline' })
-      .click()
-      .catch(() => {})
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await new ArticleEditorPage(page).dismissCookieBanner()
     await page.waitForTimeout(800) // let the portal's fade-in finish before the screenshot
     await page.screenshot({ path: 'test-results/team-profile-desktop.png', fullPage: true })
     await context.close()

@@ -4,6 +4,7 @@ import { sendEmail, passwordResetEmail } from '@/lib/email'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { checkRateLimit, getIp } from '@/lib/rate-limit'
+import { verifyEmailAndClaim } from '@/lib/membership'
 
 // POST /api/editorial/password-reset - request reset link
 // PATCH /api/editorial/password-reset - consume token and set new password
@@ -76,12 +77,14 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Missing fields.' }, { status: 400 })
   }
 
-  if (!token || !password) {
+  if (typeof token !== 'string' || typeof password !== 'string' || !token || !password) {
     return NextResponse.json({ error: 'Missing fields.' }, { status: 400 })
   }
   if (password.length < 8) {
     return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })
   }
+
+  if (password.length > 128) return NextResponse.json({error:'Password must be at most 128 characters.'},{status:400})
 
   const TOKEN_LENGTH = 64 // 32 random bytes → 64 hex chars
 
@@ -101,10 +104,19 @@ export async function PATCH(req: NextRequest) {
   }
 
   const hashed = await bcrypt.hash(password, 10)
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: record.userId }, data: { password: hashed } }),
-    prisma.passwordResetToken.update({ where: { id: record.id }, data: { used: true } }),
-  ])
+  try {
+    await prisma.$transaction(async tx=>{
+      const claimed=await tx.passwordResetToken.updateMany({where:{id:record.id,used:false,expires:{gt:new Date()}},data:{used:true}})
+      if(claimed.count!==1)throw new Error('RESET_ALREADY_USED')
+      await tx.user.update({where:{id:record.userId},data:{password:hashed,failedLoginAttempts:0,lockedUntil:null}})
+    })
+  }catch(error){
+    if(error instanceof Error&&error.message==='RESET_ALREADY_USED')return NextResponse.json({error:'This link has expired or already been used.'},{status:400})
+    return NextResponse.json({error:'Could not reset the password. Please try again.'},{status:503})
+  }
+
+  // Completing a reset proves control of the inbox the link went to.
+  await verifyEmailAndClaim(record.userId).catch(() => null)
 
   return NextResponse.json({ ok: true })
 }

@@ -6,6 +6,7 @@ import { format } from 'date-fns'
 import Link from 'next/link'
 import { Star, Pin, Trash2, ExternalLink } from 'lucide-react'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { formatEditorialScheduleDisplay } from '@/lib/editorialSchedule'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 
@@ -104,15 +105,21 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
     }
   }
 
+  // Publishing from the list is a two-step action: the button only asks, the dialog confirms.
+  // The whole article is held so its revision (updatedAt) travels with the confirmed action.
+  const [pendingPublish, setPendingPublish] = useState<ArticleItem | null>(null)
+  const [publishing, setPublishing] = useState(false)
+
   const publishArticle = async (article: ArticleItem) => {
     const { id, status: currentStatus, updatedAt } = article
     const newStatus = currentStatus === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED'
     setError(null)
+    setPublishing(true)
     try {
       const saved = await apiRequest<ArticleItem>(`/api/articles/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, expectedUpdatedAt: updatedAt }),
+        body: JSON.stringify({ status: newStatus, publicationIntent: true, expectedUpdatedAt: updatedAt }),
       })
       setArticles((prev) => prev.map((article) => (
         article.id === id ? { ...article, status: saved.status, updatedAt: saved.updatedAt, publishedAt: saved.publishedAt, scheduledAt: saved.scheduledAt } : article
@@ -120,6 +127,9 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
     } catch (reason) {
       setError(asApiError(reason).message)
       if (asApiError(reason).status === 409) router.refresh()
+    } finally {
+      setPublishing(false)
+      setPendingPublish(null)
     }
   }
 
@@ -138,6 +148,20 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
 
   return (
     <div>
+      <ConfirmDialog
+        open={pendingPublish !== null}
+        title={pendingPublish?.status === 'PUBLISHED' ? 'Unpublish this article?' : 'Publish this article?'}
+        message={
+          pendingPublish?.status === 'PUBLISHED'
+            ? `“${pendingPublish?.title ?? ''}” disappears from the public site immediately. Nothing is deleted.`
+            : `“${pendingPublish?.title ?? ''}” goes live on the public site immediately, visible to every reader.`
+        }
+        confirmLabel={pendingPublish?.status === 'PUBLISHED' ? 'Unpublish' : 'Publish now'}
+        tone={pendingPublish?.status === 'PUBLISHED' ? 'danger' : 'default'}
+        busy={publishing}
+        onConfirm={() => { if (pendingPublish && !publishing) void publishArticle(pendingPublish) }}
+        onCancel={() => { if (!publishing) setPendingPublish(null) }}
+      />
       {error && (
         <div className="mb-4 px-4 py-3 text-sm text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20">
           {error}
@@ -305,7 +329,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                           maxWidth={240}
                         >
                           <button
-                            onClick={() => publishArticle(article)}
+                            onClick={() => setPendingPublish(article)}
                             className={`text-xs font-bold px-1.5 py-1 transition-colors ${
                               article.status === 'PUBLISHED'
                                 ? 'text-[var(--fg-faint)] hover:text-amber-600'
@@ -316,15 +340,18 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                           </button>
                         </Tooltip>
                       )}
-                      <Tooltip content="Permanently delete this article. This cannot be undone." variant="editorial" side="top" maxWidth={240}>
-                        <button
-                          onClick={() => deleteArticle(article)}
-                          aria-label="Delete article"
-                          className="p-2 sm:p-1.5 text-[var(--fg-faint)] hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </Tooltip>
+                      {/* A writer can trash only what they can still edit; the server enforces the same. */}
+                      {(isEditor || article.status === 'DRAFT' || article.status === 'REJECTED') && (
+                        <Tooltip content="Move this article to the trash. It can be restored for 30 days." variant="editorial" side="top" maxWidth={240}>
+                          <button
+                            onClick={() => deleteArticle(article)}
+                            aria-label="Delete article"
+                            className="p-2 sm:p-1.5 text-[var(--fg-faint)] hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </Tooltip>
+                      )}
                     </div>
                   </td>
                 </tr>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -36,6 +36,7 @@ export default function CommentsPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const requestGeneration = useRef(0)
   const PER_PAGE = 30
 
   useEffect(() => {
@@ -45,34 +46,48 @@ export default function CommentsPage() {
   }, [session, router])
 
   const fetchComments = useCallback(async () => {
+    const generation = ++requestGeneration.current
     setLoading(true)
     setError(false)
     try {
       const res = await fetch(`/api/editorial/comments?tab=${tab}&page=${page}`)
       if (!res.ok) throw new Error(`Request failed: ${res.status}`)
       const json = await res.json()
+      if (generation !== requestGeneration.current) return
       setComments(json.comments)
       setTotal(json.total)
       setStats(json.stats)
     } catch {
       // Surface the failure instead of silently showing "0 total comments",
       // which made a transient API error look like an empty comments table.
-      setError(true)
+      if (generation === requestGeneration.current) setError(true)
     } finally {
-      setLoading(false)
+      if (generation === requestGeneration.current) setLoading(false)
     }
   }, [tab, page])
 
-  useEffect(() => { fetchComments() }, [fetchComments])
-  useEffect(() => { setPage(0) }, [tab])
+  const invalidateRequests = useCallback(() => { requestGeneration.current++ }, [])
+  useEffect(() => {
+    void fetchComments()
+    return invalidateRequests
+  }, [fetchComments, invalidateRequests])
 
-  async function handleAction(commentId: string, action: 'approve' | 'hide') {
-    const res = await fetch(`/api/editorial/comments/${commentId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action }),
-    })
-    if (res.ok) fetchComments()
+  const [actionError, setActionError] = useState('')
+
+  async function handleAction(commentId: string, action: 'approve' | 'hide' | 'unhide') {
+    setActionError('')
+    try {
+      const res = await fetch(`/api/editorial/comments/${commentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      if (res.ok) fetchComments()
+      // A refused or failed moderation action used to do nothing at all.
+      else setActionError(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `The action failed (${res.status}).`)
+    } catch {
+      setActionError('The server could not be reached. The comment was not changed.')
+    }
   }
 
   const totalPages = Math.ceil(total / PER_PAGE)
@@ -88,10 +103,14 @@ export default function CommentsPage() {
         </h1>
       </div>
 
+      {actionError && (
+        <div role="alert" className="mb-4 bg-red-500/10 border border-red-500/20 px-5 py-3 text-red-600 dark:text-red-400 text-sm">{actionError}</div>
+      )}
       {/* Surface load failures instead of silently rendering "0 total comments" */}
       {error && (
-        <div className="mb-6 bg-red-500/10 border border-red-500/20 px-5 py-4 text-red-600 dark:text-red-400 text-sm">
-          We couldn&apos;t load the comments. Please refresh the page to try again.
+        <div role="alert" className="mb-6 bg-red-500/10 border border-red-500/20 px-5 py-4 text-red-600 dark:text-red-400 text-sm">
+          <p>We couldn&apos;t load the comments. Please try again.</p>
+          <button type="button" className="mt-2 underline" onClick={() => { void fetchComments() }}>Retry comments</button>
         </div>
       )}
 
@@ -124,7 +143,7 @@ export default function CommentsPage() {
         {(['reported', 'recent', 'hidden'] as Tab[]).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => { setPage(0); setTab(t) }}
             className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors border-b-2 -mb-px ${
               tab === t
                 ? 'text-gold border-gold'
@@ -136,7 +155,7 @@ export default function CommentsPage() {
         ))}
       </div>
 
-      {loading ? (
+      {error ? null : loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-24 bg-[var(--border)] animate-pulse" />
@@ -194,6 +213,14 @@ export default function CommentsPage() {
                       className="flex items-center gap-1 text-[10px] font-bold text-green-600 hover:text-green-700 transition-colors"
                     >
                       <CheckCircle size={11} /> Approve
+                    </button>
+                  )}
+                  {comment.isHidden && (
+                    <button
+                      onClick={() => handleAction(comment.id, 'unhide')}
+                      className="flex items-center gap-1 text-[10px] font-bold text-green-600 hover:text-green-700 transition-colors"
+                    >
+                      <CheckCircle size={11} /> Restore
                     </button>
                   )}
                   {!comment.isHidden && (

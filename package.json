@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postinstall": "prisma generate",
+    "postinstall": "node scripts/backport-next-image-abort.mjs && prisma generate",
     "start": "next start",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -19,8 +19,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:unit": "vitest run tests/unit",
-    "test:integration": "vitest run tests/integration",
-    "test:e2e": "playwright test",
+    "test:integration": "vitest run tests/integration/data-layer.test.ts",
+    "test:e2e": "bash scripts/run-e2e.sh",
     "test:audit": "bash scripts/run-audit.sh",
     "test:setup-db": "bash scripts/setup-test-db.sh",
     "db:dedupe": "ts-node -P tsconfig.seed.json prisma/dedupe-articles.ts",
@@ -29,6 +29,11 @@
     "audit:dup": "jscpd src",
     "audit:types": "type-coverage --strict",
     "audit:all": "npm run typecheck && npm run lint && npm run audit:types && npm run audit:dead && npm run audit:dup",
+    "check:deployment": "ts-node -P tsconfig.seed.json scripts/check-deployment.ts",
+    "test:build-disabled": "ts-node -P tsconfig.seed.json scripts/check-disabled-build.ts",
+    "testing:workspace": "INTERACTIVE_TEST_WORKSPACE=1 bash scripts/run-e2e.sh",
+    "testing:seed": "ts-node -P tsconfig.seed.json scripts/seed-testing-workspace.ts",
+    "appointments:backfill": "ts-node -P tsconfig.seed.json scripts/backfill-public-appointments.ts",
     "smoke": "node scripts/smoke.mjs"
   },
   "prisma": {

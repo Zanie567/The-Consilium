@@ -30,6 +30,8 @@ export interface ArticleEditorProps {
     editorNote?: string | null
     tags?: string[]
     authorId?: string
+    /** Fingerprint of the article as loaded; sent back with each save (see articleVersion.ts). */
+    version?: string
   }
   categories: Category[]
   authorId: string
@@ -51,6 +53,8 @@ export interface ArticleEditorError {
   /** Actionable explanation rendered in the editor banner. */
   message: string
   requestId?: string
+  /** Server error code, e.g. ARTICLE_CONFLICT, so the banner can offer the right actions. */
+  code?: string
 }
 
 export interface ArticleEditorRefs {
@@ -61,8 +65,24 @@ export interface ArticleEditorRefs {
   toolbarPortalRef: React.RefObject<HTMLDivElement | null>
 }
 
+/** The button that applies the staged status (see useArticleEditorController). */
+export interface StatusAction {
+  label: string
+  /** The status the button asks the server for. */
+  target: string
+  tone: 'publish' | 'unpublish' | 'schedule' | 'set'
+}
+
 export interface ArticleEditorController {
   articleId?: string
+  recovery: { at: number; stale: boolean } | null
+  recovered: boolean
+  recoveryError: string
+  recoveryRevision: number
+  statusAction: StatusAction | null
+  /** Target status awaiting the user's confirmation, or null when no dialog is open. */
+  pendingStatus: string | null
+  scheduledAtForDialog: string
   categories: Category[]
   canEdit: boolean
   canPublish: boolean
@@ -91,11 +111,21 @@ export interface ArticleEditorController {
   uploading: boolean
   users: UserOption[]
   actions: {
+    /** Ask for a status change; opens a confirmation first when it alters public visibility. */
+    restoreLocalDraft: () => void
+    discardLocalDraft: () => void
+    requestStatusChange: (target: string) => void
+    confirmStatusChange: () => Promise<void>
+    cancelStatusChange: () => void
     addTag: (raw: string) => void
     handleBack: () => Promise<void>
     handleContentChange: (content: string) => void
     handleCoverUpload: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>
     handleSave: (overrideStatus?: string) => Promise<void>
+    /** After a conflict: save this tab's version over the newer one, on purpose. */
+    keepMyVersion: () => void
+    /** After a conflict: discard this tab's unsaved changes and load the newer version. */
+    reloadLatest: () => void
     handleTagKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void
     openCoverPicker: () => void
     removeCoverImage: () => void

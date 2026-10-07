@@ -10,8 +10,9 @@ const scriptSrc =
     ? "script-src 'self' 'unsafe-inline'"
     : "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
 
-// Existing test-only image allowance: explicit switch and exact loopback URL.
-// Never accept arbitrary schemes/credentials, even in a test configuration.
+// Test-only image allowance. Needs an explicit switch AND an exact loopback storage URL, so
+// it cannot be enabled by accident or for a real host. Never accept arbitrary schemes or
+// credentials, even in a test configuration.
 const localStorage = (() => {
   if (process.env.NEXT_IMAGE_ALLOW_LOCAL_STORAGE !== '1') return null
   try {
@@ -22,11 +23,11 @@ const localStorage = (() => {
     return null
   }
 })()
-// Direct Tiptap figures also need to render against the local emulator. Keep
-// production CSP unchanged; allow only this exact origin with both test flags.
-const localImageSource = process.env.TEST_HARNESS === '1' && localStorage
-  ? ` ${localStorage.origin}`
-  : ''
+// The browser itself (not just /_next/image) loads article figures straight from the storage
+// URL, and the CSP otherwise allows only https images. The CSP gets that one loopback origin
+// only when BOTH the image switch and TEST_HARNESS=1 are set (scripts/run-e2e.sh sets both), so
+// a stray image flag alone can never loosen it. Production CSP is unchanged: neither is set there.
+const localImageSource = process.env.TEST_HARNESS === '1' && localStorage ? ` ${localStorage.origin}` : ''
 
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
@@ -49,6 +50,15 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  // Next adds generated type directories to the selected tsconfig during builds.
+  // Keep isolated builds from editing the shared development configuration.
+  ...(process.env.E2E_ISOLATED === '1' && process.env.NEXT_DIST_DIR
+    ? { typescript: { tsconfigPath: `${process.env.NEXT_DIST_DIR}.tsconfig.json` } }
+    : {}),
+  // The isolated E2E stack builds into its own directory so a build made with
+  // production env values (which Next inlines for NEXT_PUBLIC_*) can never be
+  // served by the test launcher, and the test build never clobbers `next dev`.
+  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
   images: {
     dangerouslyAllowLocalIP: localStorage !== null,
     // Restrict server-side image fetches to Supabase Storage (where uploads live)
@@ -73,7 +83,9 @@ const nextConfig: NextConfig = {
     ],
   },
   experimental: {
-    viewTransition: true,
+    // Every isolated run starts fresh. Avoid cache flush/compaction stalls in
+    // this workspace's dev server; ordinary development keeps Next's default.
+    ...(process.env.E2E_ISOLATED === '1' ? { turbopackFileSystemCacheForDev: false } : {}),
   },
   async redirects() {
     return [
@@ -88,7 +100,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/(.*)',
-        headers: securityHeaders,
+        headers: [...securityHeaders, ...(process.env.TESTING_MODE_ENABLED === '1' ? [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }] : [])],
       },
     ]
   },

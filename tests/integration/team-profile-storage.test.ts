@@ -41,7 +41,7 @@ async function ready(): Promise<boolean> {
 }
 
 const isReady = await ready()
-if (!isReady) throw new Error('Required local test database with team_members.userId is not ready')
+if (!isReady) throw new Error('Required isolated team profile database is unavailable or missing its schema')
 const suite = describe
 
 const { state } = vi.hoisted(() => ({
@@ -100,21 +100,26 @@ suite('team photo storage (real client, local storage server)', () => {
     await pg.query(readFileSync(resolve(__dirname, '../../supabase/migrations/20261001_team_member_user_link.sql'), 'utf8'))
     await pg.end()
 
-    server = spawn('npx', ['ts-node', '-P', 'tsconfig.seed.json', resolve(__dirname, '../e2e/helpers/fake-storage-server.ts')], {
+    server = spawn(process.execPath, [resolve(__dirname, '../../node_modules/ts-node/dist/bin.js'), '-P', 'tsconfig.seed.json', resolve(__dirname, '../e2e/helpers/fake-storage-server.ts')], {
       env: { ...process.env, FAKE_STORAGE_PORT: String(PORT) },
       stdio: 'ignore',
     })
+    let storageReady = false
     for (let i = 0; i < 200; i++) {
+      if (server.exitCode !== null) throw new Error(`Local storage service exited with ${server.exitCode} before readiness.`)
       try {
-        await fetch(`${STORAGE}/__objects`)
+        const response = await fetch(`${STORAGE}/__objects`)
+        if (!response.ok) throw new Error(`Local storage readiness returned ${response.status}`)
+        storageReady = true
         break
       } catch {
         await new Promise((r) => setTimeout(r, 100))
       }
     }
+    if (!storageReady) throw new Error('Local storage did not become ready within 20 seconds.')
     process.env.NEXT_PUBLIC_SUPABASE_URL = STORAGE
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'local-service-key'
-  })
+  }, 30_000)
 
   beforeEach(async () => {
     state.session = null

@@ -66,14 +66,9 @@ export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     th: ['colspan', 'rowspan', 'scope'],
     td: ['colspan', 'rowspan'],
     ol: ['start'],
-    h1: ['style'],
-    h2: ['style'],
-    h3: ['style'],
-    h4: ['style'],
-    h5: ['style'],
-    h6: ['style'],
-    mark: ['style'],
-    p: ['class', 'style'],
+    // No `style` attribute on any element: public house style publishes no stored
+    // presentation (colour, size, spacing, alignment), even from raw stored HTML.
+    p: ['class'],
     figure: ['class'],
     figcaption: ['class'],
     aside: ['class', 'data-type'],
@@ -84,22 +79,13 @@ export const ARTICLE_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     sup: ['class', 'data-footnote', 'data-index', 'id'],
     // Glossary tooltip triggers only. data-gloss-* values are plain text the
     // tooltip reads via getAttribute/textContent, never interpreted as HTML.
-    span: ['class', 'style', 'data-gloss-term', 'data-gloss-def', 'data-gloss-url'],
+    span: ['class', 'data-gloss-term', 'data-gloss-def', 'data-gloss-url'],
   },
   // A span may only carry the glossary trigger class; anything else (including
   // a class-less span from pasted content) is stripped to its text.
   allowedClasses: {
     span: ['glossary-term'],
     div: ['table-scroll'],
-  },
-  allowedStyles: {
-    '*': {
-      'text-align': [/^(left|center|right|justify)$/],
-      color: [/^#[0-9a-f]{3,8}$/i],
-      'background-color': [/^#[0-9a-f]{3,8}$/i],
-      'font-size': [/^(1[2-9]|[2-8][0-9]|9[0-6])(\.\d+)?px$/],
-      'line-height': [/^[1-3](\.\d+)?$/],
-    },
   },
   // Only safe URL schemes; relative/anchor hrefs (e.g. #correction-note) still pass.
   allowedSchemes: ['http', 'https', 'mailto'],

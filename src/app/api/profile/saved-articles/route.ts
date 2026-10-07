@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -40,7 +41,7 @@ export async function GET() {
 }
 
 // DELETE /api/profile/saved-articles?articleId=xxx - remove a bookmark
-export async function DELETE(request: NextRequest) {
+async function DELETEHandler(request: NextRequest) {
   const auth = await requireVerifiedSessionUser(ALL_ROLES)
   if (!auth.ok) return auth.response
   const user = auth.user
@@ -62,3 +63,5 @@ export async function DELETE(request: NextRequest) {
     })
   }
 }
+
+export const DELETE = withTestingAudit(DELETEHandler)

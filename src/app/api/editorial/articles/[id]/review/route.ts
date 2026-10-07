@@ -1,5 +1,6 @@
 import { articleRevisionError } from '@/lib/articleRevision'
 import { figureAltError } from '@/lib/figureValidation'
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -36,7 +37,7 @@ function isReviewAction(value: unknown): value is ReviewAction {
 
 // PATCH - editor action on a submitted article
 // action: 'approve' | 'schedule' | 'return' | 'unpublish' | 'correct'
-export async function PATCH(req: Request, { params }: Props) {
+async function PATCHHandler(req: Request, { params }: Props) {
   const requestId = crypto.randomUUID()
 
   try {
@@ -209,3 +210,5 @@ export async function PATCH(req: Request, { params }: Props) {
     })
   }
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)

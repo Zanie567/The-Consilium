@@ -3,7 +3,6 @@ import {
   buildTeamMasthead,
   hasDisplayableRole,
   resolveTeamTier,
-  UNTITLED_MASTHEAD_MEMBERS,
   type TeamMemberLike,
 } from '@/lib/teamHierarchy'
 
@@ -69,7 +68,7 @@ describe('hasDisplayableRole', () => {
 describe('buildTeamMasthead', () => {
   const roster = [
     member('Alexander Escala', 'Editor-in-Chief', 1),
-    member('Lucas Dwyer', '', 2),
+    { ...member('Lucas Dwyer', '', 2), publicTier: 'leadership' },
     member('Satvik Singla', 'Senior Editor', 3),
     member('Julia Stepniak', 'Chief Designer', 4),
     member('Annika Sarawgi', 'Senior Editor', 5),
@@ -118,17 +117,9 @@ describe('buildTeamMasthead', () => {
     ])
   })
 
-  it('applies the untitled-masthead exception by name, and only while the role is blank', () => {
-    expect(UNTITLED_MASTHEAD_MEMBERS.has('lucas dwyer')).toBe(true)
-
-    // Name matching tolerates casing and stray whitespace.
-    const [masthead] = buildTeamMasthead([member('  LUCAS   DWYER ', '', 1)])
-    expect(masthead.id).toBe('masthead')
-    expect(masthead.rows[0].tier).toBe('leadership')
-
-    // Give him a role again and the role alone decides the tier.
-    const sections = buildTeamMasthead([member('Lucas Dwyer', 'Writer', 1)])
-    expect(sections.map((s) => s.id)).toEqual(['writers'])
+  it('only trusted placement can promote an untitled card; a name cannot', () => {
+    expect(buildTeamMasthead([member('Lucas Dwyer', '', 1)])[0].id).toBe('wider')
+    expect(buildTeamMasthead([{ ...member('Unrelated', '', 1), publicTier: 'leadership' }])[0].id).toBe('masthead')
   })
 
   it('orders senior editors ahead of editors and junior editors', () => {
@@ -177,29 +168,19 @@ describe('buildTeamMasthead', () => {
 describe('upgrade pyramid', () => {
   it('is stable for shuffled insertion, keeps chiefs first, caps deputy row, omits empty sections', () => {
     const members = [
-      {
-        id: 'chief',
-        name: 'Chief',
-        role: 'Editor-in-Chief',
-        team: 'editorial' as const,
-        order: 99,
-      },
+      { id: 'chief', name: 'Chief', role: 'Editor-in-Chief', order: 99 },
       ...[1, 2, 3].map((i) => ({
         id: `deputy${i}`,
         name: `Deputy ${i}`,
         role: 'Deputy Editor-in-Chief',
-        team: 'editorial' as const,
         order: i,
       })),
-      { id: 'editor', name: 'Editor', role: 'Editor', team: 'editorial' as const, order: 0 },
-      { id: 'writer', name: 'Writer', role: 'Writer', team: 'writing' as const, order: -10 },
-      {
-        id: 'growth',
-        name: 'Growth',
-        role: 'Editor-in-Chief',
-        team: 'growth' as const,
-        order: -100,
-      },
+      { id: 'editor', name: 'Editor', role: 'Editor', order: 0 },
+      { id: 'writer', name: 'Writer', role: 'Writer', order: -10 },
+      // An explicit, admin-managed public tier wins over the title text: this card says
+      // Editor-in-Chief but is placed in Growth, so it can neither take the chief slot nor
+      // outrank the real chief despite its lower order.
+      { id: 'growth', name: 'Growth', role: 'Editor-in-Chief', publicTier: 'growth', order: -100 },
     ]
     const expected = buildTeamMasthead(members)
     for (let start = 0; start < members.length; start++)
@@ -211,6 +192,7 @@ describe('upgrade pyramid', () => {
     expect(expected[0].rows[1].members.map((m) => m.id)).toEqual(['deputy1', 'deputy2'])
     expect(expected[1].label).toBe('Editorial Team')
     expect(expected[3].label).toBe('Growth & Comms')
+    expect(expected[3].rows[0].members.map((m) => m.id)).toEqual(['growth'])
     expect(buildTeamMasthead([members[0]])).toHaveLength(1)
   })
 })

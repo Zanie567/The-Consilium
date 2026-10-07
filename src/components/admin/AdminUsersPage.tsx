@@ -8,6 +8,8 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import { UserDetailPanel } from './UserDetailPanel'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { apiRequest, asApiError } from '@/lib/apiClient'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -102,13 +104,18 @@ function ActionMenu({
   currentAdminId,
   onView,
   onReload,
+  onError,
 }: {
   user: UserRow
   currentAdminId: string
   onView: () => void
   onReload: () => void
+  onError: (message: string) => void
 }) {
   const [open, setOpen] = useState(false)
+  // A role change alters what the person can reach (Admin can do everything), so the menu only
+  // ASKS for one; the dialog confirms it.
+  const [pendingRole, setPendingRole] = useState<string | null>(null)
   const [roleOpen, setRoleOpen] = useState(false)
   const [loading, setLoading] = useState('')
   const ref = useRef<HTMLDivElement>(null)
@@ -127,18 +134,29 @@ function ActionMenu({
 
   const doAction = async (endpoint: string, method: string, body?: object) => {
     setLoading(endpoint)
-    const res = await fetch(endpoint, {
-      method,
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    })
-    setLoading('')
-    setOpen(false)
-    if (res.ok) onReload()
+    try {
+      const res = await fetch(endpoint, {
+        method,
+        headers: body ? { 'Content-Type': 'application/json' } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      })
+      if (res.ok) {
+        onReload()
+      } else {
+        // A refused action used to disappear without a word.
+        const data = await res.json().catch(() => ({}))
+        onError(data.error ?? `That action could not be completed (${res.status}).`)
+      }
+    } catch {
+      onError('The server could not be reached. Nothing was changed.')
+    } finally {
+      setLoading('')
+      setOpen(false)
+    }
   }
 
   const handleRoleChange = (role: string) => {
-    doAction(`/api/admin/users/${user.id}/role`, 'PATCH', { role })
+    setPendingRole(role)
     setRoleOpen(false)
   }
 
@@ -146,6 +164,21 @@ function ActionMenu({
 
   return (
     <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
+      <ConfirmDialog
+        open={pendingRole !== null}
+        title={`Change ${user.name ?? user.email}'s role?`}
+        message={`${user.name ?? user.email} (${user.email}) changes from ${user.role} to ${pendingRole}. What they can open and do changes immediately, and they are emailed.`}
+        confirmLabel={`Change to ${pendingRole}`}
+        tone={pendingRole === 'ADMIN' ? 'danger' : 'default'}
+        busy={loading !== ''}
+        onConfirm={() => {
+          const role = pendingRole
+          if (!role || loading !== '') return
+          setPendingRole(null)
+          void doAction(`/api/admin/users/${user.id}/role`, 'PATCH', { role })
+        }}
+        onCancel={() => setPendingRole(null)}
+      />
       <button
         onClick={() => setOpen((o) => !o)}
         className="p-1.5 text-[var(--fg-faint)] hover:text-[var(--fg)] hover:bg-[var(--border)] transition-colors rounded"
@@ -227,14 +260,18 @@ function AuditLog() {
   const [entries, setEntries] = useState<AuditEntry[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetch('/api/admin/audit-log')
-      .then((r) => r.json())
-      .then((d) => { if (Array.isArray(d)) setEntries(d) })
-      .catch(() => {})
+  const [error, setError] = useState('')
+  const load = useCallback(() => {
+    setLoading(true)
+    setError('')
+    apiRequest<AuditEntry[]>('/api/admin/audit-log')
+      .then(setEntries)
+      .catch(reason => setError(asApiError(reason).message))
       .finally(() => setLoading(false))
   }, [])
+  useEffect(load, [load])
 
+  if (error && !loading) return <div className="py-8 text-center"><p role="alert">{error}</p><button onClick={load}>Retry audit log</button></div>
   if (loading) return <div className="py-8 text-center text-[var(--fg-faint)] text-xs">Loading audit log...</div>
   if (entries.length === 0) return <div className="py-8 text-center text-[var(--fg-faint)] text-xs">No audit entries yet.</div>
 
@@ -315,6 +352,8 @@ export function AdminUsersPage({ currentAdminId }: Props) {
   const [stats, setStats] = useState<Stats | null>(null)
   const [users, setUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [usersError, setUsersError] = useState('')
+  const usersRequest = useRef(0)
   const [total, setTotal] = useState(0)
   const [pages, setPages] = useState(1)
   const [page, setPage] = useState(1)
@@ -328,6 +367,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
   // Panel
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [statsError, setStatsError] = useState(false)
+  const [actionError, setActionError] = useState('')
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -340,7 +380,9 @@ export function AdminUsersPage({ currentAdminId }: Props) {
   }
 
   const loadUsers = useCallback(() => {
+    const request = ++usersRequest.current
     setLoading(true)
+    setUsersError('')
     const params = new URLSearchParams({
       page: String(page),
       limit: String(PAGE_SIZE),
@@ -349,15 +391,15 @@ export function AdminUsersPage({ currentAdminId }: Props) {
       ...(roleTab !== 'All' && { role: roleTab.toUpperCase() }),
       ...(status && { status }),
     })
-    fetch(`/api/admin/users?${params}`)
-      .then((r) => r.json())
+    apiRequest<{users: UserRow[]; total: number; pages: number}>(`/api/admin/users?${params}`)
       .then((d) => {
+        if (request !== usersRequest.current) return
         setUsers(d.users ?? [])
         setTotal(d.total ?? 0)
         setPages(d.pages ?? 1)
       })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+      .catch(reason => { if (request === usersRequest.current) setUsersError(asApiError(reason).message) })
+      .finally(() => { if (request === usersRequest.current) setLoading(false) })
   }, [page, sort, search, roleTab, status])
 
   useEffect(() => { loadStats() }, [])
@@ -378,6 +420,12 @@ export function AdminUsersPage({ currentAdminId }: Props) {
 
   return (
     <div>
+      {actionError && (
+        <div role="alert" className="mb-4 flex items-center justify-between gap-4 border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+          <span>{actionError}</span>
+          <button onClick={() => setActionError('')} className="text-xs font-bold uppercase tracking-widest underline">Dismiss</button>
+        </div>
+      )}
       {/* Stats bar: real counts, an error fallback, or skeletons while loading.
           statsError prevents the skeleton from pulsing forever when the fetch fails. */}
       {statsError ? (
@@ -466,6 +514,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
               {/* Status filter */}
               <select
                 value={status}
+                aria-label="User status"
                 onChange={(e) => setStatus(e.target.value)}
                 className="bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--fg)] text-base sm:text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 outline-none"
               >
@@ -478,6 +527,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
               {/* Sort */}
               <select
                 value={sort}
+                aria-label="User sort"
                 onChange={(e) => setSort(e.target.value)}
                 className="bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--fg)] text-base sm:text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 outline-none"
               >
@@ -487,6 +537,8 @@ export function AdminUsersPage({ currentAdminId }: Props) {
               </select>
             </div>
           </div>
+
+          {usersError && <div role="alert"><p>{usersError}</p><button onClick={loadUsers}>Retry users</button></div>}
 
           {/* Table */}
           <div className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden">
@@ -514,7 +566,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
                         </td>
                       </tr>
                     ))
-                  ) : users.length === 0 ? (
+                  ) : usersError ? null : users.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="px-4 py-12 text-center text-[var(--fg-faint)] text-sm">
                         No users found.
@@ -588,7 +640,8 @@ export function AdminUsersPage({ currentAdminId }: Props) {
                             user={user}
                             currentAdminId={currentAdminId}
                             onView={() => setSelectedUserId(user.id)}
-                            onReload={handleReload}
+                            onReload={() => { setActionError(''); handleReload() }}
+                            onError={setActionError}
                           />
                         </td>
                       </tr>
@@ -606,6 +659,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
                 </p>
                 <div className="flex items-center gap-2">
                   <button
+                    aria-label="Previous users page"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
                     className="p-1.5 text-[var(--fg-faint)] hover:text-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
@@ -614,6 +668,7 @@ export function AdminUsersPage({ currentAdminId }: Props) {
                   </button>
                   <span className="text-[var(--fg-faint)] text-xs">{page} / {pages}</span>
                   <button
+                    aria-label="Next users page"
                     onClick={() => setPage((p) => Math.min(pages, p + 1))}
                     disabled={page === pages}
                     className="p-1.5 text-[var(--fg-faint)] hover:text-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"

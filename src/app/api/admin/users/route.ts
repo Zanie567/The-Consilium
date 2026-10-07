@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_ONLY, ALL_ROLES } from '@/lib/rbac'
@@ -55,12 +56,36 @@ export async function GET(request: NextRequest) {
   if (sort === 'oldest') orderBy = { createdAt: 'asc' }
   else if (sort === 'lastActive') orderBy = { lastActiveAt: { sort: 'desc', nulls: 'last' } }
 
+  // Rank the entire filtered population before pagination. Counts deliberately
+  // exclude trashed articles/hidden comments, matching the displayed tallies.
+  // Values are bound parameters; SQL identifiers/fragments are fixed here.
+  const countSort = sort === 'articleCount' || sort === 'commentCount'
+  let rankedIds: string[] = []
+  if (countSort) {
+    const conditions = [Prisma.sql`TRUE`]
+    if (search) {
+      const pattern = `%${escapeLikePattern(search)}%`
+      conditions.push(Prisma.sql`(u.name ILIKE ${pattern} OR u.email ILIKE ${pattern})`)
+    }
+    if (role && (ALL_ROLES as readonly string[]).includes(role)) conditions.push(Prisma.sql`u.role::text = ${role}`)
+    if (status === 'banned') conditions.push(Prisma.sql`u."isBanned" = TRUE`)
+    else if (status === 'active') conditions.push(Prisma.sql`u."isBanned" = FALSE AND u."isActive" = TRUE`)
+    else if (status === 'warned') conditions.push(Prisma.sql`EXISTS (SELECT 1 FROM user_warnings w WHERE w."userId" = u.id)`)
+    const tally = sort === 'articleCount'
+      ? Prisma.sql`(SELECT COUNT(*) FROM articles a WHERE a."authorId" = u.id AND a."deletedAt" IS NULL)`
+      : Prisma.sql`(SELECT COUNT(*) FROM comments c WHERE c."userId" = u.id AND c."isHidden" = FALSE)`
+    const ranked = await prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+      SELECT u.id FROM users u WHERE ${Prisma.join(conditions, ' AND ')}
+      ORDER BY ${tally} DESC, u."createdAt" DESC, u.id ASC
+      OFFSET ${(page - 1) * limit} LIMIT ${limit}`)
+    rankedIds = ranked.map(row => row.id)
+  }
+
   const [users, total] = await Promise.all([
     prisma.user.findMany({
-      where,
-      orderBy: sort === 'articleCount' || sort === 'commentCount' ? { createdAt: 'desc' } : orderBy,
-      skip: (page - 1) * limit,
-      take: limit,
+      where: countSort ? { ...where, id: { in: rankedIds } } : where,
+      orderBy,
+      ...(!countSort && { skip: (page - 1) * limit, take: limit }),
       select: {
         id: true,
         name: true,
@@ -88,13 +113,8 @@ export async function GET(request: NextRequest) {
     prisma.user.count({ where }),
   ])
 
-  // For article/comment count sorts, sort in memory (avoid complex join-based sorts)
-  let sorted = users
-  if (sort === 'articleCount') {
-    sorted = [...users].sort((a, b) => b._count.articles - a._count.articles)
-  } else if (sort === 'commentCount') {
-    sorted = [...users].sort((a, b) => b._count.comments - a._count.comments)
-  }
+  const positions = new Map(rankedIds.map((id, index) => [id, index]))
+  const sorted = countSort ? users.sort((a, b) => positions.get(a.id)! - positions.get(b.id)!) : users
 
   return NextResponse.json({
     users: sorted,

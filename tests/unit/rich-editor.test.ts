@@ -118,7 +118,10 @@ describe('public rich-content safety and parity', () => {
     expect(html).toContain('Source:')
     expect(html).toContain('Note: Rounded')
   })
-  it('retains supported toolbar marks/alignment while rejecting injected styles', () => {
+  // PUBLIC HOUSE STYLE (confirmed on main, tests/unit/article-render-formatting.test.ts): the
+  // editor stores colour, size, spacing and alignment choices, but public HTML publishes none of
+  // them. Semantic marks (strike, bold, links ...) are retained, and injected styles go nowhere.
+  it('retains semantic toolbar marks, publishes no presentation, and rejects injected styles', () => {
     const doc = {
       type: 'doc',
       content: [
@@ -142,12 +145,10 @@ describe('public rich-content safety and parity', () => {
       ],
     }
     const html = renderContent(JSON.stringify(doc)).html
-    expect(html).toContain('text-align:center')
     expect(html).toContain('<s>')
-    expect(html).toContain('color:#ff0000')
-    expect(html).toContain('font-size:24px')
+    expect(html).not.toMatch(/style=|text-align|color:|font-size|line-height|#ff0000/i)
     doc.content[0].attrs.textAlign = 'center; background:url(javascript:x)'
-    expect(renderContent(JSON.stringify(doc)).html).not.toContain('javascript')
+    expect(renderContent(JSON.stringify(doc)).html).not.toMatch(/javascript|style=/i)
   })
   it.each([
     'javascript:alert(1)',

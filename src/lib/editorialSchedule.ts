@@ -110,14 +110,14 @@ export function formatEditorialScheduleDisplay(
   if (!date) return ''
 
   const { includeYear = true, includeZone = false } = options
-  return new Intl.DateTimeFormat('en-GB', {
-    timeZone: EDITORIAL_TIME_ZONE,
-    day: 'numeric',
-    month: 'short',
-    ...(includeYear ? { year: 'numeric' } : {}),
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-    ...(includeZone ? { timeZoneName: 'short' } : {}),
-  }).format(normaliseDate(date))
+  // Intl.format literals differ across ICU versions: Node renders "2 Nov, 22:23"
+  // while WebKit renders "2 Nov at 22:23". Assemble stable punctuation from the
+  // timezone-aware numeric parts so server HTML and browser hydration agree.
+  const value = normaliseDate(date)
+  const parts = getTimeZoneParts(value)
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec']
+  const day = `${parts.day} ${months[parts.month - 1]}${includeYear ? ` ${parts.year}` : ''}`
+  const time = `${pad(parts.hour)}:${pad(parts.minute)}`
+  const zone = includeZone ? (getTimeZoneOffset(value) > 0 ? ' BST' : ' GMT') : ''
+  return `${day}, ${time}${zone}`
 }

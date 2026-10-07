@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { checkArticleCommentAccess } from '@/lib/articleCommentAccess'
 import { apiError, isPrismaSchemaMismatch } from '@/lib/apiResponse'
+import { withTestingAudit } from '@/lib/testingAudit'
 
 interface Props {
   params: Promise<{ id: string; commentId: string }>
@@ -9,7 +10,7 @@ interface Props {
 
 const MAX_COMMENT_LENGTH = 5000
 
-export async function PATCH(req: Request, { params }: Props) {
+async function patchHandler(req: Request, { params }: Props) {
   const { id, commentId } = await params
   try {
     const access = await checkArticleCommentAccess(id)
@@ -94,3 +95,5 @@ export async function PATCH(req: Request, { params }: Props) {
     return NextResponse.json({ error: 'Failed to update the comment.' }, { status: 500 })
   }
 }
+
+export const PATCH = withTestingAudit(patchHandler)

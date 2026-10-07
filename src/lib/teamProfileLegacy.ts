@@ -18,7 +18,7 @@ import { normalizePersonName } from '@/lib/teamProfiles'
 type Db = Pick<typeof prisma, 'teamMember'>
 
 export type LegacyMatch =
-  | { kind: 'adoptable'; card: { id: string; bio: string | null; image: string | null } }
+  | { kind: 'adoptable'; card: { id: string; bio: string | null; image: string | null; role?: string; publicTier?: string | null } }
   | { kind: 'blocked' }
   | { kind: 'none' }
 
@@ -29,7 +29,7 @@ export async function matchLegacyCard(
   if (account.email) {
     const byEmail = await db.teamMember.findMany({
       where: { userId: null, email: { equals: account.email.trim(), mode: 'insensitive' } },
-      select: { id: true, bio: true, image: true },
+      select: { id: true, bio: true, image: true, role: true, publicTier: true },
       take: 2,
     })
     if (byEmail.length === 1) return { kind: 'adoptable', card: byEmail[0] }

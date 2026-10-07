@@ -6,17 +6,21 @@
  * hand-computed from the fixture progress values, which are the same values
  * tests/unit/read-through.test.ts and prisma/seed-read-through.ts use.
  *
- * This suite is strictly read-only: the fixtures are created once by
- * prisma/seed-read-through.ts (run by scripts/setup-test-db.sh), so nothing
- * here can race the other DB-backed suites running in parallel workers.
- *
- * Uses vitest.config.ts's guarded local database. Missing DB or fixtures fail
- * setup instead of silently passing aggregation cases.
+ * Every run creates private draft fixtures. Public browsing changes reading
+ * progress, so reusing the published demo articles polluted later reruns.
+ * An unavailable test database fails setup; it cannot produce false passes.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { randomUUID } from 'node:crypto'
+import { assertRunDatabase } from '../../scripts/lib/assertRunDatabase'
 import { assertSafeTestDatabaseHost } from '../../scripts/lib/assertSafeTestDatabaseHost'
+function assertFixtureDatabase() {
+  if (process.env.E2E_ISOLATED === '1') assertRunDatabase()
+  else assertSafeTestDatabaseHost(process.env.TEST_DATABASE_URL, 'TEST_DATABASE_URL')
+}
+assertFixtureDatabase()
 
-// The Vitest worker guard runs before these imports.
+// The Vitest guard has already pinned DATABASE_URL to TEST_DATABASE_URL.
 const { prisma } = await import('@/lib/prisma')
 const { getArticleReadThrough, getReadStatsByArticleIds } = await import('@/lib/read-through')
 
@@ -30,41 +34,41 @@ const SLUGS = {
   all0: 'rt-edge-all0',                // 5 readers, all at 0%
 } as const
 
-let ready = false
+const fixtureTag = `rt-integration-${randomUUID()}`
+const progresses = {
+  fixture: [5, 8, 22, 26, 31, 33, 35, 36, 38, 39, 52, 55, 61, 64, 68, 72, 75, 81, 85, 90, 93, 96, 100, 100],
+  three: [10, 50, 80], empty: [], single: [42], all100: [100, 100, 100, 100, 100, 100], all0: [0, 0, 0, 0, 0],
+}
 const ids: Record<keyof typeof SLUGS, string> = {
   fixture: '', three: '', empty: '', single: '', all100: '', all0: '',
 }
 
 beforeAll(async () => {
-  try {
-    // Same host-safety reasoning as data-layer.test.ts: an unsafe/production
-    // host must fail before any query.
-    assertSafeTestDatabaseHost(process.env.DATABASE_URL, 'DATABASE_URL')
-    const slugs = Object.values(SLUGS)
-    const articles = await prisma.article.findMany({
-      where: { slug: { in: slugs } },
-      select: { id: true, slug: true },
-    })
-    if (articles.length === slugs.length) {
-      for (const [key, slug] of Object.entries(SLUGS)) {
-        ids[key as keyof typeof SLUGS] = articles.find((a) => a.slug === slug)!.id
-      }
-      ready = true
-    } else {
-      throw new Error('Read-through fixtures missing; run scripts/setup-test-db.sh.')
-    }
-  } catch (error) {
-    throw new Error('Required local read-through database/fixtures are unavailable.', { cause: error })
+  assertFixtureDatabase()
+  const author = await prisma.user.create({ data: { email: `${fixtureTag}@consilium.test`, role: 'WRITER' } })
+  const readers = await Promise.all(Array.from({ length: 24 }, (_, i) => prisma.user.create({
+    data: { email: `${fixtureTag}-${i}@consilium.test`, role: 'READER' },
+  })))
+  for (const key of Object.keys(SLUGS) as (keyof typeof SLUGS)[]) {
+    const article = await prisma.article.create({ data: {
+      title: `${fixtureTag}-${key}`, slug: `${fixtureTag}-${key}`, authorId: author.id,
+      status: 'DRAFT', content: '{"type":"doc","content":[]}',
+    } })
+    ids[key] = article.id
+    if (progresses[key].length) await prisma.readingProgress.createMany({ data: progresses[key].map((progress, i) => ({
+      articleId: article.id, userId: readers[i].id, progress, completed: progress >= 90, scrollY: 0,
+    })) })
   }
 })
 
 afterAll(async () => {
+  await prisma.article.deleteMany({ where: { slug: { startsWith: fixtureTag } } })
+  await prisma.user.deleteMany({ where: { email: { startsWith: fixtureTag } } })
   await prisma.$disconnect().catch(() => {})
 })
 
 describe('getArticleReadThrough (SQL aggregation)', () => {
   it('returns the empty not-enough-data state for an article with no readers', async () => {
-    if (!ready) return
     const out = await getArticleReadThrough(ids.empty)
     expect(out).toEqual({
       readerCount: 0,
@@ -77,7 +81,6 @@ describe('getArticleReadThrough (SQL aggregation)', () => {
   })
 
   it('one reader stays below the minimum sample', async () => {
-    if (!ready) return
     const out = await getArticleReadThrough(ids.single)
     expect(out.readerCount).toBe(1)
     expect(out.hasEnoughData).toBe(false)
@@ -86,7 +89,6 @@ describe('getArticleReadThrough (SQL aggregation)', () => {
   })
 
   it('all readers at 100%: complete retention and no drop', async () => {
-    if (!ready) return
     const out = await getArticleReadThrough(ids.all100)
     expect(out.readerCount).toBe(6)
     expect(out.completionRate).toBe(100)
@@ -96,7 +98,6 @@ describe('getArticleReadThrough (SQL aggregation)', () => {
   })
 
   it('all readers at 0%: zero retention, everyone lost before the 10% mark', async () => {
-    if (!ready) return
     const out = await getArticleReadThrough(ids.all0)
     expect(out.readerCount).toBe(5)
     expect(out.completionRate).toBe(0)
@@ -106,7 +107,6 @@ describe('getArticleReadThrough (SQL aggregation)', () => {
   })
 
   it('24-reader fixture matches the hand-computed deciles, median, and drop', async () => {
-    if (!ready) return
     const out = await getArticleReadThrough(ids.fixture)
     expect(out.readerCount).toBe(24)
     expect(out.hasEnoughData).toBe(true)
@@ -131,7 +131,6 @@ describe('getArticleReadThrough (SQL aggregation)', () => {
   })
 
   it('three readers (below threshold) return the not-enough-data state', async () => {
-    if (!ready) return
     const out = await getArticleReadThrough(ids.three)
     expect(out.readerCount).toBe(3)
     expect(out.hasEnoughData).toBe(false)
@@ -144,7 +143,6 @@ describe('getArticleReadThrough (SQL aggregation)', () => {
 
 describe('getReadStatsByArticleIds (grouped SQL for the list view)', () => {
   it('aggregates each article in one grouped query and omits articles with no rows', async () => {
-    if (!ready) return
     const map = await getReadStatsByArticleIds(Object.values(ids))
 
     expect(map.get(ids.fixture)).toEqual({

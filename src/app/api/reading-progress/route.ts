@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, requireVerifiedSessionUser } from '@/lib/auth'
@@ -45,7 +46,7 @@ export async function GET() {
 }
 
 // POST /api/reading-progress - upsert progress for an article
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const auth = await requireVerifiedSessionUser(ALL_ROLES)
   if (!auth.ok) return auth.response
   const user = auth.user
@@ -70,3 +71,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Failed to save reading progress.' }, { status: 500 })
   }
 }
+
+export const POST = withTestingAudit(POSTHandler)

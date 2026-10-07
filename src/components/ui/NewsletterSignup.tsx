@@ -4,16 +4,26 @@ import { useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 
+// Same rule as /api/subscribe, so an address the server would reject is never sent.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 export function NewsletterSignup() {
-  const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
+  // A ref, not `status`: a second submit can arrive before React re-renders the disabled button.
+  const inFlight = useRef(false)
 
-  const pending = useRef(false)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (pending.current) return
-    pending.current = true
+    if (inFlight.current) return
+    // Read the visible form value, including autofill and input before hydration.
+    const email = String(new FormData(e.currentTarget as HTMLFormElement).get('email') ?? '').trim()
+    if (!EMAIL_PATTERN.test(email) || email.length > 254) {
+      setStatus('error')
+      setMessage('Enter a valid email address.')
+      return
+    }
+    inFlight.current = true
     setStatus('loading')
     try {
       await apiRequest('/api/subscribe', {
@@ -23,16 +33,21 @@ export function NewsletterSignup() {
       })
       setStatus('success')
       setMessage('Thank you for subscribing to The Consilium.')
-      setEmail('')
     } catch (reason) {
       setStatus('error')
+      // 400: the address was refused. A dropped connection or timeout carries only infrastructure
+      // wording, so the reader gets a plain retry line. Anything else (for example rate limiting)
+      // shows the server's own user-facing message.
+      const error = asApiError(reason)
       setMessage(
-        asApiError(reason).status === 400
+        error.status === 400
           ? 'Enter a valid email address.'
-          : 'Unable to subscribe right now. Please try again.'
+          : error.kind === 'network' || error.kind === 'timeout'
+            ? 'Unable to subscribe right now. Please try again.'
+            : error.message
       )
     } finally {
-      pending.current = false
+      inFlight.current = false
     }
   }
 
@@ -102,11 +117,10 @@ export function NewsletterSignup() {
               <div className="relative flex-1 group">
                 <input
                   type="email"
+                  name="email"
                   aria-label="Newsletter email address"
                   autoComplete="email"
                   maxLength={254}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="Your email address"
                   required
                   className="w-full bg-white/[0.06] border border-cream/20 text-cream placeholder:text-cream/35 px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-gold/70 focus:bg-white/[0.09] transition-all duration-200"

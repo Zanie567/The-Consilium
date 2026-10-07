@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs'
 import { checkRateLimit, getIp } from '@/lib/rate-limit'
 import { escapeHtml } from '@/lib/escapeHtml'
 import { stripControlCharacters } from '@/lib/searchText'
+import { verifyEmailAndClaim } from '@/lib/membership'
 
 // POST - request a password reset link (any user, not just editorial)
 export async function POST(req: NextRequest) {
@@ -131,19 +132,25 @@ export async function PATCH(req: NextRequest) {
 
   const hashed = await bcrypt.hash(password, 10)
   try {
-    await prisma.$transaction([
-      prisma.user.update({
+    await prisma.$transaction(async tx => {
+      const claimed = await tx.passwordResetToken.updateMany({where:{id:record.id,used:false,expires:{gt:new Date()}},data:{used:true}})
+      if (claimed.count !== 1) throw new Error('RESET_ALREADY_USED')
+      await tx.user.update({
         where: { id: record.userId },
         data: { password: hashed, failedLoginAttempts: 0, lockedUntil: null },
-      }),
-      prisma.passwordResetToken.update({ where: { id: record.id }, data: { used: true } }),
-    ])
-  } catch {
+      })
+    })
+  } catch (error) {
+    if (error instanceof Error && error.message === 'RESET_ALREADY_USED') return expired
     return NextResponse.json(
       { error: 'Could not reset the password. Please try again.' },
       { status: 503 }
     )
   }
+
+  // The reset link went to the account's own inbox, so completing it proves control
+  // of the address: confirm it, and pick up any invitation an admin made for it.
+  await verifyEmailAndClaim(record.userId).catch(() => null)
 
   return NextResponse.json({ ok: true })
 }

@@ -1,14 +1,8 @@
 /**
  * Integration tests for The Consilium API routes.
  *
- * Prerequisites:
- *   1. Dev server running: npm run dev (http://localhost:3000)
- *   2. DB seeded with at least one published article and one active debate
- *
- * To run integration tests only:
- *   BASE_URL=http://localhost:3000 npx vitest run tests/integration
- *
- * A missing live server fails setup instead of silently passing HTTP cases.
+ * Runs inside `npm run test:audit` against its attested disposable database,
+ * isolated production app and owned fixtures. Missing services fail setup.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
@@ -25,16 +19,14 @@ const BASE = process.env.BASE_URL ?? 'http://localhost:3000'
 async function serverIsUp(): Promise<boolean> {
   try {
     const res = await fetch(`${BASE}/api/articles`, { signal: AbortSignal.timeout(3000) })
-    return res.status < 600
+    return res.status === 200
   } catch {
     return false
   }
 }
 
-let up = false
 beforeAll(async () => {
-  up = await serverIsUp()
-  if (!up) throw new Error(`Required local integration server is not reachable at ${BASE}`)
+  if (!(await serverIsUp())) throw new Error('The attested isolated server must be reachable; live API checks cannot silently pass.')
 })
 
 const admin = new Session(BASE)
@@ -90,7 +82,7 @@ describe('POST /api/auth/signup', () => {
   const email = () => `test-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`
 
   it('valid payload → 201 with id and email', async () => {
-    if (!up) return
+
     const res = await post('/api/auth/signup', {
       name: 'Test User',
       email: email(),
@@ -104,7 +96,7 @@ describe('POST /api/auth/signup', () => {
   })
 
   it('agreed: false → 400', async () => {
-    if (!up) return
+
     const res = await post('/api/auth/signup', {
       name: 'Test User',
       email: email(),
@@ -115,7 +107,7 @@ describe('POST /api/auth/signup', () => {
   })
 
   it('name length 1 → 400', async () => {
-    if (!up) return
+
     const res = await post('/api/auth/signup', {
       name: 'A',
       email: email(),
@@ -126,7 +118,7 @@ describe('POST /api/auth/signup', () => {
   })
 
   it('name length 2 → 201', async () => {
-    if (!up) return
+
     const res = await post('/api/auth/signup', {
       name: 'Al',
       email: email(),
@@ -137,7 +129,7 @@ describe('POST /api/auth/signup', () => {
   })
 
   it('name length 101 → 400', async () => {
-    if (!up) return
+
     const res = await post('/api/auth/signup', {
       name: 'A'.repeat(101),
       email: email(),
@@ -148,7 +140,7 @@ describe('POST /api/auth/signup', () => {
   })
 
   it('password length 7 → 400', async () => {
-    if (!up) return
+
     const res = await post('/api/auth/signup', {
       name: 'Test User',
       email: email(),
@@ -159,7 +151,7 @@ describe('POST /api/auth/signup', () => {
   })
 
   it('password length 8 → 201', async () => {
-    if (!up) return
+
     const res = await post('/api/auth/signup', {
       name: 'Test User',
       email: email(),
@@ -170,7 +162,7 @@ describe('POST /api/auth/signup', () => {
   })
 
   it('password length 128 → 201', async () => {
-    if (!up) return
+
     const res = await post('/api/auth/signup', {
       name: 'Test User',
       email: email(),
@@ -181,7 +173,7 @@ describe('POST /api/auth/signup', () => {
   })
 
   it('password length 129 → 400', async () => {
-    if (!up) return
+
     const res = await post('/api/auth/signup', {
       name: 'Test User',
       email: email(),
@@ -194,7 +186,7 @@ describe('POST /api/auth/signup', () => {
   it('password with leading whitespace → 201 (whitespace not trimmed — BUG-PASS-TRIM)', async () => {
     // BUG: password is not trimmed before hashing. " password1" and "password1" hash differently.
     // This means a user who accidentally typed a leading space will have a different hash.
-    if (!up) return
+
     const e = email()
     const res = await post('/api/auth/signup', {
       name: 'Spacey User',
@@ -208,7 +200,7 @@ describe('POST /api/auth/signup', () => {
   })
 
   it('invalid email format → 400', async () => {
-    if (!up) return
+
     const res = await post('/api/auth/signup', {
       name: 'Test User',
       email: 'notanemail',
@@ -219,7 +211,7 @@ describe('POST /api/auth/signup', () => {
   })
 
   it('email 255 chars → 400 (max 254)', async () => {
-    if (!up) return
+
     // 244 chars + @example.com (11) = 255 chars total
     const longEmail = 'a'.repeat(244) + '@example.com'
     const res = await post('/api/auth/signup', {
@@ -232,7 +224,7 @@ describe('POST /api/auth/signup', () => {
   })
 
   it('duplicate email → 400', async () => {
-    if (!up) return
+
     const e = email()
     await post('/api/auth/signup', { name: 'User', email: e, password: 'password123', agreed: true })
     const res = await post('/api/auth/signup', { name: 'User2', email: e, password: 'password123', agreed: true })
@@ -240,7 +232,7 @@ describe('POST /api/auth/signup', () => {
   })
 
   it('duplicate email different case → 400 (lowercased before check)', async () => {
-    if (!up) return
+
     const base = email()
     const upper = base.toUpperCase()
     await post('/api/auth/signup', { name: 'User', email: base, password: 'password123', agreed: true })
@@ -254,7 +246,7 @@ describe('POST /api/auth/signup', () => {
 
 describe('POST /api/auth/forgot-password', () => {
   it('unknown email returns ok: true (enumeration prevention)', async () => {
-    if (!up) return
+
     const res = await post('/api/auth/forgot-password', {
       email: `nonexistent-${Date.now()}@example.com`,
     })
@@ -264,7 +256,7 @@ describe('POST /api/auth/forgot-password', () => {
   })
 
   it('missing email field returns ok: true silently', async () => {
-    if (!up) return
+
     const res = await post('/api/auth/forgot-password', {})
     expect(res.status).toBe(200)
     const body = await res.json()
@@ -302,7 +294,7 @@ describe('POST /api/auth/forgot-password', () => {
 
 describe('GET /api/search', () => {
   it('empty query → 200 with empty array', async () => {
-    if (!up) return
+
     const res = await get('/api/search?q=')
     expect(res.status).toBe(200)
     const body = await res.json()
@@ -311,7 +303,7 @@ describe('GET /api/search', () => {
   })
 
   it('1-char query → 200 with empty array (min length 2)', async () => {
-    if (!up) return
+
     const res = await get('/api/search?q=a')
     expect(res.status).toBe(200)
     const body = await res.json()
@@ -319,7 +311,7 @@ describe('GET /api/search', () => {
   })
 
   it('2-char query → 200 with array result', async () => {
-    if (!up) return
+
     const res = await get('/api/search?q=ai')
     expect(res.status).toBe(200)
     const body = await res.json()
@@ -327,7 +319,7 @@ describe('GET /api/search', () => {
   })
 
   it('query matching nothing → empty array (not error)', async () => {
-    if (!up) return
+
     const res = await get('/api/search?q=xyznonexistentterm99999')
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual([])
@@ -335,14 +327,14 @@ describe('GET /api/search', () => {
 
   it('two single-char tokens "a b" → empty array (tokens < 2 chars filtered)', async () => {
     // BUG-SEARCH-TOKEN: query "a b" splits into ["a", "b"], both < 2 chars, all filtered out
-    if (!up) return
+
     const res = await get('/api/search?q=a+b')
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual([])
   })
 
   it('XSS in query → result snippets do not contain unescaped script tags', async () => {
-    if (!up) return
+
     const res = await get('/api/search?q=%3Cscript%3Ealert(1)%3C%2Fscript%3E')
     expect(res.status).toBe(200)
     const text = await res.text()
@@ -352,7 +344,7 @@ describe('GET /api/search', () => {
 
   it('500-char query → returns without crashing (no max length enforced)', async () => {
     // BUG-SEARCH-LEN: no max length guard — very long query creates many OR clauses
-    if (!up) return
+
     const longQuery = 'economics '.repeat(50)
     const res = await get(`/api/search?q=${encodeURIComponent(longQuery)}`)
     // Should not crash — either 200 with results or 200 with empty array
@@ -366,13 +358,13 @@ describe('POST /api/subscribe', () => {
   const email = () => `sub-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`
 
   it('valid email → 201', async () => {
-    if (!up) return
+
     const res = await post('/api/subscribe', { email: email() })
     expect(res.status).toBe(201)
   })
 
   it('same email again → 200 "Already subscribed"', async () => {
-    if (!up) return
+
     const e = email()
     await post('/api/subscribe', { email: e })
     const res = await post('/api/subscribe', { email: e })
@@ -382,19 +374,19 @@ describe('POST /api/subscribe', () => {
   })
 
   it('invalid email → 400', async () => {
-    if (!up) return
+
     const res = await post('/api/subscribe', { email: 'notanemail' })
     expect(res.status).toBe(400)
   })
 
   it('missing email → 400', async () => {
-    if (!up) return
+
     const res = await post('/api/subscribe', {})
     expect(res.status).toBe(400)
   })
 
   it('email 255 chars → 400 (max 254)', async () => {
-    if (!up) return
+
     const res = await post('/api/subscribe', { email: 'a'.repeat(244) + '@example.com' })
     expect(res.status).toBe(400)
   })
@@ -411,19 +403,19 @@ describe('POST /api/contact', () => {
   }
 
   it('valid form → 200', async () => {
-    if (!up) return
+
     const res = await post('/api/contact', valid)
     expect(res.status).toBe(200)
   })
 
   it('missing name → 400', async () => {
-    if (!up) return
+
     const res = await post('/api/contact', { ...valid, name: '' })
     expect(res.status).toBe(400)
   })
 
   it('name is whitespace only → 400 (trimmed before required check)', async () => {
-    if (!up) return
+
     const res = await post('/api/contact', { ...valid, name: '   ' })
     // BUG-CONTACT-TRIM: name is trimmed to "" which then fails the "All fields required" check
     // This actually works correctly since name.trim() → "" → falsy. Documenting for certainty.
@@ -431,38 +423,38 @@ describe('POST /api/contact', () => {
   })
 
   it('name 101 chars → 400', async () => {
-    if (!up) return
+
     const res = await post('/api/contact', { ...valid, name: 'A'.repeat(101) })
     expect(res.status).toBe(400)
   })
 
   it('name 100 chars → 200', async () => {
-    if (!up) return
+
     const res = await post('/api/contact', { ...valid, name: 'A'.repeat(100) })
     expect(res.status).toBe(200)
   })
 
   it('subject 201 chars → 400', async () => {
-    if (!up) return
+
     const res = await post('/api/contact', { ...valid, subject: 'A'.repeat(201) })
     expect(res.status).toBe(400)
   })
 
   it('message 5000 chars → 200', async () => {
-    if (!up) return
+
     const res = await post('/api/contact', { ...valid, message: 'a'.repeat(5000) })
     expect(res.status).toBe(200)
   })
 
   it('message 5001 chars → 400', async () => {
-    if (!up) return
+
     const res = await post('/api/contact', { ...valid, message: 'a'.repeat(5001) })
     expect(res.status).toBe(400)
   })
 
   it('message with slur is stored unfiltered (no content filter on contact form)', async () => {
     // BUG-CONTACT-FILTER: contact form messages bypass the content filter
-    if (!up) return
+
     const res = await post('/api/contact', { ...valid, message: 'retard' })
     // It is stored (200) — document that contact form has no filter
     expect(res.status).toBe(200)
@@ -475,11 +467,8 @@ describe('POST /api/publish-scheduled', () => {
   const secret = process.env.CRON_SECRET ?? 'test-not-set'
 
   it('correct Bearer token → 200 with due and published', async () => {
-    if (!up) return
-    if (secret === 'test-not-set') {
-      console.warn('[skip] CRON_SECRET not in environment')
-      return
-    }
+
+    expect(secret, 'the isolated launcher supplies a throwaway cron secret').not.toBe('test-not-set')
     const res = await fetch(`${BASE}/api/publish-scheduled`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${secret}` },
@@ -491,7 +480,7 @@ describe('POST /api/publish-scheduled', () => {
   })
 
   it('wrong secret → 401', async () => {
-    if (!up) return
+
     const res = await fetch(`${BASE}/api/publish-scheduled`, {
       method: 'POST',
       headers: { Authorization: 'Bearer wrong-secret' },
@@ -500,7 +489,7 @@ describe('POST /api/publish-scheduled', () => {
   })
 
   it('no Authorization header → 401', async () => {
-    if (!up) return
+
     const res = await fetch(`${BASE}/api/publish-scheduled`, { method: 'POST' })
     expect(res.status).toBe(401)
   })
@@ -508,15 +497,15 @@ describe('POST /api/publish-scheduled', () => {
   it('?secret= query param is rejected (BUG-CRON-LOG fixed — header auth only)', async () => {
     // The old query-param auth leaked the secret into access logs; verifyCronAuth
     // now only accepts the Authorization: Bearer or x-cron-secret headers.
-    if (!up) return
-    if (secret === 'test-not-set') return
+
+    expect(secret, 'isolated cron fixture').not.toBe('test-not-set')
     const res = await fetch(`${BASE}/api/publish-scheduled?secret=${secret}`, { method: 'POST' })
     expect(res.status).toBe(401)
   })
 
   it('GET method is also accepted (same handler)', async () => {
-    if (!up) return
-    if (secret === 'test-not-set') return
+
+    expect(secret, 'isolated cron fixture').not.toBe('test-not-set')
     const res = await fetch(`${BASE}/api/publish-scheduled`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${secret}` },
@@ -532,7 +521,7 @@ describe('POST /api/comments', () => {
   let articleId: string | null = null
 
   beforeAll(async () => {
-    if (!up) return
+
     const res = await get('/api/articles')
     if (res.ok) {
       const articles = await res.json()
@@ -541,7 +530,7 @@ describe('POST /api/comments', () => {
   })
 
   it('unauthenticated → 401', async () => {
-    if (!up || !articleId) return
+    expect(articleId,'published article fixture').toBeTruthy()
     const res = await post('/api/comments', { articleId, body: 'Hello there' })
     expect(res.status).toBe(401)
   })
@@ -567,50 +556,13 @@ describe('POST /api/comments', () => {
 // ── Suite 8: Rate Limiting Boundaries ────────────────────────────────────────
 // These tests verify rate-limit thresholds by making rapid sequential requests.
 
-describe('Rate Limiting', () => {
-  it('subscribe: 4th request in 10min window → 429', async () => {
-    // Rate limit: 3/10min per IP
-    // Note: in-memory limits may not work perfectly across serverless instances,
-    // but in a single local dev server they will.
-    if (!up) return
-    if (process.env.AUDIT_NO_RATE_LIMIT === '1') return // audit server runs with the limiter off
-
-    const e = () => `rl-test-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`
-    // Use 4 different emails to avoid duplicate-email short-circuits
-    const responses = await Promise.all([
-      post('/api/subscribe', { email: e() }),
-      post('/api/subscribe', { email: e() }),
-      post('/api/subscribe', { email: e() }),
-      post('/api/subscribe', { email: e() }),
-    ])
-
-    const statuses = responses.map((r) => r.status)
-    // In sequential execution on a single server, the 4th should be 429.
-    // In parallel (Promise.all) the ordering is non-deterministic; at least ONE should be 429.
-    expect(statuses).toContain(429)
-  })
-
-  it('contact: 6th request in 5min window → 429', async () => {
-    if (!up) return
-    if (process.env.AUDIT_NO_RATE_LIMIT === '1') return // audit server runs with the limiter off
-    const valid = { name: 'RL Test', email: 'rl@example.com', subject: 'Test', message: 'Test msg' }
-    // Sequential requests — 6th should be rate limited (limit: 5/5min)
-    let last429 = false
-    for (let i = 0; i < 6; i++) {
-      const res = await post('/api/contact', valid)
-      if (res.status === 429) { last429 = true; break }
-    }
-    expect(last429).toBe(true)
-  })
-})
-
 // ── Suite 9: No Rate Limiting (gaps) ─────────────────────────────────────────
 
 describe('Missing rate limits (documentation tests)', () => {
   it('POST /api/comments has no rate limit (100 rapid calls all reach auth check)', async () => {
     // BUG-RL-COMMENTS: No rate limit on comment creation
     // All requests should reach auth (401) not rate-limit (429)
-    if (!up) return
+
     const responses = await Promise.all(
       Array.from({ length: 10 }, () =>
         post('/api/comments', { articleId: 'fake-id', body: 'test' })
@@ -623,7 +575,7 @@ describe('Missing rate limits (documentation tests)', () => {
   })
 
   it('POST /api/comments/[id]/upvote has no rate limit', async () => {
-    if (!up) return
+
     const responses = await Promise.all(
       Array.from({ length: 10 }, () =>
         post('/api/comments/fake-comment-id/upvote', {})
@@ -634,7 +586,7 @@ describe('Missing rate limits (documentation tests)', () => {
   })
 
   it('POST /api/comments/[id]/report has no rate limit', async () => {
-    if (!up) return
+
     const responses = await Promise.all(
       Array.from({ length: 10 }, () =>
         post('/api/comments/fake-comment-id/report', {})
@@ -645,7 +597,7 @@ describe('Missing rate limits (documentation tests)', () => {
   })
 
   it('POST /api/analytics/track has no rate limit and no auth requirement', async () => {
-    if (!up) return
+
     const responses = await Promise.all(
       Array.from({ length: 20 }, () =>
         post('/api/analytics/track', { sessionId: 'test-session-123', pagePath: '/' })
@@ -671,7 +623,7 @@ describe('Unauthenticated access to protected endpoints', () => {
 
   for (const { method, path } of protectedRoutes) {
     it(`${method} ${path} → 401 or 403 when unauthenticated`, async () => {
-      if (!up) return
+
       const res = await fetch(`${BASE}${path}`, { method })
       expect([401, 403]).toContain(res.status)
     })
@@ -682,7 +634,7 @@ describe('Unauthenticated access to protected endpoints', () => {
 
 describe('GET /api/articles role guard', () => {
   it('unauthenticated request → returns only PUBLISHED articles', async () => {
-    if (!up) return
+
     const res = await get('/api/articles')
     expect(res.status).toBe(200)
     const articles = await res.json()
@@ -694,7 +646,7 @@ describe('GET /api/articles role guard', () => {
   })
 
   it('?status=DRAFT unauthenticated → 401', async () => {
-    if (!up) return
+
     const res = await get('/api/articles?status=DRAFT')
     expect(res.status).toBe(401)
   })
@@ -702,7 +654,7 @@ describe('GET /api/articles role guard', () => {
   it('published list never leaks author password/email/security fields', async () => {
     // P0 regression guard: include: { author: true } used to serialise the
     // bcrypt hash and account-security columns to anonymous callers.
-    if (!up) return
+
     const res = await get('/api/articles')
     expect(res.status).toBe(200)
     const articles = await res.json()
@@ -719,15 +671,17 @@ describe('GET /api/articles role guard', () => {
   })
 
   it('single published article never leaks author password/email', async () => {
-    if (!up) return
+
     const list = await get('/api/articles')
+    expect(list.status).toBe(200)
     const articles = await list.json()
     const id = Array.isArray(articles) ? articles[0]?.id : null
-    if (!id) return
+    expect(id, 'published article fixture').toBeTruthy()
     const res = await get(`/api/articles/${id}`)
-    if (res.status !== 200) return
+    expect(res.status).toBe(200)
     const article = await res.json()
-    if (article?.author) {
+    expect(article.author, 'published author fixture').toBeTruthy()
+    if (article.author) {
       expect(article.author).not.toHaveProperty('password')
       expect(article.author).not.toHaveProperty('email')
     }
@@ -740,7 +694,7 @@ describe('POST /api/debates/[debateId]/vote', () => {
   let debateId: string | null = null
 
   beforeAll(async () => {
-    if (!up) return
+
     const res = await get('/api/debates/active')
     if (res.ok) {
       const debate = await res.json()
@@ -749,38 +703,35 @@ describe('POST /api/debates/[debateId]/vote', () => {
   })
 
   it('GET /api/debates/active → 200 (null or debate object)', async () => {
-    if (!up) return
+
     const res = await get('/api/debates/active')
     expect(res.status).toBe(200)
   })
 
   it('invalid side value → 400', async () => {
-    if (!up || !debateId) return
+    expect(debateId,'debate fixture').toBeTruthy()
     const res = await post(`/api/debates/${debateId}/vote`, { side: 'MAYBE' })
     expect(res.status).toBe(400)
   })
 
   it('missing side field → 400', async () => {
-    if (!up || !debateId) return
+    expect(debateId,'debate fixture').toBeTruthy()
     const res = await post(`/api/debates/${debateId}/vote`, {})
     expect(res.status).toBe(400)
   })
 
   it('non-existent debate ID → 404', async () => {
-    if (!up) return
+
     const res = await post('/api/debates/nonexistent-debate-id/vote', { side: 'FOR' })
     expect(res.status).toBe(404)
   })
 
   it('anonymous vote → 200, sets consilium_anon_id cookie', async () => {
-    if (!up || !debateId) return
+    expect(debateId,'debate fixture').toBeTruthy()
     const res = await post(`/api/debates/${debateId}/vote`, { side: 'FOR' })
-    // First anonymous vote should succeed (200 or 409 if debate already voted on from this IP)
-    expect([200, 409]).toContain(res.status)
-    if (res.status === 200) {
-      const setCookie = res.headers.get('set-cookie') ?? ''
-      expect(setCookie).toContain('consilium_anon_id')
-    }
+    expect(res.status).toBe(200)
+    const setCookie = res.headers.get('set-cookie') ?? ''
+    expect(setCookie).toContain('consilium_anon_id')
   })
 })
 
@@ -816,7 +767,7 @@ describe('POST /api/upload', () => {
   })
 
   it('unauthenticated → 401/403 (denied)', async () => {
-    if (!up) return
+
     const formData = new FormData()
     formData.append('file', new Blob(['fake'], { type: 'image/jpeg' }), 'test.jpg')
     const res = await fetch(`${BASE}/api/upload`, { method: 'POST', body: formData })
@@ -836,13 +787,13 @@ describe('POST /api/upload', () => {
 
 describe('Bookmarks (POST /api/bookmarks)', () => {
   it('unauthenticated → 401', async () => {
-    if (!up) return
+
     const res = await post('/api/bookmarks', { articleId: 'some-article-id' })
     expect(res.status).toBe(401)
   })
 
   it('GET /api/bookmarks unauthenticated → 401', async () => {
-    if (!up) return
+
     const res = await get('/api/bookmarks')
     expect(res.status).toBe(401)
   })

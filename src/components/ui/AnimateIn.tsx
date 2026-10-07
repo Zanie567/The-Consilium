@@ -44,7 +44,7 @@ export function AnimateIn({
       viewport={{ once, margin: '-40px' }}
       variants={variantMap[variant]}
       transition={{ duration: prefersReducedMotion ? 0 : duration, delay: prefersReducedMotion ? 0 : delay, ease }}
-      className={className}
+      className={`consilium-reveal ${className ?? ''}`}
     >
       {children}
     </motion.div>
@@ -77,7 +77,7 @@ export function StaggerContainer({
           transition: { staggerChildren: prefersReducedMotion ? 0 : staggerDelay, delayChildren: prefersReducedMotion ? 0 : delayChildren },
         },
       }}
-      className={className}
+      className={`consilium-reveal ${className ?? ''}`}
     >
       {children}
     </motion.div>
@@ -99,9 +99,8 @@ export function StaggerItem({
   return (
     <motion.div
       variants={variantMap[variant]}
-      animate={prefersReducedMotion ? 'visible' : undefined}
       transition={{ duration: prefersReducedMotion ? 0 : 0.5, ease }}
-      className={className}
+      className={`consilium-reveal ${className ?? ''}`}
     >
       {children}
     </motion.div>

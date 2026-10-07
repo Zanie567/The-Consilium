@@ -88,6 +88,10 @@ async function readSeries(cfg: SeriesConfig): Promise<SeriesReading | null> {
 }
 
 export async function GET() {
+  // Test transport deliberately models unavailable data; never contacts providers.
+  if (process.env.E2E_ISOLATED === '1' && process.env.TEST_MARKET_DATA === 'empty') {
+    return NextResponse.json({ observations: [], fetchedAt: new Date().toISOString() }, { headers: { 'Cache-Control': 'no-store' } })
+  }
   const readings = await Promise.all(MACRO_SERIES.map(readSeries))
 
   const observations: MacroObservation[] = []

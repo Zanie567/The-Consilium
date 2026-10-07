@@ -260,6 +260,8 @@ function SingleComment({
             <button
               onClick={handleReport}
               disabled={reported || actionPending}
+              aria-label={reported ? 'Comment reported' : 'Report this comment'}
+              title={reported ? 'You reported this comment' : 'Report this comment'}
               className={`flex items-center gap-1 text-[10px] font-semibold transition-colors ${
                 reported ? 'text-gold' : 'text-[var(--fg-faint)] hover:text-[var(--fg)]'
               }`}

@@ -1,8 +1,8 @@
 /**
  * In-process route-handler tests.
  *
- * Unlike `api.test.ts` (which drives a live dev server over HTTP and skips when
- * none is running), these import the App Router handlers directly and run them
+ * Unlike `api.test.ts` (which requires an attested isolated HTTP server), these
+ * import the App Router handlers directly and run them
  * with mocked `prisma` / auth / email collaborators. They need no server and no
  * database, so they execute on every `npm test` run and in CI — covering the
  * authorization and validation logic of the routes most recently changed.
@@ -14,10 +14,11 @@ import { NextRequest } from 'next/server'
 // vi.mock is hoisted above imports; vi.hoisted lets the factories reference these.
 // adminNote/auditLog/email use resolved-promise defaults because the routes call
 // them fire-and-forget with `.catch(...)`.
-const { prismaMock, authMock } = vi.hoisted(() => {
+const { prismaMock, authMock, membershipMock } = vi.hoisted(() => {
   const resolved = () => Promise.resolve({})
   return {
     prismaMock: {
+      $transaction: vi.fn(),
       user: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
       writerStreak: { findUnique: vi.fn(), upsert: vi.fn() },
       adminNote: { create: vi.fn(resolved) },
@@ -25,10 +26,18 @@ const { prismaMock, authMock } = vi.hoisted(() => {
       article: { findMany: vi.fn() },
     },
     authMock: { getVerifiedSessionUser: vi.fn(), requireVerifiedSessionUser: vi.fn() },
+    membershipMock: { setMemberRole: vi.fn() },
   }
 })
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }))
 vi.mock('@/lib/auth', () => authMock)
+// The role route delegates to the membership module (users.role + membership + audit in
+// one transaction), which tests/integration/member-onboarding.test.ts covers against a
+// real database. Here only the route's own guards and hand-off are under test.
+vi.mock('@/lib/membership', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/membership')>()),
+  setMemberRole: membershipMock.setMemberRole,
+}))
 vi.mock('@/lib/email', () => ({
   sendEmail: vi.fn(() => Promise.resolve()),
   roleChangedEmail: vi.fn(() => ({ subject: 'subject', html: 'html' })),
@@ -93,6 +102,7 @@ describe('POST /api/editorial/setup', () => {
   })
 
   it('creates the first admin (email lowercased, role ADMIN) → 200', async () => {
+    prismaMock.$transaction.mockImplementationOnce(run => run({ ...prismaMock, $executeRaw: vi.fn().mockResolvedValue(1) }))
     prismaMock.user.findFirst.mockResolvedValue(null)
     prismaMock.user.create.mockResolvedValue({ id: 'admin-1' })
     const res = await setupPOST(
@@ -155,12 +165,11 @@ describe('PATCH /api/admin/users/[userId]/role', () => {
       email: 'wes@consilium.test',
       role: 'READER',
     })
-    prismaMock.user.update.mockResolvedValue({})
+    membershipMock.setMemberRole.mockResolvedValue({ oldRole: 'READER', newRole: 'EDITOR' })
     const res = await call('writer-1', { role: 'EDITOR' })
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ ok: true, oldRole: 'READER', newRole: 'EDITOR' })
-    expect(prismaMock.user.update).toHaveBeenCalledOnce()
-    expect(prismaMock.auditLog.create).toHaveBeenCalledOnce()
+    expect(membershipMock.setMemberRole).toHaveBeenCalledWith(ADMIN, 'writer-1', 'EDITOR')
   })
 })
 

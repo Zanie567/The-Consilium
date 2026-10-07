@@ -2,12 +2,13 @@ import { prisma } from '@/lib/prisma'
 import sharp from 'sharp'
 import { randomUUID } from 'node:crypto'
 import { queueArticleImageCleanup, articleImagePath } from '@/lib/articleImageStorage'
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse, NextRequest } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import { ALL_ROLES, ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 import type { Role } from '@prisma/client'
-import { MAX_AVATAR_BYTES } from '@/lib/constants'
+import { MAX_ARTICLE_IMAGE_BYTES, MAX_AVATAR_BYTES, MAX_SERVER_UPLOAD_BYTES } from '@/lib/constants'
 import { detectImageMimeType } from '@/lib/imageSniff'
 
 // Explicit allowlist of buckets callers may upload to.
@@ -32,11 +33,22 @@ const BUCKET_ROLES = {
  * by every account, which makes it the one worth keeping tight.
  */
 const BUCKET_MAX_BYTES: Record<string, number> = {
-  'article-images': 4 * 1024 * 1024,
+  'article-images': MAX_ARTICLE_IMAGE_BYTES,
   avatars: MAX_AVATAR_BYTES,
 }
 
-export async function POST(request: NextRequest) {
+/**
+ * Avatars take a narrower set than article images: GIF (animation on every byline)
+ * and AVIF are not accepted. Buckets not listed here keep the full detected set.
+ */
+const AVATAR_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+/** Multipart boundaries, headers and bucket metadata in addition to the file. */
+const MULTIPART_OVERHEAD_BYTES = 64 * 1024
+const tooLarge = (bytes: number) =>
+  `File too large (max ${bytes / (1024 * 1024)} MB). Resize or compress the image and try again.`
+
+async function POSTHandler(request: NextRequest) {
   // Authenticate against the widest set here; the per-bucket check below narrows
   // it once we know which bucket the caller asked for.
   const auth = await requireVerifiedSessionUser(ALL_ROLES)
@@ -63,6 +75,13 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey)
+
+  // Refuse an oversized body from its declared length, before reading it. (On Vercel the platform
+  // itself cuts off bodies over 4.5 MB; this covers anything between our limit and that.)
+  const declared = Number(request.headers.get('content-length') ?? 0)
+  if (declared > MAX_SERVER_UPLOAD_BYTES + MULTIPART_OVERHEAD_BYTES) {
+    return NextResponse.json({ error: tooLarge(MAX_SERVER_UPLOAD_BYTES) }, { status: 413 })
+  }
 
   try {
     const formData = await request.formData()
@@ -92,12 +111,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const maxBytes = BUCKET_MAX_BYTES[bucketParam] ?? 10 * 1024 * 1024
-    if (!file.size || file.size > maxBytes) {
-      return NextResponse.json(
-        { error: `File too large (max ${Math.round(maxBytes / (1024 * 1024))} MB).` },
-        { status: 400 }
-      )
+    const maxBytes = BUCKET_MAX_BYTES[bucketParam] ?? MAX_SERVER_UPLOAD_BYTES
+    if (file.size > maxBytes) {
+      return NextResponse.json({ error: tooLarge(maxBytes) }, { status: 413 })
     }
 
     // Read the file into a buffer so we can inspect its magic bytes
@@ -109,9 +125,20 @@ export async function POST(request: NextRequest) {
     if (!detectedType) {
       return NextResponse.json(
         {
-          error: 'File type not permitted. Allowed formats: JPEG, PNG, GIF, WebP, AVIF.',
+          error:
+            bucketParam === 'avatars'
+              ? 'Profile photos must be JPEG, PNG or WebP.'
+              : 'File type not permitted. Allowed formats: JPEG, PNG, GIF, WebP, AVIF.',
         },
         { status: 400 }
+      )
+    }
+
+    // Avatars take a narrower set than article images (no GIF or AVIF).
+    if (bucketParam === 'avatars' && !AVATAR_MIME_TYPES.has(detectedType)) {
+      return NextResponse.json(
+        { error: 'Profile photos must be JPEG, PNG or WebP.' },
+        { status: 400 },
       )
     }
 
@@ -138,6 +165,7 @@ export async function POST(request: NextRequest) {
         )
       }
     }
+
     // Use the server-verified MIME type, not file.type
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
     // Avatars are namespaced by uploader. Every account can write to this bucket,
@@ -188,7 +216,7 @@ export async function POST(request: NextRequest) {
 }
 
 /** Only the uploader can discard a managed upload; stored/shared objects are retained. */
-export async function DELETE(request: NextRequest) {
+async function DELETEHandler(request: NextRequest) {
   const auth = await requireVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
   if (!auth.ok) return auth.response
   try {
@@ -203,3 +231,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid image request.' }, { status: 400 })
   }
 }
+
+export const POST = withTestingAudit(POSTHandler)
+
+export const DELETE = withTestingAudit(DELETEHandler)
