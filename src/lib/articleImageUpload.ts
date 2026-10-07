@@ -1,4 +1,5 @@
 import { apiRequest, ApiError } from '@/lib/apiClient'
+import { ARTICLE_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
 export const MAX_ARTICLE_IMAGE_BYTES = 4 * 1024 * 1024
 const pendingUploads = new Set<string>()
 const TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif']
@@ -6,8 +7,9 @@ export async function uploadArticleImage(
   file: File,
   signal?: AbortSignal
 ): Promise<{ url: string; width?: number; height?: number }> {
-  if (!file.size || file.size > MAX_ARTICLE_IMAGE_BYTES)
-    throw new ApiError('validation', 'Choose an image smaller than 4 MB.')
+  if (!file.size) throw new ApiError('validation', 'Choose a nonempty image.')
+  if (file.size > MAX_ARTICLE_IMAGE_BYTES)
+    throw new ApiError('validation', ARTICLE_IMAGE_TOO_LARGE_MESSAGE)
   if (file.type && !TYPES.includes(file.type))
     throw new ApiError('validation', 'Choose a JPEG, PNG, GIF, WebP or AVIF image.')
   const form = new FormData()

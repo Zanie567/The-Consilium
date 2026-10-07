@@ -605,15 +605,16 @@ test('a root chrome exception exposes the real global boundary and its retry/hom
   test.setTimeout(60_000)
   for (const action of ['Try again', '← Back to Homepage']) {
     const ctx = await browser.newContext({ reducedMotion: 'reduce' })
-    // Fault injection is limited to this context and one client read, never the server/database.
+    // Consent storage failures are handled locally. Inject one unhandled root
+    // navbar effect failure instead; never alter the server or database.
     await ctx.addInitScript(() => {
-      const get = Storage.prototype.getItem
-      Storage.prototype.getItem = function(key) {
-        if (key === 'consilium_cookie_consent' && sessionStorage.getItem('consilium-e2e-root-fault-fired') !== '1') {
+      const add = window.addEventListener
+      window.addEventListener = function(this: Window, type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) {
+        if (type === 'scroll' && typeof options === 'object' && options.passive && sessionStorage.getItem('consilium-e2e-root-fault-fired') !== '1') {
           sessionStorage.setItem('consilium-e2e-root-fault-fired', '1')
           throw new Error('Controlled root chrome access failure')
         }
-        return get.call(this, key)
+        return add.call(this, type, listener, options)
       }
     })
     const page = await ctx.newPage()

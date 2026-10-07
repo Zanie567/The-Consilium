@@ -498,7 +498,9 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
         // If no HTML in clipboard, return false and let TipTap
         // handle plain text paste normally.
         if (!html || !/<[a-z][\s\S]*>/i.test(html)) return false
-        if (html.length > 2_000_000) {
+        // A legal 4 MiB image needs about 5.6 MiB of base64. Keep a bounded
+        // clipboard limit while allowing image validation to enforce its own cap.
+        if (html.length > 8_000_000) {
           setUploadError(
             'This clipboard is too large. Paste the text and upload images separately.'
           )
@@ -519,6 +521,12 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
             const images = Array.from(
               tempDiv.querySelectorAll<HTMLImageElement>('img[src^="data:"]')
             )
+
+            const documentOnly = tempDiv.cloneNode(true) as HTMLDivElement
+            documentOnly.querySelectorAll('img[src^="data:"]').forEach(img => img.removeAttribute('src'))
+            if (documentOnly.innerHTML.length > 2_000_000) {
+              throw new ApiError('validation', 'This clipboard is too large. Paste the text and upload images separately.')
+            }
 
             if (images.length > 10) throw new Error('Paste at most 10 images at a time.')
 

@@ -211,14 +211,21 @@ test.describe('"Keep my version" never bypasses a lock, a ban, a demotion or a c
 
     await adminBans(browser, writer, 'ban')
     await t.tab1.bringToFront()
-    const keep = await t.ed1.saving(() => t.tab1.getByRole('button', { name: 'Keep my version' }).click())
+    const blockedRead = t.tab1.waitForResponse(r => new URL(r.url()).pathname === `/api/articles/${t.id}` && r.request().method() === 'GET')
+    const writes: string[] = []
+    t.tab1.on('request', r => { if (new URL(r.url()).pathname === `/api/articles/${t.id}` && r.method() === 'PUT') writes.push(r.url()) })
+    await t.tab1.getByRole('button', { name: 'Keep my version' }).click()
+    const keep = await blockedRead
     expect(keep.status()).toBe(403)
     await expect(alertOf(t.tab1)).toContainText(/suspended|contact an administrator/i)
     expect(await content(t.id)).toBe(before)
     await expect(t.ed1.body()).toContainText('Tab one words.')
+    expect(writes).toEqual([])
 
     await adminBans(browser, writer, 'unban')
-    const ok = await t.ed1.saving(() => t.ed1.saveDraftButton().click())
+    const stale = await t.ed1.saving(() => t.ed1.saveDraftButton().click())
+    expect(stale.status()).toBe(409)
+    const ok = await t.ed1.saving(() => t.tab1.getByRole('button', { name: 'Keep my version' }).click())
     expect(ok.status()).toBe(200)
     await t.ctx.close()
   })
@@ -255,8 +262,14 @@ test.describe('"Keep my version" never bypasses a lock, a ban, a demotion or a c
     // Whatever the first refusal says, "Keep my version" must not get through either.
     const keepBtn = tab1.getByRole('button', { name: 'Keep my version' })
     if (await keepBtn.count()) {
-      const keep = await ed1.saving(() => keepBtn.click())
+      const blockedRead = tab1.waitForResponse(r => new URL(r.url()).pathname === `/api/articles/${id}` && r.request().method() === 'GET')
+      const writes: string[] = []
+      tab1.on('request', r => { if (new URL(r.url()).pathname === `/api/articles/${id}` && r.method() === 'PUT') writes.push(r.url()) })
+      await keepBtn.click()
+      const keep = await blockedRead
       expect(keep.status()).toBe(403)
+      await expect(alert).toContainText(/outside your assigned categories/i)
+      expect(writes).toEqual([])
     }
     expect((await db().article.findUnique({ where: { id } }))!.content).toBe(before)
     expect((await db().article.findUnique({ where: { id } }))!.categoryId).toBe(other!.id)

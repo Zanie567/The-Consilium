@@ -555,7 +555,7 @@ test.describe('public Our Team page', () => {
     expect((await names('writers')).sort()).toEqual(['Alan Adopt', 'Catherine Toh', 'Gurmehar Kaur', 'Wendy Writer', 'Yaoqing Wang', 'Zara Spendiff'])
     await expect(page.locator('[data-team-member-id]', { has: page.getByRole('heading', { name: 'Mira Mismatch', exact: true }) }).getByText('Editor-in-Chief', { exact: true })).toBeVisible()
     expect(await names('growth')).toEqual(['Grace Growth'])
-    await expect(page.getByRole('heading', { level: 2, name: 'Growth & Communications' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 2, name: 'Growth & Comms' })).toBeVisible()
 
     // Hierarchy inside Editorial survives linking: Senior before Junior.
     expect(editorialNames.indexOf('Annika Sarawgi')).toBeLessThan(editorialNames.indexOf('Sam Hunt'))
@@ -730,7 +730,7 @@ test.describe('layout', () => {
     const page = await context.newPage()
     await page.goto('/team')
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-    await page.getByRole('heading', { level: 2, name: 'Growth & Communications' }).scrollIntoViewIfNeeded()
+    await page.getByRole('heading', { level: 2, name: 'Growth & Comms' }).scrollIntoViewIfNeeded()
     await page.screenshot({ path: 'test-results/team-public-mobile.png', fullPage: true })
     await context.close()
   })
@@ -739,7 +739,7 @@ test.describe('layout', () => {
     const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL, viewport: { width: 1280, height: 900 } })
     const page = await context.newPage()
     await page.goto('/team')
-    await page.getByRole('heading', { level: 2, name: 'Growth & Communications' }).scrollIntoViewIfNeeded()
+    await page.getByRole('heading', { level: 2, name: 'Growth & Comms' }).scrollIntoViewIfNeeded()
     await page.waitForLoadState('networkidle')
     await page.screenshot({ path: 'test-results/team-public-desktop.png', fullPage: true })
     await context.close()
