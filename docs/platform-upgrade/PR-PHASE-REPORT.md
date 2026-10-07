@@ -22,9 +22,9 @@ Main already repaired the seven historical moderation cases in its own merged PR
 
 ## Review status
 
-CodeRabbit initially skipped review because 168 eligible files exceeded its 100-file plan limit. Its green status is a skip, not an approval. No substantive automated review comments were present at that stage. Manual review covers schema/migrations, authorization, stale-write/CAS and lifecycle transitions, paste/public sanitation, managed storage cleanup, newsletter persistence, analytics consent, cron authentication, test guards and Actions orchestration. Hosted status and final certification are pending reconciliation.
+CodeRabbit initially skipped review because 168 eligible files exceeded its 100-file plan limit. Its green status is a skip, not an approval. No substantive automated review comments were present at that stage. Manual review covers schema/migrations, authorization, stale-write/CAS and lifecycle transitions, paste/public sanitation, managed storage cleanup, newsletter persistence, analytics consent, cron authentication, test guards and Actions orchestration. Final hosted status must be checked against the exact pushed head. No substantive automated review has been produced so far.
 
-Dependency audit reports advisories in dependencies already present on main. The added decoding path warrants a narrow update to sharp 0.35.5 before final certification. A package override makes Next image optimization use that same patched decoder instead of retaining a nested 0.34.5 copy. The package-lock changes are limited to sharp and its binary/colour/semver dependencies. See the [libheif advisory](https://github.com/advisories/GHSA-rgj7-g3m4-5g8c) and [libvips advisory](https://github.com/advisories/GHSA-f88m-g3jw-g9cj). Other inherited dependency advisories need separate security triage; passing functional tests does not clear dependency security. In particular main and this branch both pin Next 16.2.2 and next-auth 4.24.13, with critical/high advisories reported by npm audit. A broad framework/authentication upgrade is outside this PR repair scope and remains a release blocker pending security disposition. No blanket npm audit fix was run.
+Dependency audit reports advisories in dependencies already present on main. The added decoding path was narrowly updated to sharp 0.35.5 before final certification. A package override makes Next image optimization use that same patched decoder instead of retaining a nested 0.34.5 copy. The package-lock changes are limited to sharp and its binary/colour/semver dependencies. See the [libheif advisory](https://github.com/advisories/GHSA-rgj7-g3m4-5g8c) and [libvips advisory](https://github.com/advisories/GHSA-f88m-g3jw-g9cj). Other inherited dependency advisories need separate security triage; passing functional tests does not clear dependency security. In particular main and this branch both pin Next 16.2.2 and next-auth 4.24.13, with critical/high advisories reported by npm audit. A broad framework/authentication upgrade is outside this PR repair scope and remains a release blocker pending security disposition. No blanket npm audit fix was run.
 
 ## Production boundary and prerequisites
 
@@ -44,6 +44,41 @@ The WebKit footnote preparation scrolls its marker into view before asserting vi
 
 No test was removed, converted to a skip or made to ignore unknown browser/network errors. Negative revision scenarios assert the exact expected HTTP 409 console resources; all other errors remain failures.
 
-## Certification and hosted CI
+## Parallel remote work and final repairs
 
-Pending full certification of the reconciled committed candidate, followed by safe normal push and hosted Actions verification. Original candidate results must not be represented as certification of changed code.
+The remote branch acquired `fa52ded4b3699c1885f29e5acbf5fe61df726050` while local reconciliation repairs were being verified. The owner explicitly authorized reconciling that work and continuing. Merge `bccfe85` retains its ancestry and useful repairs: CSP-compatible direct data-URL decoding, editor stacking, WebKit hex-input handling, guarded suite selection and the dedicated upgrade CI job. Conflicting application/test contracts were reconciled against actual verification, without a force push.
+
+A failed stale list action now explicitly GETs the authorized current article row; a background route refresh did not reliably replace the stale row in the reproduced browser scenario. Known 403/404 responses remove an inaccessible row, and other read failures remain visible. No mutation is automatically retried.
+
+Canonical topic aliases exposed a genuine save fingerprint defect: POST used the submitted label while GET used the stored canonical label, causing the next guarded PUT to reject unchanged content. Save responses now fingerprint the resolved stored tag names inside the transaction. A real HTTP integration regression covers canonical casing, subsequent guarded writes and deliberate external changes.
+
+The final full run passed its unit/integration, public/editorial, workflow and team-profile phases, then exposed an upgrade harness dependency: direct API requests lacked the identity header required after earlier workflow tests advanced seeded accounts' testing revisions. The narrow test-only repair pins the current session identity when each authenticated context is created. It does not silently refresh after revocation. A new regression creates its own account at a positive revision, proves the old pin is rejected after a second revision increment with stored content unchanged, then proves a fresh context can save. All upgrade journeys were rerun with all six seeded account revisions incremented before authentication in the attested disposable database. No revision was reset and no security guard was weakened.
+
+## Final local certification
+
+Application/source certification commit: `58a758f4781b5d009f280a6c075fc9a8087b98de`. Final test-harness certification commit: `f1552baecee663e2fd8a10f6288352e4be929f4d`. The latter changes only four upgrade spec files and their new identity-pin helper. Application, schema, dependencies, services, workflow, Playwright config and all other suite files are identical. The following documentation commit changes only this report and its compact evidence manifest. Exact source boundaries are recorded in [the evidence manifest](evidence/pr-phase/local-certification.json).
+
+| Check | Applicable passing evidence |
+| --- | --- |
+| Unit | 938 passed, 95 files |
+| Integration | 543 passed, 35 files, 0 skipped |
+| Aggregate | 1,481 passed, 0 failed/expected/skipped/todo |
+| Revision/concurrency | 25 passed within integration |
+| Public/editorial browser phase | 87 passed, 2.0 minutes |
+| Workflow browser phase | 530 passed, 27.9 minutes |
+| Team/onboarding/profile browser phase | 49 passed, 1.5 minutes |
+| Upgrade browser reproduction | 35 passed with advanced fixture revisions |
+| Combined passing browser phase evidence | 701 passes, includes repeated authentication setup cases |
+| Typecheck and lint | Passed; rerun after the test-harness repair |
+| Production build | Passed in both isolated runs |
+| Smoke | Eight unauthenticated checks passed |
+
+This is combined passing phase evidence with explicitly identical application and unchanged suite sources, not a claim that the earlier full invocation exited successfully. That invocation's final upgrade phase had eight failures and four dependent cases not run; its failed evidence remains available locally. The complete repaired upgrade phase subsequently passed with no failures, skips or retries.
+
+Owned run evidence: `test-results/next-e2e-3235-67275` (broad source certification) and `test-results/next-e2e-3236-73410` (final upgrade reproduction). Both use run-owned PostgreSQL, local fake Storage, captured email and OAuth off. Cleanup attestations confirm database removal and owned service termination. The temporary guarded reproduction config stores its browser results under `.next-e2e-identity-proof/test-results/next-e2e-3236-73410/selected/`. Raw session/outbox/trace artifacts are excluded from the committed manifest.
+
+## Hosted CI boundary
+
+The earlier GitHub Actions run [37643286926](https://github.com/Zanie567/The-Consilium/actions/runs/37643286926) on remote `fa52ded` passed Typecheck/test/build and failed public/data-layer, roles/profiles/testing and upgrade jobs. Actual logs were inspected; they do not certify the repaired head. The final candidate requires all four named hosted CI jobs to pass on its exact latest commit. Hosted results and final review disposition will be attached to PR #117 after observation, avoiding a documentation-only push that would invalidate the successful check head.
+
+CodeRabbit's file-limit skip and inherited dependency security debt remain explicitly disclosed. Human approval is required; neither local nor hosted functional certification clears production rollout.

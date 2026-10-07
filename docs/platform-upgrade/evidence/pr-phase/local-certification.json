@@ -1,0 +1,115 @@
+{
+  "applicationSourceCommit": "58a758f4781b5d009f280a6c075fc9a8087b98de",
+  "testHarnessCommit": "f1552baecee663e2fd8a10f6288352e4be929f4d",
+  "mainReconciled": "8aed86bc06612527dc0fdbcbc53472afc7ace553",
+  "parallelRemoteReconciled": "fa52ded4b3699c1885f29e5acbf5fe61df726050",
+  "scopeSinceSourceCertification": [
+    "tests/e2e/helpers/pinnedContext.ts",
+    "tests/e2e/upgrade-discovery.spec.ts",
+    "tests/e2e/upgrade-final-integration.spec.ts",
+    "tests/e2e/upgrade-growth-analytics.spec.ts",
+    "tests/e2e/upgrade-rich-content.spec.ts"
+  ],
+  "unit": {
+    "files": 95,
+    "passed": 938
+  },
+  "integration": {
+    "files": 35,
+    "passed": 543,
+    "revisionConcurrencyCasesIncluded": 25
+  },
+  "aggregate": {
+    "passed": 1481,
+    "failed": 0,
+    "expectedFailures": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "browserPhases": {
+    "main": {
+      "commit": "58a758f4781b5d009f280a6c075fc9a8087b98de",
+      "artifact": "test-results/next-e2e-3235-67275/main/results.json",
+      "stats": {
+        "startTime": "2026-10-07T22:47:47.773Z",
+        "duration": 121607.179,
+        "expected": 87,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    "workflow": {
+      "commit": "58a758f4781b5d009f280a6c075fc9a8087b98de",
+      "artifact": "test-results/next-e2e-3235-67275/workflow/results.json",
+      "stats": {
+        "startTime": "2026-10-07T22:49:50.036Z",
+        "duration": 1676580.9949999999,
+        "expected": 530,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    "team-profile": {
+      "commit": "58a758f4781b5d009f280a6c075fc9a8087b98de",
+      "artifact": "test-results/next-e2e-3235-67275/team-profile/results.json",
+      "stats": {
+        "startTime": "2026-10-07T23:17:47.961Z",
+        "duration": 90609.675,
+        "expected": 49,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    "upgrade": {
+      "commit": "f1552baecee663e2fd8a10f6288352e4be929f4d",
+      "artifact": ".next-e2e-identity-proof/test-results/next-e2e-3236-73410/selected/results.json",
+      "stats": {
+        "startTime": "2026-10-07T23:26:20.387Z",
+        "duration": 66596.532,
+        "expected": 35,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "additionalReproduction": "Guarded local setup incremented all six seeded account testing revisions before authentication; no reset or guard weakening."
+    }
+  },
+  "combinedBrowserPasses": 701,
+  "browserCounting": "Combined passing phases including repeated authentication setup cases. Earlier full invocation did not exit successfully; upgrade identity harness failures were reproduced and repaired.",
+  "checks": {
+    "typecheck": "passed after test-only repair",
+    "lint": "passed after test-only repair",
+    "productionBuild": "passed in both isolated runs",
+    "smoke": "8 passed on unchanged application source"
+  },
+  "isolation": "Run-owned disposable PostgreSQL; local fake Storage; captured email; OAuth off; no production services",
+  "hostedCI": "Must independently pass on exact final PR head; no hosted result claimed here",
+  "cleanup": {
+    "test-results/next-e2e-3235-67275": {
+      "database": "consilium_audit_next_e2e_3235_67275",
+      "databaseAbsent": true,
+      "ownedServicesWaited": true,
+      "productionServicesUsed": false
+    },
+    "test-results/next-e2e-3236-73410": {
+      "database": "consilium_audit_next_e2e_3236_73410",
+      "databaseAbsent": true,
+      "ownedServicesWaited": true,
+      "productionServicesUsed": false
+    }
+  },
+  "sourceTrees": {
+    "src": "a89b360bab4ac09c3f429a9a5801440fbdd77cd6",
+    "prisma": "5c578cbf9187afc32749283c421f4198775fb59c",
+    "supabase": "741d77e6a842a0ee8d6b516eadb5142d433688d5",
+    "scripts": "195645e4921b5960febd471796794b230cb02325",
+    ".github": "3e29305aba254f0d2fde379df78616cae31bb04a",
+    "package.json": "864dcac3cd0e68eef5abaf4a9aa5defaf818a8fb",
+    "package-lock.json": "97fc2bcfe16019aed247b53128020e97fd5c9ac3",
+    "playwright.config.ts": "215f6ccd402294bd6ae54feb161de00bba53d8b6",
+    "vitest.config.ts": "f1b2e641c74a9e7f403d5617b8de63237d55e0c9"
+  }
+}
