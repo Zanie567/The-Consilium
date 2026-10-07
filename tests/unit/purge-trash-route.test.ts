@@ -76,25 +76,45 @@ describe('purge-trash route: reporting', () => {
     expect(revalidateMock).not.toHaveBeenCalled()
   })
 
+  const SECRET_TITLE = 'Unpublished Draft: Confidential Title'
+  const SECRET_SLUG = 'unpublished-draft-confidential-slug'
+  const full = [{ id: 'a', title: SECRET_TITLE, slug: SECRET_SLUG, deletedAt: '2026-08-01T00:00:00.000Z' }]
+
   it('reports the exact ids removed and refreshes public caches', async () => {
-    const articles = [{ id: 'a', title: 'T', slug: 's', deletedAt: '2026-08-01T00:00:00.000Z' }]
-    purgeMock.mockResolvedValue(result({ count: 1, articleIds: ['a'], articles }))
+    purgeMock.mockResolvedValue(result({ count: 1, articleIds: ['a'], articles: full }))
     const res = await route.POST(req())
     const body = await res.json()
-    expect(body.purged).toEqual({ count: 1, articleIds: ['a'], articles })
+    expect(body.purged).toEqual({
+      count: 1,
+      articleIds: ['a'],
+      articles: [{ id: 'a', deletedAt: '2026-08-01T00:00:00.000Z' }],
+    })
     expect(revalidateMock).toHaveBeenCalledTimes(1)
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('a'))
   })
 
-  it('?dryRun=1 deletes nothing and lists what would be purged', async () => {
-    const would = [{ id: 'a', title: 'T', slug: 's', deletedAt: '2026-08-01T00:00:00.000Z' }]
-    purgeMock.mockResolvedValue(result({ dryRun: true, wouldPurge: would }))
+  // This repository is PUBLIC, so GitHub Actions logs are world-readable and the workflow
+  // prints the response body. Titles and slugs of deleted (possibly unpublished) articles
+  // belong in audit_logs, never in the HTTP response.
+  it('never puts article titles or slugs in the response (it lands in a public Actions log)', async () => {
+    purgeMock.mockResolvedValue(result({ count: 1, articleIds: ['a'], articles: full, dryRun: false }))
+    const text = JSON.stringify(await (await route.POST(req())).json())
+    expect(text).not.toContain(SECRET_TITLE)
+    expect(text).not.toContain(SECRET_SLUG)
+    purgeMock.mockResolvedValue(result({ dryRun: true, wouldPurge: full }))
+    const dry = JSON.stringify(await (await route.POST(req({ query: '?dryRun=1' }))).json())
+    expect(dry).not.toContain(SECRET_TITLE)
+    expect(dry).not.toContain(SECRET_SLUG)
+  })
+
+  it('?dryRun=1 deletes nothing and lists what would be purged (ids only)', async () => {
+    purgeMock.mockResolvedValue(result({ dryRun: true, wouldPurge: full }))
     const res = await route.POST(req({ query: '?dryRun=1' }))
     expect(purgeMock).toHaveBeenCalledWith({ dryRun: true })
     const body = await res.json()
     expect(body.dryRun).toBe(true)
     expect(body.purged.count).toBe(0)
-    expect(body.wouldPurge).toEqual(would)
+    expect(body.wouldPurge).toEqual([{ id: 'a', deletedAt: '2026-08-01T00:00:00.000Z' }])
   })
 
   it('without the flag it is a real run', async () => {
@@ -104,17 +124,59 @@ describe('purge-trash route: reporting', () => {
   })
 })
 
+describe('purge-trash route: the dry-run flag fails safe', () => {
+  it.each(['?dryRun=1', '?dryRun=true', '?dryRun=TRUE'])('%s is a dry run', async (query) => {
+    purgeMock.mockResolvedValue(result({ dryRun: true }))
+    const res = await route.POST(req({ query }))
+    expect(res.status).toBe(200)
+    expect(purgeMock).toHaveBeenCalledWith({ dryRun: true })
+  })
+
+  it.each(['?dryRun=0', '?dryRun=false'])('%s is an explicit real run', async (query) => {
+    purgeMock.mockResolvedValue(result())
+    await route.POST(req({ query }))
+    expect(purgeMock).toHaveBeenCalledWith({ dryRun: false })
+  })
+
+  // A typo must never turn a rehearsal into a deletion.
+  it.each(['?dryRun', '?dryRun=', '?dryRun=yes', '?dryRun=on', '?dryRun=2', '?dryrun=1', '?dry_run=1', '?dryRun=1&dryRun=0'])(
+    '%s is refused with 400 and purges nothing',
+    async (query) => {
+      const res = await route.POST(req({ query }))
+      expect(res.status).toBe(400)
+      expect(purgeMock).not.toHaveBeenCalled()
+    },
+  )
+
+  it('any unknown query parameter is refused rather than ignored', async () => {
+    const res = await route.POST(req({ query: '?force=1' }))
+    expect(res.status).toBe(400)
+    expect(purgeMock).not.toHaveBeenCalled()
+  })
+})
+
 describe('purge-trash route: failures are visible to the scheduler', () => {
   it('returns 500 (so the Actions run fails) when any article could not be purged, still reporting what was', async () => {
     purgeMock.mockResolvedValue(
-      result({ count: 1, articleIds: ['b'], articles: [], errors: [{ articleId: 'a', message: 'connection reset' }] }),
+      result({
+        count: 1,
+        articleIds: ['b'],
+        articles: [],
+        errors: [{ articleId: 'a', message: 'Invalid `prisma.article.deleteMany()` invocation: FK debates_forArticleId_fkey' }],
+      }),
     )
     const res = await route.POST(req())
     expect(res.status).toBe(500)
     const body = await res.json()
-    expect(body.errors).toEqual([{ articleId: 'a', message: 'connection reset' }])
+    expect(body.errors).toHaveLength(1)
+    expect(body.errors[0].articleId).toBe('a')
+    expect(body.errors[0].reference).toMatch(/^[0-9a-f]{8}$/)
     expect(body.purged.articleIds).toEqual(['b'])
-    expect(console.error).toHaveBeenCalled()
+    // the raw database error is logged server-side under the same reference, never returned
+    expect(JSON.stringify(body)).not.toContain('prisma')
+    expect(JSON.stringify(body)).not.toContain('debates_forArticleId_fkey')
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('debates_forArticleId_fkey'))
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining(body.errors[0].reference))
   })
 
   it('returns 500 with a reference, not a raw database error, when the job throws', async () => {
