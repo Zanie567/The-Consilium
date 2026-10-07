@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import Link from 'next/link'
@@ -43,6 +44,7 @@ const STATUS_STYLE: Record<string, string> = {
 }
 
 export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter, emptyMessage }: Props) {
+  const router = useRouter()
   const [articles, setArticles] = useState(initial)
   const [filter, setFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
@@ -60,53 +62,64 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
     }))
   }
 
-  const featureArticle = async (id: string, current: boolean) => {
+  const featureArticle = async (article: ArticleItem) => {
+    const { id, isFeatured: current, updatedAt } = article
     setError(null)
     try {
       const method = current ? 'DELETE' : 'POST'
-      await apiRequest(`/api/editorial/articles/${id}/feature`, { method })
+      const saved = await apiRequest<{ updatedAt: string }>(`/api/editorial/articles/${id}/feature`, { method, headers: { 'x-article-revision': updatedAt } })
+      setArticles(prev => prev.map(a => a.id === id ? { ...a, updatedAt: saved.updatedAt } : a))
+      router.refresh()
       toggle(id, 'isFeatured', !current)
     } catch (reason) {
       setError(asApiError(reason).message)
+      if (asApiError(reason).status === 409) router.refresh()
     }
   }
 
-  const pinArticle = async (id: string, current: boolean) => {
+  const pinArticle = async (article: ArticleItem) => {
+    const { id, isPinned: current, updatedAt } = article
     setError(null)
     try {
       const method = current ? 'DELETE' : 'POST'
-      await apiRequest(`/api/editorial/articles/${id}/pin`, { method })
+      const saved = await apiRequest<{ updatedAt: string }>(`/api/editorial/articles/${id}/pin`, { method, headers: { 'x-article-revision': updatedAt } })
+      setArticles(prev => prev.map(a => a.id === id ? { ...a, updatedAt: saved.updatedAt } : a))
       toggle(id, 'isPinned', !current)
     } catch (reason) {
       setError(asApiError(reason).message)
+      if (asApiError(reason).status === 409) router.refresh()
     }
   }
 
-  const deleteArticle = async (id: string) => {
+  const deleteArticle = async (article: ArticleItem) => {
+    const { id, updatedAt } = article
     if (!confirm('Move this article to trash? It can be restored for 30 days.')) return
     setError(null)
     try {
-      await apiRequest(`/api/articles/${id}`, { method: 'DELETE' })
+      await apiRequest(`/api/articles/${id}`, { method: 'DELETE', headers: { 'x-article-revision': updatedAt } })
       setArticles((prev) => prev.filter((article) => article.id !== id))
     } catch (reason) {
       setError(asApiError(reason).message)
+      if (asApiError(reason).status === 409) router.refresh()
     }
   }
 
-  const publishArticle = async (id: string, currentStatus: string) => {
+  const publishArticle = async (article: ArticleItem) => {
+    const { id, status: currentStatus, updatedAt } = article
     const newStatus = currentStatus === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED'
     setError(null)
     try {
-      await apiRequest(`/api/articles/${id}`, {
+      const saved = await apiRequest<ArticleItem>(`/api/articles/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus, expectedUpdatedAt: updatedAt }),
       })
       setArticles((prev) => prev.map((article) => (
-        article.id === id ? { ...article, status: newStatus } : article
+        article.id === id ? { ...article, status: saved.status, updatedAt: saved.updatedAt, publishedAt: saved.publishedAt, scheduledAt: saved.scheduledAt } : article
       )))
     } catch (reason) {
       setError(asApiError(reason).message)
+      if (asApiError(reason).status === 409) router.refresh()
     }
   }
 
@@ -228,7 +241,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                             variant="editorial" side="top" maxWidth={280}
                           >
                             <button
-                              onClick={() => featureArticle(article.id, article.isFeatured)}
+                              onClick={() => featureArticle(article)}
                               aria-label={article.isFeatured ? 'Remove featured' : 'Set as featured'}
                               className={`p-2 sm:p-1.5 transition-colors ${
                                 article.isFeatured ? 'text-gold' : 'text-[var(--fg-faint)] hover:text-gold'
@@ -242,7 +255,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                             variant="editorial" side="top" maxWidth={260}
                           >
                             <button
-                              onClick={() => pinArticle(article.id, article.isPinned)}
+                              onClick={() => pinArticle(article)}
                               aria-label={article.isPinned ? 'Unpin' : 'Pin to category'}
                               className={`p-2 sm:p-1.5 transition-colors ${
                                 article.isPinned ? 'text-gold' : 'text-[var(--fg-faint)] hover:text-gold'
@@ -292,7 +305,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                           maxWidth={240}
                         >
                           <button
-                            onClick={() => publishArticle(article.id, article.status)}
+                            onClick={() => publishArticle(article)}
                             className={`text-xs font-bold px-1.5 py-1 transition-colors ${
                               article.status === 'PUBLISHED'
                                 ? 'text-[var(--fg-faint)] hover:text-amber-600'
@@ -305,7 +318,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                       )}
                       <Tooltip content="Permanently delete this article. This cannot be undone." variant="editorial" side="top" maxWidth={240}>
                         <button
-                          onClick={() => deleteArticle(article.id)}
+                          onClick={() => deleteArticle(article)}
                           aria-label="Delete article"
                           className="p-2 sm:p-1.5 text-[var(--fg-faint)] hover:text-red-500 transition-colors"
                         >

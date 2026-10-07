@@ -1,3 +1,4 @@
+import { articleRevisionError } from '@/lib/articleRevision'
 import { figureAltError } from '@/lib/figureValidation'
 import { ArticleImageUnavailableError, lockArticleImages, cleanupRemovedArticleImages } from '@/lib/articleImageStorage'
 import { resolveArticleTag } from '@/lib/resolveArticleTag'
@@ -387,8 +388,11 @@ export async function DELETE(
       }
     }
 
+    const revisionError = articleRevisionError(_req.headers.get('x-article-revision') ?? undefined, existing.updatedAt)
+    if (revisionError) return revisionError
+
     // Soft delete - move to trash; permanently removed after 30 days by the cron job
-    await prisma.article.update({ where: { id }, data: { deletedAt: new Date() } })
+    await prisma.article.update({ where: { id, updatedAt: existing.updatedAt, deletedAt: null, categoryId: existing.categoryId, authorId: existing.authorId }, data: { deletedAt: new Date() } })
     if (existing.status === 'PUBLISHED') revalidateArticleLists()
     return NextResponse.json(
       { success: true },

@@ -108,7 +108,7 @@ export default async function EditorialArticlesPage({
       <PortalSection>
         <ArticlesList
           key={myDraftsMode ? 'my-drafts' : 'all-articles'}
-          articles={articles as Parameters<typeof ArticlesList>[0]['articles']}
+          articles={articles.map(article => ({ ...article, updatedAt: article.updatedAt.toISOString(), publishedAt: article.publishedAt?.toISOString() ?? null, scheduledAt: article.scheduledAt?.toISOString() ?? null }))}
           isEditor={isEditor && !myDraftsMode}
           isWriter={role === 'WRITER'}
           emptyMessage={

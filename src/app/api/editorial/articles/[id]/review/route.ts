@@ -1,3 +1,4 @@
+import { articleRevisionError } from '@/lib/articleRevision'
 import { figureAltError } from '@/lib/figureValidation'
 import { NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
@@ -44,7 +45,7 @@ export async function PATCH(req: Request, { params }: Props) {
     const user = auth.user
 
     const { id } = await params
-    const { action, note, scheduledAt, corrected, correctionNote } = await req.json()
+    const { action, note, scheduledAt, corrected, correctionNote, expectedUpdatedAt } = await req.json()
 
     if (!isReviewAction(action)) {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
@@ -70,6 +71,9 @@ export async function PATCH(req: Request, { params }: Props) {
         )
       }
     }
+
+    const revisionError = articleRevisionError(expectedUpdatedAt, article.updatedAt)
+    if (revisionError) return revisionError
 
     const requiredStatus = REQUIRED_SOURCE_STATUS[action]
     if (article.status !== requiredStatus) {

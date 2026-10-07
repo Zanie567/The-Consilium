@@ -8,6 +8,7 @@ interface SeriesArticle {
   id: string
   title: string
   slug: string
+  updatedAt: string
   seriesOrder: number | null
 }
 
@@ -23,6 +24,7 @@ interface ArticleOption {
   id: string
   title: string
   seriesId: string | null
+  updatedAt: string
   seriesOrder: number | null
 }
 
@@ -61,13 +63,15 @@ export function SeriesManager({ initialSeries, articles }: Props) {
   }
 
   const assignArticle = async (articleId: string, seriesId: string, order: number) => {
+    const article = articles.find(article => article.id === articleId)
+    if (!article) { setError('Reload the article list before assigning.'); return }
     setAssigningId(articleId)
     setError('')
     try {
       await apiRequest(`/api/articles/${articleId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seriesId, seriesOrder: order }),
+        body: JSON.stringify({ seriesId, seriesOrder: order, expectedUpdatedAt: article.updatedAt }),
       })
       window.location.reload()
     } catch (reason) {

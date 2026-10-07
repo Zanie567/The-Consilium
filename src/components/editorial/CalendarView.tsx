@@ -11,6 +11,7 @@ import { EDITORIAL_TIME_ZONE_LABEL } from '@/lib/editorialSchedule'
 
 export interface CalendarItem {
   id: string
+  updatedAt: string
   title: string
   status: string
   authorName: string
@@ -174,7 +175,7 @@ export function CalendarView({
       await apiRequest('/api/editorial/calendar', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ articleId: id, date: targetKey }),
+        body: JSON.stringify({ articleId: id, date: targetKey, expectedUpdatedAt: item.updatedAt }),
       })
       router.refresh()
     } catch (reason) {

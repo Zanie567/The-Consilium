@@ -109,9 +109,11 @@ export function articleMutationErrorResponse(
   }
 
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    if (error.code === 'P2025' && operation === 'update') {
+    if (error.code === 'P2025' && (operation === 'update' || operation === 'delete')) {
       return apiError(
-        'This article changed while saving. Reload it before retrying; your unsaved changes remain in this tab.',
+        operation === 'delete'
+          ? 'This article changed before it could be moved to trash. Reload before trying again.'
+          : 'This article changed while saving. Reload it before retrying; your unsaved changes remain in this tab.',
         409,
         'ARTICLE_CHANGED',
         requestId

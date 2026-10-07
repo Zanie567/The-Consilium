@@ -1,9 +1,10 @@
+import { articleRevisionError } from '@/lib/articleRevision'
 import { NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 import { editorCanAccessArticleCategory } from '@/lib/articleCategoryAccess'
-import { apiError } from '@/lib/apiResponse'
+import { apiError, articleMutationErrorResponse } from '@/lib/apiResponse'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -25,9 +26,11 @@ export async function PATCH(req: Request, { params }: Props) {
 
   const { id } = await params
 
+  let expectedUpdatedAt: unknown
   let commendation: string | null
   try {
-    const body = (await req.json()) as { commendation: unknown }
+    const body = (await req.json()) as { commendation: unknown; expectedUpdatedAt?: unknown }
+    expectedUpdatedAt = body.expectedUpdatedAt
     const raw = body.commendation
     if (raw === null) {
       commendation = null
@@ -50,7 +53,7 @@ export async function PATCH(req: Request, { params }: Props) {
   try {
     const article = await prisma.article.findUnique({
       where: { id },
-      select: { id: true, categoryId: true, deletedAt: true },
+      select: { id: true, categoryId: true, deletedAt: true, updatedAt: true },
     })
     if (!article || article.deletedAt) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -66,18 +69,22 @@ export async function PATCH(req: Request, { params }: Props) {
       )
     }
 
+    const revisionError = articleRevisionError(expectedUpdatedAt, article.updatedAt)
+    if (revisionError) return revisionError
+
     const updated = await prisma.article.update({
-      where: { id },
+      where: { id, updatedAt: article.updatedAt, deletedAt: null, categoryId: article.categoryId },
       data: { editorialCommendation: commendation },
-      select: { id: true, editorialCommendation: true },
+      select: { id: true, editorialCommendation: true, updatedAt: true },
     })
 
     return NextResponse.json({
+      updatedAt: updated.updatedAt,
       id: updated.id,
       editorialCommendation: updated.editorialCommendation,
     })
   } catch (err) {
     console.error('[editorial/commendation] Error:', err instanceof Error ? err.message : String(err))
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return articleMutationErrorResponse(err, 'update', crypto.randomUUID())
   }
 }

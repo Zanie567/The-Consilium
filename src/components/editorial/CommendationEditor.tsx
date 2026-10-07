@@ -13,7 +13,11 @@ const MAX_LENGTH = 200
 export function CommendationEditor({
   articleId,
   initialValue,
+  expectedUpdatedAt,
+  onRevision,
 }: {
+  expectedUpdatedAt: string
+  onRevision: (revision: string) => void
   articleId: string
   initialValue: string | null
 }) {
@@ -30,14 +34,15 @@ export function CommendationEditor({
     setStatus('idle')
     setErrorMessage('')
     try {
-      const data = await apiRequest<{ editorialCommendation: string | null }>(
+      const data = await apiRequest<{ editorialCommendation: string | null; updatedAt: string }>(
         `/api/editorial/articles/${articleId}/commendation`,
         {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ commendation: value.trim() === '' ? null : value.trim() }),
+        body: JSON.stringify({ commendation: value.trim() === '' ? null : value.trim(), expectedUpdatedAt }),
         }
       )
+      onRevision(data.updatedAt)
       const next = data.editorialCommendation ?? ''
       setValue(next)
       setSavedValue(next)
