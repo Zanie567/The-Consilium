@@ -1,4 +1,7 @@
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import { Playfair_Display, Inter, EB_Garamond } from 'next/font/google'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
@@ -11,7 +14,6 @@ import { SignupPrompt } from '@/components/ui/SignupPrompt'
 import { CookieConsentBanner } from '@/components/ui/CookieConsent'
 import { InstallBanner } from '@/components/ui/InstallBanner'
 import { FaviconSwitcher } from '@/components/ui/FaviconSwitcher'
-import { ViewTransitionGuard } from '@/components/ui/ViewTransitionGuard'
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
 
 const playfair = Playfair_Display({
@@ -49,7 +51,7 @@ export const metadata: Metadata = {
     'economic analysis',
     'opinion',
   ],
-  robots: { index: true, follow: true },
+  robots: { index: process.env.TESTING_MODE_ENABLED !== '1', follow: process.env.TESTING_MODE_ENABLED !== '1' },
   openGraph: {
     title: 'The Consilium',
     description: SITE_DESCRIPTION,
@@ -95,18 +97,27 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const testWorkspace = process.env.TESTING_MODE_ENABLED === '1'
+  const session = testWorkspace ? await getServerSession(authOptions) : undefined
   return (
     <html
       lang="en"
       className={`${playfair.variable} ${inter.variable} ${ebGaramond.variable} h-full`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-[var(--bg)] text-[var(--fg)]">
+      <body className="min-h-full flex flex-col bg-[var(--bg)] text-[var(--fg)]" style={testWorkspace ? { paddingTop: 'var(--testing-banner-height, 40px)' } : undefined}>
+        {/* Development can restore an unfinished streamed HTML response from its
+            history cache. Fetch a complete current identity before hydrating it.
+            Production history uses the hydrated identity checks in AuthProvider. */}
+        {testWorkspace && process.env.NODE_ENV === 'development' && <Script id="testing-history-identity" strategy="beforeInteractive">{`
+          if (performance.getEntriesByType('navigation')[0]?.type === 'back_forward') location.reload();
+          else addEventListener('pageshow', function(event) { if (event.persisted) location.reload(); });
+        `}</Script>}
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:bg-navy focus:text-gold focus:px-4 focus:py-2 focus:text-xs focus:font-bold focus:uppercase focus:tracking-widest focus:border focus:border-gold/60"
@@ -114,8 +125,7 @@ export default function RootLayout({
           Skip to content
         </a>
         <ThemeProvider>
-          <AuthProvider>
-            <ViewTransitionGuard />
+          <AuthProvider session={session} testWorkspace={testWorkspace}>
             <SiteChrome>
               <ScrollIndicator />
             </SiteChrome>

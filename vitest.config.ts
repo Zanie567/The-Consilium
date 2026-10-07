@@ -16,8 +16,12 @@ export default defineConfig({
     // files keep count/roster assertions from racing another file's fixtures.
     // Parallel specialist work uses separate databases, not shared workers.
     fileParallelism: false,
+    include: ['tests/**/*.test.{ts,tsx}'],
+    // Each database suite owns a pool. Bound concurrency so a full local audit
+    // does not exhaust Postgres/CPU while its production app is also running.
+    maxWorkers: 1,
     // E2E specs live in tests/e2e and use @playwright/test, not vitest.
-    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**', ...(!(process.env.E2E_ISOLATED === '1' && process.env.BASE_URL) ? ['tests/integration/read-through-db.test.ts','tests/integration/api.test.ts','tests/integration/data-layer.test.ts','tests/integration/api-audit.test.ts','tests/integration/calendar-access.test.ts','tests/integration/team-profile-db.test.ts','tests/integration/team-profile-storage.test.ts','tests/integration/member-onboarding.test.ts'] : [])],
     // Forward the live-server base URL (and seed credentials) into the test
     // workers. Read here in the main process — where an inline `BASE_URL=…`
     // prefix is reliably visible — so integration specs can reach the server
@@ -25,6 +29,10 @@ export default defineConfig({
     setupFiles: ['./tests/setup/db-guard.ts'],
     env: {
       ...testDatabase,
+      // In-process ordinary route tests have no Next request/cookie context.
+      // Dedicated simulator suites explicitly enable it with their real DB mocks;
+      // live/browser requests still exercise the enabled app server separately.
+      TESTING_MODE_ENABLED: '0',
       BASE_URL: baseUrl,
       ...(process.env.E2E_ADMIN_EMAIL ? { E2E_ADMIN_EMAIL: process.env.E2E_ADMIN_EMAIL } : {}),
       ...(process.env.E2E_ADMIN_PASSWORD ? { E2E_ADMIN_PASSWORD: process.env.E2E_ADMIN_PASSWORD } : {}),

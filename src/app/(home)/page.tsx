@@ -25,6 +25,12 @@ import { canonicalAlternates, pageOpenGraph } from '@/lib/seo'
 import { normaliseSearchText, type SearchParamValue } from '@/lib/searchText'
 
 export const dynamic = 'force-dynamic'
+// There is deliberately no loading.tsx beside this page. The category tabs navigate between
+// ?category= variants of this dynamic page, and with a loading boundary Next completes each navigation
+// at once with the loading shell and commits the real one (and the URL) only when React retries after
+// the server data arrives. Under CPU load that retry sometimes never happens: the RSC request returns
+// 200 and the click is silently lost. Without the boundary the router waits for the data and commits.
+// See tests/unit/home-no-loading-boundary.test.ts.
 
 // The page stays dynamic (it reads the session/cookies for the personalised
 // debate panel), but every NON-personalised list below is wrapped in the Next

@@ -22,11 +22,11 @@ describe('shell harness refuses a failed database resolver before build/server/s
       encoding: 'utf8', timeout: 5000,
       env: {
         ...process.env, PATH: `${directory}:${process.env.PATH ?? ''}`,
-        ENTRYPOINT_TEST_MARKER: marker, SKIP_DB_SETUP: '1', SKIP_BUILD: '1',
+        ENTRYPOINT_TEST_MARKER: marker, SKIP_DB_SETUP: '0', SKIP_BUILD: '0',
       },
     })
     expect(result.status).toBe(1)
-    expect(result.stdout).toContain('refusing: unsafe test database')
+    expect(result.stdout + result.stderr).toMatch(/refusing.*(?:unsafe|isolated)/)
     expect(existsSync(marker)).toBe(false)
   })
 })

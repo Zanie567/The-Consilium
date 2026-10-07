@@ -49,6 +49,15 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  // Next adds generated type directories to the selected tsconfig during builds.
+  // Keep isolated builds from editing the shared development configuration.
+  ...(process.env.E2E_ISOLATED === '1' && process.env.NEXT_DIST_DIR
+    ? { typescript: { tsconfigPath: `${process.env.NEXT_DIST_DIR}.tsconfig.json` } }
+    : {}),
+  // The isolated E2E stack builds into its own directory so a build made with
+  // production env values (which Next inlines for NEXT_PUBLIC_*) can never be
+  // served by the test launcher, and the test build never clobbers `next dev`.
+  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
   images: {
     dangerouslyAllowLocalIP: localStorage !== null,
     // Restrict server-side image fetches to Supabase Storage (where uploads live)
@@ -73,7 +82,9 @@ const nextConfig: NextConfig = {
     ],
   },
   experimental: {
-    viewTransition: true,
+    // Every isolated run starts fresh. Avoid cache flush/compaction stalls in
+    // this workspace's dev server; ordinary development keeps Next's default.
+    ...(process.env.E2E_ISOLATED === '1' ? { turbopackFileSystemCacheForDev: false } : {}),
   },
   async redirects() {
     return [
@@ -88,7 +99,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/(.*)',
-        headers: securityHeaders,
+        headers: [...securityHeaders, ...(process.env.TESTING_MODE_ENABLED === '1' ? [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }] : [])],
       },
     ]
   },

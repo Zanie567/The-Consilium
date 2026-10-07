@@ -60,6 +60,8 @@ export function AdminSidebar({ user }: { user: User }) {
     {
       label: 'ADMIN TOOLS',
       items: [
+        { href: '/admin/testing', icon: Shield, label: 'Testing', show: isAdmin },
+        { href: '/editorial/team-profile', icon: Users, label: 'Team Profile', show: isAdmin },
         { href: '/admin/team', icon: Users, label: 'Team', show: isAdmin },
         { href: '/admin/subscribers', icon: Mail, label: 'Subscribers', show: isEditor },
         { href: '/admin/login-attempts', icon: Shield, label: 'Login Attempts', show: isAdmin },
@@ -87,6 +89,7 @@ export function AdminSidebar({ user }: { user: User }) {
       {/* Masthead */}
       <div className="px-5 pt-5 pb-4 border-b border-white/8">
         <Link
+          prefetch={false}
           href="/"
           className="text-gold font-bold text-sm tracking-widest uppercase"
           style={{ fontFamily: 'var(--font-serif)' }}
@@ -114,6 +117,7 @@ export function AdminSidebar({ user }: { user: User }) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={false}
                     className={`flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium transition-colors duration-150 border-l-2 ${
                       active
                         ? 'border-gold text-gold'

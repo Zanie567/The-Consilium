@@ -1,9 +1,10 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { EDITORIAL_PORTAL_ROLES } from '@/lib/rbac'
 
-export async function PATCH(
+async function PATCHHandler(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -24,3 +25,5 @@ export async function PATCH(
 
   return NextResponse.json({ ok: true })
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)

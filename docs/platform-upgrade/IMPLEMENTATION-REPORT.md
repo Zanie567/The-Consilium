@@ -1,3 +1,5 @@
+**PR phase (2026-10-07):** The owner authorized reconciliation with newer main and full recertification. This report records the earlier candidate; see [PR-PHASE-REPORT.md](PR-PHASE-REPORT.md) for current evidence and gates.
+
 # Final integration and release-readiness report
 
 **2026-10-07 follow-up:** [Pre-merge hardening report](HARDENING-REPORT.md) supersedes the historical CI, revision-caller and skip limitations below; see the addendum at the end for current results. Earlier audit evidence is preserved.

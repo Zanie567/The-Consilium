@@ -1,5 +1,4 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { requirePortalRole } from '@/lib/portalAccess'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { format, formatDistanceToNow } from 'date-fns'
@@ -11,6 +10,7 @@ import { DraftsSection } from '@/components/editorial/DraftsSection'
 import { TrophySection, type TrophyRecord } from '@/components/editorial/TrophySection'
 import { StreakCard } from '@/components/editorial/StreakCard'
 import { StreakCadenceControl } from '@/components/editorial/StreakCadenceControl'
+import { TeamProfileNudge } from '@/components/editorial/TeamProfileNudge'
 import { FirstPublishBanner } from '@/components/editorial/FirstPublishBanner'
 import { SeriesCompleteBadges } from '@/components/editorial/SeriesCompleteBadges'
 import { CommissioningBriefEditor } from '@/components/editorial/CommissioningBriefEditor'
@@ -25,8 +25,7 @@ export const metadata: Metadata = {
 }
 
 export default async function EditorialDashboard() {
-  const session = await getServerSession(authOptions)
-  if (!session) return null
+  const session = await requirePortalRole(['ADMIN', 'EDITOR', 'WRITER', 'GROWTH'])
 
   const userId = session.user.id
   const role = session.user.role
@@ -223,6 +222,9 @@ export default async function EditorialDashboard() {
 
   return (
     <PortalPage className="p-4 sm:p-6 lg:p-8 max-w-6xl">
+      {isAdmin && <Link href="/admin/testing" className="mb-5 block border border-gold/40 p-4 text-sm text-[var(--fg)]">
+        <strong>Testing</strong> — Test as Writer, Editor or Growth in the isolated workspace
+      </Link>}
       {/* Surface DB errors rather than silently rendering empty data */}
       {fetchError && (
         <div className="mb-6 bg-red-500/10 border border-red-500/20 px-5 py-4 text-red-600 dark:text-red-400 text-sm">
@@ -250,8 +252,10 @@ export default async function EditorialDashboard() {
               : 'Write and manage your articles.'}
           </p>
         </div>
-        <NotificationBell />
+        <NotificationBell userId={session.user.id} />
       </PortalSection>
+
+      <TeamProfileNudge userId={userId} />
 
       {/* One-time achievement banners (first publish, then series completion) */}
       {firstPublishAchievement && (

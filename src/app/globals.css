@@ -1,34 +1,5 @@
 @import "tailwindcss";
 
-/* ─── View Transitions ─────────────────────────────────────────────────────
- * These pseudo-element animations style the client-side (SPA) transitions that
- * Next's `experimental.viewTransition` drives via document.startViewTransition.
- *
- * The cross-document `@view-transition { navigation: auto }` opt-in was removed
- * deliberately: on a client-routed app it set up a browser MPA transition that
- * raced Next's SPA transition on full page loads, throwing "InvalidStateError:
- * Transition was aborted because of invalid state" and occasionally pinning a
- * stale ::view-transition-old(root) snapshot of the previous page over the new
- * one (the "wrong article / mismatched meta" symptom). See ViewTransitionGuard.
- */
-::view-transition-old(root) {
-  animation: 200ms cubic-bezier(0.4, 0, 1, 1) both fade-out;
-}
-
-::view-transition-new(root) {
-  animation: 300ms cubic-bezier(0, 0, 0.2, 1) 80ms both fade-in;
-}
-
-@keyframes fade-out {
-  from { opacity: 1; }
-  to   { opacity: 0; }
-}
-
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
 /* ─── Dark-mode variant (class-based via next-themes) ─────────────────────── */
 @variant dark (&:where(.dark, .dark *));
 
@@ -221,8 +192,9 @@ body {
   opacity: 1;
 }
 
-/* ─── Drop cap on first paragraph ───────────────────────────────── */
-.prose-consilium > p:first-of-type::first-letter {
+/* Drop caps supply an unstyled default. Explicit paragraph/text presentation
+   belongs to the author; a floated house letter must not override it. */
+.prose-consilium > p:first-of-type:not([style]):not(:has(span[style], mark[style]))::first-letter {
   font-family: var(--font-serif);
   font-size: 3.4em;
   font-weight: 800;
@@ -234,7 +206,7 @@ body {
   padding-bottom: 0.02em;
 }
 
-.dark .prose-consilium > p:first-of-type::first-letter {
+.dark .prose-consilium > p:first-of-type:not([style]):not(:has(span[style], mark[style]))::first-letter {
   color: rgba(255, 255, 255, 0.87);
 }
 
@@ -1298,12 +1270,11 @@ mark {
 
 /* ─── Reduced motion ───────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
+  /* Keep the image's server/client tree identical. The user's preference is
+     applied by CSS before hydration rather than removing a server node. */
+  .consilium-image-overlay { display: none; }
   html { scroll-behavior: auto; }
   html, html * { transition: none !important; animation: none !important; }
-
-  /* View transitions */
-  ::view-transition-old(root),
-  ::view-transition-new(root) { animation: none !important; }
 
   /* Skeleton: freeze without shimmer */
   .skeleton-shimmer { animation: none; background: #ede8e0; }
@@ -1404,3 +1375,11 @@ mark {
 .prose-consilium .table-source, .prose-consilium .table-note { font-size: 0.85rem; margin: 0.4rem 0; color: var(--fg-muted); }
 .figure-centered img { width: auto; max-height: 40rem; margin-inline: auto; }
 .tiptap-editor .tableWrapper table { table-layout: auto; }
+/* Preserve identical SSR/client animation wrappers. Reduced-motion readers see
+   the content immediately, including before hydration or intersection callbacks. */
+@media (prefers-reduced-motion: reduce) {
+  .consilium-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

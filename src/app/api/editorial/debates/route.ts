@@ -1,9 +1,10 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
   if (!user) {
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
@@ -93,3 +94,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ debate, forArticle, againstArticle }, { status: 201 })
 }
+
+export const POST = withTestingAudit(POSTHandler)

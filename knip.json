@@ -2,12 +2,14 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignore": [
     "prisma/schema.prisma",
-    "prisma/migrate-em-dashes.ts",
-    "scripts/test-db-env.ts",
-    "tests/e2e/helpers/fake-storage-server.ts",
-    "scripts/assert-safe-test-db.ts"
+    "prisma/migrate-em-dashes.ts"
   ],
   "ignoreDependencies": [
     "pg"
+  ],
+  "playwright": false,
+  "entry": [
+    "tests/e2e/**/*.ts",
+    "scripts/*.ts"
   ]
 }

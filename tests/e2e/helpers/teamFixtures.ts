@@ -7,7 +7,7 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
-import { assertSafeTestDatabaseHost } from '../../../scripts/lib/assertSafeTestDatabaseHost'
+import { assertRunDatabase } from '../../../scripts/lib/assertRunDatabase'
 
 export const PASSWORD = 'tp-pass-1234'
 const DOMAIN = '@tp.consilium.test'
@@ -25,9 +25,9 @@ const ACCOUNTS = {
   adopt: { name: 'Alan Adopt', role: 'WRITER' },
   /** Already linked to a card (edit state). */
   linked: { name: 'Linda Linked', role: 'EDITOR' },
-  /** The Editor-in-Chief, with the account role that puts them in Editorial. */
-  chief: { name: 'Alexander Escala', role: 'EDITOR' },
-  /** Wrong data on purpose: an Editor-in-Chief title on a WRITER account. The role wins. */
+  /** The Editor-in-Chief, with ADMIN permission and a trusted masthead appointment. */
+  chief: { name: 'Alexander Escala', role: 'ADMIN' },
+  /** A second chief appointment on a WRITER account; title/order decide placement. */
   mismatch: { name: 'Mira Mismatch', role: 'WRITER' },
   noname: { name: null, role: 'WRITER' },
 } as const
@@ -52,21 +52,21 @@ let prisma: PrismaClient | null = null
 export function db(): PrismaClient {
   if (!prisma) {
     const url = process.env.DATABASE_URL ?? ''
-    assertSafeTestDatabaseHost(url, 'DATABASE_URL')
+    assertRunDatabase()
     prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) })
   }
   return prisma
 }
 
 export async function closeDb() {
-  await prisma?.$disconnect().catch(() => {})
+  await prisma?.$disconnect()
   prisma = null
 }
 
 /** Rebuilds every team fixture from scratch. */
 export async function resetTeamFixtures() {
   const client = db()
-  await client.teamMember.deleteMany({})
+  await client.teamMember.deleteMany({ where: { OR: [{ id: { startsWith: 'tp-fixture-' } }, { id: { startsWith: 'seed-team-' } }, { user: { email: { endsWith: DOMAIN } } }] } })
   await client.user.deleteMany({ where: { email: { endsWith: DOMAIN } } })
 
   const password = await bcrypt.hash(PASSWORD, 10)
@@ -81,8 +81,10 @@ export async function resetTeamFixtures() {
   for (const [name, title, order, image, account] of PRODUCTION_SHAPED) {
     await client.teamMember.create({
       data: {
+        id: `tp-fixture-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
         name,
         role: title,
+        ...(name === 'Lucas Dwyer' ? { publicTier: 'leadership' } : {}),
         order,
         image,
         bio: name === 'Lucas Dwyer' ? null : `${name} writes for The Consilium.`,
@@ -93,13 +95,13 @@ export async function resetTeamFixtures() {
 
   // The "production case": a person with a card and an account, but nothing linking them.
   await client.teamMember.create({
-    data: { name: 'Lena Legacy', role: 'Senior Editor', order: 20, image: '/team/sam-hunt.png', bio: 'Lena’s admin-entered bio.' },
+    data: { id: 'tp-fixture-legacy', name: 'Lena Legacy', role: 'Senior Editor', order: 20, image: '/team/sam-hunt.png', bio: 'Lena’s admin-entered bio.' },
   })
   // Linkable by email.
   await client.teamMember.create({
-    data: { name: 'Some Old Spelling', role: 'Writer', order: 21, bio: 'Alan’s old bio.', email: email('adopt') },
+    data: { id: 'tp-fixture-adopt', name: 'Some Old Spelling', role: 'Writer', order: 21, bio: 'Alan’s old bio.', email: email('adopt') },
   })
-  // Role/title mismatch: the title is displayed, but the team is the account's.
+  // Appointment is independent of the account permission.
   await client.teamMember.create({
     data: { name: 'Mira Mismatch', role: 'Editor-in-Chief', order: 23, bio: 'Mira’s bio.', userId: ids.mismatch },
   })

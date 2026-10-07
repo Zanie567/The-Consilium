@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 import { OverviewTab } from './OverviewTab'
@@ -43,44 +43,51 @@ interface TabCache {
   leaderboard?: LeaderboardData
   distribution?: DistributionData
 }
-type LoadingSet = Set<TabId>
 
 export function AnalyticsDashboard({ userRole: _userRole }: { userRole: string }) {
   const [period, setPeriod]           = useState<Period>('30d')
   const [activeTab, setActiveTab]     = useState<TabId>('overview')
   const [tabCache, setTabCache]       = useState<TabCache>({})
-  const [loadingTabs, setLoadingTabs] = useState<LoadingSet>(new Set())
+  const [cachePeriod, setCachePeriod] = useState<Period>('30d')
+  const [loadingKey, setLoadingKey] = useState<string | null>(null)
+  const [error, setError] = useState<{ key: string; message: string } | null>(null)
+  const [retry, setRetry] = useState(0)
+  const cache = useRef<{ period: Period; data: TabCache }>({ period: '30d', data: {} })
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Fetch data for a tab (lazy, cached per period)
-  const fetchTab = useCallback(async (tab: TabId, p: Period) => {
-    setLoadingTabs(prev => new Set(prev).add(tab))
-    try {
-      const res = await fetch(`/api/editorial/analytics?period=${p}&tab=${tab}`)
-      if (res.ok) {
+  // One effect owns the selected request. Aborted/obsolete selections cannot
+  // replace the current period, hide its spinner or display an unrelated error.
+  useEffect(() => {
+    if (cache.current.period !== period) {
+      cache.current = { period, data: {} }
+      setTabCache({})
+      setCachePeriod(period)
+    }
+    setError(null)
+    if (cache.current.data[activeTab]) {
+      setLoadingKey(null)
+      return
+    }
+    const controller = new AbortController()
+    const key = `${period}:${activeTab}`
+    setLoadingKey(key)
+    void (async () => {
+      try {
+        const res = await fetch(`/api/editorial/analytics?period=${period}&tab=${activeTab}`, { signal: controller.signal })
+        if (res.status !== 200) throw new Error(`Analytics could not be loaded (${res.status}).`)
         const json = await res.json()
-        setTabCache(prev => ({ ...prev, [tab]: json }))
+        if (controller.signal.aborted) return
+        cache.current.data = { ...cache.current.data, [activeTab]: json }
+        setTabCache(cache.current.data)
+      } catch (failure) {
+        if (!controller.signal.aborted) setError({ key, message: failure instanceof Error ? failure.message : 'Analytics could not be loaded. Please retry.' })
+      } finally {
+        if (!controller.signal.aborted) setLoadingKey(null)
       }
-    } finally {
-      setLoadingTabs(prev => { const s = new Set(prev); s.delete(tab); return s })
-    }
-  }, [])
-
-  // When period changes, clear cache and re-fetch current tab
-  useEffect(() => {
-    setTabCache({})
-    fetchTab(activeTab, period)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period])
-
-  // When tab changes, fetch if not cached
-  useEffect(() => {
-    if (!tabCache[activeTab]) {
-      fetchTab(activeTab, period)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab])
+    })()
+    return () => controller.abort()
+  }, [activeTab, period, retry])
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -93,12 +100,9 @@ export function AnalyticsDashboard({ userRole: _userRole }: { userRole: string }
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const handleTabClick = (tab: TabId) => {
-    setActiveTab(tab)
-    if (!tabCache[tab]) fetchTab(tab, period)
-  }
-
-  const isLoading = (tab: TabId) => loadingTabs.has(tab)
+  const isLoading = (tab: TabId) => cachePeriod !== period || loadingKey === `${period}:${tab}`
+  const selectedCache = cachePeriod === period ? tabCache : {}
+  const selectedError = error?.key === `${period}:${activeTab}` ? error.message : null
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-6xl">
@@ -117,6 +121,9 @@ export function AnalyticsDashboard({ userRole: _userRole }: { userRole: string }
         {/* Period dropdown */}
         <div ref={dropdownRef} className="relative shrink-0">
           <button
+            aria-label="Analytics period"
+            aria-haspopup="menu"
+            aria-expanded={dropdownOpen}
             onClick={() => setDropdownOpen(o => !o)}
             className="flex items-center gap-2 bg-[var(--bg-elevated)] border border-[var(--border)] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[var(--fg)] hover:border-gold transition-colors"
           >
@@ -159,7 +166,7 @@ export function AnalyticsDashboard({ userRole: _userRole }: { userRole: string }
         {TABS.map(tab => (
           <button
             key={tab.id}
-            onClick={() => handleTabClick(tab.id)}
+            onClick={() => setActiveTab(tab.id)}
             className={[
               'shrink-0 pb-2.5 mr-5 text-xs font-bold uppercase tracking-widest transition-colors border-b-2 -mb-px',
               activeTab === tab.id
@@ -172,27 +179,34 @@ export function AnalyticsDashboard({ userRole: _userRole }: { userRole: string }
         ))}
       </div>
 
-      {/* Tab content */}
-      <div>
+      {selectedError && (
+        <div role="alert" className="mb-4 border border-red-500/30 p-4 text-sm text-red-500">
+          <p>{selectedError}</p>
+          <button type="button" onClick={() => setRetry(value => value + 1)} className="mt-2 underline">Retry analytics</button>
+        </div>
+      )}
+
+      {/* Failed data has its explicit retry above, not an endless loading skeleton. */}
+      {!selectedError && <div>
         {activeTab === 'overview' && (
-          <OverviewTab data={tabCache.overview ?? null} loading={isLoading('overview')} period={period} />
+          <OverviewTab data={selectedCache.overview ?? null} loading={isLoading('overview')} period={period} />
         )}
         {activeTab === 'content' && (
-          <ContentTab data={tabCache.content ?? null} loading={isLoading('content')} />
+          <ContentTab data={selectedCache.content ?? null} loading={isLoading('content')} />
         )}
         {activeTab === 'audience' && (
-          <AudienceTab data={tabCache.audience ?? null} loading={isLoading('audience')} />
+          <AudienceTab data={selectedCache.audience ?? null} loading={isLoading('audience')} />
         )}
         {activeTab === 'engagement' && (
-          <EngagementTab data={tabCache.engagement ?? null} loading={isLoading('engagement')} />
+          <EngagementTab data={selectedCache.engagement ?? null} loading={isLoading('engagement')} />
         )}
         {activeTab === 'leaderboard' && (
-          <LeaderboardTab data={tabCache.leaderboard ?? null} loading={isLoading('leaderboard')} period={period} />
+          <LeaderboardTab data={selectedCache.leaderboard ?? null} loading={isLoading('leaderboard')} period={period} />
         )}
         {activeTab === 'distribution' && (
-          <DistributionTab data={tabCache.distribution ?? null} loading={isLoading('distribution')} />
+          <DistributionTab data={selectedCache.distribution ?? null} loading={isLoading('distribution')} />
         )}
-      </div>
+      </div>}
     </div>
   )
 }

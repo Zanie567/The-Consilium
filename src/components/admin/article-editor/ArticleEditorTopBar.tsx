@@ -12,7 +12,7 @@ export function ArticleEditorTopBar({ editor }: ArticleEditorTopBarProps) {
   const { actions } = editor
 
   return (
-    <div className="fixed top-0 left-0 md:left-12 lg:left-[220px] right-0 z-50 h-12 bg-[var(--bg-elevated)] border-b border-[var(--border)] flex items-center pl-[52px] md:pl-3 pr-3 gap-2">
+    <div style={{ top: 'var(--testing-banner-height, 0px)' }} className="fixed top-0 left-0 md:left-12 lg:left-[220px] right-0 z-50 h-12 bg-[var(--bg-elevated)] border-b border-[var(--border)] flex items-center pl-[52px] md:pl-3 pr-3 gap-2">
       <button
         onClick={() => void actions.handleBack()}
         className="p-1.5 rounded text-[var(--fg-muted)] hover:bg-[var(--bg-subtle)] hover:text-gold transition-colors shrink-0"
@@ -103,24 +103,20 @@ export function ArticleEditorTopBar({ editor }: ArticleEditorTopBarProps) {
         </button>
       )}
 
-      {editor.canPublish && editor.canEdit && editor.status === 'SCHEDULED' && (
+      {editor.statusAction && (
         <button
-          onClick={() => void actions.handleSave('SCHEDULED')}
-          disabled={editor.saveStatus === 'saving'}
-          className="shrink-0 inline-flex items-center gap-1 bg-blue-600 text-white text-[12px] font-semibold px-3 h-8 rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
+          onClick={() => actions.requestStatusChange(editor.statusAction!.target)}
+          disabled={editor.saveStatus === 'saving' || editor.pendingStatus !== null}
+          className={`shrink-0 inline-flex items-center gap-1 text-[12px] font-semibold px-3 h-8 rounded transition-colors disabled:opacity-50 ${
+            editor.statusAction.tone === 'schedule'
+              ? 'bg-blue-600 text-white hover:bg-blue-700'
+              : editor.statusAction.tone === 'set'
+                ? 'border border-[var(--border)] text-[var(--fg-muted)] hover:border-gold hover:text-gold'
+                : 'bg-navy text-gold hover:bg-navy-dark'
+          }`}
         >
           <Send size={12} />
-          Schedule
-        </button>
-      )}
-      {editor.canPublish && editor.canEdit && editor.status !== 'SCHEDULED' && (
-        <button
-          onClick={() => void actions.handleSave(editor.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED')}
-          disabled={editor.saveStatus === 'saving'}
-          className="shrink-0 inline-flex items-center gap-1 bg-navy text-gold text-[12px] font-semibold px-3 h-8 rounded hover:bg-navy-dark transition-colors disabled:opacity-50"
-        >
-          <Send size={12} />
-          {editor.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
+          {editor.statusAction.label}
         </button>
       )}
       {editor.isWriter && (editor.currentStatus === 'DRAFT' || editor.currentStatus === 'REJECTED') && (

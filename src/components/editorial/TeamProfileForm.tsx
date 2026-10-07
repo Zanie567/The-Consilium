@@ -6,18 +6,21 @@ import Image from 'next/image'
 import { Check, AlertCircle, Loader2, Upload, X } from 'lucide-react'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 import { getInitials } from '@/lib/authorUtils'
+import { detectImageMimeType } from '@/lib/imageSniff'
 
 interface SavedProfile {
+  name?: string
   bio: string | null
   image: string | null
 }
 
 interface TeamProfileFormProps {
-  /** Account name; read-only here, edited in account settings. */
+  /** The display name shown on the card (the member's own to edit). */
   name: string
-  /** Display label of the team derived from the account's role. Read-only. */
-  teamLabel: string
+  /** Trusted public title. Read-only: administrators set it. */
+  positionLabel: string
   profile: SavedProfile | null
+  maxNameLength: number
   maxBioLength: number
   maxPhotoBytes: number
 }
@@ -26,14 +29,16 @@ const ACCEPTED = 'image/jpeg,image/png,image/gif,image/webp,image/avif'
 const labelClass = 'block text-xs uppercase tracking-widest text-[var(--fg-muted)] mb-1.5'
 
 export function TeamProfileForm({
-  name,
-  teamLabel,
+  name: initialName,
+  positionLabel,
   profile,
+  maxNameLength,
   maxBioLength,
   maxPhotoBytes,
 }: TeamProfileFormProps) {
   const router = useRouter()
   const [exists, setExists] = useState(profile !== null)
+  const [name, setName] = useState(initialName)
   const [bio, setBio] = useState(profile?.bio ?? '')
   const [image, setImage] = useState(profile?.image ?? null)
   const [file, setFile] = useState<File | null>(null)
@@ -48,9 +53,21 @@ export function TeamProfileForm({
 
   useEffect(() => {
     if (!file) return
-    const url = URL.createObjectURL(file)
-    setPreview(url)
-    return () => URL.revokeObjectURL(url)
+    let active = true
+    let url: string | undefined
+    // Never ask the browser to decode arbitrary bytes as a preview. Keep the file
+    // for authoritative server validation, but preview only a recognised image.
+    void file.slice(0, 32).arrayBuffer().then(bytes => {
+      if (!active || !detectImageMimeType(new Uint8Array(bytes))) return
+      url = URL.createObjectURL(file)
+      setPreview(url)
+    }).catch(() => {
+      if (active) setStatus({ ok: false, message: 'Could not read that photo. Please choose it again.' })
+    })
+    return () => {
+      active = false
+      if (url) URL.revokeObjectURL(url)
+    }
   }, [file])
 
   const chooseFile = (next: File | null) => {
@@ -62,6 +79,7 @@ export function TeamProfileForm({
       return
     }
     setFile(next)
+    setPreview(null)
     setRemoveImage(false)
   }
 
@@ -82,12 +100,14 @@ export function TeamProfileForm({
     setStatus(null)
     try {
       const body = new FormData()
+      body.set('name', name)
       body.set('bio', bio)
       if (file) body.set('image', file)
       else if (removeImage) body.set('removeImage', 'true')
 
       const saved = await apiRequest<SavedProfile>('/api/team-profile', { method: 'PUT', body })
       setExists(true)
+      if (saved.name) setName(saved.name)
       setBio(saved.bio ?? '')
       setImage(saved.image)
       setFile(null)
@@ -121,7 +141,7 @@ export function TeamProfileForm({
               className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-gold"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
-              {getInitials(name)}
+              {getInitials(name || initialName)}
             </span>
           )}
         </div>
@@ -161,17 +181,25 @@ export function TeamProfileForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <span className={labelClass}>Name</span>
-          <p className="rounded border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2 text-sm text-[var(--fg)]">{name}</p>
-          <p className="mt-1 text-xs text-[var(--fg-faint)]">Taken from your account.</p>
-        </div>
-        <div>
-          <span className={labelClass}>Team</span>
-          <p className="rounded border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2 text-sm text-[var(--fg)]">{teamLabel}</p>
-          <p className="mt-1 text-xs text-[var(--fg-faint)]">Set by your role. It can&apos;t be changed here.</p>
-        </div>
+      <div>
+        <label htmlFor="tp-name" className={labelClass}>Name shown on the page</label>
+        <input
+          id="tp-name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={maxNameLength}
+          disabled={saving}
+          autoComplete="name"
+          className="w-full rounded border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--fg)] focus:border-gold focus:outline-none"
+        />
+        <p className="mt-1 text-xs text-[var(--fg-faint)]">Use the name you&apos;d like readers to see.</p>
+      </div>
+
+      <div>
+        <span className={labelClass}>Public title</span>
+        <p className="rounded border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2 text-sm text-[var(--fg)]">{positionLabel}</p>
+        <p className="mt-1 text-xs text-[var(--fg-faint)]">Set by an administrator. It can&apos;t be changed here.</p>
       </div>
 
       <div>

@@ -45,7 +45,8 @@ export function validateAvatarUrl(value: string): AvatarUrlResult {
     return { ok: false, error: 'That is not a valid image URL.' }
   }
 
-  if (parsed.protocol !== 'https:') {
+  const localTestStorage = process.env.E2E_ISOLATED === '1' && process.env.NEXT_IMAGE_ALLOW_LOCAL_STORAGE === '1' && parsed.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(parsed.hostname) && trimmed.startsWith(prefix)
+  if (parsed.protocol !== 'https:' && !localTestStorage) {
     return { ok: false, error: 'Profile images must be served over https.' }
   }
 
@@ -65,4 +66,20 @@ export function validateAvatarUrl(value: string): AvatarUrlResult {
   }
 
   return { ok: true, url: trimmed }
+}
+
+/**
+ * True when `url` is a file directly inside `<userId>/` of our avatars bucket.
+ *
+ * validateAvatarUrl only proves a URL is somewhere in the bucket; this proves it is
+ * the caller's own upload (POST /api/upload writes to `<userId>/<timestamp>-<name>`).
+ * Without it, one account could point its avatar at a file another account uploaded.
+ */
+export function isInOwnAvatarFolder(url: string, userId: string): boolean {
+  const prefix = avatarPrefix()
+  if (!prefix || !userId || userId.includes('/')) return false
+  const folder = `${prefix}${userId}/`
+  if (!url.startsWith(folder)) return false
+  const name = url.slice(folder.length)
+  return name !== '' && !name.includes('/') && !name.includes('..')
 }

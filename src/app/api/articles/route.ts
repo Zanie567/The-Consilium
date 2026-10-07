@@ -1,7 +1,9 @@
 import { figureAltError } from '@/lib/figureValidation'
 import { ArticleImageUnavailableError, lockArticleImages } from '@/lib/articleImageStorage'
 import { resolveArticleTag } from '@/lib/resolveArticleTag'
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse, NextRequest } from 'next/server'
+import { articleVersion } from '@/lib/articleVersion'
 import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession, requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -136,7 +138,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   const requestId = crypto.randomUUID()
 
   try {
@@ -259,7 +261,7 @@ export async function POST(request: NextRequest) {
 
     if (article.status === 'PUBLISHED') revalidateArticleLists()
 
-    return NextResponse.json(article, {
+    return NextResponse.json({ ...article, version: articleVersion(article, normalizedTags.map((t) => t.name)) }, {
       status: 201,
       headers: { 'x-request-id': requestId },
     })
@@ -268,3 +270,5 @@ export async function POST(request: NextRequest) {
     return articleMutationErrorResponse(error, 'create', requestId)
   }
 }
+
+export const POST = withTestingAudit(POSTHandler)

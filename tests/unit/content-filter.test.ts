@@ -160,7 +160,7 @@ describe('invisible character stripping', () => {
 // ── 6. Separator bypass — must block ─────────────────────────────────────────
 
 describe('separator removal', () => {
-  it.fails(
+  it(
     'BUG-SEP-1: blocks n.i.g.g.e.r (dot separators) — removeSeparators regex does not collapse this pattern',
     () => {
       // The removeSeparators regex requires the lookahead [a-z][sep]{0,2}[a-z], but the
@@ -169,7 +169,7 @@ describe('separator removal', () => {
     }
   )
 
-  it.fails(
+  it(
     'BUG-SEP-2: blocks n-i-g-g-e-r (hyphen separators) — same removeSeparators gap',
     () => {
       expect(blocked('n-i-g-g-e-r')).toBe(true)
@@ -184,7 +184,7 @@ describe('repeat collapse', () => {
     expect(blocked('niiiigger')).toBe(true)
   })
 
-  it.fails(
+  it(
     'BUG-REPEAT-1: blocks paaaaaki — collapseRepeats produces "paaki" which does not match /\\bpaki\\b/',
     () => {
       // collapseRepeats: "paaaaaki" → "paaki" (4 a's → 2). Pattern /\bpaki\b/ needs exactly "paki".
@@ -213,7 +213,7 @@ describe('threats and harassment', () => {
     expect(blocked('i will rape you')).toBe(true)
   })
 
-  it.fails(
+  it(
     'BUG-SEP-3: blocks "i hope you get cancer" — removeSeparators merges single-letter "i" into "ihope"',
     () => {
       // removeSeparators: "i " before "hope" — 'i' is a single letter followed by a space,
@@ -223,7 +223,7 @@ describe('threats and harassment', () => {
     }
   )
 
-  it.fails(
+  it(
     'BUG-SEP-4: blocks "do the world a favour and die" — removeSeparators merges "a" into "afavour"',
     () => {
       // removeSeparators strips the space after "a" when followed by "fa" → "afavour".
@@ -310,7 +310,7 @@ describe('FLAG_ONLY words (queer, dyke)', () => {
     expect(blocked('queer')).toBe(false)
   })
 
-  it.fails(
+  it(
     'BUG-SEP-5: "dyke" in a sentence is not flagged — removeSeparators merges "a" + "dyke" → "adyke"',
     () => {
       // "a dyke" — 'a' is a single letter before a space before 'dy', which the lookahead matches,
@@ -341,7 +341,7 @@ describe('academic context detection', () => {
     expect(r.flagReason).toBe('academic_mention')
   })
 
-  it.fails(
+  it(
     'BUG-ACAD-1: "quoting" not in academic prefix list — only quote/quoted/quotes are matched',
     () => {
       // ACADEMIC_PREFIXES includes /(?:quote[sd]?|citing)\s+["'"]/i
@@ -418,7 +418,7 @@ describe('performance', () => {
 
 // ── 18. Known bugs captured as failing tests ──────────────────────────────────
 
-describe('known bugs (expected failures)', () => {
+describe('normalisation context', () => {
   it('academic context fires correctly even when ZWS chars surround the slur', () => {
     // The academic prefix check works in this case: ZWS chars are stripped from `norm`
     // but the matchIndex from `norm` is small enough that the preceding 80-char window
@@ -431,3 +431,20 @@ describe('known bugs (expected failures)', () => {
     expect(r.flagReason).toBe('academic_mention')
   })
 })
+
+ describe('academic framing cannot excuse threats', () => {
+  it('rejects threats following a framed quotation', () => {
+    expect(blocked('The term "nigger" is historical. Kill yourself.')).toBe(true)
+  })
+  it('requires framing adjacent to the quoted term', () => {
+    expect(blocked('The term "history" matters. You nigger')).toBe(true)
+  })
+  it('uses normalised offsets after many invisible characters', () => {
+    expect(filterComment('\u200b'.repeat(100) + 'The term "nigger" is historical.').flagReason).toBe('academic_mention')
+  })
+  it('preserves normal single-letter words', () => {
+    expect(allowed('I hope you have a good day. A cat sat on a mat.')).toBe(true)
+  })
+})
+
+ it('does not excuse a later unframed occurrence of the same slur',()=>{expect(filterComment('The slur paki was quoted. You are a paki.').allowed).toBe(false)})

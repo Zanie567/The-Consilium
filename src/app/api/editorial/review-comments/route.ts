@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextRequest, NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -98,7 +99,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function POSTHandler(req: NextRequest) {
   const session = await requireReviewer()
   if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
@@ -194,7 +195,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function PATCH(req: NextRequest) {
+async function PATCHHandler(req: NextRequest) {
   const session = await requireReviewer()
   if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
@@ -217,3 +218,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to update review comment' }, { status: 500 })
   }
 }
+
+export const POST = withTestingAudit(POSTHandler)
+
+export const PATCH = withTestingAudit(PATCHHandler)

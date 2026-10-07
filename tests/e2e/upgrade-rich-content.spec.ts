@@ -193,6 +193,8 @@ test('writer paste/table/figure → repeated save/reload → editor review/edit/
     await editor.getByRole('textbox', { name: /^Publish At/ }).fill('2099-01-01T12:00')
     const scheduleResponse = editor.waitForResponse(response => response.url().includes(`/api/articles/${id}`) && response.request().method() === 'PUT' && response.ok())
     await editor.getByRole('button', { name: 'Schedule', exact: true }).click()
+    await expect(editor.getByRole('alertdialog')).toBeVisible()
+    await editor.getByRole('alertdialog').getByRole('button', { name: 'Schedule', exact: true }).click()
     expect((await (await scheduleResponse).json()).status).toBe('SCHEDULED')
     await editor.reload()
     await expect(editor.getByRole('combobox', { name: 'Status', exact: true })).toHaveValue('SCHEDULED')
@@ -200,6 +202,8 @@ test('writer paste/table/figure → repeated save/reload → editor review/edit/
     await editor.getByRole('combobox', { name: 'Status', exact: true }).selectOption('DRAFT')
     const publishResponse = editor.waitForResponse(response => response.url().includes(`/api/articles/${id}`) && response.request().method() === 'PUT' && response.ok())
     await editor.getByRole('button', { name: 'Publish', exact: true }).click()
+    await expect(editor.getByRole('alertdialog')).toBeVisible()
+    await editor.getByRole('alertdialog').getByRole('button', { name: 'Publish now', exact: true }).click()
     const published = await (await publishResponse).json()
     expect(published.status).toBe('PUBLISHED')
     for (const width of [375, 768, 1440]) {
@@ -228,7 +232,7 @@ test('writer paste/table/figure → repeated save/reload → editor review/edit/
       expect(
         await reader.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
       ).toBe(true)
-      await reader.screenshot({ path: `docs/platform-upgrade/evidence/final-integration/${width}-public-rich-article.png`, fullPage: true })
+      await reader.screenshot({ path: test.info().outputPath(`${width}-public-rich-article.png`), fullPage: true })
     }
     await editor.goto(`${base}/editorial/articles/${id}/edit`)
     const oldSrc = await editor.locator('.article-figure img').getAttribute('src')

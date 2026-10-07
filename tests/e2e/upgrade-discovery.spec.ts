@@ -193,7 +193,7 @@ test('published topic assignments invalidate warm topic lists and follow unpubli
     await page.reload()
     await expect(page.getByRole('heading', { name: marker, exact: true })).toHaveCount(0)
     expect(
-      (await admin.request.put(`/api/articles/${id}`, { data: { status: 'PUBLISHED' } })).status()
+      (await admin.request.put(`/api/articles/${id}`, { data: { status: 'PUBLISHED', publicationIntent: true } })).status()
     ).toBe(200)
     expect((await admin.request.delete(`/api/articles/${id}`)).status()).toBe(200)
     await page.reload()

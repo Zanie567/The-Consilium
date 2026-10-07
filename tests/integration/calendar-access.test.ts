@@ -24,18 +24,15 @@ const BASE = process.env.BASE_URL ?? 'http://localhost:3000'
 const ADMIN = { email: process.env.E2E_ADMIN_EMAIL ?? 'admin@theconsilium.com', password: process.env.E2E_ADMIN_PASSWORD ?? 'consilium2024' }
 const WRITER = { email: 'writer@theconsilium.com', password: 'writer2024' }
 
-let up = false
 let admin: Session
 let writer: Session
-let adminOk = false
-let writerOk = false
 
 beforeAll(async () => {
-  up = await serverUp(BASE)
+  const up = await serverUp(BASE)
   if (!up) throw new Error(`Required local calendar server is not reachable at ${BASE}`)
   admin = new Session(BASE)
   writer = new Session(BASE)
-  ;[adminOk, writerOk] = await Promise.all([
+  const [adminOk, writerOk] = await Promise.all([
     admin.login(ADMIN.email, ADMIN.password),
     writer.login(WRITER.email, WRITER.password),
   ])
@@ -45,15 +42,13 @@ beforeAll(async () => {
 
 describe('editorial calendar authorisation', () => {
   it('serves the calendar page to an admin', async () => {
-    if (!up || !adminOk) return
     const res = await admin.get('/editorial/calendar')
     expect(res.status).toBe(200)
     const html = await res.text()
     expect(html).toContain('Editorial Calendar')
-  })
+  }, 15_000) // A cold next-dev calendar compilation can exceed Vitest's 5s default.
 
   it('does not serve the calendar page to a writer', async () => {
-    if (!up || !writerOk) return
     const res = await writer.get('/editorial/calendar')
     expect(res.status).toBe(404)
 
@@ -75,7 +70,7 @@ describe('editorial calendar authorisation', () => {
   })
 
   it('rejects an anonymous move request with 401', async () => {
-    if (!up) return
+
     const res = await fetch(`${BASE}/api/editorial/calendar`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -85,7 +80,6 @@ describe('editorial calendar authorisation', () => {
   })
 
   it('rejects a writer move request with 403', async () => {
-    if (!up || !writerOk) return
     const res = await writer.patch('/api/editorial/calendar', {
       articleId: 'nonexistent',
       date: '2026-09-10',
@@ -94,7 +88,6 @@ describe('editorial calendar authorisation', () => {
   })
 
   it('lets an admin past the role gate (404 for a missing article, not 403)', async () => {
-    if (!up || !adminOk) return
     const res = await admin.patch('/api/editorial/calendar', {
       articleId: 'definitely-not-a-real-article-id',
       date: '2026-09-10',
@@ -104,7 +97,6 @@ describe('editorial calendar authorisation', () => {
   })
 
   it('validates the move payload for an authorised caller', async () => {
-    if (!up || !adminOk) return
     for (const bad of [
       { articleId: 'x', date: '10-09-2026' },
       { articleId: 'x', date: '2026-02-30' },

@@ -52,7 +52,7 @@ describe('first-party loaded article revisions over real HTTP and PostgreSQL', (
     const loaded = await fixture()
     let revision = loaded.updatedAt.toISOString()
     for (const fields of [{ title: 'Saved title' }, { status: 'PUBLISHED' }, { seriesId, seriesOrder: 1 }, { status: 'DRAFT' }]) {
-      const res = await send(loaded.id, { ...fields, expectedUpdatedAt: revision })
+      const res = await send(loaded.id, { ...fields, publicationIntent: true, expectedUpdatedAt: revision })
       expect(res.status).toBe(200)
       const saved = await res.json()
       expect(saved).toMatchObject(fields)

@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 /**
  * /api/editorial/commissioning-brief
  *
@@ -39,7 +40,7 @@ export async function GET() {
 }
 
 /** PATCH /api/editorial/commissioning-brief: set or clear the brief. ADMIN/GROWTH. */
-export async function PATCH(req: Request) {
+async function PATCHHandler(req: Request) {
   const user = await getVerifiedSessionUser(ANALYTICS_ACCESS_ROLES)
   if (!user) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -83,3 +84,5 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)

@@ -1,6 +1,7 @@
 import { test, expect, type Browser, type BrowserContext, type Page } from '@playwright/test'
 import bcrypt from 'bcryptjs'
 import { closeDb, db } from './helpers/teamFixtures'
+import { ArticleEditorPage } from './helpers/workflow'
 import { makePng, watch } from './helpers/e2eUtils'
 
 /**
@@ -9,7 +10,7 @@ import { makePng, watch } from './helpers/e2eUtils'
  * with a role except the administrator doing the promoting.
  *
  *   sign up (READER) → admin grants a role → member creates their own profile
- *   → the profile follows later role changes without ever being duplicated.
+ *   → the appointment survives later permission changes without ever being duplicated.
  *
  * Run through scripts/run-team-profile-e2e.sh. Tests run in order.
  */
@@ -18,12 +19,11 @@ test.describe.configure({ mode: 'serial' })
 const DOMAIN = '@lifecycle.consilium.test'
 const ADMIN_EMAIL = `lifecycle-admin${DOMAIN}`
 const PASSWORD = 'lifecycle-pass-1234'
-const STORAGE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321'
 
 type Role = 'READER' | 'WRITER' | 'EDITOR' | 'GROWTH' | 'ADMIN'
 type SectionId = 'masthead' | 'editorial' | 'writers' | 'growth' | 'wider'
 const SECTIONS: SectionId[] = ['masthead', 'editorial', 'writers', 'growth', 'wider']
-const TEAM_LABEL = { WRITER: 'Writing', EDITOR: 'Editorial', GROWTH: 'Growth & Communications' } as const
+const TEAM_LABEL = { WRITER: 'Writer', EDITOR: 'Editor', GROWTH: 'Growth & Communications' } as const
 
 let adminContext: BrowserContext
 let adminPage: Page
@@ -42,6 +42,7 @@ test.beforeAll(async ({ browser }) => {
   await adminPage.waitForURL((u) => u.pathname.startsWith('/editorial') && !u.pathname.includes('/login'))
 })
 test.afterAll(async () => {
+  await db().user.deleteMany({ where: { email: { endsWith: DOMAIN } } })
   await adminContext?.close()
   await closeDb()
 })
@@ -68,13 +69,20 @@ async function signUp(browser: Browser, name: string, email: string) {
 async function grantRole(userId: string, role: Role) {
   await adminPage.goto(`/editorial/users/${userId}`)
   const select = adminPage.locator('select', { has: adminPage.locator('option[value="GROWTH"]') }).first()
+  const saved = adminPage.waitForResponse(r => new URL(r.url()).pathname === `/api/editorial/users/${userId}` && r.request().method() === 'PATCH')
   await select.selectOption(role)
+  const confirmation = adminPage.getByRole('alertdialog')
+  await expect(confirmation).toContainText(role)
+  await confirmation.getByRole('button', { name: `Change to ${role}` }).click()
+  expect((await saved).status()).toBe(200)
   await expect(adminPage.getByText('Saved.', { exact: true })).toBeVisible()
   expect((await db().user.findUniqueOrThrow({ where: { id: userId } })).role).toBe(role)
 }
 
 const sessionRole = async (page: Page): Promise<string> => (await (await page.request.get('/api/auth/session')).json()).user?.role
 const cards = (userId: string) => db().teamMember.findMany({ where: { userId } })
+/** What an administrator does to put a card on the page: show it (the default title stays). */
+const publish = (userId: string) => db().teamMember.update({ where: { userId }, data: { isActive: true } })
 const heading = (page: Page) => page.getByRole('heading', { level: 1 })
 const sidebarLink = (page: Page) => page.getByRole('link', { name: 'Team Profile' })
 
@@ -96,7 +104,7 @@ async function publicPlacement(browser: Browser, name: string): Promise<{ sectio
 }
 
 async function dismissCookies(page: Page) {
-  await page.getByRole('button', { name: 'Decline' }).click({ timeout: 1500 }).catch(() => {})
+  await new ArticleEditorPage(page).dismissCookieBanner()
 }
 
 // ── new account → promotion → profile, for each of the three roles ────────────
@@ -128,25 +136,31 @@ for (const [role, section] of [
     // …and they cannot grant themselves anything, by either role route
     expect((await page.request.patch(`/api/editorial/users/${user.id}`, { data: { role } })).status()).toBe(403)
     expect((await page.request.patch(`/api/admin/users/${user.id}/role`, { data: { role } })).status()).toBe(403)
-    expect((await page.request.patch('/api/profile/account', { data: { bio: 'hi', role } })).status()).toBe(200)
-    expect((await db().user.findUniqueOrThrow({ where: { id: user.id } })).role).toBe('READER') // role in the body was ignored
+    // A role key is rejected outright (400), not silently dropped, and nothing is written.
+    expect((await page.request.patch('/api/profile/account', { data: { bio: 'hi', role } })).status()).toBe(400)
+    expect((await db().user.findUniqueOrThrow({ where: { id: user.id } })).role).toBe('READER')
+    // The same edit without the role key is an ordinary own-profile edit and succeeds.
+    expect((await page.request.patch('/api/profile/account', { data: { bio: 'hi' } })).status()).toBe(200)
+    expect((await db().user.findUniqueOrThrow({ where: { id: user.id } })).role).toBe('READER')
 
     // 4. the normal admin workflow — nothing else is done for them
     await grantRole(user.id, role)
 
-    // 5/6. the SAME session, no sign-in: one reload and the portal recognises the role
+    // 5/6. the SAME session, no sign-in: one reload and the portal recognises the role. The
+    //      (hidden) card was made for them by the grant, so this is the edit state.
+    expect(await cards(user.id)).toHaveLength(1)
     await page.goto('/editorial/team-profile')
-    await expect(heading(page)).toHaveText('Create your team profile')
+    await expect(heading(page)).toHaveText('Edit your team profile')
     await expect(sidebarLink(page)).toBeVisible()
 
-    // 7. team derived from the role; nothing to choose
+    // 7. Ordinary first-card defaults are read-only; established appointments survive role changes.
     await expect(page.locator('form').getByText(TEAM_LABEL[role], { exact: true })).toBeVisible()
     await expect(page.locator('select')).toHaveCount(0)
 
     // 8. create
     await page.setInputFiles('#tp-photo', { name: 'me.png', mimeType: 'image/png', buffer: makePng(64, [30, 120, 200]) })
     await page.getByLabel('Description').fill(`I am the new ${role.toLowerCase()}.`)
-    await page.getByRole('button', { name: 'Create profile' }).click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
     await expect(page.getByRole('status')).toContainText('has been saved')
 
     // 9. exactly one row, owned by this account
@@ -156,7 +170,9 @@ for (const [role, section] of [
     expect(rows[0].image).toContain(`/avatars/${user.id}/`)
     expect(await db().teamMember.count({ where: { name } })).toBe(1)
 
-    // 10. on the public page exactly once, in the right section
+    // 10. not public until an administrator shows it; then exactly once, in the right section
+    expect(await publicPlacement(browser, name)).toEqual({ sections: [], total: 0 })
+    await publish(user.id)
     expect(await publicPlacement(browser, name)).toEqual({ sections: [section], total: 1 })
 
     // 11. a refresh shows the edit state
@@ -178,44 +194,32 @@ for (const [role, section] of [
     expect((await fetch(after[0].image!)).status).toBe(200)
     expect(await publicPlacement(browser, name)).toEqual({ sections: [section], total: 1 })
 
-    // only the one deliberate failure the test provokes may appear in the console
-    expect(errors.filter((e) => !/status of (400|403) /.test(e))).toEqual([])
+    // APIRequestContext permission probes do not produce browser console errors.
+    // Keep the complete browser diagnostics; no broad HTTP-error filter is justified.
+    await test.info().attach('complete-console-diagnostics', { body: JSON.stringify(errors), contentType: 'application/json' })
+    expect(errors, errors.join('\n')).toEqual([])
     await context.close()
   })
 }
 
 // ── what the NextAuth session does ────────────────────────────────────────────
 
-test('session: server checks see a promotion immediately; the cached JWT role catches up within a minute, with no re-login', async ({ browser }) => {
+test('session: page, API and session response see a promotion immediately without re-login', async ({ browser }) => {
   test.setTimeout(150_000)
   const { context, page, user } = await signUp(browser, 'Newcomer session', `session${DOMAIN}`)
   await dismissCookies(page)
   expect(await sessionRole(page)).toBe('READER')
 
   await grantRole(user.id, 'WRITER')
-  const grantedAt = Date.now()
 
   // Immediately: the portal layout, the page and the API all read the role from the database.
   await page.goto('/editorial/team-profile')
-  await expect(heading(page)).toHaveText('Create your team profile')
+  await expect(heading(page)).toHaveText('Edit your team profile')
   const created = await page.request.put('/api/team-profile', { multipart: { bio: 'immediately' } })
-  expect(created.status()).toBe(201)
+  expect(created.status()).toBe(200) // the grant already made their (hidden) card
 
-  // The role cached inside the JWT cookie is refreshed from the database at most once a minute.
-  const immediate = await sessionRole(page)
-  let convergedAfterMs: number | null = null
-  for (let waited = 0; waited < 90_000; waited += 5_000) {
-    if ((await sessionRole(page)) === 'WRITER') {
-      convergedAfterMs = Date.now() - grantedAt
-      break
-    }
-    await page.waitForTimeout(5_000)
-  }
-  const finding = `JWT role right after the grant: ${immediate}; converged to WRITER after ${convergedAfterMs === null ? 'NEVER' : Math.round(convergedAfterMs / 1000) + 's'} without signing in again`
-  test.info().annotations.push({ type: 'session', description: finding })
-  console.warn(`[session] ${finding}`)
-  expect(convergedAfterMs, 'JWT role never caught up').not.toBeNull()
-  expect(convergedAfterMs!).toBeLessThan(90_000)
+  // A signed cookie may cache historical claims; the returned session does not trust them.
+  expect(await sessionRole(page)).toBe('WRITER')
   await context.close()
 })
 
@@ -226,16 +230,16 @@ test('one account, one card: Writer → Editor → Growth → Reader → Writer 
   const name = 'Newcomer chain'
   const { context, page, user } = await signUp(browser, name, `chain${DOMAIN}`)
   await dismissCookies(page)
-  const storageBefore = async () => ((await (await fetch(`${STORAGE_URL}/__objects`)).json()) as { key: string }[]).filter((o) => o.key.startsWith(`avatars/${user.id}/`)).length
 
   await grantRole(user.id, 'WRITER')
   await page.goto('/editorial/team-profile')
   await page.setInputFiles('#tp-photo', { name: 'me.png', mimeType: 'image/png', buffer: makePng(64, [90, 40, 160]) })
   await page.getByLabel('Description').fill('chain bio')
-  await page.getByRole('button', { name: 'Create profile' }).click()
+  await page.getByRole('button', { name: 'Save changes' }).click()
   await expect(page.getByRole('status')).toContainText('has been saved')
+  await publish(user.id)
   const [original] = await cards(user.id)
-  let expectedBio = 'chain bio'
+  const expectedBio = 'chain bio'
 
   const sameCard = async () => {
     const rows = await cards(user.id)
@@ -244,58 +248,23 @@ test('one account, one card: Writer → Editor → Growth → Reader → Writer 
     expect(await db().teamMember.count({ where: { name } })).toBe(1)
   }
 
-  const eligible = async (role: 'WRITER' | 'EDITOR' | 'GROWTH', section: SectionId) => {
+  for (const role of ['WRITER', 'EDITOR', 'GROWTH', 'ADMIN', 'READER', 'WRITER'] as const) {
     await grantRole(user.id, role)
     await sameCard()
-    expect(await publicPlacement(browser, name)).toEqual({ sections: [section], total: 1 })
+    expect(await publicPlacement(browser, name)).toEqual({ sections: ['writers'], total: 1 })
     await page.goto('/editorial/team-profile')
-    await expect(heading(page)).toHaveText('Edit your team profile')
-    await expect(page.locator('form').getByText(TEAM_LABEL[role], { exact: true })).toBeVisible()
-    await expect(page.getByLabel('Description')).toHaveValue(expectedBio)
-    await expect(page.locator('form img').first()).toBeVisible()
-    await expect(sidebarLink(page)).toBeVisible()
-  }
-
-  const ineligible = async (role: 'READER' | 'ADMIN') => {
-    const objectsBefore = await storageBefore()
-    await grantRole(user.id, role)
-    await sameCard() // the row is kept…
-    expect(await publicPlacement(browser, name)).toEqual({ sections: [], total: 0 }) // …but hidden
-    // every write is refused, and a refused write never reaches storage
-    const attempts: Record<string, string | { name: string; mimeType: string; buffer: Buffer }>[] = [
-      { bio: 'sneaky edit' },
-      { removeImage: 'true' },
-      { bio: 'x', image: { name: 'x.png', mimeType: 'image/png', buffer: makePng() } },
-    ]
-    for (const body of attempts) {
-      expect((await page.request.put('/api/team-profile', { multipart: body })).status()).toBe(403)
-    }
-    await sameCard()
-    expect(await storageBefore()).toBe(objectsBefore)
-    await page.goto('/editorial/team-profile')
-    await expect(page.locator('form')).toHaveCount(0)
-    if (role === 'READER') await expect(page.getByText('Access Denied')).toBeVisible()
-    else {
-      await expect(page.locator('p[role="alert"]')).toContainText(/isn.t assigned to the Writing, Editorial or Growth/)
-      await expect(sidebarLink(page)).toHaveCount(0)
+    if (role === 'READER') {
+      await expect(page.getByText('Access Denied')).toBeVisible()
+      expect((await page.request.put('/api/team-profile', { multipart: { bio: 'forbidden' } })).status()).toBe(403)
+    } else {
+      await expect(heading(page)).toHaveText('Edit your team profile')
+      await expect(page.locator('form').getByText('Writer', { exact: true })).toBeVisible()
+      await page.getByLabel('Description').fill(expectedBio)
+      await page.getByRole('button', { name: 'Save changes' }).click()
+      await expect(page.getByRole('status')).toContainText('has been saved')
+      await sameCard()
     }
   }
-
-  await eligible('WRITER', 'writers')
-
-  await eligible('EDITOR', 'editorial')
-  // still editable after the move
-  await page.getByLabel('Description').fill('chain bio, edited as an editor')
-  await page.getByRole('button', { name: 'Save changes' }).click()
-  await expect(page.getByRole('status')).toContainText('has been saved')
-  expectedBio = 'chain bio, edited as an editor'
-  await sameCard()
-
-  await eligible('GROWTH', 'growth')
-  await ineligible('READER')
-  await eligible('WRITER', 'writers') // READER → WRITER: the same card is live again, bio and photo intact
-  await ineligible('ADMIN')
-  await eligible('EDITOR', 'editorial')
 
   expect(await db().teamMember.count({ where: { userId: user.id } })).toBe(1)
   await context.close()

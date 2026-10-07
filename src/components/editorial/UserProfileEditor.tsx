@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -9,6 +9,9 @@ import {
   ChevronLeft, Check, AlertCircle, Pencil, X,
 } from 'lucide-react'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { DisplayTitlesPicker } from '@/components/profile/DisplayTitlesPicker'
+import { apiRequest, asApiError } from '@/lib/apiClient'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 interface Category { id: string; name: string; slug: string }
 
@@ -34,6 +37,7 @@ interface UserData {
   createdAt: string
   lastLoginAt: string | null
   adminNotes: string | null
+  displayTitles?: string[]
   categoryAssignments: { category: Category }[]
   articles: ArticleItem[]
 }
@@ -57,7 +61,7 @@ const ROLE_OPTIONS = ['ADMIN', 'EDITOR', 'WRITER', 'GROWTH', 'READER'] as const
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ msg, ok }: { msg: string; ok: boolean }) {
   return (
-    <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-2 px-4 py-3 shadow-xl text-xs font-semibold ${
+    <div role={ok ? 'status' : 'alert'} className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-2 px-4 py-3 shadow-xl text-xs font-semibold ${
       ok ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
     }`}>
       {ok ? <Check size={14} /> : <AlertCircle size={14} />}
@@ -76,7 +80,7 @@ function EditableField({
 }: {
   label: string
   value: string
-  onSave: (v: string) => Promise<void>
+  onSave: (v: string) => Promise<boolean>
   type?: string
   hint?: string
 }) {
@@ -85,10 +89,13 @@ function EditableField({
   const [saving, setSaving] = useState(false)
 
   const save = async () => {
+    if (saving) return
     setSaving(true)
-    await onSave(draft)
-    setSaving(false)
-    setEditing(false)
+    try {
+      if (await onSave(draft)) setEditing(false)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const cancel = () => { setDraft(value); setEditing(false) }
@@ -100,6 +107,8 @@ function EditableField({
         <div className="flex items-center gap-2">
           <input
             type={type}
+            aria-label={label}
+            disabled={saving}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') cancel() }}
@@ -109,7 +118,7 @@ function EditableField({
           <button onClick={save} disabled={saving} aria-label="Save" className="p-1.5 text-emerald-600 hover:text-emerald-500 transition-colors disabled:opacity-60">
             <Save size={14} />
           </button>
-          <button onClick={cancel} aria-label="Cancel" className="p-1.5 text-[var(--fg-faint)] hover:text-[var(--fg)] transition-colors">
+          <button onClick={cancel} disabled={saving} aria-label="Cancel" className="p-1.5 text-[var(--fg-faint)] hover:text-[var(--fg)] transition-colors">
             <X size={14} />
           </button>
         </div>
@@ -134,55 +143,58 @@ function EditableField({
 export function UserProfileEditor({ user: initial, categories }: Props) {
   const [user, setUser] = useState(initial)
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [loading, setLoading] = useState<string | null>(null)
   const [adminNotes, setAdminNotes] = useState(initial.adminNotes ?? '')
   const [notesDirty, setNotesDirty] = useState(false)
+  const [bioDraft, setBioDraft] = useState(initial.bio ?? '')
   const [newPassword, setNewPassword] = useState('')
   const [showPwReset, setShowPwReset] = useState(false)
+  const [pendingRole, setPendingRole] = useState<string | null>(null)
   const [selectedCats, setSelectedCats] = useState<string[]>(
     initial.categoryAssignments.map((a) => a.category.id)
   )
 
-  const showToast = (msg: string, ok = true) => {
+  useEffect(() => () => { if (toastTimer.current !== null) clearTimeout(toastTimer.current) }, [])
+
+  const showToast = useCallback((msg: string, ok = true) => {
+    if (toastTimer.current !== null) clearTimeout(toastTimer.current)
+    toastTimer.current = null
     setToast({ msg, ok })
-    setTimeout(() => setToast(null), 3000)
-  }
+    if (ok) toastTimer.current = setTimeout(() => { toastTimer.current = null; setToast(null) }, 3000)
+  }, [])
 
   const patch = useCallback(async (data: Record<string, unknown>, loadingKey = 'save') => {
     setLoading(loadingKey)
-    const res = await fetch(`/api/editorial/users/${user.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    const result = await res.json()
-    setLoading(null)
-    if (!res.ok) { showToast(result.error ?? 'Save failed.', false); return null }
-    setUser((prev) => ({ ...prev, ...result }))
-    showToast('Saved.')
-    return result
-  }, [user.id])
+    try {
+      const result = await apiRequest<Partial<UserData>>(`/api/editorial/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      setUser((prev) => ({ ...prev, ...result }))
+      showToast('Saved.')
+      return true
+    } catch (error) {
+      showToast(asApiError(error).message, false)
+      return false
+    } finally {
+      setLoading(null)
+    }
+  }, [user.id, showToast])
 
-  const saveField = (key: string) => async (value: string) => {
-    await patch({ [key]: value })
-  }
+  const saveField = (key: string) => async (value: string) => patch({ [key]: value })
 
-  const saveRole = async (role: string) => {
-    await patch({ role }, 'role')
+  const [titles, setTitles] = useState<string[]>(user.displayTitles ?? [])
+  const titlesChanged =
+    titles.length !== (user.displayTitles ?? []).length ||
+    titles.some((t, i) => t !== (user.displayTitles ?? [])[i])
+  const saveTitles = async () => {
+    await patch({ displayTitles: titles }, 'titles')
   }
 
   const saveCategories = async (ids: string[]) => {
-    setLoading('cats')
-    const res = await fetch(`/api/editorial/users/${user.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ categoryIds: ids }),
-    })
-    setLoading(null)
-    if (res.ok) {
-      setSelectedCats(ids)
-      showToast('Categories updated.')
-    }
+    await patch({ categoryIds: ids }, 'cats')
   }
 
   const toggleActive = async () => {
@@ -191,25 +203,30 @@ export function UserProfileEditor({ user: initial, categories }: Props) {
 
   const resetPassword = async () => {
     if (newPassword.length < 8) { showToast('Password must be at least 8 characters.', false); return }
-    await patch({ password: newPassword }, 'pw')
-    setNewPassword('')
-    setShowPwReset(false)
+    if (await patch({ password: newPassword }, 'pw')) {
+      setNewPassword('')
+      setShowPwReset(false)
+    }
   }
 
   const sendResetEmail = async () => {
     setLoading('email')
-    const res = await fetch('/api/editorial/password-reset', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: user.email }),
-    })
-    setLoading(null)
-    showToast(res.ok ? 'Reset email sent.' : 'Failed to send email.', res.ok)
+    try {
+      await apiRequest('/api/editorial/password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email }),
+      })
+      showToast('Reset email sent.')
+    } catch (error) {
+      showToast(asApiError(error).message, false)
+    } finally {
+      setLoading(null)
+    }
   }
 
   const saveNotes = async () => {
-    await patch({ adminNotes }, 'notes')
-    setNotesDirty(false)
+    if (await patch({ adminNotes }, 'notes')) setNotesDirty(false)
   }
 
   const authorSlug = user.slug ?? user.id
@@ -218,6 +235,21 @@ export function UserProfileEditor({ user: initial, categories }: Props) {
   return (
     <div className="p-6 lg:p-8 max-w-6xl">
       {toast && <Toast msg={toast.msg} ok={toast.ok} />}
+      <ConfirmDialog
+        open={pendingRole !== null}
+        title={`Change ${user.name ?? user.email}'s role?`}
+        message={`Access changes immediately from ${user.role} to ${pendingRole}.`}
+        confirmLabel={`Change to ${pendingRole}`}
+        busy={loading === 'role'}
+        tone={pendingRole === 'ADMIN' ? 'danger' : 'default'}
+        onConfirm={() => {
+          if (!pendingRole || loading === 'role') return
+          const role = pendingRole
+          setPendingRole(null)
+          void patch({ role }, 'role')
+        }}
+        onCancel={() => setPendingRole(null)}
+      />
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-[var(--fg-faint)] mb-6">
@@ -291,7 +323,8 @@ export function UserProfileEditor({ user: initial, categories }: Props) {
               <p className="text-[var(--fg-faint)] text-[10px] uppercase tracking-wider mb-1.5">Role</p>
               <select
                 value={user.role}
-                onChange={(e) => saveRole(e.target.value)}
+                onChange={(e) => setPendingRole(e.target.value)}
+                aria-label="Role"
                 disabled={loading === 'role'}
                 className="w-full bg-[var(--bg)] border border-[var(--border)] px-3 py-2 text-[var(--fg)] text-sm focus:outline-none focus:border-gold disabled:opacity-60"
               >
@@ -299,6 +332,19 @@ export function UserProfileEditor({ user: initial, categories }: Props) {
                   <option key={r} value={r}>{r}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Display titles: public labels only, separate from the role above */}
+            <div>
+              <DisplayTitlesPicker value={titles} onChange={setTitles} disabled={loading === 'titles'} />
+              <button
+                type="button"
+                onClick={saveTitles}
+                disabled={!titlesChanged || loading === 'titles'}
+                className="mt-2 flex items-center gap-2 bg-gold px-4 py-2 text-xs font-bold uppercase tracking-widest text-navy transition-colors hover:bg-gold/90 disabled:opacity-50"
+              >
+                <Save size={13} /> {loading === 'titles' ? 'Saving...' : 'Save titles'}
+              </button>
             </div>
 
             {/* Category assignments (editor only) */}
@@ -341,9 +387,10 @@ export function UserProfileEditor({ user: initial, categories }: Props) {
               Bio
             </p>
             <textarea
-              value={user.bio ?? ''}
-              onChange={(e) => setUser((prev) => ({ ...prev, bio: e.target.value }))}
-              onBlur={() => { if ((user.bio ?? '') !== (initial.bio ?? '')) saveField('bio')(user.bio ?? '') }}
+              aria-label="Biography"
+              value={bioDraft}
+              onChange={(e) => setBioDraft(e.target.value)}
+              onBlur={() => { if (bioDraft !== (user.bio ?? '')) void saveField('bio')(bioDraft) }}
               rows={4}
               placeholder="Short biography shown on their public author page…"
               className="w-full bg-[var(--bg)] border border-[var(--border)] px-3 py-2.5 text-[var(--fg)] text-sm focus:outline-none focus:border-gold resize-none"
@@ -405,7 +452,8 @@ export function UserProfileEditor({ user: initial, categories }: Props) {
             {showPwReset && (
               <div className="flex gap-2">
                 <input
-                  type="text"
+                  type="password"
+                  aria-label="New password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Min. 8 characters"

@@ -106,9 +106,10 @@ export function Navbar() {
   return (
     <>
       <header
+        style={{ top: 'var(--testing-banner-height, 0px)' }}
         className={`sticky top-0 z-50 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ease-out ${
           scrolled
-            ? 'bg-navy/[0.85] backdrop-blur-[12px] shadow-[0_4px_24px_rgba(0,0,0,0.28)] border-b border-gold/20'
+            ? 'bg-navy/[0.85] backdrop-blur-[12px] shadow-[0_4px_24px_rgba(0,0,0,0.28)] border-b-2 border-gold/20'
             : 'bg-navy border-b-2 border-gold'
         }`}
       >
@@ -176,6 +177,12 @@ export function Navbar() {
                 >
                   Profile
                 </Link>
+                <Link
+                  href="/profile?tab=settings"
+                  className="text-cream/50 text-xs hover:text-cream/80 transition-colors"
+                >
+                  Edit profile
+                </Link>
                 <button
                   onClick={() => signOut()}
                   className="text-cream/50 text-xs hover:text-cream/80 transition-colors"
@@ -236,6 +243,7 @@ export function Navbar() {
             exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             className="fixed top-16 inset-x-0 z-40 bg-navy/[0.98] backdrop-blur-md border-b border-gold/30 shadow-[0_16px_32px_rgba(0,0,0,0.4)] py-4 px-4"
+            style={{ top: 'calc(4rem + var(--testing-banner-height, 0px))' }}
           >
             <form onSubmit={handleSearch} className="max-w-2xl mx-auto flex items-center gap-3">
               <Search size={16} className="text-gold/60 shrink-0" />
@@ -256,6 +264,7 @@ export function Navbar() {
               </button>
               <button
                 type="button"
+                aria-label="Close search"
                 onClick={() => setSearchOpen(false)}
                 className="text-cream/40 hover:text-cream transition-colors"
               >
@@ -291,6 +300,7 @@ export function Navbar() {
               exit={prefersReducedMotion ? undefined : { x: '100%' }}
               transition={{ type: 'spring', stiffness: 300, damping: 35 }}
               className="lg:hidden fixed top-0 right-0 bottom-0 w-72 z-[95] bg-navy border-l border-gold/25 shadow-[-16px_0_40px_rgba(0,0,0,0.45)] overflow-y-auto flex flex-col"
+              style={{ top: 'var(--testing-banner-height, 0px)' }}
             >
               {/* Drawer header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
@@ -362,6 +372,13 @@ export function Navbar() {
                       className="text-cream/70 text-sm font-semibold uppercase tracking-widest hover:text-cream transition-colors"
                     >
                       Profile
+                    </Link>
+                    <Link
+                      href="/profile?tab=settings"
+                      onClick={() => setMobileOpen(false)}
+                      className="text-cream/70 text-sm font-semibold uppercase tracking-widest hover:text-cream transition-colors"
+                    >
+                      Edit profile
                     </Link>
                     <button
                       onClick={() => { signOut(); setMobileOpen(false) }}

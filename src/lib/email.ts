@@ -21,6 +21,32 @@ export async function sendEmail({
   html: string
   replyTo?: string
 }): Promise<boolean> {
+  if (process.env.TESTING_MODE_ENABLED === '1' && process.env.EMAIL_TRANSPORT !== 'capture-db' && (process.env.EMAIL_TRANSPORT !== 'capture' || !process.env.EMAIL_CAPTURE_FILE)) throw new Error('Testing requires captured email.')
+  if (process.env.EMAIL_TRANSPORT === 'capture-db') {
+    const { requireTestingWorkspace } = await import('./testingMode')
+    await requireTestingWorkspace()
+    const { prisma } = await import('./prisma')
+    const { randomUUID } = await import('node:crypto')
+    await prisma.$executeRaw`INSERT INTO public.testing_email_outbox (id, recipient, subject, html) VALUES (${randomUUID()}, ${to}, ${subject}, ${html})`
+    return true
+  }
+  // Test isolation: with EMAIL_TRANSPORT=capture nothing is ever sent. The message
+  // is appended (as one JSON line) to EMAIL_CAPTURE_FILE so tests can assert what
+  // would have gone out. Checked before RESEND_API_KEY so a real key in the
+  // environment cannot override it.
+  if (process.env.EMAIL_TRANSPORT === 'capture') {
+    const file = process.env.EMAIL_CAPTURE_FILE
+    if (!file) {
+      console.error('[email] EMAIL_TRANSPORT=capture requires EMAIL_CAPTURE_FILE - email dropped')
+      return false
+    }
+    const { appendFile } = await import('node:fs/promises')
+    await appendFile(
+      file,
+      JSON.stringify({ to, subject, html, ...(replyTo ? { replyTo } : {}), at: new Date().toISOString() }) + '\n',
+    )
+    return true
+  }
   if (!process.env.RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY not set - email not sent to', to)
     return false
@@ -207,6 +233,34 @@ export function commentFlaggedEmail(
       </blockquote>
       <p><strong>Flag reason:</strong> ${esc(flagReason)}</p>
       <p><a href="${base}/editorial/comments">Review in the moderation dashboard →</a></p>
+      <p>The Consilium</p>
+    `,
+  }
+}
+
+export function verifyEmailEmail(userName: string | null, url: string) {
+  return {
+    subject: 'Confirm your email: The Consilium',
+    html: `
+      <p>Hi${userName ? ` ${esc(userName)}` : ''},</p>
+      <p>Confirm that this is your email address. If an administrator has already given this address access to The Consilium, confirming it is what switches that access on.</p>
+      <p><a href="${esc(url)}">Confirm my email →</a></p>
+      <p>The link works once and expires in 24 hours. If you didn't ask for this, you can ignore this message.</p>
+      <p>The Consilium</p>
+    `,
+  }
+}
+
+export function memberInvitedEmail(displayName: string | null, role: string) {
+  const base = process.env.NEXTAUTH_URL ?? SITE_URL
+  const label = role.charAt(0) + role.slice(1).toLowerCase()
+  return {
+    subject: `You've been added to The Consilium as ${label}`,
+    html: `
+      <p>Hi${displayName ? ` ${esc(displayName)}` : ''},</p>
+      <p>You've been given <strong>${esc(label)}</strong> access on The Consilium.</p>
+      <p>To use it, create an account (or sign in) with <strong>this email address</strong>. Google sign-in works too, as long as it is the same address. Your access switches on the first time you sign in, and you'll find a Team Profile page to add your photo and description for the Meet the Team page.</p>
+      <p><a href="${esc(base)}/signup">Create your account →</a></p>
       <p>The Consilium</p>
     `,
   }

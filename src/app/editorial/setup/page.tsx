@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { connection } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { SetupForm } from './SetupForm'
 import type { Metadata } from 'next'
@@ -9,8 +10,10 @@ export const metadata: Metadata = {
 }
 
 export default async function SetupPage() {
+  // The database decides this at request time, never during a production build.
+  await connection()
   // Only accessible if no Admin exists yet
-  const adminExists = await prisma.user.findFirst({ where: { role: 'ADMIN' } }).catch(() => null)
+  const adminExists = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
   if (adminExists) redirect('/editorial/login')
 
   return (

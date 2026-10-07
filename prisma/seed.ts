@@ -464,9 +464,11 @@ async function main() {
     },
   ]
 
-  await prisma.teamMember.deleteMany({})
   for (const member of teamData) {
-    await prisma.teamMember.create({ data: member })
+    const id = `seed-team-${member.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+    const existing = await prisma.teamMember.findUnique({ where: { id } })
+    if (existing?.userId) throw new Error(`Seed card ${id} is account-owned; refusing to overwrite it.`)
+    await prisma.teamMember.upsert({ where: { id }, create: { id, ...member }, update: member })
   }
 
   console.log('Team:', teamData.map((m) => m.name).join(', '))

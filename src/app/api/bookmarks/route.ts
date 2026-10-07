@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse, NextRequest } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -21,7 +22,7 @@ export async function GET() {
 }
 
 // POST /api/bookmarks - toggle a bookmark (add if missing, remove if present)
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   const auth = await requireVerifiedSessionUser(ALL_ROLES)
   if (!auth.ok) return auth.response
   const user = auth.user
@@ -57,3 +58,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to toggle bookmark' }, { status: 500 })
   }
 }
+
+export const POST = withTestingAudit(POSTHandler)

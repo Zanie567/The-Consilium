@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import { Bell } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { apiRequest,asApiError } from '@/lib/apiClient'
+import { queueRouteFeedback } from '@/lib/routeFeedback'
 import { Tooltip } from '@/components/ui/Tooltip'
 
 interface Notification {
@@ -17,18 +20,28 @@ interface Notification {
   articleId: string | null
 }
 
-export function NotificationBell() {
+function destination(n: Notification): string {
+  return n.type === 'article_submitted'
+    ? `/editorial/review/${n.articleId}`
+    : `/editorial/articles/${n.articleId}/edit`
+}
+
+export function NotificationBell({ userId }: { userId: string }) {
+  const router = useRouter()
   const [notifs, setNotifs] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const [error,setError]=useState('')
+  const [marking,setMarking]=useState(false)
+  const markingRef=useRef(false)
 
   useEffect(() => {
     fetch('/api/editorial/notifications')
-      .then((r) => r.json())
+      .then((r) => {if(r.status!==200)throw new Error('Notifications could not be loaded.');return r.json()})
       .then((data) => {
         if (Array.isArray(data)) setNotifs(data)
       })
-      .catch(() => {})
+      .catch(()=>setError('Notifications could not be loaded. Reload this page to try again.'))
   }, [])
 
   // Close on outside click
@@ -45,12 +58,14 @@ export function NotificationBell() {
   // Bug 8: optimistically mark all notifications as read in local state and
   // persist to the server.  Using the functional setState form guarantees we
   // always operate on the latest state, avoiding any stale-closure issues.
-  const markAllRead = () => {
-    // Optimistic UI update – happens synchronously before the network round-trip
-    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })))
-    // Fire-and-forget server sync; errors are silently ignored because the
-    // optimistic update already gives the user immediate feedback.
-    fetch('/api/editorial/notifications', { method: 'PATCH' }).catch(() => {})
+  const markAllRead = async () => {
+    if(markingRef.current)return
+    markingRef.current=true;setMarking(true);setError('')
+    const unreadIds=new Set(notifs.filter(n=>!n.read).map(n=>n.id))
+    setNotifs(prev=>prev.map(n=>({...n,read:true})))
+    try {await apiRequest('/api/editorial/notifications',{method:'PATCH'})}
+    catch(reason){setNotifs(prev=>prev.map(n=>unreadIds.has(n.id)?{...n,read:false}:n));setError(asApiError(reason).message)}
+    finally{markingRef.current=false;setMarking(false)}
   }
 
   return (
@@ -61,10 +76,9 @@ export function NotificationBell() {
         side="bottom"
       >
       <button
-        onClick={() => {
-          setOpen((o) => !o)
-          if (!open && unread > 0) markAllRead()
-        }}
+        // Opening the list only shows it. Notifications are marked read by the explicit
+        // "Mark all read" button or by opening one of them, never by looking at the list.
+        onClick={() => setOpen((o) => !o)}
         className="relative p-2 text-[var(--fg-muted)] hover:text-gold transition-colors"
         aria-label={unread > 0 ? `${unread} unread notifications` : 'Notifications'}
       >
@@ -77,6 +91,8 @@ export function NotificationBell() {
       </button>
       </Tooltip>
 
+      {error && !open && <p role="alert" className="absolute right-0 top-full mt-2 w-80 bg-[var(--bg-elevated)] border border-[var(--border)] p-3 text-red-500 text-sm z-50">{error}</p>}
+
       {open && (
         <div className="absolute right-0 top-full mt-2 w-80 bg-[var(--bg-elevated)] border border-[var(--border)] shadow-lg z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
@@ -87,13 +103,15 @@ export function NotificationBell() {
                 notifications so clicking it always produces a visible change */}
             {unread > 0 && (
               <button
-                onClick={markAllRead}
+                onClick={()=>void markAllRead()}
+                disabled={marking}
                 className="text-xs text-gold hover:underline"
               >
                 Mark all read
               </button>
             )}
           </div>
+          {error&&<p role="alert" className="px-4 py-3 text-red-500 text-sm">{error}</p>}
           {notifs.length === 0 ? (
             <p className="px-4 py-8 text-center text-[var(--fg-faint)] text-xs">
               No notifications
@@ -114,29 +132,28 @@ export function NotificationBell() {
                   <div className="flex-1 min-w-0">
                     {n.articleId ? (
                       <Link
-                        href={
-                          n.type === 'article_submitted'
-                            ? `/editorial/review/${n.articleId}`
-                            : `/editorial/articles/${n.articleId}/edit`
-                        }
-                        onClick={() => {
-                          // Optimistically mark read; persist to server; revert on failure.
-                          if (!n.read) {
-                            setNotifs((prev) =>
-                              prev.map((item) => item.id === n.id ? { ...item, read: true } : item)
-                            )
-                            fetch(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' })
-                              .then((r) => {
-                                if (!r.ok) throw new Error('failed')
-                              })
-                              .catch(() => {
-                                // Revert the optimistic update on error
-                                setNotifs((prev) =>
-                                  prev.map((item) => item.id === n.id ? { ...item, read: false } : item)
-                                )
-                              })
-                          }
-                          setOpen(false)
+                        href={destination(n)}
+                        onNavigate={(event) => {
+                          if (n.read) { setOpen(false); return }
+                          event.preventDefault()
+                          if (markingRef.current) return
+                          markingRef.current = true
+                          setMarking(true)
+                          setError('')
+                          // Opening a notification always takes the person to its article. The
+                          // acknowledgement is awaited first (not fired and forgotten) so that, if it
+                          // fails, the message is queued before the route changes and is shown once on
+                          // the destination. The notification stays unread on the server, so it is still
+                          // unread the next time notifications are loaded.
+                          void apiRequest(`/api/editorial/notifications/${n.id}`, { method: 'PATCH' })
+                            .then(() => setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item)))
+                            .catch(reason => queueRouteFeedback(`“${n.title}” could not be marked as read and is still unread. ${asApiError(reason).message}`, userId, destination(n)))
+                            .finally(() => {
+                              markingRef.current = false
+                              setMarking(false)
+                              setOpen(false)
+                              router.push(destination(n))
+                            })
                         }}
                         className="block"
                       >

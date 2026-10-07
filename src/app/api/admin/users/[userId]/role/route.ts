@@ -1,12 +1,14 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextRequest, NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, roleChangedEmail } from '@/lib/email'
 import { ADMIN_ONLY, ALL_ROLES, isAllowedRole } from '@/lib/rbac'
+import { MembershipError, setMemberRole } from '@/lib/membership'
 
 interface Ctx { params: Promise<{ userId: string }> }
 
-export async function PATCH(req: NextRequest, { params }: Ctx) {
+async function PATCHHandler(req: NextRequest, { params }: Ctx) {
   const admin = await getVerifiedSessionUser(ADMIN_ONLY)
   if (!admin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -30,13 +32,19 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   })
   if (!target) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
-  const oldRole = target.role
   const adminName = admin.name ?? admin.email ?? adminId
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: { role },
-  })
+  // One path for every role change: updates users.role AND the membership record
+  // (and the audit log) in a single transaction, and keeps the Meet the Team card.
+  let oldRole: string
+  try {
+    ;({ oldRole } = await setMemberRole(admin, userId, role))
+  } catch (error) {
+    if (error instanceof MembershipError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status })
+    }
+    throw error
+  }
 
   // Auto-log the change as an admin note
   await prisma.adminNote.create({
@@ -48,17 +56,6 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     },
   }).catch(() => {})
 
-  // Audit log
-  await prisma.auditLog.create({
-    data: {
-      action: 'USER_ROLE_CHANGED',
-      targetId: userId,
-      targetType: 'user',
-      performedBy: adminId,
-      metadata: { oldRole, newRole: role, adminName, targetName: target.name, targetEmail: target.email },
-    },
-  }).catch(() => {})
-
   // Email the user about role change
   const STAFF = ['WRITER', 'EDITOR', 'GROWTH', 'ADMIN']
   const promoted = STAFF.includes(role) && !STAFF.includes(oldRole)
@@ -67,3 +64,5 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
   return NextResponse.json({ ok: true, oldRole, newRole: role })
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)

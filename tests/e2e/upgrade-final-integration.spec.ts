@@ -141,7 +141,7 @@ test('shuffled account-linked chief, two deputies, editors, writers and Growth r
     for (const member of roster) {
       const user = await db.user.create({ data: { name: member.name, role: member.role, email: `${randomUUID()}@team-qa.example.test` } })
       users.push(user.id)
-      await db.teamMember.create({ data: { userId: user.id, name: member.name, role: member.title, order: member.order, bio: 'Integration QA profile' } })
+      await db.teamMember.create({ data: { userId: user.id, name: member.name, role: member.title, publicTier: member.role === 'GROWTH' ? 'growth' : null, order: member.order, bio: 'Integration QA profile' } })
     }
     for (const width of [375, 768, 1440]) {
       await page.setViewportSize({ width, height: 900 })
@@ -166,7 +166,7 @@ test('shuffled account-linked chief, two deputies, editors, writers and Growth r
       }
       await page.getByRole('heading', { name: 'Our Team', exact: true }).scrollIntoViewIfNeeded()
       await expect(page.getByRole('heading', { name: 'Our Team', exact: true }).locator('..')).toHaveCSS('opacity', '1')
-      await page.screenshot({ path: `docs/platform-upgrade/evidence/final-integration/${width}-mixed-team.png`, fullPage: true })
+      await page.screenshot({ path: test.info().outputPath(`${width}-mixed-team.png`), fullPage: true })
     }
     await db.teamMember.deleteMany({ where: { userId: { in: users }, name: 'QA Deputy B' } })
     await page.reload()
@@ -218,7 +218,7 @@ test('an editor with a stale open document gets a conflict and retains unsaved c
     await expect(b.getByText(/Another editor changed this article/).first()).toBeVisible()
     await expect(b.getByPlaceholder('Your headline here...')).toHaveValue('Second editor unsaved title')
     expect((await (await admin.request.get(`/api/articles/${id}`)).json()).title).toBe('First editor committed this title')
-    await b.screenshot({ path: 'docs/platform-upgrade/evidence/final-integration/stale-editor-conflict.png', fullPage: true })
+    await b.screenshot({ path: test.info().outputPath('stale-editor-conflict.png'), fullPage: true })
   } finally {
     if (id) {
       await admin.request.delete(`/api/articles/${id}`)
@@ -248,6 +248,7 @@ test('slow draft creation preserves newer typing, and a failed save retains chan
     const created = page.waitForResponse(response => response.url().endsWith('/api/articles') && response.request().method() === 'POST')
     await headline.fill(`${prefix} first snapshot`)
     await posting
+    const newerSaved = page.waitForResponse(response => response.url().includes('/api/articles/') && response.request().method() === 'PUT' && response.status() === 200)
     await headline.fill(`${prefix} newer typing`)
     release()
     const response = await created
@@ -255,6 +256,7 @@ test('slow draft creation preserves newer typing, and a failed save retains chan
     id = (await response.json()).id
     await expect(page).toHaveURL(new RegExp(`/articles/${id}/edit$`))
     await expect(headline).toHaveValue(`${prefix} newer typing`)
+    await newerSaved
     expect(await (await context.request.get(`/api/articles/${id}`)).json()).toMatchObject({ title: `${prefix} newer typing` })
     let failSave = true
     await page.route(`**/api/articles/${id}`, route => route.request().method() === 'PUT' && failSave
@@ -304,7 +306,7 @@ test('document settings expose one desktop form and trap/restore keyboard focus 
       await page.keyboard.press('Tab')
       await expect(close).toBeFocused()
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-      await page.screenshot({ path: `docs/platform-upgrade/evidence/final-integration/${width}-editor-settings.png`, fullPage: true })
+      await page.screenshot({ path: test.info().outputPath(`${width}-editor-settings.png`), fullPage: true })
       await page.keyboard.press('Escape')
       await expect(dialog).toHaveCount(0)
       await expect(opener).toBeFocused()

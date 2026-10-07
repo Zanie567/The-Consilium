@@ -10,7 +10,7 @@
  * - After signup/login the cookies are ignored (session exists)
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
@@ -38,6 +38,7 @@ export function SignupPrompt() {
   const { data: session, status } = useSession()
   const pathname = usePathname()
   const [visible, setVisible] = useState(false)
+  const lastVisitedPath = useRef<string | null>(null)
 
   // Redundant + obstructive on the auth pages (the card would cover the form's
   // submit button on small screens), and on the editorial/admin portal.
@@ -51,7 +52,7 @@ export function SignupPrompt() {
 
   useEffect(() => {
     if (status === 'loading') return
-    if (session) return // logged in - never show
+    if (session) { setVisible(false); return } // logged in - never show
     if (suppressed) {
       setVisible(false)
       return
@@ -69,15 +70,17 @@ export function SignupPrompt() {
 
     // Increment visit counter
     const raw = getCookie(VISIT_KEY)
-    const visits = raw ? parseInt(raw, 10) + 1 : 1
-    setCookie(VISIT_KEY, String(visits), 365)
+    const previous = raw ? parseInt(raw, 10) : 0
+    const visits = (Number.isFinite(previous) ? previous : 0) + (lastVisitedPath.current === pathname ? 0 : 1)
+    if (lastVisitedPath.current !== pathname) setCookie(VISIT_KEY, String(visits), 365)
+    lastVisitedPath.current = pathname
 
     if (visits >= VISIT_THRESHOLD) {
       // Show after a short delay so it doesn't jar on page load
       const timer = setTimeout(() => setVisible(true), 3500)
       return () => clearTimeout(timer)
     }
-  }, [session, status, suppressed])
+  }, [session, status, suppressed, pathname])
 
   const dismiss = () => {
     setVisible(false)
@@ -104,7 +107,7 @@ export function SignupPrompt() {
             <button
               onClick={dismiss}
               aria-label="Dismiss"
-              className="absolute top-1.5 right-1.5 flex h-9 w-9 items-center justify-center text-cream/30 hover:text-cream/70 transition-colors"
+              className="absolute top-1.5 right-1.5 z-10 flex h-9 w-9 items-center justify-center text-cream/30 hover:text-cream/70 transition-colors"
             >
               <X size={16} />
             </button>

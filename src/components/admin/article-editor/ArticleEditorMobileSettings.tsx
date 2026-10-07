@@ -28,7 +28,7 @@ export function ArticleEditorMobileSettings({ editor, coverFileRef }: ArticleEdi
   return (
     <>
       <div
-        className="min-[1100px]:hidden fixed inset-0 z-[60] bg-black/40"
+        className="min-[1100px]:hidden fixed inset-0 z-[205] bg-black/40"
         onClick={() => editor.actions.setSettingsOpen(false)}
         aria-hidden
       />
@@ -38,7 +38,7 @@ export function ArticleEditorMobileSettings({ editor, coverFileRef }: ArticleEdi
         role="dialog"
         aria-modal="true"
         aria-label="Document settings"
-        className="min-[1100px]:hidden fixed inset-x-0 bottom-0 z-[61] bg-[var(--bg-elevated)] rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[82vh]"
+        className="min-[1100px]:hidden fixed inset-x-0 bottom-0 z-[206] bg-[var(--bg-elevated)] rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[82vh]"
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
             event.preventDefault()

@@ -19,7 +19,7 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
   const scheduledAtId = useId()
 
   return (
-    <div className="space-y-0">
+    <fieldset disabled={!editor.canEdit || Boolean(editor.recovery)} className="space-y-0">
       <div className="flex items-center gap-2 pb-3 mb-1 border-b border-[var(--border)]">
         <Clock size={11} className="text-[var(--fg-faint)] shrink-0" />
         <span className="text-[12px] text-[var(--fg-faint)] uppercase tracking-wider font-medium">
@@ -206,7 +206,7 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
           />
         </div>
       )}
-    </div>
+    </fieldset>
   )
 }
 

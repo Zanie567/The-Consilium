@@ -118,7 +118,7 @@ describe('public rich-content safety and parity', () => {
     expect(html).toContain('Source:')
     expect(html).toContain('Note: Rounded')
   })
-  it('retains supported toolbar marks/alignment while rejecting injected styles', () => {
+  it('publishes semantic toolbar marks using house style and rejects injected styles', () => {
     const doc = {
       type: 'doc',
       content: [
@@ -142,10 +142,8 @@ describe('public rich-content safety and parity', () => {
       ],
     }
     const html = renderContent(JSON.stringify(doc)).html
-    expect(html).toContain('text-align:center')
-    expect(html).toContain('<s>')
-    expect(html).toContain('color:#ff0000')
-    expect(html).toContain('font-size:24px')
+    expect(html).toContain('<s>Text</s>')
+    expect(html).not.toMatch(/style=|text-align|font-size|color:/)
     doc.content[0].attrs.textAlign = 'center; background:url(javascript:x)'
     expect(renderContent(JSON.stringify(doc)).html).not.toContain('javascript')
   })

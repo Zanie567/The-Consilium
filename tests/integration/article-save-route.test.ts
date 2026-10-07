@@ -32,7 +32,8 @@ vi.mock('@/lib/email', () => ({
 }))
 vi.mock('@/lib/revalidateArticles', () => ({ revalidateArticleLists: vi.fn() }))
 
-import { PUT } from '@/app/api/articles/[id]/route'
+import { PUT, DELETE } from '@/app/api/articles/[id]/route'
+import { articleVersion } from '@/lib/articleVersion'
 
 const ADMIN = { id: 'admin-1', role: 'ADMIN', name: 'Admin', email: 'admin@test' }
 const EDITOR = { id: 'editor-1', role: 'EDITOR', name: 'Editor', email: 'editor@test' }
@@ -53,6 +54,7 @@ const existing = {
   deletedAt: null,
   author: { id: 'writer-1', name: 'Writer' },
   category: { id: 'analysis', name: 'Analysis' },
+  tags: [] as { tag: { name: string } }[],
 }
 
 function request(body: Record<string, unknown> = {}) {
@@ -154,5 +156,114 @@ describe('PUT /api/articles/[id] editor saves', () => {
 
     expect(response.status).toBe(400)
     expect(prismaMock.article.update).not.toHaveBeenCalled()
+  })
+})
+
+describe('PUT /api/articles/[id] optimistic concurrency (baseVersion)', () => {
+  const currentVersion = () => articleVersion(existing, existing.tags.map((t) => t.tag.name))
+
+  beforeEach(() => {
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: ADMIN })
+  })
+
+  it('saves when the client was editing the current version, and returns the new version', async () => {
+    const response = await PUT(request({ baseVersion: currentVersion() }), params)
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(typeof body.version).toBe('string')
+    expect(body.version).toHaveLength(24)
+  })
+
+  it('refuses a stale version with 409 ARTICLE_CONFLICT and writes nothing', async () => {
+    const response = await PUT(request({ baseVersion: 'stale-version-from-another-tab' }), params)
+    expect(response.status).toBe(409)
+    expect((await response.json()).code).toBe('ARTICLE_CONFLICT')
+    expect(prismaMock.article.update).not.toHaveBeenCalled()
+  })
+
+  it('does not check clients that send no baseVersion (scripts, older pages)', async () => {
+    const response = await PUT(request(), params)
+    expect(response.status).toBe(200)
+  })
+
+  it('treats a tag change by someone else as a conflict', async () => {
+    const stale = currentVersion()
+    prismaMock.article.findUnique.mockResolvedValue({ ...existing, tags: [{ tag: { name: 'added-elsewhere' } }] })
+    const response = await PUT(request({ baseVersion: stale }), params)
+    expect(response.status).toBe(409)
+  })
+})
+
+describe('PUT /api/articles/[id] publication intent', () => {
+  beforeEach(() => {
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: ADMIN })
+  })
+
+  const as = (status: string, extra: Record<string, unknown> = {}) => request({ status, ...extra })
+
+  it.each([
+    ['publishing a draft', 'DRAFT', 'PUBLISHED'],
+    ['scheduling a draft', 'DRAFT', 'SCHEDULED'],
+    ['unpublishing to draft', 'PUBLISHED', 'DRAFT'],
+    ['archiving a live article', 'PUBLISHED', 'ARCHIVED'],
+    ['cancelling a schedule', 'SCHEDULED', 'DRAFT'],
+  ])('refuses %s without publicationIntent (409) and writes nothing', async (_n, from, to) => {
+    prismaMock.article.findUnique.mockResolvedValue({ ...existing, status: from, scheduledAt: from === 'SCHEDULED' ? new Date('2031-01-01') : null })
+    const response = await PUT(as(to, { scheduledAt: '2031-01-01T10:00' }), params)
+    expect(response.status).toBe(409)
+    expect((await response.json()).code).toBe('PUBLICATION_CONFIRMATION_REQUIRED')
+    expect(prismaMock.article.update).not.toHaveBeenCalled()
+  })
+
+  it('allows restating the current status (an ordinary save) with no intent', async () => {
+    prismaMock.article.findUnique.mockResolvedValue({ ...existing, status: 'PUBLISHED' })
+    expect((await PUT(as('PUBLISHED'), params)).status).toBe(200)
+  })
+
+  it('allows non-public transitions (submit for review) with no intent', async () => {
+    prismaMock.article.findUnique.mockResolvedValue({ ...existing, status: 'DRAFT' })
+    expect((await PUT(as('PENDING_REVIEW'), params)).status).toBe(200)
+  })
+
+  it('allows publishing with publicationIntent', async () => {
+    prismaMock.article.findUnique.mockResolvedValue({ ...existing, status: 'DRAFT' })
+    expect((await PUT(as('PUBLISHED', { publicationIntent: true }), params)).status).toBe(200)
+  })
+
+  it('does not accept a truthy string as intent', async () => {
+    prismaMock.article.findUnique.mockResolvedValue({ ...existing, status: 'DRAFT' })
+    expect((await PUT(as('PUBLISHED', { publicationIntent: 'true' }), params)).status).toBe(409)
+  })
+})
+
+describe('DELETE /api/articles/[id] (move to trash)', () => {
+  const del = () => DELETE(new NextRequest('http://localhost/api/articles/article-1', { method: 'DELETE' }), params)
+
+  it.each([['DRAFT'], ['REJECTED']])('lets a writer trash their own %s article', async (status) => {
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: WRITER })
+    prismaMock.article.findUnique.mockResolvedValue({ ...existing, status })
+    expect((await del()).status).toBe(200)
+    expect(prismaMock.article.update).toHaveBeenCalled()
+  })
+
+  it.each([['PENDING_REVIEW'], ['SCHEDULED'], ['PUBLISHED'], ['ARCHIVED']])('refuses a writer trashing their own %s article (it would pull it from the queue or the site)', async (status) => {
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: WRITER })
+    prismaMock.article.findUnique.mockResolvedValue({ ...existing, status })
+    const res = await del()
+    expect(res.status).toBe(403)
+    expect((await res.json()).code).toBe('ARTICLE_LOCKED_FOR_WRITER')
+    expect(prismaMock.article.update).not.toHaveBeenCalled()
+  })
+
+  it('refuses a writer trashing someone else\'s draft', async () => {
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: { ...WRITER, id: 'writer-2' } })
+    prismaMock.article.findUnique.mockResolvedValue({ ...existing, status: 'DRAFT' })
+    expect((await del()).status).toBe(403)
+  })
+
+  it('lets an editor trash a published article', async () => {
+    authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: ADMIN })
+    prismaMock.article.findUnique.mockResolvedValue({ ...existing, status: 'PUBLISHED' })
+    expect((await del()).status).toBe(200)
   })
 })

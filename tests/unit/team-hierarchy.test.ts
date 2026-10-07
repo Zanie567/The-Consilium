@@ -3,7 +3,6 @@ import {
   buildTeamMasthead,
   hasDisplayableRole,
   resolveTeamTier,
-  UNTITLED_MASTHEAD_MEMBERS,
   type TeamMemberLike,
 } from '@/lib/teamHierarchy'
 
@@ -69,7 +68,7 @@ describe('hasDisplayableRole', () => {
 describe('buildTeamMasthead', () => {
   const roster = [
     member('Alexander Escala', 'Editor-in-Chief', 1),
-    member('Lucas Dwyer', '', 2),
+    { ...member('Lucas Dwyer', '', 2), publicTier: 'leadership' },
     member('Satvik Singla', 'Senior Editor', 3),
     member('Julia Stepniak', 'Chief Designer', 4),
     member('Annika Sarawgi', 'Senior Editor', 5),
@@ -118,17 +117,9 @@ describe('buildTeamMasthead', () => {
     ])
   })
 
-  it('applies the untitled-masthead exception by name, and only while the role is blank', () => {
-    expect(UNTITLED_MASTHEAD_MEMBERS.has('lucas dwyer')).toBe(true)
-
-    // Name matching tolerates casing and stray whitespace.
-    const [masthead] = buildTeamMasthead([member('  LUCAS   DWYER ', '', 1)])
-    expect(masthead.id).toBe('masthead')
-    expect(masthead.rows[0].tier).toBe('leadership')
-
-    // Give him a role again and the role alone decides the tier.
-    const sections = buildTeamMasthead([member('Lucas Dwyer', 'Writer', 1)])
-    expect(sections.map((s) => s.id)).toEqual(['writers'])
+  it('only trusted placement can promote an untitled card; a name cannot', () => {
+    expect(buildTeamMasthead([member('Lucas Dwyer', '', 1)])[0].id).toBe('wider')
+    expect(buildTeamMasthead([{ ...member('Unrelated', '', 1), publicTier: 'leadership' }])[0].id).toBe('masthead')
   })
 
   it('orders senior editors ahead of editors and junior editors', () => {
@@ -198,6 +189,7 @@ describe('upgrade pyramid', () => {
         name: 'Growth',
         role: 'Editor-in-Chief',
         team: 'growth' as const,
+        publicTier: 'growth',
         order: -100,
       },
     ]

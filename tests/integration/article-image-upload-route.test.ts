@@ -51,7 +51,7 @@ describe('article image upload content, size, ownership and failures', () => {
     new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     new TextEncoder().encode('<script>danger</script>'),
   ])('rejects empty, large, damaged and spoofed content before storage', async (bytes) => {
-    expect((await POST(await request(bytes))).status).toBe(400)
+    expect((await POST(await request(bytes))).status).toBe(bytes.byteLength > 4 * 1024 * 1024 ? 413 : 400)
     expect(mocks.upload).not.toHaveBeenCalled()
   })
   it('rejects mismatched declared MIME', async () => {

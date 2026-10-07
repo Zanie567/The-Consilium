@@ -1,3 +1,5 @@
+**PR phase (2026-10-07):** The owner authorized reconciliation with newer main and full recertification. This report records the earlier candidate; see [PR-PHASE-REPORT.md](PR-PHASE-REPORT.md) for current evidence and gates.
+
 # Pre-merge hardening report — 2026-10-07
 
 This follow-up supersedes the CI, caller-revision and skipped-test limitations in the 2026-10-06 integration report. That report and its evidence remain historical. Scope: CI orchestration, existing-article concurrency contracts, and feasible skipped API tests. No platform redesign, dependency change or new migration.

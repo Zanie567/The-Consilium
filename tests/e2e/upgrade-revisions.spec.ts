@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { ADMIN_STORAGE } from './helpers/authStorage'
 import { resolveTestDatabaseUrl } from '../../scripts/lib/testDatabase'
 import { collectConsoleErrors } from './helpers/console'
+import { confirmPublicChange } from './helpers/workflow'
 
 test.use({ storageState: ADMIN_STORAGE })
 let db: PrismaClient
@@ -32,6 +33,7 @@ test('list publish/unpublish sends loaded revisions, propagates successful revis
   let row = page.getByRole('row').filter({ hasText: loaded.title })
   const publishedResponse = page.waitForResponse(res => res.url().endsWith(`/api/articles/${loaded.id}`) && res.request().method() === 'PUT')
   await row.getByRole('button', { name: 'Publish', exact: true }).click()
+  await confirmPublicChange(page, 'Publish now')
   const published = await publishedResponse
   expect(published.status()).toBe(200)
   expect(published.request().postDataJSON().expectedUpdatedAt).toBe(loaded.updatedAt.toISOString())
@@ -46,6 +48,7 @@ test('list publish/unpublish sends loaded revisions, propagates successful revis
   }
   const unpublishResponse = page.waitForResponse(res => res.url().endsWith(`/api/articles/${loaded.id}`) && res.request().method() === 'PUT')
   await row.getByRole('button', { name: 'Unpublish', exact: true }).click()
+  await confirmPublicChange(page, 'Unpublish')
   const unpublished = await unpublishResponse
   expect(unpublished.status()).toBe(200)
   expect(unpublished.request().postDataJSON().expectedUpdatedAt).toBe(revision)
@@ -57,12 +60,13 @@ test('list publish/unpublish sends loaded revisions, propagates successful revis
     const newer = await db.article.update({ where: { id: loaded.id }, data: { content: `Newer ${status} content`, title: `Newer ${randomUUID()}`, updatedAt: new Date(Date.now() + 100) } })
     const response = page.waitForResponse(res => res.url().endsWith(`/api/articles/${loaded.id}`) && res.request().method() === 'PUT')
     await row.getByRole('button', { name: status === 'DRAFT' ? 'Publish' : 'Unpublish', exact: true }).click()
+    await confirmPublicChange(page, status === 'DRAFT' ? 'Publish now' : 'Unpublish')
     expect((await response).status()).toBe(409)
     await expect(page.getByText(/another editor changed/i)).toBeVisible()
     expect(await db.article.findUniqueOrThrow({ where: { id: loaded.id } })).toEqual(newer)
     await expect(page.getByRole('row').filter({ hasText: newer.title })).toBeVisible()
   }
-  expect(errors).toEqual([])
+  expect(errors).toEqual(Array(2).fill(`Failed to load resource: the server responded with a status of 409 (Conflict) @ ${process.env.E2E_BASE_URL}/api/articles/${loaded.id}`))
   expect(serverErrors).toEqual([])
 })
 
@@ -87,7 +91,7 @@ test('series assignment from stale page preserves newer article, reload then ass
   await page.getByRole('button', { name: 'Add', exact: true }).click()
   expect((await success).status()).toBe(200)
   await expect.poll(async () => (await db.article.findUniqueOrThrow({ where: { id: loaded.id } })).seriesId).toBe(series.id)
-  expect(errors).toEqual([])
+  expect(errors).toEqual([`Failed to load resource: the server responded with a status of 409 (Conflict) @ ${process.env.E2E_BASE_URL}/api/articles/${loaded.id}`])
 })
 
 test('review rejects stale page; commendation revision propagates to successful return', async ({ page }) => {
@@ -98,6 +102,7 @@ test('review rejects stale page; commendation revision propagates to successful 
   const newer = await db.article.update({ where: { id: loaded.id }, data: { content: 'Updated review content', updatedAt: new Date(Date.now() + 100) } })
   const conflict = page.waitForResponse(res => res.url().endsWith(`/${loaded.id}/review`) && res.request().method() === 'PATCH')
   await page.getByRole('button', { name: 'Publish Now' }).click()
+  await confirmPublicChange(page, 'Publish now')
   expect((await conflict).status()).toBe(409)
   await expect(page.getByText(/changed since this page was loaded/i)).toBeVisible()
   expect(await db.article.findUniqueOrThrow({ where: { id: loaded.id } })).toEqual(newer)
@@ -116,7 +121,7 @@ test('review rejects stale page; commendation revision propagates to successful 
   expect(result.status()).toBe(200)
   expect(result.request().postDataJSON().expectedUpdatedAt).toBe(revision)
   expect(await db.article.findUniqueOrThrow({ where: { id: loaded.id } })).toMatchObject({ status: 'REJECTED', content: 'Updated review content', editorialCommendation: 'Carefully sourced', editorNote: 'Please update the sources' })
-  expect(errors).toEqual([])
+  expect(errors).toEqual([`Failed to load resource: the server responded with a status of 409 (Conflict) @ ${process.env.E2E_BASE_URL}/api/editorial/articles/${loaded.id}/review`])
 })
 
 for (const action of ['approve', 'schedule'] as const) {
@@ -127,6 +132,7 @@ for (const action of ['approve', 'schedule'] as const) {
     if (action === 'schedule') await page.locator('input[type="datetime-local"]').fill('2099-01-01T12:00')
     const response = page.waitForResponse(res => res.url().endsWith(`/${loaded.id}/review`) && res.request().method() === 'PATCH')
     await page.getByRole('button', { name: action === 'approve' ? 'Publish Now' : 'Schedule', exact: true }).click()
+    await confirmPublicChange(page, action === 'approve' ? 'Publish now' : 'Schedule')
     const result = await response
     expect(result.status()).toBe(200)
     expect(result.request().postDataJSON().expectedUpdatedAt).toBe(loaded.updatedAt.toISOString())
@@ -135,6 +141,7 @@ for (const action of ['approve', 'schedule'] as const) {
       await page.goto(`/editorial/review/${loaded.id}`)
       const unpublish = page.waitForResponse(res => res.url().endsWith(`/${loaded.id}/review`) && res.request().method() === 'PATCH')
       await page.getByRole('button', { name: 'Unpublish', exact: true }).click()
+      await confirmPublicChange(page, 'Unpublish')
       expect((await unpublish).status()).toBe(200)
       expect((await db.article.findUniqueOrThrow({ where: { id: loaded.id } })).status).toBe('DRAFT')
     } else {
@@ -190,5 +197,5 @@ test('calendar drag uses displayed revision, rolls back stale move, and reschedu
   expect(response.status()).toBe(200)
   expect(response.request().postDataJSON().expectedUpdatedAt).toBe(newer.updatedAt.toISOString())
   await expect.poll(async () => (await db.article.findUniqueOrThrow({ where: { id: loaded.id } })).scheduledAt!.toISOString()).toBe('2099-01-02T12:00:00.000Z')
-  expect(errors).toEqual([])
+  expect(errors).toEqual([`Failed to load resource: the server responded with a status of 409 (Conflict) @ ${process.env.E2E_BASE_URL}/api/editorial/calendar`])
 })

@@ -1,3 +1,4 @@
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 import { Prisma } from '@prisma/client'
@@ -19,7 +20,7 @@ interface RouteContext {
  * ADMIN only (GLOSSARY_MANAGE_ROLES), re-verified against the database.
  * Body: { term, aliases?, definition, learnMoreUrl?, isActive? }
  */
-export async function PATCH(req: Request, context: RouteContext) {
+async function PATCHHandler(req: Request, context: RouteContext) {
   const caller = await getVerifiedSessionUser(GLOSSARY_MANAGE_ROLES)
   if (!caller) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -80,7 +81,7 @@ export async function PATCH(req: Request, context: RouteContext) {
  * Permanently removes a glossary term. Prefer deactivating for terms that
  * might come back. ADMIN only, re-verified against the database.
  */
-export async function DELETE(_req: Request, context: RouteContext) {
+async function DELETEHandler(_req: Request, context: RouteContext) {
   const caller = await getVerifiedSessionUser(GLOSSARY_MANAGE_ROLES)
   if (!caller) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -103,3 +104,7 @@ export async function DELETE(_req: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)
+
+export const DELETE = withTestingAudit(DELETEHandler)

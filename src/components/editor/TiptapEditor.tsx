@@ -1,8 +1,9 @@
 'use client'
 
 import { useEditor, useEditorState, EditorContent, type Editor } from '@tiptap/react'
-import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model'
+import { DOMParser as ProseMirrorDOMParser, type Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { Node, mergeAttributes, type SingleCommands, type RawCommands } from '@tiptap/core'
+import type { EditorView } from '@tiptap/pm/view'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Image from '@tiptap/extension-image'
@@ -67,6 +68,17 @@ import { FigureNode } from './extensions/FigureNode'
 import { cleanPastedHTML } from '@/lib/editor/cleanPastedHTML'
 import { ApiError, asApiError } from '@/lib/apiClient'
 import { CommentHighlight } from './commentHighlight'
+
+function editFootnote(view: EditorView, _pos: number, node: ProseMirrorNode, nodePos: number) {
+  if (node.type.name !== 'footnoteRef' || !view.editable) return false
+  const next = window.prompt('Footnote text (clear it to remove this footnote):', String(node.attrs.content ?? ''))
+  if (next === null) return true
+  const tr = view.state.tr
+  if (!next.trim()) tr.delete(nodePos, nodePos + node.nodeSize)
+  else tr.setNodeMarkup(nodePos, undefined, { ...node.attrs, content: next.trim() })
+  view.dispatch(tr)
+  return true
+}
 
 // ── Module augmentations ─────────────────────────────────────────────────────
 declare module '@tiptap/core' {
@@ -296,6 +308,56 @@ const GOOGLE_DOCS_COLORS: string[] = [
   '#fff8fb',
 ]
 
+// ── Toolbar primitives ────────────────────────────────────────────────────────
+// Defined at module level, NOT inside TiptapEditor. A component declared inside the
+// render function gets a new identity on every render, so React unmounts and remounts
+// every toolbar button whenever editor state changes. The picker buttons (table, line
+// spacing) open a dropdown on mousedown; that state change re-rendered the editor, the
+// button the user pressed was replaced, and the document-level "click outside closes
+// the dropdown" listener then saw a detached event target and closed it again straight
+// away - so those two pickers never opened.
+const ToolbarDarkContext = React.createContext(false)
+
+function ToolbarBtn({
+  onClick, active, title, disabled: dis, children, style,
+}: {
+  onClick: (e: React.MouseEvent) => void
+  active?: boolean
+  title: string
+  disabled?: boolean
+  children: ReactNode
+  style?: React.CSSProperties
+}) {
+  const darkMode = React.useContext(ToolbarDarkContext)
+  return (
+    <button
+      type="button"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      aria-label={title}
+      aria-pressed={active === undefined ? undefined : active}
+      title={title}
+      disabled={dis}
+      style={style}
+      className={`p-2 rounded min-w-[30px] h-8 flex items-center justify-center ${
+        active
+          ? darkMode
+            ? 'bg-white/20 text-white ring-1 ring-white/30'
+            : 'bg-[#1a2744]/20 text-[#1a2744] ring-1 ring-[#1a2744]/30 font-semibold'
+          : darkMode
+            ? 'text-white/70 hover:bg-white/8 transition-colors duration-100'
+            : 'text-[#444] hover:bg-black/8 transition-colors duration-100'
+      } disabled:opacity-30`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function Sep() {
+  return <div className="w-px mx-2.5 self-stretch bg-black/10 dark:bg-white/10" />
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(function TiptapEditor(
   {
@@ -427,6 +489,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
     },
     immediatelyRender: false,
     editorProps: {
+      handleDoubleClickOn: editFootnote,
       // Clicking a footnote marker opens its text for editing. Clearing the
       // text removes the footnote; cancelling leaves it untouched.
       handleClickOn(view, _pos, node, nodePos) {
@@ -542,13 +605,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
   useEffect(() => {
     if (editor && onEditorReady) onEditorReady(editor)
   }, [editor]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Clear upload error after 4s
-  useEffect(() => {
-    if (!uploadError) return
-    const t = setTimeout(() => setUploadError(''), 4000)
-    return () => clearTimeout(t)
-  }, [uploadError])
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -679,46 +735,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
   const wordCount = editor.storage.characterCount.words()
   const readingTime = Math.max(1, Math.round(wordCount / 200))
 
-  // ── Sub-components ───────────────────────────────────────────────────────
-  const ToolbarBtn = ({
-    onClick,
-    active,
-    title,
-    disabled: dis,
-    children,
-    style,
-  }: {
-    onClick: (e: React.MouseEvent) => void
-    active?: boolean
-    title: string
-    disabled?: boolean
-    children: ReactNode
-    style?: React.CSSProperties
-  }) => (
-    <button
-      type="button"
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onClick}
-      aria-label={title}
-      aria-pressed={active === undefined ? undefined : active}
-      title={title}
-      disabled={dis}
-      style={style}
-      className={`p-2 rounded min-w-[30px] h-8 flex items-center justify-center ${
-        active
-          ? darkMode
-            ? 'bg-white/20 text-white ring-1 ring-white/30'
-            : 'bg-[#1a2744]/20 text-[#1a2744] ring-1 ring-[#1a2744]/30 font-semibold'
-          : darkMode
-            ? 'text-white/70 hover:bg-white/8 transition-colors duration-100'
-            : 'text-[#444] hover:bg-black/8 transition-colors duration-100'
-      } disabled:opacity-30`}
-    >
-      {children}
-    </button>
-  )
-
-  const Sep = () => <div className="w-px mx-2.5 self-stretch bg-black/10 dark:bg-white/10" />
 
   return (
     <div style={{ isolation: 'isolate' }}>
@@ -731,16 +747,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
           Cancel image upload
         </button>
       )}
-      {/* Upload error */}
-      {uploadError && (
-        <div
-          role="alert"
-          className="bg-red-500/10 border-b border-red-500/20 px-4 py-2 text-red-500 text-xs flex items-center gap-2"
-        >
-          <span className="font-semibold">Upload failed:</span> {uploadError}
-        </div>
-      )}
-
       {/* Link bar */}
       {linkBarOpen && editable && (
         <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-3 py-2 flex items-center gap-2">
@@ -835,7 +841,15 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
         (() => {
           const toolbarContent = (
             <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-4 py-1.5 flex flex-wrap gap-1 items-center w-full h-full">
-              {/* Group 1: History */}
+              {/* Keep failure feedback in the pinned toolbar until dismissed. */}
+            {uploadError && (
+              <div role="alert" className="basis-full flex items-center gap-2 bg-red-500/10 border border-red-500/25 rounded px-3 py-1.5 text-red-600 dark:text-red-400 text-xs">
+                <span className="font-semibold">Upload failed:</span>
+                <span className="flex-1">{uploadError}</span>
+                <button type="button" onClick={() => setUploadError('')} aria-label="Dismiss upload error" className="font-semibold underline underline-offset-2">Dismiss</button>
+              </div>
+            )}
+            {/* Group 1: History */}
               <ToolbarBtn
                 onClick={() => editor.chain().focus().undo().run()}
                 disabled={!editor.can().undo()}
@@ -1334,11 +1348,14 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
             </div>
           )
           if (toolbarPortalRef?.current) {
-            return createPortal(toolbarContent, toolbarPortalRef.current)
+            return createPortal(
+              <ToolbarDarkContext.Provider value={!!darkMode}>{toolbarContent}</ToolbarDarkContext.Provider>,
+              toolbarPortalRef.current,
+            )
           }
           return (
             <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 sticky top-0 z-30">
-              {toolbarContent}
+              <ToolbarDarkContext.Provider value={!!darkMode}>{toolbarContent}</ToolbarDarkContext.Provider>
             </div>
           )
         })()}

@@ -1,4 +1,5 @@
 import { articleRevisionError } from '@/lib/articleRevision'
+import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -19,7 +20,7 @@ const MAX_LENGTH = 200
  * Body: { commendation: string | null }. A string is trimmed and must be at
  * most 200 characters; null or an empty string clears the commendation.
  */
-export async function PATCH(req: Request, { params }: Props) {
+async function PATCHHandler(req: Request, { params }: Props) {
   const auth = await requireVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
   if (!auth.ok) return auth.response
   const user = auth.user
@@ -88,3 +89,5 @@ export async function PATCH(req: Request, { params }: Props) {
     return articleMutationErrorResponse(err, 'update', crypto.randomUUID())
   }
 }
+
+export const PATCH = withTestingAudit(PATCHHandler)

@@ -39,7 +39,7 @@ test('warm category list follows create, edit, unpublish, republish, trash and r
     await page.reload()
     await expect(heading()).toHaveCount(0)
 
-    expect((await request.put(`/api/articles/${id}`, { data: { status: 'PUBLISHED' } })).status()).toBe(200)
+    expect((await request.put(`/api/articles/${id}`, { data: { status: 'PUBLISHED', publicationIntent: true } })).status()).toBe(200)
     await page.reload()
     await expect(heading()).toBeVisible()
 
