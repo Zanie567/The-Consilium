@@ -1,18 +1,20 @@
 {
-  "applicationSourceCommit": "58a758f4781b5d009f280a6c075fc9a8087b98de",
-  "testHarnessCommit": "f1552baecee663e2fd8a10f6288352e4be929f4d",
+  "applicationSourceCommit": "baff4cf7ac523d0bfae923f2223a3d092a1c4dfd",
+  "testHarnessCommit": "baff4cf7ac523d0bfae923f2223a3d092a1c4dfd",
   "mainReconciled": "8aed86bc06612527dc0fdbcbc53472afc7ace553",
   "parallelRemoteReconciled": "fa52ded4b3699c1885f29e5acbf5fe61df726050",
   "scopeSinceSourceCertification": [
+    "src/app/api/editorial/growth/settings/route.ts",
     "tests/e2e/helpers/pinnedContext.ts",
     "tests/e2e/upgrade-discovery.spec.ts",
     "tests/e2e/upgrade-final-integration.spec.ts",
     "tests/e2e/upgrade-growth-analytics.spec.ts",
-    "tests/e2e/upgrade-rich-content.spec.ts"
+    "tests/e2e/upgrade-rich-content.spec.ts",
+    "tests/unit/growth-settings-audit.test.ts"
   ],
   "unit": {
-    "files": 95,
-    "passed": 938
+    "files": 96,
+    "passed": 941
   },
   "integration": {
     "files": 35,
@@ -20,7 +22,7 @@
     "revisionConcurrencyCasesIncluded": 25
   },
   "aggregate": {
-    "passed": 1481,
+    "passed": 1484,
     "failed": 0,
     "expectedFailures": 0,
     "skipped": 0,
@@ -64,21 +66,21 @@
       }
     },
     "upgrade": {
-      "commit": "f1552baecee663e2fd8a10f6288352e4be929f4d",
-      "artifact": ".next-e2e-identity-proof/test-results/next-e2e-3236-73410/selected/results.json",
+      "commit": "baff4cf7ac523d0bfae923f2223a3d092a1c4dfd",
+      "artifact": ".next-e2e-identity-proof/test-results/next-e2e-3237-76041/selected/results.json",
       "stats": {
-        "startTime": "2026-10-07T23:26:20.387Z",
-        "duration": 66596.532,
-        "expected": 35,
+        "startTime": "2026-10-07T23:43:34.720Z",
+        "duration": 67165.49100000001,
+        "expected": 36,
         "skipped": 0,
         "unexpected": 0,
         "flaky": 0
       },
-      "additionalReproduction": "Guarded local setup incremented all six seeded account testing revisions before authentication; no reset or guard weakening."
+      "additionalReproduction": "All six owned seeded testing revisions advanced before authentication; real Growth success and Writer denial audit checked against PostgreSQL."
     }
   },
-  "combinedBrowserPasses": 701,
-  "browserCounting": "Combined passing phases including repeated authentication setup cases. Earlier full invocation did not exit successfully; upgrade identity harness failures were reproduced and repaired.",
+  "combinedBrowserPasses": 702,
+  "browserCounting": "Combined local passing phases with explicit source boundaries, including repeated auth setup. After the last narrow audit wrapper change: all 1484 Vitest tests and all 36 upgrade checks rerun. Earlier 666 browser checks are retained scoped evidence, not represented as freshly rerun. Full hosted jobs must certify exact final head.",
   "checks": {
     "typecheck": "passed after test-only repair",
     "lint": "passed after test-only repair",
@@ -99,10 +101,16 @@
       "databaseAbsent": true,
       "ownedServicesWaited": true,
       "productionServicesUsed": false
+    },
+    "test-results/next-e2e-3237-76041": {
+      "database": "consilium_audit_next_e2e_3237_76041",
+      "databaseAbsent": true,
+      "ownedServicesWaited": true,
+      "productionServicesUsed": false
     }
   },
   "sourceTrees": {
-    "src": "a89b360bab4ac09c3f429a9a5801440fbdd77cd6",
+    "src": "bb8cb921fbd8020f3dfa2501e408d114d8db5533",
     "prisma": "5c578cbf9187afc32749283c421f4198775fb59c",
     "supabase": "741d77e6a842a0ee8d6b516eadb5142d433688d5",
     "scripts": "195645e4921b5960febd471796794b230cb02325",
@@ -111,5 +119,24 @@
     "package-lock.json": "97fc2bcfe16019aed247b53128020e97fd5c9ac3",
     "playwright.config.ts": "215f6ccd402294bd6ae54feb161de00bba53d8b6",
     "vitest.config.ts": "f1b2e641c74a9e7f403d5617b8de63237d55e0c9"
+  },
+  "lastApplicationRepair": {
+    "commit": "baff4cf7ac523d0bfae923f2223a3d092a1c4dfd",
+    "changes": [
+      "src/app/api/editorial/growth/settings/route.ts"
+    ],
+    "behavior": "Use inherited testing outcome audit wrapper. Production testing-disabled branch delegates directly to unchanged handler. Successful and denied simulated outcomes preserve real/effective identities without recording bodies.",
+    "reproduction": "Before repair: two audit assertions failed and ordinary request case passed. After repair: all 13 targeted publication link/audit unit cases passed. Live persona regression passed."
+  },
+  "freshAfterLastRepair": {
+    "commit": "baff4cf7ac523d0bfae923f2223a3d092a1c4dfd",
+    "vitest": "test-results/next-e2e-3237-76041/vitest.json",
+    "passed": 1484,
+    "upgradeBrowserPassed": 36,
+    "revisionCasesIncluded": 25,
+    "typecheck": "passed",
+    "lint": "passed",
+    "productionBuild": "passed",
+    "unauthenticatedSmokePassed": 8
   }
 }
