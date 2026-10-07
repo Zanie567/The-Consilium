@@ -73,7 +73,7 @@
     "react-dom": "19.2.4",
     "resend": "^6.10.0",
     "sanitize-html": "^2.17.4",
-    "sharp": "0.34.5",
+    "sharp": "0.35.5",
     "slugify": "^1.6.9",
     "swr": "^2.4.1"
   },
@@ -99,5 +99,8 @@
     "type-coverage": "^2.29.7",
     "typescript": "^5",
     "vitest": "^4.1.7"
+  },
+  "overrides": {
+    "sharp": "$sharp"
   }
 }
