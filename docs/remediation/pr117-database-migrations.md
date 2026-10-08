@@ -162,7 +162,24 @@ prefer rolling forward. To undo #117 completely, redeploy the previous productio
 | The new tables are granted to `anon`/`authenticated`/`service_role` by Supabase's default privileges; only RLS (on, no policies) keeps them closed | by design here and tested; the scheduler migration additionally revokes explicitly. Consider the same for these two tables later |
 | Rehearsal ran on Postgres 16 / macOS, production is 17 / Linux | the parts that could differ (case mapping) were checked on production directly; the rest is portable SQL |
 
-## 11. Decisions for you
+## 11. Where this fits in the whole rollout
+
+Three workstreams are in flight; their order matters. **Every merge to `main` is an automatic production deployment**, including docs-only merges (the runtime code is then identical, so it is harmless, but it is still a deploy).
+
+| Step | What | Needs your approval | Depends on | Effect |
+|---|---|---|---|---|
+| R0 | Merge #121 (test-only) and this PR (docs and tests only), once their checks pass | yes (merge) | nothing | none at runtime |
+| **R1** | **This plan:** backup, preflight, apply the four migrations (optionally `article_comments`) | **yes** | R0 not required | **restores sign-ups, tagged saves, image uploads, analytics; stops the daily cron errors** |
+| R2 | Merge #120 (publish-only secret, monitor) after its CI | yes (merge) | nothing in the database; do R1 first so nothing else is broken when the new monitor starts | production deploy; **the hourly health workflow starts automatically**; GitHub keeps publishing |
+| R3 | Scheduler Phase A: apply the cron infrastructure migration, create `publish_cron_secret` in Vault and `PUBLISH_CRON_SECRET` in Vercel, redeploy, one supervised guarded invocation | yes | R2 deployed (the route must accept the new secret) | Supabase can call the endpoint; nothing is scheduled |
+| R4 | Scheduler Phase B: apply the enable migration, watch 3 clean runs, then `gh workflow disable publish-scheduled.yml` | yes | R3 | Supabase becomes the publisher |
+| R5 | A week later: a PR removing the `schedule:` block from `publish-scheduled.yml` | yes (merge) | R4 stable | permanent retirement of the GitHub schedule |
+
+Why R1 first: it repairs live, user-facing failures and has no dependency on the scheduler work. Keeping it in its own window also keeps database changes and code deployments from overlapping, so any problem has one obvious cause.
+Why R2 after R1: the health check reads only `articles` and `audit_logs`, so it works either way, but it is cleaner to start a new monitor on a healthy system.
+`article_comments` is independent of everything else and can be applied with R1 or left out.
+
+## 12. Decisions for you
 
 1. Approve the procedure in section 7 (and say when).
 2. Include `article_comments` (step 4) in the same window, or leave it? It restores a feature that appears never to have worked in production.
