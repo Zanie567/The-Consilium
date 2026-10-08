@@ -156,3 +156,37 @@ describe('Supabase Cron migrations: least privilege', () => {
     expect(body).not.toMatch(/DROP\s+TABLE|TRUNCATE|ALTER\s+TABLE\s+public\.(users|articles|team_members)/i)
   })
 })
+
+describe('the runbook keeps the warnings an operator must not miss', () => {
+  const flat = docs.replace(/^>\s?/gm, '').replace(/\s+/g, ' ') // blockquote markers removed so wrapped lines compare as prose
+  const workflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'scheduler-health.yml'), 'utf8').replace(/\s+/g, ' ').replace(/# ?/g, '')
+
+  it('says merging activates the hourly health workflow automatically', () => {
+    expect(flat).toContain('The hourly GitHub `Scheduler Health Check` workflow becomes active the moment the PR is merged')
+    expect(flat).toContain('GitHub runs `schedule:` triggers only from the default branch')
+    expect(flat).toContain('**Merging is not inert.**')
+    expect(workflow).toContain('starts automatically when it is merged to main')
+  })
+
+  it('says what merging does NOT do', () => {
+    expect(flat).toContain('Supabase Cron publishes anything | **no**')
+    expect(flat).toContain('A secret is created, changed or rotated | **no**')
+  })
+
+  it('says the failure email depends on the GitHub account settings and who receives it', () => {
+    expect(flat).toContain('depends on your GitHub account settings')
+    expect(flat).toContain('Settings > Notifications > Actions')
+    expect(flat).toContain('the user who last modified the cron syntax')
+    expect(workflow).toContain('Settings > Notifications > Actions')
+  })
+
+  it('says HTTP-level failures bypass the application de-duplication', () => {
+    expect(flat).toContain('HTTP-level failures are NOT de-duplicated')
+    expect(flat).toContain('every hourly run fails and can email you')
+    expect(workflow).toContain('HTTP-level failures are NOT de-duplicated')
+  })
+
+  it('says scheduled workflows are disabled after 60 days of inactivity in a public repository', () => {
+    expect(flat).toContain('automatically disabled after 60 days without repository activity')
+  })
+})

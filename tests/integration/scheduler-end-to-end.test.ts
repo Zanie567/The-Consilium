@@ -108,6 +108,7 @@ create function cron.schedule(n text, s text, c text) returns bigint language sq
 `
 
 let pg: Client
+const createdRoles: string[] = []
 let db: PrismaClient
 let POST: (req: Request) => Promise<Response>
 let HEALTH: (req: Request) => Promise<Response>
@@ -228,7 +229,10 @@ suite('scheduler end to end (real migration SQL, real route, real database)', ()
              drop function if exists public.invoke_publish_scheduled();
              drop function if exists public.reconcile_scheduler_invocations();`)
     for (const role of ['anon', 'authenticated', 'service_role']) {
-      if (!(await q(`select 1 from pg_roles where rolname = '${role}'`)).rowCount) await q(`create role ${role} nologin`)
+      if (!(await q(`select 1 from pg_roles where rolname = '${role}'`)).rowCount) {
+        await q(`create role ${role} nologin`)
+        createdRoles.push(role) // roles are cluster-wide: drop only what this suite created, so it leaves no trace
+      }
     }
     await q(STAND_INS)
     await q(withoutExtensions(INFRA))
@@ -267,6 +271,7 @@ suite('scheduler end to end (real migration SQL, real route, real database)', ()
                drop table if exists public.scheduler_invocations cascade;
                drop function if exists public.invoke_publish_scheduled();
                drop function if exists public.reconcile_scheduler_invocations();`)
+      for (const role of createdRoles) await q(`drop role if exists ${role}`).catch(() => {})
     } finally {
       await pg.end()
     }

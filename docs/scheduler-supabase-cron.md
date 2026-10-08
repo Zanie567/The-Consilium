@@ -7,6 +7,31 @@ The proposed trigger is **Supabase Cron (`pg_cron`) + `pg_net`** every 5 minutes
 > the activation steps below are completed, **GitHub Actions (`publish-scheduled.yml`) remains the only
 > publisher.** The purge of expired trash is a separate job (`purge-trash.yml`) and is not touched by any step here.
 
+## What merging the pull request does, and does not do
+
+**Merging is not inert.** One thing starts by itself, with no further step from you:
+
+> **The hourly GitHub `Scheduler Health Check` workflow becomes active the moment the PR is merged.** GitHub runs `schedule:` triggers only
+> from the default branch, so the new `.github/workflows/scheduler-health.yml` takes effect as soon as it lands on `main`. Expect its first run
+> within the hour, then every hour (24 a day) until it is disabled. It can send you a failure email on its first run (see "Alert delivery"
+> below). It cannot be staged separately from the merge.
+
+| When the PR is merged to `main` | |
+|---|---|
+| Vercel deploys the new code to production | **yes, automatically** (every merge to `main` is a production deployment) |
+| `/api/publish-scheduled` accepts the new `PUBLISH_CRON_SECRET` as well as `CRON_SECRET` | yes. Until that variable exists in Vercel, only `CRON_SECRET` works, exactly as today |
+| `/api/cron/scheduler-health` goes live | **yes** (read-only apart from one small `audit_logs` row when it alerts or recovers) |
+| The hourly health workflow starts | **yes, automatically** |
+| GitHub keeps publishing articles with `CRON_SECRET` | **yes, unchanged**; `publish-scheduled.yml` is not modified |
+| Any Supabase change (migrations, extensions, Vault, cron jobs) | **no** |
+| Supabase Cron publishes anything | **no**: it does not exist yet; nothing is scheduled |
+| A secret is created, changed or rotated | **no** |
+| `purge-trash.yml` or any other workflow changes | **no** |
+| The migration files in `supabase/migrations/` are applied | **no**: they are files only; they run when you run them |
+
+To merge without the health workflow starting, either remove `.github/workflows/scheduler-health.yml` from the PR first, or merge and then immediately
+run `gh workflow disable scheduler-health.yml --repo Zanie567/The-Consilium` (undo with `gh workflow enable`). A run may already have been queued by then.
+
 ```
 pg_cron (inside Supabase Postgres)
   -> public.invoke_publish_scheduled()        reads Vault secret `publish_cron_secret`
@@ -93,6 +118,31 @@ working if Supabase Cron has died**. It only ever reads (plus one small audit ro
 - **recovery** is recorded once and the run passes.
 A long outage is therefore one email plus a daily reminder, not 24 a day. A non-200 answer (the site or database itself is
 down) fails every run, like the other cron workflows. An unreadable answer also fails: the check fails closed.
+
+### Alert delivery: what you must configure, and what de-duplication does not cover
+
+**1. The email is GitHub's, and it depends on your GitHub account settings, not on anything in this repository.** The workflow only *fails*; whether a
+failure reaches you is decided by notification preferences that cannot be set or checked from code:
+- In GitHub: *Settings > Notifications > Actions* (a personal setting). Email must be ticked, and "Send notifications for failed workflows only" is the right choice here
+  (otherwise you also get an email for every successful hourly run).
+- **Who is notified.** GitHub's documentation says two things about scheduled workflows: that notifications go to "the user who initially created the workflow", and, on its
+  workflow-triggers page, that they go to "the user who last modified the cron syntax in the workflow file". Treat it as: the account that authored `scheduler-health.yml`, and
+  whoever last changes its `cron:` line. If a different account edits the schedule later, the emails move to that account. If the workflow is disabled and re-enabled, they go to whoever re-enabled it.
+- **Verify before you rely on it.** This cannot be confirmed automatically. After merging, check your *Settings > Notifications*, and confirm you have received a GitHub
+  "Run failed" email for any earlier failed workflow run. If you have never received one, fix the setting first: until it is right, a failing watchdog is silent.
+- GitHub also shows failed runs in the Actions tab and on the repository page, which does not depend on email.
+
+**2. HTTP-level failures are NOT de-duplicated.** The one-email-per-problem logic lives inside the application, in the endpoint's *answer*. If the endpoint cannot answer at all, there is no answer to de-duplicate:
+- a non-200 response (the site is down, the deployment is broken, Vercel returns 5xx, a 401 from a wrong `CRON_SECRET`, the database is unreachable and the check returns 500) fails the first step, so **every hourly run fails and can email you**, up to 24 a day for as long as it lasts;
+- a timeout or a network failure to the site does the same;
+- an unreadable answer (empty, HTML, JSON without `alert`) fails closed on purpose and also repeats every hour.
+This is deliberate: an outage of the site is serious, and GitHub's other cron workflows in this repository behave the same way (each failing run emails). If the volume ever becomes a problem during a long outage,
+disable the workflow for the duration (`gh workflow disable scheduler-health.yml`). Only the application-detected problems (overdue articles, stopped or failing scheduler, repeated warnings) are de-duplicated.
+
+**3. GitHub's scheduler limits apply to the watchdog itself.** `schedule:` runs only from the default branch, can be delayed under load (the start of every hour is the busiest time, which is why this runs at minute 23),
+queued runs can be dropped under high load, and **in a public repository scheduled workflows are automatically disabled after 60 days without repository activity** (a plausible, unverified explanation for `publish-scheduled.yml` sitting
+dead from May to October). The watchdog is therefore best-effort. Supabase Cron is not subject to the 60-day rule, which is one more reason to move publishing there, but it also means the watchdog is the weaker half of the pair.
+Check the Actions tab after any quiet period.
 
 **What it logs.** The repository is public, so the Actions log is public. The response carries counts and ages only:
 never an article title, id, URL, response body or secret. The step-by-step logic is tested by running the workflow's real shell step.

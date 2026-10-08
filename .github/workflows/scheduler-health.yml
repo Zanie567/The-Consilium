@@ -12,7 +12,14 @@
 #   - the scheduler records cannot be read                                (monitoring_blind)
 # The endpoint de-duplicates: one alert per NEW set of problems and a reminder every 24 hours while
 # they persist, not one per run. A healthy run, and a repeat of a problem already alerted, pass.
-# A non-200 answer (site or database down) fails every run, as the other cron workflows do.
+# A non-200 answer (site or database down) fails every run, as the other cron workflows do: the
+# de-duplication lives in the endpoint's answer, so HTTP-level failures are NOT de-duplicated and can
+# email every hour for as long as they last.
+#
+# IMPORTANT: this workflow starts automatically when it is merged to main (GitHub only runs `schedule:`
+# from the default branch). The failure EMAIL is GitHub's, not ours: it needs email enabled under
+# Settings > Notifications > Actions for the account that authored this workflow or last edited the cron
+# line. See docs/scheduler-supabase-cron.md, "Alert delivery".
 #
 # Cost: 24 runs a day, a few seconds each. Free on a public repository.
 # Limitation: GitHub's `schedule:` is best-effort (observed hours late on this repo), so a problem can
