@@ -189,3 +189,29 @@ describe('purge-trash route: failures are visible to the scheduler', () => {
     expect(console.error).toHaveBeenCalled()
   })
 })
+
+describe('the dedicated publishing secret cannot purge', () => {
+  const PUBLISH_ONLY = 'publish-only-secret-0123456789-abcdefghijklmnopqrstuvwxyz'
+  let saved: string | undefined
+  beforeEach(() => {
+    saved = process.env.PUBLISH_CRON_SECRET
+    process.env.PUBLISH_CRON_SECRET = PUBLISH_ONLY
+  })
+  afterEach(() => {
+    if (saved === undefined) delete process.env.PUBLISH_CRON_SECRET
+    else process.env.PUBLISH_CRON_SECRET = saved
+  })
+
+  it.each([
+    ['Bearer', { authorization: `Bearer ${PUBLISH_ONLY}` }],
+    ['x-cron-secret', { 'x-cron-secret': PUBLISH_ONLY }],
+  ])('POST with the publish-only secret as %s is refused (401) and deletes nothing', async (_label, headers) => {
+    const res = await route.POST(new Request(URL_BASE, { method: 'POST', headers }))
+    expect(res.status).toBe(401)
+    expect(purgeMock).not.toHaveBeenCalled()
+  })
+
+  it('the route has no other entry point that could be reached with it', () => {
+    expect(Object.keys(route).filter((k) => /^(GET|POST|PUT|PATCH|DELETE)$/.test(k))).toEqual(['POST'])
+  })
+})

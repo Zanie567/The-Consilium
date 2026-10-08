@@ -58,7 +58,10 @@ const INFRA = readFileSync(join(MIGRATIONS, '20261007120000_scheduler_cron_infra
 const withoutExtensions = (sql: string) =>
   sql.split('\n').filter((l) => !l.startsWith('CREATE EXTENSION IF NOT EXISTS')).join('\n')
 
+// The dedicated publish-only secret: what Vault holds and Vercel's PUBLISH_CRON_SECRET equals.
 const VAULT_SECRET = 'vault-secret-0123456789-abcdefghijklmnop-not-real'
+// The shared secret GitHub Actions uses. It must never appear in the database.
+const SHARED_SECRET = 'shared-cron-secret-0123456789-abcdefghijklmnop-not-real'
 const CANONICAL_URL = 'https://www.theconsilium.co.uk/api/publish-scheduled'
 
 // Stand-ins. net.http_post RECORDS the request instead of sending it, so the test can replay
@@ -92,7 +95,7 @@ create table net._http_response (
 );
 
 create schema cron;
-create table cron.job (jobid bigserial primary key, jobname text unique, schedule text, command text);
+create table cron.job (jobid bigserial primary key, jobname text unique, schedule text, command text, active boolean not null default true);
 create table cron.job_run_details (
   runid bigserial primary key, jobid bigint, status text, return_message text,
   start_time timestamptz, end_time timestamptz
@@ -107,6 +110,8 @@ create function cron.schedule(n text, s text, c text) returns bigint language sq
 let pg: Client
 let db: PrismaClient
 let POST: (req: Request) => Promise<Response>
+let HEALTH: (req: Request) => Promise<Response>
+let runHealthCheck: typeof import('@/lib/schedulerHealth').runHealthCheck
 let publishScheduledArticles: typeof import('@/lib/scheduledPublishing').publishScheduledArticles
 const sendEmail = vi.fn<(m: { to: string; subject: string; html: string }) => Promise<boolean>>()
 const revalidate = vi.fn()
@@ -119,6 +124,7 @@ let authorId = ''
 let n = 0
 const MIN = 60_000
 const ago = (ms: number) => new Date(Date.now() - ms)
+const inMinutes = (m: number) => new Date(Date.now() + m * MIN)
 
 async function article(status: string, extra: Record<string, unknown> = {}) {
   n += 1
@@ -192,6 +198,12 @@ suite('scheduler end to end (real migration SQL, real route, real database)', ()
     assertSafeTestDatabaseHost(TEST_DB!, 'TEST_DATABASE_URL')
     pg = new Client({ connectionString: TEST_DB })
     await pg.connect()
+    // Run every session of THIS test database in Europe/London (UTC+1 until 25 Oct), whatever the machine's
+    // default is. Production sessions are UTC; a non-UTC session is the hard case, and it has already caught
+    // a real bug (timestamptz read through Prisma raw queries is shifted by the session offset). Set before
+    // Prisma opens its first connection, so both clients see it.
+    await pg.query(`alter database "${DB_NAME}" set timezone to 'Europe/London'`)
+    await pg.query(`set time zone 'Europe/London'`)
     db = new PrismaClient({ adapter: new PrismaPg({ connectionString: TEST_DB! }) }) as unknown as PrismaClient
 
     vi.doMock('@/lib/prisma', () => ({ prisma: db }))
@@ -201,6 +213,8 @@ suite('scheduler end to end (real migration SQL, real route, real database)', ()
     }))
     vi.doMock('@/lib/revalidateArticles', () => ({ revalidateArticleLists: revalidate }))
     ;({ POST } = await import('@/app/api/publish-scheduled/route'))
+    ;({ POST: HEALTH } = await import('@/app/api/cron/scheduler-health/route'))
+    ;({ runHealthCheck } = await import('@/lib/schedulerHealth'))
     ;({ publishScheduledArticles } = await import('@/lib/scheduledPublishing'))
 
     for (const level of ['log', 'warn', 'error', 'info'] as const) {
@@ -218,20 +232,24 @@ suite('scheduler end to end (real migration SQL, real route, real database)', ()
     }
     await q(STAND_INS)
     await q(withoutExtensions(INFRA))
-    await q(`insert into vault.secrets (name, secret) values ('cron_secret', '${VAULT_SECRET}')`)
+    await q(`insert into vault.secrets (name, secret) values ('publish_cron_secret', '${VAULT_SECRET}')`)
 
     const author = await db.user.create({ data: { email: `${tag}-author@example.test`, name: 'E2E Author', role: 'WRITER' } })
     authorId = author.id
   })
 
   beforeEach(async () => {
-    process.env.CRON_SECRET = VAULT_SECRET
+    process.env.PUBLISH_CRON_SECRET = VAULT_SECRET
+    process.env.CRON_SECRET = SHARED_SECRET
     logged = []
     sendEmail.mockReset().mockResolvedValue(true)
     revalidate.mockReset()
     await q(`update net.stub_mode set mode = 'ok'`)
-    await q(`update vault.secrets set secret = '${VAULT_SECRET}' where name = 'cron_secret'`)
+    await q(`update vault.secrets set secret = '${VAULT_SECRET}' where name = 'publish_cron_secret'`)
     await q('delete from public.scheduler_invocations')
+    await q('delete from net.calls')
+    await q(`delete from cron.job where jobname = 'publish-scheduled'`)
+    await db.auditLog.deleteMany({ where: { action: { startsWith: 'scheduler_health.' } } })
     await db.writerAchievement.deleteMany({})
     await db.notification.deleteMany({})
     await db.article.deleteMany({})
@@ -239,6 +257,7 @@ suite('scheduler end to end (real migration SQL, real route, real database)', ()
 
   afterAll(async () => {
     try {
+      await db.auditLog.deleteMany({ where: { action: { startsWith: 'scheduler_health.' } } })
       await db.writerAchievement.deleteMany({})
       await db.notification.deleteMany({})
       await db.article.deleteMany({})
@@ -265,9 +284,29 @@ suite('scheduler end to end (real migration SQL, real route, real database)', ()
       expect(row).toMatchObject({ outcome: 'success', status_code: 200, articles_due: 0, articles_published: 0, warning_count: 0 })
     })
 
-    it('a Vault secret that differs from CRON_SECRET is rejected: auth_failure, nothing published', async () => {
+    it('the Vault secret is NOT the shared CRON_SECRET, and GitHub (shared secret) can still publish through the same route', async () => {
+      expect(VAULT_SECRET).not.toBe(SHARED_SECRET)
+      const a = await article('SCHEDULED', { scheduledAt: ago(MIN) })
+      const asGitHub = await POST(new Request(CANONICAL_URL, { method: 'POST', headers: { authorization: `Bearer ${SHARED_SECRET}` } }))
+      expect(asGitHub.status).toBe(200)
+      expect((await state(a.id)).status).toBe('PUBLISHED')
+    })
+
+    it('the transition needs no rotation: with PUBLISH_CRON_SECRET not yet set, GitHub still publishes and Supabase is cleanly refused', async () => {
+      delete process.env.PUBLISH_CRON_SECRET
+      const a = await article('SCHEDULED', { scheduledAt: ago(MIN) })
+      const supabase = await tick()
+      expect(supabase.status).toBe(401)
+      expect(supabase.row.outcome).toBe('auth_failure')
+      expect((await state(a.id)).status).toBe('SCHEDULED')
+      const asGitHub = await POST(new Request(CANONICAL_URL, { method: 'POST', headers: { authorization: `Bearer ${SHARED_SECRET}` } }))
+      expect(asGitHub.status).toBe(200)
+      expect((await state(a.id)).status).toBe('PUBLISHED')
+    })
+
+    it('a Vault secret that differs from PUBLISH_CRON_SECRET is rejected: auth_failure, nothing published', async () => {
       const a = await article('SCHEDULED', { scheduledAt: ago(5 * MIN) })
-      await q(`update vault.secrets set secret = 'some-other-secret-value' where name = 'cron_secret'`)
+      await q(`update vault.secrets set secret = 'some-other-secret-value' where name = 'publish_cron_secret'`)
       const { status, row } = await tick()
       expect(status).toBe(401)
       expect(row).toMatchObject({ outcome: 'auth_failure', status_code: 401 })
@@ -285,9 +324,10 @@ suite('scheduler end to end (real migration SQL, real route, real database)', ()
       expect((await state(a.id)).status).toBe('SCHEDULED')
     })
 
-    it('a server without CRON_SECRET fails closed (500), never publishing', async () => {
+    it('a server with no usable secret at all fails closed (500), never publishing', async () => {
       const a = await article('SCHEDULED', { scheduledAt: ago(5 * MIN) })
       delete process.env.CRON_SECRET
+      delete process.env.PUBLISH_CRON_SECRET
       const { status, row } = await tick()
       expect(status).toBe(500)
       expect(row).toMatchObject({ outcome: 'http_error', status_code: 500 })
@@ -484,24 +524,271 @@ suite('scheduler end to end (real migration SQL, real route, real database)', ()
     })
   })
 
+  // ── the supervised controlled invocation (runbook step A4) ────────────────────────────────────
+  describe('the guarded controlled invocation, exactly as the runbook gives it', () => {
+    const DOCS = readFileSync(join(process.cwd(), 'docs', 'scheduler-supabase-cron.md'), 'utf8')
+    // The statement under test IS the documented one: the fenced block after the marker comment.
+    const GUARDED = /<!-- guarded-invocation -->\s*```sql\n([\s\S]*?)```/.exec(DOCS)?.[1]
+    const guarded = async () =>
+      one<{ due_within_10_min: number; request_id: string | null }>(GUARDED!.replace(/;\s*$/, ''))
+    const calls = async () => Number((await one<{ n: string }>('select count(*) n from net.calls')).n)
+    const logRows = async () => Number((await one<{ n: string }>('select count(*) n from public.scheduler_invocations')).n)
+
+    it('the runbook contains the statement', () => {
+      expect(GUARDED).toBeTruthy()
+      expect(GUARDED).toContain('invoke_publish_scheduled()')
+      expect(GUARDED).not.toMatch(/vault\.decrypted_secrets/)
+    })
+
+    it('with nothing due or due soon, it sends exactly one request', async () => {
+      await article('SCHEDULED', { scheduledAt: inMinutes(30) })
+      const r = await guarded()
+      expect(r.due_within_10_min).toBe(0)
+      expect(r.request_id).not.toBeNull()
+      expect(await calls()).toBe(1)
+    })
+
+    it.each([
+      ['already overdue', -5],
+      ['due in 1 minute', 1],
+      ['due in 9 minutes', 9],
+    ])('REFUSES to send when an article is %s: no request, no log row, nothing published', async (_label, offset) => {
+      const a = await article('SCHEDULED', { scheduledAt: inMinutes(offset) })
+      const r = await guarded()
+      expect(r.due_within_10_min).toBe(1)
+      expect(r.request_id).toBeNull()
+      expect(await calls()).toBe(0)
+      expect(await logRows()).toBe(0)
+      expect((await state(a.id)).status).toBe('SCHEDULED')
+    })
+
+    it('ignores articles that cannot be published anyway (trashed, draft, already published)', async () => {
+      await article('SCHEDULED', { scheduledAt: inMinutes(-5), deletedAt: new Date() })
+      await article('DRAFT', { scheduledAt: inMinutes(-5) })
+      await article('PUBLISHED', { scheduledAt: inMinutes(-5), publishedAt: new Date() })
+      const r = await guarded()
+      expect(r.due_within_10_min).toBe(0)
+      expect(r.request_id).not.toBeNull()
+    })
+
+    it('compares in UTC whatever the session time zone is (the test database runs Europe/London, +1h in October)', async () => {
+      expect((await one<{ tz: string }>(`select current_setting('TimeZone') as tz`)).tz).toBe('Europe/London')
+      await article('SCHEDULED', { scheduledAt: inMinutes(30) }) // 30 minutes ahead, in UTC
+      const r = await guarded()
+      expect(r.due_within_10_min).toBe(0) // a naive now() comparison would see it as 30 minutes overdue
+      expect(r.request_id).not.toBeNull()
+    })
+
+    it('what it sends is accepted by the real route and, with nothing due, publishes nothing', async () => {
+      const future = await article('SCHEDULED', { scheduledAt: inMinutes(30) })
+      const { rid, row } = await (async () => {
+        const g = await guarded()
+        const call = await one<{ url: string; headers: Record<string, string>; body: unknown }>(`select url, headers, body from net.calls where id = ${g.request_id}`)
+        const res = await POST(new Request(call.url, { method: 'POST', headers: call.headers, body: JSON.stringify(call.body) }))
+        await q('insert into net._http_response (id, status_code, content) values ($1, $2, $3)', [g.request_id, res.status, await res.text()])
+        await q('select public.reconcile_scheduler_invocations()')
+        return { rid: g.request_id, row: await lastRow() }
+      })()
+      expect(rid).not.toBeNull()
+      expect(row).toMatchObject({ outcome: 'success', articles_due: 0, articles_published: 0 })
+      expect((await state(future.id)).status).toBe('SCHEDULED')
+      expect(sendEmail).not.toHaveBeenCalled()
+    })
+  })
+
+  // ── independent monitoring ────────────────────────────────────────────────────────────────────
+  describe('the independent health check', () => {
+    const health = (secret = SHARED_SECRET, method = 'POST') =>
+      HEALTH(new Request('https://www.theconsilium.co.uk/api/cron/scheduler-health', { method, headers: { authorization: `Bearer ${secret}` } }))
+    const stateRows = async () => db.auditLog.findMany({ where: { action: { startsWith: 'scheduler_health.' } }, orderBy: { createdAt: 'asc' } })
+    const publisherJob = (active = true) =>
+      q(`insert into cron.job (jobname, schedule, command, active) values ('publish-scheduled', '*/5 * * * *', 'select public.invoke_publish_scheduled()', ${active}) on conflict (jobname) do update set active = ${active}`)
+    const ageStateRows = (hours: number) =>
+      // "createdAt" is a timestamp WITHOUT time zone holding UTC, so write the UTC wall clock, not the session's.
+      q(`update audit_logs set "createdAt" = (now() at time zone 'utc') - interval '${hours} hours' where action like 'scheduler_health.%'`)
+
+    it('is healthy with nothing wrong, and writes nothing', async () => {
+      await article('SCHEDULED', { scheduledAt: inMinutes(60) })
+      const report = await runHealthCheck(db)
+      expect(report).toMatchObject({ ok: true, alert: false, recovered: false, problems: [] })
+      expect(report.supabase.state).toBe('not_scheduled')
+      expect(await stateRows()).toHaveLength(0)
+    })
+
+    it('flags an overdue article once, with counts and ages only, and never publishes it', async () => {
+      const a = await article('SCHEDULED', { scheduledAt: ago(40 * MIN) })
+      const res = await health()
+      expect(res.status).toBe(200)
+      const text = await res.text()
+      expect(JSON.parse(text)).toMatchObject({ ok: false, alert: true, alertReason: 'new', overdue: { count: 1 } })
+      expect(JSON.parse(text).problems).toEqual([{ key: 'articles_overdue', detail: '1 scheduled article is overdue; the oldest by 40 minutes' }])
+      // the response is printed in a public repository's logs
+      const full = await db.article.findUniqueOrThrow({ where: { id: a.id } })
+      for (const secret of [full.title, full.id, full.slug, authorId, SHARED_SECRET, VAULT_SECRET]) expect(text).not.toContain(secret)
+      expect(await stateRows()).toHaveLength(1)
+      // a monitor must never act: the article is still waiting, nothing was sent
+      expect((await state(a.id)).status).toBe('SCHEDULED')
+      expect(sendEmail).not.toHaveBeenCalled()
+    })
+
+    it('does not count an article inside the grace period, trashed, or not scheduled', async () => {
+      await article('SCHEDULED', { scheduledAt: ago(10 * MIN) }) // late, but within 15 minutes
+      await article('SCHEDULED', { scheduledAt: ago(40 * MIN), deletedAt: new Date() })
+      await article('DRAFT', { scheduledAt: ago(40 * MIN) })
+      expect((await runHealthCheck(db)).problems).toEqual([])
+    })
+
+    it('sends ONE alert for a persisting problem, not one per run', async () => {
+      await article('SCHEDULED', { scheduledAt: ago(40 * MIN) })
+      const runs = [await runHealthCheck(db), await runHealthCheck(db), await runHealthCheck(db)]
+      expect(runs.map((r) => r.alert)).toEqual([true, false, false])
+      expect(runs.every((r) => r.ok === false)).toBe(true)
+      expect(await stateRows()).toHaveLength(1)
+    })
+
+    it('alerts again when the set of problems CHANGES, and again as a reminder after 24 hours', async () => {
+      await article('SCHEDULED', { scheduledAt: ago(40 * MIN) })
+      expect((await runHealthCheck(db)).alert).toBe(true)
+      expect((await runHealthCheck(db)).alert).toBe(false)
+
+      await publisherJob() // a second, different problem appears: an active job with no calls
+      const changed = await runHealthCheck(db)
+      expect(changed).toMatchObject({ alert: true, alertReason: 'changed' })
+      expect(changed.problems.map((p) => p.key)).toEqual(['articles_overdue', 'scheduler_stopped'])
+      expect((await runHealthCheck(db)).alert).toBe(false)
+
+      await ageStateRows(23)
+      expect((await runHealthCheck(db)).alert).toBe(false) // 23 h: still quiet
+      await ageStateRows(25)
+      expect(await runHealthCheck(db)).toMatchObject({ alert: true, alertReason: 'reminder' })
+    })
+
+    it('records a recovery once, then stays quiet, and a later problem alerts as new', async () => {
+      const a = await article('SCHEDULED', { scheduledAt: ago(40 * MIN) })
+      expect((await runHealthCheck(db)).alert).toBe(true)
+      await db.article.update({ where: { id: a.id }, data: { status: 'PUBLISHED', publishedAt: new Date(), scheduledAt: null } })
+      expect(await runHealthCheck(db)).toMatchObject({ ok: true, alert: false, recovered: true })
+      expect(await runHealthCheck(db)).toMatchObject({ ok: true, alert: false, recovered: false })
+      expect((await stateRows()).map((r) => r.action)).toEqual(['scheduler_health.alert', 'scheduler_health.recovered'])
+
+      await article('SCHEDULED', { scheduledAt: ago(40 * MIN) })
+      expect(await runHealthCheck(db)).toMatchObject({ alert: true, alertReason: 'new' })
+    })
+
+    it('flags a Supabase publisher job that has stopped calling, and stays silent when the job is switched off (a rollback)', async () => {
+      await publisherJob()
+      await tick() // a healthy run now
+      expect((await runHealthCheck(db)).problems).toEqual([])
+
+      await q(`update public.scheduler_invocations set invoked_at = now() - interval '20 minutes'`)
+      expect((await runHealthCheck(db)).problems.map((p) => p.key)).toEqual(['scheduler_stopped'])
+
+      await ageStateRows(0)
+      await publisherJob(false) // rollback: deactivated, not removed
+      const rolledBack = await runHealthCheck(db)
+      expect(rolledBack.supabase.state).toBe('job_inactive')
+      expect(rolledBack.problems).toEqual([])
+    })
+
+    it('flags failed or missing HTTP requests only after a streak, never for a single blip', async () => {
+      await publisherJob()
+      await tick(); await tick()
+      await tick('timeout')
+      await tick({ status: 500, body: 'x' })
+      expect((await runHealthCheck(db)).problems).toEqual([]) // two failures: a blip
+
+      await tick('network')
+      const report = await runHealthCheck(db)
+      expect(report.problems).toEqual([{ key: 'requests_failing', detail: 'the last 3 scheduler calls all failed (latest: network_error)' }])
+      expect(JSON.stringify(report)).not.toContain('Couldn')
+    })
+
+    it('flags repeated non-fatal warnings across runs, but not a single one', async () => {
+      await publisherJob()
+      sendEmail.mockRejectedValue(new Error('Resend: 429'))
+      await article('SCHEDULED', { scheduledAt: ago(MIN) })
+      expect((await tick()).row.warning_count).toBe(1)
+      expect((await runHealthCheck(db)).problems).toEqual([])
+      await article('SCHEDULED', { scheduledAt: ago(MIN) })
+      expect((await tick()).row.warning_count).toBe(1)
+      const report = await runHealthCheck(db)
+      expect(report.problems).toEqual([{ key: 'repeated_warnings', detail: '2 publishing runs had warnings in the last 24 hours' }])
+      expect(JSON.stringify(report)).not.toContain('429')
+    })
+
+    it('reports a blind spot (and does not crash) when the scheduler records cannot be read', async () => {
+      await publisherJob()
+      await tick()
+      await q('alter table public.scheduler_invocations rename column outcome to outcome_renamed')
+      try {
+        const report = await runHealthCheck(db)
+        expect(report.problems.map((p) => p.key)).toEqual(['monitoring_blind'])
+        expect(report.supabase.state).toBe('unreadable')
+      } finally {
+        await q('alter table public.scheduler_invocations rename column outcome_renamed to outcome')
+      }
+    })
+
+    it('still catches an overdue article when Supabase Cron is not installed at all (GitHub Actions era)', async () => {
+      await article('SCHEDULED', { scheduledAt: ago(40 * MIN) })
+      await q('alter schema cron rename to cron_hidden')
+      try {
+        const report = await runHealthCheck(db)
+        expect(report.supabase.state).toBe('not_installed')
+        expect(report.problems.map((p) => p.key)).toEqual(['articles_overdue'])
+      } finally {
+        await q('alter schema cron_hidden rename to cron')
+      }
+    })
+
+    it('the endpoint takes the shared CRON_SECRET only: the publish-only secret and no credentials are refused', async () => {
+      expect((await health(SHARED_SECRET)).status).toBe(200)
+      expect((await health(SHARED_SECRET, 'GET')).status).toBe(200)
+      expect((await health(VAULT_SECRET)).status).toBe(401)
+      expect((await HEALTH(new Request('https://www.theconsilium.co.uk/api/cron/scheduler-health', { method: 'POST' }))).status).toBe(401)
+    })
+
+    it('a failure inside the check is a fixed 500 message that leaks nothing from the database error', async () => {
+      const spy = vi.spyOn(db.article, 'aggregate').mockRejectedValueOnce(new Error('password authentication failed for user "postgres" at db.example.supabase.co'))
+      const res = await health()
+      spy.mockRestore()
+      expect(res.status).toBe(500)
+      const text = await res.text()
+      expect(text).toBe('{"error":"scheduler health check failed; see the server logs"}')
+    })
+
+    it('an alert is still raised if the alert state cannot be saved (a lost de-duplication row costs a repeat, never a missed alert)', async () => {
+      await article('SCHEDULED', { scheduledAt: ago(40 * MIN) })
+      const spy = vi.spyOn(db.auditLog, 'create').mockRejectedValueOnce(new Error('disk full'))
+      const report = await runHealthCheck(db)
+      spy.mockRestore()
+      expect(report.alert).toBe(true)
+    })
+  })
+
   // ── secrecy ───────────────────────────────────────────────────────────────────────────────────
   describe('the secret appears nowhere it should not', () => {
     it('is absent from every response, every stored record, every log line and every cron command', async () => {
       await article('SCHEDULED', { scheduledAt: ago(MIN) })
       sendEmail.mockRejectedValueOnce(new Error('transport failure'))
       const ok = await tick()
-      await q(`update vault.secrets set secret = 'wrong-value' where name = 'cron_secret'`)
+      await q(`update vault.secrets set secret = 'wrong-value' where name = 'publish_cron_secret'`)
       const bad = await tick()
       await q(`update net.stub_mode set mode = 'raise'`)
       await tick()
 
-      expect(ok.body).not.toContain(VAULT_SECRET)
-      expect(bad.body).not.toContain(VAULT_SECRET)
       const stored = await q(`select coalesce(response_body,'') || coalesce(error,'') as t from public.scheduler_invocations`)
-      for (const r of stored.rows) expect(r.t).not.toContain(VAULT_SECRET)
-      for (const line of logged) expect(line).not.toContain(VAULT_SECRET)
-      expect((await one<{ n: string }>(`select count(*) n from cron.job where command like '%${VAULT_SECRET}%'`)).n).toBe('0')
-      expect((await one<{ n: string }>(`select count(*) n from pg_proc where prosrc like '%${VAULT_SECRET}%'`)).n).toBe('0')
+      // both the dedicated secret and the shared one: neither may surface anywhere
+      for (const secret of [VAULT_SECRET, SHARED_SECRET]) {
+        expect(ok.body).not.toContain(secret)
+        expect(bad.body).not.toContain(secret)
+        for (const r of stored.rows) expect(r.t).not.toContain(secret)
+        for (const line of logged) expect(line).not.toContain(secret)
+        expect((await one<{ n: string }>(`select count(*) n from cron.job where command like '%${secret}%'`)).n).toBe('0')
+        expect((await one<{ n: string }>(`select count(*) n from pg_proc where prosrc like '%${secret}%'`)).n).toBe('0')
+      }
+      // the database never held the shared secret: Vault has exactly one entry, the dedicated one
+      expect((await q(`select name from vault.secrets order by name`)).rows).toEqual([{ name: 'publish_cron_secret' }])
     })
   })
 })

@@ -7,25 +7,27 @@
  * .github/workflows/publish-scheduled.yml; Supabase Cron + pg_net is prepared to
  * replace it (docs/scheduler-supabase-cron.md). Either way the contract is the same.
  *
- * Authentication: `Authorization: Bearer <CRON_SECRET>` (or `x-cron-secret`), checked
- * in constant time by verifyCronAuth before anything else runs. The secret must match
- * the CRON_SECRET environment variable.
+ * Authentication: `Authorization: Bearer <secret>` (or `x-cron-secret`), checked in
+ * constant time by verifyPublishCronAuth before anything else runs. The secret must be
+ * PUBLISH_CRON_SECRET (a secret that can publish and nothing else; what Supabase Cron
+ * sends) or CRON_SECRET (what GitHub Actions sends). No other route accepts
+ * PUBLISH_CRON_SECRET, so it cannot purge trash or run any other job.
  *
  * Response (always JSON): { ranAt, due, published, articles, skipped, warnings }.
  * A 2xx answer MUST keep numeric `due` and `published`: the Supabase reconciler treats a
  * 2xx body without them as `bad_response` (the publisher did not run), so renaming
  * either field would make every run look like a failure.
  *
- * Secrets required (the same value in each place):
- *   Vercel env        CRON_SECRET
- *   GitHub Actions    CRON_SECRET, and SITE_URL = the canonical host
+ * Secrets (each pair must hold the same value):
+ *   GitHub Actions    CRON_SECRET (= Vercel CRON_SECRET), and SITE_URL = the canonical host
  *                     https://www.theconsilium.co.uk (no trailing slash)
- *   Supabase Vault    cron_secret (only once Supabase Cron is activated)
+ *   Supabase Cron     Vault `publish_cron_secret` (= Vercel PUBLISH_CRON_SECRET), only once
+ *                     Supabase Cron is activated
  */
 
 import { NextResponse } from 'next/server'
 import { publishScheduledArticles } from '@/lib/scheduledPublishing'
-import { verifyCronAuth } from '@/lib/cronAuth'
+import { verifyPublishCronAuth } from '@/lib/cronAuth'
 
 // Force dynamic so Next.js never pre-renders or caches this route.
 // Without this, Vercel's edge may serve a stale 404 if the route was absent
@@ -34,8 +36,9 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req: Request) {
   // ── Auth ───────────────────────────────────────────────────────────────────
-  // Shared constant-time CRON_SECRET check (accepts Bearer or x-cron-secret).
-  const authError = verifyCronAuth(req, 'publish-scheduled')
+  // Constant-time check against PUBLISH_CRON_SECRET (Supabase Cron) or CRON_SECRET (GitHub Actions).
+  // Unlike every other cron route this one accepts the publish-only secret, and no other route does.
+  const authError = verifyPublishCronAuth(req, 'publish-scheduled')
   if (authError) return authError
 
   try {

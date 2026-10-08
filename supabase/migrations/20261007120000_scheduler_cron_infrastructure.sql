@@ -14,9 +14,13 @@
 -- Additive and idempotent. Touches no existing table. Apply with the Supabase
 -- apply_migration tool or the SQL editor, like the other migrations in this folder.
 --
--- SECRET HANDLING: the cron secret is NEVER in this file. It lives in Supabase Vault under
--- the name `cron_secret` and is created by hand (see the runbook). The function below reads
--- it at call time and sends it as `Authorization: Bearer <secret>`. Nothing here logs it:
+-- SECRET HANDLING: the secret is NEVER in this file. It lives in Supabase Vault under the name
+-- `publish_cron_secret` and is created by hand (see the runbook). It is a DEDICATED, publish-only
+-- secret (Vercel PUBLISH_CRON_SECRET): the application accepts it on /api/publish-scheduled and on no
+-- other route, so even though pg_net queues request headers where database login roles can read
+-- them, what leaks cannot purge trash or run any other job. The shared CRON_SECRET must never be put
+-- in Vault. The function below reads the secret at call time and sends it as
+-- `Authorization: Bearer <secret>`. Nothing here logs it:
 -- pg_cron logs only the command text `select public.invoke_publish_scheduled()`, and
 -- pg_net's response table does not keep request headers.
 --
@@ -44,7 +48,7 @@ CREATE TABLE IF NOT EXISTS public.scheduler_invocations (
   -- One explicit category per call, so a failure is never inferred from free text:
   --   pending        queued, no response yet (normal for the first minute)
   --   success        any 2xx (the endpoint returns 200)
-  --   auth_failure   401/403: Vault secret differs from the production CRON_SECRET
+  --   auth_failure   401/403: Vault `publish_cron_secret` differs from the production PUBLISH_CRON_SECRET
   --   http_error     any other non-2xx (307 wrong host, 404, 5xx ...)
   --   timeout        pg_net gave up waiting (30 s)
   --   network_error  no status and no timeout: DNS, TLS, connection refused
@@ -93,7 +97,7 @@ DECLARE
 BEGIN
   SELECT decrypted_secret INTO v_secret
   FROM vault.decrypted_secrets
-  WHERE name = 'cron_secret'
+  WHERE name = 'publish_cron_secret'
   LIMIT 1;
 
   -- Retention does not depend on the reconciler job staying alive: this runs every 5 minutes.
@@ -101,8 +105,8 @@ BEGIN
 
   IF v_secret IS NULL OR v_secret = '' THEN
     INSERT INTO public.scheduler_invocations (job, error, completed_at, outcome)
-    VALUES ('publish-scheduled', 'vault secret "cron_secret" is missing or empty; request not sent', now(), 'not_sent');
-    RAISE WARNING 'invoke_publish_scheduled: vault secret cron_secret is missing';
+    VALUES ('publish-scheduled', 'vault secret "publish_cron_secret" is missing or empty; request not sent', now(), 'not_sent');
+    RAISE WARNING 'invoke_publish_scheduled: vault secret publish_cron_secret is missing';
     RETURN NULL;
   END IF;
 

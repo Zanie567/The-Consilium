@@ -1,0 +1,86 @@
+# scheduler-health.yml
+#
+# Independent watchdog for scheduled article publishing. It runs on GitHub's scheduler, calls the
+# Vercel app, and the app reads its own database. It does NOT depend on Supabase Cron (or on the
+# publish-scheduled workflow) being alive, so it still fires if either has stopped.
+#
+# It fails (and GitHub emails you) only when POST /api/cron/scheduler-health answers `alert: true`:
+#   - a SCHEDULED article is more than 15 minutes past its time           (articles_overdue)
+#   - the Supabase publisher job is active but has not called for 15 min  (scheduler_stopped)
+#   - the last 3 scheduler calls all failed                               (requests_failing)
+#   - 2+ publishing runs had non-fatal warnings in 24 hours              (repeated_warnings)
+#   - the scheduler records cannot be read                                (monitoring_blind)
+# The endpoint de-duplicates: one alert per NEW set of problems and a reminder every 24 hours while
+# they persist, not one per run. A healthy run, and a repeat of a problem already alerted, pass.
+# A non-200 answer (site or database down) fails every run, as the other cron workflows do.
+#
+# Cost: 24 runs a day, a few seconds each. Free on a public repository.
+# Limitation: GitHub's `schedule:` is best-effort (observed hours late on this repo), so a problem can
+# be noticed later than the hour; the overdue check is a backstop, not a real-time pager.
+#
+# REQUIRED GitHub Actions secret (already used by the other cron workflows):
+#   CRON_SECRET: long random string matching the Vercel CRON_SECRET env var
+#
+# The log is PUBLIC: the endpoint returns counts and ages only, never titles, ids or secrets.
+
+name: Scheduler Health Check
+
+on:
+  # Hourly, at an off-peak minute. GitHub Actions cron runs in UTC.
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check scheduled publishing health
+    # Production-only, default branch only (see publish-scheduled.yml): skipped, not failed,
+    # on the Testing mirror and on feature branches.
+    if: github.repository == 'Zanie567/The-Consilium' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Call /api/cron/scheduler-health
+        id: call
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          # Canonical host (www): the apex 307-redirects to www and curl does not follow it.
+          HTTP_STATUS=$(curl --silent --output /tmp/health.json --write-out "%{http_code}" \
+            --max-time 30 \
+            --request POST \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            --header "Content-Type: application/json" \
+            "https://www.theconsilium.co.uk/api/cron/scheduler-health")
+
+          echo "HTTP status: $HTTP_STATUS"
+          echo "Response body: $(cat /tmp/health.json)"
+
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "ERROR: Endpoint returned HTTP $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Fail only when the check raises an alert
+        run: |
+          # Fail closed: an answer we cannot read (empty, HTML, or missing `alert`) is itself an alert.
+          # Without this, jq prints nothing or "null" and exits 0, and a broken endpoint looks healthy.
+          if ! jq -e '(.alert | type) == "boolean"' /tmp/health.json > /dev/null 2>&1; then
+            echo "::error title=Scheduler health check gave an unreadable answer::the response was not the expected JSON"
+            exit 1
+          fi
+          ALERT=$(jq -r '.alert' /tmp/health.json)
+          if [ "$ALERT" = "true" ]; then
+            REASON=$(jq -r '.alertReason' /tmp/health.json)
+            echo "::error title=Scheduled publishing needs attention ($REASON)::$(jq -r '[.problems[] | .key + ": " + .detail] | join(" | ")' /tmp/health.json)"
+            exit 1
+          fi
+          if [ "$(jq -r '.recovered' /tmp/health.json)" = "true" ]; then
+            echo "Recovered: the problems reported earlier have cleared."
+          elif [ "$(jq -r '.ok' /tmp/health.json)" != "true" ]; then
+            echo "Known problem already alerted; not alerting again until it changes or the 24 hour reminder."
+          fi

@@ -25,7 +25,7 @@ describe('Supabase Cron migrations: secrets', () => {
   it('reads the secret from Vault at call time, and never logs it', () => {
     const body = code(infra)
     expect(body).toContain('vault.decrypted_secrets')
-    expect(body).toContain("name = 'cron_secret'")
+    expect(body).toContain("name = 'publish_cron_secret'")
     for (const line of body.split('\n')) {
       if (/\b(RAISE|NOTICE|WARNING)\b/.test(line)) expect(line).not.toContain('v_secret')
     }
@@ -67,7 +67,7 @@ describe('Supabase Cron migrations: target and schedule', () => {
       "to_regclass('public.scheduler_invocations') IS NULL",
       "to_regprocedure('public.invoke_publish_scheduled()') IS NULL",
       "to_regprocedure('public.reconcile_scheduler_invocations()') IS NULL",
-      "FROM vault.secrets WHERE name = 'cron_secret'",
+      "FROM vault.secrets WHERE name = 'publish_cron_secret'",
       "jobname = 'reconcile-scheduler-invocations'",
       "outcome = 'success'",
     ]) {

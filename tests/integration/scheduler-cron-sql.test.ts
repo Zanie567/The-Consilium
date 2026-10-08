@@ -133,11 +133,11 @@ suite('Supabase Cron migrations (stand-in vault/net/cron, real PL/pgSQL)', () =>
     })
 
     it('the enable migration is refused while the Vault secret does not exist', async () => {
-      await expect(q(ENABLE)).rejects.toThrow(/cron_secret/)
+      await expect(q(ENABLE)).rejects.toThrow(/publish_cron_secret/)
     })
 
     it('the enable migration is refused until a controlled invocation has been recorded as a success', async () => {
-      await q(`insert into vault.secrets (name, secret) values ('cron_secret', '${SECRET}')`)
+      await q(`insert into vault.secrets (name, secret) values ('publish_cron_secret', '${SECRET}')`)
       await expect(q(ENABLE)).rejects.toThrow(/controlled invocation|success/i)
       expect((await one<{ n: string }>(`select count(*) n from cron.job where jobname = 'publish-scheduled'`)).n).toBe('0')
     })
@@ -193,7 +193,7 @@ suite('Supabase Cron migrations (stand-in vault/net/cron, real PL/pgSQL)', () =>
     })
 
     it('a missing Vault secret records not_sent and sends nothing', async () => {
-      await q(`update vault.secrets set secret = '' where name = 'cron_secret'`)
+      await q(`update vault.secrets set secret = '' where name = 'publish_cron_secret'`)
       const before = (await one<{ n: string }>('select last_value::text n from net.req_seq')).n
       const { rid } = await invokeAndRespond(null)
       expect(rid).toBeNull()
@@ -201,7 +201,7 @@ suite('Supabase Cron migrations (stand-in vault/net/cron, real PL/pgSQL)', () =>
       expect(
         await one(`select outcome, request_id from public.scheduler_invocations where outcome = 'not_sent' order by id desc limit 1`),
       ).toMatchObject({ outcome: 'not_sent', request_id: null })
-      await q(`update vault.secrets set secret = '${SECRET}' where name = 'cron_secret'`)
+      await q(`update vault.secrets set secret = '${SECRET}' where name = 'publish_cron_secret'`)
     })
 
     it('outcome can only ever be one of the known categories', async () => {
