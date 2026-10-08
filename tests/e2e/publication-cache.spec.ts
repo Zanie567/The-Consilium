@@ -1,20 +1,23 @@
 import { test, expect } from '@playwright/test'
 import { ADMIN_STORAGE } from './helpers/authStorage'
+import { pinnedContext } from './helpers/pinnedContext'
 
 test.use({ storageState: ADMIN_STORAGE })
 
-test('warm category list follows create, edit, unpublish, republish, trash and restore', async ({ page, request }) => {
-  const existing = await request.get('/api/articles?category=news&take=1')
-  expect(existing.status()).toBe(200)
-  const [seed] = await existing.json()
-  expect(seed?.category?.id, 'seeded News category is required').toBeTruthy()
-  const path = `/category/${seed.category.slug}`
-  const title = `Cache foundation ${Date.now()}-${test.info().workerIndex}`
+test('warm category list follows create, edit, unpublish, republish, trash and restore', async ({ page, browser }) => {
+  const context = await pinnedContext(browser, { storageState: ADMIN_STORAGE })
+  const request = context.request
   let id: string | undefined
-  let currentTitle = title
-  const heading = () => page.getByRole('heading', { name: currentTitle, exact: true })
-
   try {
+    const existing = await request.get('/api/articles?category=news&take=1')
+    expect(existing.status()).toBe(200)
+    const [seed] = await existing.json()
+    expect(seed?.category?.id, 'seeded News category is required').toBeTruthy()
+    const path = `/category/${seed.category.slug}`
+    const title = `Cache foundation ${Date.now()}-${test.info().workerIndex}`
+    let currentTitle = title
+    const heading = () => page.getByRole('heading', { name: currentTitle, exact: true })
+
     // Warm the actual Next data cache BEFORE a direct published create.
     await page.goto(path)
     await expect(heading()).toHaveCount(0)
@@ -52,9 +55,11 @@ test('warm category list follows create, edit, unpublish, republish, trash and r
     await expect(heading()).toBeVisible()
   } finally {
     // Delete only this scenario's own synthetic article, through the real APIs.
-    if (id) {
-      await request.delete(`/api/articles/${id}`)
-      await request.delete(`/api/editorial/trash/${id}`)
-    }
+    try {
+      if (id) {
+        await request.delete(`/api/articles/${id}`)
+        await request.delete(`/api/editorial/trash/${id}`)
+      }
+    } finally { await context.close() }
   }
 })
