@@ -84,6 +84,12 @@ jobs:
       - name: Verify sharp native library is traced into /api/upload
         run: node scripts/verify-sharp-trace.mjs
 
+      # Loads sharp from ONLY the files traced for /api/upload, copied into an empty
+      # directory outside the repo, and decodes a real JPEG. A control run without
+      # libvips must fail. Refuses to run unless this is linux/x64 (Vercel's target).
+      - name: Run sharp from the isolated /api/upload package (linux-x64)
+        run: REQUIRE_LINUX_X64=1 node scripts/verify-sharp-runtime.mjs
+
   # End-to-end gate: seeds a real Postgres, builds, and runs the Playwright suite.
   # A failing e2e test, a console error on any page, or any internal URL returning
   # >= 400 (including ?_rsc= prefetch requests) fails this job and blocks merge.
