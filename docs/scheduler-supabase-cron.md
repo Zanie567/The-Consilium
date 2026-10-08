@@ -125,7 +125,9 @@ Thresholds live in one place, `THRESHOLDS` in `src/lib/schedulerHealth.ts`; keep
 
 Merging and deploying PR #120 changes no scheduling. After deploy:
 - `/api/publish-scheduled` accepts `CRON_SECRET` exactly as before, plus `PUBLISH_CRON_SECRET` once it exists.
-- `/api/cron/scheduler-health` and the hourly health workflow go live.
+- `/api/cron/scheduler-health` and the hourly health workflow go live. The workflow file lands with the merge, so if its first scheduled
+  run fires before the deployment is READY it will fail once with a 404; wait for READY and ignore that single run.
+- The health check may alert straight away if GitHub has left an article overdue. That is the monitor working, not a fault in it.
 - **Verify GitHub is unaffected:** the next `Publish Scheduled Articles` run is green (HTTP 200). If it is not, roll the deployment back
   (`vercel rollback`, or promote the previous deployment); nothing else has changed.
 
@@ -245,7 +247,7 @@ Do not do it while rollback to GitHub is still wanted; it gains little, because 
    To remove everything: `select cron.unschedule('reconcile-scheduler-invocations'); select cron.unschedule('prune-cron-run-details');`
    then drop the two functions and `public.scheduler_invocations`.
 5. To remove the dedicated secret: delete the Vault entry in the Vault UI and remove the Vercel variable
-   (`vercel env rm PUBLISH_CRON_SECRET production`), then redeploy. `/api/publish-scheduled` goes back to accepting only `CRON_SECRET`; nothing else changes.
+   (`vercel env remove PUBLISH_CRON_SECRET production`), then redeploy. `/api/publish-scheduled` goes back to accepting only `CRON_SECRET`; nothing else changes.
 6. To undo the code itself: revert the PR or promote the previous deployment. The publish route's `CRON_SECRET` path was never removed.
 
 Nothing is lost by a rollback at any point: a scheduled article stays `SCHEDULED` until some run publishes it, and the next successful run of either
