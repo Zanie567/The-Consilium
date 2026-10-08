@@ -2,6 +2,7 @@ import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse, NextRequest } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { ALL_ROLES } from '@/lib/rbac'
 
 // GET /api/bookmarks - returns all bookmarked article IDs for the current user
@@ -28,7 +29,7 @@ async function POSTHandler(request: NextRequest) {
 
   try {
     const { articleId } = await request.json()
-    if (!articleId) {
+    if (typeof articleId !== 'string' || !articleId) {
       return NextResponse.json({ error: 'articleId required' }, { status: 400 })
     }
 
@@ -42,12 +43,18 @@ async function POSTHandler(request: NextRequest) {
       })
       return NextResponse.json({ bookmarked: false })
     } else {
+      const article = await prisma.article.findUnique({ where: { id: articleId }, select: { id: true } })
+      if (!article) return NextResponse.json({ error: 'Article not found' }, { status: 404 })
       await prisma.bookmark.create({
         data: { userId: user.id, articleId },
       })
       return NextResponse.json({ bookmarked: true })
     }
-  } catch {
+  } catch (error) {
+    // A deletion between validation and insert has the same controlled contract.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+      return NextResponse.json({ error: 'Article not found' }, { status: 404 })
+    }
     return NextResponse.json({ error: 'Failed to toggle bookmark' }, { status: 500 })
   }
 }

@@ -40,6 +40,7 @@ async function prep(page: Page) {
   // Smooth scrolling fights Playwright; make programmatic scrolling instant.
   await page.addStyleTag({ content: 'html{scroll-behavior:auto !important}' })
   // Let the entrance animation settle so positions are stable.
+  await page.locator('#fnref-1').scrollIntoViewIfNeeded()
   await expect(page.locator('#fnref-1')).toBeVisible()
   await expect(page.locator('#article-body').locator('..')).toHaveCSS('opacity', '1')
   await expect(page.locator('#article-body').locator('..')).toHaveCSS('transform', 'none')

@@ -78,11 +78,18 @@ export function pageOffset(page: number): number {
  * Build an `/archive` URL for `pageNum`, preserving the active filters.
  * `page=1` is omitted so the first page keeps exactly one address.
  */
-export function buildArchiveHref(pageNum: number, q?: string, categorySlug?: string): string {
+export function buildArchiveHref(pageNum: number, q?: string, categorySlug?: string, tags: string[] = []): string {
   const params = new URLSearchParams()
   if (q) params.set('q', q)
   if (categorySlug) params.set('category', categorySlug)
+  for (const tag of normaliseTagSlugs(tags)) params.append('tag', tag)
   if (pageNum > 1) params.set('page', String(pageNum))
   const queryString = params.toString()
   return queryString ? `/archive?${queryString}` : '/archive'
+}
+
+/** Repeated `tag` parameters mean match ANY selected topic (format AND topics). */
+export function normaliseTagSlugs(value: SearchParamValue): string[] {
+  const values = Array.isArray(value) ? value : value ? [value] : []
+  return [...new Set(values.map(v => normaliseSearchText(v, 100)).filter((v): v is string => Boolean(v)))].slice(0, 20).sort()
 }

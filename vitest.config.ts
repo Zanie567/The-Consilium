@@ -8,16 +8,42 @@ import { resolveTestBaseUrl, testDatabaseEnv } from './scripts/lib/testDatabase'
 const testDatabase = testDatabaseEnv()
 const baseUrl = resolveTestBaseUrl(process.env.BASE_URL)
 
+// Suites that read or write a real database (and some also drive the live app). They only run under
+// the isolated launcher (scripts/run-e2e.sh sets E2E_ISOLATED=1 and BASE_URL), which owns a disposable
+// per-run database. A plain `vitest run` / `npm test` never collects them, so it can never touch one.
+const DB_BACKED_SUITES = [
+  'tests/integration/read-through-db.test.ts',
+  'tests/integration/api.test.ts',
+  'tests/integration/data-layer.test.ts',
+  'tests/integration/api-audit.test.ts',
+  'tests/integration/calendar-access.test.ts',
+  'tests/integration/team-profile-db.test.ts',
+  'tests/integration/team-profile-storage.test.ts',
+  'tests/integration/member-onboarding.test.ts',
+  'tests/integration/analytics-engagement.test.ts',
+  'tests/integration/article-image-storage.test.ts',
+  'tests/integration/article-revisions.test.ts',
+  'tests/integration/discovery.test.ts',
+  'tests/integration/growth-subscribe.test.ts',
+  'tests/integration/scheduled-publication.test.ts',
+]
+const isolatedLauncherRun = process.env.E2E_ISOLATED === '1' && Boolean(process.env.BASE_URL)
+
 export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
     include: ['tests/**/*.test.{ts,tsx}'],
+    // Live HTTP and direct-DB files (only collected under the isolated launcher, see the
+    // exclude list below) mutate the same seeded test database. Running those files
+    // serially keeps count/roster assertions from racing another file's fixtures. The
+    // default in-process run has no shared database, so it stays parallel.
+    fileParallelism: process.env.E2E_ISOLATED !== '1',
     // Each database suite owns a pool. Bound concurrency so a full local audit
     // does not exhaust Postgres/CPU while its production app is also running.
     maxWorkers: 2,
     // E2E specs live in tests/e2e and use @playwright/test, not vitest.
-    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**', ...(!(process.env.E2E_ISOLATED === '1' && process.env.BASE_URL) ? ['tests/integration/read-through-db.test.ts','tests/integration/api.test.ts','tests/integration/data-layer.test.ts','tests/integration/api-audit.test.ts','tests/integration/calendar-access.test.ts','tests/integration/team-profile-db.test.ts','tests/integration/team-profile-storage.test.ts','tests/integration/member-onboarding.test.ts'] : [])],
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**', ...(isolatedLauncherRun ? [] : DB_BACKED_SUITES)],
     // Forward the live-server base URL (and seed credentials) into the test
     // workers. Read here in the main process — where an inline `BASE_URL=…`
     // prefix is reliably visible — so integration specs can reach the server

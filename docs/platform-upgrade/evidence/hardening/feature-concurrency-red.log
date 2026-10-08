@@ -1,0 +1,54 @@
+[platform-check] guarded test DB; app localhost:3221; storage loopback:55621; email/OAuth disabled
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > editor save rejects stale page and preserves newer row 23ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > list publish rejects stale page and preserves newer row 9ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > list unpublish rejects stale page and preserves newer row 7ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > series assignment rejects stale page and preserves newer row 5ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > current save, publish, unpublish and series assignment propagate each returned revision 27ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review approve rejects stale displayed content 17ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review return rejects stale displayed content 5ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review schedule rejects stale displayed content 7ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review correct rejects stale displayed content 7ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review unpublish rejects stale displayed content 7ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review approve succeeds at the displayed revision and preserves content 6ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review return succeeds at the displayed revision and preserves content 5ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review schedule succeeds at the displayed revision and preserves content 6ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review correct succeeds at the displayed revision and preserves content 6ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review unpublish succeeds at the displayed revision and preserves content 7ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > concurrent valid approvals commit exactly one transition and notification 18ms
+ × tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > concurrent choices retain exactly one global featured article 24ms
+   → expected [ { …(25) }, { …(25) }, …(2) ] to have a length of 1 but got 4
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > commendation rejects stale state and succeeds with current revision 8ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > calendar rejects stale state and succeeds with current revision 11ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > delete rejects stale state and succeeds with current revision 8ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > pin rejects stale state and succeeds with current revision 10ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > feature rejects stale state and succeeds with current revision 14ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > concurrent choices retain exactly one global featured article
+AssertionError: expected [ { …(25) }, { …(25) }, …(2) ] to have a length of 1 but got 4
+
+- Expected
++ Received
+
+- 1
++ 4
+
+ ❯ tests/integration/article-revisions.test.ts:105:24
+    103|       expect(responses.map(response => response.status)).toEqual([200,…
+    104|       const featured = await prisma.article.findMany({ where: { isFeat…
+    105|       expect(featured).toHaveLength(1)
+       |                        ^
+    106|       expect(articles.map(article => article.id)).toContain(featured[0…
+    107|       expect(featured[0].content).toBe('Loaded content')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 21 passed (22)
+   Start at  12:37:06
+   Duration  573ms (transform 37ms, setup 27ms, import 63ms, tests 399ms, environment 0ms)

@@ -1,0 +1,44 @@
+{
+  "hostedRun": "https://github.com/Zanie567/The-Consilium/actions/runs/37704126869",
+  "head": "9eba76238ca4769c5b5ca2ac374bcfc800496c99",
+  "job": "Platform upgrade journeys",
+  "failedStep": "Discovery, rich content, revisions, growth analytics and final integration",
+  "test": "list publish/unpublish sends loaded revisions, propagates successful revision and reconciles stale conflicts",
+  "classification": "Application state race: an older route refresh replaces a newer acknowledged row revision. Server stale-write protection correctly rejected unpublish.",
+  "requests": [
+    {
+      "action": "publish",
+      "status": 200,
+      "expectedUpdatedAt": "2026-10-07T23:50:12.851Z",
+      "returnedUpdatedAt": "2026-10-07T23:50:14.100Z"
+    },
+    {
+      "action": "feature",
+      "status": 200,
+      "expectedUpdatedAt": "2026-10-07T23:50:14.100Z",
+      "returnedUpdatedAt": "2026-10-07T23:50:14.169Z"
+    },
+    {
+      "action": "pin",
+      "status": 200,
+      "expectedUpdatedAt": "2026-10-07T23:50:14.169Z",
+      "returnedUpdatedAt": "2026-10-07T23:50:14.305Z"
+    },
+    {
+      "action": "unpublish",
+      "status": 409,
+      "expectedUpdatedAt": "2026-10-07T23:50:14.169Z",
+      "code": "ARTICLE_CHANGED"
+    },
+    {
+      "action": "readCurrent",
+      "status": 200,
+      "returnedUpdatedAt": "2026-10-07T23:50:14.305Z"
+    }
+  ],
+  "traceObservation": "After successful pin, a snapshot contains Unpin; the subsequent unpublish input snapshot contains Pin to category. A feature-triggered RSC request is in flight. No intervening target article write.",
+  "deterministicLocalRegression": "Complete feature then pin, deliver older feature props, require retained pin state/current guard; also accept genuinely newer props and removed rows. Failed before repair; passed after repair.",
+  "repairCommit": "e7edcc44c3bb41bc7027c01d454675075a46c9c2",
+  "repair": "Merge route snapshots by row revision, retaining newer acknowledged rows. Preserve backend guards and required confirmations. Add visible saved-state assertions before subsequent actions.",
+  "sensitiveArtifacts": "No cookies, session tokens, request identities, full bodies or outbox copied into this manifest."
+}

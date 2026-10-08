@@ -20,7 +20,7 @@ export default async function SeriesPage() {
     prisma.series.findMany({
       include: {
         articles: {
-          select: { id: true, title: true, slug: true, seriesOrder: true },
+          select: { id: true, title: true, slug: true, seriesOrder: true, updatedAt: true },
           orderBy: { seriesOrder: { sort: 'asc', nulls: 'last' } },
         },
       },
@@ -28,7 +28,7 @@ export default async function SeriesPage() {
     }),
     prisma.article.findMany({
       where: { status: 'PUBLISHED', deletedAt: null },
-      select: { id: true, title: true, seriesId: true, seriesOrder: true },
+      select: { id: true, title: true, seriesId: true, seriesOrder: true, updatedAt: true },
       orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
     }),
   ])
@@ -48,8 +48,8 @@ export default async function SeriesPage() {
       </PortalSection>
       <PortalSection>
         <SeriesManager
-          initialSeries={allSeries as Parameters<typeof SeriesManager>[0]['initialSeries']}
-          articles={publishedArticles}
+          initialSeries={allSeries.map(series => ({ ...series, articles: series.articles.map(article => ({ ...article, updatedAt: article.updatedAt.toISOString() })) }))}
+          articles={publishedArticles.map(article => ({ ...article, updatedAt: article.updatedAt.toISOString() }))}
         />
       </PortalSection>
     </PortalPage>

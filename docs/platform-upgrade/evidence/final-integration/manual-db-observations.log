@@ -1,0 +1,11 @@
+ manual_subscription_rows
+--------------------------
+                        1
+(1 row)
+
+         conname          |                                   pg_get_constraintdef
+--------------------------+-------------------------------------------------------------------------------------------
+ articles_categoryId_fkey | FOREIGN KEY ("categoryId") REFERENCES categories(id) ON UPDATE CASCADE ON DELETE SET NULL
+ articles_authorId_fkey   | FOREIGN KEY ("authorId") REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT
+ articles_seriesId_fkey   | FOREIGN KEY ("seriesId") REFERENCES series(id) ON UPDATE CASCADE ON DELETE SET NULL
+(3 rows)

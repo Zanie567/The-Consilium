@@ -1,3 +1,4 @@
+import { articleShareUrl } from '@/lib/shareUrl'
 import { notFound, permanentRedirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -398,7 +399,7 @@ export default async function ArticlePage({ params }: Props) {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 no-print">
               <PrintButton />
               <SaveAsPdfButton title={article.title} />
-              <ShareButtons title={article.title} />
+              <ShareButtons title={article.title} url={articleShareUrl(article.slug)} />
               <BookmarkButton articleId={article.id} />
             </div>
           </div>

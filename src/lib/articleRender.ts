@@ -1,5 +1,9 @@
 import { escapeHtml as escHtml } from '@/lib/escapeHtml'
 import { sanitizeArticleHtml } from '@/lib/articleSanitize'
+import { renderArticleTable } from '@/lib/tableRender'
+import { renderArticleFigure } from '@/lib/figureRender'
+import type { TiptapNode } from '@/lib/richContent'
+export type { TiptapNode } from '@/lib/richContent'
 
 /**
  * TipTap JSON -> article HTML renderer, shared by the public article page and
@@ -32,25 +36,6 @@ function safeHref(href: string): string {
   return cleaned
 }
 
-/** A colspan/rowspan attribute, emitted only as a plain integer above 1. */
-function spanAttr(name: 'colspan' | 'rowspan', value: unknown): string {
-  const n = Number(value)
-  return Number.isInteger(n) && n > 1 && n <= 1000 ? ` ${name}="${n}"` : ''
-}
-
-interface TiptapMark {
-  type: string
-  attrs?: Record<string, string | number | boolean | null>
-}
-
-export interface TiptapNode {
-  type: string
-  content?: TiptapNode[]
-  text?: string
-  marks?: TiptapMark[]
-  attrs?: Record<string, string | number | boolean | null>
-}
-
 export interface ArticleFootnote {
   index: number
   content: string
@@ -59,6 +44,11 @@ export interface ArticleFootnote {
 interface RenderState {
   footnotes: ArticleFootnote[]
 }
+
+// PUBLIC HOUSE STYLE (confirmed): the editor lets authors choose text colour, size, line
+// spacing, alignment and highlight colour while writing, but none of it is published. Public
+// articles use the site's own typography, so this renderer emits no style attributes and a
+// plain <mark> for highlights. The editor JSON still stores the choices.
 
 function nodeToHtml(node: TiptapNode, state: RenderState): string {
   switch (node.type) {
@@ -78,11 +68,13 @@ function nodeToHtml(node: TiptapNode, state: RenderState): string {
       let text = escHtml(node.text ?? '')
       if (node.marks) {
         for (const mark of node.marks) {
-          if (mark.type === 'bold')      text = `<strong>${text}</strong>`
-          if (mark.type === 'italic')    text = `<em>${text}</em>`
+          if (mark.type === 'bold') text = `<strong>${text}</strong>`
+          if (mark.type === 'italic') text = `<em>${text}</em>`
+          if (mark.type === 'strike') text = `<s>${text}</s>`
+          if (mark.type === 'code') text = `<code>${text}</code>`
           if (mark.type === 'underline') text = `<u>${text}</u>`
-          if (mark.type === 'strike')    text = `<s>${text}</s>`
-          if (mark.type === 'code')      text = `<code>${text}</code>`
+          // The chosen colour is deliberately ignored (public house style). A textStyle mark
+          // (colour, size, line height) produces no markup at all.
           if (mark.type === 'highlight') text = `<mark>${text}</mark>`
           if (mark.type === 'link') {
             const href = safeHref(String(mark.attrs?.href ?? '#'))
@@ -93,38 +85,26 @@ function nodeToHtml(node: TiptapNode, state: RenderState): string {
       }
       return text
     }
-    case 'bulletList':    return `<ul>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</ul>`
-    case 'orderedList':   return `<ol>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</ol>`
-    case 'listItem':      return `<li>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</li>`
-    case 'blockquote':    return `<blockquote>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</blockquote>`
-    case 'horizontalRule': return `<hr />`
-    // Code block: plain text only. Marks inside a code block are ignored on purpose.
+    case 'bulletList':
+      return `<ul>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</ul>`
+    case 'orderedList':
+      return `<ol${Number.isInteger(node.attrs?.start) && Number(node.attrs?.start) > 1 ? ` start="${Math.min(100000, Number(node.attrs?.start))}"` : ''}>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</ol>`
+    case 'listItem':
+      return `<li>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</li>`
+    case 'blockquote':
+      return `<blockquote>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</blockquote>`
+    case 'horizontalRule':
+      return `<hr />`
+    case 'table':
+      return renderArticleTable(node, (n) => nodeToHtml(n, state))
     case 'codeBlock':
-      return `<pre><code>${escHtml((node.content ?? []).map((n) => n.text ?? '').join(''))}</code></pre>`
-    // Tables. Semantic content, so it is published; column widths are presentation and
-    // are not (the house table style in globals.css lays the columns out).
-    case 'table':         return `<table><tbody>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</tbody></table>`
-    case 'tableRow':      return `<tr>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</tr>`
-    case 'tableHeader':
-    case 'tableCell': {
-      const tag = node.type === 'tableHeader' ? 'th' : 'td'
-      return `<${tag}${spanAttr('colspan', node.attrs?.colspan)}${spanAttr('rowspan', node.attrs?.rowspan)}>${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</${tag}>`
-    }
+      return `<pre><code>${escHtml(node.content?.map((n) => n.text ?? '').join('') ?? '')}</code></pre>`
     case 'image':
-      // Legacy plain image nodes (new content uses 'figure')
-      return `<figure class="article-figure"><img src="${escHtml(String(node.attrs?.src ?? ''))}" alt="${escHtml(String(node.attrs?.alt ?? ''))}" /></figure>`
-    case 'figure': {
-      const src = escHtml(String(node.attrs?.src ?? ''))
-      const alt = escHtml(String(node.attrs?.alt ?? ''))
-      const caption = escHtml(String(node.attrs?.caption ?? ''))
-      const credit = escHtml(String(node.attrs?.credit ?? ''))
-      let html = `<figure class="article-figure"><img src="${src}" alt="${alt}" />`
-      if (caption) html += `<figcaption class="caption">${caption}</figcaption>`
-      if (credit) html += `<p class="image-credit">${credit}</p>`
-      html += `</figure>`
-      return html
-    }
-    case 'hardBreak': return `<br />`
+      return renderArticleFigure(node.attrs, true)
+    case 'figure':
+      return renderArticleFigure(node.attrs)
+    case 'hardBreak':
+      return `<br />`
     case 'pullQuote':
       return `<aside data-type="pull-quote" class="pull-quote">${node.content?.map((n) => nodeToHtml(n, state)).join('') ?? ''}</aside>`
     case 'footnoteRef': {
@@ -155,7 +135,9 @@ export function renderContent(content: string): { html: string; footnotes: Artic
     const parsed = JSON.parse(content)
     if (parsed?.type === 'doc') {
       const state: RenderState = { footnotes: [] }
-      const html = ((parsed.content ?? []) as TiptapNode[]).map((n) => nodeToHtml(n, state)).join('')
+      const html = ((parsed.content ?? []) as TiptapNode[])
+        .map((n) => nodeToHtml(n, state))
+        .join('')
       // Defense-in-depth: even though nodeToHtml escapes text and validates hrefs,
       // run the assembled HTML through the sanitiser so any future renderer gap (a
       // new node type, an unescaped attribute) cannot become stored XSS.

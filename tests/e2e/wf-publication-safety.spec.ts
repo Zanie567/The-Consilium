@@ -207,8 +207,15 @@ test.describe('publishing is explicit and confirmed', () => {
     await ed2.saving(() => ed2.saveDraftButton().click())
     await expect(second.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText(/changed/i)
     const keep = await ed2.saving(() => second.getByRole('button', { name: 'Keep my version' }).click())
-    expect(keep.status()).toBe(409) // the server still refuses: the stale tab holds status DRAFT but the article is PUBLISHED
-    expect((await articleByTitle(title))!.status).toBe('PUBLISHED')
+    expect(keep.status()).toBe(200)
+    const keptBody = keep.request().postDataJSON()
+    expect(keptBody.status).toBe('PUBLISHED')
+    expect(keptBody.publicationIntent).not.toBe(true)
+    expect(keptBody.expectedUpdatedAt).toBeTruthy()
+    expect(keptBody.baseVersion).toMatch(/^[a-f0-9]{24}$/)
+    const kept = (await articleByTitle(title))!
+    expect(kept.status).toBe('PUBLISHED')
+    expect(kept.content).toContain('Stale tab text.')
     expect(await publicStatus(browser, slug)).toBe(200)
     await ctx.close()
   })

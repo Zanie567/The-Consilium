@@ -23,8 +23,17 @@ test.afterAll(async () => {
 
 const storageBase = () => process.env.NEXT_PUBLIC_SUPABASE_URL!
 const articleImages = async () => (await storedObjects()).filter((o) => o.key.startsWith('article-images/'))
-/** Stored objects whose name contains `needle`: specs run in parallel and share the storage server, so count by file name, never by total. */
-const storedNamed = async (needle: string) => (await articleImages()).filter((o) => o.key.includes(needle))
+/** Managed names are opaque; verify the actual URL and all storage side effects. */
+const imageKeys = async () => (await articleImages()).map(object => object.key).sort()
+const storedForUrl = async (src: string) => {
+  const url = new URL(src)
+  expect(url.origin).toBe(new URL(storageBase()).origin)
+  expect(url.pathname).toMatch(/^\/storage\/v1\/object\/public\/article-images\/[^/]+\/[a-f0-9-]{36}\.png$/)
+  const key = url.pathname.replace('/storage/v1/object/public/', '')
+  const matches = (await articleImages()).filter(object => object.key === key)
+  expect(matches).toHaveLength(1)
+  return matches[0]
+}
 
 async function newArticle(browser: import('@playwright/test').Browser, who: 'writer' | 'editor' = 'writer') {
   const ctx = await signedIn(browser, who)
@@ -53,11 +62,10 @@ test.describe('toolbar image (figure)', () => {
     await expect(img).toBeVisible({ timeout: 15_000 })
     const src = await img.getAttribute('src')
     expect(src, 'the figure points at the local storage server').toContain(`${storageBase()}/storage/v1/object/public/article-images/`)
-    expect(src).toContain(`chart_one_${stamp}.png`) // the file name is sanitised, not kept verbatim
-
-    const objects = await storedNamed(`chart_one_${stamp}.png`)
-    expect(objects.length).toBe(1)
-    expect(objects[0].type).toBe('image/png')
+    const session = await (await ctx.request.get('/api/auth/session')).json()
+    expect(src).toContain(`/article-images/${session.user.id}/`)
+    const stored = await storedForUrl(src!)
+    expect(stored.type).toBe('image/png')
     // The stored bytes really are the image, served back publicly.
     const served = await fetch(src!)
     expect(served.status).toBe(200)
@@ -73,6 +81,7 @@ test.describe('toolbar image (figure)', () => {
 
   test('a file that is not an image is refused with a reason, inserts nothing, stores nothing', async ({ browser }) => {
     const { ctx, page, ed } = await newArticle(browser)
+    const keysBefore = await imageKeys()
     await chooseFileVia(page, () => ed.tool('Insert image').click(), {
       name: 'invoice.png', // an image name on a non-image file
       mimeType: 'image/png',
@@ -81,7 +90,7 @@ test.describe('toolbar image (figure)', () => {
     await expect(page.getByText('Upload failed:')).toBeVisible()
     await expect(page.getByText(/File type not permitted/)).toBeVisible()
     await expect(ed.body().locator('figure')).toHaveCount(0)
-    expect(await storedNamed('invoice.png')).toHaveLength(0)
+    expect(await imageKeys()).toEqual(keysBefore)
     await expect(ed.body()).toContainText('Text before the image.')
     await ctx.close()
   })
@@ -98,7 +107,8 @@ test.describe('toolbar image (figure)', () => {
     const img = ed.body().locator('figure.article-figure img')
     await expect(img).toBeVisible({ timeout: 30_000 })
     await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0)
-    const [stored] = await storedNamed(`edge_${stamp}.png`)
+    const stored = await storedForUrl((await img.getAttribute('src'))!)
+    await ed.body().getByLabel('Alternative text', { exact: true }).fill('Solid red chart at the upload size limit')
     expect(stored.size, 'the exact bytes were stored').toBe(MAX_BYTES)
 
     const { id } = await ed.saveNow()
@@ -123,6 +133,7 @@ test.describe('toolbar image (figure)', () => {
 
   test('one byte over the limit is refused in the browser with a persistent, specific message and nothing is sent', async ({ browser }) => {
     const { ctx, page, ed } = await newArticle(browser)
+    const keysBefore = await imageKeys()
     const uploads: string[] = []
     page.on('request', (r) => { if (r.url().includes('/api/upload')) uploads.push(r.url()) })
     await chooseFileVia(page, () => ed.tool('Insert image').click(), { name: 'huge.png', mimeType: 'image/png', buffer: pngOfSize(MAX_BYTES + 1) })
@@ -133,13 +144,14 @@ test.describe('toolbar image (figure)', () => {
     await page.getByRole('button', { name: 'Dismiss upload error' }).click()
     await expect(page.getByText('Upload failed:')).toHaveCount(0)
     await expect(ed.body().locator('figure')).toHaveCount(0)
-    expect(await storedNamed('huge.png')).toHaveLength(0)
+    expect(await imageKeys()).toEqual(keysBefore)
     expect(uploads, 'an oversized file must be refused before it is sent').toEqual([])
     await ctx.close()
   })
 
   test('the server enforces the same limit for a client that skips the browser check', async ({ browser }) => {
     const ctx = await signedIn(browser, 'writer')
+    const keysBefore = await imageKeys()
     const over = await ctx.request.post('/api/upload', {
       multipart: { file: { name: 'over-limit.png', mimeType: 'image/png', buffer: pngOfSize(MAX_BYTES + 1) }, bucket: 'article-images' },
     })
@@ -151,8 +163,7 @@ test.describe('toolbar image (figure)', () => {
       multipart: { file: { name: 'way-over.png', mimeType: 'image/png', buffer: pngOfSize(MAX_BYTES + 512 * 1024) }, bucket: 'article-images' },
     })
     expect(way.status()).toBe(413)
-    expect(await storedNamed('over-limit')).toHaveLength(0)
-    expect(await storedNamed('way-over')).toHaveLength(0)
+    expect(await imageKeys()).toEqual(keysBefore)
 
     const ok = await ctx.request.post('/api/upload', {
       multipart: { file: { name: 'at-limit-api.png', mimeType: 'image/png', buffer: pngOfSize(MAX_BYTES) }, bucket: 'article-images' },
@@ -241,8 +252,7 @@ test.describe('toolbar image (figure)', () => {
     const img = ed.body().locator('img').last()
     await expect(img).toHaveAttribute('src', new RegExp(`^${storageBase()}/storage/v1/object/public/article-images/`), { timeout: 15_000 })
     const src = await img.getAttribute('src')
-    const pasted = (await storedNamed('paste-image-')).find((o) => src!.endsWith(o.key.replace('article-images/', '')))
-    expect(pasted, 'the pasted image is in storage').toBeTruthy()
+    await storedForUrl(src!)
     await expect(ed.body()).not.toContainText('data:image')
     const { id } = await ed.saveNow()
     expect(JSON.stringify((await articleByTitle((await page.getByPlaceholder('Your headline here...').inputValue())))!.content)).not.toContain('data:image')
@@ -312,9 +322,10 @@ test.describe('who may upload (permission checks on the upload endpoint)', () =>
   for (const who of ['reader', 'growth'] as const) {
     test(`${who} cannot upload article images`, async ({ browser }) => {
       const ctx = await signedIn(browser, who)
+      const keysBefore = await imageKeys()
       const res = await ctx.request.post('/api/upload', { multipart: { file: { ...png(), name: `${who}-attempt.png` }, bucket: 'article-images' } })
       expect(res.status(), await res.text()).toBe(403)
-      expect(await storedNamed(`${who}-attempt`)).toHaveLength(0)
+      expect(await imageKeys()).toEqual(keysBefore)
       await ctx.close()
     })
   }
@@ -330,13 +341,14 @@ test.describe('who may upload (permission checks on the upload endpoint)', () =>
 
 test('an interrupted image upload is visible and retry saves a single figure that reopens', async ({ browser }) => {
   const t = await newArticle(browser)
+  const keysBefore = await imageKeys()
   const name = `interrupted-${Date.now()}-${Math.random().toString(36).slice(2)}.png`
   await t.page.route('**/api/upload', route => route.abort('connectionreset'))
   await chooseFileVia(t.page, () => t.ed.tool('Insert image').click(), { name, mimeType: 'image/png', buffer: makePng(32) })
   await expect(t.page.getByText('Upload failed:')).toBeVisible()
   await expect(t.ed.body()).toContainText('Text before the image.')
   await expect(t.ed.body().locator('figure')).toHaveCount(0)
-  expect(await storedNamed(name)).toHaveLength(0)
+  expect(await imageKeys()).toEqual(keysBefore)
   await t.page.unroute('**/api/upload')
   const response = t.page.waitForResponse(r => r.url().endsWith('/api/upload') && r.request().method() === 'POST')
   await chooseFileVia(t.page, () => t.ed.tool('Insert image').click(), { name, mimeType: 'image/png', buffer: makePng(32) })
@@ -347,7 +359,8 @@ test('an interrupted image upload is visible and retry saves a single figure tha
   await t.ed.openExisting(id)
   await expect(t.ed.body().locator('figure img')).toHaveAttribute('src', src!)
   await expect(t.ed.body()).toContainText('Text before the image.')
-  expect(await storedNamed(name)).toHaveLength(1)
+  await storedForUrl(src!)
+  expect((await imageKeys()).filter(key => !keysBefore.includes(key))).toHaveLength(1)
   expect((await articleByTitle(t.title))!.status).toBe('DRAFT')
   await t.ctx.close()
 })

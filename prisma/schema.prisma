@@ -216,6 +216,7 @@ model Article {
   bookmarks       Bookmark[]
   notes           ArticleNote[]
   views           ArticleView[]
+  engagementVisits ArticleEngagementSession[]
   notifications   Notification[]
   readingProgress ReadingProgress[]
   tags            ArticleTag[]
@@ -276,9 +277,10 @@ model ArticleTag {
   tagId     String
 
   article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Restrict)
 
   @@id([articleId, tagId])
+  @@index([tagId, articleId])
   @@map("article_tags")
 }
 
@@ -746,6 +748,36 @@ model AuditLog {
   @@index([performedBy])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// Managed new uploads only; legacy Storage URLs are not rewritten or garbage-collected.
+model ArticleImageAsset {
+  url         String   @id
+  path        String   @unique
+  uploaderId  String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  unusedSince DateTime? @default(now()) @db.Timestamptz(3)
+
+  @@index([unusedSince, createdAt])
+  @@index([uploaderId])
+  @@map("article_image_assets")
+}
+
+
+model ArticleEngagementSession {
+  id String @id
+  articleId String
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  startedAt DateTime @default(now()) @db.Timestamptz(3)
+  lastSeenAt DateTime @default(now()) @db.Timestamptz(3)
+  activeSeconds Int @default(0)
+  engagedAt DateTime? @db.Timestamptz(3)
+  readerHash String?
+  returning Boolean @default(false)
+  @@index([articleId, startedAt])
+  @@index([startedAt])
+  @@index([readerHash, startedAt])
+  @@map("article_engagement_sessions")
 }
 
 // Opaque server-side testing capability. No credentials or tokens in URLs/audits.

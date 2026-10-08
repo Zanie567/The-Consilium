@@ -1,0 +1,64 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+> the-consilium@0.1.0 test:setup-db
+> bash scripts/setup-test-db.sh
+
+→ verifying resolved database host is safe for the test harness
+   ok: localhost
+→ prisma generate + db push
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+→ seeding
+
+> the-consilium@0.1.0 db:seed
+> ts-node -P tsconfig.seed.json prisma/seed.ts
+
+Seeding database...
+Categories: News, Opinion, Analysis, Interviews
+Users: admin@theconsilium.com writer@theconsilium.com
+Articles: Bank of England Cuts Rates to 4.5% as Inflation Returns to Target
+  AI and Labour Markets: Beyond the Technopanic
+  The Housing Affordability Crisis: Comparing Policy Responses Across the OECD
+  Carbon Market Fragmentation and the Challenge of Global Climate Coordination
+Team: Alexander Escala, Annika Sarawgi, Sam Hunt, Zara Spendiff, Gurmehar Kaur, Yaoqing Wang, Catherine Toh
+
+Seeding complete.
+
+Admin: admin@theconsilium.com / consilium2024
+Writer: writer@theconsilium.com / writer2024
+
+> the-consilium@0.1.0 db:seed-debates
+> ts-node -P tsconfig.seed.json prisma/seed-debates.ts
+
+🌱 Seeding debates…
+✓ Created 3 debates and 6 debate articles
+  Debate "Should the UK raise the minimum wage?" already has 240 votes - skipping
+  Debate "Should AI be broadly regulated?" already has 380 votes - skipping
+  Debate "Does free trade do more harm than good?" already has 190 votes - skipping
+  ✓ Cover images set on all debate articles
+✅ Debate seed complete
+
+────────────────────────────────────────────────────────────
+No removable duplicates found. Database is clean. ✓
+   Editors: editor.global (unscoped), editor.opinion (Opinion only)
+✅ Test fixtures ready. Created 0 comment(s).
+   Total users: 35, total comments: 7
+Read-through fixtures ready:
+  the-long-read-experiment: 24 readers, expect finished 21%, median 58%, drop 30-40%
+  the-small-sample: 3 readers, expect the "not enough data yet" state
+  rt-edge-*: draft edge-case articles for the DB aggregation tests
+psql:supabase/migrations/20261006153514_discovery_topic_identity.sql:17: NOTICE:  relation "tags_canonical_identity_key" already exists, skipping
+psql:supabase/migrations/20261006153514_discovery_topic_identity.sql:18: NOTICE:  relation "article_tags_tagId_articleId_idx" already exists, skipping
+psql:supabase/migrations/20261006160355_managed_article_images.sql:10: NOTICE:  relation "article_image_assets" already exists, skipping
+psql:supabase/migrations/20261006160355_managed_article_images.sql:11: NOTICE:  relation "article_image_assets_unusedSince_createdAt_idx" already exists, skipping
+psql:supabase/migrations/20261006160355_managed_article_images.sql:12: NOTICE:  relation "article_image_assets_uploaderId_idx" already exists, skipping
+psql:supabase/migrations/20261006161413_normalized_subscriber_email.sql:7: NOTICE:  relation "subscribers_normalized_email_key" already exists, skipping
+psql:supabase/migrations/20261006161505_article_active_engagement.sql:11: NOTICE:  relation "article_engagement_sessions" already exists, skipping
+psql:supabase/migrations/20261006161505_article_active_engagement.sql:12: NOTICE:  relation "article_engagement_sessions_articleId_startedAt_idx" already exists, skipping
+psql:supabase/migrations/20261006161505_article_active_engagement.sql:13: NOTICE:  relation "article_engagement_sessions_startedAt_idx" already exists, skipping
+psql:supabase/migrations/20261006161505_article_active_engagement.sql:14: NOTICE:  relation "article_engagement_sessions_readerHash_startedAt_idx" already exists, skipping
+✅ test database ready (port 55520)

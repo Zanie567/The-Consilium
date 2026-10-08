@@ -1,0 +1,4 @@
+[platform-check] guarded test DB; app localhost:3197; storage loopback:55491; email/OAuth disabled
+
+> the-consilium@0.1.0 typecheck
+> tsc --noEmit

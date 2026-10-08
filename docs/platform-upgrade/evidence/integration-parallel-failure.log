@@ -1,0 +1,33 @@
+[platform-check] guarded test DB; app localhost:3197; storage loopback:55491; email/OAuth disabled
+
+ RUN  v4.1.7 /Users/zanie/The-Consilium
+
+ ❯ tests/integration/data-layer.test.ts (7 tests | 1 failed) 497ms
+     × dashboard user count equals the users-page total (single source of truth) 14ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/data-layer.test.ts > Priority 4 — duplicate / count reconciliation > dashboard user count equals the users-page total (single source of truth)
+AssertionError: expected 66 to be 67 // Object.is equality
+
+- Expected
++ Received
+
+- 67
++ 66
+
+ ❯ tests/integration/data-layer.test.ts:120:23
+    118|     const dashboard = await prisma.user.count()
+    119|     const usersPageTotal = await prisma.user.count()
+    120|     expect(dashboard).toBe(usersPageTotal)
+       |                       ^
+    121|     // And it must NOT be the old staff-only subset when readers exist.
+    122|     const staffOnly = await prisma.user.count({ where: { role: { in: […
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 17 passed (18)
+      Tests  1 failed | 305 passed | 18 skipped (324)
+   Start at  13:52:33
+   Duration  2.54s (transform 1.40s, setup 305ms, import 3.17s, tests 10.40s, environment 1ms)

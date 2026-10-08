@@ -1,0 +1,37 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+          tablename          | rowsecurity
+-----------------------------+-------------
+ article_engagement_sessions | t
+ article_image_assets        | t
+(2 rows)
+
+                      indexname                       |                                                                     indexdef
+------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------
+ article_engagement_sessions_articleId_startedAt_idx  | CREATE INDEX "article_engagement_sessions_articleId_startedAt_idx" ON public.article_engagement_sessions USING btree ("articleId", "startedAt")
+ article_engagement_sessions_pkey                     | CREATE UNIQUE INDEX article_engagement_sessions_pkey ON public.article_engagement_sessions USING btree (id)
+ article_engagement_sessions_readerHash_startedAt_idx | CREATE INDEX "article_engagement_sessions_readerHash_startedAt_idx" ON public.article_engagement_sessions USING btree ("readerHash", "startedAt")
+ article_engagement_sessions_startedAt_idx            | CREATE INDEX "article_engagement_sessions_startedAt_idx" ON public.article_engagement_sessions USING btree ("startedAt")
+ article_image_assets_path_key                        | CREATE UNIQUE INDEX article_image_assets_path_key ON public.article_image_assets USING btree (path)
+ article_image_assets_pkey                            | CREATE UNIQUE INDEX article_image_assets_pkey ON public.article_image_assets USING btree (url)
+ article_image_assets_unusedSince_createdAt_idx       | CREATE INDEX "article_image_assets_unusedSince_createdAt_idx" ON public.article_image_assets USING btree ("unusedSince", "createdAt")
+ article_image_assets_uploaderId_idx                  | CREATE INDEX "article_image_assets_uploaderId_idx" ON public.article_image_assets USING btree ("uploaderId")
+ article_tags_pkey                                    | CREATE UNIQUE INDEX article_tags_pkey ON public.article_tags USING btree ("articleId", "tagId")
+ article_tags_tagId_articleId_idx                     | CREATE INDEX "article_tags_tagId_articleId_idx" ON public.article_tags USING btree ("tagId", "articleId")
+ subscribers_email_key                                | CREATE UNIQUE INDEX subscribers_email_key ON public.subscribers USING btree (email)
+ subscribers_normalized_email_key                     | CREATE UNIQUE INDEX subscribers_normalized_email_key ON public.subscribers USING btree (consilium_subscriber_identity(email))
+ subscribers_pkey                                     | CREATE UNIQUE INDEX subscribers_pkey ON public.subscribers USING btree (id)
+ tags_canonical_identity_key                          | CREATE UNIQUE INDEX tags_canonical_identity_key ON public.tags USING btree (consilium_tag_identity(name))
+ tags_name_key                                        | CREATE UNIQUE INDEX tags_name_key ON public.tags USING btree (name)
+ tags_pkey                                            | CREATE UNIQUE INDEX tags_pkey ON public.tags USING btree (id)
+ tags_slug_key                                        | CREATE UNIQUE INDEX tags_slug_key ON public.tags USING btree (slug)
+(17 rows)
+
+                     conname                     |                                 pg_get_constraintdef
+-------------------------------------------------+---------------------------------------------------------------------------------------
+ article_engagement_sessions_activeSeconds_check | CHECK ((("activeSeconds" >= 0) AND ("activeSeconds" <= 7200)))
+ article_engagement_sessions_articleId_fkey      | FOREIGN KEY ("articleId") REFERENCES articles(id) ON UPDATE CASCADE ON DELETE CASCADE
+ article_engagement_sessions_pkey                | PRIMARY KEY (id)
+ article_tags_articleId_fkey                     | FOREIGN KEY ("articleId") REFERENCES articles(id) ON UPDATE CASCADE ON DELETE CASCADE
+ article_tags_pkey                               | PRIMARY KEY ("articleId", "tagId")
+ article_tags_tagId_fkey                         | FOREIGN KEY ("tagId") REFERENCES tags(id) ON UPDATE CASCADE ON DELETE RESTRICT
+(6 rows)

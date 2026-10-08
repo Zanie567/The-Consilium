@@ -1,0 +1,19 @@
+[platform-check] guarded test DB; app localhost:3221; storage loopback:55621; email/OAuth disabled
+Service logs: /var/folders/c3/f3cf73pj4fg2dd69gq_cphqc0000gn/T/consilium-suite-RdwlhB
+Error: listen EADDRINUSE: address already in use :::3221
+    at Server.setupListenHandle [as _listen2] (node:net:1941:16)
+    at listenInCluster (node:net:1998:12)
+    at Server.listen (node:net:2103:7)
+    at /private/tmp/consilium-final-integration/scripts/run-platform-suite.ts:43:11
+    at new Promise (<anonymous>)
+    at freePort (/private/tmp/consilium-final-integration/scripts/run-platform-suite.ts:40:9)
+    at main (/private/tmp/consilium-final-integration/scripts/run-platform-suite.ts:92:9)
+    at Object.<anonymous> (/private/tmp/consilium-final-integration/scripts/run-platform-suite.ts:108:1)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Module.m._compile (/private/tmp/consilium-final-integration/node_modules/ts-node/src/index.ts:1618:23) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 3221
+}

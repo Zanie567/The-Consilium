@@ -1,0 +1,31 @@
+[platform-check] guarded test DB; app localhost:3221; storage loopback:55621; email/OAuth disabled
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > editor save rejects stale page and preserves newer row 45ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > list publish rejects stale page and preserves newer row 22ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > list unpublish rejects stale page and preserves newer row 13ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > series assignment rejects stale page and preserves newer row 13ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > current save, publish, unpublish and series assignment propagate each returned revision 67ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review approve rejects stale displayed content 34ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review return rejects stale displayed content 8ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review schedule rejects stale displayed content 10ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review correct rejects stale displayed content 7ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review unpublish rejects stale displayed content 14ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review approve succeeds at the displayed revision and preserves content 11ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review return succeeds at the displayed revision and preserves content 10ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review schedule succeeds at the displayed revision and preserves content 16ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review correct succeeds at the displayed revision and preserves content 7ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review unpublish succeeds at the displayed revision and preserves content 7ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > concurrent valid approvals commit exactly one transition and notification 30ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > concurrent choices retain exactly one global featured article 80ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > commendation rejects stale state and succeeds with current revision 12ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > calendar rejects stale state and succeeds with current revision 25ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > delete rejects stale state and succeeds with current revision 15ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > pin rejects stale state and succeeds with current revision 18ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > feature rejects stale state and succeeds with current revision 22ms
+
+ Test Files  1 passed (1)
+      Tests  22 passed (22)
+   Start at  12:38:13
+   Duration  1.11s (transform 40ms, setup 28ms, import 64ms, tests 861ms, environment 0ms)

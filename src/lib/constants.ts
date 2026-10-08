@@ -11,7 +11,6 @@ export const CONTACT_EMAIL = 'theconsilium.editor@gmail.com'
 // ── Social ────────────────────────────────────────────────────────────────────
 
 export const INSTAGRAM_URL = 'https://www.instagram.com/theconsilium.editor/'
-export const LINKEDIN_URL = 'https://linkedin.com'
 export const FEEDBACK_FORM_URL = 'https://forms.gle/ufUnT7sDoKagnLqGA'
 
 // ── URLs ──────────────────────────────────────────────────────────────────────

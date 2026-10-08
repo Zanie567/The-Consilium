@@ -42,7 +42,8 @@ export async function POST(req: Request) {
     for (const { id } of articles) {
       try {
         const score = await computeEngagementScore(id)
-        await prisma.article.update({ where: { id }, data: { engagementScore: score } })
+        // A derived metric is not an editorial edit/revision.
+        await prisma.$executeRaw`UPDATE articles SET "engagementScore" = ${score} WHERE id = ${id}`
         processed += 1
       } catch (err) {
         errors += 1

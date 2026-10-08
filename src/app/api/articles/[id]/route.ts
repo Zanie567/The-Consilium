@@ -1,3 +1,7 @@
+import { articleRevisionError } from '@/lib/articleRevision'
+import { figureAltError } from '@/lib/figureValidation'
+import { ArticleImageUnavailableError, lockArticleImages, cleanupRemovedArticleImages } from '@/lib/articleImageStorage'
+import { resolveArticleTag } from '@/lib/resolveArticleTag'
 import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse, NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
@@ -71,21 +75,31 @@ export async function GET(
     }
 
     if (!isEditorial) {
-      return NextResponse.json(article)
+      return NextResponse.json({ ...article, version: articleVersion(article, article.tags.map(t => t.tag.name)) })
     }
 
     const articleWithNotes = await prisma.article.findUnique({
       where: { id },
       include: {
-        author: true,
+        author: { select: PUBLIC_AUTHOR_SELECT },
         category: true,
-        notes: { include: { author: true }, orderBy: { createdAt: 'asc' } },
+        notes: { include: { author: { select: PUBLIC_AUTHOR_SELECT } }, orderBy: { createdAt: 'asc' } },
         series: true,
         tags: { include: { tag: true } },
       },
     })
 
-    return NextResponse.json(articleWithNotes)
+    if (!articleWithNotes || articleWithNotes.deletedAt) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+    // Return only the snapshot whose category access was checked above.
+    if (articleWithNotes.updatedAt.getTime() !== article.updatedAt.getTime()) {
+      return apiError('This article changed while loading. Please reload it.', 409, 'ARTICLE_CHANGED')
+    }
+    return NextResponse.json({
+      ...articleWithNotes,
+      version: articleVersion(articleWithNotes, articleWithNotes.tags.map(t => t.tag.name)),
+    })
   } catch {
     return NextResponse.json({ error: 'Failed to fetch article' }, { status: 500 })
   }
@@ -128,6 +142,20 @@ async function PUTHandler(
     }
 
     const body = await request.json()
+    if (body.expectedUpdatedAt !== undefined) {
+      const revision = typeof body.expectedUpdatedAt === 'string' ? new Date(body.expectedUpdatedAt) : null
+      if (!revision || !Number.isFinite(revision.getTime())) {
+        return apiError('The article revision is invalid.', 400, 'VALIDATION_ERROR', requestId)
+      }
+      if (revision.getTime() !== existing.updatedAt.getTime()) {
+        return apiError(
+          'Another editor changed this article. Open a fresh copy before retrying.',
+          409,
+          'ARTICLE_CHANGED',
+          requestId
+        )
+      }
+    }
     const {
       title, slug, content, excerpt, coverImage, categoryId, status,
       corrected, correctionNote, seriesId, seriesOrder, tags, scheduledAt,
@@ -214,13 +242,24 @@ async function PUTHandler(
     const wasUnpublished =
       existing.status === 'PUBLISHED' && finalStatus !== 'PUBLISHED'
 
+    if (['PENDING_REVIEW', 'SCHEDULED', 'PUBLISHED'].includes(finalStatus)) {
+      const altError = figureAltError(content ?? existing.content)
+      if (altError) return NextResponse.json({ error: altError }, { status: 400 })
+    }
+
     // Bounded and validated before the transaction opens, so the work inside it
     // is a known quantity.
     const normalizedTags = normalizeArticleTags(tags)
 
-    const updated = await prisma.$transaction(async (tx) => {
+    const { article: updated, savedTagNames } = await prisma.$transaction(async (tx) => {
+      await lockArticleImages(tx, content ?? existing.content, coverImage ?? existing.coverImage)
       const savedArticle = await tx.article.update({
-        where: { id },
+        // Recheck the authorised row at the write: a concurrent submission,
+        // review, role-scoped category move or trash operation must not be undone.
+        where: {
+          id, deletedAt: null, updatedAt: existing.updatedAt,
+          status: existing.status, authorId: existing.authorId, categoryId: existing.categoryId,
+        },
         data: {
           ...(title !== undefined && { title }),
           ...(slug !== undefined && { slug }),
@@ -251,17 +290,15 @@ async function PUTHandler(
       // Article fields and tag associations are one save operation. Keeping
       // them in the same transaction prevents a 500 after a partial update.
       // `tags` absent means "leave them alone"; an empty array means "clear them".
+      let savedTagNames = existing.tags.map(t => t.tag.name)
       if (Array.isArray(tags)) {
         await tx.articleTag.deleteMany({ where: { articleId: id } })
-        const tagRecords: Array<{ id: string }> = []
-        for (const { name, slug: tagSlug } of normalizedTags) {
-          const tag = await tx.tag.upsert({
-            where: { slug: tagSlug },
-            update: {},
-            create: { name, slug: tagSlug },
-          })
+        const tagRecords: Array<{ id: string; name: string }> = []
+        for (const { name, slug: tagSlug } of [...normalizedTags].sort((a, b) => a.slug.localeCompare(b.slug))) {
+          const tag = await resolveArticleTag(tx, { name, slug: tagSlug })
           tagRecords.push(tag)
         }
+        savedTagNames = tagRecords.map(tag => tag.name)
         if (tagRecords.length > 0) {
           await tx.articleTag.createMany({
             data: tagRecords.map((tag) => ({ articleId: id, tagId: tag.id })),
@@ -270,8 +307,10 @@ async function PUTHandler(
         }
       }
 
-      return savedArticle
+      return { article: savedArticle, savedTagNames }
     }, { timeout: ARTICLE_SAVE_TIMEOUT_MS })
+
+    await cleanupRemovedArticleImages(existing.content, existing.coverImage, updated.content, updated.coverImage)
 
     // Notify category editors when submitted
     if (wasJustSubmitted) {
@@ -342,14 +381,12 @@ async function PUTHandler(
       }
     }
 
-    const savedTagNames = Array.isArray(tags)
-      ? normalizedTags.map((t) => t.name)
-      : existing.tags.map((t) => t.tag.name)
     return NextResponse.json(
       { ...updated, version: articleVersion(updated, savedTagNames) },
       { headers: { 'x-request-id': requestId } }
     )
   } catch (error) {
+    if (error instanceof ArticleImageUnavailableError) return NextResponse.json({ error: error.message }, { status: 400 })
     return articleMutationErrorResponse(error, 'update', requestId)
   }
 }
@@ -400,14 +437,18 @@ async function DELETEHandler(
       }
     }
 
+    const revisionError = articleRevisionError(_req.headers.get('x-article-revision') ?? undefined, existing.updatedAt)
+    if (revisionError) return revisionError
+
     // Soft delete - move to trash; permanently removed after 30 days by the cron job
-    await prisma.article.update({ where: { id }, data: { deletedAt: new Date() } })
+    await prisma.article.update({ where: { id, updatedAt: existing.updatedAt, deletedAt: null, categoryId: existing.categoryId, authorId: existing.authorId }, data: { deletedAt: new Date() } })
     if (existing.status === 'PUBLISHED') revalidateArticleLists()
     return NextResponse.json(
       { success: true },
       { headers: { 'x-request-id': requestId } }
     )
   } catch (error) {
+    if (error instanceof ArticleImageUnavailableError) return NextResponse.json({ error: error.message }, { status: 400 })
     return articleMutationErrorResponse(error, 'delete', requestId)
   }
 }

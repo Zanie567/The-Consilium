@@ -1,0 +1,41 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+ × tests/integration/analytics-display-period.test.ts > analytics selected-period reporting > excludes historical debate votes from the selected-period activity ratio 122ms
+   → expected { …(5) } to match object { totalVotes: 1, forPct: +0, …(1) }
+(2 matching properties omitted from actual)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/analytics-display-period.test.ts > analytics selected-period reporting > excludes historical debate votes from the selected-period activity ratio
+AssertionError: expected { …(5) } to match object { totalVotes: 1, forPct: +0, …(1) }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "againstPct": 100,
+-   "forPct": 0,
+-   "totalVotes": 1,
++   "againstPct": 33,
++   "forPct": 67,
++   "totalVotes": 3,
+  }
+
+ ❯ tests/integration/analytics-display-period.test.ts:32:19
+     30|       const report = await response.json()
+     31|       const row = report.debateParticipation.find((item: { title: stri…
+     32|       expect(row).toMatchObject({ totalVotes: 1, forPct: 0, againstPct…
+       |                   ^
+     33|     } finally {
+     34|       if (debateId) await prisma.debate.delete({ where: { id: debateId…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  21:48:27
+   Duration  787ms (transform 55ms, setup 24ms, import 561ms, tests 122ms, environment 0ms)

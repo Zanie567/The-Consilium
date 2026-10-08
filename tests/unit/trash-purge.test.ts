@@ -10,15 +10,20 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-const { prismaMock } = vi.hoisted(() => {
+const { prismaMock, imageMock } = vi.hoisted(() => {
   const mock = {
     article: { findMany: vi.fn(), deleteMany: vi.fn() },
     auditLog: { create: vi.fn() },
     $transaction: vi.fn(),
   }
-  return { prismaMock: mock }
+  return { prismaMock: mock, imageMock: { lock: vi.fn(), queue: vi.fn() } }
 })
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }))
+// Managed-image reference locking and cleanup queueing (src/lib/articleImageStorage.ts).
+vi.mock('@/lib/articleImageStorage', () => ({
+  lockArticleImageReferences: imageMock.lock,
+  queueDeletedArticleImages: imageMock.queue,
+}))
 
 import {
   purgeExpiredTrash,
@@ -36,6 +41,9 @@ const row = (id: string, deletedAt: string) => ({
   slug: `slug-${id}`,
   authorId: `author-${id}`,
   deletedAt: new Date(deletedAt),
+  updatedAt: new Date(deletedAt),
+  content: `content-${id}`,
+  coverImage: `cover-${id}`,
 })
 
 beforeEach(() => {
@@ -43,6 +51,8 @@ beforeEach(() => {
   prismaMock.$transaction.mockImplementation(async (fn: (tx: typeof prismaMock) => unknown) => fn(prismaMock))
   prismaMock.article.deleteMany.mockResolvedValue({ count: 1 })
   prismaMock.auditLog.create.mockResolvedValue({})
+  imageMock.lock.mockResolvedValue([])
+  imageMock.queue.mockResolvedValue(undefined)
 })
 
 describe('resolveRetentionDays', () => {
@@ -70,6 +80,14 @@ describe('purgeExpiredTrash: scope', () => {
     expect(arg.where).toEqual({ deletedAt: { not: null, lte: CUTOFF } })
   })
 
+  it('works through a bounded, oldest-first batch so one run cannot grow without limit', async () => {
+    prismaMock.article.findMany.mockResolvedValue([])
+    await purgeExpiredTrash({ now: NOW })
+    const arg = prismaMock.article.findMany.mock.calls[0][0]
+    expect(arg.take).toBe(100)
+    expect(arg.orderBy).toEqual([{ deletedAt: 'asc' }, { id: 'asc' }])
+  })
+
   it('honours a configured retention period', async () => {
     prismaMock.article.findMany.mockResolvedValue([])
     await purgeExpiredTrash({ now: NOW, retentionDays: 60 })
@@ -88,8 +106,18 @@ describe('purgeExpiredTrash: scope', () => {
     prismaMock.article.findMany.mockResolvedValue([row('a', '2026-08-01T00:00:00Z')])
     await purgeExpiredTrash({ now: NOW })
     expect(prismaMock.article.deleteMany).toHaveBeenCalledWith({
-      where: { id: 'a', deletedAt: { not: null, lte: CUTOFF } },
+      where: { id: 'a', updatedAt: new Date('2026-08-01T00:00:00Z'), deletedAt: { not: null, lte: CUTOFF } },
     })
+  })
+
+  it('an edit made after the snapshot wins: the delete is guarded on the row it listed (updatedAt)', async () => {
+    const listed = row('a', '2026-08-01T00:00:00Z')
+    prismaMock.article.findMany.mockResolvedValue([listed])
+    prismaMock.article.deleteMany.mockResolvedValue({ count: 0 }) // updatedAt moved on, nothing matches
+    const res = await purgeExpiredTrash({ now: NOW })
+    expect(res.count).toBe(0)
+    expect(imageMock.queue).not.toHaveBeenCalled()
+    expect(prismaMock.auditLog.create).not.toHaveBeenCalled()
   })
 })
 
@@ -147,6 +175,48 @@ describe('purgeExpiredTrash: reporting and audit', () => {
     expect(res.count).toBe(1)
     expect(prismaMock.auditLog.create).toHaveBeenCalledTimes(1)
     expect(prismaMock.auditLog.create.mock.calls[0][0].data.targetId).toBe('b')
+  })
+})
+
+describe('purgeExpiredTrash: managed image cleanup', () => {
+  it('locks the article\'s image references, deletes, queues cleanup, then audits, in that order and in one transaction', async () => {
+    prismaMock.article.findMany.mockResolvedValue([row('a', '2026-08-01T00:00:00Z')])
+    await purgeExpiredTrash({ now: NOW })
+    expect(prismaMock.$transaction).toHaveBeenCalledTimes(1)
+    expect(imageMock.lock).toHaveBeenCalledWith(prismaMock, 'content-a', 'cover-a')
+    expect(imageMock.queue).toHaveBeenCalledWith(prismaMock, 'content-a', 'cover-a')
+    const order = [
+      imageMock.lock.mock.invocationCallOrder[0],
+      prismaMock.article.deleteMany.mock.invocationCallOrder[0],
+      imageMock.queue.mock.invocationCallOrder[0],
+      prismaMock.auditLog.create.mock.invocationCallOrder[0],
+    ]
+    expect(order).toEqual([...order].sort((x, y) => x - y))
+  })
+
+  it('does not queue cleanup for a row that was not actually deleted', async () => {
+    prismaMock.article.findMany.mockResolvedValue([row('a', '2026-08-01T00:00:00Z')])
+    prismaMock.article.deleteMany.mockResolvedValue({ count: 0 })
+    await purgeExpiredTrash({ now: NOW })
+    expect(imageMock.queue).not.toHaveBeenCalled()
+  })
+
+  it('rolls the delete back, and reports a failure, when cleanup eligibility cannot be recorded', async () => {
+    prismaMock.article.findMany.mockResolvedValue([row('a', '2026-08-01T00:00:00Z')])
+    imageMock.queue.mockRejectedValue(new Error('Cleanup DB unavailable'))
+    const res = await purgeExpiredTrash({ now: NOW })
+    // the transaction callback rejected, so the real database rolls the delete back
+    expect(res.count).toBe(0)
+    expect(res.articleIds).toEqual([])
+    expect(res.errors).toEqual([{ articleId: 'a', message: 'Cleanup DB unavailable' }])
+    expect(prismaMock.auditLog.create).not.toHaveBeenCalled()
+  })
+
+  it('a dry run touches no images', async () => {
+    prismaMock.article.findMany.mockResolvedValue([row('a', '2026-08-01T00:00:00Z')])
+    await purgeExpiredTrash({ now: NOW, dryRun: true })
+    expect(imageMock.lock).not.toHaveBeenCalled()
+    expect(imageMock.queue).not.toHaveBeenCalled()
   })
 })
 

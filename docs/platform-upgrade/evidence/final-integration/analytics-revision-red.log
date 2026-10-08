@@ -1,0 +1,40 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+ × tests/integration/analytics-engagement.test.ts > canonical analytics persistence > deduplicates concurrent views and strips referrer paths 51ms
+   → expected 2026-10-06T20:39:15.267Z to deeply equal 2026-10-06T20:39:15.240Z
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > persists monotonic elapsed-bounded time and threshold metrics 30ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > counts returning only on an earlier UTC day with consent; decline unlinks current visit 16ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > drops drafts, invalid ids and reused visits on another article 2ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > counts consented readers accumulating five minutes across shorter visits without qualifying each visit 10ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > prunes stale engagement records in a bounded batch 4ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > returns ok on analytics database failure without leaking errors 3ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > drops bots, malformed and oversized events safely 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/analytics-engagement.test.ts > canonical analytics persistence > deduplicates concurrent views and strips referrer paths
+AssertionError: expected 2026-10-06T20:39:15.267Z to deeply equal 2026-10-06T20:39:15.240Z
+
+- Expected
++ Received
+
+- 2026-10-06T20:39:15.240Z
++ 2026-10-06T20:39:15.267Z
+
+ ❯ tests/integration/analytics-engagement.test.ts:61:94
+     59|     expect(await prisma.articleView.count({ where: { articleId } })).t…
+     60|     expect((await prisma.article.findUniqueOrThrow({ where: { id: arti…
+     61|     expect((await prisma.article.findUniqueOrThrow({ where: { id: arti…
+       |                                                                                              ^
+     62|     expect((await prisma.articleView.findFirstOrThrow({ where: { artic…
+     63|       'https://example.test'
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 7 passed (8)
+   Start at  21:39:14
+   Duration  391ms (transform 46ms, setup 25ms, import 98ms, tests 196ms, environment 0ms)

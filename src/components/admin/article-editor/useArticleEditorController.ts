@@ -1,5 +1,7 @@
 'use client'
 
+import { topicDisplayName, canonicalTagSlug } from '@/lib/tagIdentity'
+
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
@@ -21,6 +23,7 @@ import { STATUS_LABELS } from './constants'
 
 interface SavedArticleResponse {
   id?: string
+  updatedAt?: string
   status?: string
   /** Server-computed fingerprint of the saved fields (see src/lib/articleVersion.ts). */
   version?: string
@@ -32,7 +35,7 @@ function localEditorError(message: string): ArticleEditorError {
 
 function articleSaveError(reason: unknown): ArticleEditorError {
   const error = asApiError(reason)
-  const base = { kind: error.kind, requestId: error.requestId, code: error.code }
+  const base = { kind: error.kind, requestId: error.requestId, code: error.code === 'ARTICLE_CHANGED' ? 'ARTICLE_CONFLICT' : error.code }
 
   switch (error.kind) {
     case 'auth':
@@ -75,11 +78,11 @@ function articleSaveError(reason: unknown): ArticleEditorError {
           message: 'This article\'s published status was changed in another tab or by someone else, so this tab cannot save over it. Nothing was saved or published. Copy any text you need, then reload to see the current status.',
         }
       }
-      if (error.code === 'ARTICLE_CONFLICT') {
+      if (base.code === 'ARTICLE_CONFLICT') {
         return {
           ...base,
           label: 'Changed elsewhere',
-          message: `${error.message} Nothing was saved. Your changes are still in this tab: keep them to replace the newer version, or reload to discard them and see what changed.`,
+          message: 'This article was changed in another tab or by another editor. Nothing was saved. Your changes are still in this tab: keep them to replace the newer version, or reload to discard them and see what changed.',
         }
       }
       return {
@@ -150,8 +153,12 @@ export function useArticleEditorController({
   const [selectedAuthorId, setSelectedAuthorIdState] = useState(initialData?.authorId ?? authorId)
   const [users, setUsers] = useState<UserOption[]>([])
 
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
-  const [savedVisible, setSavedVisible] = useState(false)
+  // An existing server-loaded revision is persisted; acknowledge it until
+  // subsequent edits make the document dirty. Draft creation preserves this
+  // controller and updates the address bar without remounting it.
+  const loadedSavedRevision = Boolean(articleId && initialData?.updatedAt)
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>(loadedSavedRevision ? 'saved' : 'idle')
+  const [savedVisible, setSavedVisible] = useState(loadedSavedRevision)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<ArticleEditorError | null>(null)
   const [coverError, setCoverError] = useState('')
@@ -159,6 +166,7 @@ export function useArticleEditorController({
   const [tutorialOpen, setTutorialOpen] = useState(false)
 
   const articleIdRef = useRef<string | undefined>(articleId)
+  const revisionRef = useRef(initialData?.updatedAt)
   // Fingerprint of the article as this tab last saw it; sent so a stale tab is refused.
   const versionRef = useRef<string | undefined>(initialData?.version)
   const isDirtyRef = useRef(false)
@@ -291,18 +299,14 @@ export function useArticleEditorController({
   useEffect(() => { selectedAuthorIdRef.current = selectedAuthorId }, [selectedAuthorId])
 
   useEffect(() => {
-    const element = titleDomRef.current
-    if (!element) return
-    element.style.height = 'auto'
-    element.style.height = `${element.scrollHeight}px`
-  }, [title, titleDomRef])
-
-  useEffect(() => {
-    const element = excerptDomRef.current
-    if (!element) return
-    element.style.height = 'auto'
-    element.style.height = `${element.scrollHeight}px`
-  }, [excerpt, excerptDomRef])
+    const elements = [titleDomRef.current, excerptDomRef.current].filter((element): element is HTMLTextAreaElement => Boolean(element))
+    const resize = () => { for (const element of elements) { element.style.height = 'auto'; element.style.height = `${element.scrollHeight}px` } }
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(resize)
+    for (const element of elements) if (element.parentElement) observer?.observe(element.parentElement)
+    resize()
+    void document.fonts?.ready.then(resize)
+    return () => observer?.disconnect()
+  }, [title, excerpt, titleDomRef, excerptDomRef])
 
   const performSave = useCallback((explicitStatus?: string): Promise<boolean> => {
     const requestedStatus = explicitStatus ?? currentStatusRef.current
@@ -349,6 +353,7 @@ export function useArticleEditorController({
           categoryId: categoryIdRef.current || null,
           authorId: selectedAuthorIdRef.current,
           status: finalStatus,
+          ...(revisionRef.current ? { expectedUpdatedAt: revisionRef.current } : {}),
           tags: tagsRef.current,
           // Only an explicit publish / schedule / unpublish / submit action says so; the server
           // refuses any visibility change without it (PUBLICATION_CONFIRMATION_REQUIRED).
@@ -387,6 +392,7 @@ export function useArticleEditorController({
             )
           }
           articleIdRef.current = saved.id
+          revisionRef.current = saved.updatedAt
           if (saved.version) versionRef.current = saved.version
           // Put the article's own URL in the address bar WITHOUT navigating. A router
           // navigation here re-mounted the whole editor (new route segment), and any
@@ -397,7 +403,7 @@ export function useArticleEditorController({
             saved = await apiRequest<SavedArticleResponse>(`/api/articles/${saved.id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...body, ...(versionRef.current ? { baseVersion: versionRef.current } : {}) }),
+              body: JSON.stringify({ ...body, expectedUpdatedAt: revisionRef.current, ...(versionRef.current ? { baseVersion: versionRef.current } : {}) }),
             })
           }
         }
@@ -406,6 +412,8 @@ export function useArticleEditorController({
           currentStatusRef.current = saved.status
           setCurrentStatus(saved.status)
         }
+
+        revisionRef.current = saved.updatedAt ?? revisionRef.current
 
         if (explicitStatus && statusIntentVersion === statusIntentVersionRef.current) {
           setStatusState(saved.status ?? explicitStatus)
@@ -579,10 +587,25 @@ export function useArticleEditorController({
     }
   }
 
-  const keepMyVersion = () => {
-    // The user has seen the conflict and chosen their text: save without the version check.
-    versionRef.current = undefined
-    void handleSave()
+  const keepMyVersion = async () => {
+    // Rebase this explicit choice on a fresh revision, preserving both guards
+    // against another change between this read and the ensuing write.
+    clearTimeout(autoSaveTimer.current)
+    await saveQueueRef.current
+    try {
+      const latest = await apiRequest<SavedArticleResponse>(`/api/articles/${articleIdRef.current}`, { cache: 'no-store' })
+      if (!latest.version || !latest.updatedAt || !latest.status) {
+        throw new ApiError('server', 'The latest article revision could not be loaded. Your changes remain in this tab.')
+      }
+      revisionRef.current = latest.updatedAt
+      versionRef.current = latest.version
+      currentStatusRef.current = latest.status
+      setCurrentStatus(latest.status)
+      await handleSave()
+    } catch (reason) {
+      setError(articleSaveError(reason))
+      setSaveStatus('error')
+    }
   }
 
   const reloadLatest = () => {
@@ -604,8 +627,8 @@ export function useArticleEditorController({
   }
 
   const addTag = (raw: string) => {
-    const name = raw.trim().toLowerCase().replace(/[^a-z0-9 ]/g, '').trim()
-    if (name && !tags.includes(name) && tags.length < 10) {
+    const name = topicDisplayName(raw)
+    if (name && !tags.some(tag => canonicalTagSlug(tag) === canonicalTagSlug(name)) && tags.length < 10) {
       const next = [...tags, name]
       setTags(next)
       tagsRef.current = next

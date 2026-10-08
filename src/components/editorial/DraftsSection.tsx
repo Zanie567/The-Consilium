@@ -24,11 +24,12 @@ export function DraftsSection({ drafts }: { drafts: Draft[] }) {
   // Track per-draft error messages so failures are shown to the user
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (draft: Draft) => {
+    const { id, updatedAt } = draft
     setDeleting(id)
     setDeleteError(null)
     try {
-      await apiRequest(`/api/articles/${id}`, { method: 'DELETE' })
+      await apiRequest(`/api/articles/${id}`, { method: 'DELETE', headers: { 'x-article-revision': new Date(updatedAt).toISOString() } })
       router.refresh()
     } catch (reason) {
       setDeleteError(asApiError(reason).message)
@@ -83,7 +84,7 @@ export function DraftsSection({ drafts }: { drafts: Draft[] }) {
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-[var(--fg-faint)]">Delete?</span>
                 <button
-                  onClick={() => handleDelete(draft.id)}
+                  onClick={() => handleDelete(draft)}
                   disabled={deleting === draft.id}
                   className="text-xs font-semibold text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
                 >

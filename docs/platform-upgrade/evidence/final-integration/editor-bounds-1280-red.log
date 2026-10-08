@@ -1,0 +1,48 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+Running 5 tests using 1 worker
+
+(node:86506) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86506) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [setup] › tests/e2e/auth.setup.ts:13:6 › authenticate as admin (622ms)
+  ✓  2 [setup] › tests/e2e/auth.setup.ts:50:6 › authenticate as an editor with no category assignments (353ms)
+  ✓  3 [setup] › tests/e2e/auth.setup.ts:54:6 › authenticate as an editor scoped to Opinion (362ms)
+  ✓  4 [setup] › tests/e2e/auth.setup.ts:62:6 › authenticate as the seeded writer (344ms)
+(node:86515) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86515) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  5 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:402:5 › wide tables and standard/wide/portrait figures remain contained in editor and public layouts (1.7s)
+
+
+  1) [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:402:5 › wide tables and standard/wide/portrait figures remain contained in editor and public layouts
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 220
+    Received:    215
+
+      510 |       expect(bounds).not.toBeNull()
+      511 |       const paneLeft = await document.evaluate(el => el.closest('.portal-page-enter')!.getBoundingClientRect().left)
+    > 512 |       expect(bounds!.x).toBeGreaterThanOrEqual(paneLeft)
+          |                         ^
+      513 |       expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width)
+      514 |       if (width >= 1100) {
+      515 |         const formatBounds = await edit.getByLabel('Article format', { exact: true }).boundingBox()
+        at /private/tmp/consilium-final-integration/tests/e2e/upgrade-rich-content.spec.ts:512:25
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-rich-content-wide--3f439-n-editor-and-public-layouts-upgrade/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-rich-content-wide--3f439-n-editor-and-public-layouts-upgrade/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/upgrade-rich-content-wide--3f439-n-editor-and-public-layouts-upgrade/error-context.md
+
+  1 failed
+    [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:402:5 › wide tables and standard/wide/portrait figures remain contained in editor and public layouts
+  4 passed (4.3s)

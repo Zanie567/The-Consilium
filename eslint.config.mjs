@@ -8,10 +8,12 @@ const eslintConfig = defineConfig([
   globalIgnores([
     ".next/**",
     ".next-e2e*/**",
-    "playwright-report/**",
-    // Retained browser reports contain generated, minified vendor bundles.
+    ".next-e2e*.tsconfig.json",
+    // Archived browser traces/reports are generated bundles, not source code. The `**/`
+    // globs also cover the top-level playwright-report/ and test-results/ directories.
     "docs/testing/evidence/**",
-    "test-results/**",
+    "**/playwright-report/**",
+    "**/test-results/**",
     ".claude/**",
     ".vercel/**",
     "out/**",

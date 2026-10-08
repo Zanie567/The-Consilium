@@ -1,0 +1,32 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+> the-consilium@0.1.0 audit:dead
+> knip
+
+Unused files (3)
+prisma/seed-read-through.ts
+scripts/platform-check.ts
+tests/e2e/auth.setup.ts
+Unused exports (7)
+commentHighlightKey       src/components/editor/commentHighlight.ts:45:14
+ENGAGED_READ_SECONDS      src/lib/activeReading.ts:35:14
+FIVE_MINUTE_READ_SECONDS  src/lib/activeReading.ts:36:14
+MAX_ARTICLE_IMAGE_BYTES   src/lib/articleImageUpload.ts:2:14
+ARTICLE_SANITIZE_OPTIONS  src/lib/articleSanitize.ts:18:14
+MACRO_MAX_AGE_DAYS        src/lib/macroData.ts:56:14
+TEAM_TIER_ORDER           src/lib/teamHierarchy.ts:93:14
+Unused exported types (12)
+GlossaryTermFields        interface  src/app/api/editorial/glossary/validate.ts:9:18
+PredictionEventTypeValue  type       src/app/api/editorial/predictions/validate.ts:8:13
+ParsedEventFields         interface  src/app/api/editorial/predictions/validate.ts:10:18
+LinkableAccount           interface  src/components/admin/TeamManagement.tsx:21:18
+GlossarySnapshot          interface  src/lib/glossary/data.ts:32:18
+InstrumentKind            type       src/lib/marketData.ts:11:13
+TiptapMark                interface  src/lib/richContent.ts:12:18
+RichBlockMetadata         interface  src/lib/richContent.ts:26:18
+TableAttributes           type       src/lib/richContent.ts:45:13
+TableCellAttributes       interface  src/lib/richContent.ts:48:18
+TeamSectionId             type       src/lib/teamHierarchy.ts:32:13
+TeamRow                   interface  src/lib/teamHierarchy.ts:53:18
+Configuration hints (1)
+pg    knip.json  Remove from ignoreDependencies

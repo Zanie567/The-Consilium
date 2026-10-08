@@ -1,115 +1,125 @@
-const INLINE_ELEMENTS = new Set([
-  'span',
-  'font',
+import { safeContentUrl } from '@/lib/richMetadata'
+
+const ALLOWED = new Set([
+  'p',
+  'br',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'strong',
   'b',
+  'em',
   'i',
   'u',
   's',
-  'em',
-  'strong',
+  'strike',
   'a',
+  'blockquote',
+  'ol',
+  'ul',
+  'li',
+  'table',
+  'thead',
+  'tbody',
+  'tfoot',
+  'tr',
+  'td',
+  'th',
+  'hr',
+  'img',
+  'pre',
+  'code',
 ])
+const DROP =
+  'script,style,meta,link,iframe,object,embed,svg,math,form,input,button,textarea,select,template,noscript'
 
-const ATTRIBUTE_ALLOWLIST = new Map<string, Set<string>>([
-  ['a', new Set(['href'])],
-  ['img', new Set(['src', 'alt'])],
-  ['td', new Set(['rowspan', 'colspan'])],
-  ['th', new Set(['rowspan', 'colspan'])],
-  ['aside', new Set(['data-type', 'class'])],
-])
-
-function stripAttributes(element: Element) {
-  if (element.matches('[id*="cmnt"], [id*="ftnt"], a[id]')) return
-
-  const tagName = element.tagName.toLowerCase()
-  const allowedAttributes = ATTRIBUTE_ALLOWLIST.get(tagName) ?? new Set<string>()
-
-  Array.from(element.attributes).forEach((attribute) => {
-    if (!allowedAttributes.has(attribute.name.toLowerCase())) {
-      element.removeAttribute(attribute.name)
-    }
-  })
-}
-
-function getSemanticWrappers(element: HTMLElement): string[] {
-  const wrappers: string[] = []
-  const { fontWeight, fontStyle, textDecoration } = element.style
-
-  if (/bold|700|800|900/.test(fontWeight)) wrappers.push('strong')
-  if (/italic/.test(fontStyle)) wrappers.push('em')
-  if (/line-through/.test(textDecoration)) {
-    wrappers.push('s')
-  } else if (/underline/.test(textDecoration)) {
-    wrappers.push('u')
-  }
-
-  return wrappers
-}
-
-function replaceWithSemanticWrappers(element: HTMLElement, wrappers: string[]): HTMLElement {
-  const doc = element.ownerDocument
-  const createdWrappers = wrappers.map((tagName) => doc.createElement(tagName))
-  const outermost = createdWrappers[0]
-  const innermost = createdWrappers[createdWrappers.length - 1]
-
-  createdWrappers.forEach((wrapper, index) => {
-    const nextWrapper = createdWrappers[index + 1]
-    if (nextWrapper) wrapper.appendChild(nextWrapper)
-  })
-
-  while (element.firstChild) {
-    innermost.appendChild(element.firstChild)
-  }
-
-  element.replaceWith(outermost)
-  return outermost
-}
-
-function cleanElement(element: Element) {
-  Array.from(element.children).forEach(cleanElement)
-
-  let currentElement = element
-  const tagName = currentElement.tagName.toLowerCase()
-
-  if (currentElement instanceof HTMLElement && INLINE_ELEMENTS.has(tagName)) {
-    const wrappers = getSemanticWrappers(currentElement)
-    if (wrappers.length > 0) {
-      currentElement = replaceWithSemanticWrappers(currentElement, wrappers)
-    }
-  }
-
-  stripAttributes(currentElement)
-}
-
+/** Clipboard conversion, not a substitute for the public/server sanitiser. */
 export function cleanPastedHTML(html: string): string {
-  const doc = new window.DOMParser().parseFromString(html, 'text/html')
-  const { body } = doc
-
-  body.querySelectorAll('meta, style, script').forEach((element) => element.remove())
-
-  Array.from(body.children).forEach((element) => {
-    if (element.tagName.toLowerCase() !== 'b') return
-
-    if (!(element instanceof HTMLElement)) return
-    if (element.style.fontWeight.toLowerCase() !== 'normal') return
-
-    while (element.firstChild) {
-      body.insertBefore(element.firstChild, element)
-    }
-    element.remove()
+  const doc = new window.DOMParser().parseFromString(html.slice(0, 2_000_000), 'text/html')
+  doc.body.querySelectorAll(DROP).forEach((el) => el.remove())
+  doc.body.querySelectorAll('[id*="cmnt"], [id*="ftnt"]').forEach((el) => el.remove())
+  // Google Docs wraps its whole clipboard in a bold element styled normal.
+  doc.body.querySelectorAll('b[style]').forEach((el) => {
+    if (
+      (el as HTMLElement).style.fontWeight === 'normal' ||
+      (el as HTMLElement).style.fontWeight === '400'
+    )
+      el.replaceWith(...el.childNodes)
   })
-
-  Array.from(body.children).forEach(cleanElement)
-
-  body.querySelectorAll('[id*="cmnt"], [id*="ftnt"], a[id]').forEach((element) => element.remove())
-
-  body.querySelectorAll('span').forEach((element) => {
-    if (element.attributes.length === 0 && element.textContent?.trim().length === 0) {
-      element.remove()
+  const clean = (el: Element) => {
+    Array.from(el.children).forEach(clean)
+    const tag = el.tagName.toLowerCase()
+    const style = (el as HTMLElement).style
+    const wrappers: string[] = []
+    if (
+      style &&
+      (style.fontWeight === 'bold' || Number(style.fontWeight) >= 600) &&
+      !['b', 'strong'].includes(tag)
+    )
+      wrappers.push('strong')
+    if (style?.fontStyle === 'italic' && !['em', 'i'].includes(tag)) wrappers.push('em')
+    if (wrappers.length) {
+      // Keep the original structural element/link; wrap its children only.
+      const fragment = doc.createDocumentFragment()
+      while (el.firstChild) fragment.append(el.firstChild)
+      let content: Node = fragment
+      for (const wrapper of wrappers.reverse()) {
+        const mark = doc.createElement(wrapper)
+        mark.append(content)
+        content = mark
+      }
+      el.append(content)
+    }
+    const attrs: Record<string, string> = {}
+    if (tag === 'a') {
+      const href = safeContentUrl(el.getAttribute('href'), true)
+      if (href) attrs.href = href
+    }
+    if (tag === 'img') {
+      const src = safeContentUrl(el.getAttribute('src'))
+      if (!src) {
+        el.remove()
+        return
+      }
+      attrs.src = src
+      attrs.alt = el.getAttribute('alt') ?? ''
+    }
+    if (tag === 'td' || tag === 'th')
+      for (const name of ['colspan', 'rowspan']) {
+        const value = Number(el.getAttribute(name))
+        if (Number.isInteger(value) && value > 1 && value <= 100) attrs[name] = String(value)
+      }
+    if (tag === 'ol') {
+      const start = Number(el.getAttribute('start'))
+      if (Number.isInteger(start) && start > 0 && start <= 100000) attrs.start = String(start)
+    }
+    Array.from(el.attributes).forEach((attr) => el.removeAttribute(attr.name))
+    for (const [name, value] of Object.entries(attrs)) el.setAttribute(name, value)
+    if (!ALLOWED.has(tag)) el.replaceWith(...el.childNodes)
+  }
+  Array.from(doc.body.children).forEach(clean)
+  // Typical Docs tables use bold cells for their header row, without <th>.
+  doc.body.querySelectorAll('table').forEach((table) => {
+    const first = table.querySelector('tr')
+    if (
+      first &&
+      first.children.length &&
+      Array.from(first.children).every(
+        (cell) => cell.querySelector('strong,b') && cell.textContent?.trim()
+      )
+    ) {
+      Array.from(first.children).forEach((cell) => {
+        if (cell.tagName === 'TD') {
+          const th = doc.createElement('th')
+          for (const attr of cell.attributes) th.setAttribute(attr.name, attr.value)
+          th.append(...cell.childNodes)
+          cell.replaceWith(th)
+        }
+      })
     }
   })
-
-  const result = body.innerHTML
-
-  return result.replace(/\u2014/g, ' - ').replace(/\u00a0/g, ' ')
+  return doc.body.innerHTML.replace(/\u00a0/g, ' ')
 }

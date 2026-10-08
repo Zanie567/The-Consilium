@@ -1,0 +1,12 @@
+waiting for server to shut down.... done
+server stopped
+
+Owned app/Storage processes interrupted after completed suites.
+Listener inventory for owned ports 3220/55620/55520: none (lsof exit 1)
+waiting for server to shut down.... done
+server stopped
+
+Final handoff after labelled scheduling UI and repeated complete suite.
+Owned app PID 93215 and fake Storage PID 92700 sent SIGTERM after process/port verification.
+Listener inventory for owned ports 3220/55620/55520: exit 1
+No listeners.

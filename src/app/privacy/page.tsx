@@ -27,11 +27,10 @@ export default function PrivacyPage() {
             This policy sets out what data we collect, why we collect it, how long we keep it, and
             what rights you have over it.
           </p>
-          <p className="text-[var(--fg-faint)] text-sm mt-4">Last updated: 6 April 2026</p>
+          <p className="text-[var(--fg-faint)] text-sm mt-4">Last updated: 6 October 2026</p>
         </div>
 
         <div className="prose-consilium space-y-10">
-
           <section>
             <h2>Who we are</h2>
             <p>
@@ -41,14 +40,16 @@ export default function PrivacyPage() {
             </p>
             <p>
               If you have any questions about this policy or how we handle your data, please contact
-              us at{' '}
-              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+              us at <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
             </p>
           </section>
 
           <section>
             <h2>What data we collect and why</h2>
-            <p>We only collect information that is necessary to run the website. Here is what we collect:</p>
+            <p>
+              We only collect information that is necessary to run the website. Here is what we
+              collect:
+            </p>
 
             <h3>Newsletter subscriptions</h3>
             <p>
@@ -63,16 +64,16 @@ export default function PrivacyPage() {
               If you create an account, we store your name, email address, and a securely hashed
               version of your password (we never store passwords in plain text). We use this to let
               you log in, save articles, and track your reading progress across devices. The legal
-              basis is your consent at the point of sign-up. You can request deletion of your account
-              and all associated data at any time.
+              basis is your consent at the point of sign-up. You can request deletion of your
+              account and all associated data at any time.
             </p>
 
             <h3>Reading progress and bookmarks</h3>
             <p>
               If you have an account, we store which articles you have read, how far through each
-              article you are, and which articles you have bookmarked. This lets you continue reading
-              where you left off. This data is linked to your account and is deleted when your account
-              is deleted.
+              article you are, and which articles you have bookmarked. This lets you continue
+              reading where you left off. This data is linked to your account and is deleted when
+              your account is deleted.
             </p>
 
             <h3>Contact form submissions</h3>
@@ -84,16 +85,31 @@ export default function PrivacyPage() {
 
             <h3>Cookies and visit tracking</h3>
             <p>
-              We use a small number of cookies. A visit counter cookie helps us decide when
-              to show you our account sign-up prompt. A session cookie is used to keep you logged in
-              if you have an account. No advertising or tracking cookies are used.
+              We use a small number of cookies. A visit counter cookie helps us decide when to show
+              you our account sign-up prompt. A session cookie is used to keep you logged in if you
+              have an account. No advertising or tracking cookies are used.
             </p>
             <p>
               When you first visit the site, you will be asked to accept or decline non-essential
-              cookies. If you decline, only the essential session cookie will be used. You can change
-              your preference at any time by clearing your browser cookies.
+              cookies. If you decline, only the essential session cookie will be used. You can
+              change your preference at any time by clearing your browser cookies.
             </p>
 
+            <h3>Reader analytics</h3>
+            <p>
+              We count article visits and approximate active reading time while a page is visible,
+              focused and used within the previous minute. We pause measurement when the page is
+              hidden or inactive. Without consent, analytics uses a temporary identifier held only
+              in page memory; it does not recognise you across visits.
+            </p>
+            <p>
+              If you accept non-essential storage, a random reader identifier is stored in your
+              browser for up to 90 days. A keyed hash lets us estimate returning readership on
+              earlier days. It is not linked to your account, email or IP address. Declining removes
+              this browser identifier. Active-reading records are retained for approximately 90 days
+              with daily cleanup. Referrers contain only website origins, without paths or query
+              strings. We do not fingerprint readers.
+            </p>
             <h3>Login records</h3>
             <p>
               We record the time, email address, and IP address of login attempts (both successful
@@ -105,26 +121,35 @@ export default function PrivacyPage() {
           <section>
             <h2>How long we keep your data</h2>
             <ul>
-              <li><strong>Newsletter subscriptions:</strong> until you unsubscribe</li>
-              <li><strong>Account data, reading progress, and bookmarks:</strong> until you delete your account</li>
-              <li><strong>Contact form messages:</strong> up to two years</li>
-              <li><strong>Login records:</strong> up to one year for security auditing</li>
+              <li>
+                <strong>Newsletter subscriptions:</strong> until you unsubscribe
+              </li>
+              <li>
+                <strong>Account data, reading progress, and bookmarks:</strong> until you delete
+                your account
+              </li>
+              <li>
+                <strong>Contact form messages:</strong> up to two years
+              </li>
+              <li>
+                <strong>Login records:</strong> up to one year for security auditing
+              </li>
             </ul>
           </section>
 
           <section>
             <h2>Where your data is stored</h2>
             <p>
-              Your data is stored on a PostgreSQL database hosted by Supabase. Supabase servers
-              are located in the European Union. All data is encrypted in transit and at rest.
+              Your data is stored on a PostgreSQL database hosted by Supabase. Supabase servers are
+              located in the European Union. All data is encrypted in transit and at rest.
             </p>
           </section>
 
           <section>
             <h2>Who we share your data with</h2>
             <p>
-              We do not sell your data to anyone, ever. We share it only with the third-party services
-              required to operate the website:
+              We do not sell your data to anyone, ever. We share it only with the third-party
+              services required to operate the website:
             </p>
             <ul>
               <li>
@@ -141,9 +166,7 @@ export default function PrivacyPage() {
                 a message.
               </li>
             </ul>
-            <p>
-              Each operates under its own privacy policy and, where applicable, UK GDPR.
-            </p>
+            <p>Each operates under its own privacy policy and, where applicable, UK GDPR.</p>
           </section>
 
           <section>
@@ -157,13 +180,13 @@ export default function PrivacyPage() {
                 <strong>The right to access:</strong> you can ask us what data we hold about you.
               </li>
               <li>
-                <strong>The right to correct:</strong> if any information we hold is inaccurate,
-                you can ask us to correct it.
+                <strong>The right to correct:</strong> if any information we hold is inaccurate, you
+                can ask us to correct it.
               </li>
               <li>
-                <strong>The right to erasure:</strong> you can ask us to delete all personal data
-                we hold about you. For account holders, you can do this instantly by contacting us
-                or using the deletion option in your account.
+                <strong>The right to erasure:</strong> you can ask us to delete all personal data we
+                hold about you. For account holders, you can do this instantly by contacting us or
+                using the deletion option in your account.
               </li>
               <li>
                 <strong>The right to withdraw consent:</strong> where we rely on your consent to
@@ -178,17 +201,13 @@ export default function PrivacyPage() {
             </ul>
             <p>
               To exercise any of these rights, email us at{' '}
-              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
-              We will respond within 30 days.
+              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. We will respond within 30
+              days.
             </p>
             <p>
               If you are unhappy with how we handle your data, you have the right to lodge a
               complaint with the{' '}
-              <a
-                href="https://ico.org.uk"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a href="https://ico.org.uk" target="_blank" rel="noopener noreferrer">
                 Information Commissioner&apos;s Office (ICO)
               </a>
               , the UK&apos;s data protection regulator.
@@ -210,7 +229,6 @@ export default function PrivacyPage() {
               <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
             </p>
           </section>
-
         </div>
 
         <div className="mt-14 pt-8 border-t border-[var(--border)]">
@@ -218,7 +236,9 @@ export default function PrivacyPage() {
             href="/"
             className="inline-flex items-center gap-2 text-gold text-xs font-bold uppercase tracking-widest hover:gap-3 transition-all duration-200 group"
           >
-            <span className="transition-transform duration-200 group-hover:-translate-x-1">&larr;</span>
+            <span className="transition-transform duration-200 group-hover:-translate-x-1">
+              &larr;
+            </span>
             Back to Homepage
           </Link>
         </div>

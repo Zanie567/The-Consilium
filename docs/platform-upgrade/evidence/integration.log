@@ -1,0 +1,9 @@
+[platform-check] guarded test DB; app localhost:3197; storage loopback:55491; email/OAuth disabled
+
+ RUN  v4.1.7 /Users/zanie/The-Consilium
+
+
+ Test Files  18 passed (18)
+      Tests  306 passed | 18 skipped (324)
+   Start at  13:56:11
+   Duration  6.31s (transform 330ms, setup 89ms, import 1.30s, tests 3.63s, environment 1ms)

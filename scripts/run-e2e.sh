@@ -135,7 +135,14 @@ node scripts/attest-test-run.mjs || exit 1
 STATUS=0
 if [ "${RUN_VITEST:-0}" = "1" ]; then
   mkdir -p test-results
-  BASE_URL="$E2E_BASE_URL" AUDIT_NO_RATE_LIMIT=1 npx vitest run --reporter=default --reporter=json --outputFile="$E2E_RESULTS_DIR/vitest.json" || STATUS=1
+  VITEST_PATH=(tests)
+  if [ "${E2E_VITEST_SUITE:-all}" = integration ]; then VITEST_PATH=(tests/integration); fi
+  BASE_URL="$E2E_BASE_URL" AUDIT_NO_RATE_LIMIT=1 npx vitest run "${VITEST_PATH[@]}" --reporter=default --reporter=json --outputFile="$E2E_RESULTS_DIR/vitest.json" || STATUS=1
+fi
+
+if [ "${E2E_VITEST_ONLY:-0}" = 1 ]; then
+  [ "${RUN_VITEST:-0}" = 1 ] || { echo "✗ Vitest-only mode requires RUN_VITEST=1" >&2; exit 1; }
+  exit "$STATUS"
 fi
 
 if [ "$#" -gt 0 ]; then
@@ -153,4 +160,6 @@ E2E_PHASE=main npx playwright test || STATUS=1
 # Workflow scenarios share commissioning/glossary settings; serialize these stateful actions.
 E2E_PHASE=workflow npx playwright test --workers=1 || STATUS=1
 E2E_PHASE=team-profile npx playwright test --workers=1 || STATUS=1
+# Platform upgrade journeys publish articles and upload figures to the shared storage server.
+E2E_PHASE=upgrade npx playwright test --workers=1 || STATUS=1
 exit $STATUS

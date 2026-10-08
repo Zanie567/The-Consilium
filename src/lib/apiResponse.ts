@@ -109,6 +109,16 @@ export function articleMutationErrorResponse(
   }
 
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2025' && (operation === 'update' || operation === 'delete')) {
+      return apiError(
+        operation === 'delete'
+          ? 'This article changed before it could be moved to trash. Reload before trying again.'
+          : 'This article changed while saving. Reload it before retrying; your unsaved changes remain in this tab.',
+        409,
+        'ARTICLE_CHANGED',
+        requestId
+      )
+    }
     if (error.code === 'P2002') {
       return apiError(
         'An article with this slug already exists. Choose a different slug.',

@@ -411,7 +411,7 @@ export async function setMemberRole(
 
       if (oldRole === 'READER' && role === 'READER') return { oldRole, newRole: role }
       if (oldRole === 'ADMIN' && role !== 'ADMIN') await assertNotLastAdmin(tx, userId)
-    
+
       if (role === 'READER') {
         await revokeInTx(tx, actor, user, { hideProfile: false })
         return { oldRole, newRole: role }

@@ -1,0 +1,27 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+Running 13 tests using 1 worker
+
+(node:69100) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69100) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [setup] › tests/e2e/auth.setup.ts:13:6 › authenticate as admin (1.2s)
+  ✓   2 [setup] › tests/e2e/auth.setup.ts:50:6 › authenticate as an editor with no category assignments (379ms)
+  ✓   3 [setup] › tests/e2e/auth.setup.ts:54:6 › authenticate as an editor scoped to Opinion (359ms)
+  ✓   4 [setup] › tests/e2e/auth.setup.ts:62:6 › authenticate as the seeded writer (363ms)
+(node:69120) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69120) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   5 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:9:5 › concurrent editorial approvals commit one transition and one notification (700ms)
+  ✓   6 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:40:5 › concurrent writer submissions notify the review queue once and reject later writer edits (212ms)
+  ✓   7 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:72:5 › large pasted tables survive save/reload/publication and scroll within the mobile article (1.2s)
+  ✓   8 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:122:5 › shuffled account-linked chief, two deputies, editors, writers and Growth render in order; one deputy stays centred (592ms)
+  ✓   9 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:174:5 › an editor with a stale open document gets a conflict and retains unsaved changes (846ms)
+  ✓  10 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:48:5 › writer paste/table/figure → repeated save/reload → editor review/edit/schedule/publish → public → replace/delete/republish (4.6s)
+  ✓  11 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:246:5 › every exposed formatting control operates, including keyboard buttons and table deletion (3.9s)
+  ✓  12 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:377:5 › wide tables and standard/wide/portrait figures remain contained in editor and public layouts (1.5s)
+  ✓  13 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:495:5 › plain-text paste and cancelled upload preserve document and allow retry (729ms)
+
+  13 passed (17.6s)

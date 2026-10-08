@@ -1,0 +1,53 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+Running 5 tests using 1 worker
+
+(node:69476) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69476) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [setup] › tests/e2e/auth.setup.ts:13:6 › authenticate as admin (633ms)
+  ✓  2 [setup] › tests/e2e/auth.setup.ts:50:6 › authenticate as an editor with no category assignments (368ms)
+  ✓  3 [setup] › tests/e2e/auth.setup.ts:54:6 › authenticate as an editor scoped to Opinion (361ms)
+  ✓  4 [setup] › tests/e2e/auth.setup.ts:62:6 › authenticate as the seeded writer (361ms)
+(node:69500) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69500) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  5 [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:211:5 › document settings expose one desktop form and trap/restore keyboard focus on mobile (10.3s)
+
+
+  1) [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:211:5 › document settings expose one desktop form and trap/restore keyboard focus on mobile
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByLabel('Article format', { exact: true })
+    Expected: 1
+    Received: 2
+    Timeout:  10000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 10000ms
+      - waiting for getByLabel('Article format', { exact: true })
+        24 × locator resolved to 2 elements
+           - unexpected value "2"
+
+
+      219 |     const page = await context.newPage()
+      220 |     await page.goto(`/editorial/articles/${id}/edit`)
+    > 221 |     await expect(page.getByLabel('Article format', { exact: true })).toHaveCount(1)
+          |                                                                      ^
+      222 |     await expect(page.getByRole('dialog', { name: 'Document settings' })).toHaveCount(0)
+      223 |     for (const width of [375, 768]) {
+      224 |       await page.setViewportSize({ width, height: 900 })
+        at /private/tmp/consilium-final-integration/tests/e2e/upgrade-final-integration.spec.ts:221:70
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-final-integration--e6707-re-keyboard-focus-on-mobile-upgrade/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/upgrade-final-integration--e6707-re-keyboard-focus-on-mobile-upgrade/error-context.md
+
+  1 failed
+    [upgrade] › tests/e2e/upgrade-final-integration.spec.ts:211:5 › document settings expose one desktop form and trap/restore keyboard focus on mobile
+  4 passed (13.0s)

@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client'
 
 /**
- * Cache tag for every public list of articles. Call `revalidateTag(ARTICLES_CACHE_TAG)`
+ * Cache tag for every public list of articles. Call `revalidateArticleLists()`
  * after any mutation that changes what is published (publish, unpublish, delete,
  * restore) so cached homepage/category/archive lists refresh immediately instead
  * of waiting for the time-based revalidation window.

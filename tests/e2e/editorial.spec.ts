@@ -116,14 +116,22 @@ test('New Article editor autosaves a draft', async ({ page }) => {
   const title = `E2E autosave draft ${Date.now()}`
   await headline.fill(title)
   const res = await saved
-  // A successful save must be a 201 (create) / 200 (update); "not a 5xx" also passed 4xx.
-  expect(res.status(), await res.text()).toBe(201)
-  const { id } = (await res.json()) as { id: string }
-  await expect(page.getByText(/^Saved$/).first()).toBeVisible({ timeout: 15_000 })
-
-  // Reopen it: the draft must really be stored, not just acknowledged.
-  await page.goto(`/editorial/articles/${id}/edit`, { waitUntil: 'networkidle' })
-  await expect(page.getByPlaceholder(/Your headline here/)).toHaveValue(title)
+  expect(res.status(), 'autosave must create a persisted draft').toBe(201)
+  const article = await res.json()
+  try {
+    expect(article).toMatchObject({ title, status: 'DRAFT' })
+    await expect(page.getByText(/^Saved$/).first()).toBeVisible({ timeout: 15_000 })
+    await expect(page).toHaveURL(new RegExp(`/articles/${article.id}/edit$`))
+    const persisted = await page.request.get(`/api/articles/${article.id}`)
+    expect(persisted.status()).toBe(200)
+    expect(await persisted.json()).toMatchObject({ title, status: 'DRAFT' })
+    await page.reload({ waitUntil: 'networkidle' })
+    await expect(page.getByRole('textbox', { name: 'Untitled document', exact: true })).toHaveValue(title)
+    await expect(page.getByText(/^Saved$/).first()).toBeVisible()
+  } finally {
+    await page.request.delete(`/api/articles/${article.id}`)
+    await page.request.delete(`/api/editorial/trash/${article.id}`)
+  }
 })
 
 test('bookmarks are fetched ONCE per page, not once per card (Bug 7)', async ({ page }) => {

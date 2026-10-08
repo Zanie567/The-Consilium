@@ -25,6 +25,7 @@ export interface ArticleEditorProps {
     coverImage: string
     categoryId: string
     status: string
+    updatedAt?: string
     scheduledAt?: string | null
     editorNote?: string | null
     tags?: string[]

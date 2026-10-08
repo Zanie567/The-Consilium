@@ -1,0 +1,9 @@
+[platform-check] guarded test DB; app localhost:3221; storage loopback:55621; email/OAuth disabled
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+
+ Test Files  4 passed (4)
+      Tests  36 passed (36)
+   Start at  12:19:29
+   Duration  1.02s (transform 162ms, setup 53ms, import 590ms, tests 41ms, environment 0ms)

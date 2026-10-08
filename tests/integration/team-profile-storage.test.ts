@@ -8,7 +8,7 @@
  * the project's actual migration — so this also verifies what the migration creates.
  *
  * This is NOT real Supabase Storage (see the fake's header for what it does not
- * model). The suite skips if the local database or its schema is not ready.
+ * model). Missing required local database/schema fails collection.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest'
 import { spawn, type ChildProcess } from 'node:child_process'
@@ -41,7 +41,7 @@ async function ready(): Promise<boolean> {
 }
 
 const isReady = await ready()
-if (!isReady) throw new Error('Required isolated team profile database is unavailable or missing its schema')
+if (!isReady) throw new Error('Required local test database with team_members.userId is not ready')
 const suite = describe
 
 const { state } = vi.hoisted(() => ({

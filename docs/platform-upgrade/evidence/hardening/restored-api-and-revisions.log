@@ -1,0 +1,119 @@
+[platform-check] guarded test DB; app localhost:3221; storage loopback:55621; email/OAuth disabled
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > valid payload → 201 with id and email 67ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > agreed: false → 400 5ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > name length 1 → 400 5ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > name length 2 → 201 65ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > name length 101 → 400 2ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > password length 7 → 400 2ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > password length 8 → 201 61ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > password length 128 → 201 61ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > password length 129 → 400 2ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > password with leading whitespace → 201 (whitespace not trimmed — BUG-PASS-TRIM) 59ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > invalid email format → 400 2ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > email 255 chars → 400 (max 254) 1ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > duplicate email → 400 62ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > duplicate email different case → 400 (lowercased before check) 60ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/forgot-password > unknown email returns ok: true (enumeration prevention) 3ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/forgot-password > missing email field returns ok: true silently 1ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/forgot-password > PATCH valid token + 8-char password succeeds and consumes token 189ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/forgot-password > PATCH valid token + 128-char password succeeds and consumes token 179ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/forgot-password > PATCH 7-char password is rejected without changing password/token 61ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/forgot-password > PATCH 129-char password is rejected without changing password/token 61ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/forgot-password > PATCH expired token rejects without changing password 60ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/forgot-password > PATCH used token rejects without changing password 61ms
+ ✓ tests/integration/api.test.ts > GET /api/search > empty query → 200 with empty array 3ms
+ ✓ tests/integration/api.test.ts > GET /api/search > 1-char query → 200 with empty array (min length 2) 1ms
+ ✓ tests/integration/api.test.ts > GET /api/search > 2-char query → 200 with array result 13ms
+ ✓ tests/integration/api.test.ts > GET /api/search > query matching nothing → empty array (not error) 6ms
+ ✓ tests/integration/api.test.ts > GET /api/search > two single-char tokens "a b" → empty array (tokens < 2 chars filtered) 2ms
+ ✓ tests/integration/api.test.ts > GET /api/search > XSS in query → result snippets do not contain unescaped script tags 3ms
+ ✓ tests/integration/api.test.ts > GET /api/search > 500-char query → returns without crashing (no max length enforced) 51ms
+ ✓ tests/integration/api.test.ts > POST /api/subscribe > valid email → 201 6ms
+ ✓ tests/integration/api.test.ts > POST /api/subscribe > same email again → 200 "Already subscribed" 4ms
+ ✓ tests/integration/api.test.ts > POST /api/subscribe > invalid email → 400 1ms
+ ✓ tests/integration/api.test.ts > POST /api/subscribe > missing email → 400 1ms
+ ✓ tests/integration/api.test.ts > POST /api/subscribe > email 255 chars → 400 (max 254) 1ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > valid form → 200 3ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > missing name → 400 1ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > name is whitespace only → 400 (trimmed before required check) 1ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > name 101 chars → 400 1ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > name 100 chars → 200 2ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > subject 201 chars → 400 1ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > message 5000 chars → 200 2ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > message 5001 chars → 400 1ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > message with slur is stored unfiltered (no content filter on contact form) 1ms
+ ✓ tests/integration/api.test.ts > POST /api/publish-scheduled > correct Bearer token → 200 with due and published 4ms
+ ✓ tests/integration/api.test.ts > POST /api/publish-scheduled > wrong secret → 401 1ms
+ ✓ tests/integration/api.test.ts > POST /api/publish-scheduled > no Authorization header → 401 1ms
+ ✓ tests/integration/api.test.ts > POST /api/publish-scheduled > ?secret= query param is rejected (BUG-CRON-LOG fixed — header auth only) 3ms
+ ✓ tests/integration/api.test.ts > POST /api/publish-scheduled > GET method is also accepted (same handler) 2ms
+ ✓ tests/integration/api.test.ts > POST /api/comments > unauthenticated → 401 2ms
+ ✓ tests/integration/api.test.ts > POST /api/comments > READER comment accepts and stores sanitized valid input (Clean reader comment) 17ms
+ ✓ tests/integration/api.test.ts > POST /api/comments > READER comment accepts and stores sanitized valid input (abc) 9ms
+ ✓ tests/integration/api.test.ts > POST /api/comments > READER comment accepts and stores sanitized valid input (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa) 7ms
+ ✓ tests/integration/api.test.ts > POST /api/comments > READER comment accepts and stores sanitized valid input (<script>alert(1)</script>Safe comment) 7ms
+ ✓ tests/integration/api.test.ts > POST /api/comments > READER invalid comment rejects without storing (ab) 6ms
+ ✓ tests/integration/api.test.ts > POST /api/comments > READER invalid comment rejects without storing (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa) 3ms
+ ✓ tests/integration/api.test.ts > POST /api/comments > READER invalid comment rejects without storing (   ) 2ms
+ ✓ tests/integration/api.test.ts > POST /api/comments > READER invalid comment rejects without storing (retard) 2ms
+ ✓ tests/integration/api.test.ts > Rate Limiting > subscribe: 4th request in 10min window → 429 0ms
+ ✓ tests/integration/api.test.ts > Rate Limiting > contact: 6th request in 5min window → 429 0ms
+ ✓ tests/integration/api.test.ts > Missing rate limits (documentation tests) > POST /api/comments has no rate limit (100 rapid calls all reach auth check) 15ms
+ ✓ tests/integration/api.test.ts > Missing rate limits (documentation tests) > POST /api/comments/[id]/upvote has no rate limit 10ms
+ ✓ tests/integration/api.test.ts > Missing rate limits (documentation tests) > POST /api/comments/[id]/report has no rate limit 10ms
+ ✓ tests/integration/api.test.ts > Missing rate limits (documentation tests) > POST /api/analytics/track has no rate limit and no auth requirement 45ms
+ ✓ tests/integration/api.test.ts > Unauthenticated access to protected endpoints > GET /api/editorial/users → 401 or 403 when unauthenticated 2ms
+ ✓ tests/integration/api.test.ts > Unauthenticated access to protected endpoints > POST /api/editorial/users → 401 or 403 when unauthenticated 1ms
+ ✓ tests/integration/api.test.ts > Unauthenticated access to protected endpoints > GET /api/editorial/debates → 401 or 403 when unauthenticated 1ms
+ ✓ tests/integration/api.test.ts > Unauthenticated access to protected endpoints > GET /api/editorial/comments → 401 or 403 when unauthenticated 1ms
+ ✓ tests/integration/api.test.ts > Unauthenticated access to protected endpoints > GET /api/bookmarks → 401 or 403 when unauthenticated 1ms
+ ✓ tests/integration/api.test.ts > Unauthenticated access to protected endpoints > POST /api/bookmarks → 401 or 403 when unauthenticated 1ms
+ ✓ tests/integration/api.test.ts > GET /api/articles role guard > unauthenticated request → returns only PUBLISHED articles 4ms
+ ✓ tests/integration/api.test.ts > GET /api/articles role guard > ?status=DRAFT unauthenticated → 401 3ms
+ ✓ tests/integration/api.test.ts > GET /api/articles role guard > published list never leaks author password/email/security fields 4ms
+ ✓ tests/integration/api.test.ts > GET /api/articles role guard > single published article never leaks author password/email 7ms
+ ✓ tests/integration/api.test.ts > POST /api/debates/[debateId]/vote > GET /api/debates/active → 200 (null or debate object) 2ms
+ ✓ tests/integration/api.test.ts > POST /api/debates/[debateId]/vote > invalid side value → 400 2ms
+ ✓ tests/integration/api.test.ts > POST /api/debates/[debateId]/vote > missing side field → 400 1ms
+ ✓ tests/integration/api.test.ts > POST /api/debates/[debateId]/vote > non-existent debate ID → 404 1ms
+ ✓ tests/integration/api.test.ts > POST /api/debates/[debateId]/vote > anonymous vote → 200, sets consilium_anon_id cookie 4ms
+ ✓ tests/integration/api.test.ts > POST /api/upload > valid decoded JPEG → 201 with local URL and registered asset 34ms
+ ✓ tests/integration/api.test.ts > POST /api/upload > HTML bytes named .jpg → controlled 400 3ms
+ ✓ tests/integration/api.test.ts > POST /api/upload > truncated JPEG signature fails real decoder → 400 2ms
+ ✓ tests/integration/api.test.ts > POST /api/upload > article image above 4 MiB → 400 9ms
+ ✓ tests/integration/api.test.ts > POST /api/upload > unauthenticated → 401/403 (denied) 1ms
+ ✓ tests/integration/api.test.ts > POST /api/upload > authenticated invalid bucket → controlled 400 3ms
+ ✓ tests/integration/api.test.ts > Bookmarks (POST /api/bookmarks) > unauthenticated → 401 1ms
+ ✓ tests/integration/api.test.ts > Bookmarks (POST /api/bookmarks) > GET /api/bookmarks unauthenticated → 401 2ms
+ ✓ tests/integration/api.test.ts > Bookmarks (POST /api/bookmarks) > toggle bookmark on → bookmarked true and persisted 11ms
+ ✓ tests/integration/api.test.ts > Bookmarks (POST /api/bookmarks) > toggle same bookmark off → bookmarked false and removed 8ms
+ ✓ tests/integration/api.test.ts > Bookmarks (POST /api/bookmarks) > nonexistent article → controlled 404 and no bookmark 2ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > editor save rejects stale page and preserves newer row 19ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > list publish rejects stale page and preserves newer row 7ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > list unpublish rejects stale page and preserves newer row 7ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > series assignment rejects stale page and preserves newer row 5ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > current save, publish, unpublish and series assignment propagate each returned revision 29ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review approve rejects stale displayed content 12ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review return rejects stale displayed content 5ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review schedule rejects stale displayed content 5ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review correct rejects stale displayed content 5ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review unpublish rejects stale displayed content 5ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review approve succeeds at the displayed revision and preserves content 7ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review return succeeds at the displayed revision and preserves content 6ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review schedule succeeds at the displayed revision and preserves content 6ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review correct succeeds at the displayed revision and preserves content 5ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > review unpublish succeeds at the displayed revision and preserves content 7ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > concurrent valid approvals commit exactly one transition and notification 18ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > commendation rejects stale state and succeeds with current revision 14ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > calendar rejects stale state and succeeds with current revision 12ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > delete rejects stale state and succeeds with current revision 10ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > pin rejects stale state and succeeds with current revision 9ms
+ ✓ tests/integration/article-revisions.test.ts > first-party loaded article revisions over real HTTP and PostgreSQL > feature rejects stale state and succeeds with current revision 10ms
+
+ Test Files  2 passed (2)
+      Tests  110 passed (110)
+   Start at  12:24:52
+   Duration  2.46s (transform 52ms, setup 29ms, import 127ms, tests 2.17s, environment 0ms)

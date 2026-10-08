@@ -1,0 +1,42 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+stderr | tests/integration/scheduled-publication.test.ts > scheduled publication uses current state and preserves managed cleanup > queues an unreferenced managed image after automatic trash expiry
+[scheduledPublishing] Purged 1 article(s) from trash (>30 days old)
+
+ ❯ tests/integration/scheduled-publication.test.ts (3 tests | 2 failed) 216ms
+     × does not publish an article trashed after the due-list snapshot 32ms
+     × queues an unreferenced managed image after automatic trash expiry 32ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/scheduled-publication.test.ts > scheduled publication uses current state and preserves managed cleanup > does not publish an article trashed after the due-list snapshot
+AssertionError: expected [] to include 'cmux48tgm0002w1369gnc8w9i'
+ ❯ tests/integration/scheduled-publication.test.ts:40:55
+     38|     vi.spyOn(prisma.article, 'findMany').mockResolvedValueOnce([row])
+     39|     const result = await publishScheduledArticles()
+     40|     expect(result.skipped.map(article => article.id)).toContain(row.id)
+       |                                                       ^
+     41|     expect((await prisma.article.findUniqueOrThrow({ where: { id: row.…
+     42|     expect(await prisma.notification.count({ where: { articleId: row.i…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/integration/scheduled-publication.test.ts > scheduled publication uses current state and preserves managed cleanup > queues an unreferenced managed image after automatic trash expiry
+AssertionError: expected null not to be null
+ ❯ tests/integration/scheduled-publication.test.ts:56:100
+     54|     await publishScheduledArticles()
+     55|     expect(await prisma.article.findUnique({ where: { id: row.id } }))…
+     56|     expect((await prisma.articleImageAsset.findUniqueOrThrow({ where: …
+       |                                                                                                    ^
+     57|   })
+     58| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 1 passed (3)
+   Start at  21:13:13
+   Duration  655ms (transform 75ms, setup 56ms, import 130ms, tests 216ms, environment 0ms)

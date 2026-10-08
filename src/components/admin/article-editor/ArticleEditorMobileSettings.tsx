@@ -1,6 +1,7 @@
 'use client'
 
 import { X } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 import { ArticleEditorMetadataPanel } from './ArticleEditorMetadataPanel'
 import type { ArticleEditorController, ArticleEditorRefs } from './types'
 
@@ -10,17 +11,52 @@ interface ArticleEditorMobileSettingsProps {
 }
 
 export function ArticleEditorMobileSettings({ editor, coverFileRef }: ArticleEditorMobileSettingsProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!editor.settingsOpen) return
+    const previousFocus = document.activeElement
+    dialogRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
+    return () => {
+      if (previousFocus instanceof HTMLElement) previousFocus.focus()
+    }
+  }, [editor.settingsOpen])
+
+  // Closed drawers must not leave off-screen controls in the tab order or
+  // duplicate desktop fields. Form state is held by the shared controller.
+  if (!editor.settingsOpen) return null
+
   return (
     <>
       <div
-        className={`fixed inset-0 z-[205] bg-black/40 transition-opacity duration-300 ${editor.settingsOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        className="min-[1100px]:hidden fixed inset-0 z-[205] bg-black/40"
         onClick={() => editor.actions.setSettingsOpen(false)}
         aria-hidden
       />
 
       <div
-        className={`fixed inset-x-0 bottom-0 z-[206] bg-[var(--bg-elevated)] rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[82vh] transition-transform duration-300 ease-out ${editor.settingsOpen ? 'translate-y-0' : 'translate-y-full'}`}
-        aria-hidden={!editor.settingsOpen}
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Document settings"
+        className="min-[1100px]:hidden fixed inset-x-0 bottom-0 z-[206] bg-[var(--bg-elevated)] rounded-t-2xl shadow-2xl overflow-hidden flex flex-col max-h-[82vh]"
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            editor.actions.setSettingsOpen(false)
+          } else if (event.key === 'Tab') {
+            const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
+              'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]'
+            )).filter(element => element.getClientRects().length > 0)
+            const first = controls[0], last = controls.at(-1)
+            if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault()
+              last?.focus()
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault()
+              first?.focus()
+            }
+          }
+        }}
       >
         <div className="flex justify-center pt-3 pb-1 shrink-0">
           <div className="w-10 h-1 rounded-full bg-[var(--border)]" />

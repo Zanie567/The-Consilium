@@ -1,23 +1,42 @@
+import { getPublicationLinkedIn } from '@/lib/growthSettings'
 import Link from 'next/link'
 import { Mail } from 'lucide-react'
-import { CONTACT_EMAIL, INSTAGRAM_URL, LINKEDIN_URL, FEEDBACK_FORM_URL } from '@/lib/constants'
+import { CONTACT_EMAIL, INSTAGRAM_URL, FEEDBACK_FORM_URL } from '@/lib/constants'
 
 function InstagramIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-      <circle cx="12" cy="12" r="4"/>
-      <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/>
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" />
     </svg>
   )
 }
 
 function LinkedInIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/>
-      <rect x="2" y="9" width="4" height="12"/>
-      <circle cx="4" cy="4" r="2"/>
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+      <rect x="2" y="9" width="4" height="12" />
+      <circle cx="4" cy="4" r="2" />
     </svg>
   )
 }
@@ -41,7 +60,8 @@ const orgLinks = [
   { href: '/search', label: 'Search' },
 ]
 
-export function Footer() {
+export async function Footer() {
+  const linkedinUrl = await getPublicationLinkedIn()
   return (
     <footer className="bg-navy text-cream">
       <div className="h-[2px] bg-gradient-to-r from-transparent via-gold to-transparent opacity-60" />
@@ -58,12 +78,10 @@ export function Footer() {
               The Consilium
             </Link>
             <p className="text-cream/60 text-sm leading-relaxed mb-4">
-              The official publication of the University of Edinburgh Economics Society.
-              Rigorous analysis. Independent voice.
+              The official publication of the University of Edinburgh Economics Society. Rigorous
+              analysis. Independent voice.
             </p>
-            <p className="text-cream/35 text-xs">
-              University of Edinburgh Economics Society
-            </p>
+            <p className="text-cream/35 text-xs">University of Edinburgh Economics Society</p>
           </div>
 
           {/* Navigation */}
@@ -113,15 +131,17 @@ export function Footer() {
               >
                 <InstagramIcon />
               </a>
-              <a
-                href={LINKEDIN_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-cream/45 hover:text-gold transition-colors duration-200 hover:scale-110 inline-block"
-                aria-label="Connect with The Consilium on LinkedIn"
-              >
-                <LinkedInIcon />
-              </a>
+              {linkedinUrl && (
+                <a
+                  href={linkedinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cream/45 hover:text-gold transition-colors duration-200 hover:scale-110 inline-block"
+                  aria-label="Connect with The Consilium on LinkedIn"
+                >
+                  <LinkedInIcon />
+                </a>
+              )}
               <a
                 href={`mailto:${CONTACT_EMAIL}`}
                 className="text-cream/45 hover:text-gold transition-colors duration-200 hover:scale-110 inline-block"
@@ -157,22 +177,21 @@ export function Footer() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-center sm:text-left">
-            <p className="text-cream/30 text-xs">
-              &copy; {new Date().getFullYear()} The Consilium, University of Edinburgh
-              Economics Society. All rights reserved.
-            </p>
-            <p className="text-cream/20 text-[10px] mt-1">
-              Founded by Alex Escala
-            </p>
-            <p className="text-cream/20 text-[10px] mt-1">
-              Website designed and created by Alex Escala
-            </p>
-            <p className="text-cream/15 text-[10px] mt-1 leading-relaxed">
-              Student-led economics journalism at the University of Edinburgh: independent, rigorous, and open to all.
-            </p>
-          </div>
-          <p className="text-cream/20 text-xs">Edinburgh, Scotland</p>
+            <div className="text-center sm:text-left">
+              <p className="text-cream/30 text-xs">
+                &copy; {new Date().getFullYear()} The Consilium, University of Edinburgh Economics
+                Society. All rights reserved.
+              </p>
+              <p className="text-cream/20 text-[10px] mt-1">Founded by Alex Escala</p>
+              <p className="text-cream/20 text-[10px] mt-1">
+                Website designed and created by Alex Escala
+              </p>
+              <p className="text-cream/15 text-[10px] mt-1 leading-relaxed">
+                Student-led economics journalism at the University of Edinburgh: independent,
+                rigorous, and open to all.
+              </p>
+            </div>
+            <p className="text-cream/20 text-xs">Edinburgh, Scotland</p>
           </div>
         </div>
       </div>

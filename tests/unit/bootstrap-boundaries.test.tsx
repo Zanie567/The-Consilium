@@ -65,5 +65,3 @@ it('a failed setup request preserves all input and restores its submit control',
   expect((screen.getByPlaceholderText('admin@example.com') as HTMLInputElement).value).toBe('controlled@consilium.test')
   expect((screen.getByRole('button', { name: 'Create Admin Account' }) as HTMLButtonElement).disabled).toBe(false)
 })
-
-

@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
-import { publishedArticleWhere } from '@/lib/articleQueries'
+import { ARTICLES_CACHE_TAG, ARTICLES_REVALIDATE_SECONDS } from '@/lib/articleQueries'
+import { unstable_cache } from 'next/cache'
+import { discoveryWhere, DISCOVERY_ARTICLE_SELECT } from '@/lib/discoveryQueries'
 import { format } from 'date-fns'
 import type { Metadata } from 'next'
 import { AnimateIn } from '@/components/ui/AnimateIn'
@@ -12,13 +14,13 @@ import {
   buildArchiveHref,
   clampPage,
   normaliseCategorySlug,
+  normaliseTagSlugs,
   normaliseSearchTerm,
   pageOffset,
   parsePageParam,
   totalPageCount,
   type SearchParamValue,
 } from '@/lib/archivePagination'
-import { escapeLikePattern } from '@/lib/searchText'
 import { canonicalAlternates } from '@/lib/seo'
 
 interface Props {
@@ -30,6 +32,7 @@ interface Props {
     q?: SearchParamValue
     category?: SearchParamValue
     page?: SearchParamValue
+    tag?: SearchParamValue
   }>
 }
 
@@ -38,39 +41,19 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const q = normaliseSearchTerm(params.q)
   const categorySlug = normaliseCategorySlug(params.category)
   const page = parsePageParam(params.page)
+  const tags = normaliseTagSlugs(params.tag)
 
   return {
     title: page > 1 ? `Archive — Page ${page}` : 'Archive',
     description: 'Browse all published articles from The Consilium.',
-    alternates: canonicalAlternates(buildArchiveHref(page, q, categorySlug)),
+    alternates: canonicalAlternates(buildArchiveHref(page, q, categorySlug, tags)),
     // Search and category permutations are unbounded crawl space, and page 2+
     // is a thin slice of the same listing. Keep them followable but unindexed.
     robots:
-      q || categorySlug || page > 1
+      q || categorySlug || tags.length > 0 || page > 1
         ? { index: false, follow: true }
         : { index: true, follow: true },
   }
-}
-
-function archiveWhere(q?: string, categorySlug?: string) {
-  // "View all" — the complete published set, debates included.
-  //
-  // The search term is LIKE-escaped before it reaches `contains`: Prisma
-  // compiles that to `ILIKE ('%' || $n || '%')`, so an unescaped `%` or `_`
-  // from the query string would be read as a wildcard instead of as the text
-  // the reader typed.
-  const term = q ? escapeLikePattern(q) : undefined
-  return publishedArticleWhere({
-    ...(term
-      ? {
-          OR: [
-            { title: { contains: term, mode: 'insensitive' } },
-            { excerpt: { contains: term, mode: 'insensitive' } },
-          ],
-        }
-      : {}),
-    ...(categorySlug ? { category: { slug: categorySlug } } : {}),
-  })
 }
 
 // Both queries return null rather than a fallback value when the database is
@@ -79,18 +62,18 @@ function archiveWhere(q?: string, categorySlug?: string) {
 // original catch was removed; letting the error escape instead produced a 500,
 // breaking the degrade-to-HTTP-200 contract documented in src/lib/prisma.ts.
 // A null lets the page say plainly that it could not load.
-async function getArticleCount(q?: string, categorySlug?: string): Promise<number | null> {
+async function getArticleCount(q?: string, categorySlug?: string, tags: string[] = []): Promise<number | null> {
   try {
-    return await prisma.article.count({ where: archiveWhere(q, categorySlug) })
+    return await prisma.article.count({ where: discoveryWhere(q, categorySlug, tags) })
   } catch {
     return null
   }
 }
 
-async function getArticles(q: string | undefined, categorySlug: string | undefined, page: number) {
+async function getArticles(q: string | undefined, categorySlug: string | undefined, page: number, tags: string[]) {
   try {
     return await prisma.article.findMany({
-      where: archiveWhere(q, categorySlug),
+      where: discoveryWhere(q, categorySlug, tags),
       // `id` is the tiebreaker that keeps paging stable when several articles
       // share a publish timestamp. `nulls: 'last'` keeps a published-but-undated
       // article from pinning itself to the top of page 1, since Postgres sorts
@@ -100,7 +83,7 @@ async function getArticles(q: string | undefined, categorySlug: string | undefin
       // email, ban reason, admin notes, lockout state — into the render for
       // each of the 20 rows; none of it reached the HTML, but none of it needs
       // to be fetched either.
-      include: { author: { select: { name: true } }, category: { select: { name: true } } },
+      select: DISCOVERY_ARTICLE_SELECT,
       skip: pageOffset(page),
       take: ARCHIVE_PAGE_SIZE,
     })
@@ -117,27 +100,33 @@ async function getCategories() {
   }
 }
 
+const getTopics = unstable_cache(() => prisma.tag.findMany({
+  where: { articles: { some: { article: { status: 'PUBLISHED', deletedAt: null } } } },
+  orderBy: [{ name: 'asc' }, { id: 'asc' }], take: 1000,
+}), ['discovery-topics'], { tags: [ARTICLES_CACHE_TAG], revalidate: ARTICLES_REVALIDATE_SECONDS })
+
 export default async function ArchivePage({ searchParams }: Props) {
   const params = await searchParams
   const q = normaliseSearchTerm(params.q)
   const categorySlug = normaliseCategorySlug(params.category)
+  const tags = normaliseTagSlugs(params.tag)
   const requestedPage = parsePageParam(params.page)
 
-  const [total, categories] = await Promise.all([getArticleCount(q, categorySlug), getCategories()])
+  const [total, categories, topics] = await Promise.all([getArticleCount(q, categorySlug, tags), getCategories(), getTopics().catch(() => [])])
 
   const totalPages = totalPageCount(total ?? 0)
   const page = clampPage(requestedPage, totalPages)
-  const articles = total === null ? null : await getArticles(q, categorySlug, page)
+  const articles = total === null ? null : await getArticles(q, categorySlug, page, tags)
   const loadFailed = total === null || articles === null
 
   // An archive emptied by a search or a category filter is NOT "more coming soon"
   // — the reader narrowed it themselves, so offer a way to widen it again. Only a
   // genuinely empty archive promises more is on the way.
-  const isFiltered = Boolean(q) || Boolean(categorySlug)
+  const isFiltered = Boolean(q) || Boolean(categorySlug) || tags.length > 0
   const filteredCategory = categorySlug
     ? categories.find((c) => c.slug === categorySlug)
     : undefined
-  const emptyState = q
+  const emptyState = q || tags.length > 0
     ? noResultsEmptyState
     : categorySlug
       ? getSectionEmptyState(categorySlug, filteredCategory?.name ?? 'This Section')
@@ -168,20 +157,22 @@ export default async function ArchivePage({ searchParams }: Props) {
             search correctly starts at page 1. Do not add a hidden page input —
             that is what would strand the reader on a stale page number. */}
         <AnimateIn variant="fade-up" duration={0.45}>
-          <form method="GET" className="flex flex-col sm:flex-row gap-3 mb-10">
+          <form method="GET" className="flex flex-wrap gap-3 mb-10">
             <input
               type="text"
               name="q"
+              aria-label="Search articles"
               defaultValue={q}
               placeholder="Search articles..."
               className="flex-1 border border-[var(--border)] px-4 py-2.5 text-[var(--fg)] text-sm focus:outline-none focus:border-gold bg-[var(--bg-elevated)]"
             />
             <select
               name="category"
+              aria-label="Article format"
               defaultValue={categorySlug ?? ''}
               className="border border-[var(--border)] px-4 py-2.5 text-[var(--fg)] text-sm focus:outline-none focus:border-gold bg-[var(--bg-elevated)]"
             >
-              <option value="">All Categories</option>
+              <option value="">All formats</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.slug}>
                   {cat.name}
@@ -192,8 +183,21 @@ export default async function ArchivePage({ searchParams }: Props) {
               type="submit"
               className="bg-navy text-gold px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors"
             >
-              Search
+              Apply filters
             </button>
+            <fieldset className="w-full border border-[var(--border)] p-4">
+              <legend className="px-2 text-sm">Topics</legend>
+              <p className="text-xs text-[var(--fg-muted)] mb-3">Match any selected topic.</p>
+              <div className="flex flex-wrap gap-3">
+                {[...topics, ...tags.filter(slug => !topics.some(t => t.slug === slug)).map(slug => ({ id: slug, slug, name: slug }))].map(topic => (
+                  <label key={topic.id} className="flex items-center gap-2 text-sm cursor-pointer border border-[var(--border)] px-3 py-2 has-[:checked]:border-gold has-[:checked]:bg-gold/10">
+                    <input type="checkbox" name="tag" value={topic.slug} defaultChecked={tags.includes(topic.slug)} />
+                    {topic.name}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {isFiltered && <Link href="/archive" className="text-sm underline">Clear all filters</Link>}
           </form>
         </AnimateIn>
 
@@ -270,7 +274,7 @@ export default async function ArchivePage({ searchParams }: Props) {
               >
                 {page > 1 ? (
                   <Link
-                    href={buildArchiveHref(page - 1, q, categorySlug)}
+                    href={buildArchiveHref(page - 1, q, categorySlug, tags)}
                     rel="prev"
                     aria-label="Previous page"
                     className="text-xs font-bold uppercase tracking-widest text-[var(--fg-muted)] hover:text-gold transition-colors"
@@ -290,7 +294,7 @@ export default async function ArchivePage({ searchParams }: Props) {
                 </span>
                 {page < totalPages ? (
                   <Link
-                    href={buildArchiveHref(page + 1, q, categorySlug)}
+                    href={buildArchiveHref(page + 1, q, categorySlug, tags)}
                     rel="next"
                     aria-label="Next page"
                     className="text-xs font-bold uppercase tracking-widest text-[var(--fg-muted)] hover:text-gold transition-colors"

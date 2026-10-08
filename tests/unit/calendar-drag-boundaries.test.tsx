@@ -12,7 +12,7 @@ vi.mock('@/components/editorial/PortalAnimated', () => ({ PortalPage: ({ childre
 afterEach(() => { cleanup(); vi.clearAllMocks() })
 
 function fixture() {
-  render(<CalendarView month="2027-01" weeks={buildMonthGrid('2027-01')} itemsByDay={{ '2027-01-15': [{ id: 'owned-scheduled', title: 'Controlled scheduled item', status: 'SCHEDULED', authorName: 'Controlled writer', categoryName: null, timeLabel: '12:30', dateKey: '2027-01-15' }] }} unscheduled={[]} unscheduledTotal={0} todayKey="2027-01-01" fetchError={false} />)
+  render(<CalendarView month="2027-01" weeks={buildMonthGrid('2027-01')} itemsByDay={{ '2027-01-15': [{ id: 'owned-scheduled', updatedAt: '2026-10-07T00:00:00.000Z', title: 'Controlled scheduled item', status: 'SCHEDULED', authorName: 'Controlled writer', categoryName: null, timeLabel: '12:30', dateKey: '2027-01-15' }] }} unscheduled={[]} unscheduledTotal={0} todayKey="2027-01-01" fetchError={false} />)
   const source = screen.getByRole('link', { name: /Controlled scheduled item/ })
   const target = screen.getByRole('button', { name: /Saturday, 16 January 2027/ })
   const transfer = { setData: vi.fn(), effectAllowed: '', dropEffect: '' }
@@ -35,5 +35,5 @@ it('a fast drop retains the scheduled item identity before the visual render com
   const { source, target, event } = fixture()
   await act(async () => { source.dispatchEvent(event('dragstart')); target.dispatchEvent(event('drop')) })
   expect(apiRequest).toHaveBeenCalledOnce()
-  expect(apiRequest).toHaveBeenCalledWith('/api/editorial/calendar', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ articleId: 'owned-scheduled', date: '2027-01-16' }) }))
+  expect(apiRequest).toHaveBeenCalledWith('/api/editorial/calendar', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ articleId: 'owned-scheduled', date: '2027-01-16', expectedUpdatedAt: '2026-10-07T00:00:00.000Z' }) }))
 })

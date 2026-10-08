@@ -43,6 +43,15 @@ export function detectImageMimeType(buf: Uint8Array): string | null {
         if (buf[offset + i] !== bytes[i]) continue outer
       }
     }
+    if (mimeType === 'image/avif') {
+      if (buf.length < 16) continue
+      const boxSize = new DataView(buf.buffer, buf.byteOffset, buf.byteLength).getUint32(0)
+      if (boxSize < 16 || boxSize > buf.length || boxSize > 256) continue
+      const brand = (offset: number) => String.fromCharCode(...buf.slice(offset, offset + 4))
+      const brands = [brand(8)]
+      for (let i = 16; i + 4 <= boxSize; i += 4) brands.push(brand(i))
+      if (!brands.some(b => b === 'avif' || b === 'avis')) continue
+    }
     return mimeType
   }
   return null

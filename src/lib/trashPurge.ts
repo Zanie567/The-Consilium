@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { lockArticleImageReferences, queueDeletedArticleImages } from '@/lib/articleImageStorage'
 
 /**
  * Permanent removal of articles that have sat in trash past the retention period.
@@ -14,6 +15,8 @@ import { prisma } from '@/lib/prisma'
 
 export const TRASH_RETENTION_DAYS = 30
 export const TRASH_PURGE_ACTOR = 'system:trash-purge'
+/** Articles purged per run: bounds the work (and the transaction count) of one invocation. */
+export const PURGE_BATCH_SIZE = 100
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -68,11 +71,17 @@ export async function purgeExpiredTrash(options: TrashPurgeOptions = {}): Promis
   const cutoff = new Date(now.getTime() - retentionDays * DAY_MS)
   const eligibleWhere = { deletedAt: { not: null, lte: cutoff } }
 
-  // A failure to even list candidates is a real failure: let it propagate.
+  // A failure to even list candidates is a real failure: let it propagate. Each run works through
+  // a bounded, oldest-first batch; anything left is picked up by the next daily run. `content` and
+  // `coverImage` are read so the article's managed images can be queued for cleanup with the delete.
   const candidates = await prisma.article.findMany({
     where: eligibleWhere,
-    select: { id: true, title: true, slug: true, authorId: true, deletedAt: true },
-    orderBy: { deletedAt: 'asc' },
+    select: {
+      id: true, title: true, slug: true, authorId: true, deletedAt: true,
+      updatedAt: true, content: true, coverImage: true,
+    },
+    orderBy: [{ deletedAt: 'asc' }, { id: 'asc' }],
+    take: PURGE_BATCH_SIZE,
   })
 
   const summarise = (a: (typeof candidates)[number]): PurgedArticle => ({
@@ -98,12 +107,20 @@ export async function purgeExpiredTrash(options: TrashPurgeOptions = {}): Promis
   for (const article of candidates) {
     const summary = summarise(article)
     try {
-      // One transaction per article: the audit row and the delete commit together or not
-      // at all. The delete re-states the retention condition, so a row restored (or
-      // re-trashed) after the SELECT above is left alone, and a second run is a no-op.
+      // One transaction per article: the image locks, the delete, the image-cleanup queueing and the
+      // audit row commit together or not at all. The delete re-states the retention condition and is
+      // guarded on the row exactly as listed, so a row restored, re-trashed OR EDITED after the SELECT
+      // above is left alone (the edit wins), and a second run is a no-op.
       const removed = await prisma.$transaction(async (tx) => {
-        const res = await tx.article.deleteMany({ where: { id: article.id, ...eligibleWhere } })
+        // Same reference locks article saves take, so a concurrent save cannot re-attach an image
+        // that is about to be queued for removal.
+        await lockArticleImageReferences(tx, article.content, article.coverImage)
+        const res = await tx.article.deleteMany({
+          where: { id: article.id, updatedAt: article.updatedAt, ...eligibleWhere },
+        })
         if (res.count === 0) return false
+        // Record cleanup eligibility atomically; storage I/O itself happens later, not in cron.
+        await queueDeletedArticleImages(tx, article.content, article.coverImage)
         await tx.auditLog.create({
           data: {
             action: 'ARTICLE_HARD_DELETED',

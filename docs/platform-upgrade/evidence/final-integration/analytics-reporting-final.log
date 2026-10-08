@@ -1,0 +1,19 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+ ✓ tests/integration/analytics-display-period.test.ts > analytics selected-period reporting > excludes historical debate votes from the selected-period activity ratio 113ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > deduplicates concurrent views and strips referrer paths 42ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > persists monotonic elapsed-bounded time and threshold metrics 9ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > recomputes a derived engagement score without changing the editorial revision 17ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > counts returning only on an earlier UTC day with consent; decline unlinks current visit 6ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > drops drafts, invalid ids and reused visits on another article 1ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > counts consented readers accumulating five minutes across shorter visits without qualifying each visit 8ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > prunes stale engagement records in a bounded batch 4ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > returns ok on analytics database failure without leaking errors 1ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > drops bots, malformed and oversized events safely 1ms
+
+ Test Files  2 passed (2)
+      Tests  10 passed (10)
+   Start at  21:49:10
+   Duration  1.07s (transform 70ms, setup 26ms, import 584ms, tests 269ms, environment 0ms)

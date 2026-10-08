@@ -1,0 +1,36 @@
+448:  // ── Debate participation ──
+449-  const debates = await prisma.debate.findMany({
+450-    include: { _count: { select: { votes: true } } },
+451-    orderBy: { createdAt: 'desc' },
+452-    take: 10,
+453-  }).catch(() => [])
+454-  const totalViewsInPeriod = await prisma.articleView
+455-    .count({ where: { viewedAt: { gte: since } } })
+456-    .catch(() => 1)
+457-
+458-  const debateParticipation = await Promise.all(
+459-    debates.map(async d => {
+460-      const counts = await prisma.debateVote.groupBy({
+461-        by: ['side'], where: { debateId: d.id }, _count: { side: true },
+462-      }).catch(() => [])
+463-      const forCount = counts.find(c => c.side === 'FOR')?._count.side ?? 0
+464-      const againstCount = counts.find(c => c.side === 'AGAINST')?._count.side ?? 0
+465-      const total = forCount + againstCount
+466-      return {
+467-        title: d.title, totalVotes: total,
+468-        forPct: total > 0 ? Math.round((forCount / total) * 100) : 50,
+469-        againstPct: total > 0 ? Math.round((againstCount / total) * 100) : 50,
+470-        voteRate: totalViewsInPeriod > 0
+471-          ? parseFloat(((total / totalViewsInPeriod) * 100).toFixed(2)) : 0,
+472-      }
+473-    }),
+474-  ).catch(() => [])
+475-
+476-  // ── Upvote trend ──
+477-  const [currentUpvotes, prevUpvotes] = await Promise.all([
+478-    prisma.comment.aggregate({ where: { createdAt: { gte: since } }, _sum: { upvotes: true } })
+479-      .then(r => r._sum.upvotes ?? 0).catch(() => 0),
+480-    prisma.comment.aggregate({ where: { createdAt: { gte: prevSince, lt: since } }, _sum: { upvotes: true } })
+481-      .then(r => r._sum.upvotes ?? 0).catch(() => 0),
+482-  ])
+483-  const upvoteChange = prevUpvotes > 0

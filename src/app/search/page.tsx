@@ -45,33 +45,46 @@ function SearchContent() {
 
   const [query, setQuery] = useState(initial)
   const [results, setResults] = useState<SearchResult[]>([])
+  const [authors, setAuthors] = useState<{ id: string; name: string | null; slug: string | null }[]>([])
+  const [topics, setTopics] = useState<{ id: string; name: string; slug: string }[]>([])
+  const [error, setError] = useState('')
+  const [hasMore, setHasMore] = useState(false)
+  const [page, setPage] = useState(1)
+  const requestRef = useRef<AbortController | null>(null)
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [resultsKey, setResultsKey] = useState(0)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const doSearch = useCallback(async (q: string) => {
-    if (q.trim().length < 2) { setResults([]); setSearched(false); return }
-    setLoading(true)
-    setSearched(true)
+  const doSearch = useCallback(async (q: string, nextPage = 1) => {
+    requestRef.current?.abort()
+    const controller = new AbortController()
+    requestRef.current = controller
+    setError('')
+    setResults([]); setAuthors([]); setTopics([]); setHasMore(false)
+    if (q.trim().length < 2) { setLoading(false); setSearched(false); return }
+    setLoading(true); setSearched(true)
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`)
+      const res = await fetch(`/api/search?scope=all&q=${encodeURIComponent(q)}&page=${nextPage}`, { signal: controller.signal })
+      if (!res.ok) throw new Error('Search unavailable')
       const data = await res.json()
-      setResults(Array.isArray(data) ? data : [])
-      setResultsKey((k) => k + 1)
+      if (controller.signal.aborted) return
+      setResults(data.articles); setAuthors(data.authors); setTopics(data.topics)
+      setHasMore(data.hasMore); setPage(nextPage); setResultsKey(k => k + 1)
     } catch {
-      setResults([])
+      if (!controller.signal.aborted) setError('Search is temporarily unavailable. Please try again.')
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) setLoading(false)
     }
   }, [])
 
-  // Run search when page loads with ?q= param
   useEffect(() => {
-    if (initial) doSearch(initial)
-    inputRef.current?.focus()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    const timer = setTimeout(() => { setQuery(initial); void doSearch(initial) }, 0)
+    return () => { clearTimeout(timer); requestRef.current?.abort() }
+  }, [initial, doSearch])
+
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current) }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
@@ -81,7 +94,7 @@ function SearchContent() {
       router.replace(val.trim() ? `/search?q=${encodeURIComponent(val.trim())}` : '/search', {
         scroll: false,
       })
-      doSearch(val)
+
     }, 280)
   }
 
@@ -91,7 +104,7 @@ function SearchContent() {
     router.replace(query.trim() ? `/search?q=${encodeURIComponent(query.trim())}` : '/search', {
       scroll: false,
     })
-    doSearch(query)
+    if (query.trim() === initial) void doSearch(query)
   }
 
   return (
@@ -135,6 +148,7 @@ function SearchContent() {
             <input
               ref={inputRef}
               type="search"
+              aria-label="Search articles, authors and topics"
               value={query}
               onChange={handleChange}
               placeholder="Search articles, authors, topics..."
@@ -155,6 +169,10 @@ function SearchContent() {
 
       {/* Results */}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div role="status" aria-live="polite" className="text-sm mb-4">{loading ? 'Searching…' : ''}</div>
+        {error && <div role="alert" className="text-sm mb-6">{error} <button type="button" onClick={() => void doSearch(query)} className="underline">Retry search</button></div>}
+        {authors.length > 0 && <section className="mb-6"><h2 className="font-bold mb-2">Authors</h2><div className="flex flex-wrap gap-3">{authors.map(author => <Link key={author.id} className="underline" href={`/author/${author.slug ?? author.id}`}>{author.name}</Link>)}</div></section>}
+        {topics.length > 0 && <section className="mb-6"><h2 className="font-bold mb-2">Topics</h2><div className="flex flex-wrap gap-3">{topics.map(topic => <Link key={topic.id} className="underline" href={`/tag/${topic.slug}`}>{topic.name}</Link>)}</div></section>}
         <AnimatePresence mode="wait">
           {!searched && query.length < 2 && (
             <motion.p
@@ -165,11 +183,11 @@ function SearchContent() {
               transition={{ duration: 0.3 }}
               className="text-center text-[var(--fg-faint)] text-sm py-10"
             >
-              Start typing to search across all articles.
+              Enter at least two characters to search articles, authors and topics.
             </motion.p>
           )}
 
-          {searched && !loading && results.length === 0 && (
+          {searched && !loading && !error && results.length === 0 && authors.length === 0 && topics.length === 0 && (
             <motion.div
               key="empty"
               initial={{ opacity: 0, y: 16 }}
@@ -200,7 +218,7 @@ function SearchContent() {
           )}
         </AnimatePresence>
 
-        {results.length > 0 && (
+        {results.length > 0 && !loading && (
           <motion.div
             key={resultsKey}
             initial={{ opacity: 0 }}
@@ -297,6 +315,10 @@ function SearchContent() {
             </motion.div>
           </motion.div>
         )}
+        {!loading && (page > 1 || hasMore) && <nav aria-label="Search pagination" className="flex gap-6 mt-6">
+          {page > 1 && <button onClick={() => void doSearch(query, page - 1)}>Previous results</button>}
+          {hasMore && <button onClick={() => void doSearch(query, page + 1)}>Next results</button>}
+        </nav>}
       </div>
     </div>
   )

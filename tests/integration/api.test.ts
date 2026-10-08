@@ -1,11 +1,22 @@
 /**
  * Integration tests for The Consilium API routes.
  *
- * Runs inside `npm run test:audit` against its attested disposable database,
- * isolated production app and owned fixtures. Missing services fail setup.
+ * Prerequisites:
+ *   1. Dev server running: npm run dev (http://localhost:3000)
+ *   2. DB seeded with at least one published article and one active debate
+ *
+ * To run integration tests only:
+ *   BASE_URL=http://localhost:3000 npx vitest run tests/integration
+ *
+ * A missing live server fails setup instead of silently passing HTTP cases.
  */
 
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { prisma } from '@/lib/prisma'
+import { Session } from './helpers/http'
+import { randomUUID } from 'node:crypto'
+import bcrypt from 'bcryptjs'
+import sharp from 'sharp'
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:3000'
 
@@ -21,8 +32,40 @@ async function serverIsUp(): Promise<boolean> {
 }
 
 beforeAll(async () => {
-  if (!(await serverIsUp())) throw new Error('The attested isolated server must be reachable; live API checks cannot silently pass.')
+  const up = await serverIsUp()
+  if (!up) throw new Error(`Required local integration server is not reachable at ${BASE}`)
 })
+
+const admin = new Session(BASE)
+const reader = new Session(BASE)
+let ownedArticleId: string
+const resetUserIds: string[] = []
+const uploadedUrls: string[] = []
+beforeAll(async () => {
+  expect(await admin.login('admin@theconsilium.com', 'consilium2024')).toBe(true)
+  expect(await reader.login('reader.alice@consilium.test', 'reader1234')).toBe(true)
+  const author = await prisma.user.findUniqueOrThrow({ where: { email: 'admin@theconsilium.com' } })
+  ownedArticleId = (await prisma.article.create({ data: { title: 'API boundary fixture', content: 'Local fixture', slug: randomUUID(), authorId: author.id, status: 'PUBLISHED' } })).id
+})
+afterAll(async () => {
+  if (ownedArticleId) await prisma.article.delete({ where: { id: ownedArticleId } })
+  await prisma.user.deleteMany({ where: { id: { in: resetUserIds } } })
+  await prisma.articleImageAsset.deleteMany({ where: { url: { in: uploadedUrls } } })
+  await prisma.$disconnect()
+})
+async function resetFixture(expired = false, used = false) {
+  const password = await bcrypt.hash('original-password', 10)
+  const user = await prisma.user.create({ data: { name: 'Reset fixture', email: `${randomUUID()}@consilium.test`, password } })
+  resetUserIds.push(user.id)
+  const record = await prisma.passwordResetToken.create({ data: { userId: user.id, token: randomUUID(), used, expires: new Date(Date.now() + (expired ? -60000 : 60000)) } })
+  return { user, record, password }
+}
+async function upload(bytes: Uint8Array, bucket = 'article-images', name = 'test.jpg') {
+  const data = new FormData()
+  data.append('file', new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }), name)
+  data.append('bucket', bucket)
+  return fetch(`${BASE}/api/upload`, { method: 'POST', headers: { cookie: admin.cookieHeader }, body: data })
+}
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 
@@ -227,12 +270,31 @@ describe('POST /api/auth/forgot-password', () => {
     expect(body.ok).toBe(true)
   })
 
-  // SKIP: PATCH tests require a valid DB token — cannot seed without direct DB access
-
-
-
-
-
+  it.each([8, 128])('PATCH valid token + %i-char password succeeds and consumes token', async length => {
+    const { user, record } = await resetFixture()
+    const password = 'a'.repeat(length)
+    const res = await fetch(`${BASE}/api/auth/forgot-password`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: record.token, password }) })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ ok: true })
+    const saved = await prisma.user.findUniqueOrThrow({ where: { id: user.id }, omit: { password: false } })
+    expect(await bcrypt.compare(password, saved.password!)).toBe(true)
+    expect((await prisma.passwordResetToken.findUniqueOrThrow({ where: { id: record.id } })).used).toBe(true)
+  })
+  it.each([7, 129])('PATCH %i-char password is rejected without changing password/token', async length => {
+    const { user, record, password } = await resetFixture()
+    const res = await fetch(`${BASE}/api/auth/forgot-password`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: record.token, password: 'a'.repeat(length) }) })
+    expect(res.status).toBe(400)
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id }, omit: { password: false } })).password).toBe(password)
+    expect((await prisma.passwordResetToken.findUniqueOrThrow({ where: { id: record.id } })).used).toBe(false)
+  })
+  it.each(['expired', 'used'])('PATCH %s token rejects without changing password', async kind => {
+    const { user, record, password } = await resetFixture(kind === 'expired', kind === 'used')
+    const res = await fetch(`${BASE}/api/auth/forgot-password`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: record.token, password: 'replacement-password' }) })
+    expect(res.status).toBe(400)
+    expect(await res.json()).toEqual({ error: 'This link has expired or already been used.' })
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id }, omit: { password: false } })).password).toBe(password)
+    expect(await prisma.passwordResetToken.findUniqueOrThrow({ where: { id: record.id } })).toEqual(record)
+  })
 })
 
 // ── Suite 3: Search (GET /api/search) ─────────────────────────────────────────
@@ -480,13 +542,22 @@ describe('POST /api/comments', () => {
     expect(res.status).toBe(401)
   })
 
-  // SKIP: authenticated comment tests require a valid session cookie
-
-
-
-
-
-
+  it.each(['Clean reader comment', 'abc', 'a'.repeat(1000), '<script>alert(1)</script>Safe comment'])('READER comment accepts and stores sanitized valid input (%s)', async raw => {
+    const res = await reader.post('/api/comments', { articleId: ownedArticleId, body: raw })
+    expect(res.status).toBe(201)
+    const saved = await res.json()
+    const expectedBody = raw.startsWith('<script>') ? 'alert(1) Safe comment' : raw
+    expect(saved.body).toBe(expectedBody)
+    expect(saved.body).not.toContain('<script>')
+    expect((await prisma.comment.findUniqueOrThrow({ where: { id: saved.id } })).body).toBe(expectedBody)
+    expect((await reader.get(`/api/comments?articleId=${ownedArticleId}`)).status).toBe(200)
+  })
+  it.each(['ab', 'a'.repeat(1001), '   ', 'retard'])('READER invalid comment rejects without storing (%s)', async body => {
+    const count = await prisma.comment.count({ where: { articleId: ownedArticleId } })
+    const res = await reader.post('/api/comments', { articleId: ownedArticleId, body })
+    expect(res.status).toBe(400)
+    expect(await prisma.comment.count({ where: { articleId: ownedArticleId } })).toBe(count)
+  })
 })
 
 // ── Suite 8: Rate Limiting Boundaries ────────────────────────────────────────
@@ -674,10 +745,33 @@ describe('POST /api/debates/[debateId]/vote', () => {
 // ── Suite 13: File Upload (POST /api/upload) ──────────────────────────────────
 
 describe('POST /api/upload', () => {
-  // SKIP: Supabase credentials may not be available locally
-
-
-
+  it('valid decoded JPEG → 201 with local URL and registered asset', async () => {
+    const bytes = await sharp({ create: { width: 4, height: 4, channels: 3, background: '#ffffff' } }).jpeg().toBuffer()
+    const res = await upload(bytes)
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    uploadedUrls.push(body.url)
+    expect(new URL(body.url).origin).toBe(process.env.NEXT_PUBLIC_SUPABASE_URL)
+    const image = await fetch(body.url)
+    expect(image.status).toBe(200)
+    expect(Buffer.from(await image.arrayBuffer())).toEqual(bytes)
+    expect(await prisma.articleImageAsset.findUnique({ where: { url: body.url } })).not.toBeNull()
+  })
+  it('HTML bytes named .jpg → controlled 400', async () => {
+    const res = await upload(Buffer.from('<html>invalid image</html>'))
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/file type/i)
+  })
+  it('truncated JPEG signature fails real decoder → 400', async () => {
+    const res = await upload(Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 1, 2]))
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/damaged|invalid/i)
+  })
+  it('article image above 4 MiB → 413', async () => {
+    const res = await upload(new Uint8Array(4 * 1024 * 1024 + 1))
+    expect(res.status).toBe(413)
+    expect((await res.json()).error).toMatch(/4|large|size/i)
+  })
 
   it('unauthenticated → 401/403 (denied)', async () => {
 
@@ -689,6 +783,11 @@ describe('POST /api/upload', () => {
     expect([401, 403]).toContain(res.status)
   })
 
+  it('authenticated invalid bucket → controlled 400', async () => {
+    const res = await upload(Buffer.from('fixture'), 'invalid-bucket')
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/bucket/i)
+  })
 })
 
 // ── Suite 14: Bookmarks ───────────────────────────────────────────────────────
@@ -706,6 +805,25 @@ describe('Bookmarks (POST /api/bookmarks)', () => {
     expect(res.status).toBe(401)
   })
 
-
-
+  it('toggle bookmark on → bookmarked true and persisted', async () => {
+    const res = await reader.post('/api/bookmarks', { articleId: ownedArticleId })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ bookmarked: true })
+    expect(await prisma.bookmark.count({ where: { articleId: ownedArticleId } })).toBe(1)
+  })
+  it('toggle same bookmark off → bookmarked false and removed', async () => {
+    const readerId = (await prisma.user.findUniqueOrThrow({ where: { email: 'reader.alice@consilium.test' } })).id
+    await prisma.bookmark.upsert({ where: { userId_articleId: { userId: readerId, articleId: ownedArticleId } }, create: { userId: readerId, articleId: ownedArticleId }, update: {} })
+    const res = await reader.post('/api/bookmarks', { articleId: ownedArticleId })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ bookmarked: false })
+    expect(await prisma.bookmark.count({ where: { articleId: ownedArticleId } })).toBe(0)
+  })
+  it('nonexistent article → controlled 404 and no bookmark', async () => {
+    const articleId = randomUUID()
+    const res = await reader.post('/api/bookmarks', { articleId })
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'Article not found' })
+    expect(await prisma.bookmark.count({ where: { articleId } })).toBe(0)
+  })
 })
