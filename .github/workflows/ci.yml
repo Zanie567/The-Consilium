@@ -78,6 +78,12 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci_dummy_anon_key
 
+      # `next build` succeeds even when sharp's libvips is missing from the
+      # /api/upload function trace (it only fails at runtime on Vercel). CI runs
+      # on linux-x64, the same platform as the deployed function.
+      - name: Verify sharp native library is traced into /api/upload
+        run: node scripts/verify-sharp-trace.mjs
+
   # End-to-end gate: seeds a real Postgres, builds, and runs the Playwright suite.
   # A failing e2e test, a console error on any page, or any internal URL returning
   # >= 400 (including ?_rsc= prefetch requests) fails this job and blocks merge.
