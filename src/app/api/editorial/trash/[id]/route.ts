@@ -1,3 +1,4 @@
+import { cleanupRemovedArticleImages, lockArticleImageReferences, queueDeletedArticleImages } from '@/lib/articleImageStorage'
 import { withTestingAudit } from '@/lib/testingAudit'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
@@ -6,6 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 import { apiError } from '@/lib/apiResponse'
+import { revalidateArticleLists } from '@/lib/revalidateArticles'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -55,6 +57,7 @@ async function PATCHHandler(_req: NextRequest, { params }: Props) {
       )
     }
     if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status })
+    if (result.restored?.status === 'PUBLISHED') revalidateArticleLists()
     return NextResponse.json(result.restored)
   } catch {
     return NextResponse.json({ error: 'Failed to restore article' }, { status: 500 })
@@ -88,7 +91,8 @@ async function DELETEHandler(_req: NextRequest, { params }: Props) {
         }
       }
 
-      const res = await tx.article.deleteMany({ where: { id, deletedAt: { not: null } } })
+      await lockArticleImageReferences(tx, article.content, article.coverImage)
+      const res = await tx.article.deleteMany({ where: { id, deletedAt: article.deletedAt, updatedAt: article.updatedAt } })
       if (res.count === 0) return { error: 'Not found in trash', status: 404 } as const
 
       await tx.auditLog.create({
@@ -100,7 +104,8 @@ async function DELETEHandler(_req: NextRequest, { params }: Props) {
           metadata: { title: article.title, authorId: article.authorId },
         },
       })
-      return { success: true } as const
+      await queueDeletedArticleImages(tx, article.content, article.coverImage)
+      return { success: true, content: article.content, coverImage: article.coverImage } as const
     })
 
     if ('scopeDenied' in result) {
@@ -111,6 +116,7 @@ async function DELETEHandler(_req: NextRequest, { params }: Props) {
       )
     }
     if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status })
+    if ('content' in result) await cleanupRemovedArticleImages(result.content, result.coverImage, '', null, true)
     return NextResponse.json({ success: true })
   } catch {
     return NextResponse.json({ error: 'Failed to permanently delete article' }, { status: 500 })

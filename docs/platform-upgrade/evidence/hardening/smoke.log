@@ -1,0 +1,22 @@
+[platform-check] guarded test DB; app localhost:3221; storage loopback:55621; email/OAuth disabled
+
+> the-consilium@0.1.0 smoke
+> node scripts/smoke.mjs
+
+
+Smoke test → http://localhost:3221
+
+Unauthenticated guards:
+  ✓ GET /api/articles → 200, only PUBLISHED, no author secrets (P0 guard)
+  ✓ GET /api/articles?status=DRAFT → 401/403 (role guard)
+  ✓ GET /api/editorial/analytics → 401/403 (authz conversion)
+  ✓ GET /api/user/streak → 401/403 (authz conversion)
+  ✓ GET /api/editorial/users → 401/403
+  ✓ GET /api/editorial/trash → 401/403
+  ✓ GET /api/admin/users → 401/403
+  ✓ GET /api/search?q=ai → 200 array
+
+Authenticated role contract:
+  (skipped — set SMOKE_COOKIE and SMOKE_ROLE to run these)
+
+PASS — 8 passed, 0 failed

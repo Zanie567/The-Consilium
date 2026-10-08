@@ -1,3 +1,5 @@
+import { canonicalTagSlug } from '@/lib/tagIdentity'
+export { canonicalTagSlug } from '@/lib/tagIdentity'
 import { stripHtml } from '@/lib/content-filter'
 
 /**
@@ -37,10 +39,11 @@ export function normalizeArticleTags(tags: unknown): NormalizedTag[] {
   for (const value of tags) {
     if (bySlug.size >= MAX_ARTICLE_TAGS) break
     if (typeof value !== 'string') continue
-    const name = stripHtml(value).trim()
-    const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+    const name = stripHtml(value).normalize('NFKC').replace(/\s+/g, ' ').trim().slice(0, 80)
+    const slug = canonicalTagSlug(name)
     if (!name || !slug || bySlug.has(slug)) continue
     bySlug.set(slug, { name, slug })
   }
   return [...bySlug.values()]
 }
+

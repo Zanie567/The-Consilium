@@ -8,6 +8,7 @@ import { TEAM_TIER_ORDER, type TeamTierId } from '@/lib/teamHierarchy'
 const ROLES = ['WRITER', 'EDITOR', 'GROWTH', 'ADMIN'] as const
 const TIER_LABEL: Record<TeamTierId, string> = {
   editor_in_chief: 'Editor-in-Chief',
+  deputy: 'Deputy Editor-in-Chief',
   leadership: 'Leadership',
   senior_editor: 'Senior editor',
   editor: 'Editor',

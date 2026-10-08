@@ -10,14 +10,14 @@ export async function GET() {
   const rows = await prisma.$queryRaw<
     { author_id: string; author_name: string; total_articles: bigint; total_views: bigint }[]
   >`
-    SELECT a."author_id",
+    SELECT a."authorId" AS author_id,
            u.name AS author_name,
            COUNT(DISTINCT a.id) AS total_articles,
-           COALESCE(SUM(a."view_count"), 0) AS total_views
+           COALESCE(SUM(a."viewCount"), 0) AS total_views
     FROM articles a
-    JOIN users u ON u.id = a."author_id"
-    WHERE a.status = 'PUBLISHED' AND a.deleted_at IS NULL
-    GROUP BY a."author_id", u.name
+    JOIN users u ON u.id = a."authorId"
+    WHERE a.status = 'PUBLISHED' AND a."deletedAt" IS NULL
+    GROUP BY a."authorId", u.name
     ORDER BY total_views DESC
   `
 

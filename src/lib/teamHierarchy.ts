@@ -16,6 +16,7 @@
 /** Ordered from the top of the masthead downwards. */
 export type TeamTierId =
   | 'editor_in_chief'
+  | 'deputy'
   | 'leadership'
   | 'senior_editor'
   | 'editor'
@@ -38,7 +39,9 @@ export interface TeamMemberLike {
   name: string
   role: string | null
   order: number
+  /** Optional name used only to order cards that share a tier (stable, case-insensitive). */
   placementName?: string
+  /** A label for ordinary new-member defaults. It never decides placement. */
   team?: MemberTeam | null
   publicTier?: string | null
 }
@@ -60,6 +63,7 @@ export interface TeamSection<T extends TeamMemberLike> {
 
 const TIER_SECTION: Record<TeamTierId, TeamSectionId> = {
   editor_in_chief: 'masthead',
+  deputy: 'masthead',
   leadership: 'masthead',
   senior_editor: 'editorial',
   editor: 'editorial',
@@ -71,6 +75,7 @@ const TIER_SECTION: Record<TeamTierId, TeamSectionId> = {
 
 const TIER_VARIANT: Record<TeamTierId, TeamCardVariant> = {
   editor_in_chief: 'lead',
+  deputy: 'feature',
   leadership: 'feature',
   senior_editor: 'standard',
   editor: 'standard',
@@ -83,6 +88,7 @@ const TIER_VARIANT: Record<TeamTierId, TeamCardVariant> = {
 /** Render order of the tiers, top of the masthead first. */
 export const TEAM_TIER_ORDER: readonly TeamTierId[] = [
   'editor_in_chief',
+  'deputy',
   'leadership',
   'senior_editor',
   'editor',
@@ -92,15 +98,21 @@ export const TEAM_TIER_ORDER: readonly TeamTierId[] = [
   'other',
 ]
 
-const SECTION_ORDER: readonly TeamSectionId[] = ['masthead', 'editorial', 'writers', 'growth', 'wider']
+const SECTION_ORDER: readonly TeamSectionId[] = [
+  'masthead',
+  'editorial',
+  'writers',
+  'growth',
+  'wider',
+]
 
 const SECTION_META: Record<TeamSectionId, { label: string; labelVisible: boolean }> = {
   // The two masthead rows read as a hierarchy on their own; a visible label
   // would only restate what the cards already say.
   masthead: { label: 'Masthead', labelVisible: false },
-  editorial: { label: 'Editorial', labelVisible: true },
+  editorial: { label: 'Editorial Team', labelVisible: true },
   writers: { label: 'Writers', labelVisible: true },
-  growth: { label: 'Growth & Communications', labelVisible: true },
+  growth: { label: 'Growth & Comms', labelVisible: true },
   wider: { label: 'Wider Team', labelVisible: true },
 }
 
@@ -136,7 +148,7 @@ export function resolveTeamTier(role: string | null | undefined): TeamTierId {
   const isDeputy = /\b(deputy|associate|assistant|vice|acting|former)\b/.test(normalized)
 
   if (/\beditor in chief\b/.test(normalized)) {
-    return isDeputy ? 'leadership' : 'editor_in_chief'
+    return /\bdeputy\b/.test(normalized) ? 'deputy' : isDeputy ? 'leadership' : 'editor_in_chief'
   }
   // "Chief Designer", "Head of Design", "Creative Director" — specialist leads.
   if (/\b(chief|head|director)\b/.test(normalized)) return 'leadership'
@@ -158,10 +170,32 @@ export function resolveTeamTier(role: string | null | undefined): TeamTierId {
   return 'other'
 }
 
-/** Explicit public placement is admin-managed. Otherwise the trusted title decides. */
-function placeMember(member: TeamMemberLike): { section: TeamSectionId; tier: TeamTierId } {
-  const tier = member.publicTier && TEAM_TIER_ORDER.includes(member.publicTier as TeamTierId)
-    ? member.publicTier as TeamTierId : resolveTeamTier(member.role)
+/** Lowercased, whitespace-collapsed name, used only to order cards deterministically. */
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, ' ').trim()
+}
+
+interface Placement {
+  section: TeamSectionId
+  tier: TeamTierId
+}
+
+/**
+ * Where a card is rendered. Public appointment and permission role are separate concepts:
+ * nothing about the linked account's permissions decides a card's place. Precedence:
+ *
+ * 1. Explicit `publicTier`: admin-managed public placement. It always wins, and is the only
+ *    way an untitled or legacy card is placed in a specific row (there is no name-based
+ *    exception: a historical masthead position is data, not code).
+ * 2. Otherwise the trusted title decides. Titles are admin-managed: the self-service profile
+ *    API rejects a title, team, role or placement posted by the member, so a member cannot
+ *    move themselves up the masthead.
+ */
+function placeMember(member: TeamMemberLike): Placement {
+  const tier =
+    member.publicTier && TEAM_TIER_ORDER.includes(member.publicTier as TeamTierId)
+      ? (member.publicTier as TeamTierId)
+      : resolveTeamTier(member.role)
   return { section: TIER_SECTION[tier], tier }
 }
 
@@ -171,7 +205,10 @@ function compareMembers(a: TeamMemberLike, b: TeamMemberLike): number {
   const bHasRole = hasDisplayableRole(b.role) ? 0 : 1
   if (aHasRole !== bHasRole) return aHasRole - bHasRole
   if (a.order !== b.order) return a.order - b.order
-  return (a.placementName ?? a.name).localeCompare(b.placementName ?? b.name)
+  return (
+    normalizeName(a.placementName ?? a.name).localeCompare(normalizeName(b.placementName ?? b.name), 'en') ||
+    a.id.localeCompare(b.id, 'en')
+  )
 }
 
 /**
@@ -203,6 +240,12 @@ export function buildTeamMasthead<T extends TeamMemberLike>(members: T[]): TeamS
   })
 
   for (const bucket of buckets.values()) bucket.sort(compareMembers)
+  // Preserve additional appointments without crowding the two deputy cards.
+  const deputies = buckets.get(key('masthead', 'deputy'))
+  if (deputies && deputies.length > 2) {
+    for (const member of deputies.splice(2)) add('editorial', 'leadership', member)
+    buckets.get(key('editorial', 'leadership'))?.sort(compareMembers)
+  }
 
   return SECTION_ORDER.flatMap<TeamSection<T>>((sectionId) => {
     const rows = TEAM_TIER_ORDER.map((tier) => ({

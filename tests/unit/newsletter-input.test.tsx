@@ -52,7 +52,7 @@ it('trims surrounding whitespace before calling the API', async () => {
 })
 
 it('preserves the entered address and shows the error when the request fails', async () => {
-  vi.mocked(apiRequest).mockRejectedValue(new Error('Too many requests. Please try again later.'))
+  vi.mocked(apiRequest).mockRejectedValue(Object.assign(new Error('Too many requests. Please try again later.'), { status: 429 }))
   render(<NewsletterSignup />)
   emailInput().value = 'reader@consilium.test'
   await submit()

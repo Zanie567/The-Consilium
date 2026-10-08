@@ -28,6 +28,7 @@ interface Note {
 }
 
 interface Article {
+  updatedAt: string
   id: string
   title: string
   content: string
@@ -54,6 +55,7 @@ interface Props {
 
 export function ReviewPanel({ article }: Props) {
   const router = useRouter()
+  const [revision, setRevision] = useState(article.updatedAt)
   const [loading, setLoading] = useState<string | null>(null)
   const [note, setNote] = useState('')
   const { comments, error: commentsError, addComment, setCommentResolved } = useArticleComments(article.id)
@@ -81,14 +83,15 @@ export function ReviewPanel({ article }: Props) {
     setLoading(action)
     setError('')
     try {
-      const data = await apiRequest<{ status?: string }>(
+      const data = await apiRequest<{ status: string; updatedAt: string }>(
         `/api/editorial/articles/${article.id}/review`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action, ...extra }),
+          body: JSON.stringify({ action, ...extra, expectedUpdatedAt: revision }),
         }
       )
+      setRevision(data.updatedAt)
       if (data.status) setStatus(data.status)
       if (action === 'approve' || action === 'schedule' || action === 'unpublish') {
         router.push('/editorial')
@@ -123,7 +126,8 @@ export function ReviewPanel({ article }: Props) {
     const method = isFeatured ? 'DELETE' : 'POST'
     setError('')
     try {
-      await apiRequest(`/api/editorial/articles/${article.id}/feature`, { method })
+      const saved = await apiRequest<{ updatedAt: string }>(`/api/editorial/articles/${article.id}/feature`, { method, headers: { 'x-article-revision': revision } })
+      setRevision(saved.updatedAt)
       setIsFeatured(!isFeatured)
     } catch (reason) {
       setError(asApiError(reason).message)
@@ -134,7 +138,8 @@ export function ReviewPanel({ article }: Props) {
     const method = isPinned ? 'DELETE' : 'POST'
     setError('')
     try {
-      await apiRequest(`/api/editorial/articles/${article.id}/pin`, { method })
+      const saved = await apiRequest<{ updatedAt: string }>(`/api/editorial/articles/${article.id}/pin`, { method, headers: { 'x-article-revision': revision } })
+      setRevision(saved.updatedAt)
       setIsPinned(!isPinned)
     } catch (reason) {
       setError(asApiError(reason).message)
@@ -362,6 +367,8 @@ export function ReviewPanel({ article }: Props) {
                 {(status === 'PENDING_REVIEW' || status === 'PUBLISHED') && (
                   <CommendationEditor
                     articleId={article.id}
+                    expectedUpdatedAt={revision}
+                    onRevision={setRevision}
                     initialValue={article.editorialCommendation}
                   />
                 )}

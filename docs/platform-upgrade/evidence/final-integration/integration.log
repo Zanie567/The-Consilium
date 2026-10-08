@@ -1,0 +1,517 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+ ✓ tests/integration/team-profile-storage.test.ts > team photo storage (real client, local storage server) > the migration created a public avatars bucket with a size cap and image-only types 10ms
+ ✓ tests/integration/team-profile-storage.test.ts > team photo storage (real client, local storage server) > a valid upload is stored in the caller’s folder and is retrievable by its public URL 148ms
+ ✓ tests/integration/team-profile-storage.test.ts > team photo storage (real client, local storage server) > replacing deletes the old file only after the new one is stored 72ms
+ ✓ tests/integration/team-profile-storage.test.ts > team photo storage (real client, local storage server) > removing clears the column and deletes the file 47ms
+ ✓ tests/integration/team-profile-storage.test.ts > team photo storage (real client, local storage server) > rejects non-images by their bytes, even with an image name and declared type 5ms
+ ✓ tests/integration/team-profile-storage.test.ts > team photo storage (real client, local storage server) > rejects an image over 4 MB in the route, before it is uploaded 9ms
+stderr | tests/integration/team-profile-storage.test.ts > team photo storage (real client, local storage server) > a failed database save removes the new file and keeps the old photo
+[team-profile:save] {
+  requestId: '435eff92-f4e0-4937-ab84-088acb2ff855',
+  error: Error: db down
+      at /private/tmp/consilium-final-integration/tests/integration/team-profile-storage.test.ts:231:73
+      at processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20
+}
+
+stderr | tests/integration/team-profile-storage.test.ts > team photo storage (real client, local storage server) > an upload failure (bucket missing) is reported and changes nothing
+[team-profile] upload failed Error: Photo upload failed: Bucket not found
+    at uploadTeamPhoto (/private/tmp/consilium-final-integration/src/lib/teamPhotoStorage.ts:42:20)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at Module.PUT (/private/tmp/consilium-final-integration/src/app/api/team-profile/route.ts:108:20)
+    at /private/tmp/consilium-final-integration/tests/integration/team-profile-storage.test.ts:249:19
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20
+
+ ✓ tests/integration/team-profile-storage.test.ts > team photo storage (real client, local storage server) > the bucket itself also enforces its limits if the route were bypassed 41ms
+ ✓ tests/integration/team-profile-storage.test.ts > team photo storage (real client, local storage server) > one user can never write to, replace or delete another user’s files 38ms
+ ✓ tests/integration/team-profile-storage.test.ts > team photo storage (real client, local storage server) > a failed database save removes the new file and keeps the old photo 34ms
+ ✓ tests/integration/team-profile-storage.test.ts > team photo storage (real client, local storage server) > an upload failure (bucket missing) is reported and changes nothing 21ms
+stderr | tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database)
+[team-profile-db] using database host: localhost
+
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > role mapping and creation > a WRITER account creates one profile, publicly listed under writers 94ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > role mapping and creation > a EDITOR account creates one profile, publicly listed under editorial 8ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > role mapping and creation > a GROWTH account creates one profile, publicly listed under growth 7ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > role mapping and creation > ignores a team, role, userId, order or isActive posted by the client 6ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > who may create one > refuses a ADMIN account and creates nothing 4ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > who may create one > refuses a READER account and creates nothing 2ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > who may create one > refuses an unauthenticated caller 3ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > who may create one > refuses an account with no name rather than inventing one 5ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > duplicate prevention > the database itself rejects a second row for the same account 17ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > duplicate prevention > still allows any number of legacy cards with no account 9ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > duplicate prevention > 20 simultaneous creates (double-click, two tabs, retries) leave exactly one row 69ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > duplicate prevention > repeating an identical request is idempotent 17ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > duplicate prevention > adopts a legacy card with the same email instead of duplicating the person 10ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > duplicate prevention > refuses to create a second card when two legacy cards share the account email 6ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > existing members with a legacy card that has NO email (the production case) > cannot create a second card: the request is refused and nothing is written 9ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > existing members with a legacy card that has NO email (the production case) > matches the name ignoring case, spacing and Unicode form 4ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > existing members with a legacy card that has NO email (the production case) > renaming your own account to someone else’s name never lets you take their card 4ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > existing members with a legacy card that has NO email (the production case) > once an admin links the card, their first save edits that card and keeps its title, order and photo 6ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > existing members with a legacy card that has NO email (the production case) > matchLegacyCard: adoptable by a unique email, blocked by name or ambiguity, otherwise none 2ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > admin linking (POST/PUT /api/team) > links, leaves the link alone when userId is absent, and unlinks on null 9ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > admin linking (POST/PUT /api/team) > refuses to link a second card to an account that already has one (409) 4ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > admin linking (POST/PUT /api/team) > only accepts Writer, Editor or Growth accounts: admin, reader, unknown, inactive and banned are refused (400) 9ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > admin linking (POST/PUT /api/team) > a linked WRITER card is in writers whatever team or title the admin request carries 19ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > admin linking (POST/PUT /api/team) > a linked EDITOR card is in editorial whatever team or title the admin request carries 20ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > admin linking (POST/PUT /api/team) > a linked GROWTH card is in growth whatever team or title the admin request carries 14ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > admin linking (POST/PUT /api/team) > one account can never own two cards, through either admin route (409) 12ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > admin linking (POST/PUT /api/team) > POST refuses an admin or reader target too 4ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > admin linking (POST/PUT /api/team) > is admin-only: an editor and an anonymous caller are refused 2ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > account lifecycle: sign-up → promotion → profile → role changes > a new sign-up is a READER: no Team Profile, and the API refuses it 75ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > account lifecycle: sign-up → promotion → profile → role changes > a reader cannot promote themselves, by any route 65ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > account lifecycle: sign-up → promotion → profile → role changes > sign up → admin grants WRITER → member creates their own profile in writers, with no manual step 82ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > account lifecycle: sign-up → promotion → profile → role changes > sign up → admin grants EDITOR → member creates their own profile in editorial, with no manual step 78ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > account lifecycle: sign-up → promotion → profile → role changes > sign up → admin grants GROWTH → member creates their own profile in growth, with no manual step 79ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > account lifecycle: sign-up → promotion → profile → role changes > role changes keep the same card: Writer → Editor → Growth → Reader → Writer → Admin → Editor 128ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > public roster > never lists an internal test account, even with a card 7ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > editing > updates the description in place and shows the change publicly 7ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > editing > leaves the description alone when the field is absent, clears it when empty 8ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > editing > rejects an over-long description and stores nothing 2ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > editing > stores markup as plain text 4ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > authorisation between accounts > user A’s request never touches user B’s profile or photo 13ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > authorisation between accounts > cannot delete a file in another user’s folder, even if the row says so 3ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > authorisation between accounts > demoting an account removes its card from the public roster; the team follows the role 6ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > authorisation between accounts > deleting an account removes its card 6ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > photos > uploads into the caller’s own folder and stores the URL 5ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > photos > replacing a photo stores the new one and removes only the old one 5ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > photos > removing a photo clears it and deletes the file 4ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > photos > never deletes a legacy /team/*.png file when replaced 3ms
+stderr | tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > photos > a failed upload changes nothing
+[team-profile] upload failed Error: Photo upload failed: boom
+    at uploadTeamPhoto (/private/tmp/consilium-final-integration/src/lib/teamPhotoStorage.ts:42:20)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at Module.PUT (/private/tmp/consilium-final-integration/src/app/api/team-profile/route.ts:108:20)
+    at /private/tmp/consilium-final-integration/tests/integration/team-profile-db.test.ts:1041:19
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20
+
+stderr | tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > photos > if the database write fails after the upload, the new file is removed and the old photo kept
+[team-profile:save] {
+  requestId: '14065d46-863d-45d9-8ab9-a09637b42894',
+  error: Error: db down
+      at /private/tmp/consilium-final-integration/tests/integration/team-profile-db.test.ts:1054:75
+      at processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20
+}
+
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > photos > rejects a file that is not an image, whatever its name or declared type 1ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > photos > rejects an oversized image before uploading 4ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > photos > a failed upload changes nothing 8ms
+ ✓ tests/integration/team-profile-db.test.ts > PUT /api/team-profile (real database) > photos > if the database write fails after the upload, the new file is removed and the old photo kept 14ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > valid payload → 201 with id and email 75ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > agreed: false → 400 5ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > name length 1 → 400 3ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > name length 2 → 201 77ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > name length 101 → 400 3ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > password length 7 → 400 5ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > password length 8 → 201 97ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > password length 128 → 201 88ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > password length 129 → 400 4ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > password with leading whitespace → 201 (whitespace not trimmed — BUG-PASS-TRIM) 72ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > invalid email format → 400 3ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > email 255 chars → 400 (max 254) 4ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > duplicate email → 400 69ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/signup > duplicate email different case → 400 (lowercased before check) 66ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/forgot-password > unknown email returns ok: true (enumeration prevention) 4ms
+ ✓ tests/integration/api.test.ts > POST /api/auth/forgot-password > missing email field returns ok: true silently 2ms
+ ↓ tests/integration/api.test.ts > POST /api/auth/forgot-password > PATCH: valid token + 8-char password → 200 [needs DB seed]
+ ↓ tests/integration/api.test.ts > POST /api/auth/forgot-password > PATCH: valid token + 7-char password → 400 [needs DB seed]
+ ↓ tests/integration/api.test.ts > POST /api/auth/forgot-password > PATCH: valid token + 200-char password → 201 (BUG: no max length) [needs DB seed]
+ ↓ tests/integration/api.test.ts > POST /api/auth/forgot-password > PATCH: expired token → 400 [needs DB seed]
+ ↓ tests/integration/api.test.ts > POST /api/auth/forgot-password > PATCH: already-used token → 400 [needs DB seed]
+ ✓ tests/integration/api.test.ts > GET /api/search > empty query → 200 with empty array 4ms
+ ✓ tests/integration/api.test.ts > GET /api/search > 1-char query → 200 with empty array (min length 2) 3ms
+ ✓ tests/integration/api.test.ts > GET /api/search > 2-char query → 200 with array result 19ms
+ ✓ tests/integration/api.test.ts > GET /api/search > query matching nothing → empty array (not error) 6ms
+ ✓ tests/integration/api.test.ts > GET /api/search > two single-char tokens "a b" → empty array (tokens < 2 chars filtered) 3ms
+ ✓ tests/integration/api.test.ts > GET /api/search > XSS in query → result snippets do not contain unescaped script tags 6ms
+ ✓ tests/integration/api.test.ts > GET /api/search > 500-char query → returns without crashing (no max length enforced) 65ms
+ ✓ tests/integration/api.test.ts > POST /api/subscribe > valid email → 201 10ms
+ ✓ tests/integration/api.test.ts > POST /api/subscribe > same email again → 200 "Already subscribed" 14ms
+ ✓ tests/integration/api.test.ts > POST /api/subscribe > invalid email → 400 4ms
+ ✓ tests/integration/api.test.ts > POST /api/subscribe > missing email → 400 2ms
+ ✓ tests/integration/api.test.ts > POST /api/subscribe > email 255 chars → 400 (max 254) 2ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > valid form → 200 8ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > missing name → 400 3ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > name is whitespace only → 400 (trimmed before required check) 2ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > name 101 chars → 400 3ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > name 100 chars → 200 6ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > subject 201 chars → 400 3ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > message 5000 chars → 200 5ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > message 5001 chars → 400 2ms
+ ✓ tests/integration/api.test.ts > POST /api/contact > message with slur is stored unfiltered (no content filter on contact form) 4ms
+ ✓ tests/integration/api.test.ts > POST /api/publish-scheduled > correct Bearer token → 200 with due and published 7ms
+ ✓ tests/integration/api.test.ts > POST /api/publish-scheduled > wrong secret → 401 3ms
+ ✓ tests/integration/api.test.ts > POST /api/publish-scheduled > no Authorization header → 401 2ms
+ ✓ tests/integration/api.test.ts > POST /api/publish-scheduled > ?secret= query param is rejected (BUG-CRON-LOG fixed — header auth only) 2ms
+ ✓ tests/integration/api.test.ts > POST /api/publish-scheduled > GET method is also accepted (same handler) 5ms
+ ✓ tests/integration/api.test.ts > POST /api/comments > unauthenticated → 401 3ms
+ ↓ tests/integration/api.test.ts > POST /api/comments > authenticated READER posts clean comment → 201 [needs session]
+ ↓ tests/integration/api.test.ts > POST /api/comments > comment body 2 chars → test min-length enforcement [needs session]
+ ↓ tests/integration/api.test.ts > POST /api/comments > comment body 1001 chars → 400 or 201 (document) [needs session]
+ ↓ tests/integration/api.test.ts > POST /api/comments > comment body is only whitespace → 400 [needs session]
+ ↓ tests/integration/api.test.ts > POST /api/comments > comment body contains slur → 400 blocked by content filter [needs session]
+ ↓ tests/integration/api.test.ts > POST /api/comments > comment body with <script> → stored safely, not executed [needs session]
+ ✓ tests/integration/api.test.ts > Rate Limiting > subscribe: 4th request in 10min window → 429 0ms
+ ✓ tests/integration/api.test.ts > Rate Limiting > contact: 6th request in 5min window → 429 0ms
+ ✓ tests/integration/api.test.ts > Missing rate limits (documentation tests) > POST /api/comments has no rate limit (100 rapid calls all reach auth check) 28ms
+ ✓ tests/integration/api.test.ts > Missing rate limits (documentation tests) > POST /api/comments/[id]/upvote has no rate limit 18ms
+ ✓ tests/integration/api.test.ts > Missing rate limits (documentation tests) > POST /api/comments/[id]/report has no rate limit 16ms
+ ✓ tests/integration/api.test.ts > Missing rate limits (documentation tests) > POST /api/analytics/track has no rate limit and no auth requirement 59ms
+ ✓ tests/integration/api.test.ts > Unauthenticated access to protected endpoints > GET /api/editorial/users → 401 or 403 when unauthenticated 5ms
+ ✓ tests/integration/api.test.ts > Unauthenticated access to protected endpoints > POST /api/editorial/users → 401 or 403 when unauthenticated 3ms
+ ✓ tests/integration/api.test.ts > Unauthenticated access to protected endpoints > GET /api/editorial/debates → 401 or 403 when unauthenticated 3ms
+ ✓ tests/integration/api.test.ts > Unauthenticated access to protected endpoints > GET /api/editorial/comments → 401 or 403 when unauthenticated 2ms
+ ✓ tests/integration/api.test.ts > Unauthenticated access to protected endpoints > GET /api/bookmarks → 401 or 403 when unauthenticated 3ms
+ ✓ tests/integration/api.test.ts > Unauthenticated access to protected endpoints > POST /api/bookmarks → 401 or 403 when unauthenticated 2ms
+ ✓ tests/integration/api.test.ts > GET /api/articles role guard > unauthenticated request → returns only PUBLISHED articles 7ms
+ ✓ tests/integration/api.test.ts > GET /api/articles role guard > ?status=DRAFT unauthenticated → 401 2ms
+ ✓ tests/integration/api.test.ts > GET /api/articles role guard > published list never leaks author password/email/security fields 5ms
+ ✓ tests/integration/api.test.ts > GET /api/articles role guard > single published article never leaks author password/email 10ms
+ ✓ tests/integration/api.test.ts > POST /api/debates/[debateId]/vote > GET /api/debates/active → 200 (null or debate object) 4ms
+ ✓ tests/integration/api.test.ts > POST /api/debates/[debateId]/vote > invalid side value → 400 3ms
+ ✓ tests/integration/api.test.ts > POST /api/debates/[debateId]/vote > missing side field → 400 1ms
+ ✓ tests/integration/api.test.ts > POST /api/debates/[debateId]/vote > non-existent debate ID → 404 2ms
+ ✓ tests/integration/api.test.ts > POST /api/debates/[debateId]/vote > anonymous vote → 200, sets consilium_anon_id cookie 7ms
+ ↓ tests/integration/api.test.ts > POST /api/upload > valid JPEG → 200, URL returned [needs Supabase credentials]
+ ↓ tests/integration/api.test.ts > POST /api/upload > file with .jpg extension but HTML content → 400 Invalid file type [needs Supabase credentials]
+ ↓ tests/integration/api.test.ts > POST /api/upload > file > 10 MB → 400 [needs Supabase credentials]
+ ✓ tests/integration/api.test.ts > POST /api/upload > unauthenticated → 401/403 (denied) 2ms
+ ↓ tests/integration/api.test.ts > POST /api/upload > invalid bucket name → 400 (auth fires before bucket check in current implementation)
+ ✓ tests/integration/api.test.ts > Bookmarks (POST /api/bookmarks) > unauthenticated → 401 1ms
+ ✓ tests/integration/api.test.ts > Bookmarks (POST /api/bookmarks) > GET /api/bookmarks unauthenticated → 401 1ms
+ ↓ tests/integration/api.test.ts > Bookmarks (POST /api/bookmarks) > toggle bookmark → 200 bookmarked: true [needs session]
+ ↓ tests/integration/api.test.ts > Bookmarks (POST /api/bookmarks) > toggle same bookmark again → 200 bookmarked: false [needs session]
+ ↓ tests/integration/api.test.ts > Bookmarks (POST /api/bookmarks) > bookmark non-existent articleId → 500 FK error [needs session + bad ID]
+ ✓ tests/integration/api-audit.test.ts > Comments API (503 regression) > GET /api/comments?articleId returns 200 (NOT 503) with {comments,total} 9ms
+ ✓ tests/integration/api-audit.test.ts > Comments API (503 regression) > GET /api/comments?articleId works unauthenticated too (200, not 503) 4ms
+ ✓ tests/integration/api-audit.test.ts > Comments API (503 regression) > GET /api/comments without articleId → 400 (validation, not crash) 2ms
+ ✓ tests/integration/api-audit.test.ts > Comments API (503 regression) > POST /api/comments (authenticated) → 201 with comment shape 11ms
+ ✓ tests/integration/api-audit.test.ts > Comments API (503 regression) > POST /api/comments unauthenticated → 401 4ms
+ ✓ tests/integration/api-audit.test.ts > Editorial comments moderation > GET /api/editorial/comments?tab=reported → 200 (NOT 503) with stats 11ms
+ ✓ tests/integration/api-audit.test.ts > Editorial comments moderation > GET /api/editorial/comments?tab=recent → 200 (NOT 503) with stats 7ms
+ ✓ tests/integration/api-audit.test.ts > Editorial comments moderation > GET /api/editorial/comments?tab=hidden → 200 (NOT 503) with stats 6ms
+ ✓ tests/integration/api-audit.test.ts > Editorial comments moderation > GET /api/editorial/comments unauthenticated → 401 3ms
+ ✓ tests/integration/api-audit.test.ts > Editorial comments moderation > moderate flow: hide → unhide an existing comment (PATCH 200) 16ms
+ ✓ tests/integration/api-audit.test.ts > Profile > GET /api/profile/comments (authed) → 200 array 6ms
+ ✓ tests/integration/api-audit.test.ts > Profile > GET /api/profile/stats (authed) → 200 with totals 7ms
+ ✓ tests/integration/api-audit.test.ts > Profile > GET /api/profile/saved-articles (authed) → 200 6ms
+ ✓ tests/integration/api-audit.test.ts > Profile > GET /api/profile/debate-votes (authed) → 200 13ms
+ ✓ tests/integration/api-audit.test.ts > Bookmarks > GET /api/bookmarks (authed) → 200 array of ids 6ms
+ ✓ tests/integration/api-audit.test.ts > Bookmarks > POST /api/bookmarks toggles (200, {bookmarked}) and is reversible 12ms
+ ✓ tests/integration/api-audit.test.ts > Bookmarks > GET /api/bookmarks unauthenticated → 401 1ms
+ ✓ tests/integration/api-audit.test.ts > Search > GET /api/search?q=trade → 200 array 7ms
+ ✓ tests/integration/api-audit.test.ts > Search > GET /api/search?q= (empty) → 200 empty array 3ms
+ ✓ tests/integration/api-audit.test.ts > Auth / session > GET /api/auth/session (authed) → 200 with user 4ms
+ ✓ tests/integration/api-audit.test.ts > Auth / session > GET /api/auth/session (anon) → 200 empty object 2ms
+ ✓ tests/integration/api-audit.test.ts > Reading progress > POST /api/reading-progress (authed) → 200 {ok} 67ms
+ ✓ tests/integration/api-audit.test.ts > Reading progress > GET /api/reading-progress (authed) → 200 4ms
+ ✓ tests/integration/api-audit.test.ts > Reading progress > POST /api/reading-progress unauthenticated → 401 1ms
+ ✓ tests/integration/api-audit.test.ts > Analytics tracking > POST /api/analytics/track → 200 2ms
+ ✓ tests/integration/api-audit.test.ts > Debates > GET /api/debates/active → 200 3ms
+ ✓ tests/integration/api-audit.test.ts > Debates > POST /api/debates/[id]/vote → 200 or 409 (already voted) 6ms
+ ✓ tests/integration/api-audit.test.ts > Debates > POST vote with bad side → 400 4ms
+ ✓ tests/integration/api-audit.test.ts > Editorial analytics > GET /api/editorial/analytics?tab=overview → 200 12ms
+ ✓ tests/integration/api-audit.test.ts > Editorial analytics > GET /api/editorial/analytics?tab=content → 200 13ms
+ ✓ tests/integration/api-audit.test.ts > Editorial analytics > GET /api/editorial/analytics?tab=audience → 200 5ms
+ ✓ tests/integration/api-audit.test.ts > Editorial analytics > GET /api/editorial/analytics?tab=engagement → 200 15ms
+ ✓ tests/integration/api-audit.test.ts > Editorial analytics > GET /api/editorial/analytics?tab=distribution → 200 6ms
+ ✓ tests/integration/api-audit.test.ts > Editorial analytics > GET ?tab=leaderboard → 200 and lists writers (recent-articles bug) 16ms
+ ✓ tests/integration/api-audit.test.ts > Articles CRUD > GET /api/articles (anon) → 200, PUBLISHED only 7ms
+ ✓ tests/integration/api-audit.test.ts > Articles CRUD > GET /api/articles/[id] → 200 article 8ms
+ ✓ tests/integration/api-audit.test.ts > Articles CRUD > create → update → delete an article (2xx each) 15ms
+ ✓ tests/integration/api-audit.test.ts > Articles CRUD > GET /api/articles?status=DRAFT unauthenticated → 401 3ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > refuses foreign ownership and retains draft/trash references 22ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > defers cleanup and restores the original reference during the grace period 41ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > retains references with slashes representation and canonicalises save locks 15ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > retains references with unicode representation and canonicalises save locks 19ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > retains references with query representation and canonicalises save locks 23ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > retains references with encoded representation and canonicalises save locks 15ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > retains references with encoded filename representation and canonicalises save locks 15ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > retains references with cover representation and canonicalises save locks 16ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > retains references with legacy HTML representation and canonicalises save locks 13ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > retains references with URL-normalised path representation and canonicalises save locks 19ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > keeps failed permanent Storage cleanup queued for retry 11ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > only removes a managed image after its last stored reference disappears 21ms
+ ✓ tests/integration/upgrade-migrations.test.ts > upgrade migrations on isolated empty/colliding historical databases > applies all additive migrations on empty tables and keeps client/DB canonical identity equal 168ms
+ ✓ tests/integration/upgrade-migrations.test.ts > upgrade migrations on isolated empty/colliding historical databases > refuses canonical tag collisions without rewriting IDs, slugs or relations 70ms
+ ✓ tests/integration/upgrade-migrations.test.ts > upgrade migrations on isolated empty/colliding historical databases > refuses historical case/whitespace duplicate subscribers without data deletion 74ms
+ ✓ tests/integration/calendar-access.test.ts > editorial calendar authorisation > serves the calendar page to an admin 29ms
+ ✓ tests/integration/calendar-access.test.ts > editorial calendar authorisation > does not serve the calendar page to a writer 20ms
+ ✓ tests/integration/calendar-access.test.ts > editorial calendar authorisation > rejects an anonymous move request with 401 2ms
+ ✓ tests/integration/calendar-access.test.ts > editorial calendar authorisation > rejects a writer move request with 403 4ms
+ ✓ tests/integration/calendar-access.test.ts > editorial calendar authorisation > lets an admin past the role gate (404 for a missing article, not 403) 4ms
+ ✓ tests/integration/calendar-access.test.ts > editorial calendar authorisation > validates the move payload for an authorised caller 9ms
+ ✓ tests/integration/data-layer.test.ts > Priority 1 — published articles surface on their category page > the public filter returns every PUBLISHED, non-deleted article (debates included) 26ms
+ ✓ tests/integration/data-layer.test.ts > Priority 1 — published articles surface on their category page > every published article with a category is returned by that category’s query 12ms
+ ✓ tests/integration/data-layer.test.ts > Priority 4 — duplicate / count reconciliation > has no duplicate titles among visible published articles 2ms
+ ✓ tests/integration/data-layer.test.ts > Priority 4 — duplicate / count reconciliation > dashboard user count equals the users-page total (single source of truth) 4ms
+ ✓ tests/integration/data-layer.test.ts > Priority 4 — duplicate / count reconciliation > comment moderation total equals the sum of per-user comment counts 3ms
+ ✓ tests/integration/data-layer.test.ts > Priority 4 — duplicate / count reconciliation > per-user article count (admin Users route) excludes soft-deleted articles 68ms
+ ✓ tests/integration/data-layer.test.ts > Priority 4 — duplicate / count reconciliation > per-user comment count matches the Profile definition (isHidden: false) 118ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > deduplicates concurrent views and strips referrer paths 75ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > persists monotonic elapsed-bounded time and threshold metrics 13ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > recomputes a derived engagement score without changing the editorial revision 22ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > counts returning only on an earlier UTC day with consent; decline unlinks current visit 18ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > drops drafts, invalid ids and reused visits on another article 2ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > counts consented readers accumulating five minutes across shorter visits without qualifying each visit 9ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > prunes stale engagement records in a bounded batch 5ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > returns ok on analytics database failure without leaking errors 2ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > drops bots, malformed and oversized events safely 1ms
+ ✓ tests/integration/discovery.test.ts > topic persistence and filtering on isolated Postgres > reuses legacy slug/id, even under simultaneous normalised assignments 23ms
+ ✓ tests/integration/discovery.test.ts > topic persistence and filtering on isolated Postgres > keeps unrelated historical slug collisions separate and preserves both URLs 16ms
+ ✓ tests/integration/discovery.test.ts > topic persistence and filtering on isolated Postgres > relates multiple topics without duplicates and combines with format/search 67ms
+stderr | tests/integration/scheduled-publication.test.ts > scheduled publication uses current state and preserves managed cleanup > queues an unreferenced managed image after automatic trash expiry
+[scheduledPublishing] Purged 1 article(s) from trash (>30 days old)
+
+ ✓ tests/integration/scheduled-publication.test.ts > scheduled publication uses current state and preserves managed cleanup > publishes a due article once with one in-app notification 128ms
+ ✓ tests/integration/scheduled-publication.test.ts > scheduled publication uses current state and preserves managed cleanup > does not publish an article trashed after the due-list snapshot 27ms
+ ✓ tests/integration/scheduled-publication.test.ts > scheduled publication uses current state and preserves managed cleanup > queues an unreferenced managed image after automatic trash expiry 35ms
+ ✓ tests/integration/scheduled-publication.test.ts > scheduled publication uses current state and preserves managed cleanup > rolls back trash expiry when cleanup eligibility cannot be recorded 11ms
+ ✓ tests/integration/scheduled-publication.test.ts > scheduled publication uses current state and preserves managed cleanup > does not purge an article restored after the expiry-list snapshot 6ms
+ ✓ tests/integration/analytics-display-period.test.ts > analytics selected-period reporting > excludes historical debate votes from the selected-period activity ratio 163ms
+ ✓ tests/integration/growth-subscribe.test.ts > newsletter persistence > rejects invalid  3ms
+ ✓ tests/integration/growth-subscribe.test.ts > newsletter persistence > rejects invalid bad 1ms
+ ✓ tests/integration/growth-subscribe.test.ts > newsletter persistence > rejects invalid a@b 0ms
+ ✓ tests/integration/growth-subscribe.test.ts > newsletter persistence > rejects invalid xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@a.test 0ms
+ ✓ tests/integration/growth-subscribe.test.ts > newsletter persistence > normalizes and deduplicates concurrent/repeated subscriptions 82ms
+ ✓ tests/integration/growth-subscribe.test.ts > newsletter persistence > reuses historical subscribers with surrounding "\t" whitespace 8ms
+ ✓ tests/integration/growth-subscribe.test.ts > newsletter persistence > reuses historical subscribers with surrounding "\n" whitespace 6ms
+stderr | tests/integration/growth-subscribe.test.ts > newsletter persistence > returns a friendly failure without database details
+Subscribe error: Error: secret database failure
+    at /private/tmp/consilium-final-integration/tests/integration/growth-subscribe.test.ts:39:30
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2955:64
+
+ ✓ tests/integration/growth-subscribe.test.ts > newsletter persistence > reuses historical subscribers with surrounding " " whitespace 3ms
+ ✓ tests/integration/growth-subscribe.test.ts > newsletter persistence > reuses historical subscribers with surrounding "﻿" whitespace 8ms
+ ✓ tests/integration/growth-subscribe.test.ts > newsletter persistence > returns a friendly failure without database details 1ms
+ ✓ tests/integration/route-handlers.test.ts > POST /api/editorial/setup > returns 403 once an admin exists and never creates a user 2ms
+ ✓ tests/integration/route-handlers.test.ts > POST /api/editorial/setup > rejects a password shorter than 8 characters with 400 1ms
+ ✓ tests/integration/route-handlers.test.ts > POST /api/editorial/setup > creates the first admin (email lowercased, role ADMIN) → 200 67ms
+ ✓ tests/integration/route-handlers.test.ts > PATCH /api/admin/users/[userId]/role > returns 403 when the caller is not an admin 1ms
+ ✓ tests/integration/route-handlers.test.ts > PATCH /api/admin/users/[userId]/role > prevents an admin from changing their own role → 400 1ms
+ ✓ tests/integration/route-handlers.test.ts > PATCH /api/admin/users/[userId]/role > rejects an invalid role value → 400 0ms
+ ✓ tests/integration/route-handlers.test.ts > PATCH /api/admin/users/[userId]/role > returns 404 when the target user does not exist 0ms
+ ✓ tests/integration/route-handlers.test.ts > PATCH /api/admin/users/[userId]/role > promotes a valid target and records the change → 200 0ms
+ ✓ tests/integration/route-handlers.test.ts > GET /api/editorial/analytics > returns 401 when the caller lacks an analytics role 1ms
+ ✓ tests/integration/route-handlers.test.ts > POST /api/upload > preserves a 401 response when the session has expired 1ms
+ ✓ tests/integration/route-handlers.test.ts > /api/user/streak > GET returns 401 when unauthenticated 0ms
+ ✓ tests/integration/route-handlers.test.ts > /api/user/streak > GET returns a zero-state for a user with no streak row 0ms
+ ✓ tests/integration/route-handlers.test.ts > /api/user/streak > PATCH rejects a non-integer intervalWeeks → 400 0ms
+ ✓ tests/integration/route-handlers.test.ts > /api/user/streak > PATCH rejects an out-of-range intervalWeeks → 400 0ms
+ ✓ tests/integration/route-handlers.test.ts > /api/user/streak > PATCH persists a valid cadence and recomputes → 200 0ms
+ ✓ tests/integration/route-handlers.test.ts > POST /api/cron/recalculate-streaks > returns 401 without an Authorization header 0ms
+ ✓ tests/integration/route-handlers.test.ts > POST /api/cron/recalculate-streaks > returns 401 with a wrong Bearer secret 0ms
+ ✓ tests/integration/route-handlers.test.ts > POST /api/cron/recalculate-streaks > runs with the correct Bearer secret → 200 1ms
+ ✓ tests/integration/read-through-db.test.ts > getArticleReadThrough (SQL aggregation) > returns the empty not-enough-data state for an article with no readers 4ms
+ ✓ tests/integration/read-through-db.test.ts > getArticleReadThrough (SQL aggregation) > one reader stays below the minimum sample 1ms
+ ✓ tests/integration/read-through-db.test.ts > getArticleReadThrough (SQL aggregation) > all readers at 100%: complete retention and no drop 1ms
+ ✓ tests/integration/read-through-db.test.ts > getArticleReadThrough (SQL aggregation) > all readers at 0%: zero retention, everyone lost before the 10% mark 1ms
+ ✓ tests/integration/read-through-db.test.ts > getArticleReadThrough (SQL aggregation) > 24-reader fixture matches the hand-computed deciles, median, and drop 1ms
+ ✓ tests/integration/read-through-db.test.ts > getArticleReadThrough (SQL aggregation) > three readers (below threshold) return the not-enough-data state 1ms
+ ✓ tests/integration/read-through-db.test.ts > getReadStatsByArticleIds (grouped SQL for the list view) > aggregates each article in one grouped query and omits articles with no rows 1ms
+ ✓ tests/integration/read-through-db.test.ts > getReadStatsByArticleIds (grouped SQL for the list view) > returns an empty map for an empty id list without querying 0ms
+ ✓ tests/integration/article-image-upload-route.test.ts > article image upload content, size, ownership and failures > decodes a valid chart and returns dimensions; duplicate filenames produce unique owned objects 16ms
+ ✓ tests/integration/article-image-upload-route.test.ts > article image upload content, size, ownership and failures > rejects empty, large, damaged and spoofed content before storage 1ms
+ ✓ tests/integration/article-image-upload-route.test.ts > article image upload content, size, ownership and failures > rejects empty, large, damaged and spoofed content before storage 3ms
+ ✓ tests/integration/article-image-upload-route.test.ts > article image upload content, size, ownership and failures > rejects empty, large, damaged and spoofed content before storage 1ms
+ ✓ tests/integration/article-image-upload-route.test.ts > article image upload content, size, ownership and failures > rejects empty, large, damaged and spoofed content before storage 0ms
+ ✓ tests/integration/article-image-upload-route.test.ts > article image upload content, size, ownership and failures > rejects mismatched declared MIME 1ms
+ ✓ tests/integration/article-image-upload-route.test.ts > article image upload content, size, ownership and failures > keeps Growth/reader out of article-image uploads 0ms
+ ✓ tests/integration/article-image-upload-route.test.ts > article image upload content, size, ownership and failures > returns friendly provider failure without internal errors 2ms
+ ✓ tests/integration/article-comments-auth.test.ts > GET /api/articles/[id]/comments authorization > allows a writer to read comments on their own article 2ms
+ ✓ tests/integration/article-comments-auth.test.ts > GET /api/articles/[id]/comments authorization > denies a writer reading another writer's article comments 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > GET /api/articles/[id]/comments authorization > denies unauthenticated access 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > GET /api/articles/[id]/comments authorization > denies the reader role 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > GET /api/articles/[id]/comments authorization > denies the growth role 1ms
+ ✓ tests/integration/article-comments-auth.test.ts > GET /api/articles/[id]/comments authorization > allows admins on any article 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > GET /api/articles/[id]/comments authorization > allows an unscoped editor, blocks a category-scoped editor on an out-of-scope article 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > GET /api/articles/[id]/comments authorization > 404s for a missing or deleted article 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > POST /api/articles/[id]/comments authorization and validation > lets a writer start a top-level comment thread on their own article 2ms
+ ✓ tests/integration/article-comments-auth.test.ts > POST /api/articles/[id]/comments authorization and validation > lets a writer reply on their own article 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > POST /api/articles/[id]/comments authorization and validation > blocks a writer from commenting on someone else's article 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > POST /api/articles/[id]/comments authorization and validation > rejects replying to a reply (threads stay one level deep) 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > POST /api/articles/[id]/comments authorization and validation > rejects a parent comment that belongs to a different article 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > POST /api/articles/[id]/comments authorization and validation > rejects empty comments and invalid selections 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > POST /api/articles/[id]/comments authorization and validation > rejects a zero-length selection (to must be greater than from) 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > POST /api/articles/[id]/comments authorization and validation > rejects non-integer selection positions 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > comment notifications > notifies the article author when an editor opens a new thread 1ms
+ ✓ tests/integration/article-comments-auth.test.ts > comment notifications > does not notify anyone of their own actions 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > comment notifications > notifies thread participants of a reply, excluding the replier 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > comment notifications > stops notifying once the thread is resolved 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > PATCH /api/articles/[id]/comments/[commentId] permissions > lets the article author (writer) resolve and reopen threads 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > PATCH /api/articles/[id]/comments/[commentId] permissions > lets editors resolve threads 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > PATCH /api/articles/[id]/comments/[commentId] permissions > blocks editing someone else's comment text 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > PATCH /api/articles/[id]/comments/[commentId] permissions > 404s when the comment belongs to a different article 0ms
+ ✓ tests/integration/article-comments-auth.test.ts > PATCH /api/articles/[id]/comments/[commentId] permissions > denies writers who do not own the article 0ms
+stderr | tests/integration/review-route.test.ts > PATCH /api/editorial/articles/[id]/review — email must follow the commit > does not send the published email at all when the underlying commit fails
+[api/editorial/review] {
+  requestId: '3b1afe2c-971e-478b-9acc-b46d53f26064',
+  error: Error: connection dropped
+      at /private/tmp/consilium-final-integration/tests/integration/review-route.test.ts:126:49
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+      at new Promise (<anonymous>)
+      at runWithCancel (file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+      at new Promise (<anonymous>)
+      at runWithTimeout (file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2955:64
+}
+
+stderr | tests/integration/review-route.test.ts > PATCH /api/editorial/articles/[id]/review — mutation and notification commit atomically > returns a structured error instead of throwing when the notification insert fails, and never reports success
+[api/editorial/review] {
+  requestId: 'd1f2bc76-b74c-4a0c-b428-cbdaa516f4d1',
+  error: Error: transient db error
+      at /private/tmp/consilium-final-integration/tests/integration/review-route.test.ts:139:54
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+      at new Promise (<anonymous>)
+      at runWithCancel (file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+      at new Promise (<anonymous>)
+      at runWithTimeout (file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2955:64
+}
+
+ ✓ tests/integration/review-route.test.ts > PATCH /api/editorial/articles/[id]/review — email must follow the commit > never sends the published email before the article update commits 3ms
+ ✓ tests/integration/review-route.test.ts > PATCH /api/editorial/articles/[id]/review — email must follow the commit > never sends the returned email before the article update commits 1ms
+ ✓ tests/integration/review-route.test.ts > PATCH /api/editorial/articles/[id]/review — email must follow the commit > does not send the published email at all when the underlying commit fails 2ms
+ ✓ tests/integration/review-route.test.ts > PATCH /api/editorial/articles/[id]/review — mutation and notification commit atomically > returns a structured error instead of throwing when the notification insert fails, and never reports success 1ms
+ ✓ tests/integration/review-route.test.ts > PATCH /api/editorial/articles/[id]/review — mutation and notification commit atomically > sends exactly one notification and one email when the approval succeeds 1ms
+ ✓ tests/integration/review-route.test.ts > PATCH /api/editorial/articles/[id]/review — server-side state-transition enforcement > rejects approve when the article is not PENDING_REVIEW 1ms
+ ✓ tests/integration/review-route.test.ts > PATCH /api/editorial/articles/[id]/review — server-side state-transition enforcement > rejects schedule when the article is not PENDING_REVIEW 0ms
+ ✓ tests/integration/review-route.test.ts > PATCH /api/editorial/articles/[id]/review — server-side state-transition enforcement > rejects return when the article is not PENDING_REVIEW 0ms
+ ✓ tests/integration/review-route.test.ts > PATCH /api/editorial/articles/[id]/review — server-side state-transition enforcement > rejects unpublish when the article is not PUBLISHED 1ms
+ ✓ tests/integration/review-route.test.ts > PATCH /api/editorial/articles/[id]/review — server-side state-transition enforcement > rejects correct when the article is not PUBLISHED 0ms
+ ✓ tests/integration/review-route.test.ts > PATCH /api/editorial/articles/[id]/review — server-side state-transition enforcement > allows approve from PENDING_REVIEW 0ms
+ ✓ tests/integration/review-route.test.ts > PATCH /api/editorial/articles/[id]/review — server-side state-transition enforcement > allows unpublish from PUBLISHED 0ms
+ ✓ tests/integration/read-through-routes.test.ts > GET /api/editorial/read-through/[articleId] (ownership) > returns 401 when there is no verified session 3ms
+ ✓ tests/integration/read-through-routes.test.ts > GET /api/editorial/read-through/[articleId] (ownership) > writer A asking for writer B's article gets 404 and no aggregation runs 0ms
+ ✓ tests/integration/read-through-routes.test.ts > GET /api/editorial/read-through/[articleId] (ownership) > a missing article and a foreign article are indistinguishable (both 404) 1ms
+ ✓ tests/integration/read-through-routes.test.ts > GET /api/editorial/read-through/[articleId] (ownership) > an unpublished article 404s even for its owner 1ms
+ ✓ tests/integration/read-through-routes.test.ts > GET /api/editorial/read-through/[articleId] (ownership) > the owner gets their own breakdown 2ms
+ ✓ tests/integration/read-through-routes.test.ts > GET /api/editorial/read-through/[articleId] (ownership) > ADMIN may view another writer's breakdown 0ms
+ ✓ tests/integration/read-through-routes.test.ts > GET /api/editorial/read-through/[articleId] (ownership) > below the 5-reader minimum the response carries no distribution 0ms
+ ✓ tests/integration/read-through-routes.test.ts > GET /api/editorial/read-through (list ownership) > returns 401 when there is no verified session 1ms
+ ✓ tests/integration/read-through-routes.test.ts > GET /api/editorial/read-through (list ownership) > a writer requesting another author's list gets 403 before any query 0ms
+ ✓ tests/integration/read-through-routes.test.ts > GET /api/editorial/read-through (list ownership) > a writer with no authorId param gets their own published articles 0ms
+ ✓ tests/integration/read-through-routes.test.ts > GET /api/editorial/read-through (list ownership) > ADMIN may request another author's list 0ms
+ ✓ tests/integration/read-through-routes.test.ts > GET /api/editorial/read-through (list ownership) > articles with no progress rows fall back to the zero-reader state 1ms
+ ✓ tests/integration/scheduling-routes.test.ts > PUT /api/articles/[id] scheduling validation > rejects SCHEDULED with no scheduledAt and none stored (limbo guard) 4ms
+ ✓ tests/integration/scheduling-routes.test.ts > PUT /api/articles/[id] scheduling validation > rejects SCHEDULED with a past scheduledAt 1ms
+ ✓ tests/integration/scheduling-routes.test.ts > PUT /api/articles/[id] scheduling validation > rejects SCHEDULED with an unparseable scheduledAt 0ms
+ ✓ tests/integration/scheduling-routes.test.ts > PUT /api/articles/[id] scheduling validation > accepts SCHEDULED with a valid future scheduledAt 1ms
+ ✓ tests/integration/scheduling-routes.test.ts > PUT /api/articles/[id] scheduling validation > keeps the stored schedule when SCHEDULED is re-saved without scheduledAt (autosave) 1ms
+ ✓ tests/integration/scheduling-routes.test.ts > PUT /api/articles/[id] scheduling validation > clears scheduledAt when a scheduled article is moved back to DRAFT 0ms
+ ✓ tests/integration/scheduling-routes.test.ts > PUT /api/articles/[id] scheduling validation > ignores a WRITER attempt to set status=SCHEDULED on their own draft 0ms
+ ✓ tests/integration/scheduling-routes.test.ts > PATCH /api/editorial/calendar past-day guard > rejects a move that lands the article in the past 1ms
+ ✓ tests/integration/scheduling-routes.test.ts > PATCH /api/editorial/calendar past-day guard > accepts a move to a future day, preserving the wall-clock time 1ms
+ ✓ tests/integration/scheduling-routes.test.ts > PATCH /api/editorial/calendar past-day guard > returns 409 when the article changed underneath the move (CAS) 0ms
+stderr | tests/integration/publication-cache-routes.test.ts > public visibility changes invalidate article lists after commit > does not invalidate when a create rolls back
+[api/articles:create] {
+  requestId: 'a9ef7f35-57c0-4c8f-ab9d-4e8a2f8e82c8',
+  error: Error: database unavailable
+      at /private/tmp/consilium-final-integration/tests/integration/publication-cache-routes.test.ts:62:43
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+      at new Promise (<anonymous>)
+      at runWithCancel (file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+      at new Promise (<anonymous>)
+      at runWithTimeout (file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+      at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2955:64
+}
+
+ ✓ tests/integration/publication-cache-routes.test.ts > public visibility changes invalidate article lists after commit > create DRAFT refreshes only public content 4ms
+ ✓ tests/integration/publication-cache-routes.test.ts > public visibility changes invalidate article lists after commit > create PUBLISHED refreshes only public content 1ms
+ ✓ tests/integration/publication-cache-routes.test.ts > public visibility changes invalidate article lists after commit > restore DRAFT refreshes only public content 0ms
+ ✓ tests/integration/publication-cache-routes.test.ts > public visibility changes invalidate article lists after commit > restore PUBLISHED refreshes only public content 0ms
+ ✓ tests/integration/publication-cache-routes.test.ts > public visibility changes invalidate article lists after commit > does not invalidate when a create rolls back 2ms
+ ✓ tests/integration/publication-cache-routes.test.ts > public visibility changes invalidate article lists after commit > does not invalidate when a restore fails 0ms
+ ✓ tests/integration/publication-cache-routes.test.ts > public visibility changes invalidate article lists after commit > does not restore or invalidate another writer’s article 0ms
+stderr | tests/integration/comments-resilience.test.ts > GET /api/comments resilience > DB failure → controlled response (NOT an unhandled crash), still parseable
+GET /api/comments failed: Error: pool: connection timeout
+    at /private/tmp/consilium-final-integration/tests/integration/comments-resilience.test.ts:56:51
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2955:64
+
+stderr | tests/integration/comments-resilience.test.ts > GET /api/editorial/comments resilience > DB failure → controlled 503 with zeroed stats (NOT a crash)
+GET /api/editorial/comments failed: Error: pool exhausted
+    at /private/tmp/consilium-final-integration/tests/integration/comments-resilience.test.ts:101:51
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///private/tmp/consilium-final-integration/node_modules/@vitest/runner/dist/chunk-artifact.js:2955:64
+
+ ✓ tests/integration/comments-resilience.test.ts > GET /api/comments resilience > happy path → 200 with {comments,total} 3ms
+ ✓ tests/integration/comments-resilience.test.ts > GET /api/comments resilience > DB failure → controlled response (NOT an unhandled crash), still parseable 2ms
+ ✓ tests/integration/comments-resilience.test.ts > GET /api/comments resilience > missing articleId → 400 (validation before any DB access) 0ms
+ ✓ tests/integration/comments-resilience.test.ts > GET /api/editorial/comments resilience > happy path → 200 with comments + stats 1ms
+ ✓ tests/integration/comments-resilience.test.ts > GET /api/editorial/comments resilience > unauthorised caller → 401 (no DB access) 0ms
+ ✓ tests/integration/comments-resilience.test.ts > GET /api/editorial/comments resilience > DB failure → controlled 503 with zeroed stats (NOT a crash) 1ms
+ ✓ tests/integration/comments-resilience.test.ts > GET /api/editorial/comments resilience > uses 4 queries, not the old 6 (no wasted aggregate) 0ms
+ ✓ tests/integration/article-save-route.test.ts > PUT /api/articles/[id] editor saves > returns 401 when the session has expired 4ms
+ ✓ tests/integration/article-save-route.test.ts > PUT /api/articles/[id] editor saves > allows an admin to save a pending-review Analysis article 1ms
+ ✓ tests/integration/article-save-route.test.ts > PUT /api/articles/[id] editor saves > allows a global editor with zero assignments to save it 1ms
+ ✓ tests/integration/article-save-route.test.ts > PUT /api/articles/[id] editor saves > allows an editor assigned to Analysis to save it 1ms
+ ✓ tests/integration/article-save-route.test.ts > PUT /api/articles/[id] editor saves > returns a specific 403 for an editor outside the category 1ms
+ ✓ tests/integration/article-save-route.test.ts > PUT /api/articles/[id] editor saves > does not let a scoped editor move an article out of scope 0ms
+ ✓ tests/integration/article-save-route.test.ts > PUT /api/articles/[id] editor saves > keeps writers from editing an article already under review 0ms
+ ✓ tests/integration/profile-account-route.test.ts > PATCH /api/profile/account > updates the caller’s own name, bio and photo 4ms
+ ✓ tests/integration/profile-account-route.test.ts > PATCH /api/profile/account > never writes a role, even when one is posted alongside a valid bio 1ms
+ ✓ tests/integration/profile-account-route.test.ts > PATCH /api/profile/account > ignores every other privileged field a client might post 0ms
+ ✓ tests/integration/profile-account-route.test.ts > PATCH /api/profile/account > rejects an avatar hosted anywhere but our own avatars bucket 0ms
+ ✓ tests/integration/profile-account-route.test.ts > PATCH /api/profile/account > accepts an empty image as clearing the photo 1ms
+ ✓ tests/integration/profile-account-route.test.ts > PATCH /api/profile/account > rejects a bio longer than the limit 0ms
+ ✓ tests/integration/profile-account-route.test.ts > PATCH /api/profile/account > leaves fields absent from the body untouched 0ms
+ ✓ tests/integration/discovery-search-route.test.ts > bounded public discovery search > does no database work for empty/short query  4ms
+ ✓ tests/integration/discovery-search-route.test.ts > bounded public discovery search > does no database work for empty/short query q=+ 1ms
+ ✓ tests/integration/discovery-search-route.test.ts > bounded public discovery search > does no database work for empty/short query q=a 0ms
+ ✓ tests/integration/discovery-search-route.test.ts > bounded public discovery search > does no database work for empty/short query q=%00 0ms
+ ✓ tests/integration/discovery-search-route.test.ts > bounded public discovery search > returns distinct article, author and topic groups with bounded metadata queries 1ms
+ ✓ tests/integration/discovery-search-route.test.ts > bounded public discovery search > returns a real service error rather than a misleading no-results response 1ms
+ ✓ tests/integration/proxy.test.ts > proxy() — anonymous API access > lets the public PUBLISHED article list through to its handler 3ms
+ ✓ tests/integration/proxy.test.ts > proxy() — anonymous API access > lets /api/articles?status=DRAFT reach the handler (role gate is handler-side) 0ms
+ ✓ tests/integration/proxy.test.ts > proxy() — anonymous API access > lets a single article and its sub-paths through 0ms
+ ✓ tests/integration/proxy.test.ts > proxy() — anonymous API access > keeps real public prefixes public (exact and segment matches) 1ms
+ ✓ tests/integration/proxy.test.ts > proxy() — anonymous API access > rejects sensitive route /api/editorial/analytics?period=30d&tab=overview with 401 1ms
+ ✓ tests/integration/proxy.test.ts > proxy() — anonymous API access > rejects sensitive route /api/editorial/users with 401 0ms
+ ✓ tests/integration/proxy.test.ts > proxy() — anonymous API access > rejects sensitive route /api/editorial/trash with 401 0ms
+ ✓ tests/integration/proxy.test.ts > proxy() — anonymous API access > rejects sensitive route /api/admin/users with 401 0ms
+ ✓ tests/integration/proxy.test.ts > proxy() — anonymous API access > rejects sensitive route /api/analytics/by-author with 401 0ms
+ ✓ tests/integration/proxy.test.ts > proxy() — anonymous API access > rejects sensitive route /api/user/streak with 401 0ms
+ ✓ tests/integration/proxy.test.ts > proxy() — anonymous API access > does not leak a sibling path via a loose prefix match 0ms
+ ✓ tests/integration/article-create-route.test.ts > POST /api/articles — SCHEDULED creation must carry a scheduledAt > rejects status=SCHEDULED with no scheduledAt 4ms
+ ✓ tests/integration/article-create-route.test.ts > POST /api/articles — SCHEDULED creation must carry a scheduledAt > rejects status=SCHEDULED with a past scheduledAt 1ms
+ ✓ tests/integration/article-create-route.test.ts > POST /api/articles — SCHEDULED creation must carry a scheduledAt > creates SCHEDULED with a valid future scheduledAt and persists it 1ms
+
+ Test Files  27 passed (27)
+      Tests  363 passed | 18 skipped (381)
+   Start at  22:37:18
+   Duration  11.48s (transform 437ms, setup 140ms, import 2.98s, tests 6.32s, environment 1ms)

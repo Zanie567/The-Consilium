@@ -1,0 +1,30 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+ ↓ tests/integration/calendar-access.test.ts > editorial calendar authorisation > serves the calendar page to an admin
+ ↓ tests/integration/calendar-access.test.ts > editorial calendar authorisation > does not serve the calendar page to a writer
+ ↓ tests/integration/calendar-access.test.ts > editorial calendar authorisation > rejects an anonymous move request with 401
+ ↓ tests/integration/calendar-access.test.ts > editorial calendar authorisation > rejects a writer move request with 403
+ ↓ tests/integration/calendar-access.test.ts > editorial calendar authorisation > lets an admin past the role gate (404 for a missing article, not 403)
+ ↓ tests/integration/calendar-access.test.ts > editorial calendar authorisation > validates the move payload for an authorised caller
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/calendar-access.test.ts [ tests/integration/calendar-access.test.ts ]
+Error: Required local calendar server is not reachable at http://localhost:59999
+ ❯ tests/integration/calendar-access.test.ts:35:18
+     33| beforeAll(async () => {
+     34|   up = await serverUp(BASE)
+     35|   if (!up) throw new Error(`Required local calendar server is not reac…
+       |                  ^
+     36|   admin = new Session(BASE)
+     37|   writer = new Session(BASE)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 skipped (6)
+   Start at  21:42:05
+   Duration  200ms (transform 64ms, setup 52ms, import 29ms, tests 21ms, environment 0ms)

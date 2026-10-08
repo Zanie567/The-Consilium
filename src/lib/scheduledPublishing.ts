@@ -47,6 +47,8 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
         id: article.id,
         status: 'SCHEDULED',
         scheduledAt: { lte: now },
+        deletedAt: null,
+        updatedAt: article.updatedAt,
       },
       data: {
         status: 'PUBLISHED',

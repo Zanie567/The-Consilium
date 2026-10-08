@@ -1,0 +1,9 @@
+COMMAND   PID  USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+node    87073 zanie   12u  IPv6 0xde5ed920ebd31267      0t0  TCP *:3221 (LISTEN)
+node    87095 zanie   12u  IPv4 0x70e787322ffe5be1      0t0  TCP 127.0.0.1:55621 (LISTEN)
+[platform-check] guarded test DB; app localhost:3221; storage loopback:55621; email/OAuth disabled
+waiting for server to shut down.... done
+server stopped
+No loopback listener remains on owned port 55521.
+No loopback listener remains on owned port 3221.
+No loopback listener remains on owned port 55621.

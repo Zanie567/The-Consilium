@@ -1,0 +1,3 @@
+[platform-check] guarded test DB; app localhost:3221; storage loopback:55621; email/OAuth disabled
+Generating route types...
+✓ Types generated successfully

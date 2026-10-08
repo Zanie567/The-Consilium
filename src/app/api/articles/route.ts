@@ -1,3 +1,6 @@
+import { figureAltError } from '@/lib/figureValidation'
+import { ArticleImageUnavailableError, lockArticleImages } from '@/lib/articleImageStorage'
+import { resolveArticleTag } from '@/lib/resolveArticleTag'
 import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse, NextRequest } from 'next/server'
 import { articleVersion } from '@/lib/articleVersion'
@@ -13,6 +16,7 @@ import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 import { apiError, articleMutationErrorResponse } from '@/lib/apiResponse'
 import type { ArticleStatus } from '@prisma/client'
+import { revalidateArticleLists } from '@/lib/revalidateArticles'
 
 const STAFF_ARTICLE_STATUSES = [
   'DRAFT',
@@ -214,11 +218,17 @@ async function POSTHandler(request: NextRequest) {
       slug = `${slug}-${Date.now()}`
     }
 
+    if (['PENDING_REVIEW', 'SCHEDULED', 'PUBLISHED'].includes(finalStatus)) {
+      const altError = figureAltError(content)
+      if (altError) return NextResponse.json({ error: altError }, { status: 400 })
+    }
+
     // Bounded and validated before the transaction opens, so the work inside it
     // is a known quantity.
     const normalizedTags = normalizeArticleTags(tags)
 
-    const article = await prisma.$transaction(async (tx) => {
+    const { article, savedTagNames } = await prisma.$transaction(async (tx) => {
+      await lockArticleImages(tx, content, coverImage)
       const created = await tx.article.create({
         data: {
           title: effectiveTitle,
@@ -234,14 +244,10 @@ async function POSTHandler(request: NextRequest) {
         },
       })
 
+      const tagRecords: Array<{ id: string; name: string }> = []
       if (normalizedTags.length > 0) {
-        const tagRecords = []
-        for (const { name, slug: tagSlug } of normalizedTags) {
-          const tag = await tx.tag.upsert({
-            where: { slug: tagSlug },
-            update: {},
-            create: { name, slug: tagSlug },
-          })
+        for (const { name, slug: tagSlug } of [...normalizedTags].sort((a, b) => a.slug.localeCompare(b.slug))) {
+          const tag = await resolveArticleTag(tx, { name, slug: tagSlug })
           tagRecords.push(tag)
         }
         await tx.articleTag.createMany({
@@ -250,14 +256,17 @@ async function POSTHandler(request: NextRequest) {
         })
       }
 
-      return created
+      return { article: created, savedTagNames: tagRecords.map(tag => tag.name) }
     }, { timeout: ARTICLE_SAVE_TIMEOUT_MS })
 
-    return NextResponse.json({ ...article, version: articleVersion(article, normalizedTags.map((t) => t.name)) }, {
+    if (article.status === 'PUBLISHED') revalidateArticleLists()
+
+    return NextResponse.json({ ...article, version: articleVersion(article, savedTagNames) }, {
       status: 201,
       headers: { 'x-request-id': requestId },
     })
   } catch (error) {
+    if (error instanceof ArticleImageUnavailableError) return NextResponse.json({ error: error.message }, { status: 400 })
     return articleMutationErrorResponse(error, 'create', requestId)
   }
 }

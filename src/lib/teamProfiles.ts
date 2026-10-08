@@ -207,7 +207,7 @@ export function defaultPublicAppointment(role: string) {
     GROWTH: { role: 'Growth & Communications', publicTier: 'growth' } } as const)[role as 'WRITER' | 'EDITOR' | 'GROWTH'] ?? null
 }
 export function publicAppointmentLabel(card: { role?: string | null; publicTier?: string | null }) {
-  return card.role?.trim() || ({ editor_in_chief: 'Editor-in-Chief', leadership: 'Leadership', senior_editor: 'Senior Editor', editor: 'Editor', junior_editor: 'Junior Editor', writer: 'Writer', growth: 'Growth & Communications', other: 'Wider Team' } as Record<string, string>)[card.publicTier ?? 'other'] || 'Wider Team'
+  return card.role?.trim() || ({ editor_in_chief: 'Editor-in-Chief', deputy: 'Deputy Editor-in-Chief', leadership: 'Leadership', senior_editor: 'Senior Editor', editor: 'Editor', junior_editor: 'Junior Editor', writer: 'Writer', growth: 'Growth & Communications', other: 'Wider Team' } as Record<string, string>)[card.publicTier ?? 'other'] || 'Wider Team'
 }
 
 /** Public author labels follow the same owned, visible appointment as the masthead. */

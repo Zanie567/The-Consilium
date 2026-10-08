@@ -1,0 +1,29 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > refuses foreign ownership and retains draft/trash references 31ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > defers cleanup and restores the original reference during the grace period 53ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > retains references with slashes representation and canonicalises save locks 20ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > retains references with unicode representation and canonicalises save locks 25ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > retains references with query representation and canonicalises save locks 22ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > retains references with encoded representation and canonicalises save locks 18ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > retains references with encoded filename representation and canonicalises save locks 14ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > retains references with cover representation and canonicalises save locks 22ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > retains references with legacy HTML representation and canonicalises save locks 15ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > retains references with URL-normalised path representation and canonicalises save locks 15ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > keeps failed permanent Storage cleanup queued for retry 14ms
+ ✓ tests/integration/article-image-storage.test.ts > reference-safe image cleanup > only removes a managed image after its last stored reference disappears 38ms
+stderr | tests/integration/scheduled-publication.test.ts > scheduled publication uses current state and preserves managed cleanup > queues an unreferenced managed image after automatic trash expiry
+[scheduledPublishing] Purged 1 article(s) from trash (>30 days old)
+
+ ✓ tests/integration/scheduled-publication.test.ts > scheduled publication uses current state and preserves managed cleanup > publishes a due article once with one in-app notification 124ms
+ ✓ tests/integration/scheduled-publication.test.ts > scheduled publication uses current state and preserves managed cleanup > does not publish an article trashed after the due-list snapshot 10ms
+ ✓ tests/integration/scheduled-publication.test.ts > scheduled publication uses current state and preserves managed cleanup > queues an unreferenced managed image after automatic trash expiry 17ms
+ ✓ tests/integration/scheduled-publication.test.ts > scheduled publication uses current state and preserves managed cleanup > rolls back trash expiry when cleanup eligibility cannot be recorded 11ms
+ ✓ tests/integration/scheduled-publication.test.ts > scheduled publication uses current state and preserves managed cleanup > does not purge an article restored after the expiry-list snapshot 7ms
+
+ Test Files  2 passed (2)
+      Tests  17 passed (17)
+   Start at  21:53:30
+   Duration  1.10s (transform 75ms, setup 41ms, import 206ms, tests 668ms, environment 0ms)

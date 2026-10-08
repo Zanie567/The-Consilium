@@ -1,12 +1,24 @@
 import { test, expect, type Page, type Locator } from '@playwright/test'
 import { ArticleEditorPage, closeDb, createAccount, db, removeMyAccounts, removeMyArticles, signedIn, signInAs, uniqueTitle } from './helpers/workflow'
 import { collectConsoleErrors } from './helpers/console'
-import { CONTACT_EMAIL, INSTAGRAM_URL, LINKEDIN_URL, FEEDBACK_FORM_URL } from '../../src/lib/constants'
+import { CONTACT_EMAIL, INSTAGRAM_URL, FEEDBACK_FORM_URL } from '../../src/lib/constants'
 
+const LINKEDIN_URL = 'https://www.linkedin.com/company/consilium-workflow-fixture/'
+let previousLinkedIn: string | null | undefined
+test.beforeAll(async ({ browser }) => {
+  previousLinkedIn = (await db().siteSetting.findUnique({ where: { key: 'publication_linkedin_url' } }))?.value
+  const admin = await signedIn(browser, 'admin')
+  const response = await admin.request.patch('/api/editorial/growth/settings', { data: { linkedinUrl: LINKEDIN_URL } })
+  expect(response.status()).toBe(200)
+  await admin.close()
+})
 const ownedSeries: string[] = []
 const ownedTags: string[] = []
 const ownedTerms: string[] = []
-test.afterAll(async () => {
+test.afterAll(async ({ browser }) => {
+  const admin = await signedIn(browser, 'admin')
+  expect((await admin.request.patch('/api/editorial/growth/settings', { data: { linkedinUrl: previousLinkedIn ?? null } })).status()).toBe(200)
+  await admin.close()
   await removeMyArticles(); await removeMyAccounts()
   await db().series.deleteMany({ where: { id: { in: ownedSeries } } })
   await db().tag.deleteMany({ where: { id: { in: ownedTags } } })
@@ -593,15 +605,16 @@ test('a root chrome exception exposes the real global boundary and its retry/hom
   test.setTimeout(60_000)
   for (const action of ['Try again', '← Back to Homepage']) {
     const ctx = await browser.newContext({ reducedMotion: 'reduce' })
-    // Fault injection is limited to this context and one client read, never the server/database.
+    // Consent storage failures are handled locally. Inject one unhandled root
+    // navbar effect failure instead; never alter the server or database.
     await ctx.addInitScript(() => {
-      const get = Storage.prototype.getItem
-      Storage.prototype.getItem = function(key) {
-        if (key === 'consilium_cookie_consent' && sessionStorage.getItem('consilium-e2e-root-fault-fired') !== '1') {
+      const add = window.addEventListener
+      window.addEventListener = function(this: Window, type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) {
+        if (type === 'scroll' && typeof options === 'object' && options.passive && sessionStorage.getItem('consilium-e2e-root-fault-fired') !== '1') {
           sessionStorage.setItem('consilium-e2e-root-fault-fired', '1')
           throw new Error('Controlled root chrome access failure')
         }
-        return get.call(this, key)
+        return add.call(this, type, listener, options)
       }
     })
     const page = await ctx.newPage()

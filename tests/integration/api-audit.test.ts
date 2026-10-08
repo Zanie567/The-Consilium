@@ -6,8 +6,8 @@
  * Run against an already-running server:
  *   BASE_URL=http://localhost:3000 npx vitest run tests/integration/api-audit.test.ts
  *
- * The whole suite skips (does not fail) when no server is reachable, so unit
- * runs in CI without a server stay green; `npm run test:audit` starts one first.
+ * Missing server/fixtures fail setup; use test:unit for offline unit runs.
+ * `npm run test:audit` starts the required local server first.
  *
  * Headline regression guard (the launch blocker this audit was opened for):
  *   GET /api/comments and GET /api/editorial/comments MUST return 200, never 503.
@@ -28,7 +28,7 @@ let firstArticleId: string | null = null
 
 beforeAll(async () => {
   up = await serverUp(BASE)
-  if (!up) throw new Error('Required isolated live server is unreachable')
+  if (!up) throw new Error(`Required local audit server is not reachable at ${BASE}`)
   admin = new Session(BASE)
   reader = new Session(BASE)
   const [a, r] = await Promise.all([
@@ -40,6 +40,7 @@ beforeAll(async () => {
 
   const articles = await (await admin.get('/api/articles')).json()
   firstArticleId = articles?.[0]?.id ?? null
+  expect(firstArticleId, 'seeded article fixture is required').not.toBeNull()
 })
 
 // ── Comments: the 503 regression (article threads) ──────────────────────────
@@ -230,11 +231,26 @@ describe('Auth / session', () => {
 
 describe('Reading progress', () => {
   it('POST /api/reading-progress (authed) → 200 {ok}', async () => {
-    expect(firstArticleId,'published fixture must exist').toBeTruthy()
-    const res = await reader.post('/api/reading-progress', { articleId: firstArticleId, progress: 42 })
-    const body = await res.json()
-    expect(res.status, JSON.stringify(body)).toBe(200)
-    expect(body.ok).toBe(true)
+    if (!up || !firstArticleId) return
+    // The newest seeded article may be the three-reader read-through fixture.
+    // Adding Alice to it corrupts the DB aggregation suite on a subsequent run.
+    // Exercise the real HTTP route on a dedicated, owned synthetic article.
+    const created = await admin.post('/api/articles', {
+      title: `Audit reading-progress fixture ${crypto.randomUUID()}`,
+      content: JSON.stringify({ type: 'doc', content: [] }),
+      status: 'PUBLISHED',
+    })
+    expect(created.status).toBe(201)
+    const article = await created.json()
+    try {
+      const res = await reader.post('/api/reading-progress', { articleId: article.id, progress: 42 })
+      const body = await res.json()
+      expect(res.status, JSON.stringify(body)).toBe(200)
+      expect(body.ok).toBe(true)
+    } finally {
+      expect((await admin.del(`/api/articles/${article.id}`)).status).toBe(200)
+      expect((await admin.del(`/api/editorial/trash/${article.id}`)).status).toBe(200)
+    }
   })
   it('GET /api/reading-progress (authed) → 200', async () => {
 
@@ -275,14 +291,14 @@ describe('Debates', () => {
   it('POST /api/debates/[id]/vote → exactly 200 on the fresh reader fixture', async () => {
 
     const debate = await (await fetch(`${BASE}/api/debates/active`)).json()
-    expect(debate?.id,'active debate fixture').toBeTruthy()
+    expect(debate?.id, 'seeded active debate is required').toBeTruthy()
     const res = await reader.post(`/api/debates/${debate.id}/vote`, { side: 'FOR' })
     expect(res.status).toBe(200)
   })
   it('POST vote with bad side → 400', async () => {
 
     const debate = await (await fetch(`${BASE}/api/debates/active`)).json()
-    expect(debate?.id,'active debate fixture').toBeTruthy()
+    expect(debate?.id, 'seeded active debate is required').toBeTruthy()
     const res = await reader.post(`/api/debates/${debate.id}/vote`, { side: 'MAYBE' })
     // 400 validates the bad side; 429 if the vote limiter fired first on re-runs.
     expect(res.status).toBe(400)

@@ -30,17 +30,18 @@ const BASE_URL = resolveTestBaseUrl(process.env.E2E_BASE_URL)
  * builds the app with the isolated storage/email environment, and a server started
  * any other way could carry production keys from .env.local.
  */
-// scripts/run-e2e.sh runs the team-profile specs separately (E2E_PHASE=team-profile)
-// from everything else (E2E_PHASE=main). Unset = every project, for explicit
-// `--project=...` selections.
+// scripts/run-e2e.sh runs the team-profile and upgrade specs separately
+// (E2E_PHASE=team-profile / E2E_PHASE=upgrade) from everything else (E2E_PHASE=main).
+// Unset = every project, for explicit `--project=...` selections.
 const phase = process.env.E2E_PHASE
 const resultsDir = process.env.E2E_RESULTS_DIR ?? 'test-results'
 const reportDir = `playwright-report/${process.env.E2E_RUN_ID ?? 'manual'}`
 const isWorkflow = (name: string) => name.startsWith('wf-') || name.startsWith('simulator-') || name === 'testing-mode'
 const inPhase = (name: string) => {
   if (phase === 'team-profile') return name === 'team-profile'
+  if (phase === 'upgrade') return name === 'setup' || name === 'upgrade'
   if (phase === 'workflow') return name === 'setup' || isWorkflow(name)
-  if (phase === 'main') return name !== 'team-profile' && !isWorkflow(name)
+  if (phase === 'main') return name !== 'team-profile' && name !== 'upgrade' && !isWorkflow(name)
   return true
 }
 
@@ -49,7 +50,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  workers: 2,
+  workers: 1,
   outputDir: `${resultsDir}/${phase ?? 'selected'}`,
   reporter: [
     ['list'],
@@ -88,6 +89,16 @@ export default defineConfig({
       testMatch: /(team-profile(-lifecycle)?|member-onboarding)\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      // Platform upgrade: discovery, rich content, revisions, growth analytics and the final
+      // integration journey (tests/e2e/upgrade-*.spec.ts). They publish articles and upload
+      // figures to the one shared storage server, so they run as their own serial phase
+      // (E2E_PHASE=upgrade, --workers=1) and never overlap the public count assertions.
+      name: 'upgrade',
+      testMatch: /upgrade-.*\.spec\.ts/,
+      dependencies: ['setup'],
+      use: { ...devices['Desktop Chrome'] },
+    },
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
       name: 'public',
@@ -122,7 +133,7 @@ export default defineConfig({
       // within a single test, so it manages its own per-role API contexts
       // rather than using one project-level storageState.
       name: 'lifecycle',
-      testMatch: /publication-lifecycle\.spec\.ts/,
+      testMatch: /publication-(lifecycle|cache)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },

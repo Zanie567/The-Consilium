@@ -12,8 +12,9 @@
  * editors in, the ALLOW cases still pass and the DENY cases fail loudly, which
  * is exactly the signal that change should produce.
  *
- * Runs only inside the attested audit launcher. Missing services or failed
- * fixture logins fail setup, so the permission assertions cannot silently pass.
+ * Runs against a live server and fails setup when it is unavailable.
+ * Seeded accounts come from
+ * `npm run test:setup-db`.
  */
 import { describe, it, expect, beforeAll } from 'vitest'
 import { Session, serverUp } from './helpers/http'
@@ -27,15 +28,16 @@ let admin: Session
 let writer: Session
 
 beforeAll(async () => {
-  if (!(await serverUp(BASE))) throw new Error('Required isolated live server is unreachable')
+  const up = await serverUp(BASE)
+  if (!up) throw new Error(`Required local calendar server is not reachable at ${BASE}`)
   admin = new Session(BASE)
   writer = new Session(BASE)
   const [adminOk, writerOk] = await Promise.all([
     admin.login(ADMIN.email, ADMIN.password),
     writer.login(WRITER.email, WRITER.password),
   ])
-  expect(adminOk, 'required calendar Admin fixture must authenticate').toBe(true)
-  expect(writerOk, 'required calendar Writer fixture must authenticate').toBe(true)
+  expect(adminOk, 'seeded admin login is required').toBe(true)
+  expect(writerOk, 'seeded writer login is required').toBe(true)
 })
 
 describe('editorial calendar authorisation', () => {

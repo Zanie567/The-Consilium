@@ -1,0 +1,66 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+Running 8 tests using 1 worker
+
+(node:85760) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85760) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [setup] › tests/e2e/auth.setup.ts:13:6 › authenticate as admin (648ms)
+  ✓  2 [setup] › tests/e2e/auth.setup.ts:50:6 › authenticate as an editor with no category assignments (390ms)
+  ✓  3 [setup] › tests/e2e/auth.setup.ts:54:6 › authenticate as an editor scoped to Opinion (360ms)
+  ✓  4 [setup] › tests/e2e/auth.setup.ts:62:6 › authenticate as the seeded writer (361ms)
+(node:85780) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85780) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  5 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:48:5 › writer paste/table/figure → repeated save/reload → editor review/edit/schedule/publish → public → replace/delete/republish (13.2s)
+(node:85834) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85834) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  6 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:271:5 › every exposed formatting control operates, including keyboard buttons and table deletion (4.0s)
+  ✓  7 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:402:5 › wide tables and standard/wide/portrait figures remain contained in editor and public layouts (1.2s)
+  ✓  8 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:520:5 › plain-text paste and cancelled upload preserve document and allow retry (745ms)
+
+
+  1) [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:48:5 › writer paste/table/figure → repeated save/reload → editor review/edit/schedule/publish → public → replace/delete/republish
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('article a[href="/category/analysis"]').first()
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 10000ms
+      - waiting for locator('article a[href="/category/analysis"]').first()
+
+
+      216 |       await expect(reader.getByText('Credit: The Consilium', { exact: true })).toBeVisible()
+      217 |       await expect(reader.getByText('Note: Forecast begins in 2027', { exact: true })).toBeVisible()
+    > 218 |       await expect(reader.locator('article a[href="/category/analysis"]').first()).toBeVisible()
+          |                                                                                    ^
+      219 |       await expect(reader.getByRole('link', { name: 'Writer Lifecycle Finance', exact: true })).toHaveAttribute('href', '/tag/writer-lifecycle-finance')
+      220 |       await expect(reader.getByRole('link', { name: 'Writer Lifecycle Policy', exact: true })).toHaveAttribute('href', '/tag/writer-lifecycle-policy')
+      221 |       expect(
+        at /private/tmp/consilium-final-integration/tests/e2e/upgrade-rich-content.spec.ts:218:84
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-rich-content-write-5664f--→-replace-delete-republish-upgrade/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-rich-content-write-5664f--→-replace-delete-republish-upgrade/test-failed-3.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/upgrade-rich-content-write-5664f--→-replace-delete-republish-upgrade/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/upgrade-rich-content-write-5664f--→-replace-delete-republish-upgrade/error-context.md
+
+  1 failed
+    [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:48:5 › writer paste/table/figure → repeated save/reload → editor review/edit/schedule/publish → public → replace/delete/republish
+  7 passed (22.2s)

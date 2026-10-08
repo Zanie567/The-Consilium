@@ -1,0 +1,89 @@
+CI unit environment only; app, Storage and owned PostgreSQL stopped. env -i with Node22 PATH, TEST_DATABASE_URL/DATABASE_URL/DIRECT_URL=postgresql://postgres@localhost:5433/consilium, TEST_HARNESS=1, NEXT_TELEMETRY_DISABLED=1, CI=1 npm run test:unit
+
+> the-consilium@0.1.0 test:unit
+> vitest run tests/unit
+
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+ ✓ tests/unit/featured-article-hero.test.tsx (31 tests) 386ms
+ ✓ tests/unit/rate-limit.test.ts (12 tests) 145ms
+ ✓ tests/unit/rich-editor.test.ts (17 tests) 133ms
+ ✓ tests/unit/auth-redirect.test.ts (25 tests) 122ms
+ ✓ tests/unit/test-db-shell-entrypoints.test.ts (2 tests) 27ms
+ ✓ tests/unit/team-member-card.test.tsx (3 tests) 22ms
+ ✓ tests/unit/api-client.test.ts (16 tests) 20ms
+ ✓ tests/unit/contact-route.test.ts (9 tests) 20ms
+stderr | tests/unit/ticker-data.test.ts > fetchMarketQuotes > drops only the broken instrument when one symbol fails
+[ticker] ^FTSE: HTTP 500
+
+stderr | tests/unit/ticker-data.test.ts > fetchMarketQuotes > survives a thrown request without losing the other instruments
+[ticker] GC=F: network down
+
+stderr | tests/unit/ticker-data.test.ts > fetchMarketQuotes > drops a stale quote instead of presenting it as current
+[ticker] NIKKEI: dropping stale quote from 2026-05-01T06:00:00.000Z
+
+stderr | tests/unit/ticker-data.test.ts > fetchMarketQuotes > returns nothing at all when the provider is entirely unavailable
+[ticker] ^GSPC: HTTP 429
+[ticker] ^FTSE: HTTP 429
+[ticker] ^GDAXI: HTTP 429
+[ticker] ^N225: HTTP 429
+[ticker] GBPUSD=X: HTTP 429
+[ticker] EURUSD=X: HTTP 429
+[ticker] USDCNY=X: HTTP 429
+[ticker] USDINR=X: HTTP 429
+[ticker] GC=F: HTTP 429
+
+ ✓ tests/unit/ticker-data.test.ts (39 tests) 33ms
+ ✓ tests/unit/content-filter.test.ts (63 tests) 11ms
+ ✓ tests/unit/team-hierarchy.test.ts (18 tests) 10ms
+ ✓ tests/unit/team-profile-accounts.test.ts (32 tests) 7ms
+ ✓ tests/unit/assert-safe-test-database-host.test.ts (21 tests) 8ms
+ ✓ tests/unit/glossary-linkify.test.ts (21 tests) 7ms
+stderr | tests/unit/upgrade-cleanup-crons.test.ts > images cleanup authorization > fails closed if unconfigured
+[cleanup-article-images] CRON_SECRET env var is not set
+
+stderr | tests/unit/upgrade-cleanup-crons.test.ts > analytics cleanup authorization > fails closed if unconfigured
+[cleanup-reading-analytics] CRON_SECRET env var is not set
+
+ ✓ tests/unit/upgrade-cleanup-crons.test.ts (6 tests) 7ms
+ ✓ tests/unit/local-storage-config.test.ts (6 tests) 6ms
+ ✓ tests/unit/article-footnotes.test.ts (8 tests) 5ms
+stderr | tests/unit/cron-auth.test.ts > verifyCronAuth > returns 500 when CRON_SECRET is not configured
+[t] CRON_SECRET env var is not set
+
+ ✓ tests/unit/cron-auth.test.ts (6 tests) 5ms
+ ✓ tests/unit/reading-time.test.ts (27 tests) 5ms
+ ✓ tests/unit/discovery.test.ts (11 tests) 4ms
+ ✓ tests/unit/editorial-calendar.test.ts (22 tests) 5ms
+ ✓ tests/unit/figure-metadata.test.ts (4 tests) 5ms
+ ✓ tests/unit/hero-articles.test.ts (15 tests) 4ms
+ ✓ tests/unit/rbac.test.ts (33 tests) 4ms
+ ✓ tests/unit/archive-pagination.test.ts (36 tests) 4ms
+ ✓ tests/unit/article-sanitize.test.ts (6 tests) 4ms
+ ✓ tests/unit/comment-anchors.test.ts (17 tests) 4ms
+ ✓ tests/unit/figure-render.test.ts (3 tests) 4ms
+ ✓ tests/unit/predictions.test.ts (23 tests) 4ms
+ ✓ tests/unit/read-through.test.ts (13 tests) 3ms
+ ✓ tests/unit/send-email-result.test.ts (4 tests) 3ms
+ ✓ tests/unit/analytics-identity.test.ts (5 tests) 3ms
+ ✓ tests/unit/search-text.test.ts (13 tests) 3ms
+ ✓ tests/unit/article-tags.test.ts (6 tests) 3ms
+ ✓ tests/unit/growth-settings.test.ts (10 tests) 2ms
+ ✓ tests/unit/seo.test.ts (7 tests) 2ms
+ ✓ tests/unit/avatar-url.test.ts (8 tests) 2ms
+ ✓ tests/unit/article-queries.test.ts (8 tests) 2ms
+ ✓ tests/unit/team-profiles.test.ts (8 tests) 2ms
+ ✓ tests/unit/safe-redirect.test.ts (9 tests) 2ms
+ ✓ tests/unit/role-changed-email.test.ts (5 tests) 2ms
+ ✓ tests/unit/section-empty-states.test.ts (5 tests) 2ms
+ ✓ tests/unit/json-ld.test.ts (4 tests) 2ms
+ ✓ tests/unit/public-user.test.ts (4 tests) 2ms
+ ✓ tests/unit/article-category-scope.test.ts (2 tests) 2ms
+ ✓ tests/unit/active-reading.test.ts (5 tests) 2ms
+ ✓ tests/unit/escape-html.test.ts (5 tests) 2ms
+
+ Test Files  47 passed (47)
+      Tests  646 passed | 7 expected fail (653)
+   Start at  12:47:50
+   Duration  6.70s (transform 337ms, setup 192ms, import 1.26s, tests 1.06s, environment 1.30s)

@@ -6,9 +6,8 @@ import { createHash } from 'node:crypto'
  * stored article no longer matches, so a stale browser tab cannot silently overwrite
  * newer work (see PUT /api/articles/[id]).
  *
- * It is deliberately NOT `updatedAt`: that column also moves on every page view
- * (viewCount) and on the engagement-score cron, so it would reject saves of any live
- * article for reasons that have nothing to do with editing.
+ * It complements the editorial `updatedAt` guard with an explicit content snapshot.
+ * Readership counters are deliberately excluded from this fingerprint.
  */
 export interface VersionedArticle {
   title: string

@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import Link from 'next/link'
@@ -44,13 +45,22 @@ const STATUS_STYLE: Record<string, string> = {
 }
 
 export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter, emptyMessage }: Props) {
+  const router = useRouter()
   const [articles, setArticles] = useState(initial)
   const [filter, setFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setArticles(initial)
+    // A refresh started by an earlier action can finish after a later save.
+    // Keep each newer acknowledged row rather than restore an obsolete guard.
+    setArticles(current => {
+      const rows = new Map(current.map(article => [article.id, article]))
+      return initial.map(article => {
+        const saved = rows.get(article.id)
+        return saved && Date.parse(saved.updatedAt) > Date.parse(article.updatedAt) ? saved : article
+      })
+    })
     setFilter('all')
   }, [initial])
 
@@ -61,58 +71,84 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
     }))
   }
 
-  const featureArticle = async (id: string, current: boolean) => {
+  const reloadChangedArticle = async (id: string) => {
+    // A rejected mutation must replace the stale row before the next action.
+    // Read it explicitly instead of depending on a background route refresh.
+    try {
+      const latest = await apiRequest<ArticleItem>(`/api/articles/${id}`, { cache: 'no-store' })
+      setArticles(prev => prev.map(article => article.id === id ? latest : article))
+    } catch (reason) {
+      const error = asApiError(reason)
+      if (error.status === 403 || error.status === 404) {
+        setArticles(prev => prev.filter(article => article.id !== id))
+      }
+      setError(message => `${message ?? 'The article changed.'} The latest version could not be loaded: ${error.message}`)
+    }
+  }
+
+  const featureArticle = async (article: ArticleItem) => {
+    const { id, isFeatured: current, updatedAt } = article
     setError(null)
     try {
       const method = current ? 'DELETE' : 'POST'
-      await apiRequest(`/api/editorial/articles/${id}/feature`, { method })
+      const saved = await apiRequest<{ updatedAt: string }>(`/api/editorial/articles/${id}/feature`, { method, headers: { 'x-article-revision': updatedAt } })
+      setArticles(prev => prev.map(a => a.id === id ? { ...a, updatedAt: saved.updatedAt } : a))
+      router.refresh()
       toggle(id, 'isFeatured', !current)
     } catch (reason) {
       setError(asApiError(reason).message)
+      if (asApiError(reason).status === 409) await reloadChangedArticle(id)
     }
   }
 
-  const pinArticle = async (id: string, current: boolean) => {
+  const pinArticle = async (article: ArticleItem) => {
+    const { id, isPinned: current, updatedAt } = article
     setError(null)
     try {
       const method = current ? 'DELETE' : 'POST'
-      await apiRequest(`/api/editorial/articles/${id}/pin`, { method })
+      const saved = await apiRequest<{ updatedAt: string }>(`/api/editorial/articles/${id}/pin`, { method, headers: { 'x-article-revision': updatedAt } })
+      setArticles(prev => prev.map(a => a.id === id ? { ...a, updatedAt: saved.updatedAt } : a))
       toggle(id, 'isPinned', !current)
     } catch (reason) {
       setError(asApiError(reason).message)
+      if (asApiError(reason).status === 409) await reloadChangedArticle(id)
     }
   }
 
-  const deleteArticle = async (id: string) => {
+  const deleteArticle = async (article: ArticleItem) => {
+    const { id, updatedAt } = article
     if (!confirm('Move this article to trash? It can be restored for 30 days.')) return
     setError(null)
     try {
-      await apiRequest(`/api/articles/${id}`, { method: 'DELETE' })
+      await apiRequest(`/api/articles/${id}`, { method: 'DELETE', headers: { 'x-article-revision': updatedAt } })
       setArticles((prev) => prev.filter((article) => article.id !== id))
     } catch (reason) {
       setError(asApiError(reason).message)
+      if (asApiError(reason).status === 409) await reloadChangedArticle(id)
     }
   }
 
   // Publishing from the list is a two-step action: the button only asks, the dialog confirms.
-  const [pendingPublish, setPendingPublish] = useState<{ id: string; title: string; status: string } | null>(null)
+  const [pendingPublish, setPendingPublish] = useState<ArticleItem | null>(null)
   const [publishing, setPublishing] = useState(false)
 
-  const publishArticle = async (id: string, currentStatus: string) => {
+  const publishArticle = async (article: ArticleItem) => {
+    const { id, status: currentStatus, updatedAt } = article
     const newStatus = currentStatus === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED'
     setError(null)
     setPublishing(true)
     try {
-      await apiRequest(`/api/articles/${id}`, {
+      const saved = await apiRequest<ArticleItem>(`/api/articles/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, publicationIntent: true }),
+        body: JSON.stringify({ status: newStatus, publicationIntent: true, expectedUpdatedAt: updatedAt }),
       })
       setArticles((prev) => prev.map((article) => (
-        article.id === id ? { ...article, status: newStatus } : article
+        article.id === id ? { ...article, status: saved.status, updatedAt: saved.updatedAt, publishedAt: saved.publishedAt, scheduledAt: saved.scheduledAt } : article
       )))
     } catch (reason) {
       setError(asApiError(reason).message)
+      if (asApiError(reason).status === 409) await reloadChangedArticle(id)
     } finally {
       setPublishing(false)
       setPendingPublish(null)
@@ -145,7 +181,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
         confirmLabel={pendingPublish?.status === 'PUBLISHED' ? 'Unpublish' : 'Publish now'}
         tone={pendingPublish?.status === 'PUBLISHED' ? 'danger' : 'default'}
         busy={publishing}
-        onConfirm={() => { if (pendingPublish && !publishing) void publishArticle(pendingPublish.id, pendingPublish.status) }}
+        onConfirm={() => { if (pendingPublish && !publishing) void publishArticle(pendingPublish) }}
         onCancel={() => { if (!publishing) setPendingPublish(null) }}
       />
       {error && (
@@ -251,7 +287,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                             variant="editorial" side="top" maxWidth={280}
                           >
                             <button
-                              onClick={() => featureArticle(article.id, article.isFeatured)}
+                              onClick={() => featureArticle(article)}
                               aria-label={article.isFeatured ? 'Remove featured' : 'Set as featured'}
                               className={`p-2 sm:p-1.5 transition-colors ${
                                 article.isFeatured ? 'text-gold' : 'text-[var(--fg-faint)] hover:text-gold'
@@ -265,7 +301,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                             variant="editorial" side="top" maxWidth={260}
                           >
                             <button
-                              onClick={() => pinArticle(article.id, article.isPinned)}
+                              onClick={() => pinArticle(article)}
                               aria-label={article.isPinned ? 'Unpin' : 'Pin to category'}
                               className={`p-2 sm:p-1.5 transition-colors ${
                                 article.isPinned ? 'text-gold' : 'text-[var(--fg-faint)] hover:text-gold'
@@ -315,7 +351,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                           maxWidth={240}
                         >
                           <button
-                            onClick={() => setPendingPublish({ id: article.id, title: article.title ?? '', status: article.status })}
+                            onClick={() => setPendingPublish(article)}
                             className={`text-xs font-bold px-1.5 py-1 transition-colors ${
                               article.status === 'PUBLISHED'
                                 ? 'text-[var(--fg-faint)] hover:text-amber-600'
@@ -330,7 +366,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                       {(isEditor || article.status === 'DRAFT' || article.status === 'REJECTED') && (
                         <Tooltip content="Move this article to the trash. It can be restored for 30 days." variant="editorial" side="top" maxWidth={240}>
                           <button
-                            onClick={() => deleteArticle(article.id)}
+                            onClick={() => deleteArticle(article)}
                             aria-label="Delete article"
                             className="p-2 sm:p-1.5 text-[var(--fg-faint)] hover:text-red-500 transition-colors"
                           >

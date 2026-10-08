@@ -1,0 +1,9 @@
+[platform-check] guarded test DB; app localhost:3221; storage loopback:55621; email/OAuth disabled
+
+> the-consilium@0.1.0 smoke
+> node scripts/smoke.mjs
+
+
+Smoke test → http://localhost:3221
+
+Cannot reach http://localhost:3221. Start the app with `npm run dev` first.

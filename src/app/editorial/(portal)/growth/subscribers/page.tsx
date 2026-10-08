@@ -1,5 +1,6 @@
 'use client'
 
+import { GrowthSettings } from '@/components/editorial/GrowthSettings'
 import { useEffect, useState, useCallback } from 'react'
 import { Search, Download, Users } from 'lucide-react'
 import { PortalPage, PortalSection } from '@/components/editorial/PortalAnimated'
@@ -28,9 +29,7 @@ export default function SubscribersPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const filtered = subscribers.filter((s) =>
-    s.email.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = subscribers.filter((s) => s.email.toLowerCase().includes(search.toLowerCase()))
 
   const exportCSV = useCallback(() => {
     const rows = [
@@ -64,18 +63,19 @@ export default function SubscribersPage() {
           >
             Subscribers
           </h1>
-          <p className="text-[var(--fg-muted)] text-sm">
-            Newsletter subscriber list and export.
-          </p>
+          <p className="text-[var(--fg-muted)] text-sm">Newsletter subscriber list and export.</p>
         </div>
       </PortalSection>
 
+      <GrowthSettings />
       {/* Total count */}
       <PortalSection className="mb-6">
         <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-4 sm:p-5 shadow-[var(--shadow-card)] inline-flex items-center gap-3">
           <Users size={18} className="text-gold/60 shrink-0" />
           <div>
-            <p className="text-[var(--fg-faint)] text-[10px] uppercase tracking-widest mb-0.5">Total Subscribers</p>
+            <p className="text-[var(--fg-faint)] text-[10px] uppercase tracking-widest mb-0.5">
+              Total Subscribers
+            </p>
             <p
               className="text-3xl font-bold text-[var(--fg)]"
               style={{ fontFamily: 'var(--font-serif)' }}
@@ -89,7 +89,10 @@ export default function SubscribersPage() {
       {/* Search + export toolbar */}
       <PortalSection className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="relative flex-1 max-w-sm">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--fg-faint)] pointer-events-none" />
+          <Search
+            size={13}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--fg-faint)] pointer-events-none"
+          />
           <input
             type="search"
             value={search}
@@ -116,9 +119,7 @@ export default function SubscribersPage() {
               Failed to load subscribers. Please refresh.
             </div>
           ) : loading ? (
-            <div className="px-6 py-12 text-center text-[var(--fg-faint)] text-sm">
-              Loading…
-            </div>
+            <div className="px-6 py-12 text-center text-[var(--fg-faint)] text-sm">Loading…</div>
           ) : filtered.length === 0 ? (
             <div className="px-6 py-12 text-center text-[var(--fg-faint)] text-sm">
               {search ? 'No subscribers match your search.' : 'No subscribers yet.'}

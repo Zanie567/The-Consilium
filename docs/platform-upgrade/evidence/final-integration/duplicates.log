@@ -1,0 +1,138 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+> the-consilium@0.1.0 audit:dup
+> jscpd src
+
+Clone found (typescript):
+ - src/app/api/editorial/articles/[id]/feature/route.ts [1:1 - 45:63] (44 lines, 474 tokens)
+   src/app/api/editorial/articles/[id]/pin/route.ts [1:1 - 44:61]
+
+Clone found (typescript):
+ - src/app/api/editorial/articles/[id]/feature/route.ts [52:4 - 66:66] (14 lines, 171 tokens)
+   src/app/api/editorial/articles/[id]/pin/route.ts [46:74 - 58:64]
+
+Clone found (typescript):
+ - src/app/api/admin/users/[userId]/ban/route.ts [4:37 - 18:5] (14 lines, 152 tokens)
+   src/app/api/admin/users/[userId]/warn/route.ts [4:38 - 17:8]
+
+Clone found (typescript):
+ - src/app/api/admin/users/[userId]/ban/route.ts [9:27 - 19:60] (10 lines, 126 tokens)
+   src/app/api/admin/users/[userId]/role/route.ts [9:28 - 19:68]
+
+Clone found (typescript):
+ - src/app/api/admin/users/[userId]/ban/route.ts [22:3 - 27:49] (5 lines, 111 tokens)
+   src/app/api/admin/users/[userId]/warn/route.ts [19:3 - 24:50]
+
+Clone found (tsx):
+ - src/app/editorial/(portal)/debates/new/DebateCreator.tsx [247:69 - 285:11] (38 lines, 301 tokens)
+   src/app/editorial/(portal)/debates/new/DebateCreator.tsx [194:65 - 233:12]
+
+Clone found (typescript):
+ - src/app/api/user/achievements/mark-seen/route.ts [6:1 - 30:77] (24 lines, 272 tokens)
+   src/app/api/user/trophies/mark-seen/route.ts [5:1 - 29:10]
+
+Clone found (typescript):
+ - src/app/api/editorial/users/[id]/route.ts [163:34 - 171:96] (8 lines, 131 tokens)
+   src/app/api/editorial/users/[id]/route.ts [51:32 - 61:36]
+
+Clone found (typescript):
+ - src/app/api/editorial/trash/[id]/route.ts [79:7 - 93:12] (14 lines, 198 tokens)
+   src/app/api/editorial/trash/[id]/route.ts [28:7 - 42:12]
+
+Clone found (typescript):
+ - src/app/api/comments/[commentId]/report/route.ts [1:1 - 15:16] (14 lines, 149 tokens)
+   src/app/api/comments/[commentId]/upvote/route.ts [1:1 - 14:13]
+
+Clone found (javascript):
+ - src/app/editorial/(portal)/comments/page.tsx [204:39 - 229:46] (25 lines, 211 tokens)
+   src/app/editorial/(portal)/debates/[debateId]/page.tsx [245:126 - 270:50]
+
+Clone found (tsx):
+ - src/app/editorial/(portal)/analytics/EngagementTab.tsx [57:3 - 70:7] (13 lines, 100 tokens)
+   src/app/editorial/(portal)/readers/ReadersDashboard.tsx [61:86 - 73:9]
+
+Clone found (tsx):
+ - src/app/editorial/(portal)/analytics/DistributionTab.tsx [16:1 - 31:32] (15 lines, 235 tokens)
+   src/app/editorial/(portal)/readers/ReadersDashboard.tsx [58:1 - 70:30]
+
+Clone found (tsx):
+ - src/app/editorial/(portal)/analytics/ContentTab.tsx [31:3 - 49:27] (18 lines, 242 tokens)
+   src/app/editorial/(portal)/analytics/DistributionTab.tsx [13:3 - 70:30]
+
+Clone found (tsx):
+ - src/app/editorial/(portal)/analytics/AudienceTab.tsx [34:5 - 46:11] (12 lines, 124 tokens)
+   src/app/editorial/(portal)/analytics/EngagementTab.tsx [41:70 - 52:7]
+
+Clone found (tsx):
+ - src/app/editorial/(portal)/analytics/AudienceTab.tsx [51:8 - 64:28] (13 lines, 103 tokens)
+   src/app/editorial/(portal)/readers/ReadersDashboard.tsx [61:94 - 70:30]
+
+Clone found (typescript):
+ - src/app/api/profile/reading-history/route.ts [24:23 - 40:10] (16 lines, 126 tokens)
+   src/app/api/profile/saved-articles/route.ts [15:37 - 32:11]
+
+Clone found (typescript):
+ - src/app/api/predictions/[eventId]/route.ts [37:68 - 49:10] (12 lines, 135 tokens)
+   src/app/api/editorial/predictions/[id]/route.ts [34:68 - 46:13]
+
+Clone found (typescript):
+ - src/app/api/editorial/glossary/route.ts [24:3 - 37:76] (13 lines, 137 tokens)
+   src/app/api/editorial/glossary/[id]/route.ts [29:3 - 42:10]
+
+Clone found (typescript):
+ - src/app/api/editorial/analytics/route.ts [634:19 - 643:31] (9 lines, 165 tokens)
+   src/app/api/editorial/leaderboard/route.ts [65:19 - 72:32]
+
+Clone found (typescript):
+ - src/app/api/auth/forgot-password/route.ts [46:3 - 65:22] (19 lines, 189 tokens)
+   src/app/api/editorial/password-reset/route.ts [35:3 - 54:23]
+
+Clone found (typescript):
+ - src/app/api/articles/[id]/route.ts [359:7 - 371:71] (12 lines, 163 tokens)
+   src/app/api/articles/[id]/route.ts [96:10 - 109:21]
+
+Clone found (tsx):
+ - src/components/ui/FootnotePopovers.tsx [253:5 - 281:9] (28 lines, 228 tokens)
+   src/components/ui/GlossaryTooltips.tsx [192:5 - 220:10]
+
+Clone found (tsx):
+ - src/app/reset-password/page.tsx [7:26 - 22:16] (15 lines, 135 tokens)
+   src/app/editorial/reset-password/page.tsx [6:42 - 21:14]
+
+Clone found (tsx):
+ - src/app/contact/page.tsx [23:21 - 37:16] (14 lines, 143 tokens)
+   src/components/layout/Footer.tsx [14:24 - 28:16]
+
+Clone found (tsx):
+ - src/app/contact/page.tsx [42:21 - 53:7] (11 lines, 93 tokens)
+   src/components/layout/Footer.tsx [33:24 - 44:6]
+
+Clone found (tsx):
+ - src/app/about/page.tsx [59:106 - 78:20] (19 lines, 135 tokens)
+   src/app/opinion-debate/page.tsx [125:105 - 144:22]
+
+Clone found (tsx):
+ - src/app/(home)/page.tsx [117:1 - 126:31] (9 lines, 118 tokens)
+   src/app/opinion-debate/page.tsx [22:1 - 31:26]
+
+Clone found (tsx):
+ - src/app/(home)/page.tsx [148:64 - 188:4] (40 lines, 499 tokens)
+   src/app/opinion-debate/page.tsx [64:68 - 105:20]
+
+┌────────────┬────────────────┬─────────────┬──────────────┬──────────────┬──────────────────┬───────────────────┐
+│ Format     │ Files analyzed │ Total lines │ Total tokens │ Clones found │ Duplicated lines │ Duplicated tokens │
+├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤
+│ typescript │ 189            │ 17341       │ 167625       │ 15           │ 228 (1.31%)      │ 2699 (1.61%)      │
+├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤
+│ javascript │ 156            │ 13612       │ 123606       │ 1            │ 25 (0.18%)       │ 211 (0.17%)       │
+├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤
+│ tsx        │ 173            │ 26948       │ 244083       │ 13           │ 245 (0.91%)      │ 2456 (1.01%)      │
+├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤
+│ Total:     │ 518            │ 57901       │ 535314       │ 29           │ 498 (0.86%)      │ 5366 (1%)         │
+└────────────┴────────────────┴─────────────┴──────────────┴──────────────┴──────────────────┴───────────────────┘
+Found 29 clones.
+time: 1.590s
+
+💡 Auto-refactor with AI: npx skills add kucherenko/jscpd
+🎩 New: Gangsta Agents — discipline your AI coding → gangsta.page
+💖 Support jscpd project → https://opencollective.com/jscpd

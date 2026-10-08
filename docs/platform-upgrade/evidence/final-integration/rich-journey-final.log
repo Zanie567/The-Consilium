@@ -1,0 +1,22 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+Running 8 tests using 1 worker
+
+(node:93610) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:93610) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [setup] › tests/e2e/auth.setup.ts:13:6 › authenticate as admin (1.2s)
+  ✓  2 [setup] › tests/e2e/auth.setup.ts:50:6 › authenticate as an editor with no category assignments (384ms)
+  ✓  3 [setup] › tests/e2e/auth.setup.ts:54:6 › authenticate as an editor scoped to Opinion (445ms)
+  ✓  4 [setup] › tests/e2e/auth.setup.ts:62:6 › authenticate as the seeded writer (345ms)
+(node:93630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:93630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:48:5 › writer paste/table/figure → repeated save/reload → editor review/edit/schedule/publish → public → replace/delete/republish (5.7s)
+  ✓  6 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:278:5 › every exposed formatting control operates, including keyboard buttons and table deletion (3.7s)
+  ✓  7 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:409:5 › wide tables and standard/wide/portrait figures remain contained in editor and public layouts (1.4s)
+  ✓  8 [upgrade] › tests/e2e/upgrade-rich-content.spec.ts:539:5 › plain-text paste and cancelled upload preserve document and allow retry (742ms)
+
+  8 passed (15.1s)

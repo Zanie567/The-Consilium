@@ -12,8 +12,8 @@ import { ARTICLES_CACHE_TAG } from './articleQueries'
  */
 export function revalidateArticleLists(): void {
   try {
-    // Route handlers and cron cannot use updateTag in Next 16. Expire now so
-    // unpublication never serves a stale public list on the following request.
+    // updateTag is Server Action-only in Next 16. Route handlers and cron use
+    // explicit expiration so the next list read waits for fresh public content.
     revalidateTag(ARTICLES_CACHE_TAG, { expire: 0 })
   } catch (err) {
     console.error('[revalidateArticleLists] failed:', err)

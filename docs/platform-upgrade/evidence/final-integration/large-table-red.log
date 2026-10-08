@@ -1,0 +1,34 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+ ❯ tests/unit/rich-editor.test.ts (17 tests | 1 failed) 182ms
+     × does not silently discard persisted rows or cells from large tables 58ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/rich-editor.test.ts > public rich-content safety and parity > does not silently discard persisted rows or cells from large tables
+AssertionError: expected <tr><td><p></p></td></tr>
+…(499) to have a length of 501 but got 500
+
+- Expected
++ Received
+
+- 501
++ 500
+
+ ❯ tests/unit/rich-editor.test.ts:88:75
+     86|     const container = document.createElement('div')
+     87|     container.innerHTML = renderContent(JSON.stringify(doc)).html
+     88|     expect(container.querySelectorAll('table')[0].querySelectorAll('tr…
+       |                                                                           ^
+     89|     expect(container.querySelectorAll('table')[1].querySelectorAll('td…
+     90|     expect(container.textContent).toContain('Row 500')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 16 passed (17)
+   Start at  21:12:05
+   Duration  1.13s (transform 126ms, setup 54ms, import 200ms, tests 182ms, environment 586ms)

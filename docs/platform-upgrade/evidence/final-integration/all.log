@@ -1,0 +1,13 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+> the-consilium@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+
+ Test Files  74 passed (74)
+      Tests  1009 passed | 7 expected fail | 18 skipped (1034)
+   Start at  22:37:30
+   Duration  16.94s (transform 694ms, setup 314ms, import 3.74s, tests 6.63s, environment 1.24s)

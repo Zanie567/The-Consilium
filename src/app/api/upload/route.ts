@@ -1,3 +1,7 @@
+import { prisma } from '@/lib/prisma'
+import sharp from 'sharp'
+import { randomUUID } from 'node:crypto'
+import { queueArticleImageCleanup, articleImagePath } from '@/lib/articleImageStorage'
 import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse, NextRequest } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
@@ -58,18 +62,14 @@ async function POSTHandler(request: NextRequest) {
 
   if (!supabaseUrl) {
     return NextResponse.json(
-      { error: 'Storage not configured: NEXT_PUBLIC_SUPABASE_URL is missing.' },
+      { error: 'Image storage is temporarily unavailable. Please try again later.' },
       { status: 503 }
     )
   }
 
   if (!supabaseKey) {
     return NextResponse.json(
-      {
-        error:
-          'Storage not configured: add SUPABASE_SERVICE_ROLE_KEY to your environment variables. ' +
-          'Find it in Supabase Dashboard -> Project Settings -> API -> service_role.',
-      },
+      { error: 'Image storage is temporarily unavailable. Please try again later.' },
       { status: 503 }
     )
   }
@@ -88,7 +88,7 @@ async function POSTHandler(request: NextRequest) {
     const file = formData.get('file') as File | null
     const bucketParam = (formData.get('bucket') as string | null) ?? 'article-images'
 
-    if (!file) {
+    if (!(file instanceof File)) {
       return NextResponse.json({ error: 'No file provided.' }, { status: 400 })
     }
 
@@ -111,6 +111,7 @@ async function POSTHandler(request: NextRequest) {
       )
     }
 
+    if (!file.size) return NextResponse.json({ error: "Choose a nonempty image." }, { status: 400 })
     const maxBytes = BUCKET_MAX_BYTES[bucketParam] ?? MAX_SERVER_UPLOAD_BYTES
     if (file.size > maxBytes) {
       return NextResponse.json({ error: tooLarge(maxBytes) }, { status: 413 })
@@ -141,6 +142,29 @@ async function POSTHandler(request: NextRequest) {
       )
     }
 
+    if (file.type && file.type !== 'application/octet-stream' && file.type !== detectedType) {
+      return NextResponse.json(
+        { error: 'The image content does not match its file type.' },
+        { status: 400 }
+      )
+    }
+    let width: number | undefined
+    let height: number | undefined
+    if (bucketParam === 'article-images') {
+      try {
+        const image = sharp(Buffer.from(buffer), { limitInputPixels: 40_000_000, failOn: 'error' })
+        const metadata = await image.metadata()
+        await image.resize(1, 1).toBuffer() // Decode actual pixels, not just a forged header.
+        width = metadata.width
+        height = metadata.height
+        if (!width || !height) throw new Error('No image dimensions')
+      } catch {
+        return NextResponse.json(
+          { error: 'This image is damaged, invalid or too large to process.' },
+          { status: 400 }
+        )
+      }
+    }
     // Use the server-verified MIME type, not file.type
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
     // Avatars are namespaced by uploader. Every account can write to this bucket,
@@ -150,8 +174,15 @@ async function POSTHandler(request: NextRequest) {
     const filename =
       bucketParam === 'avatars'
         ? `${auth.user.id}/${Date.now()}-${safeName}`
-        : `${Date.now()}-${safeName}`
+        : `${auth.user.id}/${randomUUID()}.${({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp', 'image/avif': 'avif' } as Record<string, string>)[detectedType]}`
 
+    const managedUrl = supabase.storage.from(bucketParam).getPublicUrl(filename).data.publicUrl
+    if (bucketParam === 'article-images') {
+      // Reserve before the storage write: any interrupted request is tracked for GC.
+      await prisma.articleImageAsset.create({
+        data: { url: managedUrl, path: filename, uploaderId: auth.user.id },
+      })
+    }
     const { error: uploadError } = await supabase.storage
       .from(bucketParam)
       .upload(filename, buffer, { contentType: detectedType, upsert: false })
@@ -159,21 +190,47 @@ async function POSTHandler(request: NextRequest) {
     if (uploadError) {
       console.error('[upload] Supabase error:', uploadError)
       return NextResponse.json(
-        { error: `Upload failed: ${uploadError.message}` },
+        { error: 'The image could not be uploaded. Please try again.' },
         { status: 500 }
       )
     }
 
     const { data: urlData } = supabase.storage.from(bucketParam).getPublicUrl(filename)
 
-    return NextResponse.json({ url: urlData.publicUrl }, { status: 201 })
+    if (request.signal.aborted && bucketParam === 'article-images') {
+      await supabase.storage.from(bucketParam).remove([filename])
+      return NextResponse.json({ error: 'Upload cancelled.' }, { status: 499 })
+    }
+    return NextResponse.json(
+      { url: urlData.publicUrl, ...(width && height ? { width, height } : {}) },
+      { status: 201 }
+    )
   } catch (err) {
     console.error('[upload] Unexpected error:', err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Upload failed unexpectedly.' },
+      { error: 'The image could not be uploaded. Please try again.' },
       { status: 500 }
     )
   }
 }
 
 export const POST = withTestingAudit(POSTHandler)
+
+/** Only the uploader can discard a managed upload; stored/shared objects are retained. */
+async function DELETEHandler(request: NextRequest) {
+  const auth = await requireVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
+  if (!auth.ok) return auth.response
+  try {
+    const body = await request.json()
+    if (typeof body.url !== 'string' || body.url.length > 2000)
+      return NextResponse.json({ error: 'Invalid image.' }, { status: 400 })
+    if (!articleImagePath(body.url, auth.user.id))
+      return NextResponse.json({ error: 'This image cannot be removed.' }, { status: 403 })
+    await queueArticleImageCleanup(body.url, auth.user.id)
+    return NextResponse.json({ result: 'queued' })
+  } catch {
+    return NextResponse.json({ error: 'Invalid image request.' }, { status: 400 })
+  }
+}
+
+export const DELETE = withTestingAudit(DELETEHandler)

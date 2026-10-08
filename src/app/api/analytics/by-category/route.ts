@@ -11,8 +11,8 @@ export async function GET() {
     SELECT COALESCE(c.name, 'Uncategorised') AS category,
            COUNT(av.id) AS views
     FROM article_views av
-    JOIN articles a ON a.id = av."article_id"
-    LEFT JOIN categories c ON c.id = a."category_id"
+    JOIN articles a ON a.id = av."articleId"
+    LEFT JOIN categories c ON c.id = a."categoryId"
     GROUP BY 1
     ORDER BY views DESC
   `

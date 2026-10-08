@@ -1,0 +1,20 @@
+[platform-check] guarded test DB; app localhost:3220; storage loopback:55620; email/OAuth disabled
+
+ RUN  v4.1.7 /private/tmp/consilium-final-integration
+
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > deduplicates concurrent views and strips referrer paths 75ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > persists monotonic elapsed-bounded time and threshold metrics 11ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > counts returning only on an earlier UTC day with consent; decline unlinks current visit 13ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > drops drafts, invalid ids and reused visits on another article 5ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > counts consented readers accumulating five minutes across shorter visits without qualifying each visit 16ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > prunes stale engagement records in a bounded batch 6ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > returns ok on analytics database failure without leaking errors 3ms
+ ✓ tests/integration/analytics-engagement.test.ts > canonical analytics persistence > drops bots, malformed and oversized events safely 1ms
+ ✓ tests/integration/upgrade-migrations.test.ts > upgrade migrations on isolated empty/colliding historical databases > applies all additive migrations on empty tables and keeps client/DB canonical identity equal 156ms
+ ✓ tests/integration/upgrade-migrations.test.ts > upgrade migrations on isolated empty/colliding historical databases > refuses canonical tag collisions without rewriting IDs, slugs or relations 88ms
+ ✓ tests/integration/upgrade-migrations.test.ts > upgrade migrations on isolated empty/colliding historical databases > refuses historical case/whitespace duplicate subscribers without data deletion 76ms
+
+ Test Files  2 passed (2)
+      Tests  11 passed (11)
+   Start at  21:40:08
+   Duration  856ms (transform 65ms, setup 40ms, import 111ms, tests 533ms, environment 0ms)

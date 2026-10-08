@@ -53,6 +53,7 @@ export default async function EditorialCalendarPage({
         id: true,
         title: true,
         status: true,
+        updatedAt: true,
         scheduledAt: true,
         publishedAt: true,
         author: { select: { name: true } },
@@ -88,6 +89,7 @@ export default async function EditorialCalendarPage({
     if (!anchor) continue
     const key = editorialDateKey(anchor)
     const item: CalendarItem = {
+      updatedAt: article.updatedAt.toISOString(),
       id: article.id,
       title: article.title?.trim() || '(Untitled)',
       status: article.status,
@@ -103,6 +105,7 @@ export default async function EditorialCalendarPage({
   }
 
   const unscheduledItems: CalendarItem[] = unscheduled.map((article) => ({
+    updatedAt: article.updatedAt.toISOString(),
     id: article.id,
     title: article.title?.trim() || '(Untitled)',
     status: article.status,

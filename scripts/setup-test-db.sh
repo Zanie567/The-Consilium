@@ -77,6 +77,15 @@ npx ts-node -P tsconfig.seed.json prisma/dedupe-articles.ts
 npx ts-node -P tsconfig.seed.json prisma/seed-test-fixtures.ts
 npx ts-node -P tsconfig.seed.json prisma/seed-read-through.ts
 
+# Functional indexes/checks/RLS are not represented by Prisma db push.
+# Only the already-guarded test DB is eligible for these additive migrations.
+for migration in \
+  supabase/migrations/20261006153514_discovery_topic_identity.sql \
+  supabase/migrations/20261006160355_managed_article_images.sql \
+  supabase/migrations/20261006161413_normalized_subscriber_email.sql \
+  supabase/migrations/20261006161505_article_active_engagement.sql; do
+  psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$migration"
+done
 npx ts-node -P tsconfig.seed.json scripts/seed-testing-workspace.ts
 
 echo "✅ test database ready (port $PGPORT)"

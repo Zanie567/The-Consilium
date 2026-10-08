@@ -7,9 +7,8 @@
  *   - Priority 4: no duplicate published titles; dashboard user count == users
  *     page total; comment moderation total == sum of per-user comment counts.
  *
- * The audit launcher owns the database and supplies the same guarded test URL
- * to the application, this suite, fixture preparation and cleanup. Missing
- * services or regression fixtures fail rather than producing empty passes.
+ * Uses the guarded database resolved by vitest.config.ts. Missing local
+ * services fail setup; production .env files are never loaded here.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { PrismaClient } from '@prisma/client'
@@ -24,8 +23,17 @@ const prisma = new PrismaClient({
 })
 
 beforeAll(async () => {
-  assertSafeTestDatabaseHost(process.env.DATABASE_URL, 'DATABASE_URL')
-  await prisma.$queryRaw`SELECT 1`
+  try {
+    // This suite writes and deletes probe rows (below). A plain `vitest run`
+    // with no local test DB set up previously fell through to whatever
+    // DATABASE_URL happened to be in .env.local — which can be a real
+    // Supabase project. Treat an unsafe host exactly like "DB unreachable":
+    // fail before connecting.
+    assertSafeTestDatabaseHost(process.env.DATABASE_URL, 'DATABASE_URL')
+    await prisma.$queryRaw`SELECT 1`
+  } catch (err) {
+    throw new Error('Required safe local data-layer database is unavailable. Run scripts/setup-test-db.sh first.', { cause: err })
+  }
 })
 afterAll(async () => {
   await prisma.$disconnect()

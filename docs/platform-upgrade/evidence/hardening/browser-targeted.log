@@ -1,0 +1,25 @@
+[platform-check] guarded test DB; app localhost:3221; storage loopback:55621; email/OAuth disabled
+
+Running 11 tests using 1 worker
+
+(node:83526) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:83526) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [setup] › tests/e2e/auth.setup.ts:13:6 › authenticate as admin (1.5s)
+  ✓   2 [setup] › tests/e2e/auth.setup.ts:50:6 › authenticate as an editor with no category assignments (416ms)
+  ✓   3 [setup] › tests/e2e/auth.setup.ts:54:6 › authenticate as an editor scoped to Opinion (379ms)
+  ✓   4 [setup] › tests/e2e/auth.setup.ts:62:6 › authenticate as the seeded writer (378ms)
+(node:83551) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:83551) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   5 [upgrade] › tests/e2e/upgrade-revisions.spec.ts:26:5 › list publish/unpublish sends loaded revisions, propagates successful revision and reconciles stale conflicts (2.1s)
+  ✓   6 [upgrade] › tests/e2e/upgrade-revisions.spec.ts:69:5 › series assignment from stale page preserves newer article, reload then assigns successfully (1.6s)
+  ✓   7 [upgrade] › tests/e2e/upgrade-revisions.spec.ts:93:5 › review rejects stale page; commendation revision propagates to successful return (592ms)
+  ✓   8 [upgrade] › tests/e2e/upgrade-revisions.spec.ts:123:7 › review UI approve with current revision succeeds, then unpublishes (522ms)
+  ✓   9 [upgrade] › tests/e2e/upgrade-revisions.spec.ts:123:7 › review UI schedule with current revision succeeds (321ms)
+  ✓  10 [upgrade] › tests/e2e/upgrade-revisions.spec.ts:147:5 › public bookmark on/off and comment persist through actual UI (2.6s)
+  ✓  11 [upgrade] › tests/e2e/upgrade-revisions.spec.ts:171:5 › calendar drag uses displayed revision, rolls back stale move, and reschedules after reload (571ms)
+
+  11 passed (13.2s)

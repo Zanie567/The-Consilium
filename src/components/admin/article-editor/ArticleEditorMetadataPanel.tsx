@@ -85,9 +85,10 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
       )}
 
       <div>
-        <FieldLabel>Category</FieldLabel>
+        <FieldLabel>Article format</FieldLabel>
         <div className="relative">
           <select
+            aria-label="Article format"
             value={editor.categoryId}
             onChange={(event) => actions.setCategoryId(event.target.value)}
             disabled={!editor.canEdit}
@@ -107,6 +108,7 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
         <input ref={coverFileRef} type="file" accept="image/*" className="hidden" onChange={(event) => void actions.handleCoverUpload(event)} />
         <input
           type="url"
+          aria-label="Cover image URL"
           value={editor.coverImage}
           onChange={(event) => actions.setCoverImage(event.target.value)}
           placeholder="https://..."
@@ -178,6 +180,7 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
         )}
         {editor.canEdit && (
           <input
+            aria-label="Article topics"
             type="text"
             value={editor.tagInput}
             onChange={(event) => actions.setTagInput(event.target.value)}
@@ -188,7 +191,7 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
             className="w-full h-8 text-[16px] sm:text-[12px] border border-[var(--border)] rounded px-2 bg-[var(--bg-elevated)] focus:outline-none focus:border-gold placeholder:text-[var(--fg-faint)] disabled:opacity-50"
           />
         )}
-        <p className="text-[10px] text-[var(--fg-faint)] mt-1">Separate with Enter or comma. Up to 10.</p>
+        <p className="text-[10px] text-[var(--fg-faint)] mt-1">Choose 1–3 relevant topics. Separate with Enter or comma.</p>
       </div>
 
       {!editor.isWriter && (
@@ -217,13 +220,15 @@ interface SelectFieldProps {
 }
 
 function SelectField({ children, disabled, hidden, label, onChange, value }: SelectFieldProps) {
+  const id = useId()
   if (hidden) return null
 
   return (
     <div>
-      <FieldLabel>{label}</FieldLabel>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <div className="relative">
         <select
+          id={id}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           disabled={disabled}

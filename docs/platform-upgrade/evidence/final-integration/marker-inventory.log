@@ -1,0 +1,2 @@
+tests/integration/api.test.ts:36:  it.skip(label, () => {})
+tests/integration/api.test.ts:745:  it.skip('invalid bucket name → 400 (auth fires before bucket check in current implementation)', () => {})

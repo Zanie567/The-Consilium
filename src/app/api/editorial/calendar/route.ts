@@ -1,3 +1,4 @@
+import { articleRevisionError } from '@/lib/articleRevision'
 import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
@@ -31,7 +32,7 @@ async function PATCHHandler(req: Request) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
 
-  const { articleId, date } = parsed as { articleId?: unknown; date?: unknown }
+  const { articleId, date, expectedUpdatedAt } = parsed as { articleId?: unknown; date?: unknown; expectedUpdatedAt?: unknown }
   if (typeof articleId !== 'string' || !articleId) {
     return NextResponse.json({ error: 'articleId is required.' }, { status: 400 })
   }
@@ -44,11 +45,14 @@ async function PATCHHandler(req: Request) {
 
   const article = await prisma.article.findUnique({
     where: { id: articleId },
-    select: { id: true, status: true, scheduledAt: true, deletedAt: true },
+    select: { id: true, status: true, scheduledAt: true, deletedAt: true, updatedAt: true },
   })
   if (!article || article.deletedAt) {
     return NextResponse.json({ error: 'Article not found.' }, { status: 404 })
   }
+  const revisionError = articleRevisionError(expectedUpdatedAt, article.updatedAt)
+  if (revisionError) return revisionError
+
   if (article.status !== 'SCHEDULED' || !article.scheduledAt) {
     return NextResponse.json(
       { error: 'Only scheduled articles with a publish time can be moved.' },
@@ -82,6 +86,7 @@ async function PATCHHandler(req: Request) {
   const { count } = await prisma.article.updateMany({
     where: {
       id: article.id,
+      updatedAt: article.updatedAt,
       status: 'SCHEDULED',
       deletedAt: null,
       scheduledAt: article.scheduledAt,
