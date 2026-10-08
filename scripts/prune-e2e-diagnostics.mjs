@@ -3,12 +3,15 @@
 //
 //   node scripts/prune-e2e-diagnostics.mjs [--max-mb 100] [--dry-run] <dir>...
 //
-// Removal order (largest first within each class) until the total fits:
-//   1. trace zips (the HTML report's data/ copy is what a reader opens; the
-//      test-results copy is a duplicate and is excluded from uploads separately)
-//   2. videos
-//   3. screenshots
-//   4. any other file, except the report index and results.json
+// Files the upload step excludes are deleted first and never count toward the
+// budget: test-results/**/trace.zip (an exact duplicate of the copy inside the HTML
+// report's data/), videos, and the mail outbox. Keep this list in step with the
+// `!` patterns in .github/actions/upload-e2e-diagnostics/action.yml.
+//
+// What remains is trimmed to the budget, largest first within each class:
+//   1. trace zips (the HTML report's data/ copy is what a reader opens)
+//   2. screenshots
+//   3. any other file, except the report index and results.json
 // A summary of what was removed is written to ci-diagnostics-summary.txt (uploaded
 // with the artifact) so a trimmed artifact is never mistaken for a complete one.
 import { readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -43,15 +46,21 @@ function walk(dir, out = []) {
   return out
 }
 
-const files = dirs.flatMap((d) => walk(d))
+const NOT_UPLOADED = [/(^|\/)test-results\/.*(^|\/)trace\.zip$/, /\.(webm|mp4)$/, /(^|\/)outbox\.jsonl$/]
+const all = dirs.flatMap((d) => walk(d))
+const unuploaded = all.filter((f) => NOT_UPLOADED.some((re) => re.test(f.path)))
+for (const f of unuploaded) if (!dryRun) rmSync(f.path, { force: true })
+const files = all.filter((f) => !unuploaded.includes(f))
 const budget = maxMb * 1024 * 1024
 let total = files.reduce((n, f) => n + f.size, 0)
 const mb = (n) => (n / 1048576).toFixed(1)
-console.log(`diagnostics: ${files.length} files, ${mb(total)} MB (budget ${maxMb} MB)`)
+console.log(
+  `diagnostics: ${files.length} files, ${mb(total)} MB to upload (budget ${maxMb} MB); ` +
+    `${unuploaded.length} duplicate/excluded files, ${mb(unuploaded.reduce((n, f) => n + f.size, 0))} MB, dropped first`
+)
 
 const isProtected = (p) => /(^|\/)results\.json$/.test(p) || /(^|\/)index\.html$/.test(p)
-const rank = (p) =>
-  /\.zip$/.test(p) ? 0 : /\.(webm|mp4)$/.test(p) ? 1 : /\.(png|jpe?g)$/.test(p) ? 2 : 3
+const rank = (p) => (/\.zip$/.test(p) ? 0 : /\.(png|jpe?g)$/.test(p) ? 1 : 2)
 const candidates = files
   .filter((f) => !isProtected(f.path))
   .sort((a, b) => rank(a.path) - rank(b.path) || b.size - a.size)
