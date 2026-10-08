@@ -128,7 +128,8 @@ suite('Supabase Cron migrations (stand-in vault/net/cron, real PL/pgSQL)', () =>
       await q(withoutExtensions(INFRA))
       await q(withoutExtensions(INFRA))
       const jobs = (await q('select jobname from cron.job order by jobname')).rows.map((r) => r.jobname)
-      expect(jobs).toEqual(['reconcile-scheduler-invocations']) // the publisher is NOT scheduled by it
+      // reconciler + history pruning; the publisher is NOT scheduled by it
+      expect(jobs).toEqual(['prune-cron-run-details', 'reconcile-scheduler-invocations'])
     })
 
     it('the enable migration is refused while the Vault secret does not exist', async () => {
@@ -161,8 +162,9 @@ suite('Supabase Cron migrations (stand-in vault/net/cron, real PL/pgSQL)', () =>
     })
 
     it.each([
-      ['200 success', { status: 200, body: '{"published":0}' }, 'success', 200],
-      ['other 2xx is still success', { status: 204 }, 'success', 204],
+      ['200 with the endpoint JSON is success', { status: 200, body: '{"due":0,"published":0,"warnings":[]}' }, 'success', 200],
+      ['200 without the endpoint JSON is bad_response', { status: 200, body: '{"published":0}' }, 'bad_response', 200],
+      ['a bodyless 2xx cannot have come from the endpoint', { status: 204 }, 'bad_response', 204],
       ['401 authentication failure', { status: 401, body: '{"error":"Unauthorized"}' }, 'auth_failure', 401],
       ['403 authentication failure', { status: 403 }, 'auth_failure', 403],
       ['307 (wrong host) is a non-2xx', { status: 307 }, 'http_error', 307],
@@ -223,7 +225,7 @@ suite('Supabase Cron migrations (stand-in vault/net/cron, real PL/pgSQL)', () =>
     })
 
     it('recent rows are kept', async () => {
-      const { rid } = await invokeAndRespond({ status: 200 })
+      const { rid } = await invokeAndRespond({ status: 200, body: '{"due":0,"published":0,"warnings":[]}' })
       await q('select public.reconcile_scheduler_invocations()')
       expect((await row(rid!)).outcome).toBe('success')
     })

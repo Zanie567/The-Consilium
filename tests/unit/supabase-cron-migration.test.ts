@@ -50,7 +50,9 @@ describe('Supabase Cron migrations: target and schedule', () => {
 
   it('the enable migration schedules the publisher every 5 minutes, idempotently', () => {
     const body = code(enable)
-    expect(body).toContain("cron.schedule('publish-scheduled', '*/5 * * * *', 'select public.invoke_publish_scheduled()')")
+    // the interval is one named setting, used by the schedule call and nowhere hard-coded in it
+    expect(body).toContain("v_schedule CONSTANT TEXT := '*/5 * * * *'")
+    expect(body).toContain("cron.schedule('publish-scheduled', v_schedule, 'select public.invoke_publish_scheduled()')")
     expect(body).toContain("cron.unschedule(jobid) FROM cron.job WHERE jobname = 'publish-scheduled'")
   })
 
@@ -80,7 +82,7 @@ describe('Supabase Cron migrations: target and schedule', () => {
 
 describe('Supabase Cron migrations: every call lands in exactly one outcome', () => {
   const body = code(infra)
-  const OUTCOMES = ['pending', 'success', 'auth_failure', 'http_error', 'timeout', 'network_error', 'lost', 'not_sent']
+  const OUTCOMES = ['pending', 'success', 'auth_failure', 'http_error', 'timeout', 'network_error', 'lost', 'not_sent', 'bad_response']
 
   it('the column is constrained to the documented categories', () => {
     for (const o of OUTCOMES) expect(body).toContain(`'${o}'`)
@@ -89,13 +91,35 @@ describe('Supabase Cron migrations: every call lands in exactly one outcome', ()
   })
 
   it('the reconciler maps timeout, 2xx, 401/403, other statuses and no status separately', () => {
-    expect(body).toContain("WHEN r.timed_out                      THEN 'timeout'")
-    expect(body).toContain("WHEN r.status_code BETWEEN 200 AND 299 THEN 'success'")
-    expect(body).toContain("WHEN r.status_code IN (401, 403)       THEN 'auth_failure'")
-    expect(body).toContain("WHEN r.status_code IS NOT NULL         THEN 'http_error'")
-    expect(body).toContain("'network_error'")
-    expect(body).toContain("outcome = 'lost'")
-    expect(body).toContain("'not_sent'")
+    const flat = body.replace(/\s+/g, ' ')
+    expect(flat).toContain("WHEN COALESCE(r.timed_out, FALSE) THEN 'timeout'")
+    expect(flat).toContain("WHEN r.status_code BETWEEN 200 AND 299 THEN CASE WHEN v_valid THEN 'success' ELSE 'bad_response' END")
+    expect(flat).toContain("WHEN r.status_code IN (401, 403) THEN 'auth_failure'")
+    expect(flat).toContain("WHEN r.status_code IS NOT NULL THEN 'http_error'")
+    expect(flat).toContain("'network_error'")
+    expect(flat).toContain("outcome = 'lost'")
+    expect(flat).toContain("'not_sent'")
+  })
+
+  it('a 2xx only counts as success when the body is the endpoint JSON, checked without relying on AND short-circuiting', () => {
+    const flat = body.replace(/\s+/g, ' ')
+    expect(flat).toContain("jsonb_typeof(v_body -> 'due') = 'number'")
+    expect(flat).toContain("jsonb_typeof(v_body -> 'published') = 'number'")
+    // every cast of the untrusted body sits inside the IF that has already proved it is a number
+    const guard = flat.indexOf("jsonb_typeof(v_body -> 'due') = 'number'")
+    expect(flat.indexOf("(v_body ->> 'due')::NUMERIC")).toBeGreaterThan(guard)
+  })
+
+  it('a pg_net failure to queue is recorded (not_sent), with the secret redacted before the message is truncated', () => {
+    const flat = body.replace(/\s+/g, ' ')
+    expect(flat).toContain('EXCEPTION WHEN OTHERS THEN')
+    expect(flat).toContain("left(replace(SQLERRM, v_secret, '[redacted]'), 300)")
+  })
+
+  it('cron.job_run_details, which pg_cron never prunes, is trimmed to 7 days by a daily job', () => {
+    const flat = body.replace(/\s+/g, ' ')
+    expect(flat).toContain("cron.schedule( 'prune-cron-run-details', '23 3 * * *',")
+    expect(flat).toContain("delete from cron.job_run_details where coalesce(end_time, start_time) < now() - interval '7 days'")
   })
 
   it('retention (30 days) is enforced by both the reconciler and the publisher function', () => {

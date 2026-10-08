@@ -49,9 +49,17 @@ CREATE TABLE IF NOT EXISTS public.scheduler_invocations (
   --   timeout        pg_net gave up waiting (30 s)
   --   network_error  no status and no timeout: DNS, TLS, connection refused
   --   lost           no response recorded by pg_net 10 minutes after the call
-  --   not_sent       the call was never made (Vault secret missing or empty)
+  --   not_sent       the call was never made (Vault secret missing or empty, or pg_net refused to queue it)
+  --   bad_response   2xx, but the body is not the publish endpoint's JSON (a CDN, firewall or
+  --                  maintenance page answering 200): the request was delivered but the publisher did not run
   outcome       TEXT        NOT NULL DEFAULT 'pending'
-                CHECK (outcome IN ('pending','success','auth_failure','http_error','timeout','network_error','lost','not_sent'))
+                CHECK (outcome IN ('pending','success','auth_failure','http_error','timeout','network_error','lost','not_sent','bad_response')),
+  -- Read from the endpoint's own JSON answer ({"due":n,"published":n,"warnings":[...]}) when outcome = 'success'.
+  -- NULL for every other outcome. These separate "the endpoint ran" from "articles were published"
+  -- from "something non-fatal went wrong" (an author email or notification failed).
+  articles_due       INTEGER,
+  articles_published INTEGER,
+  warning_count      INTEGER
 );
 CREATE INDEX IF NOT EXISTS scheduler_invocations_job_invoked_idx
   ON public.scheduler_invocations (job, invoked_at DESC);
@@ -98,15 +106,27 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  SELECT net.http_post(
-    url                  := 'https://www.theconsilium.co.uk/api/publish-scheduled',
-    body                 := '{}'::jsonb,
-    headers              := jsonb_build_object(
-                              'Content-Type',  'application/json',
-                              'Authorization', 'Bearer ' || v_secret
-                            ),
-    timeout_milliseconds := 30000
-  ) INTO v_request_id;
+  BEGIN
+    SELECT net.http_post(
+      url                  := 'https://www.theconsilium.co.uk/api/publish-scheduled',
+      body                 := '{}'::jsonb,
+      headers              := jsonb_build_object(
+                                'Content-Type',  'application/json',
+                                'Authorization', 'Bearer ' || v_secret
+                              ),
+      timeout_milliseconds := 30000
+    ) INTO v_request_id;
+  EXCEPTION WHEN OTHERS THEN
+    -- pg_net refused to queue the request. Record it instead of letting it escape as a failed cron
+    -- run that leaves no row here. The message is scrubbed of the secret BEFORE it is truncated
+    -- (truncating first could leave half of it behind).
+    INSERT INTO public.scheduler_invocations (job, error, completed_at, outcome)
+    VALUES ('publish-scheduled',
+            'request could not be queued (SQLSTATE ' || SQLSTATE || '): ' || left(replace(SQLERRM, v_secret, '[redacted]'), 300),
+            now(), 'not_sent');
+    RAISE WARNING 'invoke_publish_scheduled: request could not be queued (SQLSTATE %)', SQLSTATE;
+    RETURN NULL;
+  END;
 
   INSERT INTO public.scheduler_invocations (job, request_id)
   VALUES ('publish-scheduled', v_request_id);
@@ -123,22 +143,84 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+DECLARE
+  r              RECORD;
+  v_body         JSONB;
+  v_valid        BOOLEAN;
+  v_outcome      TEXT;
+  v_due          INTEGER;
+  v_published    INTEGER;
+  v_warnings     INTEGER;
 BEGIN
-  UPDATE public.scheduler_invocations i
-  SET status_code   = r.status_code,
-      response_body = left(r.content, 2000),
-      error         = COALESCE(r.error_msg, CASE WHEN r.timed_out THEN 'request timed out' END),
-      completed_at  = COALESCE(r.created, now()),
-      outcome       = CASE
-                        WHEN r.timed_out                      THEN 'timeout'
-                        WHEN r.status_code BETWEEN 200 AND 299 THEN 'success'
-                        WHEN r.status_code IN (401, 403)       THEN 'auth_failure'
-                        WHEN r.status_code IS NOT NULL         THEN 'http_error'
-                        ELSE                                        'network_error'
-                      END
-  FROM net._http_response r
-  WHERE r.id = i.request_id
-    AND i.completed_at IS NULL;
+  -- One response at a time, each in its own sub-transaction, so a single odd response can never stop
+  -- the others from being classified (a failing set-based UPDATE would abort every row, every minute).
+  FOR r IN
+    SELECT i.id AS invocation_id, resp.status_code, resp.content, resp.timed_out, resp.error_msg, resp.created
+    FROM public.scheduler_invocations i
+    JOIN net._http_response resp ON resp.id = i.request_id
+    WHERE i.completed_at IS NULL
+  LOOP
+    BEGIN
+      v_body := NULL; v_valid := FALSE; v_due := NULL; v_published := NULL; v_warnings := NULL;
+
+      -- A 2xx only counts as the publisher having run if the body is the endpoint's own JSON:
+      -- an object with numeric "due" and "published". Nested IFs, not AND, because Postgres does not
+      -- guarantee that the right-hand side of an AND is skipped when the left-hand side is false.
+      IF NOT COALESCE(r.timed_out, FALSE) AND r.status_code BETWEEN 200 AND 299 THEN
+        BEGIN
+          v_body := r.content::jsonb;
+        EXCEPTION WHEN OTHERS THEN
+          v_body := NULL;
+        END;
+        IF jsonb_typeof(v_body) = 'object' THEN
+          IF jsonb_typeof(v_body -> 'due') = 'number' AND jsonb_typeof(v_body -> 'published') = 'number' THEN
+            IF (v_body ->> 'due')::NUMERIC BETWEEN 0 AND 1000000
+               AND (v_body ->> 'published')::NUMERIC BETWEEN 0 AND 1000000 THEN
+              v_valid     := TRUE;
+              v_due       := (v_body ->> 'due')::NUMERIC::INTEGER;
+              v_published := (v_body ->> 'published')::NUMERIC::INTEGER;
+              IF jsonb_typeof(v_body -> 'warnings') = 'array' THEN
+                v_warnings := jsonb_array_length(v_body -> 'warnings');
+              ELSE
+                v_warnings := 0;
+              END IF;
+            END IF;
+          END IF;
+        END IF;
+      END IF;
+
+      v_outcome := CASE
+                     WHEN COALESCE(r.timed_out, FALSE)       THEN 'timeout'
+                     WHEN r.status_code BETWEEN 200 AND 299  THEN CASE WHEN v_valid THEN 'success' ELSE 'bad_response' END
+                     WHEN r.status_code IN (401, 403)        THEN 'auth_failure'
+                     WHEN r.status_code IS NOT NULL          THEN 'http_error'
+                     ELSE                                         'network_error'
+                   END;
+
+      UPDATE public.scheduler_invocations
+      SET status_code        = r.status_code,
+          response_body      = left(r.content, 2000),
+          error              = COALESCE(
+                                 r.error_msg,
+                                 CASE WHEN r.timed_out THEN 'request timed out' END,
+                                 CASE WHEN v_outcome = 'bad_response'
+                                      THEN 'HTTP 2xx, but the body is not the publish endpoint''s JSON' END
+                               ),
+          completed_at       = COALESCE(r.created, now()),
+          outcome            = v_outcome,
+          articles_due       = v_due,
+          articles_published = v_published,
+          warning_count      = v_warnings
+      WHERE id = r.invocation_id;
+    EXCEPTION WHEN OTHERS THEN
+      UPDATE public.scheduler_invocations
+      SET status_code  = r.status_code,
+          error        = 'reconciler could not process the response (SQLSTATE ' || SQLSTATE || ')',
+          completed_at = now(),
+          outcome      = 'bad_response'
+      WHERE id = r.invocation_id;
+    END;
+  END LOOP;
 
   -- No response after 10 minutes (and past the 30 s request timeout): record it as lost.
   UPDATE public.scheduler_invocations
@@ -176,4 +258,20 @@ DO $$
 BEGIN
   PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'reconcile-scheduler-invocations';
   PERFORM cron.schedule('reconcile-scheduler-invocations', '* * * * *', 'select public.reconcile_scheduler_invocations()');
+END $$;
+
+-- pg_cron never prunes cron.job_run_details (Supabase documents this), and the reconciler alone adds
+-- 1,440 rows a day, so left alone it grows without limit on a 500 MB Free-plan database. Keep 7 days.
+-- It is database-wide: pg_cron is not installed anywhere in this project before this migration, so no
+-- other job's history exists to be affected. Rows still 'running' (no end_time) are judged by start_time,
+-- so a stuck entry is eventually removed too. This command is plain SQL on purpose (no function, so no
+-- new privileged object); the reliable record of every call is public.scheduler_invocations, not this table.
+DO $$
+BEGIN
+  PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'prune-cron-run-details';
+  PERFORM cron.schedule(
+    'prune-cron-run-details',
+    '23 3 * * *',
+    $cmd$delete from cron.job_run_details where coalesce(end_time, start_time) < now() - interval '7 days'$cmd$
+  );
 END $$;

@@ -23,6 +23,13 @@
 -- =============================================================================
 
 DO $$
+DECLARE
+  -- THE PUBLISH INTERVAL. This is the single source of truth for a fresh install. Standard 5-field cron
+  -- (UTC; `cron.timezone` is GMT on Supabase) or pg_cron's "N seconds" form (1-59). Keep it at one minute or
+  -- slower: the reconciler, the 10-minute `lost` threshold and the cadence check in the runbook assume it.
+  -- To change a LIVE schedule without re-running this file, see "Changing the interval" in
+  -- docs/scheduler-supabase-cron.md (cron.alter_job), then update this value so the two do not drift.
+  v_schedule CONSTANT TEXT := '*/5 * * * *';
 BEGIN
   IF to_regclass('cron.job') IS NULL THEN
     RAISE EXCEPTION 'Refusing to schedule the publisher: pg_cron is not installed. Apply 20261007120000_scheduler_cron_infrastructure.sql first.';
@@ -53,5 +60,5 @@ BEGIN
   END IF;
 
   PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'publish-scheduled';
-  PERFORM cron.schedule('publish-scheduled', '*/5 * * * *', 'select public.invoke_publish_scheduled()');
+  PERFORM cron.schedule('publish-scheduled', v_schedule, 'select public.invoke_publish_scheduled()');
 END $$;
