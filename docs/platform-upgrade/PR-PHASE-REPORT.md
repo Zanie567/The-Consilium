@@ -56,33 +56,32 @@ The final full run passed its unit/integration, public/editorial, workflow and t
 
 ## Final local certification
 
-Final executable-code certification commit: `baff4cf7ac523d0bfae923f2223a3d092a1c4dfd`. A late manual endpoint audit found that the new LinkedIn setting mutation had main's proxy attempt audit but lacked its handler outcome audit. The fix applies main's existing `withTestingAudit` wrapper. Before repair two outcome assertions failed; after repair all 13 targeted publication-link/audit unit cases passed. A live regression starts real verified Growth and Writer personas and checks PostgreSQL audit rows: success and denial record the real administrator, effective persona, session, path, method and actual status without payloads. The denied request changes no setting. Testing-disabled ordinary requests delegate directly to the unchanged handler with no testing lookup.
+Final executable candidate: `e7edcc44c3bb41bc7027c01d454675075a46c9c2`. The late LinkedIn settings repair applies main's existing outcome-audit wrapper. Two outcome assertions failed before repair; afterward all 13 focused publication-link/audit unit cases passed. Real verified Growth success and Writer denial were checked against PostgreSQL audit rows: initiator, effective persona, session, method, path and actual outcome, without payloads. Denial changes no setting. Testing-disabled ordinary requests delegate directly to the unchanged handler with no testing lookup.
 
-After this narrowly scoped repair, **all 1,484 unit/integration cases and all 36 upgrade browser cases were rerun**, together with typecheck, lint, isolated production build and eight unauthenticated smoke checks. The original 666 passing browser checks in the public/editorial, workflow and team phases remain scoped earlier evidence; they were not freshly rerun locally after the audit wrapper. The only application change since those phases is the settings outcome-audit wrapper; its handler and all other application/suite code are unchanged. Fresh upgrade coverage exercises that endpoint under ordinary and simulated identities. All hosted jobs must independently certify the final head. The following documentation commit changes no executable code. Exact source boundaries are recorded in [the evidence manifest](evidence/pr-phase/local-certification.json).
+Hosted run [37704126869](https://github.com/Zanie567/The-Consilium/actions/runs/37704126869) then exposed a genuine list-state race. Feature returned revision `…14.169Z`, pin returned `…14.305Z`, then an older feature route snapshot replaced the pin state. The control reverted from Unpin to Pin to category and unpublish submitted `…14.169Z`; the server correctly refused it with ARTICLE_CHANGED. [The sanitized failure manifest](evidence/pr-phase/hosted-stale-refresh-reproduction.json) records the actual request sequence without session material. The list now retains newer acknowledged rows when older snapshots arrive, while accepting newer server rows and removals. A deterministic component regression fails before repair and passes after it, checking the pin state, latest outgoing guard, newer props and removal. The browser journey additionally waits for each saved feature/pin state. No guard, test or assertion was removed or weakened.
 
-| Check | Applicable passing evidence |
+Aggregate certification at `06862a2e8d4415d83eecad3f981148b5c63151d3`: **942 unit + 543 integration = 1,485 passes**, 132 files, zero failures/expected failures/skips/todo; 25 revision cases included. The final executable candidate differs only by one positive visible saved-state assertion in `upgrade-revisions.spec.ts`. Application, unit/integration test, schema, dependency, service, workflow and configuration trees are identical; the [evidence manifest](evidence/pr-phase/local-certification.json) records their matching tree IDs. The complete 36-case upgrade project, typecheck, lint, isolated production build and eight smoke checks passed on the final code head. The next documentation commit changes no executable code.
+
+| Check | Passing evidence after the list-state repair |
 | --- | --- |
-| Unit | 941 passed, 96 files, rerun after final repair |
-| Integration | 543 passed, 35 files, 0 skipped, rerun after final repair |
-| Aggregate | 1,484 passed, 0 failed/expected/skipped/todo |
-| Revision/concurrency | 25 passed within integration, rerun |
-| Public/editorial browser phase | 87 passed at `58a758f`, 2.0 minutes |
-| Workflow browser phase | 530 passed at `58a758f`, 27.9 minutes |
-| Team/onboarding/profile browser phase | 49 passed at `58a758f`, 1.5 minutes |
-| Final upgrade browser reproduction | 36 passed at `baff4cf`, advanced revisions and live outcome audits |
-| Combined passing browser phase evidence | 702 passes, includes repeated authentication setup |
-| Typecheck and lint | Passed after final repair |
-| Production build | Passed in the final isolated run |
-| Smoke | Eight unauthenticated checks passed after final repair |
+| Unit | 942 passed, 97 files |
+| Integration | 543 passed, 35 files, 0 skipped |
+| Aggregate | 1,485 passed, 0 failed/expected/skipped/todo |
+| Revision/concurrency | 25 passed within integration |
+| Focused editorial/scope/lifecycle/upgrade browser selection | 66 passed, identical application source |
+| Final complete upgrade project | 36 passed, including visible saved-state acknowledgements |
+| Typecheck and lint | Passed on final executable candidate |
+| Production build | Passed on final executable candidate in isolated stack |
+| Smoke | Eight unauthenticated checks passed on final executable candidate |
 
-This is combined passing phase evidence, not a claim that the earlier full invocation exited successfully. Its final upgrade phase had eight failures and four dependent cases not run; failed evidence remains available locally. The repaired complete upgrade phase subsequently passed twice, then all 36 cases passed after the late audit repair, with no failures, skips or retries.
+Earlier broad browser evidence (87 public/editorial, 530 workflow, 49 team/onboarding/profile) and advanced-identity reproduction remain scoped historical results. They are not represented as freshly rerun on changed list code. The affected component and endpoint paths were retested locally as above, and the full hosted census must independently pass on the exact final head.
 
-Owned run evidence: `test-results/next-e2e-3235-67275` (broad source certification), `test-results/next-e2e-3236-73410` (identity reproduction) and `test-results/next-e2e-3237-76041` (final repair). All use run-owned PostgreSQL, local fake Storage, captured email and OAuth off. Cleanup attestations confirm database removal and owned service termination. The temporary guarded reproduction config stores final browser results under `.next-e2e-identity-proof/test-results/next-e2e-3237-76041/selected/`. Raw session/outbox/trace artifacts are excluded from the committed manifest.
+Owned evidence: `test-results/next-e2e-3238-79026` (66 focused browser checks), `test-results/next-e2e-3239-80767` (final aggregate) and `test-results/next-e2e-3240-82025` (final upgrade run). Each owns disposable PostgreSQL, local fake Storage, captured email and OAuth off. Cleanup attestations confirm database removal and owned service termination. Raw session/outbox/trace artifacts are excluded from committed evidence.
 
 ## Hosted CI boundary
 
 The earlier GitHub Actions run [37643286926](https://github.com/Zanie567/The-Consilium/actions/runs/37643286926) on remote `fa52ded` passed Typecheck/test/build and failed public/data-layer, roles/profiles/testing and upgrade jobs. Actual logs were inspected; they do not certify the repaired head. The final candidate requires all four named hosted CI jobs to pass on its exact latest commit. Hosted results and final review disposition will be attached to PR #117 after observation, avoiding a documentation-only push that would invalidate the successful check head.
 
-CodeRabbit's file-limit skip and inherited dependency security debt remain explicitly disclosed. Human approval is required; neither local nor hosted functional certification clears production rollout.
+CodeRabbit's file-limit skip (180 eligible files at the last request) and inherited dependency security debt remain explicitly disclosed. Human approval is required; neither local nor hosted functional certification clears production rollout.
 
 Hosted maintenance notices are nonblocking for the observed passing jobs: inherited Actions versions are forced onto [Node 24](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/), and [ubuntu-latest will change](https://github.com/actions/runner-images/issues/14748). Action/runtime and runner image maintenance belong in a separate follow-up.

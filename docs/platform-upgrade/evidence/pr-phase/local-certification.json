@@ -1,20 +1,23 @@
 {
-  "applicationSourceCommit": "baff4cf7ac523d0bfae923f2223a3d092a1c4dfd",
-  "testHarnessCommit": "baff4cf7ac523d0bfae923f2223a3d092a1c4dfd",
+  "applicationSourceCommit": "e7edcc44c3bb41bc7027c01d454675075a46c9c2",
+  "testHarnessCommit": "e7edcc44c3bb41bc7027c01d454675075a46c9c2",
   "mainReconciled": "8aed86bc06612527dc0fdbcbc53472afc7ace553",
   "parallelRemoteReconciled": "fa52ded4b3699c1885f29e5acbf5fe61df726050",
   "scopeSinceSourceCertification": [
     "src/app/api/editorial/growth/settings/route.ts",
+    "src/components/editorial/ArticlesList.tsx",
     "tests/e2e/helpers/pinnedContext.ts",
     "tests/e2e/upgrade-discovery.spec.ts",
     "tests/e2e/upgrade-final-integration.spec.ts",
     "tests/e2e/upgrade-growth-analytics.spec.ts",
+    "tests/e2e/upgrade-revisions.spec.ts",
     "tests/e2e/upgrade-rich-content.spec.ts",
+    "tests/unit/article-list-refresh-race.test.tsx",
     "tests/unit/growth-settings-audit.test.ts"
   ],
   "unit": {
-    "files": 96,
-    "passed": 941
+    "files": 97,
+    "passed": 942
   },
   "integration": {
     "files": 35,
@@ -22,7 +25,7 @@
     "revisionConcurrencyCasesIncluded": 25
   },
   "aggregate": {
-    "passed": 1484,
+    "passed": 1485,
     "failed": 0,
     "expectedFailures": 0,
     "skipped": 0,
@@ -66,21 +69,34 @@
       }
     },
     "upgrade": {
-      "commit": "baff4cf7ac523d0bfae923f2223a3d092a1c4dfd",
-      "artifact": ".next-e2e-identity-proof/test-results/next-e2e-3237-76041/selected/results.json",
+      "commit": "e7edcc44c3bb41bc7027c01d454675075a46c9c2",
+      "artifact": "test-results/next-e2e-3240-82025/selected/results.json",
       "stats": {
-        "startTime": "2026-10-07T23:43:34.720Z",
-        "duration": 67165.49100000001,
+        "startTime": "2026-10-08T00:06:37.058Z",
+        "duration": 67828.583,
         "expected": 36,
         "skipped": 0,
         "unexpected": 0,
         "flaky": 0
       },
-      "additionalReproduction": "All six owned seeded testing revisions advanced before authentication; real Growth success and Writer denial audit checked against PostgreSQL."
+      "additionalReproduction": "Includes real persona outcome audits, advanced own-account revision/revocation and visible feature/pin acknowledgements. All six seeded revisions were also advanced in the earlier identity reproduction, whose helper is unchanged."
+    },
+    "focusedEditorialUpgrade": {
+      "commit": "6a13a77902a21aa3858401a09f5c1dbe43807a30",
+      "artifact": "test-results/next-e2e-3238-79026/selected/results.json",
+      "stats": {
+        "startTime": "2026-10-07T23:59:07.317Z",
+        "duration": 105637.89,
+        "expected": 66,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "sourceBoundary": "Application identical to final head; corrected unsupported unit query options and added one positive upgrade browser assertion afterward. That unit and the complete upgrade project were rerun, with typecheck and lint."
     }
   },
   "combinedBrowserPasses": 702,
-  "browserCounting": "Combined local passing phases with explicit source boundaries, including repeated auth setup. After the last narrow audit wrapper change: all 1484 Vitest tests and all 36 upgrade checks rerun. Earlier 666 browser checks are retained scoped evidence, not represented as freshly rerun. Full hosted jobs must certify exact final head.",
+  "browserCounting": "Historical combined passing phase evidence, not a freshly rerun full local census. Final affected browser verification: 66 focused checks plus a subsequent complete 36-case upgrade run (overlap). Exact latest-head hosted jobs must certify all projects.",
   "checks": {
     "typecheck": "passed after test-only repair",
     "lint": "passed after test-only repair",
@@ -107,10 +123,28 @@
       "databaseAbsent": true,
       "ownedServicesWaited": true,
       "productionServicesUsed": false
+    },
+    "test-results/next-e2e-3239-80767": {
+      "database": "consilium_audit_next_e2e_3239_80767",
+      "databaseAbsent": true,
+      "ownedServicesWaited": true,
+      "productionServicesUsed": false
+    },
+    "test-results/next-e2e-3240-82025": {
+      "database": "consilium_audit_next_e2e_3240_82025",
+      "databaseAbsent": true,
+      "ownedServicesWaited": true,
+      "productionServicesUsed": false
+    },
+    "test-results/next-e2e-3238-79026": {
+      "database": "consilium_audit_next_e2e_3238_79026",
+      "databaseAbsent": true,
+      "ownedServicesWaited": true,
+      "productionServicesUsed": false
     }
   },
   "sourceTrees": {
-    "src": "bb8cb921fbd8020f3dfa2501e408d114d8db5533",
+    "src": "4d4494fbcd3468abc39d7679cf4cab977e78c801",
     "prisma": "5c578cbf9187afc32749283c421f4198775fb59c",
     "supabase": "741d77e6a842a0ee8d6b516eadb5142d433688d5",
     "scripts": "195645e4921b5960febd471796794b230cb02325",
@@ -118,25 +152,45 @@
     "package.json": "864dcac3cd0e68eef5abaf4a9aa5defaf818a8fb",
     "package-lock.json": "97fc2bcfe16019aed247b53128020e97fd5c9ac3",
     "playwright.config.ts": "215f6ccd402294bd6ae54feb161de00bba53d8b6",
-    "vitest.config.ts": "f1b2e641c74a9e7f403d5617b8de63237d55e0c9"
+    "vitest.config.ts": "f1b2e641c74a9e7f403d5617b8de63237d55e0c9",
+    "tests/unit": "ae4d976005fdef9cecd309aa59822d02824c0f09",
+    "tests/integration": "e0765e9335a450fd1054a5b7115a99da1bac51ed"
   },
   "lastApplicationRepair": {
-    "commit": "baff4cf7ac523d0bfae923f2223a3d092a1c4dfd",
+    "commit": "e7edcc44c3bb41bc7027c01d454675075a46c9c2",
     "changes": [
-      "src/app/api/editorial/growth/settings/route.ts"
+      "src/components/editorial/ArticlesList.tsx"
     ],
-    "behavior": "Use inherited testing outcome audit wrapper. Production testing-disabled branch delegates directly to unchanged handler. Successful and denied simulated outcomes preserve real/effective identities without recording bodies.",
-    "reproduction": "Before repair: two audit assertions failed and ordinary request case passed. After repair: all 13 targeted publication link/audit unit cases passed. Live persona regression passed."
+    "cause": "Older route snapshot replaced newer acknowledged pin row and its mutation guard.",
+    "behavior": "Merge snapshots by per-row updatedAt, retaining newer acknowledged rows. Genuinely newer incoming rows and removal remain authoritative. Server guards and publication confirmation unchanged.",
+    "regression": "Deterministic component test failed before fix and passed after; retained pin, outgoing latest unpublish guard, newer server row and removal all checked. Browser asserts each visible saved feature/pin state before next action.",
+    "hostedEvidence": "hosted-stale-refresh-reproduction.json"
   },
   "freshAfterLastRepair": {
-    "commit": "baff4cf7ac523d0bfae923f2223a3d092a1c4dfd",
-    "vitest": "test-results/next-e2e-3237-76041/vitest.json",
-    "passed": 1484,
+    "aggregateCommit": "06862a2e8d4415d83eecad3f981148b5c63151d3",
+    "finalBrowserCommit": "e7edcc44c3bb41bc7027c01d454675075a46c9c2",
+    "vitest": "test-results/next-e2e-3239-80767/vitest.json",
+    "passed": 1485,
+    "focusedBrowserPassed": 66,
     "upgradeBrowserPassed": 36,
     "revisionCasesIncluded": 25,
     "typecheck": "passed",
     "lint": "passed",
     "productionBuild": "passed",
-    "unauthenticatedSmokePassed": 8
+    "unauthenticatedSmokePassed": 8,
+    "sourceBoundary": "Final head differs from aggregate certification only by one positive visible saved-state assertion in upgrade-revisions.spec.ts. Application, unit/integration tests, schema, dependencies, services, workflows and config are identical. Final upgrade project rerun on final code head."
+  },
+  "equivalentAggregateTrees": {
+    "src": "4d4494fbcd3468abc39d7679cf4cab977e78c801",
+    "prisma": "5c578cbf9187afc32749283c421f4198775fb59c",
+    "supabase": "741d77e6a842a0ee8d6b516eadb5142d433688d5",
+    "scripts": "195645e4921b5960febd471796794b230cb02325",
+    ".github": "3e29305aba254f0d2fde379df78616cae31bb04a",
+    "package.json": "864dcac3cd0e68eef5abaf4a9aa5defaf818a8fb",
+    "package-lock.json": "97fc2bcfe16019aed247b53128020e97fd5c9ac3",
+    "playwright.config.ts": "215f6ccd402294bd6ae54feb161de00bba53d8b6",
+    "vitest.config.ts": "f1b2e641c74a9e7f403d5617b8de63237d55e0c9",
+    "tests/unit": "ae4d976005fdef9cecd309aa59822d02824c0f09",
+    "tests/integration": "e0765e9335a450fd1054a5b7115a99da1bac51ed"
   }
 }
