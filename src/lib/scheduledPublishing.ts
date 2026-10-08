@@ -22,7 +22,6 @@ export interface ScheduledPublishResult {
   published: ScheduledPublishArticleResult[]
   skipped: ScheduledPublishArticleResult[]
   warnings: ScheduledPublishWarning[]
-  purged: number
 }
 
 export async function publishScheduledArticles(now = new Date()): Promise<ScheduledPublishResult> {
@@ -117,23 +116,10 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
     published.push(summary)
   }
 
-  // Permanently purge articles soft-deleted more than 30 days ago
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-  let purged = 0
-  try {
-    const result = await prisma.article.deleteMany({
-      where: { deletedAt: { not: null, lte: thirtyDaysAgo } },
-    })
-    purged = result.count
-    if (purged > 0) {
-      console.warn(`[scheduledPublishing] Purged ${purged} article(s) from trash (>30 days old)`)
-    }
-  } catch {
-    // Never let purge failure block publishing results
-  }
-
-  // Newly-published or purged articles change the public lists — refresh cache.
-  if (published.length > 0 || purged > 0) revalidateArticleLists()
+  // Publishing never deletes. Permanent trash removal is a separate, audited job
+  // (src/lib/trashPurge.ts, POST /api/cron/purge-trash): it used to run here, silently,
+  // and removed two articles on the first run after the scheduler was restored.
+  if (published.length > 0) revalidateArticleLists()
 
   return {
     ranAt: now.toISOString(),
@@ -141,6 +127,5 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
     published,
     skipped,
     warnings,
-    purged,
   }
 }
