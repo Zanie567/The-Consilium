@@ -1,0 +1,69 @@
+# purge-trash.yml
+#
+# Permanently deletes articles that have been in trash for more than 30 days
+# (POST /api/cron/purge-trash). This used to run silently inside the 5-minute
+# scheduled-publish job; it is now its own daily job so that publishing can never
+# delete anything, and so every deletion is reported and audited.
+#
+# Runs daily at 03:17 UTC. The response lists the exact article ids removed
+# (`purged.articleIds`) and each deletion has an audit_logs row. Any per-article failure
+# returns HTTP 500, which fails this run.
+#
+# Manual dispatch is a DRY RUN by default: it lists what would be purged and deletes
+# nothing. Untick "dry_run" to perform a real purge by hand.
+#
+# REQUIRED GitHub Actions secret (Settings > Secrets and variables > Actions):
+#   CRON_SECRET: long random string matching the Vercel CRON_SECRET env var
+#
+# REQUIRED Vercel environment variable:
+#   CRON_SECRET: exact same value as the GitHub Actions secret above
+
+name: Purge Expired Trash
+
+on:
+  # GitHub Actions cron runs in UTC.
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run: list what would be purged, delete nothing'
+        type: boolean
+        default: true
+
+jobs:
+  purge:
+    name: Purge expired trash
+    # Production-only, default branch only (see publish-scheduled.yml): skipped, not failed,
+    # on the Testing mirror and on feature branches.
+    if: github.repository == 'Zanie567/The-Consilium' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Call /api/cron/purge-trash
+        id: call
+        env:
+          # Scheduled runs have no inputs: they are always real runs. Manual runs default to dry.
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          URL="https://www.theconsilium.co.uk/api/cron/purge-trash"
+          if [ "$DRY_RUN" = "true" ]; then URL="$URL?dryRun=1"; fi
+          echo "Mode: $([ "$DRY_RUN" = "true" ] && echo DRY RUN || echo REAL PURGE)"
+
+          # Canonical host (www): the apex 307-redirects to www and curl does not follow it.
+          HTTP_STATUS=$(curl --silent --output /tmp/response_body.txt --write-out "%{http_code}" \
+            --max-time 60 \
+            --request POST \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            --header "Content-Type: application/json" \
+            "$URL")
+
+          echo "HTTP status: $HTTP_STATUS"
+          echo "Response body: $(cat /tmp/response_body.txt)"
+
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "ERROR: Endpoint returned HTTP $HTTP_STATUS"
+            exit 1
+          fi
