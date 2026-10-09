@@ -37,6 +37,16 @@ import { assertSafeTestDatabaseHost } from '../../scripts/lib/assertSafeTestData
 const TEST_DB = process.env.TEST_DATABASE_URL
 const DB_NAME = TEST_DB ? new URL(TEST_DB).pathname.replace(/^\//, '') : ''
 
+// assertSafeTestDatabaseHost checks the URL's hostname, but pg lets a `?host=` query parameter replace it
+// (e.g. postgresql://localhost/db?host=remote.example connects to remote.example, or to a unix socket).
+// Refuse any such override before either connection is made, so the checked host is the one used.
+if (TEST_DB) {
+  const overrides = ['host', 'hostaddr'].filter((key) => new URL(TEST_DB).searchParams.has(key))
+  if (overrides.length > 0) {
+    throw new Error(`Refusing to continue: TEST_DATABASE_URL must not set ${overrides.map((k) => `?${k}=`).join(' or ')}; it would bypass the host check.`)
+  }
+}
+
 async function ready(): Promise<boolean> {
   if (!TEST_DB || !DB_NAME.includes('publish_race')) return false
   assertSafeTestDatabaseHost(TEST_DB, 'TEST_DATABASE_URL')
