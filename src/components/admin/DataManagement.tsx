@@ -75,12 +75,12 @@ export function DataManagement() {
   }
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-navy" style={{ fontFamily: 'var(--font-serif)' }}>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
+      <div className="mb-8 pl-10 md:pl-0">
+        <h1 className="text-2xl font-bold text-[var(--fg)]" style={{ fontFamily: 'var(--font-serif)' }}>
           Data Management
         </h1>
-        <p className="text-navy/50 text-sm mt-1">
+        <p className="text-[var(--fg-muted)] text-sm mt-1">
           Search for a reader by email and permanently delete their account and all associated data
           (GDPR right to erasure).
         </p>
@@ -88,11 +88,11 @@ export function DataManagement() {
 
       <div className="max-w-xl">
         {stage === 'done' ? (
-          <div className="bg-green-50 border border-green-200 p-6 rounded-sm">
-            <p className="text-green-800 text-sm font-medium mb-4">{message}</p>
+          <div className="bg-emerald-500/10 border border-emerald-500/30 p-6 rounded-sm">
+            <p className="text-emerald-700 dark:text-emerald-400 text-sm font-medium mb-4">{message}</p>
             <button
               onClick={reset}
-              className="text-xs font-bold uppercase tracking-widest text-navy bg-white border border-navy/20 px-4 py-2 hover:bg-cream transition-colors"
+              className="text-xs font-bold uppercase tracking-widest text-[var(--fg)] bg-[var(--bg-elevated)] border border-[var(--border)] px-4 py-2 hover:bg-[var(--bg-subtle)] transition-colors"
             >
               Delete Another Account
             </button>
@@ -100,7 +100,7 @@ export function DataManagement() {
         ) : (
           <form onSubmit={handleDelete} className="space-y-4">
             <div>
-              <label className="block text-navy/60 text-xs font-bold uppercase tracking-widest mb-2">
+              <label className="block text-[var(--fg-muted)] text-xs font-bold uppercase tracking-widest mb-2">
                 Reader Email Address
               </label>
               <div className="flex gap-2">
@@ -111,7 +111,7 @@ export function DataManagement() {
                   placeholder="reader@example.com"
                   required
                   disabled={stage === 'deleting'}
-                  className="flex-1 bg-white border border-gold/20 px-4 py-2.5 text-navy text-sm placeholder:text-navy/30 focus:outline-none focus:border-gold transition-colors disabled:opacity-60"
+                  className="flex-1 bg-[var(--bg-elevated)] border border-[var(--border)] px-4 py-2.5 text-[var(--fg)] text-sm placeholder:text-[var(--fg-faint)] focus:outline-none focus:border-gold transition-colors disabled:opacity-60"
                 />
                 {stage === 'idle' || stage === 'error' ? (
                   <button
@@ -126,7 +126,7 @@ export function DataManagement() {
             </div>
 
             {stage === 'error' && (
-              <div className="bg-red-50 border border-red-200 px-4 py-3 text-red-700 text-sm">
+              <div className="bg-red-50 border border-red-200 px-4 py-3 text-red-500 text-sm">
                 {message}
               </div>
             )}
@@ -152,7 +152,7 @@ export function DataManagement() {
             {stage === 'confirming' && (
               <div className="bg-red-50 border border-red-300 p-4 rounded-sm">
                 <p className="text-red-800 text-sm font-bold mb-1">Are you absolutely sure?</p>
-                <p className="text-red-700 text-xs mb-3">
+                <p className="text-red-500 text-xs mb-3">
                   All personal data and authored articles for <strong>{email}</strong> will be permanently and
                   irreversibly deleted. A confirmation email will be sent to them.
                 </p>
@@ -167,7 +167,7 @@ export function DataManagement() {
                   <button
                     type="button"
                     onClick={reset}
-                    className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-navy/60 border border-navy/20 hover:border-navy/40 transition-colors"
+                    className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-[var(--fg-muted)] border border-[var(--border)] hover:border-[var(--border-strong)] transition-colors"
                   >
                     Cancel
                   </button>
@@ -176,16 +176,16 @@ export function DataManagement() {
             )}
 
             {stage === 'deleting' || stage === 'searching' ? (
-              <p className="text-navy/50 text-sm">
+              <p className="text-[var(--fg-muted)] text-sm">
                 {stage === 'searching' ? 'Searching...' : 'Deleting account and all data...'}
               </p>
             ) : null}
           </form>
         )}
 
-        <div className="mt-8 p-4 bg-cream/50 border border-gold/10 rounded-sm">
-          <p className="text-navy/60 text-xs leading-relaxed">
-            <strong className="text-navy/80">GDPR right to erasure:</strong> Under UK GDPR, readers
+        <div className="mt-8 p-4 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-sm">
+          <p className="text-[var(--fg-muted)] text-xs leading-relaxed">
+            <strong className="text-[var(--fg)]">GDPR right to erasure:</strong> Under UK GDPR, readers
             have the right to request deletion of all personal data held about them. Use this tool
             to fulfil such requests. A confirmation email is automatically sent to the deleted
             address.

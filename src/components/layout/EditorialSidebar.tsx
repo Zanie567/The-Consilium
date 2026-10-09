@@ -4,13 +4,7 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
-import {
-  CALENDAR_ACCESS_ROLES,
-  GLOSSARY_MANAGE_ROLES,
-  PREDICTIONS_MANAGE_ROLES,
-  isAllowedRole,
-} from '@/lib/rbac'
-import { TEAM_PROFILE_ROLES } from '@/lib/teamProfiles'
+import { buildNav, type NavIcon } from '@/lib/adminNav'
 import {
   CalendarDays,
   LayoutDashboard,
@@ -35,27 +29,45 @@ import {
   BookOpenCheck,
   UserRound,
   UserPlus,
+  Mail,
+  Shield,
+  Database,
+  FlaskConical,
 } from 'lucide-react'
+
+const ICONS: Record<NavIcon, React.ElementType> = {
+  dashboard: LayoutDashboard,
+  profile: UserRound,
+  file: FileText,
+  pencil: Pencil,
+  plus: PlusCircle,
+  series: BookOpen,
+  clock: Clock,
+  calendar: CalendarDays,
+  trash: Trash2,
+  debates: MessagesSquare,
+  review: ClipboardList,
+  comments: MessageCircle,
+  members: UserPlus,
+  users: Users,
+  mail: Mail,
+  analytics: BarChart2,
+  readers: BookOpenCheck,
+  target: Target,
+  glossary: BookMarked,
+  trophy: Trophy,
+  engagement: Zap,
+  subscribers: UserCheck,
+  shield: Shield,
+  database: Database,
+  flask: FlaskConical,
+}
 
 interface User {
   name?: string | null
   email?: string | null
   image?: string | null
   role: string
-}
-
-interface NavItem {
-  href: string
-  icon: React.ElementType
-  label: string
-  exact?: boolean
-  show: boolean
-  badge?: number
-}
-
-interface NavGroup {
-  label?: string
-  items: NavItem[]
 }
 
 export function EditorialSidebar({
@@ -69,10 +81,6 @@ export function EditorialSidebar({
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-
-  const isEditor = user.role === 'ADMIN' || user.role === 'EDITOR'
-  const isAdmin = user.role === 'ADMIN'
-  const isGrowth = user.role === 'GROWTH'
 
   const isActive = (href: string, exact?: boolean) => {
     const [hrefPath, hrefQuery] = href.split('?')
@@ -95,66 +103,7 @@ export function EditorialSidebar({
     return pathname.startsWith(hrefPath) && hrefPath !== '/editorial'
   }
 
-  const groups: NavGroup[] = isGrowth
-    ? [
-        {
-          label: 'GROWTH',
-          items: [
-            { href: '/editorial', icon: LayoutDashboard, label: 'Dashboard', exact: true, show: true },
-            { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: true },
-            { href: '/editorial/growth/subscribers', icon: UserCheck, label: 'Subscribers', exact: true, show: true },
-            { href: '/editorial/growth/engagement', icon: Zap, label: 'Engagement', exact: true, show: true },
-            { href: '/editorial/team-profile', icon: UserRound, label: 'Team Profile', exact: true, show: true },
-          ],
-        },
-      ]
-    : [
-        {
-          items: [
-            { href: '/editorial', icon: LayoutDashboard, label: 'Dashboard', exact: true, show: true },
-            { href: '/editorial/team-profile', icon: UserRound, label: 'Team Profile', exact: true, show: isAllowedRole(user.role, TEAM_PROFILE_ROLES) },
-          ],
-        },
-        {
-          label: 'CONTENT',
-          items: [
-            { href: '/editorial/recovery', icon: FileText, label: 'Local draft recovery', show: true },
-            { href: '/editorial/articles', icon: FileText, label: user.role === 'WRITER' ? 'My Articles' : 'All Articles', show: true },
-            { href: '/editorial/articles?mine=true&status=DRAFT', icon: Pencil, label: 'My Drafts', exact: true, show: true },
-            { href: '/editorial/articles/new', icon: PlusCircle, label: 'New Article', exact: true, show: true },
-            { href: '/editorial/series', icon: BookOpen, label: 'Article Series', show: isEditor },
-            { href: '/editorial/scheduled', icon: Clock, label: 'Scheduled', show: isEditor },
-            { href: '/editorial/calendar', icon: CalendarDays, label: 'Calendar', show: isAllowedRole(user.role, CALENDAR_ACCESS_ROLES) },
-            { href: '/editorial/trash', icon: Trash2, label: 'Trash', exact: true, show: isEditor, badge: trashCount > 0 ? trashCount : undefined },
-          ],
-        },
-        {
-          label: 'REVIEW',
-          items: [
-            { href: '/editorial/review', icon: ClipboardList, label: 'Review Queue', show: isEditor },
-            { href: '/editorial/debates', icon: MessagesSquare, label: 'Debates', show: isEditor },
-            { href: '/editorial/comments', icon: MessageCircle, label: 'Comments', show: isEditor },
-          ],
-        },
-        {
-          label: 'MANAGE',
-          items: [
-            { href: '/admin/testing', icon: Users, label: 'Testing', show: isAdmin },
-            { href: '/editorial/users', icon: Users, label: 'Users', show: isAdmin },
-            { href: '/editorial/members', icon: UserPlus, label: 'Members', show: isAdmin },
-            { href: '/editorial/analytics', icon: BarChart2, label: 'Analytics', show: isAdmin },
-            { href: '/editorial/predictions', icon: Target, label: 'Predictions', show: isAllowedRole(user.role, PREDICTIONS_MANAGE_ROLES) },
-            { href: '/editorial/glossary', icon: BookMarked, label: 'Glossary', show: isAllowedRole(user.role, GLOSSARY_MANAGE_ROLES) },
-          ],
-        },
-        {
-          label: 'STANDINGS',
-          items: [
-            { href: '/editorial/readers', icon: BookOpenCheck, label: 'Your Readers', show: true },
-            { href: '/editorial/leaderboard', icon: Trophy, label: 'Leaderboard', exact: true, show: user.role === 'WRITER' },
-          ],
-        },
-      ]
+  const groups = buildNav({ role: user.role, trashCount })
 
   return (
     <aside
@@ -198,10 +147,14 @@ export function EditorialSidebar({
       {/* Nav groups */}
       <nav className="flex-1 py-3 overflow-y-auto" aria-label="Editorial navigation">
         {groups.map((group, gi) => {
-          const visibleItems = group.items.filter((i) => i.show)
+          const visibleItems = group.items
           if (visibleItems.length === 0) return null
           return (
-            <div key={gi} className={gi > 0 ? 'mt-4' : ''}>
+            <div
+              key={group.id}
+              data-nav-group={group.id}
+              className={gi > 0 ? (group.id === 'testing' ? 'mt-5 border-t border-white/10 pt-3' : 'mt-4') : ''}
+            >
               {group.label && (
                 <p
                   className={[
@@ -217,6 +170,7 @@ export function EditorialSidebar({
               )}
               {visibleItems.map((item) => {
                 const active = isActive(item.href, item.exact)
+                const Icon = ICONS[item.icon]
                 return (
                   <Link
                     key={item.href}
@@ -233,7 +187,7 @@ export function EditorialSidebar({
                         : 'border-transparent text-cream/45 hover:text-cream/80',
                     ].join(' ')}
                   >
-                    <item.icon size={15} className="shrink-0" />
+                    <Icon size={15} className="shrink-0" />
                     <span
                       className={[
                         'tracking-wide truncate transition-[opacity,max-width] duration-200 ease-in-out overflow-hidden',

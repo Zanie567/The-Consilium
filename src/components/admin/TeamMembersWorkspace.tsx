@@ -538,7 +538,7 @@ function DisplayOrder({ dir, run, busy }: { dir: TeamDirectory; run: RunFn; busy
     <section aria-labelledby="order-heading" className="border border-[var(--border)] bg-[var(--bg-elevated)] p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 id="order-heading" className="text-sm font-bold uppercase tracking-widest text-[var(--fg)]">Display order</h2>
+          <h2 id="order-heading" className="text-sm font-bold uppercase tracking-widest text-[var(--fg)]">Profile order</h2>
           <p className="mt-1 max-w-2xl text-sm text-[var(--fg-muted)]">The order cards appear within their section of the Our Team page. Section and row still come from each public placement.</p>
         </div>
         <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className={`${buttonClass} border border-[var(--border-strong)] text-[var(--fg)]`}>{open ? 'Hide' : 'Reorder profiles'}</button>

@@ -6,12 +6,17 @@ it('fails visibly for a missing ownership/placement schema, uniqueness, RLS and 
   expect(result.healthy).toBe(false)
   expect(result.gaps).toContain('Missing schema: team_members.userId')
   expect(result.gaps).toContain('Missing schema: team_members.publicTier')
+  // The admin overhaul's additive migrations are reported by name, not as a runtime crash.
+  for (const gap of ['team_members.updatedAt', 'debates.unpublishedAt', 'debates.deletedAt', 'debates.deletedById']) {
+    expect(result.gaps).toContain(`Missing schema: ${gap}`)
+  }
   expect(result.gaps).toContain('Missing one-card-per-account unique index')
   expect(result.gaps).toContain('Testing session row-level security is missing')
   expect(result.gaps).toContain('Storage bucket configuration cannot be read')
 })
 it('fails for missing avatar bucket even when schema checks succeed', async () => {
-  const fields = ['userId','publicTier'].map(column_name => ({ table_name: 'team_members', column_name }))
+  const fields = ['userId','publicTier','updatedAt'].map(column_name => ({ table_name: 'team_members', column_name }))
+  fields.push(...['unpublishedAt','deletedAt','deletedById'].map(column_name => ({ table_name: 'debates', column_name })))
   fields.push(...['testPersonaKey','testingRevision'].map(column_name => ({ table_name: 'users', column_name })))
   fields.push(...['id','tokenHash','administratorId','personaId','revision','createdAt','expiresAt','stoppedAt','stopReason'].map(column_name => ({ table_name: 'testing_sessions', column_name })))
   const query = vi.fn().mockResolvedValueOnce(fields).mockResolvedValueOnce([{ indexdef: 'CREATE UNIQUE INDEX ON public.team_members USING btree ("userId")' }]).mockResolvedValueOnce([{ relrowsecurity: true }]).mockResolvedValueOnce([{ id: 'article-images', public: true }])

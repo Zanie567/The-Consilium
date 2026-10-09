@@ -377,25 +377,23 @@ test.describe('admin: Linked account control', () => {
   test('offers eligible staff including Admin accounts, and linking makes the member edit their card', async ({ browser }) => {
     const card = await db().teamMember.findFirstOrThrow({ where: { name: 'Lena Legacy', userId: null } })
     const { context, page } = await loginAs(browser, 'admin')
-    await page.goto('/admin/team')
-    await page.getByRole('button', { name: 'Edit Lena Legacy' }).click()
+    await page.goto('/editorial/members')
+    const unowned = page.getByTestId(`card-${card.id}`)
+    const select = unowned.getByLabel('Assign Lena Legacy to an account')
 
-    const select = page.getByLabel('Linked account')
     const options = await select.locator('option').allTextContents()
     const joined = options.join('\n')
     expect(joined).toContain(email('legacy'))
     expect(joined).toContain(email('noname')) // a Writer with no card yet
-    // Not offered: admin and reader accounts, and accounts that already own a card.
+    // Not offered: reader accounts, and accounts that already own a card.
     expect(joined).not.toContain(email('writer'))
     expect(joined).toContain(email('admin'))
     expect(joined).not.toContain(email('reader'))
     expect(joined).not.toContain(email('linked'))
-    // Only the admin form offers public placement.
-    await expect(page.getByLabel(/^team$/i)).toHaveCount(0)
 
     await select.selectOption(ids.legacy)
-    await page.getByRole('button', { name: 'Save Member' }).click()
-    await expect(page.getByText('Edit Member', { exact: true })).toHaveCount(0) // the form closes only after a successful save
+    await unowned.getByRole('button', { name: 'Assign', exact: true }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'Linked "Lena Legacy"' })).toBeVisible()
     expect((await db().teamMember.findUniqueOrThrow({ where: { id: card.id } })).userId).toBe(ids.legacy)
     await context.close()
 

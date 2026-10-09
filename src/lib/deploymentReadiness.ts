@@ -1,8 +1,8 @@
 import type { PrismaClient } from '@prisma/client'
 export async function deploymentReadiness(db: Pick<PrismaClient, '$queryRaw'>, env: Record<string, string | undefined> = process.env) {
-  const columns = await db.$queryRaw<{ table_name: string; column_name: string }[]>`SELECT table_name, column_name FROM information_schema.columns WHERE table_schema='public' AND table_name IN ('users','team_members','testing_sessions')`
+  const columns = await db.$queryRaw<{ table_name: string; column_name: string }[]>`SELECT table_name, column_name FROM information_schema.columns WHERE table_schema='public' AND table_name IN ('users','team_members','testing_sessions','debates')`
   const present = new Set(columns.map(c => `${c.table_name}.${c.column_name}`))
-  const required = ['team_members.userId', 'team_members.publicTier', 'users.testPersonaKey', 'users.testingRevision', 'testing_sessions.id', 'testing_sessions.tokenHash', 'testing_sessions.administratorId', 'testing_sessions.personaId', 'testing_sessions.revision', 'testing_sessions.createdAt', 'testing_sessions.expiresAt', 'testing_sessions.stoppedAt', 'testing_sessions.stopReason']
+  const required = ['team_members.userId', 'team_members.publicTier', 'team_members.updatedAt', 'debates.unpublishedAt', 'debates.deletedAt', 'debates.deletedById', 'users.testPersonaKey', 'users.testingRevision', 'testing_sessions.id', 'testing_sessions.tokenHash', 'testing_sessions.administratorId', 'testing_sessions.personaId', 'testing_sessions.revision', 'testing_sessions.createdAt', 'testing_sessions.expiresAt', 'testing_sessions.stoppedAt', 'testing_sessions.stopReason']
   const gaps = required.filter(c => !present.has(c)).map(c => `Missing schema: ${c}`)
   try {
     const storage = new URL(env.NEXT_PUBLIC_SUPABASE_URL ?? '')

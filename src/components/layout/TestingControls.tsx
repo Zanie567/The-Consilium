@@ -3,11 +3,17 @@ import { useState, useEffect, useRef } from 'react'
 import type { Session } from 'next-auth'
 import { getTestingTabId, isTestingTransition, setTestingTransition } from '@/lib/testingClient'
 import { TEST_PERSONA_LABELS } from '@/lib/testingLabels'
+import { buildNav } from '@/lib/adminNav'
 
 export function TestingControls({ banner = false, testing, ordinaryRole }: { banner?: boolean; testing?: Session['testing']; ordinaryRole?: string }) {
   const [error, setError] = useState('')
   const [ready, setReady] = useState(false)
   const [busy, setBusy] = useState(false)
+  // Formatted in the browser only: the server's time zone and locale differ, which would be a hydration mismatch.
+  const [endsAt, setEndsAt] = useState('')
+  useEffect(() => {
+    if (testing) setEndsAt(new Date(testing.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+  }, [testing])
   useEffect(() => {
     setReady(true)
     // A history-restored document can retain the state from the successful POST
@@ -57,7 +63,40 @@ export function TestingControls({ banner = false, testing, ordinaryRole }: { ban
       setBusy(false)
     }
   }
-  return <div ref={bannerRef} className={banner ? 'fixed top-0 inset-x-0 z-[300] border-b border-gold bg-navy text-cream px-4 py-2 text-sm' : 'space-y-3'} role={banner ? 'region' : undefined} aria-label={banner ? 'Testing environment' : undefined}>
+  if (!banner) {
+    const PERSONA_CARDS = [
+      { persona: 'writer', role: 'WRITER', blurb: 'Writes and submits articles, and edits their own team profile.' },
+      { persona: 'editor', role: 'EDITOR', blurb: 'Reviews submissions in an assigned category (Opinion) and manages debates.' },
+      { persona: 'growth', role: 'GROWTH', blurb: 'Follows audience, subscribers and engagement.' },
+    ] as const
+    const OTHERS = ['writer-other', 'editor-global'] as const
+    return <div ref={bannerRef} className="space-y-4">
+      {testing && <p role="status" className="border-l-2 border-gold pl-3 text-sm">
+        Testing as <strong>{TEST_PERSONA_LABELS[testing.persona]}</strong>. This session ends{' '}
+        {endsAt ? <>at <time dateTime={testing.expiresAt}>{endsAt}</time></> : 'within 15 minutes'}{' '}
+        and then returns you to the administrator view.
+      </p>}
+      <div className="grid gap-3 sm:grid-cols-3">
+        {PERSONA_CARDS.map(({ persona, role, blurb }) => {
+          const menu = buildNav({ role }).flatMap((g) => g.items).map((i) => i.label)
+          const active = testing?.persona === persona
+          return <div key={persona} className={`border p-4 ${active ? 'border-gold' : 'border-[var(--border)]'}`} aria-current={active ? 'true' : undefined}>
+            <h3 className="text-sm font-bold uppercase tracking-widest">{TEST_PERSONA_LABELS[persona]}{active && <span className="ml-2 text-gold">· active</span>}</h3>
+            <p className="mt-1 text-sm opacity-80">{blurb}</p>
+            <p className="mt-2 text-xs opacity-70">Should see in the menu: {menu.join(', ')}</p>
+            <button disabled={!ready || busy} className="mt-3 underline p-1 disabled:opacity-50" onClick={() => change(persona)}>Test as {TEST_PERSONA_LABELS[persona]}</button>
+          </div>
+        })}
+      </div>
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <span className="opacity-70">Boundary checks:</span>
+        {OTHERS.map((persona) => <button key={persona} disabled={!ready || busy} className="underline p-1 disabled:opacity-50" onClick={() => change(persona)}>Test as {TEST_PERSONA_LABELS[persona]}</button>)}
+        {testing && <button disabled={!ready || busy} className="underline p-1 disabled:opacity-50" onClick={() => change()}>Exit testing mode</button>}
+      </div>
+      {error && <p role="alert">{error}</p>}
+    </div>
+  }
+    return <div ref={bannerRef} className={banner ? 'fixed top-0 inset-x-0 z-[300] border-b border-gold bg-navy text-cream px-4 py-2 text-sm' : 'space-y-3'} role={banner ? 'region' : undefined} aria-label={banner ? 'Testing environment' : undefined}>
     {banner && <strong>TEST ENVIRONMENT · {testing ? TEST_PERSONA_LABELS[testing.persona] : ordinaryRole === 'ADMIN' ? 'Administrator' : ordinaryRole ? `${ordinaryRole.charAt(0)}${ordinaryRole.slice(1).toLowerCase()} (ordinary login)` : 'Signed out'} </strong>}
     {(!banner || testing || ordinaryRole === 'ADMIN') && <div className="inline-flex flex-wrap gap-3">
       {(['writer', 'editor', 'growth', 'writer-other', 'editor-global'] as const).map((persona) => <button key={persona} disabled={!ready || busy} className="underline p-1 disabled:opacity-50" onClick={() => change(persona)}>Test as {TEST_PERSONA_LABELS[persona]}</button>)}
