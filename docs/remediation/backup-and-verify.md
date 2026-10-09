@@ -6,7 +6,19 @@ Nothing here changes production: it only reads. It costs nothing (every tool is 
 > **The backup is full of personal data** (subscriber and user emails, password hashes, admin notes, contact messages, login IP addresses). It must be encrypted at rest, never uploaded anywhere unencrypted, never committed, and deleted when it is no longer needed (step 11).
 > **The connection string is the keys to the database.** Treat it like the password it contains. Never paste it into chat, a ticket, a document or a screenshot, and never type it on a command line.
 
-What was and was not tested while preparing this: the scripts were tested on this Mac's Bash 3.2 with stand-in `supabase`/`docker` programs (29 tests), against real `pg_dump` output, and the row-count SQL against a real Postgres. The encrypted-volume and masked-inspection commands were run for real on macOS 27. **The real Supabase CLI, Docker/Colima, and a real production dump could not be run where this was prepared** (no Docker, no credentials); the first time through is therefore also the first real test of those steps. Every failure message tells you what to do, and the verifier refuses to call a doubtful backup good.
+## Status
+
+* **A production backup was successfully created on 9 October 2026.** This guide does not record where it is, how it was made, or whether it has been through the step 7 verifier and the step 8 restore test; those are for the operator to confirm and keep with the backup (step 10). Do not overwrite it: every run of `take-supabase-backup.sh` writes a new timestamped folder and never touches an existing one.
+* **The first version of the scripts could not have produced a complete backup with the Supabase CLI now installed (2.120.0).** It passed `--keep-comments` to the data dump, and the CLI refuses that flag together with `--data-only`; the CLI reports the refusal on standard output, which the script threw away, so the failure showed no reason. Both are fixed (see "How the scripts were tested"). Use this version of the scripts for any further backup.
+* **Not yet done:** the repaired scripts have not been run against production, and the restore (step 8) has only been rehearsed on a local throwaway database, never on a real Supabase project. Either needs the operator's separate approval.
+
+## How the scripts were tested
+
+* **Unit tests** (`tests/unit/backup-scripts.test.ts`, Bash 3.2 as shipped with macOS): credential handling, refusals, and every way the verifier must fail. A stand-in `supabase` program now enforces the real CLI's flag rules, including that errors arrive on standard output.
+* **Contract test against the installed CLI**: the same file replays the exact flags the script uses through the real `supabase db dump --dry-run` (no connection, no Docker). It fails if a CLI upgrade rejects those flags, and it is skipped if the CLI is not installed.
+* **Local end-to-end test** (`scripts/backup/local-integration-test.sh`, needs Colima or Docker Desktop): starts a disposable Supabase Postgres container with TLS and a pooler-style login, runs the real CLI through `take-supabase-backup.sh`, runs the verifier, restores into a second disposable container exactly as step 8 does, verifies against the restored counts, and confirms the verifier rejects a mismatch. Last run: Supabase CLI 2.120.0, image `supabase/postgres:17.11.0.004`, all checks passed. It never contacts production and removes only the containers it created. **Run it again after upgrading the Supabase CLI.**
+
+Every failure message tells you what to do, and the verifier refuses to call a doubtful backup good.
 
 ---
 
@@ -110,7 +122,7 @@ Any `FAIL` ends with `NOT VERIFIED`, exit status 1: **do not continue.** A `MISM
 
 ## 8. Strongest check: restore it into a throwaway database (recommended)
 
-This proves the backup can actually be loaded. It uses a disposable container on your Mac that never touches production. (This step could not be run where the guide was prepared: if it fails for an environment reason such as a missing role or extension, that is **not** proof the backup is bad; the checks in step 7 still stand. Send me the first error line.)
+This proves the backup can actually be loaded. It uses a disposable container on your Mac that never touches production. These exact commands were rehearsed against a real backup of a local throwaway database with Supabase CLI 2.120.0 and `supabase/postgres:17.11.0.004` (see "How the scripts were tested"). If it fails on your Mac for an environment reason such as a missing role or extension, that is **not** by itself proof the backup is bad; the checks in step 7 still stand. Send me the first error line.
 
 ```bash
 B=/Volumes/ConsiliumBackup/consilium-prod-<timestamp>
@@ -127,6 +139,18 @@ docker rm -f consilium-restore-check
 ```
 
 The last verifier run compares the backup's rows with the **restored** copy's counts, which must match exactly; `RESULT: VERIFIED` there means every row loaded.
+
+How it works, so a failure is easy to read: `schema.sql` creates the tables, `SET session_replication_role = replica` stops triggers and foreign-key checks firing while rows load, `data.sql` loads every row with `COPY`, and `ON_ERROR_STOP` plus `--single-transaction` mean any error rolls everything back instead of leaving a half-restored database. The container is a Supabase Postgres image, which already has the roles (`anon`, `authenticated`, `service_role`, ...) and the `auth` and `storage` schemas that the dump refers to; a plain Postgres image would fail on those. `roles.sql` is not loaded here: it is kept as a record of the cluster roles.
+
+### Restoring for real (disaster recovery)
+
+**Never run a restore against production without separate, explicit approval**, and never into a database that already has these tables: `schema.sql` is written with `IF NOT EXISTS`, so it would skip the existing tables and `data.sql` would then collide with their rows (the single transaction rolls that back, but nothing is restored).
+The safe shape, which has **not** been rehearsed against a real Supabase project (only the local container above):
+
+1. Create a **new, empty** Supabase project (or a branch). Do not restore over the damaged one.
+2. Run the step 8 command with `psql` pointed at the new project's Session pooler string instead of `docker exec`, typing the connection string at a hidden prompt as in step 4, never on the command line or in shell history.
+3. Run `scripts/backup/table-row-counts.sql` in the new project's SQL editor and verify the backup against that export (the last command of step 8).
+4. Only then point Vercel's database variables at the new project and redeploy. Storage files (images) must be restored separately: they are not in this backup.
 
 ## 9. Keep a second, verified copy
 
@@ -157,7 +181,8 @@ Keep the backup until the migrations are applied, verified, and have run cleanly
 ## What this backup does and does not cover
 
 Covered: every table and row in the database's `public` schema (the whole application: users, articles, subscribers, comments, audit log, and so on), its structure, policies and functions, and the cluster roles (no passwords).
-Not covered: **Storage files** (article images and avatars live in Supabase Storage, which a database dump does not include), Vault secrets, Vercel and GitHub secrets, and Supabase Auth data (the site uses its own `users` table, not Supabase Auth). None of those is touched by the migrations.
+Partly covered: `data.sql` also carries the rows of tables in Supabase's own `auth` schema (the CLI's data dump includes every schema except its internal exclusion list), but `schema.sql` defines none of those tables, and the verifier does not count them. They restore only into a Supabase Postgres that already has the schema, as in step 8. The site uses its own `users` table, not Supabase Auth, so nothing the application needs lives there.
+Not covered: **Storage files** (article images and avatars live in Supabase Storage, which a database dump does not include), Vault secrets, and Vercel and GitHub secrets. None of those is touched by the migrations.
 
 ## If something goes wrong
 
@@ -170,6 +195,7 @@ Not covered: **Storage files** (article images and avatars live in Supabase Stor
 | `this connection string is for project 'X', not 'scllbuwkcqtmfogsgalt'` | wrong project: stop and check which string you pasted |
 | `the output folder looks cloud-synced` / `inside a git repository` | use the encrypted volume as `--out` |
 | `invalid URI query parameter` | should not happen (the script strips them); if it does, send me the message |
+| a CLI message about flags, for example `mutually exclusive` or `unknown flag` | the installed Supabase CLI changed its `db dump` options. The script prints the CLI's own message (scrubbed of the password). Do not edit flags by hand: send me the message. After a fix, `scripts/backup/local-integration-test.sh` must pass before the scripts are used on production again |
 | the verifier prints `MISMATCH` for a busy table only | normal drift: re-take counts and backup in a quiet minute |
 | the verifier prints `MISMATCH` or `MISSING` for a stable table | **stop.** The backup is not good enough; send me the table |
 

@@ -198,13 +198,16 @@ scrub() {
 }
 
 run_dump() {
-  local name=$1; shift
-  local errfile="$DEST/.stderr.$$"
+  # run_dump "label" FILE [cli flags...]
+  local name=$1 file=$2; shift 2
+  local errfile="$DEST/.cli-output.$$"
   say "-> $name"
   local rc=0
   # Run from an empty scratch folder so the CLI cannot pick up a stale supabase/ config or link state from
   # wherever this was started (an old recorded Postgres version makes pg_dump refuse a newer server).
-  ( cd "$SCRATCH" && supabase db dump --db-url "$URL" --keep-comments "$@" ) 2>"$errfile" >/dev/null || rc=$?
+  # Keep BOTH streams: the CLI reports some errors (for example an invalid flag combination) on stdout, and
+  # discarding stdout once hid the real reason for a failure.
+  ( cd "$SCRATCH" && supabase db dump --db-url "$URL" -f "$file" "$@" ) >"$errfile" 2>&1 || rc=$?
   { echo "== $name (exit $rc)"; scrub < "$errfile"; } >> "$LOG"
   if [ "$rc" -ne 0 ]; then
     scrub < "$errfile" >&2
@@ -221,9 +224,15 @@ run_dump() {
   rm -f "$errfile"
 }
 
-run_dump "schema (structure, policies, functions)" -f "$DEST/schema.sql"
-run_dump "data (every row)"                         -f "$DEST/data.sql" --use-copy --data-only
-run_dump "roles (cluster roles, no passwords)"      -f "$DEST/roles.sql" --role-only
+# Flags, checked against Supabase CLI 2.120.0 (`supabase db dump --help`, and `--dry-run` for the generated pg_dump):
+#   * --keep-comments is needed ONLY for the schema dump: without it the CLI deletes every "--" line with sed,
+#     including pg_dump's "PostgreSQL database dump complete" marker that the verifier uses to detect a cut-short file.
+#   * --keep-comments and --data-only are mutually exclusive in the CLI (it refuses the pair). The data dump keeps
+#     its comments anyway, so it does not need the flag.
+#   * the roles dump runs pg_dumpall --no-comments, so it has no marker and --keep-comments would change nothing.
+run_dump "schema (structure, policies, functions)" "$DEST/schema.sql" --keep-comments
+run_dump "data (every row)"                         "$DEST/data.sql"   --use-copy --data-only
+run_dump "roles (cluster roles, no passwords)"      "$DEST/roles.sql"  --role-only
 
 for f in schema.sql data.sql roles.sql; do
   [ -s "$DEST/$f" ] || die "$f is empty. The backup is NOT valid: $DEST"

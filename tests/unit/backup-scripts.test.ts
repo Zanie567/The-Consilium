@@ -4,8 +4,9 @@
  *
  * What is proven: the credential handling (nothing secret on screen, in a file or in the manifest), the refusals
  * (wrong project, wrong host, unsafe folder), and that the verifier fails on every kind of bad backup.
- * What is NOT proven: the real Supabase CLI, Docker, or the real production dump contents. Those are checked by the
- * operator, on their Mac, with the verifier.
+ * What these tests do not prove: Docker, a real database, or the real production dump contents. The flag contract with
+ * the installed Supabase CLI is checked below with `--dry-run`; the whole chain (real CLI, real dump, verifier,
+ * restore) is exercised by scripts/backup/local-integration-test.sh, and production by the operator with the verifier.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { spawnSync } from 'node:child_process'
@@ -43,8 +44,13 @@ function shims(options: { failDump?: boolean; echoUrlOnFailure?: boolean; emptyD
     `#!/bin/bash
 if [ "$1" = "--version" ]; then echo "2.99.0"; exit 0; fi
 echo "$*" >> "${log}"
-out=""; url=""; mode=schema
-while [ $# -gt 0 ]; do case "$1" in -f) out="$2"; shift 2;; --db-url) url="$2"; shift 2;; --data-only) mode=data; shift;; --role-only) mode=roles; shift;; *) shift;; esac; done
+out=""; url=""; mode=schema; keep=0
+while [ $# -gt 0 ]; do case "$1" in -f) out="$2"; shift 2;; --db-url) url="$2"; shift 2;; --data-only) mode=data; shift;; --role-only) mode=roles; shift;; --keep-comments) keep=1; shift;; *) shift;; esac; done
+# Rules of the real CLI (2.120.0), reproduced here because a stand-in that accepts everything hid a real failure:
+# --keep-comments cannot be combined with --data-only, and the CLI reports that error on STDOUT, not stderr.
+if [ "$keep" = 1 ] && [ "$mode" = data ]; then
+  echo '{"_tag":"Error","error":{"code":"DbDumpMutuallyExclusiveFlagsError","message":"if any flags in the group [keep-comments data-only] are set none of the others can be"}}'; exit 1
+fi
 ${options.failDump ? `echo "pg_dump: error: connection to server failed ${options.echoUrlOnFailure ? '$url' : ''}" >&2; exit 1` : ''}
 case "$mode" in
   schema) { ${TABLES.map((t) => `echo 'CREATE TABLE IF NOT EXISTS "public"."${t}" ('; echo ');'`).join('; ')}; echo "-- PostgreSQL database dump complete"; } > "$out" ;;
@@ -148,9 +154,32 @@ describe('take-supabase-backup.sh', () => {
     // what was actually asked of the CLI
     const calls = readFileSync(log, 'utf8').trim().split('\n')
     expect(calls).toHaveLength(3)
-    expect(calls.every((c) => c.includes('--db-url') && c.includes('--keep-comments') && c.includes('sslmode=require'))).toBe(true)
-    expect(calls.some((c) => c.includes('--use-copy') && c.includes('--data-only'))).toBe(true)
-    expect(calls.some((c) => c.includes('--role-only'))).toBe(true)
+    expect(calls.every((c) => c.includes('--db-url') && c.includes('sslmode=require'))).toBe(true)
+    const schemaCall = calls.find((c) => !c.includes('--data-only') && !c.includes('--role-only'))!
+    const dataCall = calls.find((c) => c.includes('--data-only'))!
+    const rolesCall = calls.find((c) => c.includes('--role-only'))!
+    expect(schemaCall).toContain('--keep-comments') // otherwise the CLI strips pg_dump's completion marker
+    expect(dataCall).toContain('--use-copy')
+    expect(dataCall).not.toContain('--keep-comments') // the real CLI rejects this pair
+    expect(rolesCall).not.toContain('--keep-comments')
+  })
+
+  it('shows the real reason when the CLI fails on STDOUT (not just stderr), with the password scrubbed', () => {
+    shims()
+    const supabase = join(work, 'bin', 'supabase')
+    // make the schema call fail the way the real CLI reports an invalid flag: JSON on stdout, nothing on stderr
+    writeFileSync(supabase, readFileSync(supabase, 'utf8').replace('case "$mode" in', `echo '{"_tag":"Error","error":{"message":"boom reason ${SECRET}"}}'; exit 1\ncase "$mode" in`))
+    const out = outFolder()
+    const r = runTake(['--out', out, ...PROJECT], GOOD_URL + '\n', ALLOW)
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain('boom reason')
+    expect(r.stderr).toContain('****')
+    for (const secret of [SECRET, SECRET_DECODED]) {
+      expect(r.stderr).not.toContain(secret)
+      for (const f of everyOutputFile(out)) expect(readFileSync(f, 'utf8'), f).not.toContain(secret)
+    }
+    const log = everyOutputFile(out).find((f) => f.endsWith('backup.log'))!
+    expect(readFileSync(log, 'utf8')).toContain('boom reason')
   })
 
   it('produces a backup that the verifier accepts (end to end)', () => {
@@ -361,6 +390,41 @@ describe('verify-supabase-backup.sh', () => {
   it('rejects bad usage with exit status 2', () => {
     expect(spawnSync('/bin/bash', [VERIFY], { encoding: 'utf8' }).status).toBe(2)
     expect(spawnSync('/bin/bash', [VERIFY, join(work, 'missing')], { encoding: 'utf8' }).status).toBe(2)
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════════
+// The stand-in `supabase` above only knows the rules it was told. This block asks the REAL, installed CLI.
+// `--dry-run` only prints the pg_dump script it would run: it opens no connection (the URL below is a dummy that
+// points nowhere) and needs no Docker, so it is safe anywhere. Skipped when the CLI is not installed.
+const realCli = spawnSync('supabase', ['--version'], { encoding: 'utf8' })
+const hasRealCli = realCli.status === 0
+describe.skipIf(!hasRealCli)(`the flags the script uses are accepted by the installed Supabase CLI (${hasRealCli ? realCli.stdout.trim() : 'not installed'})`, () => {
+  const dryRun = (flags: string[]) =>
+    spawnSync('supabase', ['db', 'dump', '--db-url', 'postgresql://postgres:dummy@127.0.0.1:1/postgres?sslmode=disable', '--dry-run', ...flags], { cwd: work, encoding: 'utf8', timeout: 60_000 })
+  // the exact flags of every run_dump call in the script, so this cannot drift from what the script really does
+  const calls = [...readFileSync(TAKE, 'utf8').matchAll(/^run_dump\s+"[^"]*"\s+"\$DEST\/(\w+)\.sql"\s+(.+)$/gm)].map((m) => ({ file: m[1], flags: m[2].trim().split(/\s+/) }))
+
+  it('finds the three dump calls in the script', () => {
+    expect(calls.map((c) => c.file)).toEqual(['schema', 'data', 'roles'])
+  })
+
+  it.each(['schema', 'data', 'roles'])('accepts the flags of the %s dump', (file) => {
+    const call = calls.find((c) => c.file === file)!
+    const r = dryRun(call.flags)
+    expect(r.status, `${r.stdout}${r.stderr}`).toBe(0)
+    expect(r.stdout + r.stderr).toContain('DRY RUN')
+  })
+
+  it('still rejects --keep-comments together with --data-only (why the data dump must not pass it)', () => {
+    const r = dryRun(['--keep-comments', '--data-only'])
+    expect(r.status).not.toBe(0)
+    expect(r.stdout + r.stderr).toMatch(/mutually|none of the others/i)
+  })
+
+  it('keeps the completion marker only when --keep-comments is given (why the schema dump needs it)', () => {
+    expect(dryRun([]).stdout).toContain('sed -E "/^--/d"')
+    expect(dryRun(['--keep-comments']).stdout).not.toContain('sed -E "/^--/d"')
   })
 })
 
