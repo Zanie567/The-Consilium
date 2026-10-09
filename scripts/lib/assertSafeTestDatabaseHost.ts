@@ -22,6 +22,15 @@
  *      environment and in .env.local.
  *   3. Default-deny: a host must be localhost/127.0.0.1/::1, or exactly match
  *      TEST_DB_ALLOW_HOST (an explicit CI opt-in for a non-local test database).
+ *   4. A TEST database URL may carry only a short allowlist of harmless query parameters (nothing
+ *      that changes the host, port, user or database a driver really uses: libpq honors `dbname=`
+ *      over the URL path, pg and libpq honor `user=` and `port=`), and libpq environment variables
+ *      that redirect a connection (PGHOSTADDR, PGSERVICE, PGSERVICEFILE) must be unset: psql applies
+ *      PGHOSTADDR even when the URL names localhost.
+ *
+ * The production project is recognised by its ref appearing ANYWHERE in the decoded connection string
+ * (host, username, database, query parameters such as user= or options=), not only in the two places
+ * a pooler normally puts it.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -52,7 +61,12 @@ function readEnvFile(file: string): Env {
  * Connection parameters that make a driver connect somewhere other than the URL's hostname. Matched
  * case-insensitively and wherever they appear in the query string.
  */
-const HOST_OVERRIDE_PARAMS = new Set(['host', 'hostaddr', 'service'])
+const HOST_OVERRIDE_PARAMS = new Set(['host', 'hostaddr', 'service', 'servicefile'])
+
+/** The only query parameters a TEST database URL may carry; none changes host, port, user or database. */
+const ALLOWED_QUERY_PARAMS = new Set(['schema', 'sslmode', 'pgbouncer', 'connection_limit', 'pool_timeout', 'connect_timeout', 'application_name'])
+/** libpq environment variables that redirect a connection even when the URL names a local host. */
+const REDIRECTING_ENV_VARS = ['PGHOSTADDR', 'PGSERVICE', 'PGSERVICEFILE']
 
 /** The hostname as drivers see it: percent-escapes decoded. Falls back to the raw text if malformed. */
 function decodedHostname(url: URL): string {
@@ -60,6 +74,15 @@ function decodedHostname(url: URL): string {
     return decodeURIComponent(url.hostname)
   } catch {
     return url.hostname
+  }
+}
+
+/** Percent-decodes text the way a driver would; returns it unchanged if it holds a stray `%`. */
+function safeDecode(text: string): string {
+  try {
+    return decodeURIComponent(text)
+  } catch {
+    return text
   }
 }
 
@@ -130,12 +153,35 @@ export function assertNotProductionDatabase(
 ): void {
   parse(connectionString, label)
   const prod = productionProjectRefs(context)
-  for (const ref of supabaseRefs(connectionString)) {
-    if (prod.has(ref)) {
+  const refuse = (ref: string) => {
+    throw new Error(
+      `Refusing to continue: ${label} points at "${ref}", this repository's production Supabase ` +
+        `project (hosted Supabase production database). It can never be a test or seed target, ` +
+        `and TEST_DB_ALLOW_HOST cannot permit it.`,
+    )
+  }
+  for (const ref of supabaseRefs(connectionString)) if (prod.has(ref)) refuse(ref)
+  // The ref can also ride in a query parameter (user=, options=) or the path; look for it anywhere.
+  const decoded = safeDecode(connectionString!).toLowerCase()
+  for (const ref of prod) if (decoded.includes(ref)) refuse(ref)
+}
+
+/** Refuses a TEST database URL whose query string, or the environment, could send the connection elsewhere. */
+function assertNoConnectionOverrides(url: URL, label: string, env: Env): void {
+  for (const key of url.searchParams.keys()) {
+    if (!ALLOWED_QUERY_PARAMS.has(key)) {
       throw new Error(
-        `Refusing to continue: ${label} points at "${ref}", this repository's production Supabase ` +
-          `project (hosted Supabase production database). It can never be a test or seed target, ` +
-          `and TEST_DB_ALLOW_HOST cannot permit it.`,
+        `Refusing to continue: ${label} carries the connection parameter "${key}", which can change the ` +
+          `host, port, user or database a driver really connects to while the URL still looks local. ` +
+          `Allowed parameters: ${[...ALLOWED_QUERY_PARAMS].join(', ')} (lower-case).`,
+      )
+    }
+  }
+  for (const name of REDIRECTING_ENV_VARS) {
+    if ((env[name] ?? '') !== '') {
+      throw new Error(
+        `Refusing to continue: the environment variable ${name} is set. libpq tools (psql, createdb) apply ` +
+          `it even when ${label} names localhost, so it could redirect the connection. Unset it.`,
       )
     }
   }
@@ -158,6 +204,7 @@ export function assertSafeTestDatabaseHost(
   }
 
   assertNotProductionDatabase(connectionString, label, context)
+  assertNoConnectionOverrides(url, label, env)
 
   const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]'
   const allowedCiHost = env.TEST_DB_ALLOW_HOST

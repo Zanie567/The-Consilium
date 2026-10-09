@@ -237,6 +237,108 @@ describe('other connection-string spellings of a remote or production host', () 
   })
 })
 
+// ── Connection parameters that make the driver connect somewhere the hostname does not say ────────
+//
+// Found by testing the drivers, not by reading the guard: `pg` and libpq both let the query string
+// override the URL's host, so "localhost" in the URL did not mean localhost on the wire.
+
+describe('connection-string overrides cannot bypass the guard', () => {
+  const LOCAL = 'postgresql://postgres@localhost:5433/consilium_sched_e2e'
+
+  it.each([
+    ['host', `${LOCAL}?host=db.example.org`],
+    ['host (unix socket path)', `${LOCAL}?host=%2Fvar%2Frun%2Fpostgresql`],
+    ['hostaddr', `${LOCAL}?hostaddr=203.0.113.9`],
+    ['dbname (defeats the database-name guards)', `${LOCAL}?dbname=production`],
+    ['user', `${LOCAL}?user=postgres.abcdefghijklmnopqrst`],
+    ['port', `${LOCAL}?port=6543`],
+    ['service', `${LOCAL}?service=prod`],
+    ['servicefile', `${LOCAL}?servicefile=/tmp/pg_service.conf`],
+    ['options', `${LOCAL}?options=-c%20search_path%3Dprivate`],
+    ['target_session_attrs', `${LOCAL}?target_session_attrs=read-write`],
+    ['an upper-case spelling', `${LOCAL}?HOST=db.example.org`],
+    ['a percent-encoded key', `${LOCAL}?%68ost=db.example.org`],
+    ['an override hidden after allowed parameters', `${LOCAL}?schema=public&sslmode=disable&hostaddr=203.0.113.9`],
+    ['a repeated key', `${LOCAL}?host=localhost&host=db.example.org`],
+    ['an unknown parameter', `${LOCAL}?anything=1`],
+  ])('refuses %s', (_name, url) => {
+    expect(() => assertSafeTestDatabaseHost(url, 'TEST_DATABASE_URL')).toThrow(/connection parameter/i)
+  })
+
+  it('refuses them even for a host the CI explicitly allow-listed', () => {
+    process.env.TEST_DB_ALLOW_HOST = 'ci-postgres.internal'
+    expect(() =>
+      assertSafeTestDatabaseHost('postgresql://postgres@ci-postgres.internal:5432/consilium?hostaddr=203.0.113.9', 'TEST_DATABASE_URL'),
+    ).toThrow(/connection parameter/i)
+  })
+
+  it('still accepts the parameters this repository really uses', () => {
+    for (const q of ['?schema=public', '?sslmode=disable', '?pgbouncer=true&connection_limit=1', '?schema=public&sslmode=disable']) {
+      expect(() => assertSafeTestDatabaseHost(`${LOCAL}${q}`, 'TEST_DATABASE_URL')).not.toThrow()
+    }
+  })
+
+  it('refuses other ways of naming more than one or a different host', () => {
+    for (const url of [
+      'postgresql://localhost,db.example.org/consilium_sched_e2e', // multi-host
+      'postgresql:///consilium_sched_e2e', // no host: the driver would fall back to PGHOST
+      'postgresql://postgres@localhost@db.example.org/consilium_sched_e2e', // userinfo trick
+    ]) {
+      expect(() => assertSafeTestDatabaseHost(url, 'TEST_DATABASE_URL'), url).toThrow()
+    }
+  })
+
+  it('judges the host drivers actually connect to: an encoded localhost IS localhost, an encoded remote host is not', () => {
+    // drivers decode %XX in the hostname (pg, libpq, Prisma), so the guard decodes it too
+    expect(() => assertSafeTestDatabaseHost('postgresql://postgres@%6Cocalhost/consilium_sched_e2e', 'TEST_DATABASE_URL')).not.toThrow()
+    expect(() => assertSafeTestDatabaseHost('postgresql://postgres@db%2Eexample%2Eorg/consilium_sched_e2e', 'TEST_DATABASE_URL')).toThrow()
+  })
+
+  it.each(['PGHOSTADDR', 'PGSERVICE', 'PGSERVICEFILE'])('refuses to run while %s is set (libpq applies it even to a localhost URL)', (name) => {
+    expect(() => assertSafeTestDatabaseHost(LOCAL, 'TEST_DATABASE_URL', { env: { [name]: 'x' } })).toThrow(new RegExp(name))
+    // an empty value is "not set"
+    expect(() => assertSafeTestDatabaseHost(LOCAL, 'TEST_DATABASE_URL', { env: { [name]: '' } })).not.toThrow()
+  })
+
+  it('does not name the offending value in the message (it may be a credential)', () => {
+    try {
+      assertSafeTestDatabaseHost(`${LOCAL}?hostaddr=203.0.113.9`, 'TEST_DATABASE_URL')
+      throw new Error('should have thrown')
+    } catch (error) {
+      expect((error as Error).message).not.toContain('203.0.113.9')
+    }
+  })
+})
+
+// ── Production-project identification must not depend on where the ref appears ──────────────
+// The ref can ride in the username (pooler tenant), the host, or a query parameter (user=,
+// options=), percent-encoded or not. Any appearance of the known production ref is a refusal.
+
+describe('production project is recognised wherever its ref appears in the URL', () => {
+  const prod = (url: string) => assertNotProductionDatabase(url, 'X', { env: PROD_ENV, root: NO_FILE })
+
+  it.each([
+    ['user= query parameter', `postgresql://nobody:pw@proxy.internal:5432/postgres?user=postgres.${PROD_REF}`],
+    ['percent-encoded user= value', `postgresql://nobody:pw@proxy.internal:5432/postgres?user=postgres%2E${PROD_REF}`],
+    ['options= tenant hint', `postgresql://postgres:pw@pooler.example.net:6543/postgres?options=project%3D${PROD_REF}`],
+    ['database path', `postgresql://postgres:pw@proxy.internal:5432/${PROD_REF}`],
+    ['percent-encoded username', `postgresql://postgres%2E${PROD_REF}:pw@proxy.internal:5432/postgres`],
+    ['upper-case ref', `postgresql://postgres.${PROD_REF.toUpperCase()}:pw@proxy.internal:5432/postgres`],
+    ['partly percent-encoded ref', `postgresql://postgres:pw@proxy.internal:5432/postgres?x=%61${PROD_REF.slice(1)}`],
+  ])('refuses it in the %s', (_name, url) => {
+    expect(() => prod(url)).toThrow(/production Supabase project/)
+  })
+
+  it('still lets an unrelated hosted environment through the hand-run seed check', () => {
+    expect(() => prod(`postgresql://postgres.${OTHER_REF}:pw@pooler.example.net:6543/postgres?pgbouncer=true&sslmode=require`)).not.toThrow()
+  })
+
+  it('does not choke on a raw % in a password (decoding must not make the check throw or skip)', () => {
+    expect(() => prod(`postgresql://postgres:50%off@proxy.internal:5432/postgres?user=postgres.${PROD_REF}`)).toThrow(/production Supabase project/)
+    expect(() => prod('postgresql://postgres:50%off@proxy.internal:5432/postgres')).not.toThrow()
+  })
+})
+
 describe('assertSeedTargetIsSafe', () => {
   const local = 'postgresql://postgres@localhost:5433/consilium'
   const remote = 'postgresql://postgres@staging.example.com:5432/consilium'
