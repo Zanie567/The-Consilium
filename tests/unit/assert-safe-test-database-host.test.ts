@@ -116,6 +116,127 @@ describe('production project hard-block', () => {
   })
 })
 
+// ── Connection-string parameters that change where the driver actually connects ─────────
+//
+// The checks above read URL.hostname, but pg, psql (libpq) and Prisma's schema engine all let a
+// `host` query parameter replace it (a hostname, or a unix-socket directory), and libpq also honors
+// `hostaddr` and `service`. `postgresql://localhost/db?host=db.<prod-ref>.supabase.co` therefore
+// passed every check and connected to the remote database. These pin that it can no longer.
+
+describe('host overrides in the connection string', () => {
+  const REMOTE = 'remote.example.com'
+  const withParam = (param: string, base = 'postgresql://postgres@localhost:5433/consilium') => `${base}?${param}`
+  const overrides: Array<[string, string]> = [
+    ['a remote hostname', `host=${REMOTE}`],
+    ['a unix-socket directory', 'host=/var/run/postgresql'],
+    ['an encoded unix-socket directory', 'host=%2Fvar%2Frun%2Fpostgresql'],
+    ['a numeric hostaddr', 'hostaddr=203.0.113.9'],
+    ['the production database host', `host=db.${PROD_REF}.supabase.co`],
+    ['a libpq service definition', 'service=prod'],
+    ['an upper-case key', `HOST=${REMOTE}`],
+    ['a mixed-case key', `HostAddr=203.0.113.9`],
+    ['an override after harmless parameters', `connect_timeout=5&sslmode=disable&host=${REMOTE}`],
+    ['a repeated key', `host=localhost&host=${REMOTE}`],
+    ['an empty value', 'host='],
+  ]
+
+  it.each(overrides)('assertSafeTestDatabaseHost refuses %s', (_label, param) => {
+    expect(() => assertSafeTestDatabaseHost(withParam(param), 'X', { env: {}, root: NO_FILE })).toThrow(/host|hostaddr|service/i)
+  })
+
+  it.each(overrides)('assertNotProductionDatabase refuses %s too (it guards hand-run seeds)', (_label, param) => {
+    expect(() => assertNotProductionDatabase(withParam(param), 'X', { env: PROD_ENV, root: NO_FILE })).toThrow(/host|hostaddr|service/i)
+  })
+
+  it('refuses an override that smuggles in the production project, however the guard is reached', () => {
+    const url = withParam(`host=db.${PROD_REF}.supabase.co`)
+    expect(() => assertSafeTestDatabaseHost(url, 'X', { env: PROD_ENV, root: NO_FILE })).toThrow()
+    expect(() => assertNotProductionDatabase(url, 'X', { env: PROD_ENV, root: NO_FILE })).toThrow()
+    expect(() => resolveTestDatabaseUrl({ ...PROD_ENV, TEST_DATABASE_URL: url }, NO_FILE)).toThrow()
+  })
+
+  it('names the offending parameter and says why', () => {
+    expect(() => assertSafeTestDatabaseHost(withParam(`host=${REMOTE}`), 'TEST_DATABASE_URL', { env: {}, root: NO_FILE })).toThrow(
+      /TEST_DATABASE_URL[\s\S]*"host"[\s\S]*(replace|override)/i,
+    )
+  })
+
+  it('is not undone by TEST_DB_ALLOW_HOST, even when it names the override target', () => {
+    const env = { TEST_DB_ALLOW_HOST: REMOTE }
+    expect(() => assertSafeTestDatabaseHost(withParam(`host=${REMOTE}`), 'X', { env, root: NO_FILE })).toThrow()
+    expect(() => assertSafeTestDatabaseHost(withParam('host=localhost'), 'X', { env, root: NO_FILE })).toThrow()
+  })
+
+  it('stops every seed entry point, for DATABASE_URL and for DIRECT_URL', () => {
+    const local = 'postgresql://postgres@localhost:5433/consilium'
+    const bad = withParam(`host=${REMOTE}`)
+    for (const fixtureOnly of [true, false]) {
+      for (const env of [
+        { DATABASE_URL: bad, DIRECT_URL: local },
+        { DATABASE_URL: local, DIRECT_URL: bad },
+        { DATABASE_URL: bad, DIRECT_URL: local, TEST_HARNESS: '1' },
+      ]) {
+        expect(() => assertSeedTargetIsSafe('s', { fixtureOnly }, { env, root: NO_FILE }), JSON.stringify([fixtureOnly, env])).toThrow(/Run it through/)
+      }
+    }
+  })
+
+  it('stops the test database resolution that vitest.config.ts and the Prisma config rely on', () => {
+    expect(() => resolveTestDatabaseUrl({ TEST_DATABASE_URL: withParam(`host=${REMOTE}`) }, NO_FILE)).toThrow()
+    expect(() => testDatabaseEnv({ TEST_DATABASE_URL: withParam('host=/tmp') }, NO_FILE)).toThrow()
+  })
+
+  it('still accepts ordinary local URLs and their harmless parameters', () => {
+    for (const url of [
+      'postgresql://postgres@localhost:5433/consilium',
+      'postgresql://postgres@127.0.0.1:5433/consilium',
+      'postgresql://postgres@[::1]:5433/consilium',
+      'postgresql://user:pass@localhost:5432/db?schema=public',
+      'postgresql://postgres@localhost:5433/consilium?connect_timeout=5&sslmode=disable&application_name=tests',
+    ]) {
+      expect(() => assertSafeTestDatabaseHost(url, 'X', { env: {}, root: NO_FILE }), url).not.toThrow()
+    }
+  })
+
+  it('still accepts the explicitly allow-listed CI host (no override in the URL)', () => {
+    const url = 'postgresql://postgres:postgres@ci-postgres.internal:5432/consilium?connect_timeout=5'
+    expect(() => assertSafeTestDatabaseHost(url, 'X', { env: { TEST_DB_ALLOW_HOST: 'ci-postgres.internal' }, root: NO_FILE })).not.toThrow()
+  })
+})
+
+describe('other connection-string spellings of a remote or production host', () => {
+  const check = (url: string, env: Record<string, string> = PROD_ENV) => assertSafeTestDatabaseHost(url, 'X', { env, root: NO_FILE })
+
+  // The URL parser leaves %XX in a non-special-scheme hostname, but every driver decodes it, so
+  // db.%61bc….supabase.co reaches the real project while evading a ref match on the raw string.
+  it('sees through a percent-encoded production host (the driver decodes it)', () => {
+    const encodedRef = `db.%61${PROD_REF.slice(1)}.supabase.co`
+    expect(() => assertNotProductionDatabase(`postgresql://postgres:pw@${encodedRef}:5432/postgres`, 'X', { env: PROD_ENV, root: NO_FILE })).toThrow(/production Supabase project/)
+    // assertSafeTestDatabaseHost refuses any decoded *.supabase.co host first (rule 1), then the project (rule 2).
+    expect(() => check(`postgresql://postgres:pw@${encodedRef}:5432/postgres`)).toThrow(/hosted.*Supabase/i)
+  })
+
+  it('sees through a percent-encoded hosted-Supabase top level domain', () => {
+    expect(() => check(`postgresql://postgres:pw@db.${OTHER_REF}.supabase.%63o:5432/postgres`)).toThrow(/hosted.*Supabase/i)
+  })
+
+  it('treats an unparseable percent-escape as unsafe rather than skipping the check', () => {
+    expect(() => check('postgresql://postgres@%E0%A4%A:5432/consilium')).toThrow()
+    expect(() => assertNotProductionDatabase('postgresql://postgres@%E0%A4%A:5432/consilium', 'X', { env: PROD_ENV, root: NO_FILE })).toThrow()
+  })
+
+  it('keeps refusing multi-host URLs, host-in-userinfo tricks and an empty host', () => {
+    for (const url of [
+      'postgresql://localhost:5433,remote.example.com:5432/consilium',
+      'postgresql://localhost,remote.example.com/consilium',
+      'postgresql://localhost@remote.example.com/consilium',
+      'postgresql:///consilium',
+    ]) {
+      expect(() => check(url, {}), url).toThrow()
+    }
+  })
+})
+
 describe('assertSeedTargetIsSafe', () => {
   const local = 'postgresql://postgres@localhost:5433/consilium'
   const remote = 'postgresql://postgres@staging.example.com:5432/consilium'
