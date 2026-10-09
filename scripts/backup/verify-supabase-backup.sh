@@ -89,6 +89,20 @@ echo "3. Structure"
 SCHEMA_TABLES=$(tr -d '"' < "$DIR/schema.sql" 2>/dev/null | sed -n -E 's/^CREATE TABLE (IF NOT EXISTS )?public\.([A-Za-z0-9_]+).*/\2/p' | sort -u || true)
 COUNTS_TSV=$(mktemp)
 trap 'rm -f "$COUNTS_TSV" "$COUNTS_TSV.before" "$COUNTS_TSV.after"' EXIT
+parse_csv() {  # name,count  ->  name <tab> count ; tolerant of quotes, CRLF and a header line
+  tr -d '"\r' < "$1" | awk -F, 'NF >= 2 && $2 ~ /^[0-9]+$/ { print $1 "\t" $2 }'
+}
+# The tables to check: the built-in list (a floor, so a table cannot be dropped from the export unnoticed) PLUS every
+# table that appears in the live counts. Tables added by later migrations are therefore checked too, not just listed.
+CHECK_TABLES="$EXPECTED_TABLES"
+LIVE_ONLY=""
+for f in "$BEFORE" "$AFTER"; do
+  [ -n "$f" ] && [ -s "$f" ] || continue
+  for t in $(parse_csv "$f" | cut -f1); do
+    case " $CHECK_TABLES " in *" $t "*) ;; *) CHECK_TABLES="$CHECK_TABLES $t"; LIVE_ONLY="$LIVE_ONLY $t" ;; esac
+  done
+done
+[ -z "$LIVE_ONLY" ] || info "also checking tables found in the live counts but not in this script's built-in list:$LIVE_ONLY"
 # one line per COPY block: table <tab> number of rows inside it
 tr -d '"' < "$DIR/data.sql" 2>/dev/null | awk '
   /^COPY public\.[A-Za-z0-9_]+ / { line = $2; sub(/^public\./, "", line); name = line; inblock = 1; n = 0; next }
@@ -98,25 +112,22 @@ tr -d '"' < "$DIR/data.sql" 2>/dev/null | awk '
 
 missing_schema=""
 missing_data=""
-for t in $EXPECTED_TABLES; do
+for t in $CHECK_TABLES; do
   echo "$SCHEMA_TABLES" | grep -qx "$t" || missing_schema="$missing_schema $t"
   awk -F'\t' -v t="$t" '$1 == t { found = 1 } END { exit found ? 0 : 1 }' "$COUNTS_TSV" || missing_data="$missing_data $t"
 done
-n_expected=$(echo "$EXPECTED_TABLES" | wc -w | tr -d ' ')
+n_expected=$(echo "$CHECK_TABLES" | wc -w | tr -d ' ')
 if [ -z "$missing_schema" ]; then pass "schema.sql defines all $n_expected expected tables"; else fail "schema.sql is missing:$missing_schema"; fi
 if [ -z "$missing_data" ];   then pass "data.sql has a data block for all $n_expected expected tables"; else fail "data.sql has no data block for:$missing_data"; fi
 extra=""
 for t in $SCHEMA_TABLES; do
-  case " $EXPECTED_TABLES " in *" $t "*) ;; *) extra="$extra $t" ;; esac
+  case " $CHECK_TABLES " in *" $t "*) ;; *) extra="$extra $t" ;; esac
 done
-[ -z "$extra" ] || info "tables in the backup that this checklist does not know (fine if they are new):$extra"
+[ -z "$extra" ] || info "tables in the backup that are not in the live counts and not checked (fine if they are new):$extra"
 
 # ── 4. row counts against production ────────────────────────────────────────────────────────────────
 echo
 echo "4. Row counts: the rows inside the backup versus the live database"
-parse_csv() {  # name,count  ->  name <tab> count ; tolerant of quotes, CRLF and a header line
-  tr -d '"\r' < "$1" | awk -F, 'NF >= 2 && $2 ~ /^[0-9]+$/ { print $1 "\t" $2 }'
-}
 if [ -z "$BEFORE" ]; then
   fail "no --counts-before file: the row counts cannot be checked against production (export scripts/backup/table-row-counts.sql)"
 elif [ ! -s "$BEFORE" ]; then
@@ -133,7 +144,7 @@ else
   lookup() { awk -F'\t' -v t="$2" '$1 == t { print $2; exit }' "$1"; }
   printf '  %-26s %10s %10s %10s  %s\n' "table" "backup" "before" "after" "result"
   bad=0
-  for t in $EXPECTED_TABLES; do
+  for t in $CHECK_TABLES; do
     d=$(lookup "$COUNTS_TSV" "$t"); b=$(lookup "$COUNTS_TSV.before" "$t"); a=$(lookup "$COUNTS_TSV.after" "$t")
     if [ -z "$d" ] || [ -z "$b" ] || [ -z "$a" ]; then
       printf '  %-26s %10s %10s %10s  %s\n' "$t" "${d:--}" "${b:--}" "${a:--}" "MISSING"; bad=$((bad + 1)); continue
@@ -151,7 +162,7 @@ fi
 echo
 if [ "$FAILS" -eq 0 ]; then
   echo "RESULT: VERIFIED. $PASSES checks passed, 0 failed."
-  echo "This proves the files are complete and their contents match the live row counts. A restore test is stronger; see the guide."
+  echo "This proves the files are complete and hold the same NUMBER of rows per table as the live database. It does not compare row contents, and it is not a restore test: a restore is stronger; see the guide."
   exit 0
 fi
 echo "RESULT: NOT VERIFIED. $FAILS check(s) failed, $PASSES passed. Do NOT apply any migration on the strength of this backup."

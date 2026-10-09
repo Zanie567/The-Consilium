@@ -98,13 +98,14 @@ const everyOutputFile = (out: string): string[] => {
 // ── fixture dumps for the verifier ───────────────────────────────────────────────────────────────────────
 type Counts = Record<string, number>
 const baseCounts = (): Counts => Object.fromEntries(TABLES.map((t, i) => [t, i % 4]))
-function makeBackup(options: { counts?: Counts; quoted?: boolean; schemaFooter?: boolean; dataFooter?: boolean; omitTable?: string; extra?: string; mode?: number } = {}) {
+function makeBackup(options: { counts?: Counts; quoted?: boolean; schemaFooter?: boolean; dataFooter?: boolean; omitTable?: string; extra?: string; mode?: number; withTables?: Counts } = {}) {
   const dir = join(work, `backup-${Math.random().toString(36).slice(2)}`)
   mkdirSync(dir, { mode: 0o700 })
   chmodSync(dir, options.mode ?? 0o700)
-  const counts = options.counts ?? baseCounts()
+  // withTables: tables a later migration added, beyond the built-in 37 (name -> rows)
+  const counts = { ...(options.counts ?? baseCounts()), ...(options.withTables ?? {}) }
   const q = (s: string) => (options.quoted === false ? s : `"${s}"`)
-  const tables = TABLES.filter((t) => t !== options.omitTable)
+  const tables = [...TABLES.filter((t) => t !== options.omitTable), ...Object.keys(options.withTables ?? {})]
   const schema = tables.map((t) => `CREATE TABLE IF NOT EXISTS ${options.quoted === false ? 'public' : '"public"'}.${q(t)} (\n    ${q('id')} text NOT NULL\n);\n`).join('\n') +
     (options.schemaFooter === false ? '' : '\n-- PostgreSQL database dump complete\n\\unrestrict abc\n')
   const data = tables.map((t) => `COPY ${options.quoted === false ? 'public' : '"public"'}.${q(t)} (${q('id')}) FROM stdin;\n${Array.from({ length: counts[t] }, (_, i) => `row${i}\n`).join('')}\\.\n`).join('\n') +
@@ -180,6 +181,8 @@ describe('take-supabase-backup.sh', () => {
     }
     const log = everyOutputFile(out).find((f) => f.endsWith('backup.log'))!
     expect(readFileSync(log, 'utf8')).toContain('boom reason')
+    // the raw (unscrubbed) CLI output must never be left inside the backup folder
+    expect(readdirSync(join(log, '..')).filter((n) => n.startsWith('.') || n.includes('cli-output'))).toEqual([])
   })
 
   it('produces a backup that the verifier accepts (end to end)', () => {
@@ -351,6 +354,31 @@ describe('verify-supabase-backup.sh', () => {
     expect(r.stdout).toContain('no data block for: subscribers')
   })
 
+  it('also checks tables that a later migration added (anything in the live counts), not just the built-in 37', () => {
+    const added = { article_image_assets: 3, scheduler_invocations: 5 }
+    const live = { ...baseCounts(), ...added }
+    // present in the backup with matching counts: verified, and the extra tables are shown in the table
+    const good = verify(makeBackup({ withTables: added }), '--counts-before', csv(live))
+    expect(good.status, good.stdout).toBe(0)
+    expect(good.stdout).toContain('also checking tables found in the live counts')
+    expect(good.stdout).toMatch(/article_image_assets\s+3\s+3\s+3\s+ok/)
+    expect(good.stdout).toContain('data.sql has a data block for all 39 expected tables')
+    // live has them, backup does not: must FAIL (previously these were silently ignored)
+    const missing = verify(makeBackup(), '--counts-before', csv(live))
+    expect(missing.status).toBe(1)
+    expect(missing.stdout).toContain('schema.sql is missing: article_image_assets scheduler_invocations')
+    expect(missing.stdout).toContain('no data block for: article_image_assets scheduler_invocations')
+    // present with the wrong number of rows: must FAIL
+    const wrong = verify(makeBackup({ withTables: { ...added, scheduler_invocations: 4 } }), '--counts-before', csv(live))
+    expect(wrong.status).toBe(1)
+    expect(wrong.stdout).toMatch(/scheduler_invocations\s+4\s+5\s+5\s+MISMATCH/)
+  })
+
+  it('does not say the row contents were compared', () => {
+    const r = verify(makeBackup(), '--counts-before', csv(baseCounts()))
+    expect(r.stdout).toContain('does not compare row contents')
+  })
+
   it('FAILS if a file was changed after it was written (checksum)', () => {
     const dir = makeBackup()
     writeFileSync(join(dir, 'data.sql'), readFileSync(join(dir, 'data.sql'), 'utf8') + '-- tampered\n')
@@ -458,7 +486,8 @@ describe('the guide matches the scripts', () => {
     }
     expect(guide).toContain('scllbuwkcqtmfogsgalt')
     expect(takeSource).toContain('scllbuwkcqtmfogsgalt')
-    expect(guide).toContain('all 37 production tables')
+    expect(guide).toContain('the 37 core tables')
+    expect(guide).toContain('every table in the live counts')
   })
 
   it('never tells the reader to reset the database password, or to type a connection string on a command line', () => {

@@ -200,7 +200,9 @@ scrub() {
 run_dump() {
   # run_dump "label" FILE [cli flags...]
   local name=$1 file=$2; shift 2
-  local errfile="$DEST/.cli-output.$$"
+  # The raw CLI output (not yet scrubbed) lives in the private scratch folder, which the EXIT trap removes even if
+  # this run is interrupted. It must never sit inside the backup folder, where an interrupted run could leave it.
+  local errfile="$SCRATCH/cli-output.$$"
   say "-> $name"
   local rc=0
   # Run from an empty scratch folder so the CLI cannot pick up a stale supabase/ config or link state from
