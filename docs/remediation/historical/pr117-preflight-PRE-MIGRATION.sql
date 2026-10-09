@@ -1,9 +1,20 @@
--- READ-ONLY preflight for the four PR #117 migrations. Run it in the SQL editor immediately before
--- applying them, and again after. It only SELECTs. It returns counts and names, never row contents
--- (no subscriber addresses, no tag names, no article text).
+-- HISTORICAL. Read-only preflight written on 2026-10-08, BEFORE the four PR #117 migrations were applied.
+-- The migrations were applied to production on 2026-10-09, so on production today this script's
+-- "expect" column is WRONG for most rows (it expects objects to be 'absent' and the old foreign key rule).
+-- To check production now, run ../pr117-verify-post-migration.sql instead.
 --
--- How to read it: the "expect" column says what a safe-to-apply database looks like. If any value is
--- not what is expected, stop and read docs/remediation/pr117-database-migrations.md.
+-- It is kept because (a) it records exactly what was checked before applying, and (b) the rehearsal test
+-- (tests/integration/pr117-migrations-rehearsal.test.ts) still runs it against the pre-#117 fixture
+-- database. It only SELECTs and returns counts and names, never row contents, so running it is harmless;
+-- reading its results against the "expect" column on a post-migration database is what would mislead.
+--
+-- Original description follows.
+--
+-- READ-ONLY preflight for the four PR #117 migrations. It only SELECTs. It returns counts and names,
+-- never row contents (no subscriber addresses, no tag names, no article text).
+--
+-- How to read it (on a PRE-migration database): the "expect" column says what a safe-to-apply database
+-- looks like. If any value is not what is expected, stop and read docs/remediation/pr117-database-migrations.md.
 
 -- 1. What is already there? Before applying: all 'absent'. After applying: all 'present'.
 select 'function consilium_tag_identity'        as object, case when to_regprocedure('public.consilium_tag_identity(text)')        is null then 'absent' else 'present' end as state, 'absent before / present after' as expect

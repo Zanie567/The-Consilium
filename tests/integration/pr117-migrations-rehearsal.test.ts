@@ -1,13 +1,22 @@
 /**
  * Rehearsal of the four PR #117 database migrations on a production-shaped database.
  *
- * Production runs the #117 code but none of its four migrations (checked read-only 2026-10-08), so
- * today the code calls two SQL functions that do not exist. This proves, in isolation, what applying
- * the migrations does, that it is safe on production-shaped data, and that it can be undone.
+ * HISTORY: on 2026-10-08 production ran the #117 code but none of its four migrations, so the code called
+ * two SQL functions that did not exist. The migrations were applied to production on 2026-10-09 and
+ * independently verified (docs/remediation/pr117-database-migrations.md). This suite is kept, on purpose,
+ * as a regression test: it still proves what applying the migrations does to a pre-#117 database (safe on
+ * production-shaped data, additive, replayable, atomic on bad data), and that the application code paths
+ * need them. It does NOT touch production and never will; it refuses any non-local server.
  *
  * Baseline: tests/fixtures/pre-pr117-schema.sql, the exact pre-#117 DDL (generated from the Prisma
- * schema at 31a2053) minus article_comments, which production also lacks. Data: 3 clean subscribers,
- * 21 articles, an empty tags table, like production.
+ * schema at 31a2053) minus article_comments, which production also lacked then. That fixture is
+ * intentionally frozen in time: it is NOT a description of production today. Data: 3 clean subscribers,
+ * 21 articles, an empty tags table, like production on 2026-10-08.
+ *
+ * The SQL under docs/remediation/historical/ is exercised here against disposable databases only. The
+ * rollback script must keep refusing to run without an explicit acknowledgement (tested below), because
+ * on production it would now break the deployed application. docs/remediation/pr117-verify-post-migration.sql
+ * is the read-only script to use against production; it is tested here too.
  *
  * Complements tests/integration/upgrade-migrations.test.ts, which uses toy tables. This one uses the
  * real schema, the real application code paths, Supabase-style role privileges, and the rollback.
@@ -18,7 +27,7 @@
  *     npx vitest run tests/integration/pr117-migrations-rehearsal.test.ts
  *
  * What it cannot prove: behaviour on Supabase's own server (Postgres 17 on glibc). The tag-identity
- * function is re-checked there with a read-only SELECT, as described in the plan.
+ * function is checked there separately, read-only (tests/unit/tag-identity-production-parity.test.ts).
  */
 import { describe, it, expect, afterAll, vi } from 'vitest'
 import { Client } from 'pg'
@@ -40,8 +49,10 @@ if (ENABLED) assertSafeTestDatabaseHost(ADMIN_URL, 'TEST_DATABASE_URL')
 const root = process.cwd()
 const read = (p: string) => readFileSync(join(root, p), 'utf8')
 const BASELINE = read('tests/fixtures/pre-pr117-schema.sql')
-const ROLLBACK = read('docs/remediation/pr117-rollback.sql')
-const PREFLIGHT = read('docs/remediation/pr117-preflight.sql')
+const ROLLBACK = read('docs/remediation/historical/pr117-rollback-DO-NOT-RUN-IN-PRODUCTION.sql')
+const ROLLBACK_ACK = "select set_config('pr117.rollback_acknowledged', 'I-ACCEPT-PRODUCTION-BREAKAGE', false)"
+const VERIFY = read('docs/remediation/pr117-verify-post-migration.sql')
+const PREFLIGHT = read('docs/remediation/historical/pr117-preflight-PRE-MIGRATION.sql')
 const MIGRATIONS = [
   '20261006153514_discovery_topic_identity',
   '20261006160355_managed_article_images',
@@ -351,6 +362,7 @@ suite('PR #117 migrations on a production-shaped database', () => {
       const baseline = await catalog(client)
       await applyAll(client)
       expect(await catalog(client)).not.toEqual(baseline)
+      await client.query(ROLLBACK_ACK)
       await client.query(ROLLBACK)
       expect(await catalog(client)).toEqual(baseline)
       expect((await client.query(`select confdeltype::text d from pg_constraint where conname = 'article_tags_tagId_fkey'`)).rows).toEqual([{ d: 'c' }])
@@ -364,14 +376,127 @@ suite('PR #117 migrations on a production-shaped database', () => {
     await withDatabase(async ({ client }) => {
       await applyAll(client)
       await client.query(`insert into article_image_assets (url, path, "uploaderId") values ('u', 'p', 'author')`)
+      await client.query(ROLLBACK_ACK)
       await expect(client.query(ROLLBACK)).rejects.toThrow(/Refusing to roll back/)
       await client.query('ROLLBACK')
       expect((await client.query('select count(*)::int as n from article_image_assets')).rows[0].n).toBe(1)
       expect((await catalog(client)).functions).toContain('consilium_tag_identity') // nothing was removed
 
       await client.query(`select set_config('pr117.rollback_force', 'yes', false)`)
+      await client.query(ROLLBACK_ACK)
       await client.query(ROLLBACK)
       expect((await catalog(client)).tables).not.toContain('article_image_assets')
+    })
+  })
+
+  it('the rollback refuses to run at all without an explicit acknowledgement, even on empty tables, and removes nothing', async () => {
+    // Production today: migrated, new tables empty, tags present. An unguarded rollback would pass the
+    // old "tables are empty" check and silently break sign-up, tagged saves and uploads.
+    await withDatabase(async ({ client }) => {
+      await applyAll(client)
+      await client.query(`insert into tags (id, name, slug) values ('t1', 'Finance', 'finance')`)
+      const migrated = await catalog(client)
+      await expect(client.query(ROLLBACK)).rejects.toThrow(/Refusing to run: this is a historical script/)
+      await client.query('ROLLBACK')
+      // a wrong acknowledgement is no acknowledgement
+      await client.query(`select set_config('pr117.rollback_acknowledged', 'yes', false)`)
+      await expect(client.query(ROLLBACK)).rejects.toThrow(/Refusing to run/)
+      await client.query('ROLLBACK')
+      // the force flag alone must not bypass the acknowledgement
+      await client.query(`select set_config('pr117.rollback_force', 'yes', false)`)
+      await expect(client.query(ROLLBACK)).rejects.toThrow(/Refusing to run/)
+      await client.query('ROLLBACK')
+      expect(await catalog(client)).toEqual(migrated)
+      expect((await client.query(`select confdeltype::text d from pg_constraint where conname = 'article_tags_tagId_fkey'`)).rows).toEqual([{ d: 'r' }])
+      expect((await client.query('select count(*)::int as n from tags')).rows[0].n).toBe(1)
+    })
+  })
+
+  it('the historical SQL files say, in their own text, that they must not be used against production', () => {
+    expect(ROLLBACK).toMatch(/DO NOT RUN AGAINST PRODUCTION/)
+    expect(ROLLBACK).toMatch(/I-ACCEPT-PRODUCTION-BREAKAGE/)
+    expect(PREFLIGHT).toMatch(/HISTORICAL/)
+    expect(PREFLIGHT).toMatch(/pr117-verify-post-migration\.sql/)
+  })
+
+  // ── the post-migration verification script (the one to run against production) ───────────────────
+  const runVerify = async (client: Client) => {
+    await client.query('BEGIN READ ONLY') // proves the script writes nothing: any write would throw
+    try {
+      const res = (await client.query(VERIFY)) as unknown as { rows: { check_name: string; result: string; detail: string }[] }
+      return res.rows
+    } finally {
+      await client.query('ROLLBACK')
+    }
+  }
+
+  it('verify script: is one read-only SELECT with no write, DDL or privilege statements', () => {
+    // Scan only executable SQL: drop comment lines, the $q$...$q$ block (a SELECT, checked by running it read-only
+    // below) and string literals (one legitimately contains the words CREATE UNIQUE INDEX).
+    const code = VERIFY.split('\n').filter((l) => !l.trim().startsWith('--')).join('\n')
+      .replace(/\$q\$[\s\S]*?\$q\$/g, '').replace(/'(?:[^']|'')*'/g, "''")
+    expect(code).not.toMatch(/\b(insert|update|delete|drop|alter|create|truncate|grant|revoke|vacuum|reindex|set_config|nextval)\b/i)
+    expect(code.match(/;/g)).toHaveLength(1) // a single statement
+    expect(code.trim().endsWith(';')).toBe(true)
+  })
+
+  it('verify script: a fully remediated database (migrations + article_comments, API roles closed) reports no FAIL and no row contents', async () => {
+    await withDatabase(async ({ client }) => {
+      await applyAll(client)
+      await client.query(read('supabase/migrations/add_article_comments.sql'))
+      // Production's table owner has no default grants to anon/authenticated; make this database match.
+      await client.query('REVOKE ALL ON article_image_assets, article_engagement_sessions, article_comments FROM anon, authenticated')
+      await client.query(`insert into subscribers (id, email) values ('s9', 'private.person@example.test'); insert into tags (id, name, slug) values ('t9', 'Private Topic', 'private-topic')`)
+      const rows = await runVerify(client)
+      expect(rows.filter((r) => r.result === 'FAIL')).toEqual([])
+      expect(rows.filter((r) => r.result === 'ok').length).toBeGreaterThanOrEqual(25)
+      expect(rows.find((r) => r.check_name === 'rows in article_image_assets')).toMatchObject({ result: 'info', detail: '0' })
+      expect(JSON.stringify(rows)).not.toMatch(/example\.test|Private Topic|private-topic/) // counts and names only
+    }, { supabaseRoles: true })
+  })
+
+  it('verify script: detects each way the lock-down could regress (API-role grants, RLS off, wrong FK rule, extra policy, missing object)', async () => {
+    await withDatabase(async ({ client }) => {
+      await applyAll(client)
+      await client.query(read('supabase/migrations/add_article_comments.sql'))
+      // As Supabase defaults would leave a table created by supabase_admin: anon and authenticated granted everything.
+      const failing = async () => (await runVerify(client)).filter((r) => r.result === 'FAIL').map((r) => r.check_name)
+      expect(await failing()).toEqual(['no API-role privileges on article_engagement_sessions', 'no API-role privileges on article_image_assets'])
+
+      await client.query('REVOKE ALL ON article_image_assets, article_engagement_sessions FROM anon, authenticated')
+      expect(await failing()).toEqual([])
+
+      await client.query('GRANT SELECT ("uploaderId") ON article_image_assets TO anon') // a column-level grant must be caught too
+      expect(await failing()).toEqual(['no API-role privileges on article_image_assets'])
+      await client.query('REVOKE ALL ("uploaderId") ON article_image_assets FROM anon')
+
+      await client.query('ALTER TABLE article_image_assets DISABLE ROW LEVEL SECURITY')
+      expect(await failing()).toEqual(['rls article_image_assets'])
+      await client.query('ALTER TABLE article_image_assets ENABLE ROW LEVEL SECURITY')
+
+      await client.query(`create policy open_read on article_engagement_sessions for select using (true)`)
+      expect(await failing()).toEqual(['no policies on article_engagement_sessions'])
+      await client.query('drop policy open_read on article_engagement_sessions')
+
+      await client.query(`alter table article_tags drop constraint "article_tags_tagId_fkey", add constraint "article_tags_tagId_fkey" foreign key ("tagId") references tags(id) on delete cascade`)
+      expect(await failing()).toEqual(['fk article_tags_tagId_fkey is RESTRICT'])
+      await client.query(`alter table article_tags drop constraint "article_tags_tagId_fkey", add constraint "article_tags_tagId_fkey" foreign key ("tagId") references tags(id) on delete restrict on update cascade`)
+
+      await client.query('drop index subscribers_normalized_email_key')
+      expect(await failing()).toEqual(['index subscribers_normalized_email_key'])
+    }, { supabaseRoles: true })
+  })
+
+  it('verify script: on the pre-#117 database it REPORTS the missing objects as FAIL rather than erroring', async () => {
+    await withDatabase(async ({ client }) => {
+      const rows = await runVerify(client)
+      const failed = rows.filter((r) => r.result === 'FAIL').map((r) => r.check_name)
+      expect(failed).toEqual(expect.arrayContaining([
+        'function consilium_tag_identity', 'function consilium_subscriber_identity', 'function results',
+        'table article_image_assets', 'table article_engagement_sessions', 'fk article_tags_tagId_fkey is RESTRICT',
+        'table article_comments (separate migration)',
+      ]))
+      expect(rows.find((r) => r.check_name === 'rows in article_image_assets')).toMatchObject({ detail: 'table missing' })
     })
   })
 

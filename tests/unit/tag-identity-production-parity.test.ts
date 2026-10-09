@@ -6,7 +6,10 @@
  *
  * The expected values below were NOT produced by this repository's code. They are what the
  * PRODUCTION Supabase server (Postgres 17.6, UTF8, en_US.UTF-8, Linux) returned on 2026-10-08 when the
- * function's exact expression was run inline in a read-only SELECT, before the migration existed:
+ * function's exact expression was run inline in a read-only SELECT, before the migration existed.
+ * After the migration was applied (2026-10-09) the same 25 labels were run through the deployed
+ * public.consilium_tag_identity() in a read-only SELECT: 25 of 25 matched these values.
+ * The expression the function evaluates:
  *
  *   trim(both '-' from regexp_replace(replace(replace(lower(normalize(label, NFKC)),
  *        U&'i\0307', 'i'), U&'\03C2', U&'\03C3'), '[^[:alnum:]]+', '-', 'g'))

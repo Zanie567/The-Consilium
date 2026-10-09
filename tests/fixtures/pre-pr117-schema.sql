@@ -1,3 +1,6 @@
+-- HISTORICAL FIXTURE, frozen on purpose. It is the schema production had BEFORE the four PR #117 migrations
+-- (applied to production on 2026-10-09). It is NOT a description of production today and must not be
+-- "updated" to match it: its value is that it is the pre-#117 starting point the rehearsal test migrates from.
 -- Production-shaped baseline for rehearsing the four PR #117 migrations. DO NOT apply to a real database.
 --
 -- Generated with: prisma migrate diff --from-empty --to-schema <prisma/schema.prisma at 31a2053, the schema
