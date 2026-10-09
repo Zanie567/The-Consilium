@@ -424,6 +424,8 @@ model TeamMember {
   email    String?
   order    Int     @default(0)
   isActive Boolean @default(true)
+  // Optimistic-concurrency token for administrative edits (a stale form is refused, not merged).
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@map("team_members")
 }

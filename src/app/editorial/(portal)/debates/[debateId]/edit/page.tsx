@@ -88,10 +88,11 @@ export default function EditDebatePage({ params }: { params: Promise<{ debateId:
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-xs font-semibold text-[var(--fg-muted)] uppercase tracking-widest mb-1.5">
+          <label htmlFor="debate-title" className="block text-xs font-semibold text-[var(--fg-muted)] uppercase tracking-widest mb-1.5">
             Title
           </label>
           <input
+            id="debate-title"
             type="text"
             value={data.title}
             onChange={(e) => setData({ ...data, title: e.target.value })}
@@ -101,10 +102,11 @@ export default function EditDebatePage({ params }: { params: Promise<{ debateId:
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[var(--fg-muted)] uppercase tracking-widest mb-1.5">
+          <label htmlFor="debate-description" className="block text-xs font-semibold text-[var(--fg-muted)] uppercase tracking-widest mb-1.5">
             Description
           </label>
           <textarea
+            id="debate-description"
             value={data.description ?? ''}
             onChange={(e) => setData({ ...data, description: e.target.value })}
             rows={3}
@@ -113,10 +115,11 @@ export default function EditDebatePage({ params }: { params: Promise<{ debateId:
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[var(--fg-muted)] uppercase tracking-widest mb-1.5">
+          <label htmlFor="debate-closes" className="block text-xs font-semibold text-[var(--fg-muted)] uppercase tracking-widest mb-1.5">
             Closes At (optional)
           </label>
           <input
+            id="debate-closes"
             type="datetime-local"
             value={formatEditorialScheduleInput(data.closesAt)}
             onChange={(e) => setData({ ...data, closesAt: e.target.value ? parseEditorialScheduleInput(e.target.value)?.toISOString() ?? null : null })}
