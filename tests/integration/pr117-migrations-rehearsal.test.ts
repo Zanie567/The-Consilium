@@ -419,6 +419,17 @@ suite('PR #117 migrations on a production-shaped database', () => {
     expect(PREFLIGHT).toMatch(/pr117-verify-post-migration\.sql/)
   })
 
+  it('the rollback is ONE statement, so a client that runs statements separately cannot skip the guard', () => {
+    // An earlier version was BEGIN; DO guard; DROP ...; COMMIT;. A client that sent those one at a time and ignored
+    // errors skipped the guard (it lived on another connection) and still ran the drops. Keep guard and drops atomic.
+    const code = ROLLBACK.split('\n').filter((l) => !l.trim().startsWith('--')).join('\n')
+      .replace(/\$\$[\s\S]*?\$\$/g, () => '<body>').replace(/'(?:[^']|'')*'/g, "''")
+    expect(code.trim()).toBe('DO <body>;')
+    expect(ROLLBACK).not.toMatch(/^\s*(BEGIN|COMMIT);/m)
+    // and the guard is inside that statement, before any DROP
+    expect(ROLLBACK.indexOf('I-ACCEPT-PRODUCTION-BREAKAGE')).toBeLessThan(ROLLBACK.indexOf('DROP TABLE IF EXISTS public.article_engagement_sessions'))
+  })
+
   // ── the post-migration verification script (the one to run against production) ───────────────────
   const runVerify = async (client: Client) => {
     await client.query('BEGIN READ ONLY') // proves the script writes nothing: any write would throw

@@ -19,8 +19,8 @@
 --   * break reading analytics and the two daily crons (drops article_engagement_sessions);
 --   * silently re-enable ON DELETE CASCADE from tags to article_tags, so deleting a tag would quietly strip it
 --     from every article;
---   * DESTROY DATA the moment either dropped table holds rows (row counts guard below only protects the
---     two dropped tables, and only against an unacknowledged run).
+--   * DESTROY DATA as soon as either dropped table holds rows (a separate row-count guard below refuses
+--     that unless it is forced as well).
 --
 -- It does NOT undo deployed code, and a database rollback is almost never the right recovery: if a
 -- migrated object misbehaves, prefer a forward-fix migration, or restore from the verified 2026-10-09
@@ -28,7 +28,12 @@
 -- migrations added, and as a scratch-database tool. It is exercised by the rehearsal test against
 -- disposable local databases only.
 --
--- GUARD: the script refuses to run at all unless the session has first set, in the same session:
+-- GUARD: the whole script is ONE statement (a single DO block), so the guard and the drops succeed or fail
+-- together whatever executes it: psql with or without ON_ERROR_STOP, the Supabase SQL editor, or a client
+-- that sends statements one at a time. (An earlier version used BEGIN ... COMMIT around separate
+-- statements; a client that ran them separately and ignored errors could skip the guard and still run the
+-- drops. That was tested and is why this is now one statement.)
+-- It refuses to run at all unless the session has first set, in the same session:
 --     select set_config('pr117.rollback_acknowledged', 'I-ACCEPT-PRODUCTION-BREAKAGE', false);
 -- Even then, it refuses if either dropped table holds rows, unless pr117.rollback_force = 'yes'.
 -- Do not set either value against a database that serves real traffic.
@@ -41,15 +46,13 @@
 -- the four migrations then this file returns the catalog to its pre-#117 state, and the four can be
 -- applied again afterwards.
 
-BEGIN;
-
 DO $$
 DECLARE
   v_images bigint := 0;
   v_sessions bigint := 0;
 BEGIN
   IF coalesce(current_setting('pr117.rollback_acknowledged', true), '') <> 'I-ACCEPT-PRODUCTION-BREAKAGE' THEN
-    RAISE EXCEPTION 'Refusing to run: this is a historical script that would break the deployed application (sign-up, tagged saves, image upload, analytics). Production has had the PR #117 migrations since 2026-10-09. See docs/remediation/pr117-database-migrations.md section 9.';
+    RAISE EXCEPTION 'Refusing to run: this is a historical script that would break the deployed application (sign-up, tagged saves, image upload, analytics). Production has had the PR #117 migrations since 2026-10-09. See docs/remediation/pr117-database-migrations.md section 10.';
   END IF;
   IF to_regclass('public.article_image_assets') IS NOT NULL THEN
     EXECUTE 'SELECT count(*) FROM public.article_image_assets' INTO v_images;
@@ -60,7 +63,6 @@ BEGIN
   IF (v_images > 0 OR v_sessions > 0) AND coalesce(current_setting('pr117.rollback_force', true), '') <> 'yes' THEN
     RAISE EXCEPTION 'Refusing to roll back: article_image_assets has % row(s) and article_engagement_sessions has % row(s). Dump them first, then set pr117.rollback_force = yes.', v_images, v_sessions;
   END IF;
-END $$;
 
 -- 4. article_active_engagement
 DROP TABLE IF EXISTS public.article_engagement_sessions;
@@ -80,4 +82,4 @@ DROP INDEX IF EXISTS public."article_tags_tagId_articleId_idx";
 DROP INDEX IF EXISTS public.tags_canonical_identity_key;
 DROP FUNCTION IF EXISTS public.consilium_tag_identity(text);
 
-COMMIT;
+END $$;

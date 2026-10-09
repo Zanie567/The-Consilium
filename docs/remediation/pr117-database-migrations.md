@@ -5,6 +5,9 @@ production and the resulting database state has been independently verified read
 Do not apply anything in this document again.** Several real-world smoke tests are still outstanding (section 5), so the
 features are *deployable*, not yet proven end to end.
 
+**Supabase's migration registry is out of sync with this (confirmed drift, section 8):** it has no recorded version for any of the migrations applied on 2026-10-09.
+The schema is correct; the bookkeeping is not. **Do not re-run any migration or any rollback to "correct" the registry.** Repairing it is a separate decision, to be made after a read-only review of the precise migration history.
+
 Files in this folder:
 
 | File | Purpose | Safe against production? |
@@ -114,7 +117,7 @@ no writes, no privilege changes) while preparing this PR.
 | Row-level security | enabled on both new tables, with **no policies** |
 | Privileges | `anon`, `authenticated` and `PUBLIC` hold **no** table-level and **no** column-level privilege on either new table; only `postgres` and `service_role` hold any |
 | `article_comments` | present, RLS enabled, one policy, `anon`/`authenticated` hold no privileges |
-| Supabase migration registry (`list_migrations`) | does **not** list the four PR #117 migrations or `article_comments` (see section 8) |
+| Supabase migration registry (`list_migrations`) | **confirmed drift:** records no version for any of the four PR #117 migrations, nor for `article_comments` (section 8) |
 | Row counts (counts only) | `article_image_assets` 0, `article_engagement_sessions` 0, `article_comments` 2, `tags` 3, `subscribers` 3 |
 | Deployed tag function vs the 25-label parity table | 25 of 25 agree |
 | `pr117-verify-post-migration.sql` run against production | 28 `ok`, 0 `FAIL`, 3 `info` |
@@ -140,7 +143,7 @@ Having the database objects does **not** show the features work. Each item below
 | Orphaned-image cleanup (`/api/cron/cleanup-article-images`, 03:00 UTC) | after an image is removed from all articles, confirm the cron eventually collects it (and not before its grace period) | none | **outstanding**, not testable until uploads exist |
 | Reading analytics | read an article for a while on the live site; expect a row in `article_engagement_sessions` | rows are small | **outstanding** |
 | The two daily crons (`cleanup-article-images` 03:00 UTC, `cleanup-reading-analytics` 04:00 UTC) | Vercel logs show HTTP 200 (not the earlier 503) on the first run after the migrations | none | **not checked by this review** |
-| `article_comments` | add, reply to and resolve an inline comment on a draft | the 2 existing rows were created by earlier testing | owner reports core functionality tested; **not re-tested here** |
+| `article_comments` | add, reply to and resolve an inline comment on a draft | 2 rows exist (origin not examined) | owner reports core functionality tested; **not re-tested here** |
 
 ## 6. Security posture of the new tables, and why it holds today
 
@@ -153,37 +156,31 @@ The tables are server-only: the application reaches them through Prisma with the
 Why this matters: tables created by a different role (for example `supabase_admin`) receive default grants to `anon` and `authenticated` in this project, as Supabase's standard defaults do. The rehearsal test models that
 more permissive case (and shows RLS still blocks the API roles). `pr117-verify-post-migration.sql` fails if any API-role privilege appears on the two new tables.
 
-## 7. Backup (what applied on 2026-10-09 and what future migrations must repeat)
+## 7. Backup
 
-Supabase takes **no automatic backups on the Free plan** (its docs recommend regular exports with `supabase db dump`), so a manual backup is a prerequisite for any production schema change, and it is cheap (15 MB).
-On 2026-10-09 an encrypted backup was created and verified before applying (per the owner). **It must not be modified or deleted** as part of this work or any follow-up; this record deliberately does not say where it is.
+Supabase takes **no automatic backups on the Free plan**, so a manual, verified backup is a prerequisite for any production schema change. On 2026-10-09 an encrypted backup was created and verified before applying
+(per the owner). **It must not be modified or deleted** as part of this work or any follow-up; this record deliberately does not say where it is, and does not record which procedure produced it.
 
-How the backup is made (unchanged from the plan; `~/consilium-backup-<date>` is just an example location):
+**This document does not carry a backup procedure.** An earlier version of it contained a short manual `supabase db dump` recipe. That recipe was removed so there is only one procedure to follow: the maintained runbook
+[`docs/remediation/backup-and-verify.md`](backup-and-verify.md) and its scripts under [`scripts/backup/`](../../scripts/backup/) (added in PR #123, on `main`): secret-safe connection handling, an encrypted volume,
+a verifier that checks checksums and per-table row counts, and a throwaway-database restore test. Follow the runbook, not any command remembered from an earlier draft of this file.
 
-Needs: Docker running, the Supabase CLI, and the project's connection string (Dashboard > Connect, direct or session pooler). **Never paste the connection string into chat, a ticket or a file in the repo.**
+Two points from the 2026-10-08 plan still hold whichever procedure is used: `pg_dump` must be at least the server's major version (the server is 17), and the dump contains subscriber email addresses and must be encrypted at rest.
 
-```bash
-mkdir -p ~/consilium-backup-<date> && cd ~/consilium-backup-<date>
-read -rs DB_URL                      # paste the connection string, press Enter; nothing is echoed
-supabase db dump --db-url "$DB_URL" -f schema.sql
-supabase db dump --db-url "$DB_URL" -f data.sql --use-copy --data-only
-unset DB_URL
-ls -l schema.sql data.sql            # both non-empty
-grep -c '^COPY public.subscribers' data.sql   # expect 1
-```
-
-Notes: `pg_dump` must be at least the server's major version (the server is 17; a version-16 `pg_dump` refuses), which is why the machine used needs the Supabase CLI and Docker. A lighter fallback for migrations that modify no existing row is a CSV
-export of the few tables that could be touched plus the saved output of the preflight; it is a weaker backup, so prefer the dump. Encrypt the files before storing them, because `data.sql` contains subscriber email addresses.
-
-## 8. How it was applied, and the registry caveat
+## 8. How it was applied, and the confirmed registry drift
 
 The four files were applied one at a time, in file-name order, each as a single run of the whole file (each has its own `BEGIN`/`COMMIT`), stopping at the first error; then the optional, separate
 `supabase/migrations/add_article_comments.sql`. This repository applies migrations by hand and keeps no migration history, which is why they were not applied by any deploy step in the first place.
 
-**Registry caveat (current, factual).** Supabase's own migration registry lists four unrelated migrations (`add_comments_hiddenbody_and_debate_votes_anoniphash`, `team_member_user_link`,
-`public_appointments_testing_sessions`, `member_onboarding`) and **none** of the five applied on 2026-10-09. That is consistent with applying via the SQL editor, the repository's convention; this review did not determine the method.
-Consequence: tooling that trusts the registry (`supabase db push`, branch creation, `list_migrations`) will believe these five are unapplied. The files are idempotent, so a mistaken re-run would not lose data, but migration 1 would
-needlessly re-take a brief exclusive lock. Do not "fix" the registry by re-applying; if the registry should reflect reality, that is a deliberate, separately-reviewed bookkeeping step.
+**Confirmed migration-history drift.** Supabase's own migration registry (inspected read-only on 2026-10-09) lists four unrelated migrations (`add_comments_hiddenbody_and_debate_votes_anoniphash`, `team_member_user_link`,
+`public_appointments_testing_sessions`, `member_onboarding`) and **records no version for any of the four PR #117 migrations**. It also records none for `article_comments`, so five applied migrations are missing in all.
+The objects exist and are verified (section 4); the registry simply does not say so. This review did not determine how they were applied (a SQL-editor run, the repository's convention, would explain it).
+
+Consequences:
+
+* Tooling that trusts the registry (`supabase db push`, branch creation, `list_migrations`) will believe these five migrations are unapplied.
+* **The migrations are already applied. Do not re-run them, and do not run any rollback, to correct the registry.** Re-running adds no safe bookkeeping, and migration 1 would needlessly re-take a brief exclusive lock on `article_tags`; a rollback would break production (section 10).
+* **This PR does not repair the registry.** That is a separate decision, to be taken after a read-only review of the precise migration history (what is recorded, what versions and names would have to be recorded, and by what mechanism).
 
 ## 9. Rehearsal (isolated; nothing touched production)
 
@@ -191,7 +188,7 @@ needlessly re-take a brief exclusive lock. Do not "fix" the registry by re-apply
 (generated from the Prisma schema at `31a2053`, minus `article_comments`, mirroring production as it was on 2026-10-08), seeds production-shaped data (3 subscribers, 21 articles, no tags), and runs the real application code.
 **The fixture is frozen on purpose; it is not production today.** It is not run in CI (it needs a database server it may create databases on); run it locally when touching these migrations.
 
-Original result on 2026-10-08: 13 of 13 passed. Re-run on 2026-10-09 against current `main` (after #124 and #125), unmodified: 13 of 13 passed; with the tests added by this PR: 19 of 19, plus the 25 parity tests.
+Original result on 2026-10-08: 13 of 13 passed. Re-run on 2026-10-09 against current `main` (after #124 and #125), unmodified: 13 of 13 passed; with the tests added by this PR: 20 of 20, plus the 25 parity tests.
 
 | Scenario | Result |
 |---|---|
@@ -225,6 +222,8 @@ That is why the production-side read-only checks in section 4 and the outstandin
 * **destroy data** in the two dropped tables as soon as they hold rows (the script's row-count guard exists for exactly this, and is not a safety net for the whole script).
 
 The script now refuses to run at all unless a session first sets `pr117.rollback_acknowledged` to a deliberately alarming phrase (written in the script). That guards against an accidental run; it does not make a run safe.
+The whole script is a **single statement** (one `DO` block), so the guard and the drops stand or fall together whichever client executes it, including a client that sends statements one at a time and ignores errors (an earlier
+`BEGIN ... COMMIT` layout was shown to be bypassable that way, and a test now pins the single-statement form).
 Rolling the database back also does **not** undo the deployed code, so the application would hit the same failures as 2026-10-08.
 
 If a migrated object misbehaves, in order of preference:
@@ -238,11 +237,11 @@ If a migrated object misbehaves, in order of preference:
 
 1. **Migrations are not applied by a deploy.** Merging a PR to `main` deploys its code to production within minutes; a `supabase/migrations/*.sql` file in the same PR does nothing by itself. Apply the migration to production
    **before** merging code that requires it (additive first, then code, then any destructive step), or ship the code behind a flag that stays off until the migration is applied. The PR template or reviewer checklist should ask: "does this PR need a migration, and is it applied?"
-2. **Back up first.** The Free plan has no automatic backups. Take and verify a dump (section 7) before any production schema change, and do not touch that backup afterwards.
+2. **Back up first.** The Free plan has no automatic backups. Take and verify a backup with the maintained runbook (section 7) before any production schema change, and do not touch that backup afterwards.
 3. **Rehearse on a disposable local database** built from a frozen baseline, with the real application code paths, before touching production. Keep migrations additive, idempotent, and wrapped in `BEGIN ... COMMIT`, with preflight checks that refuse on bad data.
 4. **Check production read-only before and after**, with counts and names only. Use `pr117-verify-post-migration.sql` as the pattern; write a similar one for the next change.
 5. **Be explicit about privileges.** New server-only tables should enable RLS, add no policies, and `REVOKE ALL ... FROM PUBLIC, anon, authenticated` explicitly rather than relying on default privileges (section 6). Do not retro-edit the applied migration files; do it in new migrations.
-6. **Decide how the registry is kept** (apply through `apply_migration`, or by hand and accept the registry gap) and say so in the PR, so tooling and people agree on what is applied (section 8).
+6. **Decide how the registry is kept** (apply through `apply_migration`, or by hand and record the versions afterwards) and say so in the PR, so tooling and people agree on what is applied. This incident left confirmed registry drift (section 8).
 7. **Never re-run or "undo" an applied migration to test something.** Use a scratch database.
 8. **A migration is not a smoke test.** After applying, exercise each affected feature in production deliberately (section 5), and record the result.
 9. **Never run database tests against `.env.local`.** It points at production. Use a local server and set `DATABASE_URL`, `DIRECT_URL` and `TEST_DATABASE_URL` explicitly.
@@ -253,7 +252,7 @@ If a migrated object misbehaves, in order of preference:
 |---|---|
 | The `IMMUTABLE` tag function depends on the server's C library (case mapping, `[:alnum:]`); if Supabase ever changes it, existing index entries could disagree with new computations | low, long-term. The parity test and the 25-label production re-check are the early warning; rebuild the index (`REINDEX INDEX tags_canonical_identity_key`) after a major platform upgrade |
 | The API-role lock-down depends on default privileges and RLS rather than explicit revokes (section 6) | mitigated: RLS with no policies, verified; re-run the verify script after any platform or role change; add explicit revokes to future migrations |
-| Registry does not record the five applied migrations (section 8) | low; documented; do not re-apply to "fix" it |
+| **Confirmed registry drift:** the registry records none of the five migrations applied on 2026-10-09 (section 8) | real but not urgent: the schema is correct. Documented; do not re-apply or roll back to "fix" it; repair is a separate, reviewed step |
 | Features untested end to end in production (section 5) | open until the smoke tests are run |
 | `article_engagement_sessions` is empty | unexplained but unsurprising shortly after the migration; check after real reads, together with the daily crons |
 
@@ -263,7 +262,7 @@ Every merge to `main` is an automatic production deployment, including docs-only
 
 | Step | What | Status |
 |---|---|---|
-| R0 | Merge #121 (test-only) and this PR (docs, SQL and tests only) | this PR: pending approval |
+| R0 | Merge #121 (test-only) and this PR (docs, SQL and tests only) | planned; no runtime effect |
 | R1 | Backup, apply the four migrations and `article_comments` | **done 2026-10-09**, state verified (section 4) |
 | R2 | Merge #120 (publish-only secret, monitor) | not re-checked by this review |
 | R3 | Scheduler Phase A (cron infrastructure migration, Vault secret, supervised invocation) | not re-checked |

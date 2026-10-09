@@ -7,7 +7,7 @@
 -- How to read it: every row has result 'ok', 'FAIL' or 'info'.
 --   * Any 'FAIL' means the database no longer matches what the deployed code and the completed
 --     remediation expect. Do NOT "fix" it by re-running migrations or the historical rollback script;
---     read docs/remediation/pr117-database-migrations.md (sections 6 and 9) first.
+--     read docs/remediation/pr117-database-migrations.md (sections 4, 6 and 10) first.
 --   * 'info' rows are context (row counts, server version), not pass/fail.
 --
 -- What this proves: the database objects, constraints, row-level security and privileges that the
