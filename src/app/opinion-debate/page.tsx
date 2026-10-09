@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
+import { publicDebateWhere } from '@/lib/debateVisibility'
 import { authOptions } from '@/lib/auth'
 import { AnimateIn } from '@/components/ui/AnimateIn'
 import { DebatePanel, type DebateData } from '@/components/ui/DebatePanel'
@@ -31,6 +32,7 @@ function estimateReadTime(content: string): string {
 async function getDebates(userId?: string, anonymousId?: string): Promise<DebateData[]> {
   try {
     const debates = await prisma.debate.findMany({
+      where: publicDebateWhere(),
       orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
       include: {
         forArticle: {

@@ -470,11 +470,19 @@ model Debate {
   againstArticle   Article      @relation("AgainstArticle", fields: [againstArticleId], references: [id])
   isActive         Boolean      @default(true)
   closesAt         DateTime?
+  // Public visibility is `deletedAt IS NULL AND unpublishedAt IS NULL` (see
+  // src/lib/debateVisibility.ts). `isActive` stays "the featured debate" and is
+  // independent of both. deletedById is a plain id (not a relation) so the audit
+  // trail survives the deleting admin's own account being removed.
+  unpublishedAt    DateTime?
+  deletedAt        DateTime?
+  deletedById      String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   votes            DebateVote[]
 
   @@index([isActive])
+  @@index([deletedAt, unpublishedAt])
   @@map("debates")
 }
 

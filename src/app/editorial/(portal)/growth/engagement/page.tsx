@@ -34,6 +34,7 @@ export default async function EngagementPage() {
 
     // Section 2 - all debates with vote breakdown
     prisma.debate.findMany({
+      where: { deletedAt: null },
       orderBy: { createdAt: 'desc' },
       include: {
         forArticle: { select: { title: true, slug: true } },

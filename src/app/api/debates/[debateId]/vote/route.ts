@@ -5,6 +5,7 @@ import { createHash } from 'crypto'
 import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { publicDebateWhere } from '@/lib/debateVisibility'
 import { checkRateLimit } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
@@ -32,8 +33,9 @@ async function POSTHandler(req: Request, { params }: Props) {
   }
 
   // Validate debate exists and is active/open
-  const debate = await prisma.debate.findUnique({
-    where: { id: debateId },
+  // A hidden (unpublished or deleted) debate is indistinguishable from a missing one.
+  const debate = await prisma.debate.findFirst({
+    where: publicDebateWhere({ id: debateId }),
     select: { isActive: true, closesAt: true },
   })
   if (!debate || !debate.isActive) {

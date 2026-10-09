@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { unstable_cache } from 'next/cache'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
+import { publicDebateWhere } from '@/lib/debateVisibility'
 import { publishedArticleWhere, ARTICLES_CACHE_TAG, ARTICLES_REVALIDATE_SECONDS } from '@/lib/articleQueries'
 import { authOptions } from '@/lib/auth'
 import { ClientDate } from '@/components/ui/ClientDate'
@@ -132,7 +133,7 @@ function estimateReadTime(content: string): string {
 async function getActiveDebate(userId?: string, anonymousId?: string): Promise<DebateData | null> {
   try {
     const debate = await prisma.debate.findFirst({
-      where: { isActive: true },
+      where: publicDebateWhere({ isActive: true }),
       include: {
         forArticle: { select: { id: true, title: true, slug: true, excerpt: true, content: true, author: { select: { name: true } } } },
         againstArticle: { select: { id: true, title: true, slug: true, excerpt: true, content: true, author: { select: { name: true } } } },

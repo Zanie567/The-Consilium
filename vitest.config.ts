@@ -26,6 +26,7 @@ const DB_BACKED_SUITES = [
   'tests/integration/discovery.test.ts',
   'tests/integration/growth-subscribe.test.ts',
   'tests/integration/scheduled-publication.test.ts',
+  'tests/integration/debate-lifecycle-db.test.ts',
 ]
 const isolatedLauncherRun = process.env.E2E_ISOLATED === '1' && Boolean(process.env.BASE_URL)
 

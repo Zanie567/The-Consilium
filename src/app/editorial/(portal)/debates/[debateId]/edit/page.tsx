@@ -10,6 +10,9 @@ interface DebateData {
   description: string | null
   isActive: boolean
   closesAt: string | null
+  updatedAt: string
+  unpublishedAt: string | null
+  deletedAt: string | null
 }
 
 export default function EditDebatePage({ params }: { params: Promise<{ debateId: string }> }) {
@@ -30,7 +33,7 @@ export default function EditDebatePage({ params }: { params: Promise<{ debateId:
       const res = await fetch(`/api/editorial/debates/${id}`)
       if (!res.ok) throw new Error('The debate could not be loaded. Please refresh to retry.')
       const json = await res.json()
-      setData({ id: json.id, title: json.title, description: json.description, isActive: json.isActive, closesAt: json.closesAt })
+      setData({ id: json.id, title: json.title, description: json.description, isActive: json.isActive, closesAt: json.closesAt, updatedAt: json.updatedAt, unpublishedAt: json.unpublishedAt, deletedAt: json.deletedAt })
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'The debate could not be loaded.')
     } finally {
@@ -44,14 +47,14 @@ export default function EditDebatePage({ params }: { params: Promise<{ debateId:
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!data) return
+    if (!data || saving || data.deletedAt) return
     setSaving(true)
     setError(null)
     try {
       const res = await fetch(`/api/editorial/debates/${data.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: data.title, description: data.description || null, isActive: data.isActive, closesAt: data.closesAt || null }),
+        body: JSON.stringify({ title: data.title, description: data.description || null, isActive: data.isActive, closesAt: data.closesAt || null, expectedUpdatedAt: data.updatedAt }),
       })
       if (res.status !== 200) {
         const json = await res.json()
@@ -121,11 +124,15 @@ export default function EditDebatePage({ params }: { params: Promise<{ debateId:
           />
         </div>
 
+        {data.deletedAt && <p role="alert" className="text-sm text-red-600">This debate is deleted. Restore it from the debates list before editing.</p>}
+        {data.unpublishedAt && !data.deletedAt && <p className="text-sm text-amber-700">This debate is unpublished. Publish it from the debates list before making it the featured debate.</p>}
+
         <div className="flex items-center gap-3 p-4 bg-[var(--bg-subtle)] border border-[var(--border)]">
           <input
             id="isActive"
             type="checkbox"
             checked={data.isActive}
+            disabled={Boolean(data.unpublishedAt)}
             onChange={(e) => setData({ ...data, isActive: e.target.checked })}
             className="w-4 h-4 accent-gold"
           />
@@ -141,7 +148,7 @@ export default function EditDebatePage({ params }: { params: Promise<{ debateId:
         <div className="flex gap-3">
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || Boolean(data.deletedAt)}
             className="bg-navy text-cream text-xs font-bold uppercase tracking-widest px-6 py-3 hover:bg-navy/90 disabled:opacity-50 transition-colors"
           >
             {saving ? 'Saving…' : 'Save Changes'}
