@@ -65,6 +65,12 @@ const HOST_OVERRIDE_PARAMS = new Set(['host', 'hostaddr', 'service', 'servicefil
 
 /** The only query parameters a TEST database URL may carry; none changes host, port, user or database. */
 const ALLOWED_QUERY_PARAMS = new Set(['schema', 'sslmode', 'pgbouncer', 'connection_limit', 'pool_timeout', 'connect_timeout', 'application_name'])
+/**
+ * Environment variables whose value can name the production project: node-postgres (the hand-run seeds
+ * go through it) fills any component the URL lacks from these, e.g. PGUSER=postgres.<ref> with a pooler
+ * URL that has no username. PGPASSWORD is deliberately not in the list: it is never read.
+ */
+const PRODUCTION_NAMING_ENV_VARS = ['PGHOST', 'PGUSER', 'PGDATABASE', 'PGOPTIONS', 'PGSERVICE']
 /** libpq environment variables that redirect a connection even when the URL names a local host. */
 const REDIRECTING_ENV_VARS = ['PGHOSTADDR', 'PGSERVICE', 'PGSERVICEFILE']
 
@@ -151,7 +157,7 @@ export function assertNotProductionDatabase(
   label: string,
   context: PolicyContext = {},
 ): void {
-  parse(connectionString, label)
+  const parsed = parse(connectionString, label)
   const prod = productionProjectRefs(context)
   const refuse = (ref: string) => {
     throw new Error(
@@ -162,8 +168,26 @@ export function assertNotProductionDatabase(
   }
   for (const ref of supabaseRefs(connectionString)) if (prod.has(ref)) refuse(ref)
   // The ref can also ride in a query parameter (user=, options=) or the path; look for it anywhere.
-  const decoded = safeDecode(connectionString!).toLowerCase()
+  // The password is left out on purpose: it cannot identify a project and is never inspected.
+  const decoded = [parsed.username, parsed.hostname, parsed.port, parsed.pathname, parsed.search, parsed.hash]
+    .map(safeDecode)
+    .join(' ')
+    .toLowerCase()
   for (const ref of prod) if (decoded.includes(ref)) refuse(ref)
+  // A component the URL lacks is filled from PG* variables, so the ref there names production too.
+  const env = context.env ?? process.env
+  for (const name of PRODUCTION_NAMING_ENV_VARS) {
+    const value = safeDecode(env[name] ?? '').toLowerCase()
+    for (const ref of prod) {
+      if (value.includes(ref)) {
+        throw new Error(
+          `Refusing to continue: the environment variable ${name} names "${ref}", this repository's production ` +
+            `Supabase project. Drivers fill whatever ${label} leaves out from it. It can never be a test or seed ` +
+            `target, and TEST_DB_ALLOW_HOST cannot permit it. Unset ${name}.`,
+        )
+      }
+    }
+  }
 }
 
 /** Refuses a TEST database URL whose query string, or the environment, could send the connection elsewhere. */

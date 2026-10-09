@@ -339,6 +339,66 @@ describe('production project is recognised wherever its ref appears in the URL',
   })
 })
 
+// ── Production project named only through PG* environment variables ───────────────────────────
+// node-postgres (which the hand-run seeds use through PrismaPg) fills any component the URL lacks
+// from PGHOST / PGUSER / PGDATABASE / PGOPTIONS, so `postgresql:///postgres` with PGHOST=db.<ref>…
+// or a pooler URL with no username plus PGUSER=postgres.<ref> reaches production while the URL
+// itself carries no ref. The ref in those variables counts as the connection string naming it.
+
+describe('production project named through PG* environment variables', () => {
+  const URLS = ['postgresql:///postgres', 'postgresql://aws-0-eu-west-1.pooler.supabase.com:6543/postgres']
+  const withPg = (pg: Record<string, string>) => ({ ...PROD_ENV, ...pg })
+
+  it.each([
+    ['PGHOST', `db.${PROD_REF}.supabase.co`],
+    ['PGUSER', `postgres.${PROD_REF}`],
+    ['PGDATABASE', PROD_REF],
+    ['PGOPTIONS', `project=${PROD_REF}`],
+    ['PGSERVICE', PROD_REF],
+    ['PGUSER', `postgres.${PROD_REF.toUpperCase()}`],
+    ['PGUSER', `postgres%2E${PROD_REF}`],
+  ])('refuses %s=%s', (name, value) => {
+    const env = withPg({ [name]: value })
+    for (const url of URLS) {
+      expect(() => assertNotProductionDatabase(url, 'DIRECT_URL', { env, root: NO_FILE }), `${name} ${url}`).toThrow(new RegExp(`${name}.*production Supabase project`, 's'))
+      expect(
+        () => assertSeedTargetIsSafe('prisma/seed.ts', { fixtureOnly: false }, { env: { ...env, DATABASE_URL: url, DIRECT_URL: url }, root: NO_FILE }),
+        `seed ${name} ${url}`,
+      ).toThrow(/Run it through/)
+    }
+  })
+
+  it('names the variable but never echoes its value', () => {
+    try {
+      assertNotProductionDatabase(URLS[1], 'DIRECT_URL', { env: withPg({ PGUSER: `postgres.${PROD_REF}.s3cret-suffix` }), root: NO_FILE })
+      throw new Error('should have thrown')
+    } catch (error) {
+      expect((error as Error).message).toMatch(/PGUSER/)
+      expect((error as Error).message).not.toContain('s3cret-suffix')
+    }
+  })
+
+  it('ignores unrelated PG* values, and never inspects PGPASSWORD', () => {
+    const env = withPg({ PGHOST: 'localhost', PGUSER: 'postgres', PGDATABASE: 'consilium', PGPASSWORD: `${PROD_REF}-looks-like-a-ref`, PGSSLMODE: 'disable' })
+    for (const url of URLS) expect(() => assertNotProductionDatabase(url, 'DIRECT_URL', { env, root: NO_FILE })).not.toThrow()
+  })
+
+  it('never inspects a password, in the URL or the environment', () => {
+    // A password cannot identify a project; scanning it would only risk refusing (and so hinting at) a secret.
+    const url = `postgresql://postgres:${PROD_REF}-not-a-ref@staging.example.com:5432/consilium`
+    expect(() => assertNotProductionDatabase(url, 'DIRECT_URL', { env: PROD_ENV, root: NO_FILE })).not.toThrow()
+    expect(() =>
+      assertNotProductionDatabase(`postgresql://postgres:${PROD_REF}@proxy.internal:5432/postgres?user=postgres.${PROD_REF}`, 'X', { env: PROD_ENV, root: NO_FILE }),
+    ).toThrow(/production Supabase project/) // still refused, but because of user=, not the password
+  })
+
+  it('does not affect a hand-run seed against a real non-production environment', () => {
+    const url = 'postgresql://postgres@staging.example.com:5432/consilium?pgbouncer=true'
+    const env = { NEXT_PUBLIC_SUPABASE_URL: PROD_ENV.NEXT_PUBLIC_SUPABASE_URL, PGHOST: 'staging.example.com', PGUSER: 'postgres', DATABASE_URL: url, DIRECT_URL: url }
+    expect(() => assertSeedTargetIsSafe('prisma/seed.ts', { fixtureOnly: false }, { env, root: NO_FILE })).not.toThrow()
+  })
+})
+
 describe('assertSeedTargetIsSafe', () => {
   const local = 'postgresql://postgres@localhost:5433/consilium'
   const remote = 'postgresql://postgres@staging.example.com:5432/consilium'
