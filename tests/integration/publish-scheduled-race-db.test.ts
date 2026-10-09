@@ -13,8 +13,14 @@
  * The interleaving is deterministic: findMany is wrapped so the editor's change lands after it
  * returns its rows and before the update runs, exactly the window a real editor would hit.
  *
- * DESTRUCTIVE (empties articles and notifications): refuses to run anywhere except a database whose
- * name contains "publish_race" on a host the central guard accepts (never .env.local, never hosted):
+ * Article.updatedAt is @updatedAt, so ordinary Prisma writes also trip the updatedAt guard. The
+ * "do not move updatedAt" cases hold it constant so deletedAt, status and scheduledAt are each
+ * proven necessary on their own: removing any one of the four conditions fails a test.
+ *
+ * DESTRUCTIVE (empties articles, notifications and writer achievements): it skips unless the database
+ * name contains "publish_race", and throws (never connects) if that database is on a host the central
+ * guard rejects (hosted Supabase, the production project, any non-local host). It never reads
+ * DATABASE_URL or .env.local, and it is NOT run by CI, which only runs `test:unit`:
  *
  *   createdb -h 127.0.0.1 -p 5433 -U postgres -T template0 consilium_publish_race_test
  *   TEST_HARNESS=1 DATABASE_URL=postgresql://postgres@127.0.0.1:5433/consilium_publish_race_test \
@@ -156,6 +162,42 @@ suite('publishScheduledArticles vs. an editor changing the article mid-run (real
     expect(after.scheduledAt?.toISOString()).toBe(later.toISOString())
     expect(result.published).toEqual([])
     await noSideEffects(a.id)
+  })
+
+  // Article.updatedAt is @updatedAt, so every Prisma write above also moves it and the updatedAt guard
+  // alone blocks them: the tests above would stay green with deletedAt, status or scheduledAt dropped
+  // from the update. These repeat the same changes with updatedAt held at its original value (as a
+  // raw-SQL or otherwise non-bumping writer would leave it), so each remaining condition is needed.
+  describe('writers that do not move updatedAt', () => {
+    it('a trashed article is still not published', async () => {
+      const a = await dueArticle()
+      const result = await publishWith(() => db.article.update({ where: { id: a.id }, data: { deletedAt: new Date(), updatedAt: a.updatedAt } }))
+      const after = await row(a.id)
+      expect(after.status).toBe('SCHEDULED')
+      expect(after.deletedAt).not.toBeNull()
+      expect(after.publishedAt).toBeNull()
+      expect(result.published).toEqual([])
+      await noSideEffects(a.id)
+    })
+
+    it('an article pulled back to DRAFT is still not published', async () => {
+      const a = await dueArticle()
+      const result = await publishWith(() => db.article.update({ where: { id: a.id }, data: { status: 'DRAFT', updatedAt: a.updatedAt } }))
+      expect((await row(a.id)).status).toBe('DRAFT')
+      expect(result.published).toEqual([])
+      await noSideEffects(a.id)
+    })
+
+    it('an article rescheduled into the future is still not published early', async () => {
+      const a = await dueArticle()
+      const later = new Date(Date.now() + 60 * MIN)
+      const result = await publishWith(() => db.article.update({ where: { id: a.id }, data: { scheduledAt: later, updatedAt: a.updatedAt } }))
+      const after = await row(a.id)
+      expect(after.status).toBe('SCHEDULED')
+      expect(after.scheduledAt?.toISOString()).toBe(later.toISOString())
+      expect(result.published).toEqual([])
+      await noSideEffects(a.id)
+    })
   })
 
   it('an article edited after the first query is skipped this run (no stale announcement), then published, with its new title, on the next', async () => {
