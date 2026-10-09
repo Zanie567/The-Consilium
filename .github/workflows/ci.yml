@@ -165,16 +165,11 @@ jobs:
       - name: Public pages, network crawl and mobile browser workflows
         run: RUN_VITEST=1 npm run test:e2e -- --project=public --project=public-webkit --project=wf-mobile-chromium --project=wf-mobile-webkit --workers=1
 
-      - name: Upload Playwright report
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+      - name: Upload failure diagnostics
+        if: ${{ failure() }}
+        uses: ./.github/actions/upload-e2e-diagnostics
         with:
           name: playwright-report
-          path: |
-            playwright-report/
-            test-results/
-            !test-results/**/outbox.jsonl
-          retention-days: 7
 
   # Separate status for the changed role/profile suites; all prior projects remain
   # enabled in the two browser jobs. Each runner owns its DB, storage and mail.
@@ -252,16 +247,11 @@ jobs:
       - name: Ordinary and simulated workflows, ownership, review scope, publication and profiles
         run: npm run test:e2e -- --project=editorial --project=editor --project=lifecycle --project=wf-chromium --project=wf-webkit --project=simulator-chromium --project=testing-mode --project=team-profile --workers=1
 
-      - name: Upload Playwright report
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+      - name: Upload failure diagnostics
+        if: ${{ failure() }}
+        uses: ./.github/actions/upload-e2e-diagnostics
         with:
           name: critical-role-playwright-report
-          path: |
-            playwright-report/
-            test-results/
-            !test-results/**/outbox.jsonl
-          retention-days: 7
 
   # Platform upgrade journeys (tests/e2e/upgrade-*.spec.ts): discovery and topics, rich
   # content, stale-revision protection, consented reading analytics, and the final
@@ -326,13 +316,8 @@ jobs:
       - name: Discovery, rich content, revisions, growth analytics and final integration
         run: npm run test:e2e -- --project=upgrade --workers=1
 
-      - name: Upload Playwright report
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+      - name: Upload failure diagnostics
+        if: ${{ failure() }}
+        uses: ./.github/actions/upload-e2e-diagnostics
         with:
           name: upgrade-journeys-playwright-report
-          path: |
-            playwright-report/
-            test-results/
-            !test-results/**/outbox.jsonl
-          retention-days: 7
