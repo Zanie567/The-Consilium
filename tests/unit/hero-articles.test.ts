@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { HIDDEN_DEBATE_EXCLUSION } from '@/lib/articleQueries'
 import { selectHeroArticles, HERO_ROTATION_LIMIT } from '@/lib/heroArticles'
 import { publishedArticleWhere, ARTICLES_CACHE_TAG } from '@/lib/articleQueries'
 import { revalidateArticleLists } from '@/lib/revalidateArticles'
@@ -128,6 +129,8 @@ describe('hero eligibility comes from the shared published filter', () => {
       status: 'PUBLISHED',
       deletedAt: null,
       isDebate: false,
+      // ...and never an article that belongs to an unpublished or deleted debate.
+      ...HIDDEN_DEBATE_EXCLUSION,
     })
   })
 

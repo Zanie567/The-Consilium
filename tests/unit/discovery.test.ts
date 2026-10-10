@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { HIDDEN_DEBATE_EXCLUSION } from '@/lib/articleQueries'
 import { canonicalTagSlug, normalizeArticleTags } from '@/lib/articleTags'
 import { buildArchiveHref, normaliseTagSlugs } from '@/lib/archivePagination'
 import { discoveryWhere, DISCOVERY_ARTICLE_SELECT } from '@/lib/discoveryQueries'
@@ -32,6 +33,8 @@ describe('canonical topics and discovery', () => {
     expect(discoveryWhere(undefined, 'analysis', ['history', 'politics'])).toEqual({
       status: 'PUBLISHED',
       deletedAt: null,
+      // Articles of an unpublished or deleted debate are never discoverable.
+      ...HIDDEN_DEBATE_EXCLUSION,
       category: { slug: 'analysis' },
       tags: { some: { tag: { slug: { in: ['history', 'politics'] } } } },
     })

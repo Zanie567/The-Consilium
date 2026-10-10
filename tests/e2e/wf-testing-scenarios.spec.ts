@@ -40,6 +40,12 @@ test('scenarios put a persona into a known state, show the right prompts, and re
   const writer = await db().user.findUniqueOrThrow({ where: { testPersonaKey: 'writer' } })
   const editor = await db().user.findUniqueOrThrow({ where: { testPersonaKey: 'editor' } })
   const cardBefore = await db().teamMember.findUnique({ where: { userId: writer.id } })
+  // Earlier specs in a full run leave unread notifications on the shared persona. The bell counts all
+  // of them, so set them aside for this test (and put them back at the end) to assert exactly 3.
+  // Plant one stray unread notification so the "exactly 3" assertions are proven under pollution, not just on a clean database.
+  const stray = await db().notification.create({ data: { userId: writer.id, type: 'review', title: 'Stray notification from another test', message: 'Not a scenario notification.' } })
+  const otherUnread = (await db().notification.findMany({ where: { userId: writer.id, read: false, type: { not: 'testing-scenario' } }, select: { id: true } })).map((n) => n.id)
+  await db().notification.updateMany({ where: { id: { in: otherUnread } }, data: { read: true } })
   const stripped = (c: typeof cardBefore) => (c ? { ...c, updatedAt: undefined } : null)
 
   await openTesting(page)
@@ -136,6 +142,8 @@ test('scenarios put a persona into a known state, show the right prompts, and re
   await page.getByRole('button', { name: 'Exit testing mode' }).last().click()
   await expect(page.getByRole('region', { name: 'Testing environment' }).locator('strong')).toContainText('Administrator')
   expect(errors.filter((e) => !/status of (40[0-9]|409) /.test(e))).toEqual([])
+  await db().notification.updateMany({ where: { id: { in: otherUnread.filter((id) => id !== stray.id) } }, data: { read: false } })
+  await db().notification.delete({ where: { id: stray.id } })
   await context.close()
 })
 
