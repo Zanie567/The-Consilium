@@ -7,6 +7,6 @@ import { NOINDEX_NOFOLLOW_ROBOTS } from '@/lib/seo'
 // enforces its own role on the server.
 export const metadata: Metadata = { robots: NOINDEX_NOFOLLOW_ROBOTS }
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return <PortalShell>{children}</PortalShell>
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  return PortalShell({ children })
 }

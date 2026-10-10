@@ -148,7 +148,8 @@ test('only an administrator on the real origin can use scenarios; others are ref
   expect(attempt.status()).toBe(403)
   const reset = await ctx.request.post('/api/testing-scenarios', { headers: { origin: base }, data: { action: 'reset' } })
   expect(reset.status()).toBe(403)
-  expect((await ctx.request.get('/api/testing-scenarios?persona=writer')).status()).toBe(403)
+  const read = await ctx.request.get('/api/testing-scenarios?persona=writer')
+  expect(await read.json()).toEqual({ state: null }) // a non-administrator learns nothing
   expect(await db().notification.count({ where: { type: 'testing-scenario' } })).toBe(0)
   await ctx.close()
 

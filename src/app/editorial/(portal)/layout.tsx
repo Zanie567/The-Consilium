@@ -7,6 +7,7 @@ import { NOINDEX_NOFOLLOW_ROBOTS } from '@/lib/seo'
 // layout's `index: true`. A page may still override this.
 export const metadata: Metadata = { robots: NOINDEX_NOFOLLOW_ROBOTS }
 
-export default function EditorialLayout({ children }: { children: React.ReactNode }) {
-  return <PortalShell>{children}</PortalShell>
+export default async function EditorialLayout({ children }: { children: React.ReactNode }) {
+  // Invoked directly (not as <PortalShell>) so the layout resolves to the verified frame itself.
+  return PortalShell({ children })
 }

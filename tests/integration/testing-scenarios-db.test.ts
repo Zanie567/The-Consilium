@@ -243,7 +243,8 @@ suite('test scenarios (real database)', () => {
       for (const who of [ids.writer, ids.editor, ids.growth, ids.bystander, null]) {
         state.session = who ? { id: who } : null
         expect((await postRoute(post({ action: 'reset' }))).status, String(who)).toBe(403)
-        expect((await getRoute(new NextRequest('http://localhost:3000/api/testing-scenarios?persona=writer', { headers: { origin: 'http://localhost:3000' } }))).status).toBe(403)
+        const read = await getRoute(new NextRequest('http://localhost:3000/api/testing-scenarios?persona=writer', { headers: { origin: 'http://localhost:3000' } }))
+        expect(await read.json(), String(who)).toEqual({ state: null }) // nothing revealed
       }
       expect(await scenarioNotes(ids.writer)).toHaveLength(3)
     })
@@ -265,9 +266,9 @@ suite('test scenarios (real database)', () => {
       const plain = await getRoute(new NextRequest('http://localhost:3000/api/testing-scenarios?persona=writer'))
       expect(plain.status).toBe(200)
       const foreign = await getRoute(new NextRequest('http://localhost:3000/api/testing-scenarios?persona=writer', { headers: { origin: 'https://evil.example' } }))
-      expect(foreign.status).toBe(403)
+      expect(await foreign.json()).toEqual({ state: null })
       state.session = { id: ids.writer }
-      expect((await getRoute(new NextRequest('http://localhost:3000/api/testing-scenarios?persona=writer'))).status).toBe(403)
+      expect(await (await getRoute(new NextRequest('http://localhost:3000/api/testing-scenarios?persona=writer'))).json()).toEqual({ state: null })
     })
 
     it('reports the applied state to an administrator', async () => {

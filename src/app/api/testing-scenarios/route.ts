@@ -26,8 +26,10 @@ async function guard(request: NextRequest, options: { requireOrigin?: boolean } 
 }
 
 export async function GET(request: NextRequest) {
+  // A read by anyone who is not a verified administrator (or on an unverified workspace) answers
+  // "no state": nothing is revealed and the Testing page loads without a failed request.
   const admin = await guard(request, { requireOrigin: false })
-  if (admin instanceof NextResponse) return admin
+  if (admin instanceof NextResponse) return NextResponse.json({ state: null })
   const persona = request.nextUrl.searchParams.get('persona')
   if (!isPersona(persona)) return NextResponse.json({ error: 'Choose a test persona.' }, { status: 400 })
   try {
