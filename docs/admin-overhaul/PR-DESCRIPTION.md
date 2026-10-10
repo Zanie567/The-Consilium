@@ -3,9 +3,9 @@
 > Draft pull request description. Delete this file before merge if you prefer the text to live only in the PR.
 
 Branch `release/admin-overhaul`: a linear replay of the 24 overhaul commits on `origin/main` `438d596` (no merge commits), plus the migration 5 hardening and the
-documentation commit. **Production is untouched.** Nothing has been pushed, merged or applied to production. The application tree (`src/`, `prisma/`, `public/`, all
+documentation commit. **Production is untouched.** Nothing has been merged or applied to production. The application tree (`src/`, `prisma/`, `public/`, all
 other migrations and tests) is byte-identical to the tree that was deployed to the separate `consilium-testing` project at `0ec2897` (tree `d43f95d9`); the complete
-branch differs from that tree by exactly three files: migration 5, its integration test and this description.
+branch differs from that tree by exactly six files: the migration 5 SQL file, its integration test, and four documents under `docs/admin-overhaul/` (`MIGRATION-PLAN.md`, `PR-DESCRIPTION.md`, `RELEASE.md`, `STAGING-VERIFICATION.md`).
 
 ## What this changes
 
