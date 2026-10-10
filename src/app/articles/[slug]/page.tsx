@@ -1,5 +1,6 @@
 import { articleShareUrl } from '@/lib/shareUrl'
 import { publishedArticleWhere } from '@/lib/articleQueries'
+import { SERIES_ARTICLES_ARGS } from '@/lib/publicArticleReads'
 import { notFound, permanentRedirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -44,11 +45,7 @@ async function getArticle(slug: string) {
         tags: { include: { tag: true } },
         series: {
           include: {
-            articles: {
-              where: { status: 'PUBLISHED', deletedAt: null },
-              select: { id: true, title: true, slug: true, seriesOrder: true },
-              orderBy: { seriesOrder: { sort: 'asc', nulls: 'last' } },
-            },
+            articles: SERIES_ARTICLES_ARGS, // only articles a reader could open: never a hidden debate's or a trashed one
           },
         },
       },

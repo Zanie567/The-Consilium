@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { ARTICLES_CACHE_TAG, ARTICLES_REVALIDATE_SECONDS } from '@/lib/articleQueries'
+import { findPublicTopics } from '@/lib/publicArticleReads'
 import { unstable_cache } from 'next/cache'
 import { discoveryWhere, DISCOVERY_ARTICLE_SELECT } from '@/lib/discoveryQueries'
 import { format } from 'date-fns'
@@ -100,10 +101,7 @@ async function getCategories() {
   }
 }
 
-const getTopics = unstable_cache(() => prisma.tag.findMany({
-  where: { articles: { some: { article: { status: 'PUBLISHED', deletedAt: null } } } },
-  orderBy: [{ name: 'asc' }, { id: 'asc' }], take: 1000,
-}), ['discovery-topics'], { tags: [ARTICLES_CACHE_TAG], revalidate: ARTICLES_REVALIDATE_SECONDS })
+const getTopics = unstable_cache(() => findPublicTopics(prisma), ['discovery-topics'], { tags: [ARTICLES_CACHE_TAG], revalidate: ARTICLES_REVALIDATE_SECONDS })
 
 export default async function ArchivePage({ searchParams }: Props) {
   const params = await searchParams

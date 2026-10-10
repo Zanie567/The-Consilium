@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ALL_ROLES } from '@/lib/rbac'
+import { publishedArticleWhere } from '@/lib/articleQueries'
 
 interface Props {
   params: Promise<{ commentId: string }>
@@ -14,8 +15,9 @@ async function POSTHandler(_req: Request, { params }: Props) {
   if (!auth.ok) return auth.response
   const user = auth.user
 
-  const comment = await prisma.comment.findUnique({
-    where: { id: commentId },
+  // Only a comment on a publicly visible article can be upvoted.
+  const comment = await prisma.comment.findFirst({
+    where: { id: commentId, article: publishedArticleWhere() },
     select: { id: true, isHidden: true },
   })
   if (!comment || comment.isHidden) {

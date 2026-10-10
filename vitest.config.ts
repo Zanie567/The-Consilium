@@ -32,6 +32,7 @@ const DB_BACKED_SUITES = [
   'tests/integration/testing-scenarios-db.test.ts',
   'tests/integration/hidden-debate-guard-db.test.ts',
   'tests/integration/debate-article-marker-db.test.ts',
+  'tests/integration/hidden-debate-public-reads-db.test.ts',
   'tests/integration/public-feed-visibility-db.test.ts',
   'tests/integration/admin-overhaul-migrations.test.ts',
 ]
