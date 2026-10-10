@@ -1,24 +1,20 @@
 import { MetadataRoute } from 'next'
-import { publishedArticleWhere } from '@/lib/articleQueries'
-import { prisma } from '@/lib/prisma'
+import { getCachedSitemapData, type SitemapData } from '@/lib/publicFeeds'
 import { SITE_URL } from '@/lib/constants'
 
 const BASE = SITE_URL
 
+// Dynamic on purpose (see publicFeeds.ts): a statically generated sitemap would keep listing an article after it
+// is removed. Freshness comes from the tagged data cache, which every visibility change expires.
+export const dynamic = 'force-dynamic'
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [articles, categories, tags, authors] = await Promise.all([
-    prisma.article.findMany({
-      where: publishedArticleWhere(),
-      select: { slug: true, updatedAt: true },
-      orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
-    }).catch(() => []),
-    prisma.category.findMany({ select: { slug: true } }).catch(() => []),
-    prisma.tag.findMany({ select: { slug: true } }).catch(() => []),
-    prisma.user.findMany({
-      where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] }, slug: { not: null }, NOT: { email: { startsWith: 'test-' } } },
-      select: { slug: true },
-    }).catch(() => []),
-  ])
+  // On a database failure serve the static pages only, uncached, rather than an empty or stale article list.
+  const data: SitemapData = await getCachedSitemapData().catch((error) => {
+    console.error('[sitemap] public listing unavailable', error)
+    return { articles: [], categories: [], tags: [], authors: [] }
+  })
+  const { articles, categories, tags, authors } = data
 
   const staticPages: MetadataRoute.Sitemap = [
     { url: BASE, lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
@@ -37,7 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const articlePages: MetadataRoute.Sitemap = articles.map((a) => ({
     url: `${BASE}/articles/${a.slug}`,
-    lastModified: a.updatedAt,
+    lastModified: new Date(a.updatedAt),
     changeFrequency: 'weekly',
     priority: 0.9,
   }))
@@ -55,7 +51,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }))
 
   const authorPages: MetadataRoute.Sitemap = authors
-    .filter((a) => a.slug)
     .map((a) => ({
       url: `${BASE}/author/${a.slug}`,
       changeFrequency: 'weekly' as const,

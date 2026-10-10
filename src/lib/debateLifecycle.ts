@@ -69,6 +69,8 @@ export interface TransitionResult {
   visibility: ReturnType<typeof debateVisibility> | null
   articlesChanged: number
   votesRemoved: number
+  /** False when the change committed but the public caches could not be refreshed immediately. */
+  publicCacheRefreshed: boolean
 }
 
 const AUDIT_ACTION: Record<DebateAction, string> = {
@@ -192,21 +194,23 @@ export async function transitionDebate(
       },
     })
 
-    return { id: debate.id, action, visibility, articlesChanged, votesRemoved }
+    return { id: debate.id, action, visibility, articlesChanged, votesRemoved, publicCacheRefreshed: false }
   })
 
-  revalidateDebateSurfaces()
-  return result
+  // Only after the transaction has committed: a rolled-back change must never expire a cache.
+  return { ...result, publicCacheRefreshed: revalidateDebateSurfaces() }
 }
 
-/** After commit only: public pages that list debates or their articles. Never throws. */
-export function revalidateDebateSurfaces(): void {
-  revalidateArticleLists()
+/** After commit only: public pages that list debates or their articles. Never throws; returns whether everything refreshed. */
+export function revalidateDebateSurfaces(): boolean {
+  let ok = revalidateArticleLists()
   for (const path of ['/', '/opinion-debate']) {
     try {
       revalidatePath(path)
     } catch (error) {
+      ok = false
       console.error('[debate] revalidatePath failed', path, error)
     }
   }
+  return ok
 }

@@ -93,7 +93,7 @@ export function DebateAdminList({ initialRows, canManage }: { initialRows: Debat
     setMessage(null)
     const { row, action } = pending
     try {
-      await apiRequest(`/api/editorial/debates/${row.id}/lifecycle`, {
+      const result = await apiRequest<{ publicCacheRefreshed?: boolean }>(`/api/editorial/debates/${row.id}/lifecycle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -102,7 +102,10 @@ export function DebateAdminList({ initialRows, canManage }: { initialRows: Debat
           ...(action === 'purge' ? { confirmTitle: row.title } : {}),
         }),
       })
-      setMessage({ ok: true, text: ACTION_COPY[action].done })
+      setMessage({
+        ok: result.publicCacheRefreshed !== false,
+        text: ACTION_COPY[action].done + (result.publicCacheRefreshed === false ? ' Warning: the public site could not be refreshed immediately, so removed pages may still appear for up to 5 minutes.' : ''),
+      })
     } catch (reason) {
       setMessage({ ok: false, text: asApiError(reason).message })
     } finally {

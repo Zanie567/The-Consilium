@@ -1,4 +1,5 @@
 import { withTestingAudit } from '@/lib/testingAudit'
+import { revalidateArticleLists } from '@/lib/revalidateArticles'
 import { NextRequest, NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -123,6 +124,8 @@ async function DELETEHandler(req: NextRequest, { params }: Ctx) {
       await tx.loginAttempt.deleteMany({ where: { email: target.email } })
       await tx.user.delete({ where: { id: userId } })
     })
+    // Their articles are gone: expire the public lists, feed and sitemap (after the commit above).
+    revalidateArticleLists()
 
     // Audit log
     await prisma.auditLog.create({
