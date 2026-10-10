@@ -3,9 +3,11 @@
 > Draft pull request description. Delete this file before merge if you prefer the text to live only in the PR.
 
 Branch `release/admin-overhaul`: a linear replay of the 24 overhaul commits on `origin/main` `438d596` (no merge commits), plus the migration 5 hardening and the
-documentation commit. **Production is untouched.** Nothing has been merged or applied to production. The application tree (`src/`, `prisma/`, `public/`, all
-other migrations and tests) is byte-identical to the tree that was deployed to the separate `consilium-testing` project at `0ec2897` (tree `d43f95d9`); the complete
-branch differs from that tree by exactly six files: the migration 5 SQL file, its integration test, and four documents under `docs/admin-overhaul/` (`MIGRATION-PLAN.md`, `PR-DESCRIPTION.md`, `RELEASE.md`, `STAGING-VERIFICATION.md`).
+documentation commit. **Production is untouched.** Nothing has been merged or applied to production. The application tree is byte-identical to the tree that was deployed to the separate `consilium-testing` project at `0ec2897` (tree `d43f95d9`) except for the
+public-debate visibility fix (below) and migration 5: the complete branch differs from that tree by the migration 5 SQL file and its integration test, the visibility fix
+(`src/lib/debateVisibility.ts`, new `src/lib/debateVoting.ts`, the vote route, `src/lib/adminOverview.ts`), the fix's tests (`tests/integration/debate-public-visibility-db.test.ts`,
+`tests/e2e/wf-debate-visibility.spec.ts`, `tests/unit/debate-admin.test.ts`, `vitest.config.ts`) and the documents under `docs/admin-overhaul/`. **The fix has not been deployed to
+hosted staging**: staging still runs `0ec2897` (`dpl_DD8kY3HKinM1vaB17iaN5jZYDTd7`) and still shows the leak until it is updated.
 
 ## What this changes
 
@@ -58,10 +60,10 @@ these files (duplicate `20261010` prefixes and a rollback script in the same dir
 | | |
 |---|---|
 | TypeScript, ESLint | clean (exit 0 each) |
-| Vitest, whole suite incl. DB-backed suites against the live isolated stack, PostgreSQL 17.11 (measured on `0ec2897`; the default `npm test` run, which excludes the DB-backed suites, reports 1485) | 1923 passed, 0 failed, 66 skipped (157 files passed, 4 skipped) |
+| Vitest, whole suite incl. DB-backed suites against the live isolated stack, PostgreSQL 17.11 (the default `npm test` run, which excludes the DB-backed suites, reports fewer) | 1951 passed, 0 failed, 66 skipped (158 files passed, 4 skipped) |
 | The 66 skips, run separately, each on its own purpose-named disposable database | 66 / 66: publish race 9, trash purge 7, scheduler cron SQL 29, PR #117 migration rehearsal 21 |
-| Final branch `release/admin-overhaul` (adds migration 5 and its test, docs only otherwise): TypeScript, ESLint; Vitest integration suite via the isolated launcher on a disposable PostgreSQL 16 | tsc and ESLint exit 0; 661 passed, 0 failed, 66 skipped (45 files passed, 4 skipped), including the migration 5 test ("trigger functions and both triggers still fire for roles without it"). Full Vitest, Playwright and the 66 gated tests were **not** re-run on this branch: its `src/`, `prisma/` and tests are identical to `0ec2897`, where they were. |
-| Playwright, all four phases (main 87, workflow 568, team-profile 49, upgrade 36) | 740 passed, 0 failed, 0 flaky, 0 skipped |
+| New for debate visibility: `debate-public-visibility-db` (25, including the admin diagnostic view) and `wf-debate-visibility` (Chromium and WebKit, real production build) | 25 / 25 and 2 / 2; on the old rule 19 of the first 24 fail and the browser spec fails on the leaked headline |
+| Playwright, all four phases (main 87, workflow 570, team-profile 49, upgrade 36), full isolated run on the final candidate | 742 passed, 0 failed, 0 flaky, 0 skipped. An earlier full run on the same commit had one WebKit failure in `wf-admin-team-members` ("Manage" did not open its panel within 10 s, host under heavy background load); that spec then passed 12 of 12 in isolation and the whole suite passed on re-run. |
 
 Notable suites: `hidden-debate-guard-db` (21), `public-feed-visibility-db` (9), `team-placeholder-replace-db` (9), `testing-scenarios-db` (17),
 `debate-lifecycle-db`, `admin-overhaul-migrations`, and browser specs `wf-feed-invalidation`, `wf-admin-debates`, `wf-admin-team-members`,
