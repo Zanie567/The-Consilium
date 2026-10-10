@@ -113,8 +113,11 @@ export function TestingScenarios({ testing }: { testing?: Session['testing'] }) 
           <button type="button" disabled={busy} className={button} onClick={() => void post({ action: 'reset' }, 'Every test persona reset.')}>Reset all personas</button>
         </div>
         <p className="text-xs opacity-70">
-          Limits: the five personas are shared, long-lived fixture accounts. Scenarios change their profile, notifications and scenario-made
-          content only; articles and history they already had are never deleted, so no scenario here is a full “brand-new account” simulation.
+          Ownership: each scenario article, notification and achievement belongs to the persona it was applied to, so resetting one persona
+          never removes another persona’s scenario or earlier data, and notifications other personas received about a removed scenario article
+          go with it. Limits: the five personas are shared, long-lived fixture accounts. Articles and history they already had are never
+          deleted, and notifications created by a tester’s own actions that do not point at a scenario article are kept, so no scenario here
+          is a full “brand-new account” simulation.
         </p>
         <p role="status" aria-live="polite" className={`min-h-[1.25rem] text-sm ${message ? (message.ok ? 'text-emerald-600' : 'text-red-500') : ''}`}>{message?.text}</p>
 

@@ -92,7 +92,16 @@ async function addNotifications(tx: Tx, user: Persona, read: boolean) {
   }
 }
 
-const articleSlug = (kind: string, userId: string, n = 1) => `${SCENARIO_TAG}-${kind}-${userId.slice(-8)}-${n}`
+/**
+ * Every scenario article's slug names its OWNER: the persona the scenario was applied to (not necessarily its author).
+ * That is the whole ownership rule: resetting a persona removes exactly the articles that carry its owner tag, so
+ * resetting the writer who authored an editor's review queue cannot delete that queue, and vice versa.
+ */
+const ownerTag = (userId: string) => userId.slice(-8)
+const articleSlug = (kind: string, userId: string, n = 1) => `${SCENARIO_TAG}-${kind}-${ownerTag(userId)}-${n}`
+/** Slug prefixes a persona can own. Only editors own a review queue; for anyone else a `queue` slug carrying their tag is a pre-owner-tag row authored by them. */
+const ownedSlugs = (user: { id: string; role: string }): Prisma.ArticleWhereInput[] =>
+  [...(user.role === 'EDITOR' ? ['queue'] : []), 'draft', 'submitted'].map((kind) => ({ slug: { startsWith: `${SCENARIO_TAG}-${kind}-${ownerTag(user.id)}-` } }))
 
 async function opinionCategoryId(tx: Tx): Promise<string | null> {
   const opinion = await tx.category.findFirst({ where: { slug: 'opinion' }, select: { id: true } })
@@ -100,17 +109,34 @@ async function opinionCategoryId(tx: Tx): Promise<string | null> {
 }
 
 async function upsertArticle(tx: Tx, data: { slug: string; title: string; authorId: string; status: 'DRAFT' | 'PENDING_REVIEW'; categoryId: string | null }) {
-  await tx.article.deleteMany({ where: { slug: data.slug } })
+  await deleteScenarioArticles(tx, { slug: data.slug })
   await tx.article.create({
     data: { ...data, content: SAMPLE_CONTENT, excerpt: 'Created by a testing scenario.', publishedAt: null },
   })
 }
 
-/** Everything a scenario created for this persona, and nothing else. */
+/**
+ * Deletes scenario articles AND the notifications that point at them, for every account. Notification.articleId is
+ * ON DELETE SET NULL, so deleting only the article would leave "an article was submitted" notifications behind in other
+ * personas' bells that open nothing. Returns how many articles were removed.
+ */
+async function deleteScenarioArticles(tx: Tx, where: Prisma.ArticleWhereInput): Promise<number> {
+  const ids = (await tx.article.findMany({ where, select: { id: true } })).map((a) => a.id)
+  if (ids.length === 0) return 0
+  await tx.notification.deleteMany({ where: { articleId: { in: ids } } })
+  await tx.article.deleteMany({ where: { id: { in: ids } } })
+  return ids.length
+}
+
+/** Everything a scenario created FOR this persona (by owner tag), and nothing else. Idempotent. */
 async function clearScenarioContent(tx: Tx, user: Persona) {
   await clearNotifications(tx, user)
   await tx.writerAchievement.deleteMany({ where: { userId: user.id, referenceId: SCENARIO_TAG } })
-  await tx.article.deleteMany({ where: { authorId: user.id, slug: { startsWith: SCENARIO_TAG } } })
+  await deleteScenarioArticles(tx, {
+    OR: ownedSlugs(user),
+    // Only rows a scenario made: authored by a test persona. A real article can never carry this slug prefix by accident.
+    author: { testPersonaKey: { not: null } },
+  })
 }
 
 async function lock(tx: Tx, user: Persona) {
@@ -173,11 +199,11 @@ export async function applyScenario(personaKey: TestPersona, scenarioId: Scenari
         break
       }
       case 'editor-queue': {
-        // Written by the second writer so the editor is reviewing someone else's work.
+        // Written by the second writer so the editor is reviewing someone else's work, but OWNED by this editor (see ownerTag).
         const author = (await tx.user.findUnique({ where: { testPersonaKey: 'writer-other' }, select: { id: true, name: true, email: true, role: true } })) ?? (await personaUser(tx, 'writer'))
         const categoryId = await opinionCategoryId(tx)
         for (const n of [1, 2]) {
-          await upsertArticle(tx, { slug: articleSlug('queue', author.id, n), title: `[Scenario] Awaiting review ${n}`, authorId: author.id, status: 'PENDING_REVIEW', categoryId })
+          await upsertArticle(tx, { slug: articleSlug('queue', user.id, n), title: `[Scenario] Awaiting review ${n}`, authorId: author.id, status: 'PENDING_REVIEW', categoryId })
         }
         break
       }
@@ -210,10 +236,21 @@ export async function resetScenarios(personaKey?: TestPersona, client: typeof pr
       done.push(key)
     })
   }
-  // Editor-queue content is authored by a persona other than the one it was applied for.
-  await client.$transaction(async (tx) => {
-    await tx.article.deleteMany({ where: { slug: { startsWith: `${SCENARIO_TAG}-queue-` }, author: { testPersonaKey: { not: null } } } })
-  })
+  // Review-queue rows created before owner tags existed carry their AUTHOR's tag, so no persona owns them. They can only
+  // have come from an editor scenario: remove them when an editor (or everyone) is reset, never when a writer is.
+  const editorsReset = !personaKey || personaKey.startsWith('editor')
+  if (editorsReset) {
+    await client.$transaction(async (tx) => {
+      const authors = await tx.user.findMany({ where: { testPersonaKey: { not: null } }, select: { id: true } })
+      const ownedByAnEditor = (await tx.user.findMany({ where: { testPersonaKey: { startsWith: 'editor' } }, select: { id: true } })).map((u) => ownerTag(u.id))
+      const legacy = await tx.article.findMany({
+        where: { slug: { startsWith: `${SCENARIO_TAG}-queue-` }, authorId: { in: authors.map((a) => a.id) } },
+        select: { id: true, slug: true },
+      })
+      const orphaned = legacy.filter((a) => !ownedByAnEditor.some((t) => a.slug.includes(`-queue-${t}-`)))
+      if (orphaned.length) await deleteScenarioArticles(tx, { id: { in: orphaned.map((a) => a.id) } })
+    })
+  }
   return { personas: done }
 }
 
@@ -236,7 +273,7 @@ export async function scenarioState(personaKey: TestPersona, client: typeof pris
     client.teamMember.findUnique({ where: { userId: user.id }, select: { id: true, bio: true } }),
     client.article.count({ where: { slug: articleSlug('draft', user.id) } }),
     client.article.count({ where: { slug: articleSlug('submitted', user.id) } }),
-    client.article.count({ where: { slug: { startsWith: `${SCENARIO_TAG}-queue-` } } }),
+    client.article.count({ where: { slug: { startsWith: `${SCENARIO_TAG}-queue-${ownerTag(user.id)}-` } } }),
     client.notification.count({ where: { userId: user.id, type: SCENARIO_TAG, read: false } }),
     client.notification.count({ where: { userId: user.id, type: SCENARIO_TAG, read: true } }),
     client.writerAchievement.count({ where: { userId: user.id, referenceId: SCENARIO_TAG } }),

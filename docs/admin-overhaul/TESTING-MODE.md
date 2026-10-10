@@ -51,6 +51,21 @@ from the same guard function, so it cannot report ready while the guard refuses.
 | First published article | unseen first-publish achievement | see the one-time banner |
 | Restricted functionality | nothing (use Check access) | be refused administrator pages and APIs |
 
+**Ownership and reset isolation.** Every row a scenario creates is owned by the persona it was applied to,
+recorded in the row itself (the slug carries the owner's tag; notifications and achievements carry the scenario tag
+and the owner's id). A review queue is *written* by the second writer but *owned* by the editor it was applied to, so:
+
+- resetting a persona removes exactly the rows it owns and restores its snapshotted profile; it never removes another
+  persona's scenario content or any article, notification or history that existed before a scenario;
+- notifications that other personas received about a removed scenario article (for example an editor's "submitted for
+  review") are removed with it, because they would otherwise open nothing;
+- reset is idempotent (repeat it freely) and applying a scenario again after a reset gives the same state as the first time;
+- review-queue rows made before owner tags existed are removed by an editor reset or "Reset all personas", never by a writer reset.
+
+What isolation cannot do: notifications a tester's own actions create that do not point at a scenario article are real
+rows on a shared fixture account, so they are kept (deleting by time would risk removing a legitimate baseline).
+Use "Reset all personas" before a hand-over if the bell should be spotless.
+
 **Limitation, stated plainly.** The five personas are shared, long-lived fixture accounts that other
 tests depend on. A scenario therefore never deletes or reassigns articles, notifications or history they already
 have, so none of these is a complete "brand-new account" simulation. The first scenario changes only the profile

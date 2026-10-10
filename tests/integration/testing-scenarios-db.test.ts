@@ -169,15 +169,87 @@ suite('test scenarios (real database)', () => {
     expect(await db.article.findUnique({ where: { id: mine.id } })).not.toBeNull()
   })
 
-  it('the editor queue is written by the second writer and cleared whichever persona resets', async () => {
+  const queueOf = (editorId: string) => db.article.findMany({ where: { slug: { startsWith: `${SCENARIO_TAG}-queue-${editorId.slice(-8)}-` } } })
+
+  it('the editor queue is written by the second writer but OWNED by the editor it was applied to', async () => {
     await applyScenario('editor', 'editor-queue')
-    await applyScenario('editor', 'editor-queue')
-    const queue = await db.article.findMany({ where: { slug: { startsWith: `${SCENARIO_TAG}-queue-` } } })
+    await applyScenario('editor', 'editor-queue') // repeatable: still two
+    const queue = await queueOf(ids.editor)
     expect(queue).toHaveLength(2)
     expect(queue.every((a) => a.status === 'PENDING_REVIEW' && a.authorId === ids.writerOther)).toBe(true)
     expect((await scenarioState('editor'))?.queue).toBe(true)
     await resetScenarios('editor')
-    expect(await db.article.count({ where: { slug: { startsWith: `${SCENARIO_TAG}-queue-` } } })).toBe(0)
+    expect(await queueOf(ids.editor)).toHaveLength(0)
+    expect((await scenarioState('editor'))?.queue).toBe(false)
+  })
+
+  it('resetting the writer who authored a queue, or another editor, never deletes an editor\'s queue or a persona\'s own scenario', async () => {
+    const editorGlobal = (await persona('editor-global')).id
+    await applyScenario('editor', 'editor-queue')
+    await applyScenario('editor-global', 'editor-queue')
+    await applyScenario('writer-other', 'writer-draft')
+    await applyScenario('writer', 'writer-draft')
+
+    await resetScenarios('writer-other') // the author of both queues
+    expect(await queueOf(ids.editor)).toHaveLength(2)
+    expect(await queueOf(editorGlobal)).toHaveLength(2)
+    expect(await db.article.count({ where: { slug: { startsWith: `${SCENARIO_TAG}-draft-${ids.writerOther.slice(-8)}` } } })).toBe(0) // its own went
+
+    await resetScenarios('editor-global') // a sibling editor
+    expect(await queueOf(ids.editor)).toHaveLength(2)
+    expect(await queueOf(editorGlobal)).toHaveLength(0)
+
+    await resetScenarios('writer') // an unrelated writer
+    expect(await queueOf(ids.editor)).toHaveLength(2)
+    expect((await scenarioState('writer'))?.draft).toBe(false)
+    expect((await scenarioState('editor'))?.queue).toBe(true)
+  })
+
+  it('reset removes notifications other personas received about the persona\'s scenario articles, and nothing else of theirs', async () => {
+    await applyScenario('writer', 'writer-submitted')
+    const article = await db.article.findFirstOrThrow({ where: { authorId: ids.writer, slug: { startsWith: `${SCENARIO_TAG}-submitted-` } } })
+    // What the real submit workflow does while a tester is signed in: tell the editor, and the writer themself.
+    const aboutIt = await db.notification.createMany({ data: [
+      { userId: ids.editor, type: 'ARTICLE_SUBMITTED', title: `${tag}-ns submitted`, message: 'Please review', articleId: article.id },
+      { userId: ids.writer, type: 'ARTICLE_SUBMITTED', title: `${tag}-ns receipt`, message: 'Received', articleId: article.id },
+    ] })
+    expect(aboutIt.count).toBe(2)
+    // The editor's genuine baseline: a notification about something unrelated, and one with no article at all.
+    const unrelated = await db.article.create({ data: { title: `${tag} real`, slug: `${tag}-real-notified`, content: '{}', authorId: ids.bystander, status: 'DRAFT' } })
+    await db.notification.createMany({ data: [
+      { userId: ids.editor, type: 'ARTICLE_SUBMITTED', title: `${tag}-ns baseline article`, message: 'x', articleId: unrelated.id },
+      { userId: ids.editor, type: 'SYSTEM', title: `${tag}-ns baseline plain`, message: 'x' },
+    ] })
+
+    await resetScenarios('writer')
+    const left = await db.notification.findMany({ where: { userId: { in: [ids.editor, ids.writer] }, title: { startsWith: `${tag}-ns` } }, select: { title: true, articleId: true } })
+    expect(left.map((n) => n.title).sort()).toEqual([`${tag}-ns baseline article`, `${tag}-ns baseline plain`])
+    expect(left.every((n) => n.articleId !== null || n.title.endsWith('plain'))).toBe(true) // no orphaned, article-less "submitted" notification
+    await db.notification.deleteMany({ where: { title: { startsWith: `${tag}-ns` } } })
+    await db.article.delete({ where: { id: unrelated.id } })
+  })
+
+  it('reset is idempotent, and applying after a reset gives the same state as the first time', async () => {
+    for (const p of ['writer', 'editor'] as const) {
+      await resetScenarios(p); await resetScenarios(p)
+    }
+    await applyScenario('editor', 'editor-queue')
+    const first = (await queueOf(ids.editor)).map((a) => a.slug).sort()
+    await resetScenarios('editor'); await resetScenarios('editor')
+    await applyScenario('editor', 'editor-queue')
+    expect((await queueOf(ids.editor)).map((a) => a.slug).sort()).toEqual(first)
+    await resetScenarios(); await resetScenarios()
+    expect(await db.article.count({ where: { slug: { startsWith: SCENARIO_TAG } } })).toBe(0)
+  })
+
+  it('review-queue rows from before owner tags are removed by an editor or full reset, never by a writer reset', async () => {
+    const legacy = () => db.article.count({ where: { slug: { startsWith: `${SCENARIO_TAG}-queue-${ids.writerOther.slice(-8)}-` } } })
+    const mk = (n: number) => db.article.create({ data: { title: `[Scenario] Awaiting review ${n}`, slug: `${SCENARIO_TAG}-queue-${ids.writerOther.slice(-8)}-${n}`, content: '{}', authorId: ids.writerOther, status: 'PENDING_REVIEW' } })
+    await mk(1); await mk(2)
+    await resetScenarios('writer-other'); await resetScenarios('writer')
+    expect(await legacy()).toBe(2) // untouched by writers
+    await resetScenarios('editor')
+    expect(await legacy()).toBe(0)
   })
 
   it('first-publish adds one unseen achievement and reset removes only that', async () => {
