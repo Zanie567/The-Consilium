@@ -1,8 +1,9 @@
 # Admin overhaul: migration plan
 
-Four additive, idempotent SQL files. **Nothing here has been applied to production.** The first three are applied to the hosted *testing*
-project (`consilium-testing`, `zrieajoqosgzyesfatta`); the fourth is not applied anywhere except disposable local databases. This document does
-not authorise anything: each hosted step needs its own approval.
+Five additive, idempotent SQL files. **Nothing here has been applied to production.** Files 1 to 4 are applied to the hosted *testing*
+project (`consilium-testing`, `zrieajoqosgzyesfatta`); file 5 is applied nowhere except disposable local databases. This document does
+not authorise anything: each hosted step needs its own approval. Production's actual state must be read (read-only catalog queries, section 5) before any
+production step is planned; the 2026-10-10 check found 1 to 4 absent, and 5 was not yet written.
 
 ## 1. The files, in application order
 
@@ -11,9 +12,10 @@ not authorise anything: each hosted step needs its own approval.
 | 1 | `20261010_debate_lifecycle.sql` | `20261010` | the `debates` table | `debates.unpublishedAt`, `deletedAt`, `deletedById`, index `debates_deletedAt_unpublishedAt_idx` | **not applied** (columns absent; read-only catalog check, 2026-10-10) | applied; registry `20261010122238` `admin_overhaul_1_debate_lifecycle_20261010` |
 | 2 | `20261010_team_member_updated_at.sql` | `20261010` (same as #1) | the `team_members` table | `team_members.updatedAt NOT NULL DEFAULT CURRENT_TIMESTAMP` | **not applied** | applied; registry `20261010122248` `admin_overhaul_2_team_member_updated_at_20261010` |
 | 3 | `20261011_hidden_debate_article_guard.sql` | `20261011` | **#1** (reads `debates.unpublishedAt/deletedAt`) | `SECURITY DEFINER` trigger `articles_hidden_debate_guard`; archives any article already public inside a hidden debate (none exist today) | **not applied** (no trigger on `articles`, no function) | applied; registry `20261010122319` `admin_overhaul_3_hidden_debate_article_guard_20261011` |
-| 4 | `20261012100000_article_hidden_by_debate_marker.sql` | `20261012100000` | the `articles` table; the application code needs #1 to #3 | `articles.hiddenByDebateAt` (nullable) and trigger `articles_clear_hidden_by_debate` | **not applied** | **not applied** (awaiting approval) |
+| 4 | `20261012100000_article_hidden_by_debate_marker.sql` | `20261012100000` | the `articles` table; the application code needs #1 to #3 | `articles.hiddenByDebateAt` (nullable) and trigger `articles_clear_hidden_by_debate` | **not applied** | applied; registry `20261010170814` `admin_overhaul_4_article_hidden_by_debate_marker_20261012` (verified: column, trigger, pinned `search_path`, 0 marked rows) |
+| 5 | `20261012110000_revoke_trigger_function_execute.sql` | `20261012110000` | #3 and #4 (the functions must exist) | privileges only: `REVOKE EXECUTE` on `prevent_hidden_debate_article_publication()` and `clear_article_hidden_by_debate()` from `PUBLIC`, `anon`, `authenticated` | **not applied** | **not applied** (current ACL on both: `PUBLIC`, `postgres`, `anon`, `authenticated`, `service_role`; read 2026-10-10) |
 
-Dependencies in one line: #3 needs #1; #2 is independent; #4 has no SQL dependency on #1 to #3 but is applied after them, and the new code needs all four.
+Dependencies in one line: #3 needs #1; #2 is independent; #4 has no SQL dependency on #1 to #3 but is applied after them, and the new code needs 1 to 4; #5 needs the two functions from #3 and #4 and is not required by the code (hardening only; `deployment-health` does not require it).
 Every statement uses `IF NOT EXISTS` / `CREATE OR REPLACE` / `DROP ... IF EXISTS`, so re-running any file is harmless.
 
 Production and the code: **migrations first, then the deploy.** After each of #1 to #4 the *current* production code keeps working (every new column
@@ -21,15 +23,16 @@ is nullable or defaulted and unknown to it). The new code reports a missing item
 
 ## 2. Hosted testing project: what remains
 
-Only **#4** is outstanding there. #1 to #3 are recorded as applied and their objects were confirmed present by a read-only catalog query
-(columns, index, enabled trigger, `SECURITY DEFINER` function with a pinned `search_path`). Do not re-apply, rename or re-register #1 to #3.
-The hosted code at `dpl_Dzsp2oGdRaecUB4tEHBM595r9v2i` is `7202db9` and does not know about #4; applying #4 first is safe for it (the column is
-simply unused), and the newer code must not be deployed before #4 (see `STAGING-VERIFICATION.md`, section "Scope of hosted verification").
+Only **#5** is outstanding there, and it needs its own go-ahead. #1 to #4 are recorded as applied and verified. The hosted code is `dpl_DD8kY3HKinM1vaB17iaN5jZYDTd7`
+(`0ec2897`), which was deployed after #4. Do not re-apply, rename or re-register #1 to #4. #5 is privileges-only, so no redeploy is needed.
+Before applying: confirm the project ref is `zrieajoqosgzyesfatta` and the marker row matches, confirm the registry has no #5 entry, read the current ACLs (above), apply once, then run the
+section 5 checks for #5. Verification after: both ACLs hold only `postgres` and `service_role`; both triggers still fire (update an article of a hidden debate: still refused 409; trash an
+article: marker cleared); `get_advisors` no longer lists the function.
 
 ## 3. Production: order of operations (not authorised yet)
 
 1. A verified database backup. (Staging data hashes are not a backup.)
-2. Apply #1, #2, #3, #4 in that order, one at a time, by an operator through the Supabase SQL editor (the project's manual procedure). After each, run
+2. Apply #1, #2, #3, #4, then #5 in that order, one at a time, by an operator through the Supabase SQL editor (the project's manual procedure). After each, run
    the read-only checks in section 5.
 3. Deploy the application. Immediately check `GET /api/admin/deployment-health` as an administrator: 200 and `"gaps": []`.
 4. Smoke test with a throw-away debate (unpublish, confirm both URLs 404, publish, confirm they return).
@@ -74,6 +77,8 @@ SELECT prosecdef, proconfig FROM pg_proc WHERE proname='prevent_hidden_debate_ar
 SELECT column_name, is_nullable FROM information_schema.columns
  WHERE table_schema='public' AND table_name='articles' AND column_name='hiddenByDebateAt';                    -- YES
 SELECT tgname, tgenabled FROM pg_trigger WHERE tgname='articles_clear_hidden_by_debate' AND NOT tgisinternal;  -- 1 row, 'O'
+-- #5 (after it is applied: neither function should list PUBLIC, anon or authenticated)
+SELECT proname, proacl FROM pg_proc WHERE proname IN ('prevent_hidden_debate_article_publication','clear_article_hidden_by_debate');
 -- nothing hidden or marked before any debate has been hidden:
 SELECT count(*) FROM articles WHERE "hiddenByDebateAt" IS NOT NULL;                                          -- 0
 SELECT count(*) FROM debates WHERE "unpublishedAt" IS NOT NULL OR "deletedAt" IS NOT NULL;                   -- 0 on production
@@ -85,6 +90,8 @@ Code first: redeploy the previous build. The additive schema can stay. If the sc
 `tests/integration/admin-overhaul-migrations.test.ts` (`ROLLBACK`):
 
 ```sql
+-- #5 (privileges only; restores the grants the functions had):
+GRANT EXECUTE ON FUNCTION prevent_hidden_debate_article_publication(), clear_article_hidden_by_debate() TO PUBLIC, anon, authenticated;
 DROP TRIGGER IF EXISTS articles_clear_hidden_by_debate ON articles;     -- #4 (forgets which articles a debate hid; nothing else)
 DROP FUNCTION IF EXISTS clear_article_hidden_by_debate();
 ALTER TABLE articles DROP COLUMN IF EXISTS "hiddenByDebateAt";

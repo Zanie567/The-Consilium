@@ -1,11 +1,11 @@
 # Release guide: admin overhaul
 
-Branch `feat/admin-overhaul` plus the pre-release fixes on `fix/admin-overhaul-prerelease`. Nothing here has been pushed, merged, deployed to production or applied to production. **`MIGRATION-PLAN.md` is the authority for migration files, versions, order and per-environment state.**
+Branch `release/admin-overhaul` (linear replay on `origin/main` `438d596`; the preserved sources are `feat/admin-overhaul` `39c96da`, `fix/admin-overhaul-prerelease` and the migration 5 proposal `d8549d6`). Nothing here has been pushed, merged, deployed to production or applied to production. **`MIGRATION-PLAN.md` is the authority for migration files, versions, order and per-environment state.**
 
 ## 1. Order of operations
 
 1. **Review** the diff and this branch's PR. Merge only with explicit approval.
-2. **Staging first** (see `STAGING.md`; migrations 1 to 3 are already there, migration 4 is pending): apply the outstanding migration to the *testing* database, deploy the branch to the testing project, run the
+2. **Staging first** (see `STAGING.md`; migrations 1 to 4 and the application at `0ec2897` are already there, migration 5 is pending approval): apply the outstanding migration to the *testing* database, deploy the branch to the testing project, run the
    checks in section 4, and use Testing Mode to walk Writer, Editor and Growth.
 3. **Production database, before the code**, in this order, each reviewed and run by an operator (they are additive and idempotent):
    1. `supabase/migrations/20261010_debate_lifecycle.sql`
@@ -14,7 +14,9 @@ Branch `feat/admin-overhaul` plus the pre-release fixes on `fix/admin-overhaul-p
       on production today is none because hidden debates do not exist yet).
    4. `supabase/migrations/20261012100000_article_hidden_by_debate_marker.sql` (adds `articles.hiddenByDebateAt` and the trigger that clears it when an
       editor changes an article's status or trash state; no backfill).
-   Old code keeps working after each step: every new column is nullable or defaulted and unknown to old code. Take a database backup first.
+   5. `supabase/migrations/20261012110000_revoke_trigger_function_execute.sql` (privileges only: removes `EXECUTE` on the two trigger functions from `PUBLIC`, `anon`,
+      `authenticated`; hardening, not required by the code; rollback is the `GRANT` in its header).
+   Read production's actual migration state first (`MIGRATION-PLAN.md` section 5); do not assume all five are missing. Old code keeps working after each step: every new column is nullable or defaulted and unknown to old code. Take a database backup first.
 4. **Deploy the code.** Immediately check `GET /api/admin/deployment-health` as an admin: 200 and no gaps.
 5. **Leave Testing Mode off in production.** Do not set `TESTING_MODE_ENABLED` there. Optionally set `TESTING_WORKSPACE_URL` to the testing origin (a link only).
 
@@ -68,7 +70,7 @@ Why a role change cannot disturb it (tested on a real database): the card's titl
 
 Debates (unpublish/delete/restore/permanent delete, audit, atomic create/edit); feed and sitemap that follow every visibility change; "Replace with an existing profile" for generated placeholder cards; a database guard so a hidden debate's articles can never be public;
 Team Members (assign/unassign/create profiles, one-owner rules, stale-edit refusal, data checks); one portal frame and role-driven menu with an admin
-overview; Testing Mode checklist, scenarios and access check. Four additive migrations (see `MIGRATION-PLAN.md`). A debate remembers which of its articles it hid, so publishing it restores only those. Public series, topic, comment, reading-progress and view-count reads follow the same hidden-debate rule as every other public list. No new environment variable.
+overview; Testing Mode checklist, scenarios and access check. Five additive migrations (see `MIGRATION-PLAN.md`). A debate remembers which of its articles it hid, so publishing it restores only those. Public series, topic, comment, reading-progress and view-count reads follow the same hidden-debate rule as every other public list. No new environment variable.
 
 ## 4. Pre-release checks to run on staging
 
@@ -80,7 +82,8 @@ overview; Testing Mode checklist, scenarios and access check. Four additive migr
 
 ## 5. Remaining risks
 
-* The hosted workspace is verified only through its schema and the gate logic, not by running this code there (see `STAGING.md`).
+* The hosted workspace now runs this application tree (`dpl_DD8kY3HKinM1vaB17iaN5jZYDTd7`) and an administrator walked debates, feed and sitemap, Team Members and Testing Mode on it (`PR-DESCRIPTION.md`, "Hosted staging"). Session expiry, comment moderation and scheduled publishing were not exercised there.
+* Migration 5 is tested locally (PostgreSQL 16 and 17.11) but not yet applied to hosted staging.
 * Four local branches and the open drafts also touch `prisma/schema.prisma` (additive). Expect trivial rebase conflicts if they merge after this.
 * Scenario fixtures are shared persona accounts, so "new account" is partial (stated in the UI). Reset is owner-scoped and idempotent; see `TESTING-MODE.md`.
 * `latest-article` is still `s-maxage=60`: a hidden article can remain in that one JSON response for up to a minute at the CDN. The feed and sitemap are not cached.
@@ -100,11 +103,11 @@ overview; Testing Mode checklist, scenarios and access check. Four additive migr
 2. **Pre-flight read-only checks** (section 2 SQL plus: `select count(*) from articles where status in ('PUBLISHED','SCHEDULED') and "deletedAt" is null`
    and the same joined to `debates`; there must be no hidden debates yet, and nothing the guard would archive).
 3. **Migrations, one at a time, in order, each verified before the next** (additive, idempotent, validated against a copy of the old schema; the first
-   three are already on hosted staging, the fourth is new): `20261010_debate_lifecycle.sql`, `20261010_team_member_updated_at.sql`,
-   `20261011_hidden_debate_article_guard.sql`, `20261012100000_article_hidden_by_debate_marker.sql`. Do not use the Supabase CLI for these (duplicate version
+   four are already on hosted staging, the fifth is new and not yet applied there): `20261010_debate_lifecycle.sql`, `20261010_team_member_updated_at.sql`,
+   `20261011_hidden_debate_article_guard.sql`, `20261012100000_article_hidden_by_debate_marker.sql`, `20261012110000_revoke_trigger_function_execute.sql`. Do not use the Supabase CLI for these (duplicate version
    prefixes; see `MIGRATION-PLAN.md`).
    After each: the object exists, existing-row hashes are unchanged, the application still serves. Old code is compatible after every step.
-4. **App rollout** after the fourth migration: deploy the merged commit through the normal pipeline. No new environment variable. Testing Mode
+4. **App rollout** after the fifth migration (the application needs only the first four; the fifth must still be in place before release so that production matches the verified plan): deploy the merged commit through the normal pipeline. No new environment variable. Testing Mode
    stays off (do not set `TESTING_MODE_ENABLED`).
 5. **Immediately after:** `GET /api/admin/deployment-health` as an admin (200, no gaps, includes `articles_hidden_debate_guard`, `articles_clear_hidden_by_debate` and `articles.hiddenByDebateAt`); `/feed.xml` and
    `/sitemap.xml` return 200 with `max-age=0` and no positive `s-maxage`; home page, one article, `/opinion-debate`, `/team` (Editor-in-Chief first, once);
