@@ -64,7 +64,7 @@ Why a role change cannot disturb it (tested on a real database): the card's titl
 
 ## 3. What this branch changes
 
-Debates (unpublish/delete/restore/permanent delete, audit, atomic create/edit); a database guard so a hidden debate's articles can never be public;
+Debates (unpublish/delete/restore/permanent delete, audit, atomic create/edit); feed and sitemap that follow every visibility change; "Replace with an existing profile" for generated placeholder cards; a database guard so a hidden debate's articles can never be public;
 Team Members (assign/unassign/create profiles, one-owner rules, stale-edit refusal, data checks); one portal frame and role-driven menu with an admin
 overview; Testing Mode checklist, scenarios and access check. Three additive migrations. No new environment variable.
 
@@ -80,4 +80,34 @@ overview; Testing Mode checklist, scenarios and access check. Three additive mig
 
 * The hosted workspace is verified only through its schema and the gate logic, not by running this code there (see `STAGING.md`).
 * Four local branches and the open drafts also touch `prisma/schema.prisma` (additive). Expect trivial rebase conflicts if they merge after this.
-* Scenario fixtures are shared persona accounts, so "new account" is partial (stated in the UI).
+* Scenario fixtures are shared persona accounts, so "new account" is partial (stated in the UI). Reset is owner-scoped and idempotent; see `TESTING-MODE.md`.
+* `latest-article` is still `s-maxage=60`: a hidden article can remain in that one JSON response for up to a minute at the CDN. The feed and sitemap are not cached.
+* Scheduled publishing was verified on a local real Postgres, **not on hosted staging** (no scheduler runs there by design).
+* `updatedAt` has millisecond resolution; two edits to one row within the same millisecond would not be detected as stale.
+
+## 6. Production deployment plan (draft; nothing here has been run)
+
+**Preconditions.** The PR is reviewed and approved; the branch has been merged with the then-current `origin/main` (this branch merged cleanly with
+`438d596` in a conflict check) and the complete regression re-run on the merged tree; the staging deployment has been repeated at the final commit.
+
+1. **Backup first, and prove it.** The staging hashes taken during verification are *not* a backup of production. Before step 2 an operator must:
+   confirm in the Supabase dashboard (project `scllbuwkcqtmfogsgalt`) whether point-in-time recovery is enabled and note the restore window, **or**
+   take a logical dump with the direct connection (`pg_dump --format=custom`, stored outside the repository), and restore it into a throw-away database to
+   confirm it opens and row counts for `articles`, `debates`, `team_members`, `users`, `notifications` match. Record who did it and when. Do not proceed
+   without one of these.
+2. **Pre-flight read-only checks** (section 2 SQL plus: `select count(*) from articles where status in ('PUBLISHED','SCHEDULED') and "deletedAt" is null`
+   and the same joined to `debates`; there must be no hidden debates yet, and nothing the guard would archive).
+3. **Migrations, one at a time, in order, each verified before the next** (additive, idempotent, validated against a copy of the old schema; none are new
+   since the staging run): `20261010_debate_lifecycle.sql`, `20261010_team_member_updated_at.sql`, `20261011_hidden_debate_article_guard.sql`.
+   After each: the object exists, existing-row hashes are unchanged, the application still serves. Old code is compatible after every step.
+4. **App rollout** after the third migration: deploy the merged commit through the normal pipeline. No new environment variable. Testing Mode
+   stays off (do not set `TESTING_MODE_ENABLED`).
+5. **Immediately after:** `GET /api/admin/deployment-health` as an admin (200, no gaps, includes `articles_hidden_debate_guard`); `/feed.xml` and
+   `/sitemap.xml` return 200 with `max-age=0` and no positive `s-maxage`; home page, one article, `/opinion-debate`, `/team` (Editor-in-Chief first, once);
+   the scheduler's next run succeeds (`publish-scheduled` workflow, response `200`).
+6. **Functional smoke on production with a throw-away debate** created by an admin and removed again: unpublish (articles 404, feed/sitemap drop it), publish,
+   delete, permanent delete with typed title. Use a clearly named test debate; do not touch real content.
+7. **Rollback.** Code: redeploy the previous production build (the additive schema may stay). Schema only if required: `ROLLBACK` in
+   `tests/integration/admin-overhaul-migrations.test.ts`. If data is damaged, restore from the step-1 backup, not from staging.
+8. **Watch** for 24 hours: the audit log for `DEBATE_*` and `TEAM_CARD_*` actions, `[revalidateArticleLists] FAILED` and `HIDDEN_DEBATE_ARTICLE` in logs
+   (the latter means someone tried to republish a hidden debate's article and was refused).
