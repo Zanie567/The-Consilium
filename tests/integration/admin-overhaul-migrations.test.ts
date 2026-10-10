@@ -234,4 +234,53 @@ describe('admin-overhaul migrations on the previous schema with real data', () =
       await c.query(`UPDATE articles SET status='DRAFT' WHERE id='a-for'`)
       expect((await c.query(`SELECT "hiddenByDebateAt" IS NULL AS cleared FROM articles WHERE id='a-for'`)).rows[0].cleared).toBe(true)
     }))
+
+  it('migration 5 removes the API-facing EXECUTE grants from both trigger functions and both triggers still fire for roles without it', async () =>
+    withDatabase(async (c) => {
+      await seed(c)
+      await apply(c)
+      const MIG5 = sql('supabase/migrations/20261012110000_revoke_trigger_function_execute.sql')
+      const execute = async () => (await c.query(`SELECT p.proname,
+          has_function_privilege('anon', p.oid, 'EXECUTE') AS anon, has_function_privilege('authenticated', p.oid, 'EXECUTE') AS authenticated,
+          has_function_privilege('public', p.oid, 'EXECUTE') AS pub FROM pg_proc p
+        WHERE p.proname IN ('prevent_hidden_debate_article_publication','clear_article_hidden_by_debate') ORDER BY 1`)).rows
+      expect(await execute()).toEqual([
+        { proname: 'clear_article_hidden_by_debate', anon: true, authenticated: true, pub: true },
+        { proname: 'prevent_hidden_debate_article_publication', anon: true, authenticated: true, pub: true },
+      ])
+      const before = await snapshot(c)
+      await c.query(MIG5)
+      await c.query(MIG5) // idempotent
+      expect(await snapshot(c)).toEqual(before) // privileges only: no data changes
+      const denied = [{ anon: false, authenticated: false, pub: false }]
+      expect((await execute()).map(({ anon, authenticated, pub }) => ({ anon, authenticated, pub }))).toEqual([denied[0], denied[0]])
+      // Direct calls by an API role are refused up front (before, they failed with "trigger functions can only be called as triggers").
+      await c.query('SET ROLE anon')
+      await expect(c.query('SELECT prevent_hidden_debate_article_publication()')).rejects.toMatchObject({ code: '42501' })
+      await c.query('RESET ROLE')
+
+      // The triggers still fire for a role that cannot execute either function.
+      await c.query(`UPDATE debates SET "unpublishedAt" = now() WHERE id='d1'; UPDATE articles SET status='ARCHIVED' WHERE id IN ('a-for','a-against')`)
+      const role = `consilium_app_${randomUUID().replaceAll('-', '')}`
+      await c.query(`CREATE ROLE "${role}" NOLOGIN`)
+      try {
+        await c.query(`GRANT USAGE ON SCHEMA public TO "${role}"; GRANT SELECT, UPDATE ON articles TO "${role}"; GRANT SELECT ON debates TO "${role}"`)
+        await c.query(`CREATE POLICY probe_articles ON articles FOR ALL TO "${role}" USING (true) WITH CHECK (true)`)
+        await c.query(`SET ROLE "${role}"`)
+        await expect(c.query(`UPDATE articles SET status='PUBLISHED' WHERE id='a-for'`)).rejects.toThrow(/HIDDEN_DEBATE_ARTICLE/)
+        await c.query('RESET ROLE')
+        await c.query(`UPDATE articles SET "hiddenByDebateAt" = now() WHERE id='a-against'`)
+        await c.query(`SET ROLE "${role}"`)
+        await c.query(`UPDATE articles SET status='DRAFT' WHERE id='a-against'`) // an editorial change by the application role
+        await c.query('RESET ROLE')
+        expect((await c.query(`SELECT "hiddenByDebateAt" IS NULL AS cleared FROM articles WHERE id='a-against'`)).rows[0].cleared).toBe(true)
+      } finally {
+        await c.query('RESET ROLE').catch(() => {})
+        await c.query(`DROP POLICY IF EXISTS probe_articles ON articles; REVOKE ALL ON articles, debates FROM "${role}"; REVOKE USAGE ON SCHEMA public FROM "${role}"; DROP ROLE IF EXISTS "${role}"`)
+      }
+
+      // Documented rollback restores the previous grants.
+      await c.query(`GRANT EXECUTE ON FUNCTION prevent_hidden_debate_article_publication(), clear_article_hidden_by_debate() TO PUBLIC, anon, authenticated`)
+      expect((await execute()).every((r) => r.anon && r.authenticated && r.pub)).toBe(true)
+    }))
 })
