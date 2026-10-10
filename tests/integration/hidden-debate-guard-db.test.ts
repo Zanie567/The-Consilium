@@ -226,7 +226,9 @@ suite('hidden debate articles can never become public (real database)', () => {
     it.each(['unpublished', 'deleted'] as const)('a due article of an %s debate stays scheduled and private while ordinary due articles go out', async (hidden) => {
       const { a, b } = await makeDebate({ hidden, articleStatus: 'SCHEDULED' })
       const ordinary = await due(`ordinary-${hidden}`)
-      const before = await fresh(a.id)
+      // Each article is compared with its own earlier value: the pair is created in one Promise.all with separate
+      // `Date.now()` calls, so their scheduledAt can differ by a millisecond (about 2% of pairs).
+      const before = { [a.id]: await fresh(a.id), [b.id]: await fresh(b.id) }
       const res = await call()
       expect(res.status).toBe(200)
       const published: string[] = res.body.articles.map((x: { id: string }) => x.id)
@@ -237,7 +239,7 @@ suite('hidden debate articles can never become public (real database)', () => {
       for (const hiddenArticle of [a, b]) {
         const row = await fresh(hiddenArticle.id)
         expect(row).toMatchObject({ status: 'SCHEDULED', publishedAt: null, deletedAt: null })
-        expect(row.scheduledAt?.toISOString()).toBe(before.scheduledAt?.toISOString())
+        expect(row.scheduledAt?.toISOString()).toBe(before[hiddenArticle.id].scheduledAt?.toISOString())
         expect(await db.notification.count({ where: { articleId: hiddenArticle.id } })).toBe(0)
       }
       expect(await db.notification.count({ where: { articleId: ordinary.id, type: 'published' } })).toBe(1)
