@@ -111,7 +111,8 @@ overview; Testing Mode checklist, scenarios and access check. Five additive migr
    stays off (do not set `TESTING_MODE_ENABLED`).
 5. **Immediately after:** `GET /api/admin/deployment-health` as an admin (200, no gaps, includes `articles_hidden_debate_guard`, `articles_clear_hidden_by_debate` and `articles.hiddenByDebateAt`); `/feed.xml` and
    `/sitemap.xml` return 200 with `max-age=0` and no positive `s-maxage`; home page, one article, `/opinion-debate`, `/team` (Editor-in-Chief first, once);
-   the scheduler's next run succeeds (`publish-scheduled` workflow, response `200`).
+   the scheduler's next run succeeds (`publish-scheduled` workflow, response `200`). With a published debate whose one argument is archived or trashed, `/opinion-debate`
+   (HTML, and the same request with the `RSC: 1` header), the home page and `/api/debates/active` must contain neither article's title, excerpt or author nor the debate itself.
 6. **Functional smoke on production with a throw-away debate** created by an admin and removed again: unpublish (articles 404, feed/sitemap drop it), publish,
    delete, permanent delete with typed title. Use a clearly named test debate; do not touch real content.
 7. **Rollback.** Code: redeploy the previous production build (the additive schema may stay). Schema only if required: `ROLLBACK` in

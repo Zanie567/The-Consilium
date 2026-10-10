@@ -33,6 +33,15 @@ the mutation commits. Migration 5 removes `EXECUTE` on the two trigger functions
 `SECURITY DEFINER` one). It is hygiene, not a demonstrated hole: a trigger function cannot be called directly, and those roles hold no write privilege on `articles` or
 `debates`. Triggers keep firing because the privilege is checked at `CREATE TRIGGER`, not when a trigger fires (tested).
 
+**Public debate visibility fails closed.** Found on hosted staging: a published debate whose argument an editor had archived or trashed on its own still rendered
+that argument's title, excerpt and author on `/opinion-debate`. A debate is now public only when the debate is published AND both articles satisfy the
+article rule (PUBLISHED, not trashed, not part of a hidden debate); otherwise the whole debate is absent (never one argument, never a placeholder), on the
+`/opinion-debate` page and its Flight payload, the homepage panel, `GET /api/debates/active`, `POST /api/debates/[id]/vote`, `GET /api/profile/debate-votes` and
+`GET /api/profile/stats`. One shared rule (`PUBLIC_DEBATE_WHERE` in `src/lib/debateVisibility.ts`). Voting writes inside a transaction that locks the debate and
+both articles and re-checks the rule, so a vote cannot land after the change that hid the debate. Existing votes are never deleted; they stay stored, are not
+shown or counted publicly while the debate is hidden, and return when an editor republishes. Nothing is republished by a read. Admin and editorial screens keep
+their diagnostic view and warnings. **No migration.**
+
 ## Migrations (five, additive, idempotent, applied in this order; details and per-environment state in `MIGRATION-PLAN.md`)
 
 1. `20261010_debate_lifecycle.sql`: nullable `unpublishedAt`, `deletedAt`, `deletedById` on `debates`.
@@ -91,6 +100,8 @@ if required.
 * Scenario fixtures are shared persona accounts: a scenario is a partial "new account" simulation; notifications from a tester's own actions that do not point
   at a scenario article are kept.
 * `latest-article` keeps `s-maxage=60` (bounded staleness for one JSON endpoint). Feed and sitemap are not cached.
+* A debate whose argument an editor archived separately now disappears from the public site entirely (before: it stayed, with a dead link) until the article is
+  republished through the normal action; the admin debate list says so.
 * Scheduled publishing is verified on a local real Postgres, not on hosted staging (no scheduler runs there).
 * Stale-edit detection uses millisecond `updatedAt`.
 * `GET /api/team` includes each card's contact email (pre-existing).

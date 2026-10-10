@@ -6,6 +6,7 @@
  * hiding the others or pretending the value is zero.
  */
 import { prisma } from '@/lib/prisma'
+import { DEBATE_OWN_STATE_PUBLISHED_WHERE } from '@/lib/debateVisibility'
 import { deploymentReadiness } from '@/lib/deploymentReadiness'
 import { testingConfigurationError } from '@/lib/testingMode'
 
@@ -58,7 +59,8 @@ export async function loadAdminOverview(db: typeof prisma = prisma, now: Date = 
     safe(db.article.count({ where: { deletedAt: { not: null } } })),
   ])
   const [dPublished, dUnpublished, dDeleted] = await Promise.all([
-    safe(db.debate.count({ where: { deletedAt: null, unpublishedAt: null } })),
+    // The administrative lifecycle state of the debate itself (an editor may separately have taken an article out of view).
+    safe(db.debate.count({ where: DEBATE_OWN_STATE_PUBLISHED_WHERE })),
     safe(db.debate.count({ where: { deletedAt: null, unpublishedAt: { not: null } } })),
     safe(db.debate.count({ where: { deletedAt: { not: null } } })),
   ])

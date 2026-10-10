@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { debateVisibility, publicDebateWhere, PUBLIC_DEBATE_WHERE } from '@/lib/debateVisibility'
+import { debateVisibility, publicDebateWhere, PUBLIC_DEBATE_WHERE, DEBATE_OWN_STATE_PUBLISHED_WHERE } from '@/lib/debateVisibility'
+import { publishedArticleWhere } from '@/lib/articleQueries'
 import { buildDebateRow, filterDebateRows, sortDebateRows, type DebateRecord } from '@/lib/debateAdmin'
 import { isDebateAction, DEBATE_ACTIONS } from '@/lib/debateLifecycle'
 
@@ -17,10 +18,24 @@ const debate = (over: Partial<DebateRecord> = {}): DebateRecord => ({
 })
 
 describe('debate visibility', () => {
-  it('public means neither unpublished nor deleted; isActive is not part of it', () => {
-    expect(PUBLIC_DEBATE_WHERE).toEqual({ deletedAt: null, unpublishedAt: null })
-    expect(publicDebateWhere({ isActive: true })).toEqual({ deletedAt: null, unpublishedAt: null, isActive: true })
-    expect(publicDebateWhere({ id: 'x' })).toMatchObject({ id: 'x', deletedAt: null, unpublishedAt: null })
+  it('public means the debate is published AND both articles are public; isActive is not part of it', () => {
+    expect(PUBLIC_DEBATE_WHERE).toMatchObject({ deletedAt: null, unpublishedAt: null })
+    // Both arguments must satisfy the one article rule (PUBLISHED, not trashed, not part of a hidden debate).
+    for (const side of ['forArticle', 'againstArticle'] as const) {
+      expect(PUBLIC_DEBATE_WHERE[side]).toEqual(publishedArticleWhere())
+    }
+    expect(PUBLIC_DEBATE_WHERE).not.toHaveProperty('isActive')
+  })
+  it('narrowing a public query can only add conditions, never replace one', () => {
+    expect(publicDebateWhere()).toBe(PUBLIC_DEBATE_WHERE)
+    expect(publicDebateWhere({ isActive: true })).toEqual({ AND: [PUBLIC_DEBATE_WHERE, { isActive: true }] })
+    // Even a caller that tries to override a visibility field is ANDed with the rule, not substituted for it.
+    expect(publicDebateWhere({ deletedAt: { not: null }, forArticle: { status: 'ARCHIVED' } })).toEqual({
+      AND: [PUBLIC_DEBATE_WHERE, { deletedAt: { not: null }, forArticle: { status: 'ARCHIVED' } }],
+    })
+  })
+  it('the debate\'s own published state is exposed separately, for administrative classification only', () => {
+    expect(DEBATE_OWN_STATE_PUBLISHED_WHERE).toEqual({ deletedAt: null, unpublishedAt: null })
   })
   it('deleted wins over unpublished', () => {
     expect(debateVisibility({ unpublishedAt: null, deletedAt: null })).toBe('published')
