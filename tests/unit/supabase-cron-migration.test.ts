@@ -25,7 +25,7 @@ describe('Supabase Cron migrations: secrets', () => {
   it('reads the secret from Vault at call time, and never logs it', () => {
     const body = code(infra)
     expect(body).toContain('vault.decrypted_secrets')
-    expect(body).toContain("name = 'cron_secret'")
+    expect(body).toContain("name = 'publish_cron_secret'")
     for (const line of body.split('\n')) {
       if (/\b(RAISE|NOTICE|WARNING)\b/.test(line)) expect(line).not.toContain('v_secret')
     }
@@ -50,7 +50,9 @@ describe('Supabase Cron migrations: target and schedule', () => {
 
   it('the enable migration schedules the publisher every 5 minutes, idempotently', () => {
     const body = code(enable)
-    expect(body).toContain("cron.schedule('publish-scheduled', '*/5 * * * *', 'select public.invoke_publish_scheduled()')")
+    // the interval is one named setting, used by the schedule call and nowhere hard-coded in it
+    expect(body).toContain("v_schedule CONSTANT TEXT := '*/5 * * * *'")
+    expect(body).toContain("cron.schedule('publish-scheduled', v_schedule, 'select public.invoke_publish_scheduled()')")
     expect(body).toContain("cron.unschedule(jobid) FROM cron.job WHERE jobname = 'publish-scheduled'")
   })
 
@@ -65,7 +67,7 @@ describe('Supabase Cron migrations: target and schedule', () => {
       "to_regclass('public.scheduler_invocations') IS NULL",
       "to_regprocedure('public.invoke_publish_scheduled()') IS NULL",
       "to_regprocedure('public.reconcile_scheduler_invocations()') IS NULL",
-      "FROM vault.secrets WHERE name = 'cron_secret'",
+      "FROM vault.secrets WHERE name = 'publish_cron_secret'",
       "jobname = 'reconcile-scheduler-invocations'",
       "outcome = 'success'",
     ]) {
@@ -80,7 +82,7 @@ describe('Supabase Cron migrations: target and schedule', () => {
 
 describe('Supabase Cron migrations: every call lands in exactly one outcome', () => {
   const body = code(infra)
-  const OUTCOMES = ['pending', 'success', 'auth_failure', 'http_error', 'timeout', 'network_error', 'lost', 'not_sent']
+  const OUTCOMES = ['pending', 'success', 'auth_failure', 'http_error', 'timeout', 'network_error', 'lost', 'not_sent', 'bad_response']
 
   it('the column is constrained to the documented categories', () => {
     for (const o of OUTCOMES) expect(body).toContain(`'${o}'`)
@@ -89,13 +91,35 @@ describe('Supabase Cron migrations: every call lands in exactly one outcome', ()
   })
 
   it('the reconciler maps timeout, 2xx, 401/403, other statuses and no status separately', () => {
-    expect(body).toContain("WHEN r.timed_out                      THEN 'timeout'")
-    expect(body).toContain("WHEN r.status_code BETWEEN 200 AND 299 THEN 'success'")
-    expect(body).toContain("WHEN r.status_code IN (401, 403)       THEN 'auth_failure'")
-    expect(body).toContain("WHEN r.status_code IS NOT NULL         THEN 'http_error'")
-    expect(body).toContain("'network_error'")
-    expect(body).toContain("outcome = 'lost'")
-    expect(body).toContain("'not_sent'")
+    const flat = body.replace(/\s+/g, ' ')
+    expect(flat).toContain("WHEN COALESCE(r.timed_out, FALSE) THEN 'timeout'")
+    expect(flat).toContain("WHEN r.status_code BETWEEN 200 AND 299 THEN CASE WHEN v_valid THEN 'success' ELSE 'bad_response' END")
+    expect(flat).toContain("WHEN r.status_code IN (401, 403) THEN 'auth_failure'")
+    expect(flat).toContain("WHEN r.status_code IS NOT NULL THEN 'http_error'")
+    expect(flat).toContain("'network_error'")
+    expect(flat).toContain("outcome = 'lost'")
+    expect(flat).toContain("'not_sent'")
+  })
+
+  it('a 2xx only counts as success when the body is the endpoint JSON, checked without relying on AND short-circuiting', () => {
+    const flat = body.replace(/\s+/g, ' ')
+    expect(flat).toContain("jsonb_typeof(v_body -> 'due') = 'number'")
+    expect(flat).toContain("jsonb_typeof(v_body -> 'published') = 'number'")
+    // every cast of the untrusted body sits inside the IF that has already proved it is a number
+    const guard = flat.indexOf("jsonb_typeof(v_body -> 'due') = 'number'")
+    expect(flat.indexOf("(v_body ->> 'due')::NUMERIC")).toBeGreaterThan(guard)
+  })
+
+  it('a pg_net failure to queue is recorded (not_sent), with the secret redacted before the message is truncated', () => {
+    const flat = body.replace(/\s+/g, ' ')
+    expect(flat).toContain('EXCEPTION WHEN OTHERS THEN')
+    expect(flat).toContain("left(replace(SQLERRM, v_secret, '[redacted]'), 300)")
+  })
+
+  it('cron.job_run_details, which pg_cron never prunes, is trimmed to 7 days by a daily job', () => {
+    const flat = body.replace(/\s+/g, ' ')
+    expect(flat).toContain("cron.schedule( 'prune-cron-run-details', '23 3 * * *',")
+    expect(flat).toContain("delete from cron.job_run_details where coalesce(end_time, start_time) < now() - interval '7 days'")
   })
 
   it('retention (30 days) is enforced by both the reconciler and the publisher function', () => {
@@ -130,5 +154,39 @@ describe('Supabase Cron migrations: least privilege', () => {
 
   it('every statement is additive: nothing drops or alters existing application tables', () => {
     expect(body).not.toMatch(/DROP\s+TABLE|TRUNCATE|ALTER\s+TABLE\s+public\.(users|articles|team_members)/i)
+  })
+})
+
+describe('the runbook keeps the warnings an operator must not miss', () => {
+  const flat = docs.replace(/^>\s?/gm, '').replace(/\s+/g, ' ') // blockquote markers removed so wrapped lines compare as prose
+  const workflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'scheduler-health.yml'), 'utf8').replace(/\s+/g, ' ').replace(/# ?/g, '')
+
+  it('says merging activates the hourly health workflow automatically', () => {
+    expect(flat).toContain('The hourly GitHub `Scheduler Health Check` workflow becomes active the moment the PR is merged')
+    expect(flat).toContain('GitHub runs `schedule:` triggers only from the default branch')
+    expect(flat).toContain('**Merging is not inert.**')
+    expect(workflow).toContain('starts automatically when it is merged to main')
+  })
+
+  it('says what merging does NOT do', () => {
+    expect(flat).toContain('Supabase Cron publishes anything | **no**')
+    expect(flat).toContain('A secret is created, changed or rotated | **no**')
+  })
+
+  it('says the failure email depends on the GitHub account settings and who receives it', () => {
+    expect(flat).toContain('depends on your GitHub account settings')
+    expect(flat).toContain('Settings > Notifications > Actions')
+    expect(flat).toContain('the user who last modified the cron syntax')
+    expect(workflow).toContain('Settings > Notifications > Actions')
+  })
+
+  it('says HTTP-level failures bypass the application de-duplication', () => {
+    expect(flat).toContain('HTTP-level failures are NOT de-duplicated')
+    expect(flat).toContain('every hourly run fails and can email you')
+    expect(workflow).toContain('HTTP-level failures are NOT de-duplicated')
+  })
+
+  it('says scheduled workflows are disabled after 60 days of inactivity in a public repository', () => {
+    expect(flat).toContain('automatically disabled after 60 days without repository activity')
   })
 })
