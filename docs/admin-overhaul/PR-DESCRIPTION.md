@@ -41,8 +41,7 @@ the mutation commits. Migration 5 removes `EXECUTE` on the two trigger functions
 4. `20261012100000_article_hidden_by_debate_marker.sql`: nullable `articles.hiddenByDebateAt` plus a trigger that clears it whenever an editor changes an article's status or trash state. Debates set it when they archive an article and restore **only** articles that still carry it (no backfill).
 5. `20261012110000_revoke_trigger_function_execute.sql`: privileges only (`REVOKE EXECUTE` on the two trigger functions from `PUBLIC`, `anon`, `authenticated`). Changes no table, row, trigger or function body. Rollback is the `GRANT` in its header.
 
-Hosted staging: 1 to 4 are applied and recorded (`20261010122238`, `20261010122248`, `20261010122319`, `20261010170814`). **5 is not applied anywhere yet**; applying it to staging
-needs a fresh go-ahead (see the release notes below). Nothing is applied to production. Old code works after each step. The Supabase CLI must not be used for
+Hosted staging: 1 to 5 are applied and recorded (`20261010122238`, `20261010122248`, `20261010122319`, `20261010170814`, `20261010202534`). 5 was applied after the second hosted round below and verified separately (ACLs now `postgres` and `service_role` only; both triggers still fire; the advisor finding is gone). Nothing is applied to production. Old code works after each step. The Supabase CLI must not be used for
 these files (duplicate `20261010` prefixes and a rollback script in the same directory; see `MIGRATION-PLAN.md`).
 
 ## Automated testing (final commit, isolated launcher: fresh per-run database, fake storage, captured email, local build)
@@ -62,7 +61,7 @@ Notable suites: `hidden-debate-guard-db` (21), `public-feed-visibility-db` (9), 
 ## Hosted staging (Supabase `consilium-testing`, Vercel `consilium-testing`; never production)
 
 Staging runs the exact application tree of this branch: deployment `dpl_DD8kY3HKinM1vaB17iaN5jZYDTd7` (READY, aliased to `consilium-testing.vercel.app`, uploaded from a clean
-export of `0ec2897`, nothing pushed) over migrations 1 to 4. On 2026-10-10, as a temporary `@consilium.test` administrator (since deleted), these were run against it:
+export of `0ec2897`, nothing pushed) over migrations 1 to 4 (5 was applied afterwards). On 2026-10-10, as a temporary `@consilium.test` administrator (since deleted), these were run against it:
 
 | Check | Result |
 |---|---|

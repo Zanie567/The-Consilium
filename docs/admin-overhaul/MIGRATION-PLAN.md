@@ -1,7 +1,7 @@
 # Admin overhaul: migration plan
 
-Five additive, idempotent SQL files. **Nothing here has been applied to production.** Files 1 to 4 are applied to the hosted *testing*
-project (`consilium-testing`, `zrieajoqosgzyesfatta`); file 5 is applied nowhere except disposable local databases. This document does
+Five additive, idempotent SQL files. **Nothing here has been applied to production.** Files 1 to 5 are applied to the hosted *testing*
+project (`consilium-testing`, `zrieajoqosgzyesfatta`); file 5 was applied once to the same project on 2026-10-10 (registry `20261010202534` `admin_overhaul_5_revoke_trigger_function_execute_20261012`) and is applied nowhere else except disposable local databases. This document does
 not authorise anything: each hosted step needs its own approval. Production's actual state must be read (read-only catalog queries, section 5) before any
 production step is planned; the 2026-10-10 check found 1 to 4 absent, and 5 was not yet written.
 
@@ -13,7 +13,7 @@ production step is planned; the 2026-10-10 check found 1 to 4 absent, and 5 was 
 | 2 | `20261010_team_member_updated_at.sql` | `20261010` (same as #1) | the `team_members` table | `team_members.updatedAt NOT NULL DEFAULT CURRENT_TIMESTAMP` | **not applied** | applied; registry `20261010122248` `admin_overhaul_2_team_member_updated_at_20261010` |
 | 3 | `20261011_hidden_debate_article_guard.sql` | `20261011` | **#1** (reads `debates.unpublishedAt/deletedAt`) | `SECURITY DEFINER` trigger `articles_hidden_debate_guard`; archives any article already public inside a hidden debate (none exist today) | **not applied** (no trigger on `articles`, no function) | applied; registry `20261010122319` `admin_overhaul_3_hidden_debate_article_guard_20261011` |
 | 4 | `20261012100000_article_hidden_by_debate_marker.sql` | `20261012100000` | the `articles` table; the application code needs #1 to #3 | `articles.hiddenByDebateAt` (nullable) and trigger `articles_clear_hidden_by_debate` | **not applied** | applied; registry `20261010170814` `admin_overhaul_4_article_hidden_by_debate_marker_20261012` (verified: column, trigger, pinned `search_path`, 0 marked rows) |
-| 5 | `20261012110000_revoke_trigger_function_execute.sql` | `20261012110000` | #3 and #4 (the functions must exist) | privileges only: `REVOKE EXECUTE` on `prevent_hidden_debate_article_publication()` and `clear_article_hidden_by_debate()` from `PUBLIC`, `anon`, `authenticated` | **not applied** | **not applied** (current ACL on both: `PUBLIC`, `postgres`, `anon`, `authenticated`, `service_role`; read 2026-10-10) |
+| 5 | `20261012110000_revoke_trigger_function_execute.sql` | `20261012110000` | #3 and #4 (the functions must exist) | privileges only: `REVOKE EXECUTE` on `prevent_hidden_debate_article_publication()` and `clear_article_hidden_by_debate()` from `PUBLIC`, `anon`, `authenticated` | **not applied** | applied 2026-10-10; registry `20261010202534`. ACL on both functions before: `PUBLIC`, `postgres`, `anon`, `authenticated`, `service_role`; after: `postgres`, `service_role`. Triggers still fire (hidden-debate guard refuses; marker clears), advisor finding gone. |
 
 Dependencies in one line: #3 needs #1; #2 is independent; #4 has no SQL dependency on #1 to #3 but is applied after them, and the new code needs 1 to 4; #5 needs the two functions from #3 and #4 and is not required by the code (hardening only; `deployment-health` does not require it).
 Every statement uses `IF NOT EXISTS` / `CREATE OR REPLACE` / `DROP ... IF EXISTS`, so re-running any file is harmless.
@@ -21,13 +21,12 @@ Every statement uses `IF NOT EXISTS` / `CREATE OR REPLACE` / `DROP ... IF EXISTS
 Production and the code: **migrations first, then the deploy.** After each of #1 to #4 the *current* production code keeps working (every new column
 is nullable or defaulted and unknown to it). The new code reports a missing item by name at `GET /api/admin/deployment-health` instead of failing.
 
-## 2. Hosted testing project: what remains
+## 2. Hosted testing project: state
 
-Only **#5** is outstanding there, and it needs its own go-ahead. #1 to #4 are recorded as applied and verified. The hosted code is `dpl_DD8kY3HKinM1vaB17iaN5jZYDTd7`
-(`0ec2897`), which was deployed after #4. Do not re-apply, rename or re-register #1 to #4. #5 is privileges-only, so no redeploy is needed.
-Before applying: confirm the project ref is `zrieajoqosgzyesfatta` and the marker row matches, confirm the registry has no #5 entry, read the current ACLs (above), apply once, then run the
-section 5 checks for #5. Verification after: both ACLs hold only `postgres` and `service_role`; both triggers still fire (update an article of a hidden debate: still refused 409; trash an
-article: marker cleared); `get_advisors` no longer lists the function.
+#1 to #5 are recorded as applied and verified; nothing is outstanding there. The hosted code is `dpl_DD8kY3HKinM1vaB17iaN5jZYDTd7` (`0ec2897`), deployed after #4; #5 is privileges-only, so
+no redeploy was needed. Do not re-apply, rename or re-register any of them. #5 was applied once after confirming the project ref `zrieajoqosgzyesfatta`, an empty registry entry for it and the
+previous ACLs. Afterwards: both ACLs hold only `postgres` and `service_role`, `search_path` pins and `SECURITY DEFINER` unchanged, and a rollback-only test block showed the guard still refuses publishing a
+hidden debate's article and the marker trigger still clears on an independent change.
 
 ## 3. Production: order of operations (not authorised yet)
 

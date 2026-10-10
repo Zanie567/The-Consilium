@@ -5,7 +5,7 @@ Branch `release/admin-overhaul` (linear replay on `origin/main` `438d596`; the p
 ## 1. Order of operations
 
 1. **Review** the diff and this branch's PR. Merge only with explicit approval.
-2. **Staging first** (see `STAGING.md`; migrations 1 to 4 and the application at `0ec2897` are already there, migration 5 is pending approval): apply the outstanding migration to the *testing* database, deploy the branch to the testing project, run the
+2. **Staging first** (see `STAGING.md`; migrations 1 to 5 and the application at `0ec2897` are already there): apply the outstanding migration to the *testing* database, deploy the branch to the testing project, run the
    checks in section 4, and use Testing Mode to walk Writer, Editor and Growth.
 3. **Production database, before the code**, in this order, each reviewed and run by an operator (they are additive and idempotent):
    1. `supabase/migrations/20261010_debate_lifecycle.sql`
@@ -83,7 +83,7 @@ overview; Testing Mode checklist, scenarios and access check. Five additive migr
 ## 5. Remaining risks
 
 * The hosted workspace now runs this application tree (`dpl_DD8kY3HKinM1vaB17iaN5jZYDTd7`) and an administrator walked debates, feed and sitemap, Team Members and Testing Mode on it (`PR-DESCRIPTION.md`, "Hosted staging"). Session expiry, comment moderation and scheduled publishing were not exercised there.
-* Migration 5 is tested locally (PostgreSQL 16 and 17.11) but not yet applied to hosted staging.
+* Migration 5 is applied on hosted staging and verified there by privileges and a rollback-only trigger test; the application was not redeployed or re-walked afterwards.
 * Four local branches and the open drafts also touch `prisma/schema.prisma` (additive). Expect trivial rebase conflicts if they merge after this.
 * Scenario fixtures are shared persona accounts, so "new account" is partial (stated in the UI). Reset is owner-scoped and idempotent; see `TESTING-MODE.md`.
 * `latest-article` is still `s-maxage=60`: a hidden article can remain in that one JSON response for up to a minute at the CDN. The feed and sitemap are not cached.
@@ -103,7 +103,7 @@ overview; Testing Mode checklist, scenarios and access check. Five additive migr
 2. **Pre-flight read-only checks** (section 2 SQL plus: `select count(*) from articles where status in ('PUBLISHED','SCHEDULED') and "deletedAt" is null`
    and the same joined to `debates`; there must be no hidden debates yet, and nothing the guard would archive).
 3. **Migrations, one at a time, in order, each verified before the next** (additive, idempotent, validated against a copy of the old schema; the first
-   four are already on hosted staging, the fifth is new and not yet applied there): `20261010_debate_lifecycle.sql`, `20261010_team_member_updated_at.sql`,
+   four are already on hosted staging, the fifth was applied there on 2026-10-10): `20261010_debate_lifecycle.sql`, `20261010_team_member_updated_at.sql`,
    `20261011_hidden_debate_article_guard.sql`, `20261012100000_article_hidden_by_debate_marker.sql`, `20261012110000_revoke_trigger_function_execute.sql`. Do not use the Supabase CLI for these (duplicate version
    prefixes; see `MIGRATION-PLAN.md`).
    After each: the object exists, existing-row hashes are unchanged, the application still serves. Old code is compatible after every step.
