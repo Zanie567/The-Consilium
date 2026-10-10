@@ -100,11 +100,12 @@ export function DataManagement() {
         ) : (
           <form onSubmit={handleDelete} className="space-y-4">
             <div>
-              <label className="block text-[var(--fg-muted)] text-xs font-bold uppercase tracking-widest mb-2">
+              <label htmlFor="erasure-email" className="block text-[var(--fg-muted)] text-xs font-bold uppercase tracking-widest mb-2">
                 Reader Email Address
               </label>
               <div className="flex gap-2">
                 <input
+                  id="erasure-email"
                   type="email"
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); if (stage !== 'idle') { setStage('idle'); setMessage('') } }}

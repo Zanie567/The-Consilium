@@ -280,7 +280,8 @@ export function TeamMembersWorkspace({ initial, currentAdminEmail }: { initial: 
           {MEMBER_FILTERS.map((f) => filterButton(f.value, f.label, f.value === 'needs-profile' ? summary.needProfile : undefined))}
         </div>
 
-        <div className="overflow-x-auto border border-[var(--border)]">
+        {/* `relative`: the sr-only header cell is absolutely positioned; without a positioned wrapper it escapes the clipping and widens the page. */}
+        <div className="relative overflow-x-auto border border-[var(--border)]">
           <table className="w-full min-w-[900px] text-left text-sm">
             <caption className="sr-only">Team members</caption>
             <thead className="bg-[var(--bg-subtle)] text-xs uppercase tracking-widest text-[var(--fg-muted)]">
