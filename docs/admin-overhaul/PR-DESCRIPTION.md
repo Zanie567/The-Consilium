@@ -43,11 +43,10 @@ Migrations 1 to 3 are applied on hosted staging; 4 is not. Nothing is applied to
 
 | | |
 |---|---|
-| TypeScript, ESLint | clean |
-| Vitest, unit | 1162 / 1162 (111 files) |
-| Vitest, all DB-backed suites on a real Postgres | 1802 passed, 45 skipped by design (destructive) |
-| The 45 destructive tests, each on its own purpose-named disposable database | 45 / 45 (publish race 9, cron SQL 29, trash purge 7) |
-| Playwright, all projects (Chromium, WebKit, mobile, testing-mode, upgrade, lifecycle) | see the final report for the exact counts of the final run |
+| TypeScript, ESLint | clean (exit 0 each) |
+| Vitest, whole suite incl. DB-backed suites against the live isolated stack, PostgreSQL 17.11 | 1923 passed, 0 failed, 66 skipped (157 files passed, 4 skipped) |
+| The 66 skips, run separately, each on its own purpose-named disposable database | 66 / 66: publish race 9, trash purge 7, scheduler cron SQL 29, PR #117 migration rehearsal 21 |
+| Playwright, all four phases (main 87, workflow 568, team-profile 49, upgrade 36) | 740 passed, 0 failed, 0 flaky, 0 skipped |
 
 Notable suites: `hidden-debate-guard-db` (21), `public-feed-visibility-db` (9), `team-placeholder-replace-db` (9), `testing-scenarios-db` (17),
 `debate-lifecycle-db`, `admin-overhaul-migrations`, and browser specs `wf-feed-invalidation`, `wf-admin-debates`, `wf-admin-team-members`,
