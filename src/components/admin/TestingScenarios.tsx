@@ -112,6 +112,10 @@ export function TestingScenarios({ testing }: { testing?: Session['testing'] }) 
           <button type="button" disabled={busy} className={button} onClick={() => void post({ action: 'reset', persona }, `${TEST_PERSONA_LABELS[persona]} reset.`)}>Reset {TEST_PERSONA_LABELS[persona]}</button>
           <button type="button" disabled={busy} className={button} onClick={() => void post({ action: 'reset' }, 'Every test persona reset.')}>Reset all personas</button>
         </div>
+        <p className="text-xs opacity-70">
+          Limits: the five personas are shared, long-lived fixture accounts. Scenarios change their profile, notifications and scenario-made
+          content only; articles and history they already had are never deleted, so no scenario here is a full “brand-new account” simulation.
+        </p>
         <p role="status" aria-live="polite" className={`min-h-[1.25rem] text-sm ${message ? (message.ok ? 'text-emerald-600' : 'text-red-500') : ''}`}>{message?.text}</p>
 
         <ul className="divide-y divide-[var(--border)] border border-[var(--border)]">

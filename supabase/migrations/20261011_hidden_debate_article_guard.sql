@@ -15,6 +15,8 @@
 -- next statement then sees the committed state. If the publisher locks first, the administrator's
 -- hide waits until the publish commits and then archives the article. Either order ends hidden.
 --
+-- Security: the function runs with its owner's rights (see below) and takes no input beyond NEW.
+--
 -- Scope: status PUBLISHED or SCHEDULED with "deletedAt" IS NULL. Archiving, drafting, trashing
 -- and the debate's own publish/restore flow are unaffected (publishing a debate clears its
 -- unpublishedAt first, in the same transaction, then re-publishes its articles).
@@ -27,7 +29,14 @@
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION prevent_hidden_debate_article_publication() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+-- DEFINER, not invoker: `debates` has row-level security enabled with no policies, so a role that
+-- does not bypass RLS would see zero debates and the guard would silently pass. As the owner the
+-- function always sees (and may lock) every debate. The search path is pinned so an attacker-
+-- controlled schema cannot shadow `debates`.
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 BEGIN
   -- Lock first (statement 1), judge second (statement 2): the second statement takes a fresh
   -- snapshot, so it sees a concurrent hide that committed while we waited for the lock.

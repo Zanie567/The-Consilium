@@ -58,8 +58,11 @@ const admin = (what: string): Expectation => ({ what, shouldShow: false, where: 
 export const SCENARIOS: readonly ScenarioDefinition[] = [
   {
     id: 'newly-registered',
-    label: 'Newly registered member',
-    description: 'No Meet the Team profile, no notifications and no scenario content. The state right after an account is authorised.',
+    label: 'No profile and no scenario content (partial new-account state)',
+    description:
+      'Removes the persona’s Meet the Team profile and every scenario notification, article and achievement. ' +
+      'It is NOT a complete new-account simulation: the persona accounts are shared fixtures, so articles, notifications ' +
+      'and history they already had are left in place. To see a genuinely new member, create a real account through sign-up and Team Members.',
     personas: ALL_PERSONAS,
     expectations: () => [
       { what: PROFILE_PROMPT, shouldShow: true, where: 'Dashboard' },

@@ -40,7 +40,7 @@ from the same guard function, so it cannot report ready while the guard refuses.
 
 | Scenario | Sets up | The persona should |
 |---|---|---|
-| Newly registered member | no profile, no scenario content | see "Complete your team profile", no notification count |
+| No profile and no scenario content (partial new-account state) | removes the profile and all scenario content | see "Complete your team profile"; no scenario notifications |
 | Member with no linked public profile | removes the profile (restored on reset) | see the prompt and an empty profile form |
 | Member with a completed profile | name, photo and description present | not see the prompt |
 | Writer with a draft | one draft | see it in My Drafts |
@@ -51,9 +51,11 @@ from the same guard function, so it cannot report ready while the guard refuses.
 | First published article | unseen first-publish achievement | see the one-time banner |
 | Restricted functionality | nothing (use Check access) | be refused administrator pages and APIs |
 
-Note the personas are long-lived fixture accounts, so "newly registered" means *in the state of a
-new account for the things Testing controls* (profile, notifications, scenario content); fixture
-articles the account already owns are not deleted.
+**Limitation, stated plainly.** The five personas are shared, long-lived fixture accounts that other
+tests depend on. A scenario therefore never deletes or reassigns articles, notifications or history they already
+have, so none of these is a complete "brand-new account" simulation. The first scenario changes only the profile
+and what the scenarios themselves created. To see a genuinely new member, create a real account through sign-up
+and authorise it in Team Members (that path is covered by `member-onboarding.spec.ts`).
 
 ## Starting an isolated workspace
 
