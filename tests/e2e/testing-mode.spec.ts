@@ -79,8 +79,8 @@ test('entry, switching, refresh, two tabs, back navigation and exit use real per
   await page.getByRole('button', { name: 'Exit testing mode' }).click()
   await readyPersona(page, 'Administrator')
   expect((await (await context.request.get('/api/auth/session')).json()).user.id).toBe(administratorId)
-  await page.goto('/admin/team')
-  await expect(page.getByRole('heading', { name: 'Team Management' })).toBeVisible()
+  await page.goto('/admin/team') // the old URL still lands on Team Members
+  await expect(page.getByRole('heading', { name: 'Team Members', level: 1 })).toBeVisible()
   const accountAfter = await db().user.findUniqueOrThrow({ where: { id: administratorId } })
   expect({ role: accountAfter.role, password: accountAfter.password, name: accountAfter.name }).toEqual({ role: accountBefore.role, password: accountBefore.password, name: accountBefore.name })
   expect(await db().teamMember.findMany({ orderBy: { id: 'asc' } })).toEqual(rosterBefore)
@@ -147,8 +147,8 @@ test('expiry, forged cookies and replay deny writes and restore normal navigatio
   expect((await context.request.put('/api/team-profile', { headers: oldHeaders, multipart: { bio: 'forged-cookie' } })).status()).toBe(409)
   await context.addCookies([capability])
   expect((await context.request.put('/api/team-profile', { headers: oldHeaders, multipart: { bio: 'replayed-cookie' } })).status()).toBe(409)
-  await page.goto('/admin/team')
-  await expect(page.getByRole('heading', { name: 'Team Management' })).toBeVisible()
+  await page.goto('/admin/team') // the old URL still lands on Team Members
+  await expect(page.getByRole('heading', { name: 'Team Members', level: 1 })).toBeVisible()
 })
 
 test('ordinary accounts and anonymous requests cannot enter; origins and arbitrary target parameters are refused', async ({ browser }) => {

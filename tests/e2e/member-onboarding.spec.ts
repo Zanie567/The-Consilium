@@ -196,6 +196,7 @@ for (const spec of [
     await expect(row(adminPage, email)).toContainText('Active')
     await expect(row(adminPage, email)).toContainText('Complete, hidden')
     await row(adminPage, email).getByRole('button', { name: 'Manage' }).click()
+    await adminPage.getByRole('tab', { name: 'Public profile' }).click()
     await adminPage.getByLabel('Public position', { exact: true }).fill(spec.position)
     await adminPage.getByLabel('Display order').fill('5')
     await adminPage.getByLabel('Show on Our Team page').check()
@@ -248,6 +249,7 @@ test('promotion keeps the profile; revoking removes access but not the profile; 
 
   await adminPage.goto('/editorial/members')
   await row(adminPage, email).getByRole('button', { name: 'Manage' }).click()
+  await adminPage.getByRole('tab', { name: 'Public profile' }).click()
   await adminPage.getByLabel('Public position', { exact: true }).fill('Staff Writer')
   await adminPage.getByLabel('Show on Our Team page').check()
   await adminPage.getByRole('button', { name: 'Save public details' }).click()
@@ -255,7 +257,9 @@ test('promotion keeps the profile; revoking removes access but not the profile; 
   const [original] = await db().teamMember.findMany({ where: { userId: user.id } })
 
   // Promotion: permissions change, the profile does not.
-  await row(adminPage, email).getByLabel(`Access role for ${email}`).selectOption('EDITOR')
+  await adminPage.getByRole('tab', { name: 'Role & permissions' }).click()
+  await adminPage.getByLabel(`Access role for ${email}`).selectOption('EDITOR')
+  await adminPage.getByRole('button', { name: 'Change role' }).click()
   await expect(adminPage.getByRole('status').filter({ hasText: 'Role changed to editor' })).toBeVisible()
   expect((await db().user.findUniqueOrThrow({ where: { id: user.id } })).role).toBe('EDITOR')
   expect(await db().teamMember.findMany({ where: { userId: user.id } })).toEqual([original])
@@ -281,6 +285,7 @@ test('promotion keeps the profile; revoking removes access but not the profile; 
   // The admin now takes them off the public page; nothing is deleted.
   await adminPage.goto('/editorial/members')
   await row(adminPage, email).getByRole('button', { name: 'Manage' }).click()
+  await adminPage.getByRole('tab', { name: 'Public profile' }).click()
   await adminPage.getByLabel('Show on Our Team page').uncheck()
   await adminPage.getByRole('button', { name: 'Save public details' }).click()
   await expect(adminPage.getByRole('status').filter({ hasText: 'Public details saved' })).toBeVisible()

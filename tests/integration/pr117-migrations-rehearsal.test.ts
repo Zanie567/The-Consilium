@@ -60,6 +60,21 @@ const MIGRATIONS = [
   '20261006161505_article_active_engagement',
 ]
 const migration = (name: string) => read(`supabase/migrations/${name}.sql`)
+
+/**
+ * Schema added AFTER PR #117 by later, separately reviewed migrations. The Prisma schema this test compares against
+ * describes the application as it is today, so it legitimately contains these columns, and a database that has only
+ * the four #117 migrations legitimately lacks them. Each entry names the migration that owns the columns, and a test
+ * below proves that migration adds EXACTLY these columns (no more, no fewer), so this list cannot grow to excuse an
+ * arbitrary missing column: anything else the #117 migrations fail to provide still fails the assertions.
+ * Add an entry here (in migration order) whenever a later migration adds a column the Prisma schema expects.
+ */
+const LATER_MIGRATIONS: { file: string; adds: string[] }[] = [
+  { file: '20261010_debate_lifecycle', adds: ['debates.unpublishedAt', 'debates.deletedAt', 'debates.deletedById'] },
+  { file: '20261010_team_member_updated_at', adds: ['team_members.updatedAt'] },
+  { file: '20261012100000_article_hidden_by_debate_marker', adds: ['articles.hiddenByDebateAt'] },
+]
+const LATER_COLUMNS = LATER_MIGRATIONS.flatMap((m) => m.adds).sort()
 const API_ROLES = ['anon', 'authenticated', 'service_role']
 
 interface Env {
@@ -122,6 +137,22 @@ async function applyAll(client: Client) {
     timings[file] = Math.round(performance.now() - started)
   }
   return timings
+}
+
+/** Every `table.column` currently in the public schema. */
+async function presentColumns(client: Client): Promise<Set<string>> {
+  return new Set(
+    (await client.query(`select table_name::text || '.' || column_name::text as k from information_schema.columns where table_schema = 'public'`)).rows.map((r) => r.k as string),
+  )
+}
+
+/** Columns the deployed Prisma schema expects that this database does not have, sorted, as `table.column`. */
+async function missingPrismaColumns(client: Client): Promise<string[]> {
+  const present = await presentColumns(client)
+  return Prisma.dmmf.datamodel.models
+    .flatMap((m) => m.fields.filter((f) => f.kind !== 'object').map((f) => `${m.dbName ?? m.name}.${f.dbName ?? f.name}`))
+    .filter((column) => !present.has(column))
+    .sort()
 }
 
 /** Everything the migrations add or change, as comparable text. */
@@ -231,20 +262,35 @@ suite('PR #117 migrations on a production-shaped database', () => {
     })
   })
 
-  it('AFTER: every table and column the deployed Prisma schema expects now exists (except the separate article_comments gap)', async () => {
+  it('AFTER: every column the deployed Prisma schema expects exists, except the separate article_comments gap and the declared later migrations', async () => {
     await withDatabase(async ({ client }) => {
       await applyAll(client)
-      const present = new Set(
-        (await client.query(`select table_name::text || '.' || column_name::text as k from information_schema.columns where table_schema = 'public'`)).rows.map((r) => r.k),
-      )
-      const missing: string[] = []
-      for (const model of Prisma.dmmf.datamodel.models) {
-        const table = model.dbName ?? model.name
-        for (const f of model.fields) if (f.kind !== 'object' && !present.has(`${table}.${f.dbName ?? f.name}`)) missing.push(`${table}.${f.dbName ?? f.name}`)
-      }
-      // The baseline deliberately lacks article_comments (production lacks it). Nothing else may be missing.
-      expect([...new Set(missing.map((m) => m.split('.')[0]))]).toEqual(['article_comments'])
+      const missing = await missingPrismaColumns(client)
+      // The baseline deliberately lacks article_comments (production lacks it): a whole table, nothing else of the kind.
+      const commentColumns = missing.filter((m) => m.startsWith('article_comments.'))
+      expect(commentColumns.length).toBeGreaterThan(0)
+      // Everything else that is missing must be EXACTLY what the declared later migrations add: nothing the #117
+      // migrations were supposed to provide, and no declared column that is already there.
+      expect(missing.filter((m) => !m.startsWith('article_comments.'))).toEqual(LATER_COLUMNS)
     })
+  })
+
+  it('later migrations: each adds exactly the columns declared for it, replays without change, and then nothing is missing', async () => {
+    await withDatabase(async ({ client }) => {
+      await applyAll(client)
+      await client.query(read('supabase/migrations/add_article_comments.sql'))
+      await client.query(read('supabase/migrations/add_article_comments_quoted_text.sql'))
+      for (const { file, adds } of LATER_MIGRATIONS) {
+        const before = await presentColumns(client)
+        for (const column of adds) expect(before.has(column), `${column} must not exist before ${file}`).toBe(false)
+        await client.query(migration(file))
+        const after = await presentColumns(client)
+        expect([...after].filter((c) => !before.has(c)).sort(), `${file} must add exactly its declared columns`).toEqual([...adds].sort())
+        await client.query(migration(file)) // replay: idempotent
+        expect(await presentColumns(client)).toEqual(after)
+      }
+      expect(await missingPrismaColumns(client)).toEqual([])
+    }, { supabaseRoles: true }) // add_article_comments.sql grants to the Supabase API roles
   })
 
   it('AFTER: the real code paths work (newsletter sign-up and tagged article saves)', async () => {
@@ -522,14 +568,8 @@ suite('PR #117 migrations on a production-shaped database', () => {
       await client.query(addColumn) // a documented no-op once the table has the column
       expect((await client.query(`select count(*)::int as n from pg_policies where tablename = 'article_comments'`)).rows[0].n).toBe(1)
 
-      // Now NOTHING the deployed Prisma schema expects is missing.
-      const present = new Set(
-        (await client.query(`select table_name::text || '.' || column_name::text as k from information_schema.columns where table_schema = 'public'`)).rows.map((r) => r.k),
-      )
-      const missing = Prisma.dmmf.datamodel.models.flatMap((m) =>
-        m.fields.filter((f) => f.kind !== 'object' && !present.has(`${m.dbName ?? m.name}.${f.dbName ?? f.name}`)).map((f) => `${m.dbName ?? m.name}.${f.name}`),
-      )
-      expect(missing).toEqual([])
+      // Now nothing the deployed Prisma schema expects is missing except what the declared later migrations add.
+      expect(await missingPrismaColumns(client)).toEqual(LATER_COLUMNS)
 
       const { db } = await loadApp(url)
       try {

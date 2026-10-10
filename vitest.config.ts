@@ -26,6 +26,16 @@ const DB_BACKED_SUITES = [
   'tests/integration/discovery.test.ts',
   'tests/integration/growth-subscribe.test.ts',
   'tests/integration/scheduled-publication.test.ts',
+  'tests/integration/debate-lifecycle-db.test.ts',
+  'tests/integration/team-members-admin-db.test.ts',
+  'tests/integration/team-placeholder-replace-db.test.ts',
+  'tests/integration/testing-scenarios-db.test.ts',
+  'tests/integration/hidden-debate-guard-db.test.ts',
+  'tests/integration/debate-article-marker-db.test.ts',
+  'tests/integration/hidden-debate-public-reads-db.test.ts',
+  'tests/integration/debate-public-visibility-db.test.ts',
+  'tests/integration/public-feed-visibility-db.test.ts',
+  'tests/integration/admin-overhaul-migrations.test.ts',
 ]
 const isolatedLauncherRun = process.env.E2E_ISOLATED === '1' && Boolean(process.env.BASE_URL)
 

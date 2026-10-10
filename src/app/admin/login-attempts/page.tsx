@@ -20,62 +20,62 @@ export default async function LoginAttemptsPage() {
   const successCount = attempts.filter((a) => a.success).length
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-navy" style={{ fontFamily: 'var(--font-serif)' }}>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
+      <div className="mb-8 pl-10 md:pl-0">
+        <h1 className="text-2xl font-bold text-[var(--fg)]" style={{ fontFamily: 'var(--font-serif)' }}>
           Login Attempts
         </h1>
-        <p className="text-navy/50 text-sm mt-1">Last 200 login attempts across all accounts</p>
+        <p className="text-[var(--fg-muted)] text-sm mt-1">Last 200 login attempts across all accounts</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-8">
-        <div className="bg-white border border-gold/15 p-5 rounded-sm">
-          <p className="text-navy/50 text-xs font-bold uppercase tracking-widest mb-2">Successful</p>
-          <p className="text-3xl font-bold text-green-700">{successCount}</p>
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-5 rounded-sm">
+          <p className="text-[var(--fg-muted)] text-xs font-bold uppercase tracking-widest mb-2">Successful</p>
+          <p className="text-3xl font-bold text-emerald-600">{successCount}</p>
         </div>
-        <div className="bg-white border border-gold/15 p-5 rounded-sm">
-          <p className="text-navy/50 text-xs font-bold uppercase tracking-widest mb-2">Failed</p>
-          <p className="text-3xl font-bold text-red-700">{failCount}</p>
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border)] p-5 rounded-sm">
+          <p className="text-[var(--fg-muted)] text-xs font-bold uppercase tracking-widest mb-2">Failed</p>
+          <p className="text-3xl font-bold text-red-500">{failCount}</p>
         </div>
       </div>
 
-      <div className="bg-white border border-gold/15 rounded-sm overflow-hidden">
+      <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gold/10">
-                <th className="text-left px-6 py-3 text-navy/50 text-xs font-bold uppercase tracking-widest">
+              <tr className="border-b border-[var(--border)]">
+                <th className="text-left px-6 py-3 text-[var(--fg-muted)] text-xs font-bold uppercase tracking-widest">
                   Time
                 </th>
-                <th className="text-left px-4 py-3 text-navy/50 text-xs font-bold uppercase tracking-widest">
+                <th className="text-left px-4 py-3 text-[var(--fg-muted)] text-xs font-bold uppercase tracking-widest">
                   Email
                 </th>
-                <th className="text-left px-4 py-3 text-navy/50 text-xs font-bold uppercase tracking-widest hidden md:table-cell">
+                <th className="text-left px-4 py-3 text-[var(--fg-muted)] text-xs font-bold uppercase tracking-widest hidden md:table-cell">
                   IP Address
                 </th>
-                <th className="text-left px-4 py-3 text-navy/50 text-xs font-bold uppercase tracking-widest">
+                <th className="text-left px-4 py-3 text-[var(--fg-muted)] text-xs font-bold uppercase tracking-widest">
                   Result
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gold/10">
+            <tbody className="divide-y divide-[var(--border)]">
               {attempts.map((attempt) => (
-                <tr key={attempt.id} className="hover:bg-cream/50 transition-colors">
-                  <td className="px-6 py-3 text-navy/60 text-xs whitespace-nowrap">
+                <tr key={attempt.id} className="hover:bg-[var(--bg-subtle)] transition-colors">
+                  <td className="px-6 py-3 text-[var(--fg-muted)] text-xs whitespace-nowrap">
                     {format(new Date(attempt.createdAt), 'd MMM yyyy HH:mm:ss')}
                   </td>
-                  <td className="px-4 py-3 text-navy font-medium text-xs">
+                  <td className="px-4 py-3 text-[var(--fg)] font-medium text-xs">
                     {attempt.email}
                   </td>
-                  <td className="px-4 py-3 text-navy/60 font-mono text-xs hidden md:table-cell">
+                  <td className="px-4 py-3 text-[var(--fg-muted)] font-mono text-xs hidden md:table-cell">
                     {attempt.ipAddress ?? 'Unknown'}
                   </td>
                   <td className="px-4 py-3">
                     <span
                       className={`px-2 py-0.5 text-xs font-bold rounded-sm ${
                         attempt.success
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-700'
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                          : 'bg-red-500/15 text-red-500 dark:text-red-400'
                       }`}
                     >
                       {attempt.success ? 'Success' : 'Failed'}
@@ -85,7 +85,7 @@ export default async function LoginAttemptsPage() {
               ))}
               {attempts.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-navy/30 text-sm">
+                  <td colSpan={4} className="px-6 py-12 text-center text-[var(--fg-faint)] text-sm">
                     No login attempts recorded yet.
                   </td>
                 </tr>

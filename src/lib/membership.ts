@@ -684,6 +684,27 @@ export interface MemberRow {
   missingFromAdmin: string[]
   invitedByName: string | null
   createdAt: string
+  /** The stable account id (null until the person has an account). Linking uses this, never an email. */
+  userId: string | null
+  accountCreatedAt: string | null
+  /** The account's own name (not the card's); lets the admin screen tell a generated placeholder from a written profile. */
+  accountName: string | null
+  /** The linked Meet the Team card, in full, so the admin can edit it in place. */
+  card: MemberCard | null
+}
+
+export interface MemberCard {
+  id: string
+  name: string
+  position: string
+  publicTier: string | null
+  bio: string | null
+  image: string | null
+  email: string | null
+  order: number
+  visible: boolean
+  /** Send back as `expectedUpdatedAt` so a stale edit is refused. */
+  updatedAt: string
 }
 
 interface DescribeInput {
@@ -699,12 +720,25 @@ interface DescribeInput {
   /** For a PENDING row with no claimed account: the matching account's email state, if one exists. */
   unclaimedAccount?: { emailVerified: boolean } | null
   user: {
+    id?: string
+    createdAt?: Date
     name: string | null
     role: Role
     emailVerified: Date | null
     isActive: boolean
     isBanned: boolean
-    teamProfile: { name: string; bio: string | null; image: string | null; role: string; publicTier: string | null; order: number; isActive: boolean } | null
+    teamProfile: {
+      id?: string
+      email?: string | null
+      updatedAt?: Date
+      name: string
+      bio: string | null
+      image: string | null
+      role: string
+      publicTier: string | null
+      order: number
+      isActive: boolean
+    } | null
   } | null
 }
 
@@ -751,6 +785,23 @@ export function describeMember(input: DescribeInput): MemberRow {
     missingFromAdmin: assessment.missingFromAdmin,
     invitedByName: input.invitedByName,
     createdAt: input.createdAt.toISOString(),
+    userId: user?.id ?? null,
+    accountCreatedAt: user?.createdAt ? user.createdAt.toISOString() : null,
+    accountName: user?.name ?? null,
+    card: card && card.id && card.updatedAt
+      ? {
+          id: card.id,
+          name: card.name,
+          position: card.role,
+          publicTier: card.publicTier,
+          bio: card.bio,
+          image: card.image,
+          email: card.email ?? null,
+          order: card.order,
+          visible: card.isActive,
+          updatedAt: card.updatedAt.toISOString(),
+        }
+      : null,
   }
 }
 
@@ -766,7 +817,7 @@ export async function listMembers(client: typeof prisma = prisma): Promise<Membe
     isBanned: true,
     email: true,
     createdAt: true,
-    teamProfile: { select: { name: true, bio: true, image: true, role: true, publicTier: true, order: true, isActive: true } },
+    teamProfile: { select: { id: true, email: true, updatedAt: true, name: true, bio: true, image: true, role: true, publicTier: true, order: true, isActive: true } },
   } as const
 
   const [memberships, bareStaff] = await Promise.all([

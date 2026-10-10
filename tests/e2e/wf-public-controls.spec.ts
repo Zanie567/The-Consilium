@@ -527,7 +527,9 @@ test('persistent reading-position sync failure is visible and a successful retry
   expect(sent.scrollY).toBeGreaterThan(0)
   const persisted = await db().readingProgress.findUniqueOrThrow({ where: { userId_articleId: { userId: reader.id, articleId: article.id } } })
   expect(persisted.scrollY).toBe(sent.scrollY)
-  expect(persisted.progress).toBe(sent.progress)
+  // `progress` is a double. Supabase's Postgres sets extra_float_digits = 0, so it is read back with 15 significant digits
+  // (10.4347826086957, not 10.434782608695652): compare to 9 decimal places rather than demanding a bit-exact text round trip.
+  expect(persisted.progress).toBeCloseTo(sent.progress, 9)
   await expect(notice).toHaveCount(0)
   const fresh = await ctx.newPage()
   await fresh.goto(`/articles/${article.slug}`, { waitUntil: 'networkidle' })

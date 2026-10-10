@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { PUBLIC_DEBATE_WHERE } from '@/lib/debateVisibility'
 import { apiServerErrorResponse } from '@/lib/apiResponse'
 
 // GET /api/profile/stats - aggregate reading stats for the user
@@ -21,7 +22,7 @@ export async function GET() {
     ] = await Promise.all([
       prisma.readingProgress.count({ where: { userId, completed: true } }),
       prisma.readingProgress.count({ where: { userId, completed: false, progress: { gt: 3 } } }),
-      prisma.debateVote.count({ where: { userId } }),
+      prisma.debateVote.count({ where: { userId, debate: PUBLIC_DEBATE_WHERE } }),
       prisma.comment.count({ where: { userId, isHidden: false } }),
       prisma.bookmark.count({ where: { userId } }),
       // For reading streak: get dates of completed reads

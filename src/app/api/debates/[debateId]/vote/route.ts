@@ -5,6 +5,8 @@ import { createHash } from 'crypto'
 import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { publicDebateWhere } from '@/lib/debateVisibility'
+import { withPublicDebate } from '@/lib/debateVoting'
 import { checkRateLimit } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
@@ -12,6 +14,26 @@ export const dynamic = 'force-dynamic'
 interface Props {
   params: Promise<{ debateId: string }>
 }
+
+type VoteData = { userId: string } | { anonymousId: string; anonIpHash: string }
+
+/**
+ * The vote is written inside the same transaction that re-checks the public-visibility rule (see debateVoting.ts),
+ * so a debate that stopped being public between the early check above and this write is refused, not voted on.
+ * `null` means "not public (any more)", `'inactive'` / `'closed'` are the existing refusals.
+ */
+async function castVote(debateId: string, side: 'FOR' | 'AGAINST', who: VoteData): Promise<'ok' | 'inactive' | 'closed' | null> {
+  const outcome = await withPublicDebate(debateId, async (tx, debate) => {
+    if (!debate.isActive) return 'inactive' as const
+    if (debate.closesAt && new Date() > debate.closesAt) return 'closed' as const
+    await tx.debateVote.create({ data: { debateId, side, ...who } })
+    return 'ok' as const
+  })
+  return outcome.visible ? outcome.value : null
+}
+
+const NOT_FOUND = () => NextResponse.json({ error: 'Debate not found or not active' }, { status: 404 })
+const CLOSED = () => NextResponse.json({ error: 'Voting has closed for this debate' }, { status: 409 })
 
 async function POSTHandler(req: Request, { params }: Props) {
   const { debateId } = await params
@@ -32,8 +54,9 @@ async function POSTHandler(req: Request, { params }: Props) {
   }
 
   // Validate debate exists and is active/open
-  const debate = await prisma.debate.findUnique({
-    where: { id: debateId },
+  // A hidden (unpublished or deleted) debate is indistinguishable from a missing one.
+  const debate = await prisma.debate.findFirst({
+    where: publicDebateWhere({ id: debateId }),
     select: { isActive: true, closesAt: true },
   })
   if (!debate || !debate.isActive) {
@@ -54,9 +77,9 @@ async function POSTHandler(req: Request, { params }: Props) {
   try {
     if (session?.user?.id) {
       // Authenticated vote - deduplicate by userId
-      await prisma.debateVote.create({
-        data: { debateId, userId: session.user.id, side: side as 'FOR' | 'AGAINST' },
-      })
+      const result = await castVote(debateId, side, { userId: session.user.id })
+      if (result === null || result === 'inactive') return NOT_FOUND()
+      if (result === 'closed') return CLOSED()
     } else {
       // Anonymous vote - deduplicate by cookie ID and by hashed IP
       let anonymousId = cookieStore.get('consilium_anon_id')?.value
@@ -73,9 +96,9 @@ async function POSTHandler(req: Request, { params }: Props) {
       }
       const anonIpHash = createHash('sha256').update(`${secret}:${ip}`).digest('hex')
 
-      await prisma.debateVote.create({
-        data: { debateId, anonymousId, anonIpHash, side: side as 'FOR' | 'AGAINST' },
-      })
+      const result = await castVote(debateId, side, { anonymousId, anonIpHash })
+      if (result === null || result === 'inactive') return NOT_FOUND()
+      if (result === 'closed') return CLOSED()
 
       // Set the httpOnly cookie in the response
       const counts = await getBreakdown(debateId)

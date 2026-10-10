@@ -1,4 +1,5 @@
 import { articleRevisionError } from '@/lib/articleRevision'
+import { isHiddenDebateViolation, hiddenDebateResponse } from '@/lib/hiddenDebateGuard'
 import { figureAltError } from '@/lib/figureValidation'
 import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
@@ -202,6 +203,7 @@ async function PATCHHandler(req: Request, { params }: Props) {
         requestId
       )
     }
+    if (isHiddenDebateViolation(error)) return hiddenDebateResponse()
     return apiServerErrorResponse(error, {
       operation: 'api/editorial/review',
       userMessage: 'This review action could not be completed because of a server error.',

@@ -2,12 +2,10 @@ import { createHash } from 'node:crypto'
 import { prisma } from '@/lib/prisma'
 import { assertSafeTestDatabaseHost } from '../../scripts/lib/assertSafeTestDatabaseHost'
 import { hostedTestingConfigurationError, HOSTED_TEST_WORKSPACE } from './hostedTestingWorkspace'
-import { TESTING_COOKIE } from './testingSessionConstants'
+import { TESTING_COOKIE, TEST_PERSONAS, PERSONA_ROLES, type TestPersona } from './testingSessionConstants'
 
-export { TESTING_COOKIE }
-export const TEST_PERSONAS = ['writer', 'writer-other', 'editor', 'editor-global', 'growth'] as const
-export type TestPersona = typeof TEST_PERSONAS[number]
-export const PERSONA_ROLES = { writer: 'WRITER', 'writer-other': 'WRITER', editor: 'EDITOR', 'editor-global': 'EDITOR', growth: 'GROWTH' } as const
+export { TESTING_COOKIE, TEST_PERSONAS, PERSONA_ROLES }
+export type { TestPersona }
 export const tokenHash = (token: string) => createHash('sha256').update(token).digest('hex')
 const local = (value?: string) => {
   try { return ['localhost', '127.0.0.1', '[::1]'].includes(new URL(value ?? '').hostname) } catch { return false }
