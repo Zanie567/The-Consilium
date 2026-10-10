@@ -167,7 +167,7 @@ test.describe('debates (editor)', () => {
     const writes: string[] = []
     page.on('request', (r) => { if (r.url().includes('/api/editorial/debates') && r.method() === 'POST') writes.push(r.url()) })
     await page.getByRole('button', { name: 'Create Debate' }).click()
-    await expect(page.getByText(/write content for both sides/)).toBeVisible()
+    await expect(page.getByRole('alert').filter({ hasText: /Please complete: .*For article body.*Against article body/ })).toBeVisible()
     expect(writes).toHaveLength(0)
     await page.locator('.ProseMirror').first().click()
     await page.keyboard.type('The case for.')
