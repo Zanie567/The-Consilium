@@ -338,3 +338,32 @@ test('a generated placeholder is replaced by the real profile after an explicit 
   expect(errors.filter((e) => !/status of 40[0-9]/.test(e))).toEqual([])
   await admin.close()
 })
+
+test('the "saved" message always describes the latest attempt: it clears on a new edit and is never shown after a failed save', async ({ browser }) => {
+  test.setTimeout(150_000)
+  const account = await createAccount('WRITER', 'savemsg')
+  const card = await legacyCard('SaveMsg', { email: null, userId: account.id })
+  const admin = await signedIn(browser, 'admin')
+  const page = await admin.newPage()
+  const row = await openMember(page, account)
+  await row.getByRole('button', { name: 'Manage' }).click()
+  await page.getByRole('tab', { name: 'Public profile' }).click()
+  const status = page.getByRole('status').filter({ hasText: 'Public details saved' })
+  const bio = page.getByLabel('Biography', { exact: true })
+
+  await bio.fill('First version.')
+  await page.getByRole('button', { name: 'Save public details' }).click()
+  await expect(status).toBeVisible()
+
+  // Starting another edit means the old message no longer describes what is on screen.
+  await bio.fill('Second version, not yet saved.')
+  await expect(status).toHaveCount(0)
+
+  // A save that fails (someone else changed the profile meanwhile) must not leave, or show, a success message.
+  await db().teamMember.update({ where: { id: card.id }, data: { bio: 'Changed behind the form.' } })
+  await page.getByRole('button', { name: 'Save public details' }).click()
+  await expect(page.getByRole('alert').filter({ hasText: /changed|reload/i })).toBeVisible()
+  await expect(status).toHaveCount(0)
+  expect((await db().teamMember.findUniqueOrThrow({ where: { id: card.id } })).bio).toBe('Changed behind the form.')
+  await admin.close()
+})

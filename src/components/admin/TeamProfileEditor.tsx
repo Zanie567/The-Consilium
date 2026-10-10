@@ -61,6 +61,8 @@ interface Props {
   onSaved: (message: string) => Promise<void> | void
   /** Reports unsaved edits so the parent can warn before the panel is closed. */
   onDirtyChange?: (dirty: boolean) => void
+  /** A new edit or a new save attempt has begun: any earlier "saved" message is no longer about what is on screen. */
+  onActivity?: () => void
 }
 
 /**
@@ -68,7 +70,7 @@ interface Props {
  * position and placement, biography, photo, order and visibility, with a live preview. The
  * permission role is deliberately absent: changing a title here can never grant access.
  */
-export function TeamProfileEditor({ card, linkToUserId = null, defaultName = '', onSaved, onDirtyChange }: Props) {
+export function TeamProfileEditor({ card, linkToUserId = null, defaultName = '', onSaved, onDirtyChange, onActivity }: Props) {
   const initial = useMemo(() => fromCard(card, defaultName), [card, defaultName])
   const [form, setForm] = useState(initial)
   const [busy, setBusy] = useState(false)
@@ -89,7 +91,8 @@ export function TeamProfileEditor({ card, linkToUserId = null, defaultName = '',
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty, onDirtyChange])
 
-  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => ({ ...f, [key]: value }))
+  // Only a person's own edit counts as activity; a reload that swaps in a freshly saved card must not clear the "saved" message.
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => { onActivity?.(); setForm((f) => ({ ...f, [key]: value })) }
 
   async function upload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -122,6 +125,7 @@ export function TeamProfileEditor({ card, linkToUserId = null, defaultName = '',
     inFlight.current = true
     setBusy(true)
     setError(null)
+    onActivity?.()
     const body = {
       name: form.name,
       position: form.position,

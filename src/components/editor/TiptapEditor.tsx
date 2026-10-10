@@ -191,6 +191,8 @@ interface TiptapEditorProps {
   onEditorReady?: (editor: Editor) => void
   noWrapper?: boolean
   darkMode?: boolean
+  /** Accessible name for the writing area, for screens where it sits under a visible label. */
+  ariaLabel?: string
   /** Fired when a review-comment highlight is clicked (see commentHighlight.ts) */
   onCommentClick?: (commentId: string) => void
 }
@@ -372,6 +374,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
     noWrapper,
     darkMode,
     onCommentClick,
+    ariaLabel,
   },
   ref
 ) {
@@ -489,6 +492,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
     },
     immediatelyRender: false,
     editorProps: {
+      ...(ariaLabel ? { attributes: { 'aria-label': ariaLabel, role: 'textbox', 'aria-multiline': 'true' } } : {}),
       // All click sequences must preserve the existing footnote edit control.
       handleClickOn: editFootnote,
       handleDoubleClickOn: editFootnote,
@@ -1364,6 +1368,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
         type="file"
         accept="image/*"
         multiple={false}
+        aria-label="Upload image"
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0]

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { format } from 'date-fns'
 import type { MemberRow } from '@/lib/membership'
 import type { RecentSignup, UnlinkedCardRow } from '@/lib/teamDirectory'
@@ -30,7 +30,7 @@ interface Props {
   run: (action: () => Promise<string>) => Promise<boolean>
   busy: boolean
   reload: () => Promise<void>
-  onMessage: (message: { ok: boolean; text: string }) => void
+  onMessage: (message: { ok: boolean; text: string } | null) => void
   onDirtyChange: (dirty: boolean) => void
 }
 
@@ -216,6 +216,7 @@ function ProfileSection(p: Props) {
   const [replacePick, setReplacePick] = useState('')
   const [invited, setInvited] = useState({ position: m.position ?? '', tier: m.tier ?? '' })
 
+  const clearMessage = useCallback(() => onMessage(null), [onMessage])
   const saved = async (message: string) => {
     await reload()
     onMessage({ ok: true, text: message })
@@ -273,7 +274,7 @@ function ProfileSection(p: Props) {
           This profile belongs to <strong>{m.email}</strong>. They can edit their own name, photo and biography; only administrators can
           change the position, placement, order and visibility below.
         </p>
-        <TeamProfileEditor card={card} onSaved={saved} onDirtyChange={onDirtyChange} />
+        <TeamProfileEditor card={card} onSaved={saved} onDirtyChange={onDirtyChange} onActivity={clearMessage} />
         {placeholder && (
           <section aria-labelledby={`replace-${m.id}`} className="max-w-xl space-y-2 border-t border-[var(--border)] pt-4" data-testid="replace-placeholder">
             <h3 id={`replace-${m.id}`} className="text-sm font-bold">Replace with an existing profile</h3>
@@ -412,7 +413,7 @@ function ProfileSection(p: Props) {
 
       <div className="border-t border-[var(--border)] pt-4">
         {creating ? (
-          <TeamProfileEditor card={null} linkToUserId={m.userId} defaultName={m.name ?? ''} onSaved={saved} onDirtyChange={onDirtyChange} />
+          <TeamProfileEditor card={null} linkToUserId={m.userId} defaultName={m.name ?? ''} onSaved={saved} onDirtyChange={onDirtyChange} onActivity={clearMessage} />
         ) : (
           <button type="button" disabled={busy} onClick={() => setCreating(true)} className={`${buttonClass} border border-[var(--border-strong)] text-[var(--fg)]`}>
             Create a new profile

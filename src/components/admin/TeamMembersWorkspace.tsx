@@ -402,7 +402,8 @@ type RunFn = (action: () => Promise<string>) => Promise<boolean>
 
 // ── Profiles that belong to no account ──────────────────────────────────────
 
-function UnownedProfiles({ dir, run, busy, reload, onMessage }: { dir: TeamDirectory; run: RunFn; busy: boolean; reload: () => Promise<void>; onMessage: (m: { ok: boolean; text: string }) => void }) {
+function UnownedProfiles({ dir, run, busy, reload, onMessage }: { dir: TeamDirectory; run: RunFn; busy: boolean; reload: () => Promise<void>; onMessage: (m: { ok: boolean; text: string } | null) => void }) {
+  const clearMessage = useCallback(() => onMessage(null), [onMessage])
   const [editId, setEditId] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -434,7 +435,7 @@ function UnownedProfiles({ dir, run, busy, reload, onMessage }: { dir: TeamDirec
 
       {creating && (
         <div className="mt-4 border-t border-[var(--border)] pt-4">
-          <TeamProfileEditor card={null} onSaved={saved} onDirtyChange={setDirty} />
+          <TeamProfileEditor card={null} onSaved={saved} onDirtyChange={setDirty} onActivity={clearMessage} />
         </div>
       )}
 
@@ -483,6 +484,7 @@ function UnownedProfiles({ dir, run, busy, reload, onMessage }: { dir: TeamDirec
                       card={{ id: c.id, name: c.name, position: c.position, publicTier: c.publicTier, bio: c.bio, image: c.image, email: c.email, order: c.order, visible: c.visible, updatedAt: c.updatedAt }}
                       onSaved={saved}
                       onDirtyChange={setDirty}
+                      onActivity={clearMessage}
                     />
                     {dirty && <p className="mt-2 text-xs text-amber-600">Unsaved changes will be lost if you close this editor.</p>}
                   </div>
