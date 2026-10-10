@@ -268,3 +268,73 @@ test('only administrators can open Team Members or call its APIs; a stale profil
   await expect(second.getByLabel('Public position', { exact: true })).toHaveValue('Second Tab Title')
   await admin.close()
 })
+
+test('a generated placeholder is replaced by the real profile after an explicit confirmation; a genuine profile offers no replacement', async ({ browser }) => {
+  test.setTimeout(180_000)
+  const account = await createAccount('WRITER', 'placeholder')
+  // Exactly what a claim leaves behind: hidden, the account's own name, the role's default title, nothing written.
+  const placeholder = await db().teamMember.create({
+    data: { userId: account.id, name: account.name, role: 'Writer', publicTier: 'writer', order: 1000, isActive: false },
+  })
+  createdCardIds.push(placeholder.id)
+  const real = await legacyCard('Real Profile', { email: null })
+  const admin = await signedIn(browser, 'admin')
+  const page = await admin.newPage()
+  const errors = collectConsoleErrors(page)
+
+  const row = await openMember(page, account)
+  await row.getByRole('button', { name: 'Manage' }).click()
+  await page.getByRole('tab', { name: 'Public profile' }).click()
+  const section = page.getByTestId('replace-placeholder')
+  await expect(section).toBeVisible()
+  await expect(section.getByRole('heading', { name: 'Replace with an existing profile' })).toBeVisible()
+
+  // The confirmation names the account, the placeholder and the profile to link, and nothing happens until confirmed.
+  await section.getByLabel('Existing profile to link instead of the placeholder').selectOption({ label: `${real.name}, Staff Writer` })
+  await section.getByRole('button', { name: 'Replace…' }).click()
+  const dialog = page.getByRole('alertdialog')
+  await expect(dialog).toContainText(account.email)
+  await expect(dialog).toContainText(placeholder.name)
+  await expect(dialog).toContainText(real.name)
+  expect(await db().teamMember.findUnique({ where: { id: placeholder.id } })).not.toBeNull() // not yet
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+  expect(await db().teamMember.findUnique({ where: { id: real.id } })).toMatchObject({ userId: null })
+
+  await section.getByRole('button', { name: 'Replace…' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Replace placeholder', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'removed the placeholder' })).toBeVisible()
+
+  // Persisted: the real profile, untouched but for its owner; no placeholder; one card; role unchanged.
+  expect(await db().teamMember.findUnique({ where: { id: placeholder.id } })).toBeNull()
+  expect(await db().teamMember.findUniqueOrThrow({ where: { id: real.id } })).toMatchObject({ userId: account.id, name: real.name, bio: real.bio, role: 'Staff Writer', order: 4000, isActive: true })
+  expect(await db().teamMember.count({ where: { userId: account.id } })).toBe(1)
+  expect((await db().user.findUniqueOrThrow({ where: { id: account.id } })).role).toBe('WRITER')
+  expect(await db().auditLog.count({ where: { targetId: real.id, action: 'TEAM_CARD_PLACEHOLDER_REPLACED' } })).toBe(1)
+
+  // After a reload the screen shows the real profile, as a genuine one with no replace option.
+  await page.reload()
+  await openMember(page, account)
+  await expect(page.getByTestId(`member-${account.email}`)).toContainText('Published')
+  await page.getByTestId(`member-${account.email}`).getByRole('button', { name: 'Manage' }).click()
+  await page.getByRole('tab', { name: 'Public profile' }).click()
+  await expect(page.getByTestId('replace-placeholder')).toHaveCount(0)
+  await expect(page.getByTestId('genuine-profile-note')).toBeVisible()
+
+  // Public Meet the Team shows the real profile once.
+  const text = await publicTeam(browser)
+  expect(text.split(real.name).length - 1).toBe(1)
+  expect(text).not.toContain(placeholder.name)
+
+  // A second, genuinely written profile can never be replaced in one step.
+  const writer = await createAccount('WRITER', 'writtenprofile')
+  const written = await db().teamMember.create({ data: { userId: writer.id, name: `WF Card ${run} Written`, role: 'Writer', publicTier: 'writer', order: 1000, isActive: false, bio: 'I wrote this myself.' } })
+  createdCardIds.push(written.id)
+  await openMember(page, writer)
+  await page.getByTestId(`member-${writer.email}`).getByRole('button', { name: 'Manage' }).click()
+  await page.getByRole('tab', { name: 'Public profile' }).click()
+  await expect(page.getByTestId('replace-placeholder')).toHaveCount(0)
+  await expect(page.getByTestId('genuine-profile-note')).toContainText('biography')
+
+  expect(errors.filter((e) => !/status of 40[0-9]/.test(e))).toEqual([])
+  await admin.close()
+})

@@ -27,6 +27,7 @@ import { isUniqueViolation } from '@/lib/prismaErrors'
 import { MAX_BIO_LENGTH } from '@/lib/constants'
 import { TEAM_TIER_ORDER } from '@/lib/teamHierarchy'
 import { TEAM_PROFILE_ROLES, normalizePersonName, validateTeamBio } from '@/lib/teamProfiles'
+import { assessPlaceholder } from '@/lib/teamPlaceholder'
 
 type Tx = Prisma.TransactionClient
 
@@ -40,6 +41,7 @@ export type TeamCardErrorCode =
   | 'STALE'
   | 'ALREADY_LINKED'
   | 'ACCOUNT_HAS_CARD'
+  | 'NOT_PLACEHOLDER'
   | 'NOT_LINKED'
   | 'INELIGIBLE_ACCOUNT'
   | 'DUPLICATE_NAME'
@@ -281,6 +283,67 @@ export async function unlinkCard(
     assertFresh(options.expectedUpdatedAt, card.updatedAt)
     return { id: card.id, changed: await unlinkInTx(tx, actor, card) }
   })
+}
+
+/**
+ * Replaces an account's auto-generated placeholder card with an existing, unowned profile, in ONE transaction.
+ *
+ * The placeholder is deleted only if it is provably disposable (nothing written in it; see teamPlaceholder.ts),
+ * and the chosen profile is linked untouched, so no genuine profile data is ever discarded and the account is
+ * never left with two cards or none. Both rows are guarded on the `updatedAt` the administrator saw, so a
+ * placeholder someone has since filled in, or a target someone else has since taken, is refused. A genuine
+ * card, or a target that already belongs to another account, is never touched. The account's id and its
+ * permission role are not read or written. The audit row keeps the deleted placeholder's values.
+ */
+export async function replacePlaceholderWithCard(
+  actor: CardActor,
+  input: { userId: string; placeholderId: string; targetId: string; expectedPlaceholderUpdatedAt: string; expectedTargetUpdatedAt: string },
+  client: typeof prisma = prisma,
+): Promise<{ targetId: string; userId: string }> {
+  try {
+    return await client.$transaction(async (tx) => {
+      if (input.placeholderId === input.targetId) {
+        throw new TeamCardError('INVALID_FIELD', 'Choose a different profile from the placeholder.', 400)
+      }
+      const account = await requireLinkableAccount(tx, input.userId)
+      const placeholder = await tx.teamMember.findUnique({ where: { id: input.placeholderId } })
+      if (!placeholder || placeholder.userId !== input.userId) {
+        throw new TeamCardError('STALE', 'That account no longer has this placeholder profile. Reload and review it.', 409)
+      }
+      const target = await tx.teamMember.findUnique({ where: { id: input.targetId } })
+      if (!target) throw new TeamCardError('NOT_FOUND', 'That profile no longer exists.', 404)
+      assertFresh(input.expectedPlaceholderUpdatedAt, placeholder.updatedAt)
+      assertFresh(input.expectedTargetUpdatedAt, target.updatedAt)
+      if (target.userId) {
+        const owner = await tx.user.findUnique({ where: { id: target.userId }, select: { email: true } })
+        throw new TeamCardError('ALREADY_LINKED', `"${target.name}" already belongs to ${owner?.email ?? 'another account'}. It will not be taken.`, 409)
+      }
+      const verdict = assessPlaceholder(placeholder, account)
+      if (!verdict.disposable) {
+        throw new TeamCardError(
+          'NOT_PLACEHOLDER',
+          `"${placeholder.name}" is a genuine profile (${verdict.genuineBecause.join('; ')}), so it will not be replaced. Unlink or delete it first if that is intended.`,
+          409,
+        )
+      }
+      // Free the account's one card slot first (UNIQUE userId), then link the chosen profile.
+      const removed = await tx.teamMember.deleteMany({ where: { id: placeholder.id, userId: input.userId, updatedAt: placeholder.updatedAt } })
+      if (removed.count !== 1) throw conflict()
+      const linked = await tx.teamMember.updateMany({ where: { id: target.id, userId: null, updatedAt: target.updatedAt }, data: { userId: input.userId } })
+      if (linked.count !== 1) throw conflict()
+      await audit(tx, 'TEAM_CARD_PLACEHOLDER_REPLACED', target.id, actor, {
+        userId: input.userId,
+        accountEmail: account.email,
+        cardName: target.name,
+        replacedPlaceholder: {
+          id: placeholder.id, name: placeholder.name, position: placeholder.role, publicTier: placeholder.publicTier, order: placeholder.order, wasVisible: placeholder.isActive,
+        },
+      })
+      return { targetId: target.id, userId: input.userId }
+    })
+  } catch (error) {
+    return mapUniqueViolation(error)
+  }
 }
 
 // ── Create / update / delete ─────────────────────────────────────────────────

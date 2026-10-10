@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { format } from 'date-fns'
 import type { MemberRow } from '@/lib/membership'
 import type { RecentSignup, UnlinkedCardRow } from '@/lib/teamDirectory'
+import { assessPlaceholder } from '@/lib/teamPlaceholder'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { apiRequest } from '@/lib/apiClient'
 import { TeamProfileEditor, TIERS, buttonClass, fieldClass, labelClass } from '@/components/admin/TeamProfileEditor'
@@ -211,7 +212,8 @@ function ProfileSection(p: Props) {
   const { member: m, unlinkedCards, suggestions, run, busy, reload, onMessage, onDirtyChange } = p
   const [creating, setCreating] = useState(false)
   const [pick, setPick] = useState('')
-  const [confirm, setConfirm] = useState<'unlink' | 'delete' | null>(null)
+  const [confirm, setConfirm] = useState<'unlink' | 'delete' | 'replace' | null>(null)
+  const [replacePick, setReplacePick] = useState('')
   const [invited, setInvited] = useState({ position: m.position ?? '', tier: m.tier ?? '' })
 
   const saved = async (message: string) => {
@@ -258,6 +260,13 @@ function ProfileSection(p: Props) {
 
   if (m.card) {
     const card = m.card
+    const assessment = assessPlaceholder(
+      { name: card.name, role: card.position, publicTier: card.publicTier, bio: card.bio, image: card.image, email: card.email, order: card.order, isActive: card.visible },
+      { name: m.accountName, email: m.email, role: m.role },
+    )
+    const placeholder = assessment.disposable
+    const replaceOptions = [...unlinkedCards].sort((a, b) => a.name.localeCompare(b.name))
+    const replaceTarget = unlinkedCards.find((c) => c.id === replacePick)
     return (
       <div className="space-y-6">
         <p className="text-sm text-[var(--fg-muted)]">
@@ -265,6 +274,52 @@ function ProfileSection(p: Props) {
           change the position, placement, order and visibility below.
         </p>
         <TeamProfileEditor card={card} onSaved={saved} onDirtyChange={onDirtyChange} />
+        {placeholder && (
+          <section aria-labelledby={`replace-${m.id}`} className="max-w-xl space-y-2 border-t border-[var(--border)] pt-4" data-testid="replace-placeholder">
+            <h3 id={`replace-${m.id}`} className="text-sm font-bold">Replace with an existing profile</h3>
+            <p className="text-sm text-[var(--fg-muted)]">
+              This profile was generated automatically when {m.email} joined and nothing has been written in it. If they already have a real
+              Meet the Team profile, link that one instead: the generated placeholder is removed and nothing on the real profile is changed.
+            </p>
+            {replaceOptions.length > 0 ? (
+              <div className="flex flex-wrap gap-3">
+                <label htmlFor={`replace-pick-${m.id}`} className="sr-only">Existing profile to link instead of the placeholder</label>
+                <select id={`replace-pick-${m.id}`} value={replacePick} onChange={(e) => setReplacePick(e.target.value)} className={`${fieldClass} min-w-[240px] flex-1`}>
+                  <option value="">Choose a profile…</option>
+                  {replaceOptions.map((c) => <option key={c.id} value={c.id}>{c.name}{c.position ? `, ${c.position}` : ''}</option>)}
+                </select>
+                <button type="button" disabled={busy || !replaceTarget} onClick={() => setConfirm('replace')} className={`${buttonClass} bg-navy text-cream hover:bg-navy/90`}>
+                  Replace…
+                </button>
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--fg-muted)]">There are no unowned profiles to link instead.</p>
+            )}
+          </section>
+        )}
+        {!placeholder && (
+          <p className="max-w-xl border-t border-[var(--border)] pt-4 text-xs text-[var(--fg-muted)]" data-testid="genuine-profile-note">
+            This is a genuine profile ({assessment.genuineBecause.join('; ')}), so it cannot be replaced by another one in a single step. To
+            link a different profile, unlink or delete this one first.
+          </p>
+        )}
+        {replaceTarget && (
+          <ConfirmDialog
+            open={confirm === 'replace'}
+            title="Replace this placeholder?"
+            message={`Account: ${m.email}. Placeholder to be removed: "${card.name}" (generated automatically, hidden, nothing written). Profile to link: "${replaceTarget.name}"${replaceTarget.position ? `, ${replaceTarget.position}` : ''}, which stays exactly as it is and becomes editable by ${m.email}. Their access role is not changed.`}
+            confirmLabel="Replace placeholder"
+            busy={busy}
+            onCancel={() => setConfirm(null)}
+            onConfirm={() => void run(async () => {
+              await apiRequest(`/api/admin/team-cards/${replaceTarget.id}/replace-placeholder`, json('POST', {
+                userId: m.userId, placeholderId: card.id, expectedUpdatedAt: replaceTarget.updatedAt, expectedPlaceholderUpdatedAt: card.updatedAt,
+              }))
+              setReplacePick('')
+              return `Linked "${replaceTarget.name}" to ${m.email} and removed the placeholder. Nothing on the profile was changed.`
+            }).then(() => setConfirm(null))}
+          />
+        )}
         <div className="flex flex-wrap gap-3 border-t border-[var(--border)] pt-4">
           <button type="button" disabled={busy} onClick={() => setConfirm('unlink')} className={`${buttonClass} border border-[var(--border-strong)] text-[var(--fg)]`}>
             Unlink from account

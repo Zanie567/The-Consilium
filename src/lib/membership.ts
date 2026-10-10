@@ -687,6 +687,8 @@ export interface MemberRow {
   /** The stable account id (null until the person has an account). Linking uses this, never an email. */
   userId: string | null
   accountCreatedAt: string | null
+  /** The account's own name (not the card's); lets the admin screen tell a generated placeholder from a written profile. */
+  accountName: string | null
   /** The linked Meet the Team card, in full, so the admin can edit it in place. */
   card: MemberCard | null
 }
@@ -785,6 +787,7 @@ export function describeMember(input: DescribeInput): MemberRow {
     createdAt: input.createdAt.toISOString(),
     userId: user?.id ?? null,
     accountCreatedAt: user?.createdAt ? user.createdAt.toISOString() : null,
+    accountName: user?.name ?? null,
     card: card && card.id && card.updatedAt
       ? {
           id: card.id,

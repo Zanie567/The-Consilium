@@ -163,7 +163,8 @@ describe('publishing refreshes the hero', () => {
     })
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     expect(() => revalidateArticleLists()).not.toThrow()
-    expect(consoleError).toHaveBeenCalledWith('[revalidateArticleLists] failed:', error)
+    expect(revalidateArticleLists()).toBe(true) // the next call works again, and reports success
+    expect(consoleError).toHaveBeenCalledWith('[revalidateArticleLists] FAILED, public lists may be stale for up to the data-cache TTL:', error)
     consoleError.mockRestore()
   })
 })

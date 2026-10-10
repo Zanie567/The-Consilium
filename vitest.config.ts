@@ -28,6 +28,7 @@ const DB_BACKED_SUITES = [
   'tests/integration/scheduled-publication.test.ts',
   'tests/integration/debate-lifecycle-db.test.ts',
   'tests/integration/team-members-admin-db.test.ts',
+  'tests/integration/team-placeholder-replace-db.test.ts',
   'tests/integration/testing-scenarios-db.test.ts',
   'tests/integration/hidden-debate-guard-db.test.ts',
   'tests/integration/public-feed-visibility-db.test.ts',
