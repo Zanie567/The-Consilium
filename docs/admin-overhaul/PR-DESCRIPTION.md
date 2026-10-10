@@ -52,6 +52,7 @@ these files (duplicate `20261010` prefixes and a rollback script in the same dir
 | TypeScript, ESLint | clean (exit 0 each) |
 | Vitest, whole suite incl. DB-backed suites against the live isolated stack, PostgreSQL 17.11 (measured on `0ec2897`; the default `npm test` run, which excludes the DB-backed suites, reports 1485) | 1923 passed, 0 failed, 66 skipped (157 files passed, 4 skipped) |
 | The 66 skips, run separately, each on its own purpose-named disposable database | 66 / 66: publish race 9, trash purge 7, scheduler cron SQL 29, PR #117 migration rehearsal 21 |
+| Final branch `release/admin-overhaul` (adds migration 5 and its test, docs only otherwise): TypeScript, ESLint; Vitest integration suite via the isolated launcher on a disposable PostgreSQL 16 | tsc and ESLint exit 0; 661 passed, 0 failed, 66 skipped (45 files passed, 4 skipped), including the migration 5 test ("trigger functions and both triggers still fire for roles without it"). Full Vitest, Playwright and the 66 gated tests were **not** re-run on this branch: its `src/`, `prisma/` and tests are identical to `0ec2897`, where they were. |
 | Playwright, all four phases (main 87, workflow 568, team-profile 49, upgrade 36) | 740 passed, 0 failed, 0 flaky, 0 skipped |
 
 Notable suites: `hidden-debate-guard-db` (21), `public-feed-visibility-db` (9), `team-placeholder-replace-db` (9), `testing-scenarios-db` (17),
