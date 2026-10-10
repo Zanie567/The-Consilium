@@ -60,7 +60,7 @@ function syncProblem(visibility: DebateVisibility, articles: DebateArticleFacts[
   }
   return articles.every(isPublic)
     ? null
-    : 'One or both articles of this published debate are not public. Publish it again to re-sync.'
+    : 'One or both articles of this published debate are not public (an editor archived, trashed or changed them separately). Republish them from the article editor if that is intended.'
 }
 
 export function buildDebateRow(

@@ -210,6 +210,10 @@ model Article {
   series         Series?       @relation(fields: [seriesId], references: [id])
   seriesOrder    Int?
   deletedAt      DateTime?
+  // Set ONLY by the debate lifecycle when it moves this article PUBLISHED -> ARCHIVED; cleared by the database
+  // (trigger articles_clear_hidden_by_debate) on any other status or trash change. Debate "publish" restores
+  // only articles that still carry it. See migration 20261012100000.
+  hiddenByDebateAt DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 

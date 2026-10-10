@@ -93,7 +93,7 @@ export function DebateAdminList({ initialRows, canManage }: { initialRows: Debat
     setMessage(null)
     const { row, action } = pending
     try {
-      const result = await apiRequest<{ publicCacheRefreshed?: boolean }>(`/api/editorial/debates/${row.id}/lifecycle`, {
+      const result = await apiRequest<{ publicCacheRefreshed?: boolean; articlesNotRestored?: number }>(`/api/editorial/debates/${row.id}/lifecycle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -102,9 +102,15 @@ export function DebateAdminList({ initialRows, canManage }: { initialRows: Debat
           ...(action === 'purge' ? { confirmTitle: row.title } : {}),
         }),
       })
+      const notRestored = action === 'publish' ? (result.articlesNotRestored ?? 0) : 0
       setMessage({
-        ok: result.publicCacheRefreshed !== false,
-        text: ACTION_COPY[action].done + (result.publicCacheRefreshed === false ? ' Warning: the public site could not be refreshed immediately, so removed pages may still appear for up to 5 minutes.' : ''),
+        ok: result.publicCacheRefreshed !== false && notRestored === 0,
+        text:
+          ACTION_COPY[action].done +
+          (notRestored > 0
+            ? ` ${notRestored === 1 ? '1 article was' : `${notRestored} articles were`} not restored because an editor archived, trashed or changed ${notRestored === 1 ? 'it' : 'them'} separately. Republish ${notRestored === 1 ? 'it' : 'them'} from the article editor if that is intended.`
+            : '') +
+          (result.publicCacheRefreshed === false ? ' Warning: the public site could not be refreshed immediately, so removed pages may still appear for up to 5 minutes.' : ''),
       })
     } catch (reason) {
       setMessage({ ok: false, text: asApiError(reason).message })

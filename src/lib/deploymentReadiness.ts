@@ -1,8 +1,8 @@
 import type { PrismaClient } from '@prisma/client'
 export async function deploymentReadiness(db: Pick<PrismaClient, '$queryRaw'>, env: Record<string, string | undefined> = process.env) {
-  const columns = await db.$queryRaw<{ table_name: string; column_name: string }[]>`SELECT table_name, column_name FROM information_schema.columns WHERE table_schema='public' AND table_name IN ('users','team_members','testing_sessions','debates')`
+  const columns = await db.$queryRaw<{ table_name: string; column_name: string }[]>`SELECT table_name, column_name FROM information_schema.columns WHERE table_schema='public' AND table_name IN ('users','team_members','testing_sessions','debates','articles')`
   const present = new Set(columns.map(c => `${c.table_name}.${c.column_name}`))
-  const required = ['team_members.userId', 'team_members.publicTier', 'team_members.updatedAt', 'debates.unpublishedAt', 'debates.deletedAt', 'debates.deletedById', 'users.testPersonaKey', 'users.testingRevision', 'testing_sessions.id', 'testing_sessions.tokenHash', 'testing_sessions.administratorId', 'testing_sessions.personaId', 'testing_sessions.revision', 'testing_sessions.createdAt', 'testing_sessions.expiresAt', 'testing_sessions.stoppedAt', 'testing_sessions.stopReason']
+  const required = ['team_members.userId', 'team_members.publicTier', 'team_members.updatedAt', 'debates.unpublishedAt', 'debates.deletedAt', 'debates.deletedById', 'articles.hiddenByDebateAt', 'users.testPersonaKey', 'users.testingRevision', 'testing_sessions.id', 'testing_sessions.tokenHash', 'testing_sessions.administratorId', 'testing_sessions.personaId', 'testing_sessions.revision', 'testing_sessions.createdAt', 'testing_sessions.expiresAt', 'testing_sessions.stoppedAt', 'testing_sessions.stopReason']
   const gaps = required.filter(c => !present.has(c)).map(c => `Missing schema: ${c}`)
   try {
     const storage = new URL(env.NEXT_PUBLIC_SUPABASE_URL ?? '')
@@ -13,8 +13,10 @@ export async function deploymentReadiness(db: Pick<PrismaClient, '$queryRaw'>, e
   if (!indexes.some(i => /UNIQUE.*\("userId"\)/.test(i.indexdef))) gaps.push('Missing one-card-per-account unique index')
   const tables = await db.$queryRaw<{ relrowsecurity: boolean }[]>`SELECT relrowsecurity FROM pg_class WHERE oid=to_regclass('public.testing_sessions')`
   if (!tables[0]?.relrowsecurity) gaps.push('Testing session row-level security is missing')
-  const guard = await db.$queryRaw<{ present: boolean }[]>`SELECT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname='articles_hidden_debate_guard' AND NOT tgisinternal AND tgenabled <> 'D') AS present`
-  if (!guard[0]?.present) gaps.push('Missing database guard: articles_hidden_debate_guard (migration 20261011)')
+  const triggers = await db.$queryRaw<{ tgname: string }[]>`SELECT tgname FROM pg_trigger WHERE tgname IN ('articles_hidden_debate_guard','articles_clear_hidden_by_debate') AND NOT tgisinternal AND tgenabled <> 'D'`
+  const triggerNames = new Set(triggers.map(t => t.tgname))
+  if (!triggerNames.has('articles_hidden_debate_guard')) gaps.push('Missing database guard: articles_hidden_debate_guard (migration 20261011)')
+  if (!triggerNames.has('articles_clear_hidden_by_debate')) gaps.push('Missing database trigger: articles_clear_hidden_by_debate (migration 20261012100000)')
   try {
     const buckets = await db.$queryRaw<{ id: string; public: boolean; file_size_limit: bigint | null; allowed_mime_types: string[] | null }[]>`SELECT id, public, file_size_limit, allowed_mime_types FROM storage.buckets WHERE id IN ('avatars','article-images')`
     for (const id of ['avatars', 'article-images']) {

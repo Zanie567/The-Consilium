@@ -12,8 +12,19 @@
  * A debate is two published articles (`isDebate`) plus the vote record. Hiding only the
  * debate would leave both sides publicly reachable (category pages, archive, search,
  * sitemap), so the articles follow the debate: hiding moves PUBLISHED -> ARCHIVED, which
- * every public article query already excludes, and showing moves ARCHIVED -> PUBLISHED.
- * Articles an editor has trashed separately are never resurrected.
+ * every public article query already excludes, and showing moves back ONLY the articles this
+ * lifecycle itself archived.
+ *
+ * "This lifecycle itself archived" is recorded on the article (`hiddenByDebateAt`, set in the same
+ * UPDATE that archives it). The database clears it on any other status or trash change (trigger
+ * articles_clear_hidden_by_debate), so an editor's deliberate decision always wins:
+ *   - an article an editor archived on purpose has no marker and is never restored here;
+ *   - an article an editor trashed, restored, drafted or republished since has lost its marker;
+ *   - SCHEDULED articles are never touched (only PUBLISHED ones are hidden). While the debate is
+ *     hidden the scheduled-publish job is refused for them by the database guard and skips them;
+ *     once the debate is published again the job publishes them when due.
+ * Articles left non-public after "publish" are counted in `articlesNotRestored` so the
+ * administrator is told to republish them from the article editor.
  *
  * Every transition runs in one transaction with its audit row, and every write is guarded
  * on the row exactly as it was read (including `updatedAt`), so a duplicate click, a
@@ -68,6 +79,11 @@ export interface TransitionResult {
   /** Visibility after the action; `null` once the debate no longer exists. */
   visibility: ReturnType<typeof debateVisibility> | null
   articlesChanged: number
+  /**
+   * After "publish": articles of this debate that are still not public (archived or trashed on purpose, drafted, ...).
+   * They are never restored automatically. 0 for every other action.
+   */
+  articlesNotRestored: number
   votesRemoved: number
   /** False when the change committed but the public caches could not be refreshed immediately. */
   publicCacheRefreshed: boolean
@@ -135,6 +151,7 @@ export async function transitionDebate(
     const refuse = () => new DebateLifecycleError('CONFLICT', 'Another change was applied to this debate at the same time. Reload and try again.', 409)
 
     let articlesChanged = 0
+    let articlesNotRestored = 0
     let votesRemoved = 0
     let visibility: TransitionResult['visibility'] = before
 
@@ -147,18 +164,25 @@ export async function transitionDebate(
       }
       const updated = await tx.debate.updateMany({ where: guard, data })
       if (updated.count !== 1) throw refuse()
+      // Only PUBLISHED articles are hidden, and each one is marked in the same statement. Re-running this (an
+      // already hidden debate, or delete after unpublish) matches nothing and keeps the original marker.
       articlesChanged = (await tx.article.updateMany({
         where: { id: { in: articleIds }, status: 'PUBLISHED', deletedAt: null },
-        data: { status: 'ARCHIVED' },
+        data: { status: 'ARCHIVED', hiddenByDebateAt: now },
       })).count
       visibility = action === 'delete' ? 'deleted' : 'unpublished'
     } else if (action === 'publish') {
       const updated = await tx.debate.updateMany({ where: guard, data: { unpublishedAt: null } })
       if (updated.count !== 1) throw refuse()
+      // Restore only what this lifecycle hid and nobody has touched since. The conditions are re-checked by the
+      // database against the current row, so a concurrent editorial change (which clears the marker) is not overwritten.
       articlesChanged = (await tx.article.updateMany({
-        where: { id: { in: articleIds }, status: 'ARCHIVED', deletedAt: null },
-        data: { status: 'PUBLISHED' },
+        where: { id: { in: articleIds }, status: 'ARCHIVED', deletedAt: null, hiddenByDebateAt: { not: null } },
+        data: { status: 'PUBLISHED', hiddenByDebateAt: null },
       })).count
+      articlesNotRestored = await tx.article.count({
+        where: { id: { in: articleIds }, NOT: { status: 'PUBLISHED', deletedAt: null } },
+      })
       visibility = 'published'
     } else if (action === 'restore') {
       const updated = await tx.debate.updateMany({ where: guard, data: { deletedAt: null, deletedById: null } })
@@ -189,12 +213,13 @@ export async function transitionDebate(
           to: visibility ?? 'removed',
           articleIds,
           articlesChanged,
+          ...(action === 'publish' ? { articlesNotRestored } : {}),
           ...(action === 'purge' ? { votesRemoved } : {}),
         },
       },
     })
 
-    return { id: debate.id, action, visibility, articlesChanged, votesRemoved, publicCacheRefreshed: false }
+    return { id: debate.id, action, visibility, articlesChanged, articlesNotRestored, votesRemoved, publicCacheRefreshed: false }
   })
 
   // Only after the transaction has committed: a rolled-back change must never expire a cache.
