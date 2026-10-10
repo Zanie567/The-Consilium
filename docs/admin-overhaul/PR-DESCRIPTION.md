@@ -60,10 +60,10 @@ these files (duplicate `20261010` prefixes and a rollback script in the same dir
 | | |
 |---|---|
 | TypeScript, ESLint | clean (exit 0 each) |
-| Vitest, whole suite incl. DB-backed suites against the live isolated stack, PostgreSQL 17.11 (the default `npm test` run, which excludes the DB-backed suites, reports fewer) | 1951 passed, 0 failed, 66 skipped (158 files passed, 4 skipped) |
+| Vitest, whole suite incl. DB-backed suites against the live isolated stack, PostgreSQL 17.11 (the default `npm test` run, which excludes the DB-backed suites, reports fewer) | 1951 passed, 0 failed, 66 skipped (158 files passed, 4 skipped); run again on `21b7dce` with the `supabase/postgres:17.11` image and its true superuser (`supabase_admin`). Under that image's `postgres` role (not a superuser) 3 tests fail only because the role cannot `SET ROLE` to, or `DROP OWNED` by, a role it created. Those are test-environment limits, not behaviour (the migration 5 test is one of them), and they pass with a superuser. |
 | The 66 skips, run separately, each on its own purpose-named disposable database | 66 / 66: publish race 9, trash purge 7, scheduler cron SQL 29, PR #117 migration rehearsal 21 |
 | New for debate visibility: `debate-public-visibility-db` (25, including the admin diagnostic view) and `wf-debate-visibility` (Chromium and WebKit, real production build) | 25 / 25 and 2 / 2; on the old rule 19 of the first 24 fail and the browser spec fails on the leaked headline |
-| Playwright, all four phases (main 87, workflow 570, team-profile 49, upgrade 36), full isolated run on the final candidate | 742 passed, 0 failed, 0 flaky, 0 skipped. An earlier full run on the same commit had one WebKit failure in `wf-admin-team-members` ("Manage" did not open its panel within 10 s, host under heavy background load); that spec then passed 12 of 12 in isolation and the whole suite passed on re-run. |
+| Playwright, all four phases (main 87, workflow 570, team-profile 49, upgrade 36), full isolated run on the combined candidate (`21b7dce`, production build) | 742 passed, 0 failed, 0 flaky, 0 skipped. The first run of this candidate's visibility commit by its author had one WebKit failure in `wf-admin-team-members`; the cause is explained below and fixed in `21b7dce`. |
 
 Notable suites: `hidden-debate-guard-db` (21), `public-feed-visibility-db` (9), `team-placeholder-replace-db` (9), `testing-scenarios-db` (17),
 `debate-lifecycle-db`, `admin-overhaul-migrations`, and browser specs `wf-feed-invalidation`, `wf-admin-debates`, `wf-admin-team-members`,
@@ -96,6 +96,26 @@ Findings from the first hosted round (`7202db9`) and their resolution are in `ST
 See `RELEASE.md` section 6: verified backup (staging hashes are not one), migrations 1 to 5 in order with verification between each (production's actual state must be read first; do not assume all five are missing), then the app, then
 `/api/admin/deployment-health`, a feed/sitemap check and a throw-away-debate smoke test. Testing Mode stays off. Rollback: previous build; schema rollback only
 if required.
+
+## CI failure on the previous head (`828984b`) and its fix
+
+`Critical roles, profiles and testing mode` failed once (run `38083775920`): `wf-admin-team-members.spec.ts:230` on WebKit, clicking the `Public profile` tab timed out. It was a test race, not an
+application regression. The site sets `scroll-behavior: smooth` on `<html>`; Playwright scrolls the Manage button into view and clicks it while that animation still runs, and on a loaded WebKit the
+button moves between mousedown and mouseup, so it is focused but receives no click and the panel never opens. Evidence: the CI screenshot (Manage focused, no panel), the trace (click delivered, "element is not stable"
+beforehand, no console errors, no requests afterwards, page still scrolling in the frames), and a local reproduction (0 of 15 unloaded, 3 of 40 under CPU load; 0 of 80 under the same load with the fix).
+The fix (`21b7dce`, `openMember` in `tests/e2e/wf-admin-team-members.spec.ts`) adds one style rule making the scroll instant for that page; it removes no assertion and hides no application error.
+Not changed here: an `@media (prefers-reduced-motion: no-preference)` guard on the site's smooth scroll plus `reducedMotion: 'reduce'` in the Playwright config would fix this class of race everywhere and is a
+separate accessibility improvement (recorded as a follow-up).
+
+## Review notes for the security-sensitive change
+
+The visibility fix (`src/lib/debateVisibility.ts`, `src/lib/debateVoting.ts`, the vote route) was written by one session and read line by line by another before this push: every public reader of debates
+(`/opinion-debate`, home panel, `/api/debates/active`, the vote route, `/api/profile/debate-votes`, `/api/profile/stats`) goes through the one rule; staff views (`debateAdminQueries`, growth engagement, analytics, admin users) do not and keep their diagnostics;
+the vote is written inside the transaction that locks the rows and re-checks the rule; votes are never deleted by a hide; a missing relation excludes the debate. No substantive concern was found. Worth a second reviewer
+because CodeRabbit skipped this PR (142 files, over its 100-file limit, and no review credits), so **no automated review of this PR exists**. Points to verify on hosted staging: a vote cast through the real
+application role (it takes `FOR SHARE` row locks, which row-level security policies can affect), and a published debate with one archived argument.
+Smaller notes: one test assertion (`good.forArticle.slug ? ... : ''`) can pass vacuously, though the assertion after it is real; the guard trigger and the debate lifecycle can still deadlock in opposite lock order
+(pre-existing, one side is aborted and retried, no inconsistent data); `scripts/setup-test-db.sh` does not apply migration 5 to local test databases.
 
 ## Known limitations
 
