@@ -13,6 +13,8 @@ export async function deploymentReadiness(db: Pick<PrismaClient, '$queryRaw'>, e
   if (!indexes.some(i => /UNIQUE.*\("userId"\)/.test(i.indexdef))) gaps.push('Missing one-card-per-account unique index')
   const tables = await db.$queryRaw<{ relrowsecurity: boolean }[]>`SELECT relrowsecurity FROM pg_class WHERE oid=to_regclass('public.testing_sessions')`
   if (!tables[0]?.relrowsecurity) gaps.push('Testing session row-level security is missing')
+  const guard = await db.$queryRaw<{ present: boolean }[]>`SELECT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname='articles_hidden_debate_guard' AND NOT tgisinternal AND tgenabled <> 'D') AS present`
+  if (!guard[0]?.present) gaps.push('Missing database guard: articles_hidden_debate_guard (migration 20261011)')
   try {
     const buckets = await db.$queryRaw<{ id: string; public: boolean; file_size_limit: bigint | null; allowed_mime_types: string[] | null }[]>`SELECT id, public, file_size_limit, allowed_mime_types FROM storage.buckets WHERE id IN ('avatars','article-images')`
     for (const id of ['avatars', 'article-images']) {

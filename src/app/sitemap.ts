@@ -1,4 +1,5 @@
 import { MetadataRoute } from 'next'
+import { publishedArticleWhere } from '@/lib/articleQueries'
 import { prisma } from '@/lib/prisma'
 import { SITE_URL } from '@/lib/constants'
 
@@ -7,7 +8,7 @@ const BASE = SITE_URL
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [articles, categories, tags, authors] = await Promise.all([
     prisma.article.findMany({
-      where: { status: 'PUBLISHED', deletedAt: null },
+      where: publishedArticleWhere(),
       select: { slug: true, updatedAt: true },
       orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
     }).catch(() => []),

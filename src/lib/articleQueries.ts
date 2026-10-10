@@ -40,7 +40,7 @@ export const ARTICLES_REVALIDATE_SECONDS = 30
 export const PUBLISHED_ARTICLE_WHERE = {
   status: 'PUBLISHED',
   deletedAt: null,
-} as const satisfies Prisma.ArticleWhereInput
+} satisfies Prisma.ArticleWhereInput
 
 /**
  * Returns the canonical published-article filter, optionally narrowed with
@@ -51,5 +51,17 @@ export const PUBLISHED_ARTICLE_WHERE = {
 export function publishedArticleWhere(
   extra?: Prisma.ArticleWhereInput,
 ): Prisma.ArticleWhereInput {
-  return { ...PUBLISHED_ARTICLE_WHERE, ...extra }
+  return { ...PUBLISHED_ARTICLE_WHERE, ...HIDDEN_DEBATE_EXCLUSION, ...extra }
 }
+
+/**
+ * An article that belongs to an unpublished or deleted debate is never public. The database
+ * refuses to let such an article be PUBLISHED at all (trigger articles_hidden_debate_guard), so
+ * this is a second, read-side layer: it keeps the rule true for any row that predates the
+ * trigger, and for a deployment where the trigger is not yet applied.
+ */
+const HIDDEN_DEBATE: Prisma.DebateWhereInput = { OR: [{ deletedAt: { not: null } }, { unpublishedAt: { not: null } }] }
+export const HIDDEN_DEBATE_EXCLUSION = {
+  forDebates: { none: HIDDEN_DEBATE },
+  againstDebates: { none: HIDDEN_DEBATE },
+} satisfies Prisma.ArticleWhereInput

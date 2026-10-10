@@ -404,8 +404,17 @@ suite('debate lifecycle (real database)', () => {
     expect(by(gone.debate.id)?.visibility).toBe('deleted')
     expect([live, hidden, gone].map((x) => by(x.debate.id)?.outOfSync)).toEqual([null, null, null])
 
-    // An editor re-publishing one side by hand while the debate is hidden is surfaced, not hidden.
-    await db.article.update({ where: { id: hidden.forArticle.id }, data: { status: 'PUBLISHED' } })
+    // Data that predates the database guard (a hidden debate with a still-public article) is surfaced,
+    // not hidden. The guard itself now refuses to create that state, so switch it off to model old data.
+    const toggle = async (on: boolean) => {
+      const c = new Client({ connectionString: TEST_DB! })
+      await c.connect()
+      try { await c.query(`ALTER TABLE articles ${on ? 'ENABLE' : 'DISABLE'} TRIGGER articles_hidden_debate_guard`) } catch { /* guard not installed */ } finally { await c.end() }
+    }
+    await toggle(false)
+    try {
+      await db.article.update({ where: { id: hidden.forArticle.id }, data: { status: 'PUBLISHED' } })
+    } finally { await toggle(true) }
     const again = (await (await listDebates()).json()) as { rows: { id: string; outOfSync: string | null }[] }
     expect(again.rows.find((r) => r.id === hidden.debate.id)?.outOfSync).toMatch(/still publicly visible/)
 

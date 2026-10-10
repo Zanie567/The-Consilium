@@ -1,4 +1,5 @@
 import { articlePublishedEmail, sendEmail } from '@/lib/email'
+import { isHiddenDebateViolation } from '@/lib/hiddenDebateGuard'
 import { prisma } from '@/lib/prisma'
 import { awardPublishAchievements } from '@/lib/gamification/achievements'
 import { revalidateArticleLists } from '@/lib/revalidateArticles'
@@ -12,7 +13,7 @@ interface ScheduledPublishArticleResult {
 interface ScheduledPublishWarning {
   articleId: string
   title: string
-  stage: 'email' | 'notification' | 'achievement'
+  stage: 'email' | 'notification' | 'achievement' | 'hidden-debate'
   message: string
 }
 
@@ -30,6 +31,9 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
       status: 'SCHEDULED',
       scheduledAt: { lte: now },
       deletedAt: null,
+      // Never due while its debate is hidden (the database would refuse it anyway).
+      forDebates: { none: { OR: [{ deletedAt: { not: null } }, { unpublishedAt: { not: null } }] } },
+      againstDebates: { none: { OR: [{ deletedAt: { not: null } }, { unpublishedAt: { not: null } }] } },
     },
     include: { author: true },
     orderBy: { scheduledAt: 'asc' },
@@ -42,22 +46,32 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
   for (const article of due) {
     // Use updateMany as a one-row compare-and-set so concurrent runs cannot
     // double-publish or send duplicate side effects for the same article.
-    const updated = await prisma.article.updateMany({
-      where: {
-        id: article.id,
-        status: 'SCHEDULED',
-        scheduledAt: { lte: now },
-        deletedAt: null,
-        updatedAt: article.updatedAt,
-      },
-      data: {
-        status: 'PUBLISHED',
-        publishedAt: now,
-        scheduledAt: null,
-      },
-    })
-
     const summary = { id: article.id, title: article.title, slug: article.slug }
+    let updated: { count: number }
+    try {
+      updated = await prisma.article.updateMany({
+        where: {
+          id: article.id,
+          status: 'SCHEDULED',
+          scheduledAt: { lte: now },
+          deletedAt: null,
+          updatedAt: article.updatedAt,
+        },
+        data: {
+          status: 'PUBLISHED',
+          publishedAt: now,
+          scheduledAt: null,
+        },
+      })
+    } catch (error) {
+      // The debate was hidden between the listing above and this write. Skip this article only:
+      // one refusal must not abort the rest of the run.
+      if (!isHiddenDebateViolation(error)) throw error
+      skipped.push(summary)
+      warnings.push({ articleId: article.id, title: article.title, stage: 'hidden-debate', message: 'Skipped: its debate is unpublished or deleted.' })
+      continue
+    }
+
     if (updated.count === 0) {
       skipped.push(summary)
       continue

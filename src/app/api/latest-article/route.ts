@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { publishedArticleWhere } from '@/lib/articleQueries'
 import { prisma } from '@/lib/prisma'
 
 /**
@@ -24,11 +25,7 @@ const CORS_HEADERS = {
 export async function GET() {
   try {
     const article = await prisma.article.findFirst({
-      where: {
-        status:      'PUBLISHED',
-        deletedAt:   null,
-        publishedAt: { not: null },
-      },
+      where: publishedArticleWhere({ publishedAt: { not: null } }),
       orderBy: { publishedAt: 'desc' },
       select: {
         title:       true,

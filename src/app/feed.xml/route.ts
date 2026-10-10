@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { publishedArticleWhere } from '@/lib/articleQueries'
 
 const SITE_URL = 'https://theconsilium.co.uk'
 const CHANNEL_DESCRIPTION =
@@ -22,11 +23,7 @@ function cdata(value: string): string {
 export async function GET(): Promise<Response> {
   try {
     const articles = await prisma.article.findMany({
-      where: {
-        status: 'PUBLISHED',
-        deletedAt: null,
-        publishedAt: { not: null },
-      },
+      where: publishedArticleWhere({ publishedAt: { not: null } }),
       orderBy: { publishedAt: 'desc' },
       take: 20,
       include: { author: true, category: true },

@@ -1,4 +1,5 @@
 import { cleanupRemovedArticleImages, lockArticleImageReferences, queueDeletedArticleImages } from '@/lib/articleImageStorage'
+import { isHiddenDebateViolation, hiddenDebateResponse } from '@/lib/hiddenDebateGuard'
 import { withTestingAudit } from '@/lib/testingAudit'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
@@ -59,7 +60,8 @@ async function PATCHHandler(_req: NextRequest, { params }: Props) {
     if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status })
     if (result.restored?.status === 'PUBLISHED') revalidateArticleLists()
     return NextResponse.json(result.restored)
-  } catch {
+  } catch (error) {
+    if (isHiddenDebateViolation(error)) return hiddenDebateResponse()
     return NextResponse.json({ error: 'Failed to restore article' }, { status: 500 })
   }
 }

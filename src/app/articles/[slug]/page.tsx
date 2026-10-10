@@ -1,4 +1,5 @@
 import { articleShareUrl } from '@/lib/shareUrl'
+import { publishedArticleWhere } from '@/lib/articleQueries'
 import { notFound, permanentRedirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -35,8 +36,8 @@ interface Props {
 
 async function getArticle(slug: string) {
   try {
-    return await prisma.article.findUnique({
-      where: { slug, status: 'PUBLISHED', deletedAt: null },
+    return await prisma.article.findFirst({
+      where: publishedArticleWhere({ slug }),
       include: {
         author: true,
         category: true,
@@ -77,11 +78,7 @@ async function findDuplicateRedirectTarget(slug: string): Promise<string | null>
     if (!removed?.deletedAt) return null
 
     const canonical = await prisma.article.findFirst({
-      where: {
-        status: 'PUBLISHED',
-        deletedAt: null,
-        title: { equals: removed.title, mode: 'insensitive' },
-      },
+      where: publishedArticleWhere({ title: { equals: removed.title, mode: 'insensitive' } }),
       select: { slug: true },
       orderBy: { publishedAt: 'desc' },
     })
@@ -117,7 +114,7 @@ async function getRelatedArticles(
 ) {
   try {
     const candidates = await prisma.article.findMany({
-      where: { status: 'PUBLISHED', id: { not: currentId }, deletedAt: null },
+      where: publishedArticleWhere({ id: { not: currentId } }),
       take: 40,
       orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
       include: { author: true, category: true },
