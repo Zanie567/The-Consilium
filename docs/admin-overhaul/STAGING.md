@@ -3,14 +3,23 @@
 Facts below were checked **read-only** on 2026-10-11 (project listings, one schema query, one HTTP HEAD request).
 Nothing was changed anywhere. Anything not listed as verified is labelled *unverified*.
 
-## What already exists (verified)
+## What already exists (verified read-only, 2026-10-11)
 
 | Piece | State |
 |---|---|
-| Supabase project `consilium-testing` (`zrieajoqosgzyesfatta`, eu-west-1) | Exists, healthy, **separate from production** (`scllbuwkcqtmfogsgalt`). Holds the 5 test personas and the workspace marker `consilium-testing-zrieajoqosgzyesfatta`. |
-| Its schema | 5 migrations applied. **None of the three admin-overhaul migrations**: no `debates.unpublishedAt/deletedAt/deletedById`, no `team_members.updatedAt`, no `articles_hidden_debate_guard`. |
-| Hosted app `https://consilium-testing.vercel.app` | Responds (an unauthenticated `/admin/testing` redirects to sign-in). It is **not** in the Vercel team visible to this session (that team lists only `the-consilium`, the production project), so it lives under another scope, probably the private mirror `Zanie567/The-Consilium-Testing`. Which commit it runs: *unverified*, but its database lacks this branch's columns, so it does not run this code. |
-| The safety gate | `hostedTestingConfigurationError` pins the exact project ref, pooler host, database role, storage and site origins, email capture and "no outbound integration keys". Nothing weakens it. |
+| Supabase `consilium-testing` (`zrieajoqosgzyesfatta`, eu-west-1) | Separate project from production (`scllbuwkcqtmfogsgalt`). Attestation row `testing-hosted-project` matches the reviewed project; marker `consilium-testing-zrieajoqosgzyesfatta`; **6 users, all `@consilium.test`; 0 subscribers**; 2 team cards; 37 articles; 0 debates. Schema accepts the three migrations (checked: enum has ARCHIVED/SCHEDULED, no triggers or name collisions on `articles`, unique `userId` index and debate FKs as expected, existing `consilium_testing` RLS policies). Application role: `consilium_testing`; the operator connection (`postgres`, not superuser) can apply DDL. |
+| Vercel `consilium-testing` (`prj_zr8Of1h2eREC64esLiwFnpimtXno`, team `zanie567s-projects`) | **Exists** (an earlier version of this document wrongly said it was not visible; the MCP connector cannot see it but the CLI can). Git-linked to the private mirror `Zanie567/The-Consilium-Testing`, production branch `main`. Latest production deployment `dpl_BHnMFF7TUp7KfkkhfBnSm1LmAnXz`, uploaded from the CLI on 2026-10-09 16:16 BST, aliased to `https://consilium-testing.vercel.app`. |
+| Its configuration | 16 variables, **production target only**. Plain values confirmed: `NEXT_PUBLIC_SUPABASE_URL=https://zrieajoqosgzyesfatta.supabase.co`, `NEXTAUTH_URL`/`NEXT_PUBLIC_SITE_URL`/`SITE_URL` = the testing origin, `EMAIL_TRANSPORT=capture-db`, `OUTBOUND_INTEGRATIONS_DISABLED=1`, `TESTING_MODE_ENABLED=1`, `TESTING_WORKSPACE_KIND=hosted`, `TESTING_WORKSPACE_ID=consilium-testing-zrieajoqosgzyesfatta`. `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `CRON_SECRET` and the service-role key are `sensitive` (unreadable by design); the hosted gate itself refuses to start unless the database URL is the reviewed pooler host, role and project ref. |
+| Production project (`the-consilium`) | Its **production** target defines no `TESTING_*`, `OUTBOUND_*` or `EMAIL_TRANSPORT` variable, so Testing Mode cannot switch on there. Its only testing variables are Preview-scoped to the single branch `feat/public-appointments-testing-mode` and point at the testing Supabase, never at production data. |
+| Mirror `main` | A different, older history (99 commits ahead of and 13 behind `origin/main`, last 2026-10-06). Pushing this branch to it would not be a fast-forward. |
+
+### How to deploy this branch without pushing anything
+
+Recent deployments to this project were uploads from the CLI, not git builds. The least invasive route is to export the **exact** commit
+(`git archive 7202db9...`) into a clean temporary directory, link it to `prj_zr8Of1h2eREC64esLiwFnpimtXno`, and run
+`vercel deploy --prod`. Nothing is pushed to GitHub; the project's own 16 variables are used; production is untouched. Rollback is to
+promote the previous deployment (`dpl_BHnMFF7TUp7KfkkhfBnSm1LmAnXz`). Order matters: **migrations first, then deploy** (old code tolerates the
+additive columns; new code needs them).
 
 ## What is NOT possible yet
 
