@@ -55,6 +55,10 @@ async function publicTeam(browser: Browser) {
 async function openMember(page: Page, account: TestAccount) {
   await page.goto('/editorial/members')
   await expect(page.getByRole('heading', { name: 'Team Members', level: 1 })).toBeVisible()
+  // The site sets `scroll-behavior: smooth` on <html>. Playwright scrolls the Manage button into view and clicks it
+  // while that animation is still running; on a loaded WebKit the button moves between mousedown and mouseup, so the
+  // button is focused but no click is delivered and the panel never opens. Make the scroll instant for this page.
+  await page.addStyleTag({ content: 'html { scroll-behavior: auto !important }' })
   const search = page.getByLabel('Search')
   await hydrated(search, 'onChange')
   await search.fill(account.email)
