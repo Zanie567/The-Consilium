@@ -46,6 +46,11 @@ test('scenarios put a persona into a known state, show the right prompts, and re
   const stray = await db().notification.create({ data: { userId: writer.id, type: 'review', title: 'Stray notification from another test', message: 'Not a scenario notification.' } })
   const otherUnread = (await db().notification.findMany({ where: { userId: writer.id, read: false, type: { not: 'testing-scenario' } }, select: { id: true } })).map((n) => n.id)
   await db().notification.updateMany({ where: { id: { in: otherUnread } }, data: { read: true } })
+  // Same for achievements: the dashboard banner shows the first UNSEEN first-publish of any origin, so an earlier
+  // spec's real one would appear as soon as the scenario's is dismissed. Plant one, set all others aside, restore after.
+  const strayAchievement = await db().writerAchievement.create({ data: { userId: writer.id, type: 'first_publish', referenceId: 'stray-from-another-test', seenAt: null } })
+  const otherUnseen = (await db().writerAchievement.findMany({ where: { userId: writer.id, seenAt: null, referenceId: { not: 'testing-scenario' } }, select: { id: true } })).map((a) => a.id)
+  await db().writerAchievement.updateMany({ where: { id: { in: otherUnseen } }, data: { seenAt: new Date() } })
   const stripped = (c: typeof cardBefore) => (c ? { ...c, updatedAt: undefined } : null)
 
   await openTesting(page)
@@ -144,6 +149,8 @@ test('scenarios put a persona into a known state, show the right prompts, and re
   expect(errors.filter((e) => !/status of (40[0-9]|409) /.test(e))).toEqual([])
   await db().notification.updateMany({ where: { id: { in: otherUnread.filter((id) => id !== stray.id) } }, data: { read: false } })
   await db().notification.delete({ where: { id: stray.id } })
+  await db().writerAchievement.updateMany({ where: { id: { in: otherUnseen.filter((id) => id !== strayAchievement.id) } }, data: { seenAt: null } })
+  await db().writerAchievement.delete({ where: { id: strayAchievement.id } })
   await context.close()
 })
 
