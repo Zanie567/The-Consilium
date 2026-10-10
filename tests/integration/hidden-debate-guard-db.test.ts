@@ -37,11 +37,14 @@ if (!isReady && process.env.E2E_ISOLATED === '1') throw new Error('articles_hidd
 if (!isReady) console.warn('[hidden-debate-guard-db] skipped: the articles_hidden_debate_guard trigger is not installed here')
 const suite = isReady ? describe : describe.skip
 
-const { state } = vi.hoisted(() => {
+const { state, cache } = await vi.hoisted(async () => {
   process.env.NEXTAUTH_SECRET = 'test-only-secret'
   process.env.NEXTAUTH_URL = 'http://localhost:3000'
-  return { state: { prisma: undefined as unknown, session: null as null | { id: string } } }
+  const { createFakeNextCache } = await import('../helpers/fakeNextCache')
+  return { state: { prisma: undefined as unknown, session: null as null | { id: string } }, cache: createFakeNextCache() }
 })
+// The framework's data cache needs a running server; a faithful stand-in lets the feed and the post-commit invalidations run for real here.
+vi.mock('next/cache', () => ({ unstable_cache: cache.unstable_cache, revalidateTag: cache.revalidateTag, revalidatePath: cache.revalidatePath }))
 vi.mock('@/lib/prisma', () => ({ prisma: new Proxy({}, { get: (_t, key) => (state.prisma as Record<string | symbol, unknown>)[key] }) }))
 vi.mock('next-auth', async (importOriginal) => {
   const actual = await importOriginal<typeof import('next-auth')>()
@@ -60,6 +63,7 @@ import { GET as search } from '@/app/api/search/route'
 import { GET as latest } from '@/app/api/latest-article/route'
 import sitemap from '@/app/sitemap'
 import { publishScheduledArticles } from '@/lib/scheduledPublishing'
+import { POST as cronPublish } from '@/app/api/publish-scheduled/route'
 import { transitionDebate } from '@/lib/debateLifecycle'
 import { publishedArticleWhere } from '@/lib/articleQueries'
 import { isHiddenDebateViolation } from '@/lib/hiddenDebateGuard'
@@ -111,7 +115,7 @@ suite('hidden debate articles can never become public (real database)', () => {
     ids.editor = (await mk('editor', 'EDITOR')).id
     ids.writer = (await mk('writer', 'WRITER')).id
   })
-  beforeEach(() => as(ids.editor))
+  beforeEach(() => { cache.reset(); as(ids.editor) })
   afterAll(async () => {
     const debates = await db.debate.findMany({ where: { title: { startsWith: tag } }, select: { id: true } })
     await db.auditLog.deleteMany({ where: { OR: [{ targetId: { in: debates.map((d) => d.id) } }, { performedBy: { in: Object.values(ids) } }] } })
@@ -201,6 +205,97 @@ suite('hidden debate articles can never become public (real database)', () => {
     // And an editor may once more save the articles of a visible debate.
     const res = await saveArticle(json(`/api/articles/${a.id}`, 'PUT', { excerpt: 'edited while visible' }), ctx(a.id))
     expect(res.status).toBe(200)
+  })
+
+  describe('scheduled publishing through the real endpoint (the same route the scheduler calls)', () => {
+    const call = async (secret: string | null = 'cron-test-secret-0123456789abcdef0123') => {
+      process.env.CRON_SECRET = 'cron-test-secret-0123456789abcdef0123'
+      const res = await cronPublish(new Request('http://localhost/api/publish-scheduled', { method: 'POST', headers: secret ? { authorization: `Bearer ${secret}` } : {} }))
+      return { status: res.status, body: await res.json() }
+    }
+    const due = (label: string) => db.article.create({ data: { title: `${tag} ${label} due wombat`, slug: `${tag}-${label}-${++n}`, content: '{}', excerpt: 'wombat', authorId: ids.writer, status: 'SCHEDULED', scheduledAt: new Date(Date.now() - 60_000) } })
+
+    it('is refused without the secret, and then changes nothing', async () => {
+      const a = await due('unauth')
+      expect((await call(null)).status).toBe(401)
+      expect((await call('wrong')).status).toBe(401)
+      expect((await fresh(a.id)).status).toBe('SCHEDULED')
+      await db.article.update({ where: { id: a.id }, data: { scheduledAt: new Date(Date.now() + 3_600_000) } })
+    })
+
+    it.each(['unpublished', 'deleted'] as const)('a due article of an %s debate stays scheduled and private while ordinary due articles go out', async (hidden) => {
+      const { a, b } = await makeDebate({ hidden, articleStatus: 'SCHEDULED' })
+      const ordinary = await due(`ordinary-${hidden}`)
+      const before = await fresh(a.id)
+      const res = await call()
+      expect(res.status).toBe(200)
+      const published: string[] = res.body.articles.map((x: { id: string }) => x.id)
+      expect(published).toContain(ordinary.id)
+      expect(published).not.toContain(a.id)
+      expect(published).not.toContain(b.id)
+      // Not corrupted: still scheduled for the same time, not public, no "published" notification or empty publishedAt claim.
+      for (const hiddenArticle of [a, b]) {
+        const row = await fresh(hiddenArticle.id)
+        expect(row).toMatchObject({ status: 'SCHEDULED', publishedAt: null, deletedAt: null })
+        expect(row.scheduledAt?.toISOString()).toBe(before.scheduledAt?.toISOString())
+        expect(await db.notification.count({ where: { articleId: hiddenArticle.id } })).toBe(0)
+      }
+      expect(await db.notification.count({ where: { articleId: ordinary.id, type: 'published' } })).toBe(1)
+      // The write guard and the read side agree: nothing public about the hidden pair, the ordinary one is public everywhere.
+      expect(await db.article.count({ where: publishedArticleWhere({ id: { in: [a.id, b.id] } }) })).toBe(0)
+      const feedXml = await (await feed()).text()
+      expect(feedXml).not.toContain(a.slug); expect(feedXml).toContain(ordinary.slug)
+      expect(await isPublic(ordinary.id)).toBe(true)
+      // Running again is a no-op for everything already handled.
+      const again = await call()
+      expect(again.body.articles.map((x: { id: string }) => x.id)).not.toContain(ordinary.id)
+      expect(await db.notification.count({ where: { articleId: ordinary.id, type: 'published' } })).toBe(1)
+    })
+
+    it('a debate hidden between the job listing its articles and writing them: that article is refused and skipped, the rest of the run is intact', async () => {
+      const { debate, a, b } = await makeDebate({ articleStatus: 'SCHEDULED' }) // visible when listed
+      const ordinary = await due('ordinary-race')
+      const real = state.prisma
+      let fired = false
+      state.prisma = new Proxy(db, {
+        get(target, key, receiver) {
+          if (key !== 'article') return Reflect.get(target, key, receiver)
+          const delegate = target.article
+          return new Proxy(delegate, {
+            get(d, method) {
+              const fn = Reflect.get(d, method) as (...args: unknown[]) => Promise<unknown>
+              if (method !== 'findMany') return fn.bind(d)
+              return async (...args: unknown[]) => {
+                const rows = await fn.apply(d, args)
+                if (!fired) { fired = true; await db.debate.update({ where: { id: debate.id }, data: { unpublishedAt: new Date() } }) } // the hide commits after the listing
+                return rows
+              }
+            },
+          })
+        },
+      })
+      let result: Awaited<ReturnType<typeof publishScheduledArticles>>
+      try { result = await publishScheduledArticles() } finally { state.prisma = real }
+      expect(fired).toBe(true)
+      expect(result.published.map((p) => p.id)).toContain(ordinary.id)
+      expect(result.skipped.map((p) => p.id)).toEqual(expect.arrayContaining([a.id, b.id]))
+      expect(result.warnings.filter((w) => w.stage === 'hidden-debate').map((w) => w.articleId)).toEqual(expect.arrayContaining([a.id, b.id]))
+      for (const x of [a, b]) expect(await fresh(x.id)).toMatchObject({ status: 'SCHEDULED', publishedAt: null })
+      expect(await isPublic(ordinary.id)).toBe(true)
+      expect(await db.notification.count({ where: { articleId: { in: [a.id, b.id] } } })).toBe(0)
+    })
+
+    it('nothing is lost: when the debate is published again, the next run publishes its due articles', async () => {
+      const { debate, a } = await makeDebate({ hidden: 'unpublished', articleStatus: 'SCHEDULED' })
+      expect((await call()).body.articles.map((x: { id: string }) => x.id)).not.toContain(a.id)
+      await transitionDebate({ id: ids.admin }, debate.id, 'publish')
+      // Showing the debate only un-archives what hiding archived; scheduled articles simply stay scheduled and due.
+      expect(await fresh(a.id)).toMatchObject({ status: 'SCHEDULED', publishedAt: null })
+      const next = await call()
+      expect(next.body.articles.map((x: { id: string }) => x.id)).toContain(a.id)
+      expect(await isPublic(a.id)).toBe(true)
+      expect(await db.notification.count({ where: { articleId: a.id, type: 'published' } })).toBe(1)
+    })
   })
 
   it('concurrency: hiding a debate while an article is being published always ends hidden', async () => {
