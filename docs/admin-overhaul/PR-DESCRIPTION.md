@@ -2,8 +2,8 @@
 
 > Draft pull request description. Delete this file before merge if you prefer the text to live only in the PR.
 
-Branch `feat/admin-overhaul`, based on `origin/main` `92eb04b` (a conflict check against `438d596` is clean). **Production is untouched.** Nothing in
-this branch has been pushed, merged or applied to production; it has been deployed once, by CLI upload, to the separate `consilium-testing` project.
+Branch `feat/admin-overhaul` plus the pre-release fixes (`fix/admin-overhaul-prerelease`), merged with `origin/main` `438d596` without conflicts. **Production is untouched.** Nothing
+has been pushed, merged or applied to production; the earlier commit `7202db9` (not this one) was deployed once, by CLI upload, to the separate `consilium-testing` project.
 
 ## What this changes
 
@@ -29,13 +29,15 @@ an unpublished or deleted debate to become `PUBLISHED`/`SCHEDULED`, whatever rou
 matching read-side exclusion for data that predates it. Feed and sitemap are uncacheable and rebuilt from a tagged data cache that is expired only after
 the mutation commits.
 
-## Migrations (three, additive, idempotent, applied in this order)
+## Migrations (four, additive, idempotent, applied in this order; details and per-environment state in `MIGRATION-PLAN.md`)
 
 1. `20261010_debate_lifecycle.sql`: nullable `unpublishedAt`, `deletedAt`, `deletedById` on `debates`.
 2. `20261010_team_member_updated_at.sql`: `team_members.updatedAt` (stale-edit token).
 3. `20261011_hidden_debate_article_guard.sql`: the guard trigger (requires 1), and archives any article already public inside a hidden debate (none today).
 
-No migration or schema change since the staging run. Old code works after each step.
+4. `20261012100000_article_hidden_by_debate_marker.sql`: nullable `articles.hiddenByDebateAt` plus a trigger that clears it whenever an editor changes an article's status or trash state. Debates set it when they archive an article and restore **only** articles that still carry it (no backfill).
+
+Migrations 1 to 3 are applied on hosted staging; 4 is not. Nothing is applied to production. Old code works after each step. The Supabase CLI must not be used for these files (duplicate `20261010` prefixes; see `MIGRATION-PLAN.md`).
 
 ## Automated testing (final commit, isolated launcher: fresh per-run database, fake storage, captured email, local build)
 
@@ -55,7 +57,7 @@ Notable suites: `hidden-debate-guard-db` (21), `public-feed-visibility-db` (9), 
 
 At `7202db9`: three migrations applied one at a time with unchanged data hashes; deployment READY; `/api/admin/deployment-health` healthy; debates, Team Members,
 dashboard, Testing Mode personas, scenarios and email capture verified in a real browser. Findings and their fixes: `STAGING-VERIFICATION.md`. The fixes in this
-PR since then have **not** been deployed to staging (awaiting approval).
+PR since then (feed and sitemap freshness, placeholder replacement, scenario ownership, form accessibility, the `hiddenByDebateAt` restoration rule and the hidden-debate filters on public reads) have **not** been deployed to staging and were verified only on the local isolated stack. See `STAGING-VERIFICATION.md`, "Scope of hosted verification".
 
 ## Release requirements
 

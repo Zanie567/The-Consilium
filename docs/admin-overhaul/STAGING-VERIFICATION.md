@@ -1,7 +1,11 @@
 # Hosted staging verification, 2026-10-10
 
 Exact commit deployed: `7202db9e266154369ff5e5f2afb85929b8319666` (tree hash `04533232040d27ae212e567465ee6ff7e8c7c645`, verified
-identical to the uploaded directory). Later commits on the branch only add documentation.
+identical to the uploaded directory).
+
+> **Scope warning (corrected).** An earlier version of this page said later commits "only add documentation". That is **not true**: every commit after
+> `7202db9` that changes `src/`, `prisma/` or `supabase/` has **not** been deployed to hosted staging and has **not** been verified there. The section
+> "Scope of hosted verification" below lists exactly what was and was not tested where.
 
 | | |
 |---|---|
@@ -13,6 +17,23 @@ identical to the uploaded directory). Later commits on the branch only add docum
 | Database | Supabase `consilium-testing` (`zrieajoqosgzyesfatta`). Attestation matched before and after. Production (`scllbuwkcqtmfogsgalt`) was never queried or modified. |
 | Migrations | Applied one at a time, each verified, recorded in history: `20261010122238 admin_overhaul_1_debate_lifecycle_20261010`, `20261010122248 admin_overhaul_2_team_member_updated_at_20261010`, `20261010122319 admin_overhaul_3_hidden_debate_article_guard_20261011`. All pre-migration data hashes were unchanged afterwards. |
 | `/api/admin/deployment-health` | 200 `{"healthy":true,"gaps":[]}` (includes the three new checks and the guard) |
+
+## Scope of hosted verification (what ran where)
+
+| | Hosted staging (`consilium-testing`) | Local isolated stack only |
+|---|---|---|
+| Code that ran | `7202db9`, deployment `dpl_Dzsp2oGdRaecUB4tEHBM595r9v2i`, READY (re-checked read-only: aliased to `consilium-testing.vercel.app`; its live `feed.xml` still answers `Cache-Control: public, max-age=3600`, i.e. the pre-fix behaviour, which is consistent with the older code) | Every commit after `7202db9` |
+| Database | Migrations 1 to 3 applied and recorded (registry `20261010122238`, `20261010122248`, `20261010122319`); objects confirmed present by a read-only catalog query | Migrations 1 to 4 on disposable local PostgreSQL |
+| Migration 4 (`20261012100000_article_hidden_by_debate_marker.sql`) | **not applied** | applied, tested, rolled back and re-applied |
+| Feed and sitemap freshness fix (`publicFeeds.ts`, uncacheable XML, tagged data cache) | **not deployed, not verified hosted** | unit, real-Postgres and production-build browser tests |
+| "Replace with an existing profile" for placeholder cards | **not deployed, not verified hosted** | real-Postgres (incl. a two-administrator race) and browser tests |
+| Scenario row ownership (reset never deletes another persona's data) | **not deployed, not verified hosted** | real-Postgres tests |
+| Debate-form labels, "saved" message, user-deletion cache expiry | **not deployed, not verified hosted** | browser and real-Postgres tests |
+| Archived-versus-auto-hidden restoration (`hiddenByDebateAt`) and the hidden-debate filters on series, topics, comments, reading progress and view counting | **not deployed, not verified hosted** | real-Postgres tests, including negative controls |
+| Scheduled publishing against hidden debates | **not verifiable on hosted staging** (it has no scheduler) | real-Postgres tests through the real endpoint |
+
+The "Verified in the hosted browser" section below describes `7202db9` only. The "Resolution of the findings" table further down records the fixes and the
+**local** evidence for them; none of it was exercised on hosted staging. Doing so requires the staging deployment plan to be approved and executed.
 
 ## Verified in the hosted browser (all through the real UI unless stated)
 
@@ -61,7 +82,7 @@ database and deleted afterwards. Browser console errors were only my own deliber
    among the newest 20.
 8. `GET /api/team` includes each card's contact `email` (pre-existing; the card renders it deliberately).
 
-## Resolution of the findings (branch commits after `7202db9`; nothing redeployed)
+## Resolution of the findings (branch commits after `7202db9`; nothing redeployed; evidence is LOCAL, not hosted)
 
 | # | Finding | Root cause | Fix | Evidence |
 |---|---|---|---|---|

@@ -1,5 +1,10 @@
 # Hosted staging for Testing Mode: what exists, what is missing, how you will use it
 
+> **Status update.** After this page was first written, `7202db9` was deployed to `consilium-testing` and migrations 1 to 3 were applied there
+> (see `STAGING-VERIFICATION.md`, which also lists exactly what that run did and did not cover). Still outstanding for hosted staging: migration 4
+> (`20261012100000_article_hidden_by_debate_marker.sql`) and a redeploy of the newer code. The facts below describe the state **before** that deployment
+> and are kept as the baseline and checklist; `MIGRATION-PLAN.md` has the current per-environment migration state.
+
 Facts below were checked **read-only** on 2026-10-11 (project listings, one schema query, one HTTP HEAD request).
 Nothing was changed anywhere. Anything not listed as verified is labelled *unverified*.
 
@@ -21,13 +26,14 @@ Recent deployments to this project were uploads from the CLI, not git builds. Th
 promote the previous deployment (`dpl_BHnMFF7TUp7KfkkhfBnSm1LmAnXz`). Order matters: **migrations first, then deploy** (old code tolerates the
 additive columns; new code needs them).
 
-## What is NOT possible yet
+## What was not possible before the first hosted deployment (historical; see the status update above)
 
 Writer/Editor/Growth testing **of this branch's changes** in a hosted environment cannot work until both of these happen:
 
 1. The hosted app is redeployed from this branch (or a later commit that contains it).
-2. The three migrations are applied to the **testing** database (never production's), in order:
-   `20261010_debate_lifecycle.sql`, `20261010_team_member_updated_at.sql`, `20261011_hidden_debate_article_guard.sql`.
+2. The migrations are applied to the **testing** database (never production's), in order:
+   `20261010_debate_lifecycle.sql`, `20261010_team_member_updated_at.sql`, `20261011_hidden_debate_article_guard.sql`,
+   `20261012100000_article_hidden_by_debate_marker.sql` (the first three were applied on 2026-10-10; the fourth is pending approval).
    Until then `/api/admin/deployment-health` returns 503 with `Missing schema: ...` and the dashboard Deployment card says so.
 
 Important gate detail: the hosted gate trusts exactly two site origins. (a) `https://consilium-testing.vercel.app`, any branch.
