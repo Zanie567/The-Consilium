@@ -33,6 +33,30 @@ function isThirdPartyResourceFailure(msg: ConsoleMessage): boolean {
  */
 const CANCELLED_PREFETCH = /^\/localhost:\d+\/[^\s?]*\?(?:[^\s&]*&)*_rsc=\w+ due to access control checks\.$/
 
+/**
+ * The same WebKit page error for the one same-origin request the editorial portal starts on every mount: the
+ * notification bell's `GET /api/editorial/notifications`. The message alone proves nothing (WebKit uses the same
+ * text for any failed load), so it is tolerated only when the collector has independently seen BOTH that this
+ * request was cancelled (`requestfailed`, "cancel") AND a later 200 for the same URL (the bell's replacement request).
+ * CI trace (wf-testing-scenarios, WebKit): first request "Load request cancelled", a second answered 200 ~245 ms later.
+ * Everything else about this endpoint stays evidence: a non-200 response, a non-cancel network failure, or a matching
+ * page error with no cancelled-then-recovered pair behind it.
+ */
+const NOTIFICATION_POLL_ERROR = /^\/localhost:\d+\/api\/editorial\/notifications due to access control checks\.$/
+
+export function isNotificationPollErrorMessage(message: string): boolean {
+  return NOTIFICATION_POLL_ERROR.test(message)
+}
+
+export function isNotificationPollUrl(rawUrl: string): boolean {
+  try {
+    const url = new URL(rawUrl)
+    return url.hostname === 'localhost' && url.pathname === '/api/editorial/notifications' && url.search === ''
+  } catch {
+    return false
+  }
+}
+
 export function isCancelledPrefetchNoise(message: string): boolean {
   return CANCELLED_PREFETCH.test(message)
 }
@@ -46,9 +70,48 @@ export function collectConsoleErrors(page: Page): string[] {
     errors.push(`${text} @ ${msg.location().url}`)
   }
   page.on('console', onConsole)
+  // Notification-poll bookkeeping. `seq` orders events so a 200 only counts as the replacement if it came after the cancel.
+  let seq = 0
+  const cancels: number[] = []
+  const oks: number[] = []
+  const pending: string[] = [] // page errors in `errors` waiting for a cancelled-then-recovered pair
+  const reconcile = () => {
+    while (pending.length && cancels.length) {
+      const replacement = oks.findIndex((n) => n > cancels[0])
+      if (replacement === -1) return
+      cancels.shift()
+      oks.splice(replacement, 1)
+      const at = errors.indexOf(pending.shift() as string)
+      if (at !== -1) errors.splice(at, 1)
+    }
+  }
+  page.on('requestfailed', (request) => {
+    if (request.method() !== 'GET' || !isNotificationPollUrl(request.url())) return
+    const reason = request.failure()?.errorText ?? ''
+    if (/cancel/i.test(reason)) {
+      cancels.push(++seq)
+      reconcile()
+    } else {
+      errors.push(`requestfailed: ${request.url()} ${reason}`)
+    }
+  })
+  page.on('response', (response) => {
+    if (response.request().method() !== 'GET' || !isNotificationPollUrl(response.url())) return
+    if (response.status() === 200) {
+      oks.push(++seq)
+      reconcile()
+    } else {
+      errors.push(`notifications responded ${response.status()}: ${response.url()}`)
+    }
+  })
   page.on('pageerror', (err) => {
     if (isCancelledPrefetchNoise(err.message)) return
-    errors.push(`pageerror: ${err.message}`)
+    const entry = `pageerror: ${err.message}`
+    errors.push(entry)
+    if (isNotificationPollErrorMessage(err.message)) {
+      pending.push(entry)
+      reconcile()
+    }
   })
   return errors
 }
