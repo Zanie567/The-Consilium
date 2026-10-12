@@ -5,6 +5,7 @@
  */
 import { test, expect, type Browser, type BrowserContext, type Locator, type Page, type Response } from '@playwright/test'
 import fs from 'node:fs'
+import { readSession } from './session'
 import bcrypt from 'bcryptjs'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
@@ -40,7 +41,7 @@ export async function signedIn(browser: Browser, who: SessionName | null): Promi
       // APIRequestContext bypasses the browser fetch interceptor. Pin the current
       // server identity just as a newly loaded ordinary page does, including a
       // revision advanced by an earlier sign-out; stale contexts keep their old pin.
-      const session = await (await context.request.get('/api/auth/session')).json()
+      const session = await readSession(context.request)
       if (session.requestIdentity) await context.setExtraHTTPHeaders({ 'x-consilium-identity': session.requestIdentity })
     }
     return context
@@ -61,8 +62,9 @@ export async function signedIn(browser: Browser, who: SessionName | null): Promi
   const label = who === 'editor' ? 'Global Editor' : who.charAt(0).toUpperCase() + who.slice(1)
   await page.getByRole('button', { name: `Test as ${label}`, exact: true }).last().click()
   await expect(page.getByRole('region', { name: 'Testing environment' }).locator('strong')).toContainText(label)
-  const session = await (await context.request.get('/api/auth/session')).json()
-  await context.setExtraHTTPHeaders({ 'x-consilium-identity': session.requestIdentity })
+  const session = await readSession(context.request)
+  expect(session.requestIdentity, 'the session carries the identity to pin').toBeTruthy()
+  await context.setExtraHTTPHeaders({ 'x-consilium-identity': session.requestIdentity as string })
   await page.close()
   return context
 }

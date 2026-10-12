@@ -115,7 +115,11 @@ test('scenarios put a persona into a known state, show the right prompts, and re
   // 6. Restricted functionality really is refused, page by page and API by API, as the persona.
   await page.goto('/admin/testing')
   await hydrated(page.getByLabel('Persona', { exact: true }), 'onChange')
-  await page.getByRole('button', { name: 'Check access as Writer' }).click()
+  // The button is server-rendered markup until React attaches its onClick; a click before that is silently lost
+  // (CI trace: no probe request was ever issued). Waiting for the Persona select is not enough, so wait for this button.
+  const checkAccess = page.getByRole('button', { name: 'Check access as Writer' })
+  await hydrated(checkAccess, 'onClick')
+  await checkAccess.click()
   await expect(page.getByTestId('access-results')).toContainText('All ')
   await expect(page.getByTestId('access-results')).toContainText('checks behaved as expected')
   await expect(page.getByTestId('access-results').getByText('FAIL')).toHaveCount(0)
