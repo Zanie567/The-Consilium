@@ -100,3 +100,13 @@ The earlier sections describe `7202db9`. The consolidated candidate was deployed
 The results, the cleanup and the list of things not verified are in `PR-DESCRIPTION.md`, section "Hosted staging". Every finding above that was marked "not deployed, not verified hosted"
 for the feed and sitemap, placeholder replacement, scenario ownership and the `hiddenByDebateAt` restoration rule has now been exercised on the hosted deployment (API and real UI for
 Testing Mode; API for the debate and Team Members flows). One new observation: after a Testing Mode "Reset all personas" the feed kept a deleted `[Scenario]` article for about ten minutes.
+
+## Hosted vote test under the real application role (2026-10-12, deployment `dpl_Fy8NfBjEzgiZeZmQyFmdiZY2b3aP`, `2411e82`)
+
+One throw-away debate (`ZZ-VOTETEST-<timestamp>`, two articles) created through `POST /api/editorial/debates` as `admin@consilium.test`. `POST /api/debates/<id>/vote {"side":"FOR"}` returned 200 with counts
+(so `FOR SHARE` on `debates` and `articles` ran under `consilium_testing`, no superuser, no BYPASSRLS, RLS on); one `debate_votes` row with the right debate, user and side; `/opinion-debate` (HTML and `RSC: 1`) and
+`/api/debates/active` showed the debate. After archiving one argument through `PUT /api/articles/<id>` (`status: ARCHIVED`, `publicationIntent: true`): a second vote returned 404 and wrote nothing; the debate was absent from
+`/opinion-debate` (HTML and RSC), the home page, `/api/debates/active`, `/api/profile/debate-votes` and `totalDebateVotes`; the vote row still existed; the archived article stayed ARCHIVED with `hiddenByDebateAt` null;
+`/editorial/debates` still listed the debate with the "not public" warning. The other, still-published argument remains readable at its own URL, as any published article. Cleanup through `lifecycle` delete then purge
+(votes removed: 1) and `DELETE /api/editorial/trash/<id>` for both articles. Final state equals the baseline: 6 users, 37 articles (15/2/18/2), 0 debates, 0 votes, 0 marked articles, 5 migrations, both triggers enabled,
+trigger-function `EXECUTE` limited to `postgres` and `service_role`. Retained audit rows: `DEBATE_CREATED`, `DEBATE_DELETED`, `DEBATE_PERMANENTLY_DELETED`, 2 x `ARTICLE_HARD_DELETED`.

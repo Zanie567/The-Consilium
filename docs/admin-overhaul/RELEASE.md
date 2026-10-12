@@ -17,10 +17,10 @@ Branch `release/admin-overhaul` (linear replay on `origin/main` `438d596`; the p
    5. `supabase/migrations/20261012110000_revoke_trigger_function_execute.sql` (privileges only: removes `EXECUTE` on the two trigger functions from `PUBLIC`, `anon`,
       `authenticated`; hardening, not required by the code; rollback is the `GRANT` in its header).
    Read production's actual migration state first (`MIGRATION-PLAN.md` section 5); do not assume all five are missing. Old code keeps working after each step: every new column is nullable or defaulted and unknown to old code. Take a database backup first.
-4. **Deploy the code.** Immediately check `GET /api/admin/deployment-health` as an admin: 200 and no gaps.
+4. **Deploy the code, which here means merging the PR** (the production project is Git-linked and publishes on merge; see the gate in section 6, and do not merge before steps 1 to 3 are done, verified and the backup restore-tested). Immediately check `GET /api/admin/deployment-health` as an admin: 200 and no gaps.
 5. **Leave Testing Mode off in production.** Do not set `TESTING_MODE_ENABLED` there. Optionally set `TESTING_WORKSPACE_URL` to the testing origin (a link only).
 
-Never run step 4 before step 3: the new debate screens and `team_members.updatedAt` reads need the columns, and `deployment-health` will say exactly which are missing.
+Never run step 4 (the merge) before step 3: the new debate screens and `team_members.updatedAt` reads need the columns, and `deployment-health` will say exactly which are missing.
 
 ### Rollback
 Code: redeploy the previous build; the additive schema can stay. Schema (only if required): the statements are in
@@ -90,32 +90,28 @@ overview; Testing Mode checklist, scenarios and access check. Five additive migr
 * Scheduled publishing was verified on a local real Postgres, **not on hosted staging** (no scheduler runs there by design).
 * `updatedAt` has millisecond resolution; two edits to one row within the same millisecond would not be detected as stale.
 
-## 6. Production deployment plan (draft; nothing here has been run)
+## 6. Production deployment plan and release checklist (nothing here has been run)
 
-**Preconditions.** The PR is reviewed and approved; the branch has been merged with the then-current `origin/main` (this branch merged cleanly with
-`438d596` in a conflict check) and the complete regression re-run on the merged tree; the staging deployment has been repeated at the final commit.
+### GATE: merging PR #127 deploys it to production
 
-1. **Backup first, and prove it.** The staging hashes taken during verification are *not* a backup of production. Before step 2 an operator must:
-   confirm in the Supabase dashboard (project `scllbuwkcqtmfogsgalt`) whether point-in-time recovery is enabled and note the restore window, **or**
-   take a logical dump with the direct connection (`pg_dump --format=custom`, stored outside the repository), and restore it into a throw-away database to
-   confirm it opens and row counts for `articles`, `debates`, `team_members`, `users`, `notifications` match. Record who did it and when. Do not proceed
-   without one of these.
-2. **Pre-flight read-only checks** (section 2 SQL plus: `select count(*) from articles where status in ('PUBLISHED','SCHEDULED') and "deletedAt" is null`
-   and the same joined to `debates`; there must be no hidden debates yet, and nothing the guard would archive).
-3. **Migrations, one at a time, in order, each verified before the next** (additive, idempotent, validated against a copy of the old schema; the first
-   four are already on hosted staging, the fifth was applied there on 2026-10-10): `20261010_debate_lifecycle.sql`, `20261010_team_member_updated_at.sql`,
-   `20261011_hidden_debate_article_guard.sql`, `20261012100000_article_hidden_by_debate_marker.sql`, `20261012110000_revoke_trigger_function_execute.sql`. Do not use the Supabase CLI for these (duplicate version
-   prefixes; see `MIGRATION-PLAN.md`).
-   After each: the object exists, existing-row hashes are unchanged, the application still serves. Old code is compatible after every step.
-4. **App rollout** after the fifth migration (the application needs only the first four; the fifth must still be in place before release so that production matches the verified plan): deploy the merged commit through the normal pipeline. No new environment variable. Testing Mode
-   stays off (do not set `TESTING_MODE_ENABLED`).
-5. **Immediately after:** `GET /api/admin/deployment-health` as an admin (200, no gaps, includes `articles_hidden_debate_guard`, `articles_clear_hidden_by_debate` and `articles.hiddenByDebateAt`); `/feed.xml` and
-   `/sitemap.xml` return 200 with `max-age=0` and no positive `s-maxage`; home page, one article, `/opinion-debate`, `/team` (Editor-in-Chief first, once);
-   the scheduler's next run succeeds (`publish-scheduled` workflow, response `200`). With a published debate whose one argument is archived or trashed, `/opinion-debate`
-   (HTML, and the same request with the `RSC: 1` header), the home page and `/api/debates/active` must contain neither article's title, excerpt or author nor the debate itself.
-6. **Functional smoke on production with a throw-away debate** created by an admin and removed again: unpublish (articles 404, feed/sitemap drop it), publish,
-   delete, permanent delete with typed title. Use a clearly named test debate; do not touch real content.
-7. **Rollback.** Code: redeploy the previous production build (the additive schema may stay). Schema only if required: `ROLLBACK` in
-   `tests/integration/admin-overhaul-migrations.test.ts`. If data is damaged, restore from the step-1 backup, not from staging.
-8. **Watch** for 24 hours: the audit log for `DEBATE_*` and `TEAM_CARD_*` actions, `[revalidateArticleLists] FAILED` and `HIDDEN_DEBATE_ARTICLE` in logs
-   (the latter means someone tried to republish a hidden debate's article and was refused).
+The production Vercel project (`the-consilium`) is Git-linked to this repository with production branch `main`, `autoAssignCustomDomains=true`, no ignore-build step, no deploy hooks, and a plain `next build` with **no migration step**. **Merging PR #127 therefore builds and publishes immediately to `theconsilium.co.uk`** (current production deployment `dpl_GdRV9KxkNBhSmE3dtSQFTBo7fie3`, `main@438d596`). The new code reads `articles.hiddenByDebateAt` on every article query, so on an unmigrated database article pages break site-wide.
+
+> **Do not merge PR #127 until (a) the required production migrations have been applied and verified, (b) the production backup/recovery procedure has been proven by an actual restore test, and (c) migration backward-compatibility with the CURRENTLY DEPLOYED application (`main@438d596`) has been checked for the interval before the merge.**
+
+Each step below needs its own explicit approval from the owner. Steps marked **[IRREVERSIBLE]** cannot be undone by redeploying.
+
+**Preconditions.** PR reviewed and approved; branch merged with the then-current `origin/main` (clean at `438d596`) and the regression suite re-run on the merged tree; staging verified at the final application tree (hosted vote test, `STAGING-VERIFICATION.md`).
+
+### Checklist
+
+1. **Identity and migration state (read-only).** Confirm the project ref is `scllbuwkcqtmfogsgalt` (and *not* `zrieajoqosgzyesfatta`), then run the `MIGRATION-PLAN.md` section 5 queries plus section 2 here and
+   `select count(*) from articles where status in ('PUBLISHED','SCHEDULED') and "deletedAt" is null`. Record which of the five migrations are present. Do not assume all five are missing: production's registry has known drift (`docs/remediation/pr117-database-migrations.md`). There must be no hidden debates (the lifecycle columns do not yet exist).
+2. **Backup and a proven recovery path.** Confirm PITR is enabled and note the restore window, **or** take `pg_dump --format=custom` with the direct connection (stored outside the repository). Either way, restore into a throw-away database and compare row counts for `articles`, `debates`, `debate_votes`, `team_members`, `users`, `notifications`. Record who did it and when. Staging hashes are not a backup. Do not continue without this.
+3. **Compatibility with the deployed code (`main@438d596`), checked before any migration.** All five are additive and idempotent: old code ignores the new nullable `debates` columns and `articles.hiddenByDebateAt`; `team_members.updatedAt` has a default (`CURRENT_TIMESTAMP`) so old inserts still work; the guard trigger only refuses publishing articles of *hidden* debates and production has none; the marker trigger only writes `hiddenByDebateAt`; migration 5 changes privileges only. The old code must keep working after **each** step: after each migration load the home page, one article, `/opinion-debate`, and an editorial save. `tests/integration/admin-overhaul-migrations.test.ts` validates this against the previous schema.
+4. **Temporary controls.** Freeze merges to `main` (and the open scheduler PR #120) for the window; announce the window; name who is on call and who can run the rollback. Optional, **separate decision that needs the owner's approval and is not to be done now**: temporarily disabling `autoAssignCustomDomains` so that a merge builds but does not take the domain until promoted.
+5. **Apply only the missing migrations, one file at a time, in order** through the Supabase SQL editor (manual, audited; never `supabase db push` or any unrestricted CLI run, see `MIGRATION-PLAN.md` section 4): 1 `20261010_debate_lifecycle.sql`, 2 `20261010_team_member_updated_at.sql`, 3 `20261011_hidden_debate_article_guard.sql`, 4 `20261012100000_article_hidden_by_debate_marker.sql`, 5 `20261012110000_revoke_trigger_function_execute.sql`. **[IRREVERSIBLE in effect]** Rollback SQL exists but the guard trigger starts refusing publication of hidden-debate articles at once. Possible disruption: brief locks on `articles` (triggers, column) and `debates` (columns, index). Verify between each file (step 6) and re-run step 3's smoke checks.
+6. **Verify schema and permissions.** `debates` has `unpublishedAt`, `deletedAt`, `deletedById`; `team_members.updatedAt` is `NOT NULL` default `CURRENT_TIMESTAMP`; `articles.hiddenByDebateAt` exists (nullable, 0 marked rows); both triggers `articles_hidden_debate_guard` and `articles_clear_hidden_by_debate` have `tgenabled='O'`; both functions are `SECURITY DEFINER` with `search_path = public, pg_temp`; `proacl` lists only `postgres` and `service_role`; row counts and hashes of `articles`, `debates`, `team_members`, `users` equal the step-1/2 values.
+7. **Confirm the app is safe to deploy.** Run the SQL equivalent of `deployment-health` (all columns and triggers above present). Only now is it safe to merge. Re-check that `main` is still `438d596` or that any newer commit was reviewed.
+8. **Merge the approved PR. [IRREVERSIBLE]** Vercel builds automatically and, because of `autoAssignCustomDomains=true`, assigns the production domain when the build is READY. Watch the build to READY. No new environment variable is needed.
+9. **Verify the live app and monitor.** As an admin, `GET /api/admin/deployment-health` returns 200 and `"gaps": []`; open the admin routes (dashboard, debates, Team Members); `/feed.xml` and `/sitemap.xml` return 200 with `max-age=0` and no positive `s-maxage`; home page, one article, `/team` (Editor-in-Chief first, once); `/opinion-debate` (HTML and with header `RSC: 1`) and `/api/debates/active` must not leak a debate whose argument was archived or trashed (title, excerpt, author). **Testing Mode must be OFF**: its environment variables exist only on the Preview target; confirm none are present on Production. Run the throw-away-debate smoke test (create, unpublish, publish, delete, permanent delete with typed title) with a clearly named test debate. For 24 hours watch the audit log for `DEBATE_*` and `TEAM_CARD_*` actions, the logs for `[revalidateArticleLists] FAILED`, `HIDDEN_DEBATE_ARTICLE` (someone tried to republish a hidden debate's article) and any `40P01` / `P2034` (see "Known limitations" in `PR-DESCRIPTION.md`), and the next `publish-scheduled` run.
+10. **Rollback.** Application: promote/roll back to `dpl_GdRV9KxkNBhSmE3dtSQFTBo7fie3`; the additive schema may stay (old code is compatible with it). Schema only if required: the `ROLLBACK` SQL in `tests/integration/admin-overhaul-migrations.test.ts`, in reverse order (also in `MIGRATION-PLAN.md` section 6). If data is damaged, restore from the backup proven in step 2, never from staging.

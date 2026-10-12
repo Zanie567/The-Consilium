@@ -93,7 +93,7 @@ Findings from the first hosted round (`7202db9`) and their resolution are in `ST
 
 ## Release requirements
 
-See `RELEASE.md` section 6: verified backup (staging hashes are not one), migrations 1 to 5 in order with verification between each (production's actual state must be read first; do not assume all five are missing), then the app, then
+**Do not merge this PR until the required production migrations are applied and verified, the production backup has been proven by an actual restore test, and migration compatibility with the currently deployed `main@438d596` has been checked.** The production project is Git-linked (`main`, `autoAssignCustomDomains=true`, no migration step in the build), so merging publishes to `theconsilium.co.uk` immediately, and the new code reads `articles.hiddenByDebateAt` on every article query. See `RELEASE.md` section 6: verified backup (staging hashes are not one), migrations 1 to 5 in order with verification between each (production's actual state must be read first; do not assume all five are missing), then the app, then
 `/api/admin/deployment-health`, a feed/sitemap check and a throw-away-debate smoke test. Testing Mode stays off. Rollback: previous build; schema rollback only
 if required.
 
@@ -115,9 +115,23 @@ the vote is written inside the transaction that locks the rows and re-checks the
 because CodeRabbit skipped this PR (142 files, over its 100-file limit, and no review credits), so **no automated review of this PR exists**. Points to verify on hosted staging: a vote cast through the real
 application role (it takes `FOR SHARE` row locks, which row-level security policies can affect), and a published debate with one archived argument.
 Smaller notes: one test assertion (`good.forArticle.slug ? ... : ''`) can pass vacuously, though the assertion after it is real; the guard trigger and the debate lifecycle can still deadlock in opposite lock order
-(pre-existing, one side is aborted and retried, no inconsistent data); `scripts/setup-test-db.sh` does not apply migration 5 to local test databases.
+(see "Known limitations": the loser is aborted with a 500 and is **not** retried automatically; no inconsistent data); `scripts/setup-test-db.sh` does not apply migration 5 to local test databases.
 
 ## Known limitations
+
+* **Possible deadlock between an article save and a debate hide/delete (priority follow-up, not fixed here).** The guard `articles_hidden_debate_guard` is
+  `BEFORE INSERT OR UPDATE OF status,"deletedAt"` with `WHEN (NEW.status IN ('PUBLISHED','SCHEDULED') AND NEW."deletedAt" IS NULL)`; after the UPDATE has locked the
+  article row it takes `FOR SHARE` on every debate that references it. `transitionDebate` (unpublish/delete) takes the opposite order: it updates the debate row, then the
+  articles. The article save always writes `status`, so saving, restoring or scheduling a currently PUBLISHED article of debate D while an administrator hides or deletes D
+  can form a cycle if the two overlap within milliseconds. Postgres detects it (default `deadlock_timeout` 1 s) and aborts one transaction (`40P01`, Prisma `P2034`); that request
+  returns a generic 500 and nothing retries it. Data stays consistent: each side is one transaction that rolls back whole and the guard and marker rules still hold. The vote transaction
+  takes the lifecycle's order and its shares are compatible with the guard's, so it adds no cycle. Likelihood is low (two staff acting on the same debate at the same instant).
+  Decision: acceptable for the initial release as a documented risk. Permanent fix: (1) one lock order everywhere (lock the debate's articles in id order before updating the debate row
+  in `transitionDebate`, and flip the vote lock order to match), and/or (2) map `40P01`/`P2034` to a bounded automatic retry (1 to 2 attempts with backoff) or a clear 409/503 "try again".
+  Do **not** replace the guard's `FOR SHARE` with `FOR KEY SHARE`: that removes the blocking the guard relies on and reopens the publish-while-hiding race.
+* Smaller follow-ups from the visibility review: the vote route detects a duplicate vote by message text (`'Unique constraint'`) instead of Prisma code `P2002`; the vote transaction sets no explicit
+  `timeout`/`maxWait`; the comment in `src/lib/debateVoting.ts` saying editorial edits lock only an article row is wrong (the guard also share-locks debates); one test assertion
+  (`good.forArticle.slug ? ... : ''`) can pass vacuously.
 
 * Scenario fixtures are shared persona accounts: a scenario is a partial "new account" simulation; notifications from a tester's own actions that do not point
   at a scenario article are kept.

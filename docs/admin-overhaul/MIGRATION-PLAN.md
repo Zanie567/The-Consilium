@@ -33,7 +33,7 @@ hidden debate's article and the marker trigger still clears on an independent ch
 1. A verified database backup. (Staging data hashes are not a backup.)
 2. Apply #1, #2, #3, #4, then #5 in that order, one at a time, by an operator through the Supabase SQL editor (the project's manual procedure). After each, run
    the read-only checks in section 5.
-3. Deploy the application. Immediately check `GET /api/admin/deployment-health` as an administrator: 200 and `"gaps": []`.
+3. Deploy the application. **On production, "deploy" means merging PR #127**: the project is Git-linked to `main` with `autoAssignCustomDomains=true` and no migration step in the build, so the merge publishes at once. Do not merge until steps 1 and 2 are done and verified, the backup has been proven by an actual restore test, and compatibility of each migration with the currently deployed `main@438d596` has been checked (`RELEASE.md` section 6). Immediately check `GET /api/admin/deployment-health` as an administrator: 200 and `"gaps": []`.
 4. Smoke test with a throw-away debate (unpublish, confirm both URLs 404, publish, confirm they return).
 
 Hidden debates do not exist on production today (the lifecycle columns do not exist), so #3's "heal" statement changes nothing there, and #4 needs no
