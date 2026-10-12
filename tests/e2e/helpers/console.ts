@@ -46,6 +46,14 @@ const CANCELLED_PREFETCH = /^\/localhost:\d+\/[^\s?]*\?(?:[^\s&]*&)*_rsc=\w+ due
  * after navigating from the editorial portal to /team). That is tolerated only for the bell's exact GET and only when a
  * main-frame navigation request STARTED AFTER the bell request did, which is what aborts an in-flight fetch. No replacement
  * 200 is required because the page that would receive it is gone. An abort with no such navigation behind it is evidence.
+ *
+ * The second interleaving: the navigation request was already pending when the bell request started (the outgoing document
+ * keeps running until the new one commits; CI trace, team-profile mobile: `goto('/editorial')` straight after sign-in landed
+ * on /editorial, the bell fetch started 5 ms after the new document request and was aborted when it committed). That is
+ * tolerated only when the abort is paired with a genuine DOCUMENT commit: a main-frame navigation request that started before
+ * the bell request, received a document response, and then a main-frame `framenavigated` for that same URL. A client-side route
+ * change (`pushState`) also fires `framenavigated`, but has no navigation request or response behind it, so it never pairs.
+ * Each commit explains at most one abort, and the pairing works whichever order the events arrive in.
  */
 const NOTIFICATION_POLL_ERROR = /^\/localhost:\d+\/api\/editorial\/notifications due to access control checks\.$/
 
@@ -101,9 +109,36 @@ export function collectConsoleErrors(page: Page): string[] {
       aborted.splice(i, 1)
     }
   }
+  // Document commits: a main-frame navigation request that got a document response, paired with a main-frame
+  // `framenavigated` for the same URL. Either event can be seen first, so both sides wait for their partner.
+  const documentNavs = new Map<object, { seq: number; url: string; responded: boolean; matched: boolean }>()
+  const unpairedCommits: { seq: number; url: string }[] = []
+  const commits: { navSeq: number; seq: number }[] = [] // each explains at most one abort
+  const withoutHash = (raw: string) => { try { const u = new URL(raw); u.hash = ''; return u.href } catch { return raw } }
+  const reconcileCommits = () => {
+    for (let i = 0; i < unpairedCommits.length; i++) {
+      const commit = unpairedCommits[i]
+      const nav = [...documentNavs.values()]
+        .filter((n) => n.responded && !n.matched && n.url === commit.url && n.seq < commit.seq)
+        .sort((a, b) => a.seq - b.seq)[0]
+      if (!nav) continue
+      nav.matched = true
+      commits.push({ navSeq: nav.seq, seq: commit.seq })
+      unpairedCommits.splice(i--, 1)
+    }
+    for (let i = aborted.length - 1; i >= 0; i--) {
+      const commit = commits.findIndex((c) => c.navSeq < aborted[i].startedAt && aborted[i].startedAt < c.seq)
+      if (commit === -1) continue
+      commits.splice(commit, 1)
+      const at = errors.indexOf(aborted[i].entry)
+      if (at !== -1) errors.splice(at, 1)
+      aborted.splice(i, 1)
+    }
+  }
   page.on('request', (request) => {
     if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
       navigations.push(++seq)
+      documentNavs.set(request, { seq, url: withoutHash(request.url()), responded: false, matched: false })
       reconcileAborts()
     } else if (request.method() === 'GET' && isNotificationPollUrl(request.url())) {
       started.set(request, ++seq)
@@ -120,11 +155,17 @@ export function collectConsoleErrors(page: Page): string[] {
       errors.push(entry)
       aborted.push({ startedAt: started.get(request) as number, entry })
       reconcileAborts()
+      reconcileCommits()
     } else {
       errors.push(`requestfailed: ${request.url()} ${reason}`)
     }
   })
   page.on('response', (response) => {
+    const nav = documentNavs.get(response.request())
+    if (nav && ![204, 205].includes(response.status()) && !(response.status() >= 300 && response.status() < 400)) {
+      nav.responded = true // a redirect, or a response with no document, commits nothing
+      reconcileCommits()
+    }
     if (response.request().method() !== 'GET' || !isNotificationPollUrl(response.url())) return
     if (response.status() === 200) {
       oks.push(++seq)
@@ -132,6 +173,11 @@ export function collectConsoleErrors(page: Page): string[] {
     } else {
       errors.push(`notifications responded ${response.status()}: ${response.url()}`)
     }
+  })
+  page.on('framenavigated', (frame) => {
+    if (frame !== page.mainFrame()) return
+    unpairedCommits.push({ seq: ++seq, url: withoutHash(frame.url()) })
+    reconcileCommits()
   })
   page.on('pageerror', (err) => {
     if (isCancelledPrefetchNoise(err.message)) return

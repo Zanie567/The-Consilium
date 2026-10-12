@@ -3,11 +3,13 @@ import type { Page } from '@playwright/test'
 import { collectConsoleErrors, isNotificationPollErrorMessage, isNotificationPollUrl } from '../e2e/helpers/console'
 
 const URL_ = 'http://localhost:3200/api/editorial/notifications'
+const DOC = 'http://localhost:3200/editorial'
 const MESSAGE = '/localhost:3200/api/editorial/notifications due to access control checks.'
 
 function harness() {
   const handlers: Record<string, (value: never) => void> = {}
-  const MAIN = {}
+  let mainUrl = 'http://localhost:3200/'
+  const MAIN = { url: () => mainUrl }
   const page = { on: (event: string, handler: (value: never) => void) => { handlers[event] = handler }, mainFrame: () => MAIN } as unknown as Page
   const errors = collectConsoleErrors(page)
   const emit = (event: string, value: unknown) => handlers[event](value as never)
@@ -19,6 +21,10 @@ function harness() {
     start: (url = URL_, method = 'GET') => { const request = { url: () => url, method: () => method, isNavigationRequest: () => false, frame: () => MAIN, failure: () => ({ errorText: 'net::ERR_ABORTED' }) }; emit('request', request); return request },
     navigate: (mainFrame = true) => emit('request', { url: () => 'http://localhost:3200/team', method: () => 'GET', isNavigationRequest: () => true, frame: () => (mainFrame ? MAIN : {}) }),
     abort: (request: unknown, reason = 'net::ERR_ABORTED') => emit('requestfailed', Object.assign(request as object, { failure: () => ({ errorText: reason }) })),
+    // A full-document navigation: its request, the document response, and the main frame's commit (`framenavigated`).
+    docNav: (url = DOC) => { const request = { url: () => url, method: () => 'GET', isNavigationRequest: () => true, frame: () => MAIN }; emit('request', request); return request },
+    docResponse: (request: unknown, status = 200) => emit('response', { url: () => (request as { url: () => string }).url(), status: () => status, request: () => request }),
+    commit: (url = DOC, mainFrame = true) => { if (mainFrame) mainUrl = url; emit('framenavigated', mainFrame ? MAIN : { url: () => url }) },
     responded: (status: number, url = URL_, method = 'GET') => emit('response', { url: () => url, status: () => status, request: () => ({ method: () => method }) }),
   }
 }
@@ -128,6 +134,107 @@ describe('notification poll cancellation', () => {
       const h = harness()
       const first = h.start(); h.navigate(); h.abort(first)
       const second = h.start(); h.abort(second) // no navigation since this one started
+      expect(h.errors).toHaveLength(1)
+    })
+  })
+
+  // The navigation was already pending when the bell request started (CI: team-profile mobile, `goto` right after sign-in).
+  describe('Chromium net::ERR_ABORTED, navigation already pending', () => {
+    type H = ReturnType<typeof harness>
+    it('tolerates: navigation request, bell starts, document commits, bell aborts', () => {
+      const h = harness()
+      const nav = h.docNav(); const bell = h.start(); h.docResponse(nav); h.commit(); h.abort(bell)
+      expect(h.errors).toEqual([])
+    })
+
+    it('tolerates the abort arriving before the commit, once the commit is confirmed', () => {
+      const h = harness()
+      const nav = h.docNav(); const bell = h.start(); h.docResponse(nav); h.abort(bell)
+      expect(h.errors).toHaveLength(1)
+      h.commit()
+      expect(h.errors).toEqual([])
+    })
+
+    it('tolerates the commit being seen before the navigation response event', () => {
+      const h = harness()
+      const nav = h.docNav(); const bell = h.start(); h.abort(bell); h.commit()
+      expect(h.errors).toHaveLength(1)
+      h.docResponse(nav)
+      expect(h.errors).toEqual([])
+    })
+
+    it('tolerates a hash-only difference between the request and the committed URL', () => {
+      const h = harness()
+      const nav = h.docNav(`${DOC}#top`); const bell = h.start(); h.docResponse(nav); h.commit(DOC); h.abort(bell)
+      expect(h.errors).toEqual([])
+    })
+
+    it.each([
+      ['the document committed before the bell request started', (h: H) => { const n = h.docNav(); h.docResponse(n); h.commit(); h.abort(h.start()) }],
+      ['the navigation never commits', (h: H) => { const n = h.docNav(); const b = h.start(); h.docResponse(n); h.abort(b) }],
+      ['the navigation never gets a response, though a commit is seen', (h: H) => { h.docNav(); const b = h.start(); h.commit(); h.abort(b) }],
+      ['a commit with no navigation request behind it', (h: H) => { const b = h.start(); h.commit(); h.abort(b) }],
+      ['a client-side route change (framenavigated, no document request)', (h: H) => { const b = h.start(); h.commit('http://localhost:3200/editorial/team-profile'); h.abort(b) }],
+      ['a client-side route change while another document navigation is still unanswered', (h: H) => { h.docNav(); const b = h.start(); h.commit('http://localhost:3200/editorial/team-profile'); h.abort(b) }],
+      ['a commit for a different URL than the answered navigation', (h: H) => { const n = h.docNav(); const b = h.start(); h.docResponse(n); h.commit('http://localhost:3200/other'); h.abort(b) }],
+      ['a commit in a sub-frame only', (h: H) => { const n = h.docNav(); const b = h.start(); h.docResponse(n); h.commit(DOC, false); h.abort(b) }],
+      ['a redirect response, which commits nothing', (h: H) => { const n = h.docNav(); const b = h.start(); h.docResponse(n, 302); h.commit(); h.abort(b) }],
+      ['a 204 response, which has no document to commit', (h: H) => { const n = h.docNav(); const b = h.start(); h.docResponse(n, 204); h.commit(); h.abort(b) }],
+      ['a navigation request seen only in a sub-frame', (h: H) => { h.navigate(false); const b = h.start(); h.commit(); h.abort(b) }],
+    ])('keeps evidence: %s', (_name, run) => {
+      const h = harness()
+      run(h)
+      expect(h.errors.length).toBeGreaterThan(0)
+    })
+
+    it.each([
+      ['another url', 'http://localhost:3200/api/editorial/articles', 'GET', 'net::ERR_ABORTED'],
+      ['a query url', `${URL_}?x=1`, 'GET', 'net::ERR_ABORTED'],
+      ['a PATCH', URL_, 'PATCH', 'net::ERR_ABORTED'],
+      ['a connection failure', URL_, 'GET', 'net::ERR_CONNECTION_REFUSED'],
+      ['a timeout', URL_, 'GET', 'net::ERR_TIMED_OUT'],
+    ])('does not tolerate %s even with a pending navigation and a commit', (_name, url, method, reason) => {
+      const h = harness()
+      const nav = h.docNav(); const request = h.start(url, method); h.docResponse(nav); h.commit(); h.abort(request, reason)
+      // Other URLs and methods are never recorded at all; the same-url failures stay recorded.
+      if (url === URL_ && method === 'GET') expect(h.errors).toHaveLength(1)
+      else expect(h.errors).toEqual([])
+    })
+
+    it.each([401, 403, 500])('still reports a notifications response of %i after a pending navigation committed', (status) => {
+      const h = harness()
+      const nav = h.docNav(); const bell = h.start(); h.docResponse(nav); h.commit(); h.abort(bell)
+      h.responded(status)
+      expect(h.errors).toEqual([`notifications responded ${status}: ${URL_}`])
+    })
+
+    it('keeps other console errors, page exceptions and WebKit-style page errors', () => {
+      const h = harness()
+      const nav = h.docNav(); const bell = h.start(); h.docResponse(nav); h.commit(); h.abort(bell)
+      h.pageError('TypeError: boom')
+      h.pageError()
+      expect(h.errors).toEqual(['pageerror: TypeError: boom', `pageerror: ${MESSAGE}`])
+    })
+
+    it('lets one commit explain only one abort', () => {
+      const h = harness()
+      const nav = h.docNav(); const first = h.start(); const second = h.start()
+      h.docResponse(nav); h.commit(); h.abort(first); h.abort(second)
+      expect(h.errors).toHaveLength(1)
+    })
+
+    it('does not let a commit clear an abort of a bell request that started after it', () => {
+      const h = harness()
+      const nav = h.docNav(); const early = h.start(); h.docResponse(nav); h.commit(); h.abort(early)
+      const late = h.start(); h.abort(late)
+      expect(h.errors).toHaveLength(1)
+    })
+
+    it('does not let one commit explain aborts of two different navigations', () => {
+      const h = harness()
+      const first = h.docNav(); const bell1 = h.start(); h.docResponse(first); h.commit(); h.abort(bell1)
+      const bell2 = h.start(); h.abort(bell2)
+      h.commit() // a later commit with no navigation request/response of its own
       expect(h.errors).toHaveLength(1)
     })
   })
