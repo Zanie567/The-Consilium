@@ -1,4 +1,4 @@
-import { test, expect, type Browser, type Page } from '@playwright/test'
+import { test, expect, type Browser, type Locator, type Page } from '@playwright/test'
 import { closeDb, createAccount, db, hydrated, removeMyAccounts, signInAs, signedIn, type TestAccount } from './helpers/workflow'
 import { collectConsoleErrors } from './helpers/console'
 
@@ -52,19 +52,42 @@ async function publicTeam(browser: Browser) {
   }
 }
 
+/**
+ * The readiness every load of the members page needs before it is touched, whether by `goto` or by `reload`:
+ * the heading is rendered, the scroll is instant, and React has attached the Search field's handler.
+ * The site sets `scroll-behavior: smooth` on <html>. Playwright scrolls the Manage button into view and clicks it
+ * while that animation is still running; on a loaded WebKit the button moves between mousedown and mouseup, so the
+ * button is focused but no click is delivered and the panel never opens. The injected style belongs to the
+ * document, so a reload discards it and it has to be applied again.
+ */
+async function membersPageReady(page: Page) {
+  await expect(page.getByRole('heading', { name: 'Team Members', level: 1 })).toBeVisible()
+  await page.addStyleTag({ content: 'html { scroll-behavior: auto !important }' })
+  await hydrated(page.getByLabel('Search'), 'onChange')
+}
+
 async function openMember(page: Page, account: TestAccount) {
   await page.goto('/editorial/members')
-  await expect(page.getByRole('heading', { name: 'Team Members', level: 1 })).toBeVisible()
-  // The site sets `scroll-behavior: smooth` on <html>. Playwright scrolls the Manage button into view and clicks it
-  // while that animation is still running; on a loaded WebKit the button moves between mousedown and mouseup, so the
-  // button is focused but no click is delivered and the panel never opens. Make the scroll instant for this page.
-  await page.addStyleTag({ content: 'html { scroll-behavior: auto !important }' })
-  const search = page.getByLabel('Search')
-  await hydrated(search, 'onChange')
-  await search.fill(account.email)
+  return findMember(page, account)
+}
+
+async function reloadMembers(page: Page, account: TestAccount) {
+  await page.reload()
+  return findMember(page, account)
+}
+
+async function findMember(page: Page, account: TestAccount) {
+  await membersPageReady(page)
+  await page.getByLabel('Search').fill(account.email)
   const row = page.getByTestId(`member-${account.email}`)
   await expect(row).toBeVisible()
   return row
+}
+
+/** Opens the member's management panel and waits until it is actually there (it shows a Close control). */
+async function manage(row: Locator) {
+  await row.getByRole('button', { name: 'Manage' }).click()
+  await expect(row.getByRole('button', { name: 'Close' })).toBeVisible()
 }
 
 test('assigning an existing profile to a new account: nothing is lost, the owner can then edit it, the public page follows', async ({ browser }) => {
@@ -118,9 +141,7 @@ test('assigning an existing profile to a new account: nothing is lost, the owner
   expect((await publicTeam(browser))).toContain('Now in my own words.')
 
   // Admin changes the PUBLIC position; the access role is untouched.
-  await page.reload()
-  await page.getByLabel('Search').fill(account.email)
-  await page.getByTestId(`member-${account.email}`).getByRole('button', { name: 'Manage' }).click()
+  await manage(await reloadMembers(page, account))
   await page.getByRole('tab', { name: 'Public profile' }).click()
   const position = page.getByLabel('Public position', { exact: true })
   await expect(position).toHaveValue('Staff Writer')
@@ -128,13 +149,12 @@ test('assigning an existing profile to a new account: nothing is lost, the owner
   await page.getByRole('button', { name: 'Save public details' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Public details saved' })).toBeVisible()
   expect((await db().user.findUniqueOrThrow({ where: { id: account.id } })).role).toBe('WRITER')
-  await page.reload()
-  await page.getByLabel('Search').fill(account.email)
-  await expect(page.getByTestId(`member-${account.email}`)).toContainText('Senior Contributor') // persisted after reload
+  const reloaded = await reloadMembers(page, account)
+  await expect(reloaded).toContainText('Senior Contributor') // persisted after reload
   expect(await publicTeam(browser)).toContain('Senior Contributor')
 
   // ...and changing the ACCESS role leaves the public title alone.
-  await page.getByTestId(`member-${account.email}`).getByRole('button', { name: 'Manage' }).click()
+  await manage(reloaded)
   await page.getByRole('tab', { name: 'Role & permissions' }).click()
   await page.getByLabel(`Access role for ${account.email}`).selectOption('EDITOR')
   await page.getByRole('button', { name: 'Change role' }).click()
