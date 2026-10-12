@@ -7,13 +7,18 @@ const MESSAGE = '/localhost:3200/api/editorial/notifications due to access contr
 
 function harness() {
   const handlers: Record<string, (value: never) => void> = {}
-  const page = { on: (event: string, handler: (value: never) => void) => { handlers[event] = handler } } as unknown as Page
+  const MAIN = {}
+  const page = { on: (event: string, handler: (value: never) => void) => { handlers[event] = handler }, mainFrame: () => MAIN } as unknown as Page
   const errors = collectConsoleErrors(page)
   const emit = (event: string, value: unknown) => handlers[event](value as never)
   return {
     errors,
     pageError: (message = MESSAGE) => emit('pageerror', new Error(message)),
     failed: (reason: string, url = URL_, method = 'GET') => emit('requestfailed', { url: () => url, method: () => method, failure: () => ({ errorText: reason }) }),
+    // Chromium: the bell's request starts, a document navigation starts, the bell's request is aborted.
+    start: (url = URL_, method = 'GET') => { const request = { url: () => url, method: () => method, isNavigationRequest: () => false, frame: () => MAIN, failure: () => ({ errorText: 'net::ERR_ABORTED' }) }; emit('request', request); return request },
+    navigate: (mainFrame = true) => emit('request', { url: () => 'http://localhost:3200/team', method: () => 'GET', isNavigationRequest: () => true, frame: () => (mainFrame ? MAIN : {}) }),
+    abort: (request: unknown, reason = 'net::ERR_ABORTED') => emit('requestfailed', Object.assign(request as object, { failure: () => ({ errorText: reason }) })),
     responded: (status: number, url = URL_, method = 'GET') => emit('response', { url: () => url, status: () => status, request: () => ({ method: () => method }) }),
   }
 }
@@ -76,5 +81,54 @@ describe('notification poll cancellation', () => {
       expect(h.errors).toHaveLength(1)
     }
     expect(isNotificationPollUrl('http://example.com/api/editorial/notifications')).toBe(false)
+  })
+
+  describe('Chromium net::ERR_ABORTED', () => {
+    it('tolerates the bell fetch aborted by a main-frame navigation that started after it, with no replacement', () => {
+      const h = harness()
+      const bell = h.start(); h.navigate(); h.abort(bell)
+      expect(h.errors).toEqual([])
+    })
+
+    it('tolerates it when the navigation event is seen only after the abort', () => {
+      const h = harness()
+      const bell = h.start(); h.abort(bell)
+      expect(h.errors).toHaveLength(1)
+      h.navigate()
+      expect(h.errors).toEqual([])
+    })
+
+    it.each([
+      ['no navigation at all', (h: ReturnType<typeof harness>) => { h.abort(h.start()) }],
+      ['navigation started before the bell request', (h: ReturnType<typeof harness>) => { h.navigate(); h.abort(h.start()) }],
+      ['navigation in a sub-frame only', (h: ReturnType<typeof harness>) => { const b = h.start(); h.navigate(false); h.abort(b) }],
+      ['abort of a request that was never seen starting', (h: ReturnType<typeof harness>) => { h.navigate(); h.failed('net::ERR_ABORTED') }],
+      ['a different failure after navigation', (h: ReturnType<typeof harness>) => { const b = h.start(); h.navigate(); h.abort(b, 'net::ERR_CONNECTION_REFUSED') }],
+      ['a 500 after navigation', (h: ReturnType<typeof harness>) => { h.start(); h.navigate(); h.responded(500) }],
+      ['a 401 after navigation', (h: ReturnType<typeof harness>) => { h.start(); h.navigate(); h.responded(401) }],
+    ])('keeps evidence: %s', (_name, run) => {
+      const h = harness()
+      run(h)
+      expect(h.errors.length).toBeGreaterThan(0)
+    })
+
+    it.each([
+      ['another url', 'http://localhost:3200/api/editorial/articles', 'GET'],
+      ['a query url', `${URL_}?x=1`, 'GET'],
+      ['a PATCH', URL_, 'PATCH'],
+    ])('does not let an abort of %s explain, or stand in for, the bell abort', (_name, url, method) => {
+      const h = harness()
+      const other = h.start(url, method); h.abort(other) // not the bell fetch: never tolerated, never recorded
+      expect(h.errors).toEqual([])
+      const bell = h.start(); h.abort(bell) // a real bell abort with no navigation behind it
+      expect(h.errors).toHaveLength(1)
+    })
+
+    it('tolerates only the aborts a navigation explains', () => {
+      const h = harness()
+      const first = h.start(); h.navigate(); h.abort(first)
+      const second = h.start(); h.abort(second) // no navigation since this one started
+      expect(h.errors).toHaveLength(1)
+    })
   })
 })

@@ -41,6 +41,11 @@ const CANCELLED_PREFETCH = /^\/localhost:\d+\/[^\s?]*\?(?:[^\s&]*&)*_rsc=\w+ due
  * CI trace (wf-testing-scenarios, WebKit): first request "Load request cancelled", a second answered 200 ~245 ms later.
  * Everything else about this endpoint stays evidence: a non-200 response, a non-cancel network failure, or a matching
  * page error with no cancelled-then-recovered pair behind it.
+ *
+ * Chromium has no page error; it reports the same unload as `requestfailed` with `net::ERR_ABORTED` (CI, team-profile.spec,
+ * after navigating from the editorial portal to /team). That is tolerated only for the bell's exact GET and only when a
+ * main-frame navigation request STARTED AFTER the bell request did, which is what aborts an in-flight fetch. No replacement
+ * 200 is required because the page that would receive it is gone. An abort with no such navigation behind it is evidence.
  */
 const NOTIFICATION_POLL_ERROR = /^\/localhost:\d+\/api\/editorial\/notifications due to access control checks\.$/
 
@@ -85,12 +90,36 @@ export function collectConsoleErrors(page: Page): string[] {
       if (at !== -1) errors.splice(at, 1)
     }
   }
+  const started = new WeakMap<object, number>() // bell request -> seq at which it started
+  const navigations: number[] = [] // seq of each main-frame navigation request
+  const aborted: { startedAt: number; entry: string }[] = [] // Chromium aborts waiting for a later navigation
+  const reconcileAborts = () => {
+    for (let i = aborted.length - 1; i >= 0; i--) {
+      if (!navigations.some((n) => n > aborted[i].startedAt)) continue
+      const at = errors.indexOf(aborted[i].entry)
+      if (at !== -1) errors.splice(at, 1)
+      aborted.splice(i, 1)
+    }
+  }
+  page.on('request', (request) => {
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+      navigations.push(++seq)
+      reconcileAborts()
+    } else if (request.method() === 'GET' && isNotificationPollUrl(request.url())) {
+      started.set(request, ++seq)
+    }
+  })
   page.on('requestfailed', (request) => {
     if (request.method() !== 'GET' || !isNotificationPollUrl(request.url())) return
     const reason = request.failure()?.errorText ?? ''
     if (/cancel/i.test(reason)) {
       cancels.push(++seq)
       reconcile()
+    } else if (reason === 'net::ERR_ABORTED' && started.has(request)) {
+      const entry = `requestfailed: ${request.url()} ${reason}`
+      errors.push(entry)
+      aborted.push({ startedAt: started.get(request) as number, entry })
+      reconcileAborts()
     } else {
       errors.push(`requestfailed: ${request.url()} ${reason}`)
     }
