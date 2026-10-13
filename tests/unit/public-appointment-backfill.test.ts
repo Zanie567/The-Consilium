@@ -15,6 +15,7 @@ it('preserves the verified historical card by ID, never granting placement from 
   expect(publicAppointmentBackfill([historical])).toEqual(plan)
 })
 it('snapshots existing implicit placement but reports unclassified ADMIN ownership', () => {
-  expect(publicAppointmentBackfill([row({ role: 'Social Media', permissionRole: 'GROWTH' })]).changes[0].publicTier).toBe('growth')
+  expect(publicAppointmentBackfill([row({ role: 'Unclassified appointment', permissionRole: 'GROWTH' })]).changes[0].publicTier).toBe('growth')
+  expect(publicAppointmentBackfill([row({ role: 'Social Media', permissionRole: 'GROWTH' })]).changes).toEqual([]) // trusted title now places it without a correction
   expect(publicAppointmentBackfill([row({ role: '', permissionRole: 'ADMIN' })]).ambiguous).toHaveLength(1)
 })

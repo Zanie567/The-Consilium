@@ -391,7 +391,7 @@ suite('PUT /api/team-profile (real database)', () => {
 
       const rows = await rowsFor(user.id)
       expect(rows).toHaveLength(1)
-      expect(rows[0]).toMatchObject({ id: card.id, role: 'Senior Editor', order: 5, image: '/team/x.png', bio: 'my own words' })
+      expect(rows[0]).toMatchObject({ id: card.id, role: 'Editor', order: 5, image: '/team/x.png', bio: 'my own words' })
       expect(await db.teamMember.count({ where: { name: card.name } })).toBe(1)
     })
 
@@ -472,7 +472,7 @@ suite('PUT /api/team-profile (real database)', () => {
           include: { user: { select: { email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
         })
         const sections = buildTeamMasthead(buildPublicRoster(rows, []))
-        expect(sections.filter(x => x.rows.length > 0).map((x) => x.id), title).toEqual([title === 'Editor-in-Chief' || title === 'Chief Designer' ? 'masthead' : title === 'Senior Editor' ? 'editorial' : title === 'Writer' ? 'writers' : title === 'Head of Growth' ? 'growth' : 'wider'])
+        expect(sections.filter(x => x.rows.length > 0).map((x) => x.id), title).toEqual([title === 'Editor-in-Chief' || title === 'Chief Designer' ? 'masthead' : title === 'Senior Editor' ? 'editorial' : title === 'Writer' ? 'writers' : title === 'Head of Growth' || title === 'Social Media' ? 'growth' : 'wider'])
         expect((await db.user.findUniqueOrThrow({ where: { id: target.id } })).role).toBe(role)
       }
     })
