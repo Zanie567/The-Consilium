@@ -34,28 +34,35 @@ function isThirdPartyResourceFailure(msg: ConsoleMessage): boolean {
 const CANCELLED_PREFETCH = /^\/localhost:\d+\/[^\s?]*\?(?:[^\s&]*&)*_rsc=\w+ due to access control checks\.$/
 
 /**
- * The same WebKit page error for the one same-origin request the editorial portal starts on every mount: the
- * notification bell's `GET /api/editorial/notifications`. The message alone proves nothing (WebKit uses the same
- * text for any failed load), so it is tolerated only when the collector has independently seen BOTH that this
- * request was cancelled (`requestfailed`, "cancel") AND a later 200 for the same URL (the bell's replacement request).
- * CI trace (wf-testing-scenarios, WebKit): first request "Load request cancelled", a second answered 200 ~245 ms later.
- * Everything else about this endpoint stays evidence: a non-200 response, a non-cancel network failure, or a matching
- * page error with no cancelled-then-recovered pair behind it.
+ * The notification bell fetches `GET /api/editorial/notifications` once, when the portal mounts. A full-document navigation
+ * (page.goto, a reload, `window.location.assign`) replaces the outgoing document, and the outgoing document can still be running
+ * (and can start that fetch) until the new one commits. The browser then cancels the fetch, and the two engines report the
+ * cancellation differently, and not always completely:
+ *   Chromium: `requestfailed` with exactly `net::ERR_ABORTED`.
+ *   WebKit:   the page error below, sometimes with a `requestfailed` "Load request cancelled", sometimes (when the fetch started
+ *             while the navigation was already pending) with NO request event at all, so a pairing of events cannot be relied on.
+ * What both have in common is the cause, so that is the evidence: the failure belongs to a genuine DOCUMENT navigation, i.e. it
+ * happened in the window that starts when a main-frame navigation request is sent and ends when that document commits.
+ * A commit is a main-frame `request` (isNavigationRequest) that received a document response (not a redirect, not a 204),
+ * paired with a main-frame `framenavigated` for the same URL. A client-side route change (`pushState`) also fires
+ * `framenavigated`, but has no navigation request or response behind it, so it never pairs.
  *
- * Chromium has no page error; it reports the same unload as `requestfailed` with `net::ERR_ABORTED` (CI, team-profile.spec,
- * after navigating from the editorial portal to /team). That is tolerated only for the bell's exact GET and only when a
- * main-frame navigation request STARTED AFTER the bell request did, which is what aborts an in-flight fetch. No replacement
- * 200 is required because the page that would receive it is gone. An abort with no such navigation behind it is evidence.
- *
- * The second interleaving: the navigation request was already pending when the bell request started (the outgoing document
- * keeps running until the new one commits; CI trace, team-profile mobile: `goto('/editorial')` straight after sign-in landed
- * on /editorial, the bell fetch started 5 ms after the new document request and was aborted when it committed). That is
- * tolerated only when the abort is paired with a genuine DOCUMENT commit: a main-frame navigation request that started before
- * the bell request, received a document response, and then a main-frame `framenavigated` for that same URL. A client-side route
- * change (`pushState`) also fires `framenavigated`, but has no navigation request or response behind it, so it never pairs.
- * Each commit explains at most one abort, and the pairing works whichever order the events arrive in.
+ * A notifications failure is removed from the report only when a committed window explains it, and one window explains at most
+ * one failure (the outgoing document mounted the bell once):
+ *   - Chromium abort: `requestfailed`, GET, exactly `net::ERR_ABORTED`, for a fetch we saw start BEFORE the commit (so it belonged
+ *     to the outgoing document), seen after the navigation request. It may be seen before or after the commit event.
+ *   - WebKit page error: the exact message, seen after the navigation request and BEFORE the commit event. WebKit gives no request
+ *     to check (so its method cannot be verified), only this message and the window; a page error after the commit is evidence.
+ * A WebKit `requestfailed` that merely says the request was cancelled has never been an error here and still is not: WebKit
+ * delivers it before the navigation request event and spells it differently per platform, so its order cannot be trusted. The
+ * failure signal WebKit gives is the page error above. That is the one place this collector is lenient without a navigation.
+ * Everything else stays evidence: other URLs, methods, reasons and messages, non-200 responses, a navigation that never commits,
+ * a client-side route change, a failure with no navigation behind it or after the commit, and every further failure in the same
+ * window. Until a window explains it a failure simply stays in the report; nothing is held back waiting for an event.
  */
 const NOTIFICATION_POLL_ERROR = /^\/localhost:\d+\/api\/editorial\/notifications due to access control checks\.$/
+const CHROMIUM_ABORT = 'net::ERR_ABORTED'
+const WEBKIT_CANCEL = /^(Load request )?cancell?ed$/i // a cancelled request is not a failure; see above
 
 export function isNotificationPollErrorMessage(message: string): boolean {
   return NOTIFICATION_POLL_ERROR.test(message)
@@ -83,63 +90,45 @@ export function collectConsoleErrors(page: Page): string[] {
     errors.push(`${text} @ ${msg.location().url}`)
   }
   page.on('console', onConsole)
-  // Notification-poll bookkeeping. `seq` orders events so a 200 only counts as the replacement if it came after the cancel.
-  let seq = 0
-  const cancels: number[] = []
-  const oks: number[] = []
-  const pending: string[] = [] // page errors in `errors` waiting for a cancelled-then-recovered pair
-  const reconcile = () => {
-    while (pending.length && cancels.length) {
-      const replacement = oks.findIndex((n) => n > cancels[0])
-      if (replacement === -1) return
-      cancels.shift()
-      oks.splice(replacement, 1)
-      const at = errors.indexOf(pending.shift() as string)
-      if (at !== -1) errors.splice(at, 1)
-    }
-  }
-  const started = new WeakMap<object, number>() // bell request -> seq at which it started
-  const navigations: number[] = [] // seq of each main-frame navigation request
-  const aborted: { startedAt: number; entry: string }[] = [] // Chromium aborts waiting for a later navigation
-  const reconcileAborts = () => {
-    for (let i = aborted.length - 1; i >= 0; i--) {
-      if (!navigations.some((n) => n > aborted[i].startedAt)) continue
-      const at = errors.indexOf(aborted[i].entry)
-      if (at !== -1) errors.splice(at, 1)
-      aborted.splice(i, 1)
-    }
-  }
-  // Document commits: a main-frame navigation request that got a document response, paired with a main-frame
-  // `framenavigated` for the same URL. Either event can be seen first, so both sides wait for their partner.
-  const documentNavs = new Map<object, { seq: number; url: string; responded: boolean; matched: boolean }>()
-  const unpairedCommits: { seq: number; url: string }[] = []
-  const commits: { navSeq: number; seq: number }[] = [] // each explains at most one abort
+
+  let seq = 0 // orders every event this collector sees
   const withoutHash = (raw: string) => { try { const u = new URL(raw); u.hash = ''; return u.href } catch { return raw } }
-  const reconcileCommits = () => {
+
+  // Document navigations. `start` is the seq of the first request of a redirect chain, where the window opens.
+  const navigations = new Map<object, { start: number; url: string; responded: boolean; paired: boolean }>()
+  const unpairedCommits: { seq: number; url: string }[] = []
+  // A committed navigation. `used`: it has explained its one failure.
+  const windows: { start: number; commit: number; used: boolean }[] = []
+  // Notifications failures that are in `errors` and may be explained by a window. `startedAt` is set for request-level ones.
+  const candidates: { entry: string; at: number; startedAt?: number }[] = []
+  const started = new WeakMap<object, number>() // bell request -> seq at which it started
+
+  const reconcile = () => {
     for (let i = 0; i < unpairedCommits.length; i++) {
       const commit = unpairedCommits[i]
-      const nav = [...documentNavs.values()]
-        .filter((n) => n.responded && !n.matched && n.url === commit.url && n.seq < commit.seq)
-        .sort((a, b) => a.seq - b.seq)[0]
+      const nav = [...navigations.values()].find((n) => n.responded && n.url === commit.url && !n.paired)
       if (!nav) continue
-      nav.matched = true
-      commits.push({ navSeq: nav.seq, seq: commit.seq })
+      nav.paired = true
+      windows.push({ start: nav.start, commit: commit.seq, used: false })
       unpairedCommits.splice(i--, 1)
     }
-    for (let i = aborted.length - 1; i >= 0; i--) {
-      const commit = commits.findIndex((c) => c.navSeq < aborted[i].startedAt && aborted[i].startedAt < c.seq)
-      if (commit === -1) continue
-      commits.splice(commit, 1)
-      const at = errors.indexOf(aborted[i].entry)
+    for (let i = 0; i < candidates.length; i++) {
+      const c = candidates[i]
+      const requestLevel = c.startedAt !== undefined
+      const window = windows.find((w) => !w.used && w.start < c.at && (requestLevel ? (c.startedAt as number) < w.commit : c.at < w.commit))
+      if (!window) continue
+      window.used = true
+      const at = errors.indexOf(c.entry)
       if (at !== -1) errors.splice(at, 1)
-      aborted.splice(i, 1)
+      candidates.splice(i--, 1)
     }
   }
+
   page.on('request', (request) => {
     if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
-      navigations.push(++seq)
-      documentNavs.set(request, { seq, url: withoutHash(request.url()), responded: false, matched: false })
-      reconcileAborts()
+      const previous = request.redirectedFrom?.()
+      const root = previous ? navigations.get(previous) : undefined
+      navigations.set(request, { start: root ? root.start : ++seq, url: withoutHash(request.url()), responded: false, paired: false })
     } else if (request.method() === 'GET' && isNotificationPollUrl(request.url())) {
       started.set(request, ++seq)
     }
@@ -147,44 +136,34 @@ export function collectConsoleErrors(page: Page): string[] {
   page.on('requestfailed', (request) => {
     if (request.method() !== 'GET' || !isNotificationPollUrl(request.url())) return
     const reason = request.failure()?.errorText ?? ''
-    if (/cancel/i.test(reason)) {
-      cancels.push(++seq)
+    if (WEBKIT_CANCEL.test(reason)) return
+    const entry = `requestfailed: ${request.url()} ${reason}`
+    errors.push(entry)
+    if (reason === CHROMIUM_ABORT && started.has(request)) {
+      candidates.push({ entry, at: ++seq, startedAt: started.get(request) as number })
       reconcile()
-    } else if (reason === 'net::ERR_ABORTED' && started.has(request)) {
-      const entry = `requestfailed: ${request.url()} ${reason}`
-      errors.push(entry)
-      aborted.push({ startedAt: started.get(request) as number, entry })
-      reconcileAborts()
-      reconcileCommits()
-    } else {
-      errors.push(`requestfailed: ${request.url()} ${reason}`)
     }
   })
   page.on('response', (response) => {
-    const nav = documentNavs.get(response.request())
-    if (nav && ![204, 205].includes(response.status()) && !(response.status() >= 300 && response.status() < 400)) {
-      nav.responded = true // a redirect, or a response with no document, commits nothing
-      reconcileCommits()
+    const navigation = navigations.get(response.request())
+    if (navigation && ![204, 205].includes(response.status()) && !(response.status() >= 300 && response.status() < 400)) {
+      navigation.responded = true // a redirect, or a response with no document, commits nothing
+      reconcile()
     }
     if (response.request().method() !== 'GET' || !isNotificationPollUrl(response.url())) return
-    if (response.status() === 200) {
-      oks.push(++seq)
-      reconcile()
-    } else {
-      errors.push(`notifications responded ${response.status()}: ${response.url()}`)
-    }
+    if (response.status() !== 200) errors.push(`notifications responded ${response.status()}: ${response.url()}`)
   })
   page.on('framenavigated', (frame) => {
     if (frame !== page.mainFrame()) return
     unpairedCommits.push({ seq: ++seq, url: withoutHash(frame.url()) })
-    reconcileCommits()
+    reconcile()
   })
   page.on('pageerror', (err) => {
     if (isCancelledPrefetchNoise(err.message)) return
     const entry = `pageerror: ${err.message}`
     errors.push(entry)
     if (isNotificationPollErrorMessage(err.message)) {
-      pending.push(entry)
+      candidates.push({ entry, at: ++seq })
       reconcile()
     }
   })

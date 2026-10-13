@@ -63,8 +63,9 @@ test('scenarios put a persona into a known state, show the right prompts, and re
   // 1. A newly registered member: the profile prompt, no unread count.
   await apply(page, 'newly-registered')
   expect(await db().teamMember.count({ where: { userId: writer.id } })).toBe(0)
-  await enter(page, 'Test as Writer', 'Writer')
-  await page.goto('/editorial')
+  await enter(page, 'Test as Writer', 'Writer') // switching persona already loads /editorial as a new document
+  await expect(page).toHaveURL(/\/editorial$/)
+  await hydrated(page.getByRole('button', { name: 'Notifications', exact: true }), 'onClick')
   await expect(page.getByText(PROMPT)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible()
   await expect(page.getByTestId('admin-overview')).toHaveCount(0) // administrator content never reaches a persona

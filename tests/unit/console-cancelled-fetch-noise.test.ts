@@ -5,7 +5,13 @@ import { collectConsoleErrors, isNotificationPollErrorMessage, isNotificationPol
 const URL_ = 'http://localhost:3200/api/editorial/notifications'
 const DOC = 'http://localhost:3200/editorial'
 const MESSAGE = '/localhost:3200/api/editorial/notifications due to access control checks.'
+const ABORTED = 'net::ERR_ABORTED'
+const CANCELLED = 'Load request cancelled'
 
+/**
+ * Drives the collector with the events Playwright emits, in the order a test chooses. A "document navigation" is the
+ * main-frame navigation request, its document response and the main frame's `framenavigated` (the commit).
+ */
 function harness() {
   const handlers: Record<string, (value: never) => void> = {}
   let mainUrl = 'http://localhost:3200/'
@@ -15,227 +21,254 @@ function harness() {
   const emit = (event: string, value: unknown) => handlers[event](value as never)
   return {
     errors,
-    pageError: (message = MESSAGE) => emit('pageerror', new Error(message)),
-    failed: (reason: string, url = URL_, method = 'GET') => emit('requestfailed', { url: () => url, method: () => method, failure: () => ({ errorText: reason }) }),
-    // Chromium: the bell's request starts, a document navigation starts, the bell's request is aborted.
-    start: (url = URL_, method = 'GET') => { const request = { url: () => url, method: () => method, isNavigationRequest: () => false, frame: () => MAIN, failure: () => ({ errorText: 'net::ERR_ABORTED' }) }; emit('request', request); return request },
-    navigate: (mainFrame = true) => emit('request', { url: () => 'http://localhost:3200/team', method: () => 'GET', isNavigationRequest: () => true, frame: () => (mainFrame ? MAIN : {}) }),
-    abort: (request: unknown, reason = 'net::ERR_ABORTED') => emit('requestfailed', Object.assign(request as object, { failure: () => ({ errorText: reason }) })),
-    // A full-document navigation: its request, the document response, and the main frame's commit (`framenavigated`).
-    docNav: (url = DOC) => { const request = { url: () => url, method: () => 'GET', isNavigationRequest: () => true, frame: () => MAIN }; emit('request', request); return request },
-    docResponse: (request: unknown, status = 200) => emit('response', { url: () => (request as { url: () => string }).url(), status: () => status, request: () => request }),
+    // --- document navigation ---
+    nav: (url = DOC, redirectedFrom: unknown = null, mainFrame = true) => {
+      const request = { url: () => url, method: () => 'GET', isNavigationRequest: () => true, frame: () => (mainFrame ? MAIN : {}), redirectedFrom: () => redirectedFrom }
+      emit('request', request)
+      return request
+    },
+    navResponse: (request: unknown, status = 200) => emit('response', { url: () => (request as { url: () => string }).url(), status: () => status, request: () => request }),
     commit: (url = DOC, mainFrame = true) => { if (mainFrame) mainUrl = url; emit('framenavigated', mainFrame ? MAIN : { url: () => url }) },
+    // --- the bell's fetch ---
+    bell: (url = URL_, method = 'GET') => {
+      const request = { url: () => url, method: () => method, isNavigationRequest: () => false, frame: () => MAIN, redirectedFrom: () => null }
+      emit('request', request)
+      return request
+    },
+    fail: (request: unknown, reason = ABORTED) => emit('requestfailed', Object.assign(request as object, { failure: () => ({ errorText: reason }) })),
+    failUnseen: (reason = ABORTED, url = URL_, method = 'GET') => emit('requestfailed', { url: () => url, method: () => method, failure: () => ({ errorText: reason }) }),
     responded: (status: number, url = URL_, method = 'GET') => emit('response', { url: () => url, status: () => status, request: () => ({ method: () => method }) }),
+    pageError: (message = MESSAGE) => emit('pageerror', new Error(message)),
+    consoleError: (text: string) => emit('console', { type: () => 'error', text: () => text, location: () => ({ url: 'http://localhost:3200/' }) }),
   }
 }
+type H = ReturnType<typeof harness>
 
-// The collector tolerates the WebKit page error for the notification bell's fetch ONLY when the request was
-// really cancelled and then really recovered. Every other outcome must stay evidence.
-describe('notification poll cancellation', () => {
+describe('the three sequences seen in CI', () => {
+  // team-profile mobile (run 38275729256): the document request left 5 ms BEFORE the outgoing page started the bell fetch.
+  it('Chromium: navigation request, bell starts, document commits, bell aborted', () => {
+    const h = harness()
+    const nav = h.nav(); const bell = h.bell(); h.navResponse(nav); h.commit(); h.fail(bell)
+    expect(h.errors).toEqual([])
+  })
+
+  // team-profile :471 (run 38181217078) and wf-testing-scenarios: the fetch is already running when the navigation is requested.
+  it('Chromium: bell starts, navigation request, document commits, bell aborted', () => {
+    const h = harness()
+    const bell = h.bell(); const nav = h.nav(); h.navResponse(nav); h.commit(); h.fail(bell)
+    expect(h.errors).toEqual([])
+  })
+
+  // wf-testing-scenarios (run 38315612240): WebKit exposed NO request for the fetch, only the page error, before the commit.
+  it('WebKit: navigation request, exact page error only, document commits', () => {
+    const h = harness()
+    const nav = h.nav(); h.pageError(); h.navResponse(nav)
+    expect(h.errors).toEqual([`pageerror: ${MESSAGE}`]) // visible until the commit confirms the navigation
+    h.commit()
+    expect(h.errors).toEqual([])
+  })
+
+  // run 38095772683: WebKit exposed the cancel as well as the page error.
+  it('WebKit: recorded cancel and page error for one fetch, in one committed navigation', () => {
+    const h = harness()
+    const bell = h.bell(); const nav = h.nav(); h.fail(bell, CANCELLED); h.pageError(); h.navResponse(nav); h.commit()
+    expect(h.errors).toEqual([])
+  })
+})
+
+describe('event order', () => {
   it.each([
-    ['page error after cancel and replacement 200', (h: ReturnType<typeof harness>) => { h.failed('Load request cancelled'); h.responded(200); h.pageError() }],
-    ['page error between cancel and replacement', (h: ReturnType<typeof harness>) => { h.failed('Load request cancelled'); h.pageError(); h.responded(200) }],
-    ['page error before anything else', (h: ReturnType<typeof harness>) => { h.pageError(); h.failed('Load request cancelled'); h.responded(200) }],
-  ])('tolerates: %s', (_name, run) => {
+    ['abort, then the document response, then the commit', (h: H) => { const n = h.nav(); const b = h.bell(); h.fail(b); h.navResponse(n); h.commit() }],
+    ['abort after the commit event', (h: H) => { const n = h.nav(); const b = h.bell(); h.navResponse(n); h.commit(); h.fail(b) }],
+    ['commit event before the navigation response event', (h: H) => { const n = h.nav(); const b = h.bell(); h.commit(); h.fail(b); h.navResponse(n) }],
+    ['page error before the response, commit last', (h: H) => { const n = h.nav(); h.pageError(); h.navResponse(n); h.commit() }],
+    ['commit URL differing only by a fragment', (h: H) => { const n = h.nav(`${DOC}#top`); const b = h.bell(); h.navResponse(n); h.commit(DOC); h.fail(b) }],
+  ])('explains the failure whichever way round the events arrive: %s', (_name, run) => {
     const h = harness()
     run(h)
     expect(h.errors).toEqual([])
   })
 
-  it.each([
-    ['no cancelled request seen', (h: ReturnType<typeof harness>) => { h.responded(200); h.pageError() }],
-    ['cancelled but never recovered', (h: ReturnType<typeof harness>) => { h.failed('Load request cancelled'); h.pageError() }],
-    ['200 only before the cancel', (h: ReturnType<typeof harness>) => { h.responded(200); h.failed('Load request cancelled'); h.pageError() }],
-    ['replacement answered 500', (h: ReturnType<typeof harness>) => { h.failed('Load request cancelled'); h.responded(500); h.pageError() }],
-    ['replacement answered 401', (h: ReturnType<typeof harness>) => { h.failed('Load request cancelled'); h.responded(401); h.pageError() }],
-    ['replacement answered 403', (h: ReturnType<typeof harness>) => { h.failed('Load request cancelled'); h.responded(403); h.pageError() }],
-    ['non-cancel network failure', (h: ReturnType<typeof harness>) => { h.failed('The network connection was lost.'); h.responded(200); h.pageError() }],
-    ['cancel of another url', (h: ReturnType<typeof harness>) => { h.failed('Load request cancelled', 'http://localhost:3200/api/editorial/articles'); h.responded(200); h.pageError() }],
-    ['cancel of a query url', (h: ReturnType<typeof harness>) => { h.failed('Load request cancelled', `${URL_}?x=1`); h.responded(200); h.pageError() }],
-    ['cancelled PATCH, not the bell fetch', (h: ReturnType<typeof harness>) => { h.failed('Load request cancelled', URL_, 'PATCH'); h.responded(200); h.pageError() }],
-    ['two page errors, one cancel pair', (h: ReturnType<typeof harness>) => { h.failed('Load request cancelled'); h.responded(200); h.pageError(); h.pageError() }],
-  ])('keeps evidence: %s', (_name, run) => {
+  it('keeps a failure visible until the commit confirms it, and then clears only that failure', () => {
+    const h = harness()
+    const nav = h.nav(); const bell = h.bell(); h.fail(bell); h.pageError('TypeError: boom')
+    expect(h.errors).toHaveLength(2)
+    h.navResponse(nav); h.commit()
+    expect(h.errors).toEqual(['pageerror: TypeError: boom'])
+  })
+
+  it('follows a redirect chain: the window opens at the first request', () => {
+    const h = harness()
+    const first = h.nav(`${DOC}?old`); const bell = h.bell(); h.fail(bell)
+    h.navResponse(first, 302)
+    const second = h.nav(DOC, first); h.navResponse(second); h.commit()
+    expect(h.errors).toEqual([])
+  })
+
+  it('does not open the window earlier than the navigation request it can see', () => {
+    const h = harness()
+    const first = h.nav(`${DOC}?old`); const bell = h.bell(); h.fail(bell)
+    h.navResponse(first, 302)
+    const unrelated = h.nav(DOC); h.navResponse(unrelated); h.commit() // not linked to `first`: the failure predates this navigation
+    expect(h.errors).toHaveLength(1)
+  })
+})
+
+describe('what is never explained by a navigation', () => {
+  type Sequence = (h: H) => void
+  const chromium = (middle: (h: H, nav: unknown, bell: unknown) => void): Sequence => (h) => { const nav = h.nav(); const bell = h.bell(); middle(h, nav, bell) }
+  const webkit = (middle: (h: H, nav: unknown) => void): Sequence => (h) => { const nav = h.nav(); middle(h, nav) }
+
+  it.each<[string, Sequence]>([
+    ['Chromium: the navigation never commits', chromium((h, nav, bell) => { h.navResponse(nav); h.fail(bell) })],
+    ['WebKit: the navigation never commits', webkit((h, nav) => { h.pageError(); h.navResponse(nav) })],
+    ['Chromium: the navigation request is never answered, though a commit is seen', chromium((h, _nav, bell) => { h.commit(); h.fail(bell) })],
+    ['WebKit: the navigation request is never answered, though a commit is seen', webkit((h) => { h.pageError(); h.commit() })],
+    ['Chromium: no navigation at all', (h) => { h.fail(h.bell()) }],
+    ['WebKit: no navigation at all', (h) => { h.pageError() }],
+    ['Chromium: the document committed before the bell fetch started', (h) => { const n = h.nav(); h.navResponse(n); h.commit(); h.fail(h.bell()) }],
+    ['WebKit: the document committed before the page error', (h) => { const n = h.nav(); h.navResponse(n); h.commit(); h.pageError() }],
+    ['Chromium: the failure was seen before the navigation request', (h) => { const b = h.bell(); h.fail(b); const n = h.nav(); h.navResponse(n); h.commit() }],
+    ['WebKit: the page error was seen before the navigation request', (h) => { h.pageError(); const n = h.nav(); h.navResponse(n); h.commit() }],
+    ['Chromium: a client-side route change (framenavigated, no document request)', (h) => { const b = h.bell(); h.commit('http://localhost:3200/editorial/team-profile'); h.fail(b) }],
+    ['WebKit: a client-side route change (framenavigated, no document request)', (h) => { h.pageError(); h.commit('http://localhost:3200/editorial/team-profile') }],
+    ['Chromium: a client-side route change while another navigation is unanswered', chromium((h, _nav, bell) => { h.commit('http://localhost:3200/editorial/team-profile'); h.fail(bell) })],
+    ['Chromium: the commit is for a different URL than the answered navigation', chromium((h, nav, bell) => { h.navResponse(nav); h.commit('http://localhost:3200/other'); h.fail(bell) })],
+    ['Chromium: the commit is in a sub-frame', chromium((h, nav, bell) => { h.navResponse(nav); h.commit(DOC, false); h.fail(bell) })],
+    ['Chromium: the navigation request is in a sub-frame', (h) => { const n = h.nav(DOC, null, false); const b = h.bell(); h.navResponse(n); h.commit(); h.fail(b) }],
+    ['Chromium: the navigation was answered by a redirect only', chromium((h, nav, bell) => { h.navResponse(nav, 302); h.commit(); h.fail(bell) })],
+    ['Chromium: the navigation was answered with a 204, which has no document', chromium((h, nav, bell) => { h.navResponse(nav, 204); h.commit(); h.fail(bell) })],
+    ['Chromium: the aborted request was never seen starting', (h) => { const n = h.nav(); h.navResponse(n); h.commit(); h.failUnseen() }],
+  ])('keeps the failure: %s', (_name, run) => {
     const h = harness()
     run(h)
     expect(h.errors.length).toBeGreaterThan(0)
   })
 
-  it('reports a failing response even when no page error occurs', () => {
+  it.each([
+    ['a connection failure', 'net::ERR_CONNECTION_REFUSED'],
+    ['a timeout', 'net::ERR_TIMED_OUT'],
+    ['a dropped connection', 'The network connection was lost.'],
+    ['a near-miss reason', 'net::ERR_ABORTED2'],
+  ])('keeps %s for the bell fetch even inside a committed navigation', (_name, reason) => {
     const h = harness()
+    const nav = h.nav(); const bell = h.bell(); h.navResponse(nav); h.commit(); h.fail(bell, reason)
+    expect(h.errors).toEqual([`requestfailed: ${URL_} ${reason}`])
+  })
+
+  it.each([
+    ['another url', 'http://localhost:3200/api/editorial/articles', 'GET'],
+    ['a query url', `${URL_}?x=1`, 'GET'],
+    ['another host', 'http://example.com/api/editorial/notifications', 'GET'],
+    ['a PATCH', URL_, 'PATCH'],
+  ])('does not treat an abort of %s as the bell fetch', (_name, url, method) => {
+    const h = harness()
+    const nav = h.nav(); const other = h.bell(url, method); h.navResponse(nav); h.commit(); h.fail(other)
+    expect(h.errors).toEqual([]) // never the bell's fetch, so never recorded and never able to stand in for it
+    const bell = h.bell(); h.fail(bell) // a genuine bell abort afterwards, with no navigation behind it
+    expect(h.errors).toHaveLength(1)
+  })
+
+  it.each([
+    '/localhost:3200/api/editorial/notifications/abc due to access control checks.',
+    '/localhost:3200/api/editorial/notifications?x=1 due to access control checks.',
+    '/localhost:3200/api/editorial/articles due to access control checks.',
+    '/localhost:3200/about?_x=1 due to access control checks.',
+    '/example.com/api/editorial/notifications due to access control checks.',
+    `${MESSAGE} and more`,
+    'TypeError: Load failed',
+  ])('keeps a different page error inside a committed navigation: %s', (message) => {
+    expect(isNotificationPollErrorMessage(message)).toBe(false)
+    const h = harness()
+    const nav = h.nav(); h.pageError(message); h.navResponse(nav); h.commit()
+    expect(h.errors).toEqual([`pageerror: ${message}`])
+  })
+
+  it.each([401, 403, 500])('still reports a notifications response of %i inside a committed navigation', (status) => {
+    const h = harness()
+    const nav = h.nav(); const bell = h.bell(); h.navResponse(nav); h.commit(); h.fail(bell)
+    h.responded(status)
+    expect(h.errors).toEqual([`notifications responded ${status}: ${URL_}`])
+  })
+
+  it('does not report a 200, and reports a response on its own without any navigation', () => {
+    const h = harness()
+    h.responded(200)
+    expect(h.errors).toEqual([])
     h.responded(500)
     expect(h.errors).toEqual([`notifications responded 500: ${URL_}`])
   })
 
-  it('reports a non-cancel failure even when no page error occurs', () => {
+  it('keeps console errors, uncaught exceptions and other failures that occur during the same navigation', () => {
     const h = harness()
-    h.failed('The network connection was lost.')
+    const nav = h.nav(); const bell = h.bell()
+    h.consoleError('Something broke')
+    h.pageError('TypeError: boom')
+    h.responded(500)
+    h.navResponse(nav); h.commit(); h.fail(bell)
+    expect(h.errors).toEqual([
+      'Something broke @ http://localhost:3200/',
+      'pageerror: TypeError: boom',
+      `notifications responded 500: ${URL_}`,
+    ])
+  })
+})
+
+describe('one navigation explains one fetch, not a stream of failures', () => {
+  it('two aborts in one window: one stays', () => {
+    const h = harness()
+    const nav = h.nav(); const first = h.bell(); const second = h.bell(); h.navResponse(nav); h.commit(); h.fail(first); h.fail(second)
     expect(h.errors).toHaveLength(1)
   })
 
-  it('does not tolerate page errors that differ from the exact message', () => {
-    for (const message of [
-      '/localhost:3200/api/editorial/notifications/abc due to access control checks.',
-      '/localhost:3200/api/editorial/notifications?x=1 due to access control checks.',
-      '/localhost:3200/api/editorial/articles due to access control checks.',
-      '/example.com/api/editorial/notifications due to access control checks.',
-      `${MESSAGE} and more`,
-      'TypeError: Load failed',
-    ]) {
-      expect(isNotificationPollErrorMessage(message)).toBe(false)
+  it('two page errors in one window: one stays', () => {
+    const h = harness()
+    const nav = h.nav(); h.pageError(); h.pageError(); h.navResponse(nav); h.commit()
+    expect(h.errors).toEqual([`pageerror: ${MESSAGE}`])
+  })
+
+  it('a WebKit request-level cancel is not an error either way it is spelled, and does not use up the window', () => {
+    for (const reason of [CANCELLED, 'cancelled']) {
       const h = harness()
-      h.failed('Load request cancelled'); h.responded(200); h.pageError(message)
-      expect(h.errors).toHaveLength(1)
+      const bell = h.bell(); h.fail(bell, reason) // WebKit can deliver this before the navigation request event
+      expect(h.errors).toEqual([])
+      const nav = h.nav(); h.pageError(); h.navResponse(nav); h.commit()
+      expect(h.errors).toEqual([]) // the page error is explained by the window; the cancel never counted
     }
+  })
+
+  it('a second failure after the window has been used up stays visible', () => {
+    const h = harness()
+    const nav = h.nav(); const bell = h.bell(); h.navResponse(nav); h.commit(); h.fail(bell)
+    expect(h.errors).toEqual([])
+    const later = h.bell(); h.fail(later) // the new document's own fetch, aborted for another reason
+    h.pageError()
+    expect(h.errors).toHaveLength(2)
+  })
+
+  it('each navigation explains its own failure, and no more', () => {
+    const h = harness()
+    const first = h.nav(); const bell1 = h.bell(); h.navResponse(first); h.commit(); h.fail(bell1)
+    const second = h.nav(`${DOC}/next`); const bell2 = h.bell(); h.navResponse(second); h.commit(`${DOC}/next`); h.fail(bell2)
+    expect(h.errors).toEqual([])
+    const third = h.bell(); h.fail(third)
+    expect(h.errors).toHaveLength(1)
+  })
+
+  it('a later commit with no navigation request of its own explains nothing', () => {
+    const h = harness()
+    const nav = h.nav(); const bell1 = h.bell(); h.navResponse(nav); h.commit(); h.fail(bell1)
+    const bell2 = h.bell(); h.fail(bell2)
+    h.commit(`${DOC}/pushed`) // a client-side route change
+    expect(h.errors).toHaveLength(1)
+  })
+})
+
+describe('exact matching helpers', () => {
+  it('matches only the exact same-origin bell url and the exact page error', () => {
+    expect(isNotificationPollUrl(URL_)).toBe(true)
+    expect(isNotificationPollUrl(`${URL_}?x=1`)).toBe(false)
     expect(isNotificationPollUrl('http://example.com/api/editorial/notifications')).toBe(false)
-  })
-
-  describe('Chromium net::ERR_ABORTED', () => {
-    it('tolerates the bell fetch aborted by a main-frame navigation that started after it, with no replacement', () => {
-      const h = harness()
-      const bell = h.start(); h.navigate(); h.abort(bell)
-      expect(h.errors).toEqual([])
-    })
-
-    it('tolerates it when the navigation event is seen only after the abort', () => {
-      const h = harness()
-      const bell = h.start(); h.abort(bell)
-      expect(h.errors).toHaveLength(1)
-      h.navigate()
-      expect(h.errors).toEqual([])
-    })
-
-    it.each([
-      ['no navigation at all', (h: ReturnType<typeof harness>) => { h.abort(h.start()) }],
-      ['navigation started before the bell request', (h: ReturnType<typeof harness>) => { h.navigate(); h.abort(h.start()) }],
-      ['navigation in a sub-frame only', (h: ReturnType<typeof harness>) => { const b = h.start(); h.navigate(false); h.abort(b) }],
-      ['abort of a request that was never seen starting', (h: ReturnType<typeof harness>) => { h.navigate(); h.failed('net::ERR_ABORTED') }],
-      ['a different failure after navigation', (h: ReturnType<typeof harness>) => { const b = h.start(); h.navigate(); h.abort(b, 'net::ERR_CONNECTION_REFUSED') }],
-      ['a 500 after navigation', (h: ReturnType<typeof harness>) => { h.start(); h.navigate(); h.responded(500) }],
-      ['a 401 after navigation', (h: ReturnType<typeof harness>) => { h.start(); h.navigate(); h.responded(401) }],
-    ])('keeps evidence: %s', (_name, run) => {
-      const h = harness()
-      run(h)
-      expect(h.errors.length).toBeGreaterThan(0)
-    })
-
-    it.each([
-      ['another url', 'http://localhost:3200/api/editorial/articles', 'GET'],
-      ['a query url', `${URL_}?x=1`, 'GET'],
-      ['a PATCH', URL_, 'PATCH'],
-    ])('does not let an abort of %s explain, or stand in for, the bell abort', (_name, url, method) => {
-      const h = harness()
-      const other = h.start(url, method); h.abort(other) // not the bell fetch: never tolerated, never recorded
-      expect(h.errors).toEqual([])
-      const bell = h.start(); h.abort(bell) // a real bell abort with no navigation behind it
-      expect(h.errors).toHaveLength(1)
-    })
-
-    it('tolerates only the aborts a navigation explains', () => {
-      const h = harness()
-      const first = h.start(); h.navigate(); h.abort(first)
-      const second = h.start(); h.abort(second) // no navigation since this one started
-      expect(h.errors).toHaveLength(1)
-    })
-  })
-
-  // The navigation was already pending when the bell request started (CI: team-profile mobile, `goto` right after sign-in).
-  describe('Chromium net::ERR_ABORTED, navigation already pending', () => {
-    type H = ReturnType<typeof harness>
-    it('tolerates: navigation request, bell starts, document commits, bell aborts', () => {
-      const h = harness()
-      const nav = h.docNav(); const bell = h.start(); h.docResponse(nav); h.commit(); h.abort(bell)
-      expect(h.errors).toEqual([])
-    })
-
-    it('tolerates the abort arriving before the commit, once the commit is confirmed', () => {
-      const h = harness()
-      const nav = h.docNav(); const bell = h.start(); h.docResponse(nav); h.abort(bell)
-      expect(h.errors).toHaveLength(1)
-      h.commit()
-      expect(h.errors).toEqual([])
-    })
-
-    it('tolerates the commit being seen before the navigation response event', () => {
-      const h = harness()
-      const nav = h.docNav(); const bell = h.start(); h.abort(bell); h.commit()
-      expect(h.errors).toHaveLength(1)
-      h.docResponse(nav)
-      expect(h.errors).toEqual([])
-    })
-
-    it('tolerates a hash-only difference between the request and the committed URL', () => {
-      const h = harness()
-      const nav = h.docNav(`${DOC}#top`); const bell = h.start(); h.docResponse(nav); h.commit(DOC); h.abort(bell)
-      expect(h.errors).toEqual([])
-    })
-
-    it.each([
-      ['the document committed before the bell request started', (h: H) => { const n = h.docNav(); h.docResponse(n); h.commit(); h.abort(h.start()) }],
-      ['the navigation never commits', (h: H) => { const n = h.docNav(); const b = h.start(); h.docResponse(n); h.abort(b) }],
-      ['the navigation never gets a response, though a commit is seen', (h: H) => { h.docNav(); const b = h.start(); h.commit(); h.abort(b) }],
-      ['a commit with no navigation request behind it', (h: H) => { const b = h.start(); h.commit(); h.abort(b) }],
-      ['a client-side route change (framenavigated, no document request)', (h: H) => { const b = h.start(); h.commit('http://localhost:3200/editorial/team-profile'); h.abort(b) }],
-      ['a client-side route change while another document navigation is still unanswered', (h: H) => { h.docNav(); const b = h.start(); h.commit('http://localhost:3200/editorial/team-profile'); h.abort(b) }],
-      ['a commit for a different URL than the answered navigation', (h: H) => { const n = h.docNav(); const b = h.start(); h.docResponse(n); h.commit('http://localhost:3200/other'); h.abort(b) }],
-      ['a commit in a sub-frame only', (h: H) => { const n = h.docNav(); const b = h.start(); h.docResponse(n); h.commit(DOC, false); h.abort(b) }],
-      ['a redirect response, which commits nothing', (h: H) => { const n = h.docNav(); const b = h.start(); h.docResponse(n, 302); h.commit(); h.abort(b) }],
-      ['a 204 response, which has no document to commit', (h: H) => { const n = h.docNav(); const b = h.start(); h.docResponse(n, 204); h.commit(); h.abort(b) }],
-      ['a navigation request seen only in a sub-frame', (h: H) => { h.navigate(false); const b = h.start(); h.commit(); h.abort(b) }],
-    ])('keeps evidence: %s', (_name, run) => {
-      const h = harness()
-      run(h)
-      expect(h.errors.length).toBeGreaterThan(0)
-    })
-
-    it.each([
-      ['another url', 'http://localhost:3200/api/editorial/articles', 'GET', 'net::ERR_ABORTED'],
-      ['a query url', `${URL_}?x=1`, 'GET', 'net::ERR_ABORTED'],
-      ['a PATCH', URL_, 'PATCH', 'net::ERR_ABORTED'],
-      ['a connection failure', URL_, 'GET', 'net::ERR_CONNECTION_REFUSED'],
-      ['a timeout', URL_, 'GET', 'net::ERR_TIMED_OUT'],
-    ])('does not tolerate %s even with a pending navigation and a commit', (_name, url, method, reason) => {
-      const h = harness()
-      const nav = h.docNav(); const request = h.start(url, method); h.docResponse(nav); h.commit(); h.abort(request, reason)
-      // Other URLs and methods are never recorded at all; the same-url failures stay recorded.
-      if (url === URL_ && method === 'GET') expect(h.errors).toHaveLength(1)
-      else expect(h.errors).toEqual([])
-    })
-
-    it.each([401, 403, 500])('still reports a notifications response of %i after a pending navigation committed', (status) => {
-      const h = harness()
-      const nav = h.docNav(); const bell = h.start(); h.docResponse(nav); h.commit(); h.abort(bell)
-      h.responded(status)
-      expect(h.errors).toEqual([`notifications responded ${status}: ${URL_}`])
-    })
-
-    it('keeps other console errors, page exceptions and WebKit-style page errors', () => {
-      const h = harness()
-      const nav = h.docNav(); const bell = h.start(); h.docResponse(nav); h.commit(); h.abort(bell)
-      h.pageError('TypeError: boom')
-      h.pageError()
-      expect(h.errors).toEqual(['pageerror: TypeError: boom', `pageerror: ${MESSAGE}`])
-    })
-
-    it('lets one commit explain only one abort', () => {
-      const h = harness()
-      const nav = h.docNav(); const first = h.start(); const second = h.start()
-      h.docResponse(nav); h.commit(); h.abort(first); h.abort(second)
-      expect(h.errors).toHaveLength(1)
-    })
-
-    it('does not let a commit clear an abort of a bell request that started after it', () => {
-      const h = harness()
-      const nav = h.docNav(); const early = h.start(); h.docResponse(nav); h.commit(); h.abort(early)
-      const late = h.start(); h.abort(late)
-      expect(h.errors).toHaveLength(1)
-    })
-
-    it('does not let one commit explain aborts of two different navigations', () => {
-      const h = harness()
-      const first = h.docNav(); const bell1 = h.start(); h.docResponse(first); h.commit(); h.abort(bell1)
-      const bell2 = h.start(); h.abort(bell2)
-      h.commit() // a later commit with no navigation request/response of its own
-      expect(h.errors).toHaveLength(1)
-    })
+    expect(isNotificationPollErrorMessage(MESSAGE)).toBe(true)
   })
 })

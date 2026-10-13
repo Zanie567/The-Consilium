@@ -7,7 +7,7 @@ import {
   resetTeamFixtures,
   type AccountKey,
 } from './helpers/teamFixtures'
-import { ArticleEditorPage } from './helpers/workflow'
+import { ArticleEditorPage, hydrated } from './helpers/workflow'
 import { makePng, watch } from './helpers/e2eUtils'
 
 /**
@@ -686,9 +686,12 @@ test.describe('layout', () => {
 
   test('mobile: reachable from the menu, usable, and nothing overflows the screen', async ({ browser }) => {
     const { context, page, errors } = await loginAs(browser, 'linked', { viewport: { width: 375, height: 740 } })
-    await page.goto('/editorial')
+    // Signing in already lands on /editorial, as a new document: no second load of the same page.
+    await expect(page).toHaveURL(/\/editorial$/)
     // First-visit cookie banner is fixed to the bottom and covers Save on a phone until dismissed.
-    await page.getByRole('button', { name: 'Decline' }).click()
+    const decline = page.getByRole('button', { name: 'Decline' })
+    await hydrated(decline, 'onClick')
+    await decline.click()
     await page.getByRole('button', { name: 'Open navigation menu' }).click()
     await sidebarLink(page).click()
     await expect(page).toHaveURL(/\/editorial\/team-profile$/)
