@@ -4,7 +4,7 @@ import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ALL_ROLES } from '@/lib/rbac'
 import { MAX_BIO_LENGTH, MAX_NAME_LENGTH } from '@/lib/constants'
-import { validateDisplayTitles } from '@/lib/displayTitles'
+import { readDisplayTitles, validateDisplayTitles } from '@/lib/displayTitles'
 import { removeTeamPhoto } from '@/lib/teamPhotoStorage'
 import { isInOwnAvatarFolder, validateAvatarUrl } from '@/lib/avatarUrl'
 import { apiServerErrorResponse } from '@/lib/apiResponse'
@@ -138,7 +138,7 @@ async function PATCHHandler(request: NextRequest) {
       if (!stillUsed) await removeTeamPhoto(before.image, user.id)
     }
 
-    return NextResponse.json(updated)
+    return NextResponse.json({ ...updated, displayTitles: readDisplayTitles(updated.displayTitles) })
   } catch (error) {
     return apiServerErrorResponse(error, {
       operation: 'profile/account:update',

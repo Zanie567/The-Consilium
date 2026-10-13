@@ -270,12 +270,12 @@ suite('Team Members administration (real database)', () => {
       const card = await makeCard('Editable', { userId: writer.id, role: 'Writer' })
       const loaded = (await cardOf(card.id)).updatedAt.toISOString()
 
-      const ok = await update(card.id, { name: `${tag} Editable Renamed`, position: 'Senior Editor', publicTier: 'senior_editor', bio: 'New bio', isActive: true, expectedUpdatedAt: loaded })
+      const ok = await update(card.id, { name: `${tag} Editable Renamed`, position: 'Senior Editor', publicTier: 'editor', bio: 'New bio', isActive: true, expectedUpdatedAt: loaded })
       expect(ok.status).toBe(200)
       // Persisted, and visible to the public.
-      expect(await cardOf(card.id)).toMatchObject({ name: `${tag} Editable Renamed`, role: 'Senior Editor', publicTier: 'senior_editor', bio: 'New bio', isActive: true })
+      expect(await cardOf(card.id)).toMatchObject({ name: `${tag} Editable Renamed`, role: 'Editor', publicTier: 'editor', bio: 'New bio', isActive: true })
       const pub = (await publicNames()).find((m) => m.name === `${tag} Editable Renamed`)
-      expect(pub?.role).toBe('Senior Editor')
+      expect(pub?.role).toBe('Editor')
       // The account's permission is untouched by a title change.
       expect((await db.user.findUniqueOrThrow({ where: { id: writer.id } })).role).toBe('WRITER')
 

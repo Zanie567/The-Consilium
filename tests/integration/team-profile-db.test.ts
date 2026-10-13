@@ -472,7 +472,7 @@ suite('PUT /api/team-profile (real database)', () => {
           include: { user: { select: { email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
         })
         const sections = buildTeamMasthead(buildPublicRoster(rows, []))
-        expect(sections.map((x) => x.id), title).toEqual([title === 'Editor-in-Chief' || title === 'Chief Designer' || title === 'Head of Growth' ? 'masthead' : title === 'Senior Editor' ? 'editorial' : title === 'Writer' ? 'writers' : 'wider'])
+        expect(sections.filter(x => x.rows.length > 0).map((x) => x.id), title).toEqual([title === 'Editor-in-Chief' || title === 'Chief Designer' ? 'masthead' : title === 'Senior Editor' ? 'editorial' : title === 'Writer' ? 'writers' : title === 'Head of Growth' ? 'growth' : 'wider'])
         expect((await db.user.findUniqueOrThrow({ where: { id: target.id } })).role).toBe(role)
       }
     })

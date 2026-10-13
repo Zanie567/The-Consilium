@@ -18,7 +18,39 @@ export default async function TestingPage() {
   let unavailable: string | null = null
   const workspaceLink = testingWorkspaceLink(process.env.TESTING_WORKSPACE_URL)
   try { await requireTestingWorkspace() } catch (error) { unavailable = (error as Error).message }
-  const setup = testingSetupStatus()
+  // A production build can also serve a verified isolated workspace. Only that
+  // successful guard may expose simulations; unavailable production deployments
+  // receive an administrator explanation without developer diagnostics.
+  if (unavailable && (process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production')) {
+    return (
+      <div className="max-w-3xl p-4 sm:p-6 lg:p-8">
+        <header className="mb-6 pl-10 md:pl-0">
+          <p className="mb-2 text-xs font-bold uppercase tracking-widest text-[var(--fg-muted)]">Editorial workspace</p>
+          <h1 className="text-2xl font-bold sm:text-3xl" style={{ fontFamily: 'var(--font-serif)' }}>Testing Mode</h1>
+        </header>
+        <section aria-labelledby="isolated-heading" className="border border-[var(--border)] bg-[var(--bg-subtle)] p-5 sm:p-8">
+          <p className="mb-4 text-xs font-bold uppercase tracking-widest text-[var(--fg-muted)]" data-testid="testing-environment">Live website · protected</p>
+          <h2 id="isolated-heading" className="mb-4 text-xl font-bold sm:text-2xl" style={{ fontFamily: 'var(--font-serif)' }}>
+            Testing Mode is available in an isolated workspace
+          </h2>
+          <p className="text-sm leading-relaxed text-[var(--fg-muted)]">
+            To protect the live website and its data, role simulations are only available in a separate testing environment.
+            You can test the Writer, Editor and Growth experiences without affecting real articles or accounts.
+          </p>
+          {workspaceLink ? (
+            <a href={workspaceLink} className="mt-6 inline-flex min-h-11 items-center justify-center border border-gold/40 bg-navy px-5 py-3 text-center text-sm font-semibold text-cream hover:bg-navy/90">
+              Open the testing environment
+            </a>
+          ) : (
+            <p className="mt-6 border-t border-[var(--border)] pt-4 text-sm text-[var(--fg-muted)]">
+              An isolated testing workspace has not been configured. A developer can arrange one separately.
+            </p>
+          )}
+        </section>
+      </div>
+    )
+  }
+  const setup = unavailable ? testingSetupStatus() : null
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-4xl">
@@ -45,7 +77,7 @@ export default async function TestingPage() {
           <section aria-labelledby="checklist-heading" className="space-y-2">
             <h2 id="checklist-heading" className="text-lg font-bold">What this deployment is missing</h2>
             <ul className="divide-y divide-[var(--border)] border border-[var(--border)]" data-testid="testing-checklist">
-              {setup.checks.map((check) => (
+              {setup?.checks.map((check) => (
                 <li key={check.id} className="p-3 text-sm">
                   <p className="font-semibold">
                     <span aria-hidden className={check.ok ? 'text-emerald-600' : 'text-red-500'}>{check.ok ? '✓' : '✗'}</span>{' '}
@@ -54,7 +86,7 @@ export default async function TestingPage() {
                   {!check.ok && <p className="mt-0.5 text-xs opacity-80">{check.hint}</p>}
                 </li>
               ))}
-              {setup.ready && (
+              {setup?.ready && (
                 <li className="p-3 text-sm">
                   <p className="font-semibold"><span aria-hidden className="text-red-500">✗</span> <span className="sr-only">Not met: </span>The database is attested as this workspace</p>
                   <p className="mt-0.5 text-xs opacity-80">Run <code>npm run testing:seed</code> against this database so it carries this workspace’s marker and the five test personas.</p>

@@ -14,16 +14,16 @@ describe('resolveTeamTier', () => {
   it('maps the publication roles onto ordered tiers', () => {
     expect(resolveTeamTier('Editor-in-Chief')).toBe('editor_in_chief')
     expect(resolveTeamTier('Chief Designer')).toBe('leadership')
-    expect(resolveTeamTier('Senior Editor')).toBe('senior_editor')
+    expect(resolveTeamTier('Senior Editor')).toBe('editor')
     expect(resolveTeamTier('Editor')).toBe('editor')
-    expect(resolveTeamTier('Junior Editor')).toBe('junior_editor')
+    expect(resolveTeamTier('Junior Editor')).toBe('editor')
     expect(resolveTeamTier('Writer')).toBe('writer')
   })
 
   it('is insensitive to casing, punctuation and spacing', () => {
     expect(resolveTeamTier('  EDITOR IN CHIEF ')).toBe('editor_in_chief')
     expect(resolveTeamTier('editor–in–chief')).toBe('editor_in_chief')
-    expect(resolveTeamTier('senior  editor')).toBe('senior_editor')
+    expect(resolveTeamTier('senior  editor')).toBe('editor')
   })
 
   it('keeps deputy and acting titles out of the Editor-in-Chief slot', () => {
@@ -36,15 +36,15 @@ describe('resolveTeamTier', () => {
     expect(resolveTeamTier('Creative Director')).toBe('leadership')
     expect(resolveTeamTier('Managing Editor')).toBe('editor')
     expect(resolveTeamTier('Copy Editor')).toBe('editor')
-    expect(resolveTeamTier('Assistant Editor')).toBe('junior_editor')
+    expect(resolveTeamTier('Assistant Editor')).toBe('editor')
     expect(resolveTeamTier('Contributing Writer')).toBe('writer')
     expect(resolveTeamTier('Columnist')).toBe('writer')
   })
 
   it('routes unrecognised roles to the wider-team tier instead of dropping them', () => {
-    expect(resolveTeamTier('Social Media Manager')).toBe('other')
-    expect(resolveTeamTier('Growth Lead')).toBe('other')
-    expect(resolveTeamTier('Digital Operations')).toBe('other')
+    expect(resolveTeamTier('Social Media Manager')).toBe('growth')
+    expect(resolveTeamTier('Growth Lead')).toBe('growth')
+    expect(resolveTeamTier('Digital Operations')).toBe('growth')
   })
 
   it('does not infer seniority for a missing role', () => {
@@ -79,9 +79,34 @@ describe('buildTeamMasthead', () => {
 
   it('builds masthead, editorial, writers and wider-team sections in order', () => {
     const sections = buildTeamMasthead(roster)
-    expect(sections.map((s) => s.id)).toEqual(['masthead', 'editorial', 'writers', 'wider'])
+    expect(sections.map((s) => s.id)).toEqual(['masthead', 'editorial', 'writers', 'growth'])
     expect(sections[0].rows.map((r) => r.tier)).toEqual(['editor_in_chief', 'leadership'])
-    expect(sections[1].rows.map((r) => r.tier)).toEqual(['senior_editor', 'junior_editor'])
+    expect(sections[1].rows.map((r) => r.tier)).toEqual(['editor'])
+  })
+
+  it('collapses legacy explicit placements into one equal editor row without changing records', () => {
+    const records = [
+      { ...member('Old Senior', 'Senior Editor', 30), publicTier: 'senior_editor' },
+      { ...member('Old Junior', 'Junior Editor', 10), publicTier: 'junior_editor' },
+      { ...member('Editor', 'Editor', 20), publicTier: 'editor' },
+    ]
+    const before = JSON.stringify(records)
+    const editorial = buildTeamMasthead(records).find(s => s.id === 'editorial')!
+    expect(editorial.rows).toHaveLength(1)
+    expect(editorial.rows[0].tier).toBe('editor')
+    expect(editorial.rows[0].members.map(m => m.order)).toEqual([10, 20, 30])
+    expect(JSON.stringify(records)).toBe(before)
+  })
+
+  it('keeps Growth leadership titles at the same level as ordinary Growth members', () => {
+    const sections = buildTeamMasthead([
+      member('Lead', 'Head of Growth', 20),
+      member('Member', 'Growth & Communications', 10),
+      member('Writer', 'Writer', 1),
+    ])
+    expect(sections.map(s => s.id)).toEqual(['editorial', 'writers', 'growth'])
+    expect(sections[2].rows).toHaveLength(1)
+    expect(sections[2].rows[0].members.map(m => m.name)).toEqual(['Member', 'Lead'])
   })
 
   it('puts the Editor-in-Chief alone at the top', () => {
@@ -106,9 +131,9 @@ describe('buildTeamMasthead', () => {
       member('Whitespace Untitled', '   ', 3),
       member('Null Untitled', null, 4),
     ])
-    expect(sections.map((s) => s.id)).toEqual(['masthead', 'wider'])
+    expect(sections.map((s) => s.id)).toEqual(['masthead', 'editorial', 'writers', 'growth', 'wider'])
     expect(sections[0].rows.map((r) => r.tier)).toEqual(['editor_in_chief'])
-    const wider = sections[1]
+    const wider = sections.find(s => s.id === 'wider')!
     expect(wider.rows[0].tier).toBe('other')
     expect(wider.rows[0].members.map((m) => m.name)).toEqual([
       'Newcomer Untitled',
@@ -118,11 +143,11 @@ describe('buildTeamMasthead', () => {
   })
 
   it('only trusted placement can promote an untitled card; a name cannot', () => {
-    expect(buildTeamMasthead([member('Lucas Dwyer', '', 1)])[0].id).toBe('wider')
+    expect(buildTeamMasthead([member('Lucas Dwyer', '', 1)]).find(s => s.rows.length > 0)?.id).toBe('wider')
     expect(buildTeamMasthead([{ ...member('Unrelated', '', 1), publicTier: 'leadership' }])[0].id).toBe('masthead')
   })
 
-  it('orders senior editors ahead of editors and junior editors', () => {
+  it('orders all ordinary editors equally by display order', () => {
     const sections = buildTeamMasthead([
       member('Junior', 'Junior Editor', 1),
       member('Plain', 'Editor', 2),
@@ -130,9 +155,9 @@ describe('buildTeamMasthead', () => {
     ])
     const editorial = sections.find((s) => s.id === 'editorial')
     expect(editorial?.rows.flatMap((r) => r.members.map((m) => m.name))).toEqual([
-      'Senior',
-      'Plain',
       'Junior',
+      'Plain',
+      'Senior',
     ])
   })
 
@@ -156,12 +181,12 @@ describe('buildTeamMasthead', () => {
 
   it('omits empty rows and sections', () => {
     const sections = buildTeamMasthead([member('Solo Writer', 'Writer', 1)])
-    expect(sections.map((s) => s.id)).toEqual(['writers'])
-    expect(sections[0].rows).toHaveLength(1)
+    expect(sections.map((s) => s.id)).toEqual(['editorial', 'writers', 'growth'])
+    expect(sections.find(s => s.id === 'writers')?.rows).toHaveLength(1)
   })
 
-  it('returns nothing for an empty roster', () => {
-    expect(buildTeamMasthead([])).toEqual([])
+  it('preserves the ordinary team sections for an empty roster', () => {
+    expect(buildTeamMasthead([]).map(s => s.id)).toEqual(['editorial', 'writers', 'growth'])
   })
 })
 
@@ -203,6 +228,6 @@ describe('upgrade pyramid', () => {
     expect(expected[0].rows[1].members.map((m) => m.id)).toEqual(['deputy1', 'deputy2'])
     expect(expected[1].label).toBe('Editorial Team')
     expect(expected[3].label).toBe('Growth & Comms')
-    expect(buildTeamMasthead([members[0]])).toHaveLength(1)
+    expect(buildTeamMasthead([members[0]])).toHaveLength(4)
   })
 })

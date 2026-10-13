@@ -282,7 +282,7 @@ suite('member onboarding lifecycle (real database)', () => {
     },
     {
       role: 'EDITOR' as const,
-      position: 'Senior Editor',
+      position: 'Editor',
       section: 'editorial',
       can: { writeArticles: true, manageUsers: true, analytics: false, admin: false },
     },
@@ -343,7 +343,7 @@ suite('member onboarding lifecycle (real database)', () => {
 
     it('they add a display name, photo and bio, but cannot set title, placement, role or visibility', async () => {
       actingAs(userId)
-      for (const forged of [{ role: 'ADMIN' }, { publicTier: 'senior_editor' }, { position: 'Editor-in-Chief' }, { isActive: 'true' }, { order: '0' }]) {
+      for (const forged of [{ role: 'ADMIN' }, { publicTier: 'editor' }, { position: 'Editor-in-Chief' }, { isActive: 'true' }, { order: '0' }]) {
         expect((await put({ bio: 'x', ...forged })).status).toBe(400)
       }
       const res = await put({ name: 'Jane D.', bio: 'I write about money.', image: photo() })
@@ -360,13 +360,13 @@ suite('member onboarding lifecycle (real database)', () => {
       const row = (await listMembers()).find((m) => m.email === address)!
       expect(row).toMatchObject({ accountStatus: 'active', profileStatus: 'hidden', position: defaultTitle })
 
-      const res = await patch(admin.id, row.id, { position, publicTier: section === 'writers' ? 'writer' : section === 'editorial' ? 'senior_editor' : 'growth', order: 7, visible: true })
+      const res = await patch(admin.id, row.id, { position, publicTier: section === 'writers' ? 'writer' : section === 'editorial' ? 'editor' : 'growth', order: 7, visible: true })
       expect(res.status).toBe(200)
 
       const cards = await publicCardsFor(userId)
       expect(cards).toHaveLength(1)
       expect(cards[0]).toMatchObject({ name: 'Jane D.', role: position, bio: 'I write about money.' })
-      expect(buildTeamMasthead(cards).map((s) => s.id)).toEqual([section])
+      expect(buildTeamMasthead(cards).filter(s => s.rows.length > 0).map((s) => s.id)).toEqual([section])
       expect((await listMembers()).find((m) => m.email === address)).toMatchObject({ profileStatus: 'published', accountStatus: 'active' })
     })
 
@@ -535,7 +535,7 @@ suite('member onboarding lifecycle (real database)', () => {
   describe('admin permission with a public position', () => {
     it('keeps "Deputy Editor" publicly; the page never says Admin', async () => {
       const address = email('deputy')
-      await invite(admin.id, { email: address, role: 'EDITOR', position: 'Deputy Editor', publicTier: 'senior_editor' })
+      await invite(admin.id, { email: address, role: 'EDITOR', position: 'Deputy Editor', publicTier: 'editor' })
       const { token } = await googleSignIn(address, { name: 'Dee Deputy' })
       const userId = token!.id!
       actingAs(userId)
@@ -552,7 +552,7 @@ suite('member onboarding lifecycle (real database)', () => {
       expect(cards).toHaveLength(1)
       expect(cards[0].role).toBe('Deputy Editor')
       expect(JSON.stringify(cards)).not.toMatch(/admin/i)
-      expect(buildTeamMasthead(cards).map((s) => s.id)).toEqual(['editorial'])
+      expect(buildTeamMasthead(cards).filter(s => s.rows.length > 0).map((s) => s.id)).toEqual(['editorial'])
     })
   })
 

@@ -29,6 +29,13 @@ describe('validateDisplayTitles', () => {
 })
 
 describe('readDisplayTitles', () => {
+  it('maps both legacy editor titles to one Editor and rejects new obsolete appointments', () => {
+    expect(readDisplayTitles(['Senior Editor', 'Junior Editor', 'Editor', 'Deputy Editor-in-Chief'])).toEqual(['Editor', 'Deputy Editor-in-Chief'])
+    expect(validateDisplayTitles(['Senior Editor']).ok).toBe(false)
+    expect(validateDisplayTitles(['Junior Editor']).ok).toBe(false)
+    expect(resolvePublicTitleLabel({ cardTitle: '  junior-editor  ' })).toBe('Editor')
+  })
+
   it('drops anything that is not an allowed, distinct title', () => {
     expect(readDisplayTitles(['Writer', 'Nope', 'Writer', 7])).toEqual(['Writer'])
     expect(readDisplayTitles(undefined)).toEqual([])
@@ -61,7 +68,7 @@ describe('visiblePublicTitleLabel', () => {
   const base = { isActive: true, isBanned: false, displayTitles: [] as string[], teamProfile: null }
 
   it('keeps the old card label for users with no titles', () => {
-    expect(visiblePublicTitleLabel({ ...base, teamProfile: { role: 'Senior Editor', isActive: true } })).toBe('Senior Editor')
+    expect(visiblePublicTitleLabel({ ...base, teamProfile: { role: 'Senior Editor', isActive: true } })).toBe('Editor')
   })
 
   it('is null when there are no titles and no card, so the page prints Contributor', () => {

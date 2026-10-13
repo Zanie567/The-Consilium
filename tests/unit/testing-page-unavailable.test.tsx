@@ -1,18 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-const { redirect } = vi.hoisted(() => ({ redirect: vi.fn((to: string) => { throw new Error(`redirect:${to}`) }) }))
+const { redirect, guard } = vi.hoisted(() => ({ guard: vi.fn(async () => { throw new Error('Testing mode is disabled. Configure a verified isolated workspace.') }), redirect: vi.fn((to: string) => { throw new Error(`redirect:${to}`) }) }))
 vi.mock('next/navigation', () => ({ redirect }))
 vi.mock('next-auth', () => ({ getServerSession: async () => ({ user: { id: 'admin-1' } }) }))
 vi.mock('@/lib/auth', () => ({ authOptions: {}, getVerifiedSessionUser: vi.fn(async () => ({ id: 'admin-1', role: 'ADMIN' })) }))
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('@/lib/testingMode', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/testingMode')>()
-  return { ...actual, requireTestingWorkspace: async () => { throw new Error('Testing mode is disabled. Configure a verified isolated workspace.') } }
+  return { ...actual, requireTestingWorkspace: guard }
 })
 // Client components are not rendered on the unavailable branch; keep their (browser-only) imports out.
-vi.mock('@/components/layout/TestingControls', () => ({ TestingControls: () => null }))
-vi.mock('@/components/admin/TestingScenarios', () => ({ TestingScenarios: () => null }))
+vi.mock('@/components/layout/TestingControls', () => ({ TestingControls: () => <div>Isolated controls</div> }))
+vi.mock('@/components/admin/TestingScenarios', () => ({ TestingScenarios: () => <div>Isolated scenarios</div> }))
 
 import TestingPage from '@/app/admin/testing/page'
 import * as auth from '@/lib/auth'
@@ -21,8 +21,8 @@ const render = async () => renderToStaticMarkup(await TestingPage())
 
 describe('the Testing page on a deployment that is not an isolated workspace', () => {
   const saved = process.env.TESTING_WORKSPACE_URL
-  beforeEach(() => { delete process.env.TESTING_WORKSPACE_URL })
-  afterEach(() => { if (saved === undefined) delete process.env.TESTING_WORKSPACE_URL; else process.env.TESTING_WORKSPACE_URL = saved })
+  beforeEach(() => { delete process.env.TESTING_WORKSPACE_URL; vi.stubEnv('NODE_ENV', 'test'); vi.stubEnv('VERCEL_ENV', ''); guard.mockReset(); guard.mockRejectedValue(new Error('Testing mode is disabled. Configure a verified isolated workspace.')) })
+  afterEach(() => { vi.unstubAllEnvs(); if (saved === undefined) delete process.env.TESTING_WORKSPACE_URL; else process.env.TESTING_WORKSPACE_URL = saved })
 
   it('still says unavailable, but now explains why and what is missing', async () => {
     const html = await render()
@@ -63,6 +63,27 @@ describe('the Testing page on a deployment that is not an isolated workspace', (
       process.env.DATABASE_URL = before.DATABASE_URL
       if (before.RESEND_API_KEY === undefined) delete process.env.RESEND_API_KEY
     }
+  })
+
+  it('shows only the polished isolation explanation on production, with no diagnostics or controls', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    const html = await render()
+    expect(html).toContain('Testing Mode is available in an isolated workspace')
+    expect(html).toContain('An isolated testing workspace has not been configured')
+    for (const forbidden of ['testing-checklist', 'TESTING_MODE_ENABLED', 'How to set it up', 'Unavailable:', 'Isolated controls', 'Isolated scenarios']) expect(html).not.toContain(forbidden)
+    process.env.TESTING_WORKSPACE_URL = 'https://consilium-testing.vercel.app'
+    expect(await render()).toContain('Open the testing environment')
+    process.env.TESTING_WORKSPACE_URL = 'javascript:alert(1)'
+    expect(await render()).not.toContain('href=')
+  })
+
+  it('keeps a verified isolated production build functional', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    guard.mockResolvedValueOnce(undefined as never)
+    const html = await render()
+    expect(html).toContain('Isolated controls')
+    expect(html).toContain('Isolated scenarios')
+    expect(html).not.toContain('testing-checklist')
   })
 
   it('still keeps non-administrators out', async () => {

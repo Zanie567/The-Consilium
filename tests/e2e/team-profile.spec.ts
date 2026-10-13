@@ -543,7 +543,7 @@ test.describe('public Our Team page', () => {
     // Public appointments determine placement for linked and legacy cards with no account (their title is all there is to
     // place them by). An untitled member sorts after a titled one — existing behaviour.
     expect(await names('masthead')).toEqual(['Alexander Escala', 'Julia Stepniak', 'Mira Mismatch', 'Lucas Dwyer'])
-    // The ADMIN-owned chief leads the masthead; senior editors lead Editorial.
+    // The ADMIN-owned chief leads the masthead; every ordinary Editor shares one row.
     const editorialNames = await names('editorial')
     expect(editorialNames[0]).toBe('Satvik Singla')
     expect([...editorialNames].sort()).toEqual(['Annika Sarawgi', 'Edgar Editor', 'Lena Legacy', 'Linda Linked', 'Sam Hunt', 'Satvik Singla'])
@@ -555,8 +555,15 @@ test.describe('public Our Team page', () => {
     expect(await names('growth')).toEqual(['Grace Growth'])
     await expect(page.getByRole('heading', { level: 2, name: 'Growth & Comms' })).toBeVisible()
 
-    // Hierarchy inside Editorial survives linking: Senior before Junior.
+    // Editor ordering follows the saved display order, with equal styling.
     expect(editorialNames.indexOf('Annika Sarawgi')).toBeLessThan(editorialNames.indexOf('Sam Hunt'))
+
+    await expect(page.locator('main')).not.toContainText(/Senior Editor|Junior Editor/)
+    const editorCards = page.locator('section[aria-labelledby="team-editorial"] [data-team-member-id]')
+    const classes = await editorCards.evaluateAll(els => els.map(el => el.className))
+    expect(new Set(classes).size).toBe(1)
+    const sectionIds = await page.locator('section[aria-labelledby^="team-"]').evaluateAll(els => els.map(el => el.getAttribute('aria-labelledby')))
+    expect(sectionIds.indexOf('team-growth')).toBeGreaterThan(sectionIds.indexOf('team-writers'))
 
     const all = await page.locator('section[aria-labelledby^="team-"] h3:visible').allTextContents()
     // Names are not unique identities (independent fixtures may share a name).
@@ -591,7 +598,7 @@ test.describe('public Our Team page', () => {
     await page.goto('/team')
     await expect(page.getByRole('heading', { level: 3, name: 'Grace Growth' })).toHaveCount(0)
     expect(await growthCards.evaluateAll(els => els.map(el => el.getAttribute('data-team-member-id')))).toEqual(before.filter(id => id !== own.id))
-    await expect(page.locator('section[aria-labelledby="team-growth"]')).toHaveCount(before.length > 1 ? 1 : 0)
+    await expect(page.locator('section[aria-labelledby="team-growth"]')).toHaveCount(1)
     } finally { await db().user.update({ where: { id: ids.growth }, data: { isBanned: false } }) }
     await page.goto('/team')
     await expect(page.getByRole('heading', { level: 3, name: 'Grace Growth' })).toHaveCount(1)

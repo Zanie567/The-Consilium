@@ -96,7 +96,7 @@ export function Navbar() {
   }, [mobileOpen])
 
   // Editorial portal has its own navigation - don't render the public navbar there
-  if (pathname.startsWith('/editorial')) return null
+  if (pathname.startsWith('/editorial') || pathname.startsWith('/admin')) return null
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/'

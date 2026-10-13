@@ -131,7 +131,7 @@ const counts = async (email: string) => ({
 
 for (const spec of [
   { role: 'WRITER', label: 'Writer', position: 'Staff Writer', section: 'writers' as const, nav: ['My Articles'], noNav: ['Users', 'Members', 'Analytics'] },
-  { role: 'EDITOR', label: 'Editor', position: 'Senior Editor', section: 'editorial' as const, nav: ['All Articles'], noNav: ['Members'] },
+  { role: 'EDITOR', label: 'Editor', position: 'Editor', section: 'editorial' as const, nav: ['All Articles'], noNav: ['Members'] },
   { role: 'GROWTH', label: 'Growth', position: 'Social Media Lead', section: 'growth' as const, nav: ['Analytics'], noNav: ['Members', 'All Articles'] },
 ] as const) {
   test(`new ${spec.label}: hired by email -> signs up -> role on -> profile -> admin publishes -> Our Team`, async ({ browser }) => {

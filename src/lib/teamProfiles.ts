@@ -5,8 +5,8 @@
  * retain the case-insensitive email bio fallback until safely linked.
  */
 
-import type { MemberTeam } from '@/lib/teamHierarchy'
-import { resolvePublicTitleLabel } from '@/lib/displayTitles'
+import { normalizePublicTier, type MemberTeam } from '@/lib/teamHierarchy'
+import { normalizePublicPosition, resolvePublicTitleLabel } from '@/lib/displayTitles'
 
 export interface TeamMemberRow {
   id: string
@@ -66,6 +66,8 @@ export function resolveTeamMemberBios(
 
     return {
       ...member,
+      role: normalizePublicPosition(member.role),
+      publicTier: normalizePublicTier(member.publicTier),
       bio: accountBio ?? member.bio,
       authorSlug: account?.slug ?? null,
     }
@@ -144,8 +146,8 @@ export function buildPublicRoster(
 
   for (const { user, ...card } of rows) {
     // Explicit public projection: Prisma rows contain internal ownership fields.
-    const row: TeamMemberRow = { id: card.id, name: card.name, role: card.role, bio: card.bio,
-      image: card.image, email: card.email, order: card.order, publicTier: card.publicTier, isActive: card.isActive }
+    const row: TeamMemberRow = { id: card.id, name: card.name, role: normalizePublicPosition(card.role), bio: card.bio,
+      image: card.image, email: card.email, order: card.order, publicTier: normalizePublicTier(card.publicTier), isActive: card.isActive }
     if (row.isActive === false) continue
     if (!user) {
       legacy.push(row)
@@ -207,7 +209,7 @@ export function defaultPublicAppointment(role: string) {
     GROWTH: { role: 'Growth & Communications', publicTier: 'growth' } } as const)[role as 'WRITER' | 'EDITOR' | 'GROWTH'] ?? null
 }
 export function publicAppointmentLabel(card: { role?: string | null; publicTier?: string | null }) {
-  return card.role?.trim() || ({ editor_in_chief: 'Editor-in-Chief', deputy: 'Deputy Editor-in-Chief', leadership: 'Leadership', senior_editor: 'Senior Editor', editor: 'Editor', junior_editor: 'Junior Editor', writer: 'Writer', growth: 'Growth & Communications', other: 'Wider Team' } as Record<string, string>)[card.publicTier ?? 'other'] || 'Wider Team'
+  return (card.role ? normalizePublicPosition(card.role) : '') || ({ editor_in_chief: 'Editor-in-Chief', deputy: 'Deputy Editor-in-Chief', leadership: 'Leadership', senior_editor: 'Editor', editor: 'Editor', junior_editor: 'Editor', writer: 'Writer', growth: 'Growth & Communications', other: 'Wider Team' } as Record<string, string>)[card.publicTier ?? 'other'] || 'Wider Team'
 }
 
 /** Public author labels follow the same owned, visible appointment as the masthead. */
