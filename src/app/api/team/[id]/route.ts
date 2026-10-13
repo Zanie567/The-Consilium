@@ -1,12 +1,12 @@
 import { withTestingAudit } from '@/lib/testingAudit'
-import { TEAM_TIER_ORDER } from '@/lib/teamHierarchy'
 import { NextResponse, NextRequest } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
 import { ADMIN_ONLY } from '@/lib/rbac'
-import { isUniqueViolation } from '@/lib/prismaErrors'
-import { parseLinkTarget } from '../linkTarget'
+import { deleteCard, updateCard } from '@/lib/teamCards'
+import { parseOwnerField, readJsonObject, teamCardErrorResponse } from '@/lib/teamCardRoutes'
 
+// Administrators only. Edits the public card; the owner changes only when `userId` is sent
+// (absent leaves it, null unlinks, an id links) and the whole edit commits or none of it does.
 async function PUTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -17,43 +17,39 @@ async function PUTHandler(
   }
 
   const { id } = await params
+  const body = await readJsonObject(request)
+  if (!body) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  const owner = parseOwnerField(body.userId)
+  if (!owner.ok) return NextResponse.json({ error: 'userId must be a string', code: 'INVALID_FIELD' }, { status: 400 })
+  if (body.expectedUpdatedAt !== undefined && typeof body.expectedUpdatedAt !== 'string') {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
+
   try {
-    const body = await request.json()
-    const { name, role, bio, image, email, order, isActive, userId, publicTier } = body
-
-    if (publicTier != null && publicTier !== '' && !TEAM_TIER_ORDER.includes(publicTier)) {
-      return NextResponse.json({ error: 'Invalid public placement' }, { status: 400 })
-    }
-    const link = await parseLinkTarget(userId)
-    if (!link.ok) return link.response
-
-    const member = await prisma.teamMember.update({
-      where: { id },
-      data: {
-        // Absent leaves the link as it is; null unlinks; an id links.
-        ...(link.userId !== undefined ? { userId: link.userId } : {}),
-        ...(publicTier !== undefined ? { publicTier: publicTier || null } : {}),
-        name,
+    const card = await updateCard(
+      admin,
+      id,
+      {
+        name: body.name,
         // Missing preserves the appointment; explicit null clears the title.
-        ...(role !== undefined ? { role: role ?? '' } : {}),
-        ...(bio !== undefined ? { bio: bio || null } : {}),
-        ...(image !== undefined ? { image: image || null } : {}),
-        ...(email !== undefined ? { email: email || null } : {}),
-        ...(order !== undefined ? { order } : {}),
-        ...(isActive !== undefined ? { isActive } : {}),
+        position: body.position ?? body.role,
+        publicTier: body.publicTier,
+        bio: body.bio,
+        image: body.image,
+        email: body.email,
+        order: body.order,
+        visible: body.visible ?? body.isActive,
       },
-    })
-    return NextResponse.json(member)
+      { expectedUpdatedAt: body.expectedUpdatedAt as string | undefined, userId: owner.userId },
+    )
+    return NextResponse.json(card)
   } catch (error) {
-    if (isUniqueViolation(error)) {
-      return NextResponse.json({ error: 'That account already has a team card.' }, { status: 409 })
-    }
-    return NextResponse.json({ error: 'Failed to update team member' }, { status: 500 })
+    return teamCardErrorResponse(error, 'team-card:update')
   }
 }
 
 async function DELETEHandler(
-  _req: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const admin = await getVerifiedSessionUser(ADMIN_ONLY)
@@ -62,11 +58,12 @@ async function DELETEHandler(
   }
 
   const { id } = await params
+  const body = await readJsonObject(request)
   try {
-    await prisma.teamMember.delete({ where: { id } })
+    await deleteCard(admin, id, { expectedUpdatedAt: typeof body?.expectedUpdatedAt === 'string' ? body.expectedUpdatedAt : undefined })
     return NextResponse.json({ success: true })
-  } catch {
-    return NextResponse.json({ error: 'Failed to delete team member' }, { status: 500 })
+  } catch (error) {
+    return teamCardErrorResponse(error, 'team-card:delete')
   }
 }
 

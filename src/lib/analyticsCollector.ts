@@ -1,5 +1,6 @@
 import { createHash, createHmac } from 'node:crypto'
 import { prisma } from '@/lib/prisma'
+import { publishedArticleWhere } from '@/lib/articleQueries'
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i
 export function referrerOrigin(raw: unknown): string | null {
   try {
@@ -35,7 +36,7 @@ export async function collectAnalytics(body: Record<string, unknown>, now = new 
     }
     if (
       !(await tx.article.findFirst({
-        where: { id: articleId, status: 'PUBLISHED', deletedAt: null },
+        where: publishedArticleWhere({ id: articleId }),
         select: { id: true },
       }))
     )

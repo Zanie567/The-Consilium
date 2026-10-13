@@ -52,6 +52,21 @@ describe('publishedArticleWhere', () => {
   })
 })
 
+describe('hidden debates', () => {
+  it('every public article filter excludes articles of an unpublished or deleted debate, on both sides of the debate', () => {
+    const where = publishedArticleWhere() as Record<string, unknown>
+    for (const side of ['forDebates', 'againstDebates']) {
+      expect(where[side]).toEqual({ none: { OR: [{ deletedAt: { not: null } }, { unpublishedAt: { not: null } }] } })
+    }
+    expect(PUBLISHED_ARTICLE_WHERE).toEqual({ status: 'PUBLISHED', deletedAt: null }) // the base constant is unchanged
+  })
+  it('a caller cannot accidentally drop the exclusion by passing other constraints', () => {
+    const where = publishedArticleWhere({ categoryId: 'c', isDebate: false }) as Record<string, unknown>
+    expect(where.forDebates).toBeDefined()
+    expect(where.againstDebates).toBeDefined()
+  })
+})
+
 describe('cache constants', () => {
   it('exposes a stable articles cache tag', () => {
     expect(ARTICLES_CACHE_TAG).toBe('articles')

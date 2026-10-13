@@ -1,4 +1,5 @@
 import { withTestingAudit } from '@/lib/testingAudit'
+import { revalidateArticleLists } from '@/lib/revalidateArticles'
 import { NextRequest, NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -93,6 +94,8 @@ async function POSTHandler(req: NextRequest) {
     if ('error' in result) {
       return NextResponse.json({ error: result.error }, { status: result.status })
     }
+    // Their articles are gone: expire the public lists, feed and sitemap (after the commit above).
+    revalidateArticleLists()
 
     // Send confirmation to the deleted address
     await sendEmail({

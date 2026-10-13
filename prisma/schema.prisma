@@ -210,6 +210,10 @@ model Article {
   series         Series?       @relation(fields: [seriesId], references: [id])
   seriesOrder    Int?
   deletedAt      DateTime?
+  // Set ONLY by the debate lifecycle when it moves this article PUBLISHED -> ARCHIVED; cleared by the database
+  // (trigger articles_clear_hidden_by_debate) on any other status or trash change. Debate "publish" restores
+  // only articles that still carry it. See migration 20261012100000.
+  hiddenByDebateAt DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -424,6 +428,8 @@ model TeamMember {
   email    String?
   order    Int     @default(0)
   isActive Boolean @default(true)
+  // Optimistic-concurrency token for administrative edits (a stale form is refused, not merged).
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@map("team_members")
 }
@@ -470,11 +476,19 @@ model Debate {
   againstArticle   Article      @relation("AgainstArticle", fields: [againstArticleId], references: [id])
   isActive         Boolean      @default(true)
   closesAt         DateTime?
+  // Public visibility is `deletedAt IS NULL AND unpublishedAt IS NULL` (see
+  // src/lib/debateVisibility.ts). `isActive` stays "the featured debate" and is
+  // independent of both. deletedById is a plain id (not a relation) so the audit
+  // trail survives the deleting admin's own account being removed.
+  unpublishedAt    DateTime?
+  deletedAt        DateTime?
+  deletedById      String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   votes            DebateVote[]
 
   @@index([isActive])
+  @@index([deletedAt, unpublishedAt])
   @@map("debates")
 }
 

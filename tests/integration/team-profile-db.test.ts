@@ -481,11 +481,11 @@ suite('PUT /api/team-profile (real database)', () => {
       await asAdmin('adm-2b')
       const user = await makeUser('GROWTH', 'adm-2b-target')
       const first = await adminCreate(
-        new NextRequest('http://localhost/api/team', { method: 'POST', body: JSON.stringify({ name: 'First', userId: user.id }) }),
+        new NextRequest('http://localhost/api/team', { method: 'POST', body: JSON.stringify({ name: `${tag} Create First`, userId: user.id }) }),
       )
       expect(first.status).toBe(201)
       const second = await adminCreate(
-        new NextRequest('http://localhost/api/team', { method: 'POST', body: JSON.stringify({ name: 'Second', userId: user.id }) }),
+        new NextRequest('http://localhost/api/team', { method: 'POST', body: JSON.stringify({ name: `${tag} Create Second`, userId: user.id }) }),
       )
       expect(second.status).toBe(409)
       const other = await db.teamMember.create({ data: { name: `${tag} adm2b other`, role: 'Writer' } })

@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { publicDebateWhere } from '@/lib/debateVisibility'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +20,7 @@ export async function GET() {
 
 async function activeDebate() {
   const debate = await prisma.debate.findFirst({
-    where: { isActive: true },
+    where: publicDebateWhere({ isActive: true }),
     include: {
       forArticle: {
         select: {

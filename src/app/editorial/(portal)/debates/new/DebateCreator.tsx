@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { TiptapEditor, type TiptapEditorHandle } from '@/components/editor/TiptapEditor'
 
@@ -21,6 +21,9 @@ interface Props {
 
 export function DebateCreator({ authors, categories }: Props) {
   const router = useRouter()
+  const uid = useId()
+  const fid = (name: string) => `${uid}-${name}`
+  const [attempted, setAttempted] = useState(false)
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -48,8 +51,19 @@ export function DebateCreator({ authors, categories }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!title.trim() || !forTitle.trim() || !againstTitle.trim() || !forContent || !againstContent) {
-      setError('Please fill in all required fields and write content for both sides.')
+    const missing = [
+      { id: 'title', label: 'Debate question / title', empty: !title.trim() },
+      { id: 'forTitle', label: 'For article title', empty: !forTitle.trim() },
+      { id: 'forBody', label: 'For article body', empty: !forContent, editor: forEditorRef },
+      { id: 'againstTitle', label: 'Against article title', empty: !againstTitle.trim() },
+      { id: 'againstBody', label: 'Against article body', empty: !againstContent, editor: againstEditorRef },
+    ].filter((f) => f.empty)
+    setAttempted(true)
+    if (missing.length > 0) {
+      setError(`Please complete: ${missing.map((f) => f.label).join(', ')}.`)
+      const first = missing[0]
+      if (first.editor) first.editor.current?.getEditor()?.commands.focus()
+      else document.getElementById(fid(first.id))?.focus()
       return
     }
     setSubmitting(true)
@@ -113,8 +127,11 @@ export function DebateCreator({ authors, categories }: Props) {
           <h2 className="text-sm font-bold text-[var(--fg)] uppercase tracking-widest mb-5">Debate Settings</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <label className={labelCls}>Debate Question / Title *</label>
+              <label htmlFor={fid('title')} className={labelCls}>Debate Question / Title *</label>
               <input
+                id={fid('title')}
+                aria-required="true"
+                aria-invalid={attempted && !title.trim() ? true : undefined}
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -124,8 +141,9 @@ export function DebateCreator({ authors, categories }: Props) {
               />
             </div>
             <div className="sm:col-span-2">
-              <label className={labelCls}>Description (optional)</label>
+              <label htmlFor={fid('description')} className={labelCls}>Description (optional)</label>
               <textarea
+                id={fid('description')}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
@@ -134,8 +152,9 @@ export function DebateCreator({ authors, categories }: Props) {
               />
             </div>
             <div>
-              <label className={labelCls}>Category (optional)</label>
+              <label htmlFor={fid('category')} className={labelCls}>Category (optional)</label>
               <select
+                id={fid('category')}
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 className={inputCls}
@@ -147,8 +166,9 @@ export function DebateCreator({ authors, categories }: Props) {
               </select>
             </div>
             <div>
-              <label className={labelCls}>Closes At (optional)</label>
+              <label htmlFor={fid('closesAt')} className={labelCls}>Closes At (optional)</label>
               <input
+                id={fid('closesAt')}
                 type="datetime-local"
                 value={closesAt}
                 onChange={(e) => setClosesAt(e.target.value)}
@@ -185,8 +205,11 @@ export function DebateCreator({ authors, categories }: Props) {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className={labelCls}>Article Title *</label>
+                <label htmlFor={fid('forTitle')} className={labelCls}>Article Title *</label>
                 <input
+                  id={fid('forTitle')}
+                  aria-required="true"
+                  aria-invalid={attempted && !forTitle.trim() ? true : undefined}
                   type="text"
                   value={forTitle}
                   onChange={(e) => setForTitle(e.target.value)}
@@ -196,8 +219,9 @@ export function DebateCreator({ authors, categories }: Props) {
                 />
               </div>
               <div>
-                <label className={labelCls}>Author *</label>
+                <label htmlFor={fid('forAuthor')} className={labelCls}>Author *</label>
                 <select
+                  id={fid('forAuthor')}
                   value={forAuthorId}
                   onChange={(e) => setForAuthorId(e.target.value)}
                   className={inputCls}
@@ -208,8 +232,9 @@ export function DebateCreator({ authors, categories }: Props) {
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Excerpt (optional)</label>
+                <label htmlFor={fid('forExcerpt')} className={labelCls}>Excerpt (optional)</label>
                 <textarea
+                  id={fid('forExcerpt')}
                   value={forExcerpt}
                   onChange={(e) => setForExcerpt(e.target.value)}
                   rows={2}
@@ -222,6 +247,7 @@ export function DebateCreator({ authors, categories }: Props) {
                 <div className="border border-[var(--border)]">
                   <TiptapEditor
                     ref={forEditorRef}
+                    ariaLabel="For article body"
                     content={forContent}
                     onChange={setForContent}
                   />
@@ -238,8 +264,11 @@ export function DebateCreator({ authors, categories }: Props) {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className={labelCls}>Article Title *</label>
+                <label htmlFor={fid('againstTitle')} className={labelCls}>Article Title *</label>
                 <input
+                  id={fid('againstTitle')}
+                  aria-required="true"
+                  aria-invalid={attempted && !againstTitle.trim() ? true : undefined}
                   type="text"
                   value={againstTitle}
                   onChange={(e) => setAgainstTitle(e.target.value)}
@@ -249,8 +278,9 @@ export function DebateCreator({ authors, categories }: Props) {
                 />
               </div>
               <div>
-                <label className={labelCls}>Author *</label>
+                <label htmlFor={fid('againstAuthor')} className={labelCls}>Author *</label>
                 <select
+                  id={fid('againstAuthor')}
                   value={againstAuthorId}
                   onChange={(e) => setAgainstAuthorId(e.target.value)}
                   className={inputCls}
@@ -261,8 +291,9 @@ export function DebateCreator({ authors, categories }: Props) {
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Excerpt (optional)</label>
+                <label htmlFor={fid('againstExcerpt')} className={labelCls}>Excerpt (optional)</label>
                 <textarea
+                  id={fid('againstExcerpt')}
                   value={againstExcerpt}
                   onChange={(e) => setAgainstExcerpt(e.target.value)}
                   rows={2}
@@ -275,6 +306,7 @@ export function DebateCreator({ authors, categories }: Props) {
                 <div className="border border-[var(--border)]">
                   <TiptapEditor
                     ref={againstEditorRef}
+                    ariaLabel="Against article body"
                     content={againstContent}
                     onChange={setAgainstContent}
                   />
@@ -286,7 +318,7 @@ export function DebateCreator({ authors, categories }: Props) {
 
         {/* Submit */}
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 text-sm">
+          <div role="alert" className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 text-sm">
             {error}
           </div>
         )}

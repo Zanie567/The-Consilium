@@ -1,20 +1,8 @@
 import { randomBytes } from 'node:crypto'
-import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
-import { authOptions } from '@/lib/auth'
+import { realAdministrator } from '@/lib/testingAdmin'
 import { prisma } from '@/lib/prisma'
-import { TESTING_COOKIE, TEST_PERSONAS, PERSONA_ROLES, tokenHash, requireTestingWorkspace, type TestPersona } from '@/lib/testingMode'
-
-async function realAdministrator(request: NextRequest) {
-  // Require an Origin even when directly invoking this handler (not just proxy).
-  if (request.headers.get('origin') !== new URL(process.env.NEXTAUTH_URL ?? request.url).origin) return null
-  await requireTestingWorkspace()
-  const session = await getServerSession(authOptions)
-  const id = session?.testing?.administratorId ?? session?.user.id
-  if (!id) return null
-  const user = await prisma.user.findUnique({ where: { id } })
-  return user?.role === 'ADMIN' && user.isActive && !user.isBanned && user.emailVerified ? user : null
-}
+import { TESTING_COOKIE, TEST_PERSONAS, PERSONA_ROLES, tokenHash, type TestPersona } from '@/lib/testingMode'
 
 export async function POST(request: NextRequest) {
   try {
