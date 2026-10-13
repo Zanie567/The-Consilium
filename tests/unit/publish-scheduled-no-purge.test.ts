@@ -101,6 +101,39 @@ describe('publishScheduledArticles', () => {
   })
 })
 
+describe('POST /api/publish-scheduled response contract (read by the Supabase reconciler)', () => {
+  const due = { id: 'a1', title: 'T', slug: 's', authorId: 'u1', seriesId: null, author: { id: 'u1', email: 'w@example.com', name: 'W' } }
+
+  it('keeps numeric `due` and `published` and an array `warnings` on a run that published', async () => {
+    prismaMock.article.findMany.mockResolvedValue([due])
+    prismaMock.article.updateMany.mockResolvedValue({ count: 1 })
+    prismaMock.notification.create.mockResolvedValue({})
+    const body = await (await POST(authed())).json()
+    expect(typeof body.due).toBe('number')
+    expect(typeof body.published).toBe('number')
+    expect(Array.isArray(body.warnings)).toBe(true)
+    expect(body).toMatchObject({ due: 1, published: 1 })
+  })
+
+  it('reports a non-fatal failure as a warning while still answering 200', async () => {
+    prismaMock.article.findMany.mockResolvedValue([due])
+    prismaMock.article.updateMany.mockResolvedValue({ count: 1 })
+    prismaMock.notification.create.mockRejectedValue(new Error('db hiccup'))
+    const res = await POST(authed())
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.published).toBe(1)
+    expect(body.warnings).toEqual([expect.objectContaining({ articleId: 'a1', stage: 'notification' })])
+  })
+
+  it('answers 500 with a JSON error (never a 2xx) when the database is unavailable', async () => {
+    prismaMock.article.findMany.mockRejectedValue(new Error('connection refused'))
+    const res = await POST(authed())
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'connection refused' })
+  })
+})
+
 describe('POST /api/publish-scheduled', () => {
   it('an empty run deletes nothing and says so by construction: no purge key in any response', async () => {
     prismaMock.article.findMany.mockResolvedValue([])

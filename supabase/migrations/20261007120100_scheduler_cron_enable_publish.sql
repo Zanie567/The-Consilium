@@ -6,7 +6,8 @@
 -- Apply ONLY after, in this order:
 --   1. the purge fix (PR #118) is merged and deployed and verified in production;
 --   2. 20261007120000_scheduler_cron_infrastructure.sql is applied;
---   3. the Vault secret `cron_secret` exists and equals the production CRON_SECRET;
+--   3. the Vault secret `publish_cron_secret` exists and equals the production PUBLISH_CRON_SECRET
+--      (a dedicated, publish-only secret; it is NOT the shared CRON_SECRET and must never equal it);
 --   4. a controlled `select public.invoke_publish_scheduled();` returned a request id and the
 --      recorded status_code is 200.
 --
@@ -23,6 +24,13 @@
 -- =============================================================================
 
 DO $$
+DECLARE
+  -- THE PUBLISH INTERVAL. This is the single source of truth for a fresh install. Standard 5-field cron
+  -- (UTC; `cron.timezone` is GMT on Supabase) or pg_cron's "N seconds" form (1-59). Keep it at one minute or
+  -- slower: the reconciler, the 10-minute `lost` threshold and the cadence check in the runbook assume it.
+  -- To change a LIVE schedule without re-running this file, see "Changing the interval" in
+  -- docs/scheduler-supabase-cron.md (cron.alter_job), then update this value so the two do not drift.
+  v_schedule CONSTANT TEXT := '*/5 * * * *';
 BEGIN
   IF to_regclass('cron.job') IS NULL THEN
     RAISE EXCEPTION 'Refusing to schedule the publisher: pg_cron is not installed. Apply 20261007120000_scheduler_cron_infrastructure.sql first.';
@@ -36,8 +44,8 @@ BEGIN
 
   -- Existence only: never decrypt here.
   IF to_regclass('vault.secrets') IS NULL
-     OR NOT EXISTS (SELECT 1 FROM vault.secrets WHERE name = 'cron_secret') THEN
-    RAISE EXCEPTION 'Refusing to schedule the publisher: Vault secret "cron_secret" does not exist. Create it first (see docs/scheduler-supabase-cron.md, step 3).';
+     OR NOT EXISTS (SELECT 1 FROM vault.secrets WHERE name = 'publish_cron_secret') THEN
+    RAISE EXCEPTION 'Refusing to schedule the publisher: Vault secret "publish_cron_secret" does not exist. Create it first (see docs/scheduler-supabase-cron.md, step A3).';
   END IF;
 
   -- Without the reconciler there is no recorded outcome and no retention.
@@ -53,5 +61,5 @@ BEGIN
   END IF;
 
   PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'publish-scheduled';
-  PERFORM cron.schedule('publish-scheduled', '*/5 * * * *', 'select public.invoke_publish_scheduled()');
+  PERFORM cron.schedule('publish-scheduled', v_schedule, 'select public.invoke_publish_scheduled()');
 END $$;
