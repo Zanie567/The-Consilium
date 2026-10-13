@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import { unstable_cache } from 'next/cache'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
+import { publicDebateWhere } from '@/lib/debateVisibility'
+import { findTrendingTagRows } from '@/lib/publicArticleReads'
 import { publishedArticleWhere, ARTICLES_CACHE_TAG, ARTICLES_REVALIDATE_SECONDS } from '@/lib/articleQueries'
 import { authOptions } from '@/lib/auth'
 import { ClientDate } from '@/components/ui/ClientDate'
@@ -132,7 +134,7 @@ function estimateReadTime(content: string): string {
 async function getActiveDebate(userId?: string, anonymousId?: string): Promise<DebateData | null> {
   try {
     const debate = await prisma.debate.findFirst({
-      where: { isActive: true },
+      where: publicDebateWhere({ isActive: true }),
       include: {
         forArticle: { select: { id: true, title: true, slug: true, excerpt: true, content: true, author: { select: { name: true } } } },
         againstArticle: { select: { id: true, title: true, slug: true, excerpt: true, content: true, author: { select: { name: true } } } },
@@ -200,19 +202,8 @@ const getTrendingTags = unstable_cache(async () => {
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     // Get tags on articles published in the last 30 days, ordered by view count
-    const rows = await prisma.articleTag.findMany({
-      where: {
-        article: {
-          status: 'PUBLISHED',
-          publishedAt: { gte: thirtyDaysAgo },
-          deletedAt: null,
-        },
-      },
-      include: {
-        tag: true,
-        article: { select: { viewCount: true } },
-      },
-    })
+    // Same visibility rule as every public list, so a hidden debate's tags never trend.
+    const rows = await findTrendingTagRows(prisma, thirtyDaysAgo)
     // Aggregate view counts per tag
     const tally = new Map<string, { tag: { id: string; name: string; slug: string }; views: number; count: number }>()
     for (const row of rows) {

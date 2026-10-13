@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { PUBLIC_DEBATE_WHERE } from '@/lib/debateVisibility'
 import { apiServerErrorResponse } from '@/lib/apiResponse'
 
 // GET /api/profile/debate-votes - user's debate votes with results
@@ -11,7 +12,8 @@ export async function GET() {
 
   try {
     const votes = await prisma.debateVote.findMany({
-      where: { userId },
+      // A vote on a debate an administrator has hidden is not shown back to the voter.
+      where: { userId, debate: PUBLIC_DEBATE_WHERE },
       orderBy: { createdAt: 'desc' },
       include: {
         debate: {

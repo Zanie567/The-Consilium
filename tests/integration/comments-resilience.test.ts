@@ -11,6 +11,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 const { prismaMock, authMock, sessionMock } = vi.hoisted(() => ({
   prismaMock: {
+    article: { count: vi.fn() },
     comment: {
       findMany: vi.fn(),
       count: vi.fn(),
@@ -34,6 +35,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   sessionMock.getServerSession.mockResolvedValue(null)
   authMock.getVerifiedSessionUser.mockResolvedValue(MODERATOR)
+  prismaMock.article.count.mockResolvedValue(1) // the article is public unless a test says otherwise
 })
 
 // ── GET /api/comments (article threads) ──────────────────────────────────────
@@ -41,6 +43,15 @@ beforeEach(() => {
 describe('GET /api/comments resilience', () => {
   const req = (articleId?: string) =>
     new Request(`http://localhost/api/comments${articleId ? `?articleId=${articleId}` : ''}`)
+
+  it('an article that is not public (draft, trashed, or of a hidden debate) serves no comments and does not read them', async () => {
+    prismaMock.article.count.mockResolvedValue(0)
+    const res = await commentsGET(req('hidden-article'))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ comments: [], total: 0 })
+    expect(prismaMock.comment.findMany).not.toHaveBeenCalled()
+    expect(prismaMock.comment.count).not.toHaveBeenCalled()
+  })
 
   it('happy path → 200 with {comments,total}', async () => {
     prismaMock.comment.findMany.mockResolvedValue([{ id: 'c1' }])

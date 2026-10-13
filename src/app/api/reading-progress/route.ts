@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions, requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ALL_ROLES } from '@/lib/rbac'
+import { publishedArticleWhere } from '@/lib/articleQueries'
 
 // GET /api/reading-progress - fetch in-progress articles for the current user
 export async function GET() {
@@ -24,7 +25,7 @@ export async function GET() {
       where: {
         userId: user.id,
         progress: { gt: 3, lt: 95 }, // only articles meaningfully started but not finished
-        article: { status: 'PUBLISHED', deletedAt: null },
+        article: publishedArticleWhere(),
       },
       orderBy: { updatedAt: 'desc' },
       take: 6,

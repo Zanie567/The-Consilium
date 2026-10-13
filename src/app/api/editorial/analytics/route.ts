@@ -506,6 +506,7 @@ async function handleEngagement(since: Date, prevSince: Date) {
   // ── Debate participation ──
   const debates = await prisma.debate
     .findMany({
+      where: { deletedAt: null },
       orderBy: { createdAt: 'desc' },
       take: 10,
     })

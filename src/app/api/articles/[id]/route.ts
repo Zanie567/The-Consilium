@@ -1,4 +1,5 @@
 import { articleRevisionError } from '@/lib/articleRevision'
+import { isHiddenDebateViolation, hiddenDebateResponse } from '@/lib/hiddenDebateGuard'
 import { figureAltError } from '@/lib/figureValidation'
 import { ArticleImageUnavailableError, lockArticleImages, cleanupRemovedArticleImages } from '@/lib/articleImageStorage'
 import { resolveArticleTag } from '@/lib/resolveArticleTag'
@@ -387,6 +388,7 @@ async function PUTHandler(
     )
   } catch (error) {
     if (error instanceof ArticleImageUnavailableError) return NextResponse.json({ error: error.message }, { status: 400 })
+    if (isHiddenDebateViolation(error)) return hiddenDebateResponse()
     return articleMutationErrorResponse(error, 'update', requestId)
   }
 }

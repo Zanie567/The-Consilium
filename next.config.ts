@@ -81,6 +81,13 @@ const nextConfig: NextConfig = {
         : []),
     ],
   },
+  // sharp's .node binary loads libvips through an rpath (dlopen), which the file
+  // tracer cannot see: without this the function ships the .node but not
+  // libvips-cpp.so, and /api/upload dies with ERR_DLOPEN_FAILED on Vercel.
+  // Narrow glob: only the libvips package installed for the build platform.
+  outputFileTracingIncludes: {
+    '/api/upload': ['./node_modules/@img/sharp-libvips-*/lib/**/*'],
+  },
   experimental: {
     // Every isolated run starts fresh. Avoid cache flush/compaction stalls in
     // this workspace's dev server; ordinary development keeps Next's default.

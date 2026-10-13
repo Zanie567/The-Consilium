@@ -1,84 +1,24 @@
-import { prisma } from '@/lib/prisma'
+import { buildFeedXml, FRESH_XML_CACHE_CONTROL, getCachedFeedItems } from '@/lib/publicFeeds'
 
 const SITE_URL = 'https://theconsilium.co.uk'
 const CHANNEL_DESCRIPTION =
   'Economics analysis, opinion, and research from the University of Edinburgh'
 
+// Dynamic on purpose: the response must never be a cached copy that a content change cannot reach.
+// Freshness comes from the tagged data cache in publicFeeds.ts, which every visibility change expires.
 export const dynamic = 'force-dynamic'
-
-function escapeXml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&apos;')
-}
-
-function cdata(value: string): string {
-  return `<![CDATA[${value.replaceAll(']]>', ']]]]><![CDATA[>')}]]>`
-}
 
 export async function GET(): Promise<Response> {
   try {
-    const articles = await prisma.article.findMany({
-      where: {
-        status: 'PUBLISHED',
-        deletedAt: null,
-        publishedAt: { not: null },
-      },
-      orderBy: { publishedAt: 'desc' },
-      take: 20,
-      include: { author: true, category: true },
-    })
-
-    const items = articles
-      .map((article) => {
-        const publishedAt = article.publishedAt
-
-        if (publishedAt === null) {
-          return ''
-        }
-
-        const link = `${SITE_URL}/articles/${article.slug}`
-        const category = article.category?.name
-
-        return `<item>
-  <title>${cdata(article.title)}</title>
-  <link>${escapeXml(link)}</link>
-  <guid isPermaLink="true">${escapeXml(link)}</guid>
-  <description>${cdata(article.excerpt ?? '')}</description>
-  <pubDate>${publishedAt.toUTCString()}</pubDate>
-  <author>${escapeXml(article.author.name ?? 'The Consilium')}</author>
-  ${category ? `<category>${escapeXml(category)}</category>` : ''}
-</item>`
-      })
-      .join('\n')
-
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
-<channel>
-  <title>The Consilium</title>
-  <link>${SITE_URL}</link>
-  <description>${CHANNEL_DESCRIPTION}</description>
-  <language>en-gb</language>
-  <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
-${items}
-</channel>
-</rss>`
-
+    const xml = buildFeedXml(await getCachedFeedItems(), { siteUrl: SITE_URL, description: CHANNEL_DESCRIPTION })
     return new Response(xml, {
-      headers: {
-        'Content-Type': 'application/xml; charset=utf-8',
-        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
-      },
+      headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': FRESH_XML_CACHE_CONTROL },
     })
   } catch (error) {
     console.error('Failed to generate RSS feed', error)
-
     return new Response('Failed to generate RSS feed', {
       status: 500,
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
     })
   }
 }

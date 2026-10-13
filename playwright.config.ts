@@ -36,6 +36,9 @@ const BASE_URL = resolveTestBaseUrl(process.env.E2E_BASE_URL)
 const phase = process.env.E2E_PHASE
 const resultsDir = process.env.E2E_RESULTS_DIR ?? 'test-results'
 const reportDir = `playwright-report/${process.env.E2E_RUN_ID ?? 'manual'}`
+// Traces are ~4 MB each. Keep them only for failing tests (stored once, in the HTML
+// report). For deliberate debugging, capture every trace with PW_TRACE=on.
+const traceMode = process.env.PW_TRACE === 'on' ? ('on' as const) : ('retain-on-failure' as const)
 const isWorkflow = (name: string) => name.startsWith('wf-') || name.startsWith('simulator-') || name === 'testing-mode'
 const inPhase = (name: string) => {
   if (phase === 'team-profile') return name === 'team-profile'
@@ -67,7 +70,7 @@ export default defineConfig({
     baseURL: BASE_URL,
     // A failure in CI must leave evidence: a trace (DOM snapshots, network, console) and a
     // screenshot of the failing step, including a first local failure.
-    trace: 'retain-on-failure',
+    trace: traceMode,
     screenshot: 'only-on-failure',
   },
   projects: ([
@@ -78,11 +81,11 @@ export default defineConfig({
     // test.setTimeout. Preserve complete multi-page traces; control limits stay 10s.
     {
       name: 'testing-mode', testMatch: /testing-mode\.spec\.ts/, timeout: 120_000,
-      dependencies: ['setup'], use: { ...devices['Desktop Chrome'], trace: 'on' as const },
+      dependencies: ['setup'], use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'simulator-chromium', testMatch: /wf-(formatting|lifecycle|upload|roles|controls|failures)\.spec\.ts/, timeout: 120_000,
-      dependencies: ['setup'], use: { ...devices['Desktop Chrome'], trace: 'on' as const },
+      dependencies: ['setup'], use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'team-profile',

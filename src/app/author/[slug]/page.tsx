@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { publishedArticleWhere } from '@/lib/articleQueries'
 import Image from 'next/image'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
@@ -62,12 +63,10 @@ export default async function AuthorPage({ params, searchParams }: Props) {
   if (!author) notFound()
 
   const articles = await prisma.article.findMany({
-    where: {
+    where: publishedArticleWhere({
       authorId: author.id,
-      status: 'PUBLISHED',
-      deletedAt: null,
       ...(categoryFilter ? { category: { slug: categoryFilter } } : {}),
-    },
+    }),
     orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
     include: { category: true },
   }).catch(() => [])
@@ -75,7 +74,7 @@ export default async function AuthorPage({ params, searchParams }: Props) {
   // All categories this author has written in
   const allCategories = await prisma.category.findMany({
     where: {
-      articles: { some: { authorId: author.id, status: 'PUBLISHED', deletedAt: null } },
+      articles: { some: publishedArticleWhere({ authorId: author.id }) },
     },
     orderBy: { name: 'asc' },
   }).catch(() => [])

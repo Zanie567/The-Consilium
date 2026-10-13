@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/prisma'
-import sharp from 'sharp'
 import { randomUUID } from 'node:crypto'
 import { queueArticleImageCleanup, articleImagePath } from '@/lib/articleImageStorage'
 import { withTestingAudit } from '@/lib/testingAudit'
@@ -151,6 +150,18 @@ async function POSTHandler(request: NextRequest) {
     let width: number | undefined
     let height: number | undefined
     if (bucketParam === 'article-images') {
+      // Loaded lazily: a missing native library must fail this request clearly,
+      // not take down the whole route (avatars never need sharp).
+      let sharp: typeof import('sharp').default
+      try {
+        sharp = (await import('sharp')).default
+      } catch (error) {
+        console.error('[upload] sharp could not be loaded:', error)
+        return NextResponse.json(
+          { error: 'Image processing is temporarily unavailable. Please try again later.' },
+          { status: 503 }
+        )
+      }
       try {
         const image = sharp(Buffer.from(buffer), { limitInputPixels: 40_000_000, failOn: 'error' })
         const metadata = await image.metadata()

@@ -7,6 +7,7 @@ import { filterComment, stripHtml } from '@/lib/content-filter'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { sendEmail, commentFlaggedEmail } from '@/lib/email'
 import { ALL_ROLES } from '@/lib/rbac'
+import { publishedArticleWhere } from '@/lib/articleQueries'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,6 +24,12 @@ export async function GET(req: Request) {
   // lets the client render an error/empty state instead of an infinite skeleton.
   try {
     const session = await getServerSession(authOptions)
+
+    // Comments belong to the article's public page: if that page is not public (draft, trashed, or an unpublished
+    // or deleted debate's article) they are not served either.
+    if ((await prisma.article.count({ where: publishedArticleWhere({ id: articleId }) })) === 0) {
+      return NextResponse.json({ comments: [], total: 0 })
+    }
 
     const [comments, total] = await Promise.all([
       prisma.comment.findMany({
@@ -104,8 +111,8 @@ async function POSTHandler(req: Request) {
   }
 
   // Verify article exists and is published
-  const article = await prisma.article.findUnique({
-    where: { id: articleId, status: 'PUBLISHED' },
+  const article = await prisma.article.findFirst({
+    where: publishedArticleWhere({ id: articleId }),
     select: { id: true, title: true },
   })
   if (!article) {

@@ -1,0 +1,36 @@
+name: Upload E2E failure diagnostics
+description: >
+  Trims Playwright output to a size budget and uploads it. Call it only after a
+  failure (`if: failure()`); a passing run stores nothing.
+inputs:
+  name:
+    description: Artifact name
+    required: true
+  max-mb:
+    description: Size budget for the uploaded files
+    default: '100'
+runs:
+  using: composite
+  steps:
+    - name: Trim diagnostics to the size budget
+      shell: bash
+      run: node scripts/prune-e2e-diagnostics.mjs --max-mb "${{ inputs.max-mb }}" playwright-report test-results
+
+    # Traces live once, inside the HTML report (playwright-report/**/data). The
+    # test-results copy of each trace is an identical duplicate, so it is excluded.
+    # continue-on-error: running out of Actions storage must never turn a green
+    # test run red or block a merge; the tests themselves have already decided that.
+    - name: Upload diagnostics
+      uses: actions/upload-artifact@v4
+      continue-on-error: true
+      with:
+        name: ${{ inputs.name }}
+        path: |
+          playwright-report/
+          test-results/
+          ci-diagnostics-summary.txt
+          !test-results/**/outbox.jsonl
+          !test-results/**/trace.zip
+          !test-results/**/*.webm
+        retention-days: 3
+        if-no-files-found: ignore
