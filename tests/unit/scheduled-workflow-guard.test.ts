@@ -17,6 +17,8 @@ const EXPECTED_CRONS: Record<string, string> = {
   'update-engagement-scores.yml': '0 3 * * *',
   // Permanent trash removal, split out of publish-scheduled so publishing can never delete.
   'purge-trash.yml': '17 3 * * *',
+  // Independent watchdog for scheduled publishing; alerts are de-duplicated by the endpoint.
+  'scheduler-health.yml': '23 * * * *',
 }
 
 function workflows(): Array<{ file: string; text: string }> {
@@ -67,7 +69,7 @@ function runWithStubbedCurl(script: string, status: number) {
 describe('scheduled production workflows', () => {
   const scheduled = workflows().filter(({ text }) => /^\s{2}schedule:/m.test(text))
 
-  it('covers exactly the five production cron workflows', () => {
+  it('covers exactly the six production cron workflows', () => {
     expect(scheduled.map((w) => w.file).sort()).toEqual(Object.keys(EXPECTED_CRONS).sort())
   })
 
