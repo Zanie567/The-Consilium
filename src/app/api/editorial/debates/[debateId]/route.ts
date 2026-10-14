@@ -81,12 +81,15 @@ async function PATCHHandler(req: Request, { params }: Props) {
     | { ok: true; debate: Awaited<ReturnType<typeof prisma.debate.update>> }
     | { ok: false; status: number; error: string }
   // Featuring a debate also un-features the current one: a global choice, so concurrent choices are serialized by a
-  // transaction lock taken before any row lock (as the article feature route does), once the request has passed its checks. Without it two administrators
+  // transaction lock taken before any row lock (as the article feature route does). Without it two administrators
   // featuring different debates lock each other's rows in opposite orders and deadlock. Database work only, so a
   // conflict abort is retried; the cache refresh runs after the commit.
   let outcome: Outcome
   try {
     outcome = await withTransactionRetry('debate:edit', () => prisma.$transaction(async (tx): Promise<Outcome> => {
+      // Before the read, not after it: the other featuring request changes this row's updatedAt when it un-features
+      // it, so reading first would make the guarded write below refuse a perfectly valid request.
+      if (isActive === true) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${FEATURED_DEBATE_LOCK}))`
       const existing = await tx.debate.findUnique({
         where: { id: debateId },
         select: { id: true, updatedAt: true, deletedAt: true, unpublishedAt: true },
@@ -105,8 +108,6 @@ async function PATCHHandler(req: Request, { params }: Props) {
         ...(isActive !== undefined && { isActive }),
         ...(closesAt !== undefined && { closesAt: closesAt ? new Date(closesAt) : null }),
       }
-      // Taken once the request is known to be valid, and before any row lock (the reads above take none).
-      if (isActive === true) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${FEATURED_DEBATE_LOCK}))`
       // Guarded on the row as read, so a concurrent edit or deletion is refused, not overwritten.
       const written = await tx.debate.updateMany({
         where: { id: debateId, updatedAt: existing.updatedAt, deletedAt: null },
