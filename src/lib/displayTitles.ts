@@ -6,7 +6,7 @@
  * The allowed list is closed on purpose, so nobody can invent a misleading title.
  * Leadership and Wider Team are masthead tiers, not titles, and are excluded.
  * This is a subset of `users_display_titles_valid` in
- * supabase/migrations/20261005_user_display_titles.sql, which enforces it again
+ * supabase/migrations/20261005000000_user_display_titles.sql, which enforces it again
  * in the database. Its legacy Senior/Junior values remain readable without a data migration.
  *
  * Client-safe: no server imports.

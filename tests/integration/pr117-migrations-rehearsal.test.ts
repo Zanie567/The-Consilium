@@ -70,8 +70,8 @@ const migration = (name: string) => read(`supabase/migrations/${name}.sql`)
  * Add an entry here (in migration order) whenever a later migration adds a column the Prisma schema expects.
  */
 const LATER_MIGRATIONS: { file: string; adds: string[] }[] = [
-  { file: '20261010_debate_lifecycle', adds: ['debates.unpublishedAt', 'debates.deletedAt', 'debates.deletedById'] },
-  { file: '20261010_team_member_updated_at', adds: ['team_members.updatedAt'] },
+  { file: '20261010000000_debate_lifecycle', adds: ['debates.unpublishedAt', 'debates.deletedAt', 'debates.deletedById'] },
+  { file: '20261010000100_team_member_updated_at', adds: ['team_members.updatedAt'] },
   { file: '20261012100000_article_hidden_by_debate_marker', adds: ['articles.hiddenByDebateAt'] },
 ]
 const LATER_COLUMNS = LATER_MIGRATIONS.flatMap((m) => m.adds).sort()
@@ -278,8 +278,8 @@ suite('PR #117 migrations on a production-shaped database', () => {
   it('later migrations: each adds exactly the columns declared for it, replays without change, and then nothing is missing', async () => {
     await withDatabase(async ({ client }) => {
       await applyAll(client)
-      await client.query(read('supabase/migrations/add_article_comments.sql'))
-      await client.query(read('supabase/migrations/add_article_comments_quoted_text.sql'))
+      await client.query(read('supabase/migrations/20260511000000_add_article_comments.sql'))
+      await client.query(read('supabase/migrations/20260612000000_add_article_comments_quoted_text.sql'))
       for (const { file, adds } of LATER_MIGRATIONS) {
         const before = await presentColumns(client)
         for (const column of adds) expect(before.has(column), `${column} must not exist before ${file}`).toBe(false)
@@ -290,7 +290,7 @@ suite('PR #117 migrations on a production-shaped database', () => {
         expect(await presentColumns(client)).toEqual(after)
       }
       expect(await missingPrismaColumns(client)).toEqual([])
-    }, { supabaseRoles: true }) // add_article_comments.sql grants to the Supabase API roles
+    }, { supabaseRoles: true }) // 20260511000000_add_article_comments.sql grants to the Supabase API roles
   })
 
   it('AFTER: the real code paths work (newsletter sign-up and tagged article saves)', async () => {
@@ -500,7 +500,7 @@ suite('PR #117 migrations on a production-shaped database', () => {
   it('verify script: a fully remediated database (migrations + article_comments, API roles closed) reports no FAIL and no row contents', async () => {
     await withDatabase(async ({ client }) => {
       await applyAll(client)
-      await client.query(read('supabase/migrations/add_article_comments.sql'))
+      await client.query(read('supabase/migrations/20260511000000_add_article_comments.sql'))
       // Production's table owner has no default grants to anon/authenticated; make this database match.
       await client.query('REVOKE ALL ON article_image_assets, article_engagement_sessions, article_comments FROM anon, authenticated')
       await client.query(`insert into subscribers (id, email) values ('s9', 'private.person@example.test'); insert into tags (id, name, slug) values ('t9', 'Private Topic', 'private-topic')`)
@@ -515,7 +515,7 @@ suite('PR #117 migrations on a production-shaped database', () => {
   it('verify script: detects each way the lock-down could regress (API-role grants, RLS off, wrong FK rule, extra policy, missing object)', async () => {
     await withDatabase(async ({ client }) => {
       await applyAll(client)
-      await client.query(read('supabase/migrations/add_article_comments.sql'))
+      await client.query(read('supabase/migrations/20260511000000_add_article_comments.sql'))
       // As Supabase defaults would leave a table created by supabase_admin: anon and authenticated granted everything.
       const failing = async () => (await runVerify(client)).filter((r) => r.result === 'FAIL').map((r) => r.check_name)
       expect(await failing()).toEqual(['no API-role privileges on article_engagement_sessions', 'no API-role privileges on article_image_assets'])
@@ -561,8 +561,8 @@ suite('PR #117 migrations on a production-shaped database', () => {
   it('article_comments (a pre-existing, separate gap): applies, replays, matches the Prisma model, works through the real client, and rolls back', async () => {
     await withDatabase(async ({ client, url }) => {
       await applyAll(client)
-      const addTable = read('supabase/migrations/add_article_comments.sql')
-      const addColumn = read('supabase/migrations/add_article_comments_quoted_text.sql')
+      const addTable = read('supabase/migrations/20260511000000_add_article_comments.sql')
+      const addColumn = read('supabase/migrations/20260612000000_add_article_comments_quoted_text.sql')
       await client.query(addTable)
       await client.query(addTable) // replay: "IF NOT EXISTS" throughout, including the policy
       await client.query(addColumn) // a documented no-op once the table has the column

@@ -84,9 +84,9 @@ for migration in \
   supabase/migrations/20261006160355_managed_article_images.sql \
   supabase/migrations/20261006161413_normalized_subscriber_email.sql \
   supabase/migrations/20261006161505_article_active_engagement.sql \
-  supabase/migrations/20261010_debate_lifecycle.sql \
-  supabase/migrations/20261010_team_member_updated_at.sql \
-  supabase/migrations/20261011_hidden_debate_article_guard.sql \
+  supabase/migrations/20261010000000_debate_lifecycle.sql \
+  supabase/migrations/20261010000100_team_member_updated_at.sql \
+  supabase/migrations/20261011000000_hidden_debate_article_guard.sql \
   supabase/migrations/20261012100000_article_hidden_by_debate_marker.sql; do
   psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$migration"
 done

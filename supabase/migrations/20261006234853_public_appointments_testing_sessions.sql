@@ -1,0 +1,2 @@
+-- Registry record only: production applied 20261003231314_public_appointments_testing_sessions.sql under this version via the Supabase API.
+-- Intentionally empty, so the change is never applied twice.

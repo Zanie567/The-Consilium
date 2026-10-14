@@ -14,7 +14,7 @@ Records what the hosted `consilium-testing` Supabase project must contain and ho
 | Part | Committed source | Notes |
 |---|---|---|
 | 37 application tables, columns, indexes, constraints, enums | `prisma/schema.prisma` (`prisma db push`), then `supabase/migrations/*` | Verified identical, see below |
-| `team_members.userId`, appointment fields, `testing_sessions` | `supabase/migrations/20261001_team_member_user_link.sql`, `20261003231314_public_appointments_testing_sessions.sql` | Idempotent; already part of `schema.prisma` |
+| `team_members.userId`, appointment fields, `testing_sessions` | `supabase/migrations/20261001000000_team_member_user_link.sql`, `20261003231314_public_appointments_testing_sessions.sql` | Idempotent; already part of `schema.prisma` |
 | Database role, grants, policies, mail sink, personas, content, attestations | `scripts/prepare-hosted-testing-plan.ts` (connection-free; writes `fixtures-and-access.sql`) | Additive; refuses a populated unattested database |
 | Storage buckets | `HOSTED_TEST_BUCKETS` / `hostedBucketSql()` in `src/lib/hostedTestingWorkspace.ts`, emitted by the same plan | Added after the audit: the buckets had been created by hand |
 | Application configuration | `environment.private.json` from the same plan | 16 variables, listed below |

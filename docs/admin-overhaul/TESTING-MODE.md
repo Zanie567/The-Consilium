@@ -93,8 +93,8 @@ The hosted testing deployment runs its own copy of the app against its own datab
 screens work there it needs this branch deployed **and** the two additive migrations applied to *its*
 database (never production's):
 
-* `supabase/migrations/20261010_debate_lifecycle.sql`
-* `supabase/migrations/20261010_team_member_updated_at.sql`
+* `supabase/migrations/20261010000000_debate_lifecycle.sql`
+* `supabase/migrations/20261010000100_team_member_updated_at.sql`
 
 `/api/admin/deployment-health` (and the overview's Deployment card) reports either as
 `Missing schema: …` until applied.

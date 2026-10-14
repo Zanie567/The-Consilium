@@ -346,7 +346,7 @@ suite('hidden debate articles can never become public (real database)', () => {
       try {
         const { a, b } = await makeDebate({ hidden: 'deleted' })
         await db.article.updateMany({ where: { id: { in: [a.id, b.id] } }, data: { status: 'PUBLISHED' } })
-        const sql = fs.readFileSync(path.join(process.cwd(), 'supabase/migrations/20261011_hidden_debate_article_guard.sql'), 'utf8')
+        const sql = fs.readFileSync(path.join(process.cwd(), 'supabase/migrations/20261011000000_hidden_debate_article_guard.sql'), 'utf8')
         const c = new Client({ connectionString: TEST_DB! })
         await c.connect()
         try { await c.query(sql); const again = await c.query(sql); healed = again.rowCount ?? 0 } finally { await c.end() }

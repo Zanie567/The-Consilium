@@ -97,7 +97,7 @@ suite('team photo storage (real client, local storage server)', () => {
     const pg = new Client({ connectionString: TEST_DB })
     await pg.connect()
     await pg.query(readFileSync(resolve(__dirname, '../e2e/helpers/local-storage-schema.sql'), 'utf8'))
-    await pg.query(readFileSync(resolve(__dirname, '../../supabase/migrations/20261001_team_member_user_link.sql'), 'utf8'))
+    await pg.query(readFileSync(resolve(__dirname, '../../supabase/migrations/20261001000000_team_member_user_link.sql'), 'utf8'))
     await pg.end()
 
     server = spawn(process.execPath, [resolve(__dirname, '../../node_modules/ts-node/dist/bin.js'), '-P', 'tsconfig.seed.json', resolve(__dirname, '../e2e/helpers/fake-storage-server.ts')], {
@@ -255,7 +255,7 @@ suite('team photo storage (real client, local storage server)', () => {
       expect(res.status).toBe(502)
       expect((await db.teamMember.findUniqueOrThrow({ where: { userId: u.id } })).bio).toBe('keep')
     } finally {
-      await pg.query(readFileSync(resolve(__dirname, '../../supabase/migrations/20261001_team_member_user_link.sql'), 'utf8'))
+      await pg.query(readFileSync(resolve(__dirname, '../../supabase/migrations/20261001000000_team_member_user_link.sql'), 'utf8'))
       await pg.end()
     }
   })

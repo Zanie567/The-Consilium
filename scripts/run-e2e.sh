@@ -82,7 +82,7 @@ psql "$E2E_ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -qc "CREATE DATABASE \"$RUN_DB
 DB_CREATED=1
 USE_EXISTING_DB=1 bash scripts/setup-test-db.sh >"$E2E_RESULTS_DIR/fixtures.log" 2>&1 || { tail -30 "$E2E_RESULTS_DIR/fixtures.log"; exit 1; }
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f tests/e2e/helpers/local-storage-schema.sql || exit 1
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/migrations/20261001_team_member_user_link.sql || exit 1
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/migrations/20261001000000_team_member_user_link.sql || exit 1
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/migrations/20261003231314_public_appointments_testing_sessions.sql || exit 1
 # The disposable database is seeded before this lease is acquired. Keep it until cleanup.
 node node_modules/ts-node/dist/bin.js -P tsconfig.seed.json scripts/acquire-test-workspace.ts "$E2E_RESULTS_DIR/database-lease.ready" &

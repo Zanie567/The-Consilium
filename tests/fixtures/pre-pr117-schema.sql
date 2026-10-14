@@ -5,7 +5,7 @@
 --
 -- Generated with: prisma migrate diff --from-empty --to-schema <prisma/schema.prisma at 31a2053, the schema
 -- before #117> --script. Every statement that touches "article_comments" is removed, because that table is
--- absent from production (its migration, supabase/migrations/add_article_comments.sql, was never applied).
+-- absent from production (its migration, supabase/migrations/20260511000000_add_article_comments.sql, was never applied).
 -- Checked read-only against production on 2026-10-08: with this baseline plus the four #117 migrations,
 -- every table and column in the post-#117 Prisma schema exists except article_comments.
 

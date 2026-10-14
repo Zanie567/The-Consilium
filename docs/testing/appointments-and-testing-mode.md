@@ -95,7 +95,7 @@ The owner explicitly confirmed **Keep the existing public house style**. Alignme
 
 ## Migration, validation and rollback
 
-1. Inspect the intended target read-only. Verify schema, avatar/article buckets and the original card/account identifiers. Do not blindly reapply `20261001_team_member_user_link`: it is already present on production.
+1. Inspect the intended target read-only. Verify schema, avatar/article buckets and the original card/account identifiers. Do not blindly reapply `20261001000000_team_member_user_link`: it is already present on production.
 2. Review and apply **only** `supabase/migrations/20261003231314_public_appointments_testing_sessions.sql` through the normal migration process. It adds `publicTier`, test persona/revision fields and the session table/indexes/RLS. It does not edit cards/users/appointments or seed personas. Keep simulator disabled on production.
 3. With an explicitly selected operator connection, preview and save a reviewable plan:
 
