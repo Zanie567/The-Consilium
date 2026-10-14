@@ -7,7 +7,7 @@ import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
-import { apiError } from '@/lib/apiResponse'
+import { apiError, transactionFailureResponse } from '@/lib/apiResponse'
 import { revalidateArticleLists } from '@/lib/revalidateArticles'
 
 interface Props {
@@ -62,6 +62,8 @@ async function PATCHHandler(_req: NextRequest, { params }: Props) {
     return NextResponse.json(result.restored)
   } catch (error) {
     if (isHiddenDebateViolation(error)) return hiddenDebateResponse()
+    const concurrency = transactionFailureResponse(error)
+    if (concurrency) return concurrency
     return NextResponse.json({ error: 'Failed to restore article' }, { status: 500 })
   }
 }

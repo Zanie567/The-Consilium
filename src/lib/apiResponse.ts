@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
+import { transactionFailure } from '@/lib/transactionRetry'
 
 export interface ApiErrorBody {
   error: string
@@ -35,6 +36,38 @@ export function isPrismaSchemaMismatch(error: unknown): boolean {
   )
 }
 
+/**
+ * A transaction PostgreSQL aborted because of concurrent work (see transactionRetry.ts). In both cases nothing
+ * was committed, so the user can safely repeat the action. Null for every other error.
+ *   conflict (still failing after the bounded retry) -> 409 CONCURRENT_UPDATE
+ *   busy (a lock or transaction timeout)             -> 503 DATABASE_BUSY, Retry-After: 2
+ */
+export function transactionFailureResponse(
+  error: unknown,
+  requestId?: string
+): NextResponse<ApiErrorBody> | null {
+  const failure = transactionFailure(error)
+  if (failure === 'conflict') {
+    return apiError(
+      'Another change to the same content was being saved at the same moment, so nothing was changed. Try again.',
+      409,
+      'CONCURRENT_UPDATE',
+      requestId
+    )
+  }
+  if (failure === 'busy') {
+    const response = apiError(
+      'The database was busy with another change, so nothing was changed. Try again in a moment.',
+      503,
+      'DATABASE_BUSY',
+      requestId
+    )
+    response.headers.set('Retry-After', '2')
+    return response
+  }
+  return null
+}
+
 interface ApiServerErrorOptions {
   operation: string
   userMessage: string
@@ -55,6 +88,9 @@ export function apiServerErrorResponse(
 ): NextResponse<ApiErrorBody> {
   const requestId = options.requestId ?? crypto.randomUUID()
   console.error(`[${options.operation}]`, { requestId, error })
+
+  const concurrency = transactionFailureResponse(error, requestId)
+  if (concurrency) return concurrency
 
   if (isPrismaSchemaMismatch(error)) {
     return apiError(
@@ -96,6 +132,9 @@ export function articleMutationErrorResponse(
   if (error instanceof SyntaxError) {
     return apiError('The request body is not valid JSON.', 400, 'INVALID_JSON', requestId)
   }
+
+  const concurrency = transactionFailureResponse(error, requestId)
+  if (concurrency) return concurrency
 
   // Matches apiServerErrorResponse: a connection failure is retryable and must
   // not be reported as a generic article-save error.
