@@ -35,6 +35,11 @@ test('scenarios put a persona into a known state, show the right prompts, and re
   test.setTimeout(240_000)
   const admin = await createAccount('ADMIN', 'scenarios')
   const context = await signInAs(browser, admin)
+  // Answer the cookie banner before any page loads, as a returning visitor has. Unanswered, it slides in over the
+  // bottom of the viewport, where "Reset all personas" sits; Playwright then has to scroll the button out from under it,
+  // and with the site's smooth scrolling the click can be dispatched while the page is still moving, so WebKit
+  // generates no click and no reset is ever requested (CI run 38587261527). Consent itself is tested in wf-public-controls.
+  await context.addInitScript(() => { try { localStorage.setItem('consilium_cookie_consent', 'declined') } catch {} })
   const page = await context.newPage()
   const errors = collectConsoleErrors(page)
   const writer = await db().user.findUniqueOrThrow({ where: { testPersonaKey: 'writer' } })
@@ -54,6 +59,7 @@ test('scenarios put a persona into a known state, show the right prompts, and re
   const stripped = (c: typeof cardBefore) => (c ? { ...c, updatedAt: undefined } : null)
 
   await openTesting(page)
+  await expect(page.getByRole('dialog', { name: 'Cookie consent' })).toHaveCount(0) // nothing overlays the controls
   await expect(page.getByTestId('testing-environment')).toContainText('Isolated test workspace')
   await expect(page.getByTestId('testing-checklist')).toHaveCount(0) // nothing is missing here
 
@@ -140,7 +146,10 @@ test('scenarios put a persona into a known state, show the right prompts, and re
   // 8. Reset: every persona back exactly as it was, nothing of the scenarios left.
   await page.goto('/admin/testing')
   await hydrated(page.getByLabel('Persona', { exact: true }), 'onChange')
+  // The reset must actually be requested and succeed: a click that never reaches the handler fails here, by name.
+  const resetResponse = page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/testing-scenarios', { timeout: 10_000 })
   await page.getByRole('button', { name: 'Reset all personas' }).click()
+  expect((await resetResponse).status()).toBe(200)
   await expect(page.getByRole('status').filter({ hasText: 'Every test persona reset' })).toBeVisible()
   expect(stripped(await db().teamMember.findUnique({ where: { userId: writer.id } }))).toEqual(stripped(cardBefore))
   expect(await db().notification.count({ where: { type: 'testing-scenario' } })).toBe(0)

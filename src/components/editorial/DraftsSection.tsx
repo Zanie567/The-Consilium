@@ -71,7 +71,10 @@ export function DraftsSection({ drafts }: { drafts: Draft[] }) {
               {draft.wordCount > 0 && (
                 <> · {draft.wordCount.toLocaleString()} {draft.wordCount === 1 ? 'word' : 'words'}</>
               )}
-              {' '}&middot; saved {formatDistanceToNow(new Date(draft.updatedAt), { addSuffix: true })}
+              {' '}&middot; saved{' '}
+              {/* Relative to "now", so the server and the hydrating browser can legitimately disagree across a minute
+                  boundary; React's documented exception for timestamps (as in CountdownTimer). */}
+              <span suppressHydrationWarning>{formatDistanceToNow(new Date(draft.updatedAt), { addSuffix: true })}</span>
             </p>
           </Link>
 
