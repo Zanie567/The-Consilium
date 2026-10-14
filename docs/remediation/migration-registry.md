@@ -4,8 +4,13 @@ Issue #129. Investigated 2026-10-14 with read-only queries against production (`
 below was rehearsed only on disposable local databases. **Nothing here has been applied to production or to the
 registry.** Steps marked *approval* need the owner's explicit go-ahead.
 
-> **Never run `supabase db push` against production in the current state, and never follow the CLI's own suggestion
-> to `migration repair --status reverted …`.** Section 3 shows what that would do.
+> **Never run `supabase db push` against production in the current state, and never follow the CLI's own suggestions:
+> neither `migration repair --status reverted …` nor `db push --include-all`.** Section 2 shows what they would do.
+>
+> **Status:** step 1 (the folder) is done in the PR that adds this paragraph; the files now carry the names in the
+> right-hand column of the step 1 table. Step 2 (the production registry) is **not** done and needs approval. Section 1
+> below records the state as investigated, under the old file names. Older documents, and comments inside the SQL
+> files themselves (left byte-identical on purpose), still use the old names; the step 1 table maps them.
 
 ## 1. Findings
 
@@ -54,15 +59,36 @@ it is reconciled the same way, separately.
 ## 2. Safety facts proven on a disposable database
 
 `scripts/db/rehearse-migration-registry.sh` (local server only; it refuses any other host) seeds a registry identical
-to production's and runs the real Supabase CLI (2.120.0) against a scratch copy of the folder:
+to production's and runs the real Supabase CLI (2.120.0) against a scratch copy of the folder. It checks each fact
+below and exits non-zero if one fails.
 
-* **Today**, `supabase db push --dry-run` refuses (`DbPushMissingLocalError`): nothing can be pushed by accident.
-* **Following the CLI's suggestion** (`migration repair --status reverted` of the 4 rows), a push would run all 19
+**Before step 1** (the folder as it was; investigation of 2026-10-14):
+
+* `supabase db push --dry-run` refused (`DbPushMissingLocalError`): nothing could be pushed by accident.
+* **Following the CLI's suggestion** (`migration repair --status reverted` of the 4 rows), a push would have run all 19
   files in order: re-run every applied change, run the rollback (dropping `users.displayTitles`, its check function and
   policy) right after the change it undoes, and switch on Supabase Cron, which was never approved.
-* **After the reconciliation in section 3**, every local version is unique, the registry matches every applied file,
-  `migration repair` ran no SQL (the rehearsal database gained no table), and `db push` refuses the two older cron
-  files (`DbPushMissingRemoteError`) unless someone deliberately adds `--include-all`.
+
+**After step 1, before step 2** (the folder in the repo now; production's registry unchanged):
+
+* Every local version is unique, the rollback is out of `migrations/`, and each of production's 4 registry rows has a
+  matching file.
+* `db push --dry-run` still refuses, now with `DbPushMissingRemoteError`. **The CLI then suggests `--include-all`,
+  which must never be used here:** it would run the 13 already-applied files older than `20261006234931`, and with them
+  everything newer that is not recorded, including the five admin-overhaul migrations and both Supabase Cron files.
+  This window lasts until step 2 is done, so step 2 should follow the merge in the same sitting (or precede it; see
+  step 2).
+
+**After step 2** (rehearsed with the exact version list below):
+
+* `migration repair --status applied` changed no database object (a fingerprint of every relation outside the
+  registry is identical before and after) and the registry holds 22 rows.
+* Only the two Supabase Cron files remain unrecorded; there are no remote-only rows.
+* `db push` refuses the two older cron files (`DbPushMissingRemoteError`), and `--include-all` would pick up exactly
+  those two files and nothing else.
+
+The same script run against the folder as it was before step 1 fails every one of these checks, so it does not pass
+by accident.
 
 ## 3. Reconciliation plan
 
@@ -93,11 +119,23 @@ same PR, and open branches that touch these files, which must rebase.
    `20260610222208_add_comments_hiddenbody_and_debate_votes_anoniphash.sql` holds the exact idempotent SQL the
    registry recorded; the other three are comment-only "registry record" files pointing at the real file, so the same
    change is never applied twice.
-4. Remove the reconciled names from the frozen list in `tests/unit/migration-files.test.ts`.
+4. `tests/unit/migration-files.test.ts` no longer has a frozen legacy list: every file must have a unique 14-digit
+   version, no rollback may sit in `migrations/`, each of production's four API-recorded versions must have its file,
+   and the three record-only files must contain no SQL.
+
+Done: every renamed file is byte-identical to the original (SHA-256 checked), so no migration's SQL or behaviour
+changes. The rollback keeps its name in `supabase/manual/`.
 
 ### Step 2: record what is applied (production registry write; *approval*)
 
-With the step-1 PR merged and checked out, using the session pooler connection, after a fresh verified backup:
+After a fresh verified backup, using the session pooler connection, with the step-1 folder checked out. Do it in the
+same sitting as the merge: either from the PR branch just before merging (until the merge, `main`'s old folder makes
+`db push` refuse with `DbPushMissingLocalError`) or immediately after it, so the `--include-all` window in section 2
+stays closed.
+
+`repair --status applied` writes, for each version, one row with the version, the name (the file name after the
+version) and the file's statements **as text**; it executes none of them. The rows production would gain are the 18
+versions below; nothing else in the registry changes.
 
 ```bash
 supabase migration list --db-url "$DB"        # expect: the 4 old rows matched, every other file local-only

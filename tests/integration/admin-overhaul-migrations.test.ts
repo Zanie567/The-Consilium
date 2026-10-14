@@ -20,12 +20,12 @@ assertSafeTestDatabaseHost(base, 'TEST_DATABASE_URL')
 const sql = (path: string) => readFileSync(path, 'utf8')
 const BEFORE = sql('tests/fixtures/schema-before-admin-overhaul.sql')
 const EARLIER = [
-  '20260408_enable_rls', '20260408_restrict_column_grants', '20260903_enable_rls_remaining_tables', '20261001_team_member_user_link',
-  '20261003231314_public_appointments_testing_sessions', '20261005_user_display_titles', '20261006_member_onboarding',
+  '20260408000000_enable_rls', '20260408000100_restrict_column_grants', '20260903000000_enable_rls_remaining_tables', '20261001000000_team_member_user_link',
+  '20261003231314_public_appointments_testing_sessions', '20261005000000_user_display_titles', '20261006000000_member_onboarding',
   '20261006153514_discovery_topic_identity', '20261006160355_managed_article_images', '20261006161413_normalized_subscriber_email',
   '20261006161505_article_active_engagement',
 ].map((f) => sql(`supabase/migrations/${f}.sql`))
-const MINE = ['20261010_debate_lifecycle', '20261010_team_member_updated_at', '20261011_hidden_debate_article_guard', '20261012100000_article_hidden_by_debate_marker'].map((f) => sql(`supabase/migrations/${f}.sql`))
+const MINE = ['20261010000000_debate_lifecycle', '20261010000100_team_member_updated_at', '20261011000000_hidden_debate_article_guard', '20261012100000_article_hidden_by_debate_marker'].map((f) => sql(`supabase/migrations/${f}.sql`))
 
 const ROLLBACK = `
   DROP TRIGGER IF EXISTS articles_clear_hidden_by_debate ON articles;

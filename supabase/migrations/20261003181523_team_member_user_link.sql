@@ -1,0 +1,2 @@
+-- Registry record only: production applied 20261001000000_team_member_user_link.sql under this version via the Supabase API.
+-- Intentionally empty, so the change is never applied twice.

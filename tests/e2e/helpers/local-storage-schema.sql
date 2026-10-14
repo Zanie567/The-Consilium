@@ -1,6 +1,6 @@
 -- Minimal stand-in for Supabase's `storage` schema in the LOCAL test database, with
 -- the exact column set of production's storage.buckets (inspected read-only on
--- 2026-10-01), so supabase/migrations/20261001_team_member_user_link.sql can be run
+-- 2026-10-01), so supabase/migrations/20261001000000_team_member_user_link.sql can be run
 -- for real. Only the pre-existing `article-images` bucket is seeded, as in production.
 CREATE SCHEMA IF NOT EXISTS storage;
 DO $$ BEGIN

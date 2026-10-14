@@ -3,7 +3,7 @@
 How a new Consilium member goes from "hired" to "on the Our Team page", and what happens when
 they are promoted or leave. Code: `src/lib/membership.ts` (all rules), `src/app/api/admin/members/**`
 (admin API), `/editorial/members` (admin screen), `src/lib/emailVerification.ts` +
-`/verify-email` (address proof). Migration: `supabase/migrations/20261006_member_onboarding.sql`
+`/verify-email` (address proof). Migration: `supabase/migrations/20261006000000_member_onboarding.sql`
 (apply manually, like the others; idempotent).
 
 ## Two concepts that never mix

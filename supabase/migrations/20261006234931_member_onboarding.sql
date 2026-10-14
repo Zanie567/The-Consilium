@@ -1,0 +1,2 @@
+-- Registry record only: production applied 20261006000000_member_onboarding.sql under this version via the Supabase API.
+-- Intentionally empty, so the change is never applied twice.

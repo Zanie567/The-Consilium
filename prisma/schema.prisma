@@ -52,7 +52,7 @@ model User {
   password      String?
   role          Role      @default(READER)
   // Public labels only; never read for permissions. Allowed values and the cap are
-  // enforced by a CHECK in supabase/migrations/20261005_user_display_titles.sql.
+  // enforced by a CHECK in supabase/migrations/20261005000000_user_display_titles.sql.
   displayTitles String[]  @default([])
   isActive              Boolean   @default(true)
   lastLoginAt           DateTime?
@@ -240,7 +240,7 @@ model Article {
 
 // Inline editorial review comments anchored to text selections in a draft.
 // The table was originally created manually in Supabase (see
-// supabase/migrations/add_article_comments.sql); this model maps onto that
+// supabase/migrations/20260511000000_add_article_comments.sql); this model maps onto that
 // exact shape so the comment routes can use the typed client instead of raw SQL.
 model ArticleComment {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
