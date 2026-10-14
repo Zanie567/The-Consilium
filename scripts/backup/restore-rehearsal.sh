@@ -12,9 +12,12 @@
 # tables are created and migrated by the Auth and Storage services, not by the Postgres image, so a bare image cannot
 # load them (the strict restore of 2026-10-13 failed only there). It reports how many rows it skipped.
 #
-# Privileges: the Supabase image's default privileges grant anon and authenticated ALL on every new table in public;
-# production revoked them. So BEFORE schema.sql runs, those image defaults are revoked; the tables are then created
-# with exactly the grants the dump records, and no table is ever, even inside the transaction, readable by anon.
+# Privileges: the Supabase image's default privileges grant anon and authenticated ALL on every new table and EXECUTE
+# on every new function in public; production revoked them on every table and on the two SECURITY DEFINER trigger
+# functions. pg_dump records only the grants that exist, never the image defaults it would need to undo, so BEFORE
+# schema.sql runs those image defaults are revoked; tables and functions are then created with exactly the grants the
+# dump records (it grants anon/authenticated explicitly where production does, and restores production's own default
+# privileges at the end), and no table is ever, even inside the transaction, readable by anon.
 #
 # Checks (each must pass; the evidence folder keeps the details, owner-only):
 #   1. strict load: schema + data in ONE transaction with ON_ERROR_STOP;
@@ -114,6 +117,7 @@ echo "1. Strict restore of the public schema (one transaction, ON_ERROR_STOP)" |
 while IFS= read -r line; do info "skipped platform data, $line"; done < <(skipped_report)
 if {
   echo "ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated;"
+  echo "ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM anon, authenticated;"
   cat "$BACKUP/schema.sql"
   echo "SET session_replication_role = replica;"
   public_data_only

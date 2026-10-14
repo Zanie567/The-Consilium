@@ -190,6 +190,14 @@ restored all 41 tables with `anon` and `authenticated` holding full privileges. 
 table defaults for those two roles **before** `schema.sql` runs, so no table is ever created with them, and then
 proves the result equals production's fingerprint (2026-10-14: 656 table grants, md5 `1ce2f2e6…`, identical).
 
+The same applies to functions, found with the first backup that contains the admin-overhaul trigger functions
+(`consilium-prod-20261014T214159Z`): production revokes EXECUTE on `clear_article_hidden_by_debate()` and
+`prevent_hidden_debate_article_publication()` from everyone but `postgres` and `service_role` (migration
+`20261012110000`), the dump records exactly that, but the image's default function privileges re-granted EXECUTE to
+`anon` and `authenticated` on creation (production 19 function grants, restored 23). The rehearsal now also revokes the
+image's function defaults for those two roles before `schema.sql`; the dump still grants them explicitly on the three
+functions where production does, and restores production's default privileges at the end.
+
 Rehearsal record (2026-10-14, real 13 October backup, image `supabase/postgres:17.11.0.004`, three identical runs):
 strict load passed; 41/41 tables with exact counts and byte-identical rows; 43 foreign keys, 0 orphans; table grants,
 column grants, RLS, policies, constraints, schema and default privileges equal to today's production. Functions,
@@ -275,8 +283,9 @@ so it needs the owner's explicit decision.
    workflows, so nothing writes to a database that is about to be replaced.
 2. **Restore into a new, empty Supabase project.** Never restore over the damaged project, and never into a database
    that already has these tables (`schema.sql` uses `IF NOT EXISTS` and would silently keep the damaged ones).
-3. Before anything else touches it, apply the same order as step 8: revoke the default table privileges of `anon` and
-   `authenticated` in `public`, load `schema.sql`, then `data.sql` without the platform-schema blocks, in one transaction
+3. Before anything else touches it, apply the same order as step 8: revoke the default **table and function**
+   privileges of `anon` and `authenticated` in `public` (the hosted project has the same defaults as the image, so
+   without this the trigger functions would regain EXECUTE for both roles), load `schema.sql`, then `data.sql` without the platform-schema blocks, in one transaction
    with `ON_ERROR_STOP`. **This has only been rehearsed on a local container, not on a hosted project**: the hosted
    `postgres` role's rights (for example to set `session_replication_role`), extension versions and the pooler may
    behave differently. Rehearse it on a scratch project before it is ever needed.
