@@ -461,7 +461,8 @@ suite('debate lifecycle, article saves and votes share one lock order (real data
       // PostgreSQL checks for a deadlock once, when a waiter's deadlock_timeout expires. The lifecycle's connections use
       // 2 s and the hostile writer 30 s, so the lifecycle is the one that finds the cycle even on a slow runner.
       const pool = new Pool({ connectionString: TEST_DB!, application_name: APP })
-      pool.on('connect', (client) => { void client.query(`SET deadlock_timeout = '2s'`) })
+      let setupError: unknown
+      pool.on('connect', (client) => { client.query(`SET deadlock_timeout = '2s'`).catch((e: unknown) => { setupError = e }) })
       const victim = new PrismaClient({ adapter: new PrismaPg(pool) })
       state.prisma = victim
       try {
@@ -477,6 +478,7 @@ suite('debate lifecycle, article saves and votes share one lock order (real data
         await hostile.query('COMMIT')
 
         const res = await hide
+        expect(setupError).toBeUndefined() // the test database must allow SET deadlock_timeout (superuser or Supabase image)
         expect(res.status).toBe(200)
         expect(retries()).toHaveLength(1)
         expect(retries()[0][1]).toMatchObject({ operation: 'debate:unpublish', code: '40P01', attempt: 1 })
