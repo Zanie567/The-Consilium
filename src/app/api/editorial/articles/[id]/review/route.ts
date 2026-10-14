@@ -12,6 +12,7 @@ import { revalidateArticleLists } from '@/lib/revalidateArticles'
 import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 import { apiError, apiServerErrorResponse } from '@/lib/apiResponse'
+import { withTransactionRetry } from '@/lib/transactionRetry'
 import { Prisma, type ArticleStatus } from '@prisma/client'
 
 interface Props {
@@ -162,7 +163,8 @@ async function PATCHHandler(req: Request, { params }: Props) {
     // back rather than leaving a published/scheduled/returned article with
     // a false "failed" response, or a notification with no matching state
     // change.
-    const updated = await prisma.$transaction(async (tx) => {
+    // Database work only (the email is sent after the commit), so a lock-conflict abort can be retried (issue #128).
+    const updated = await withTransactionRetry(`review:${action}`, () => prisma.$transaction(async (tx) => {
       // The source state and revision must still match at the actual write.
       // PostgreSQL rechecks this predicate after a concurrent writer commits.
       const savedArticle = await tx.article.update({
@@ -179,7 +181,7 @@ async function PATCHHandler(req: Request, { params }: Props) {
         },
       })
       return savedArticle
-    })
+    }))
 
     // Approving publishes the article (and the other review actions move it
     // between draft/scheduled states) — refresh the public list cache.

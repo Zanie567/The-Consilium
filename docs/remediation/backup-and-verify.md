@@ -6,20 +6,26 @@ Nothing here changes production: it only reads. It costs nothing (every tool is 
 > **The backup is full of personal data** (subscriber and user emails, password hashes, admin notes, contact messages, login IP addresses). It must be encrypted at rest, never uploaded anywhere unencrypted, never committed, and deleted when it is no longer needed (step 11).
 > **The connection string is the keys to the database.** Treat it like the password it contains. Never paste it into chat, a ticket, a document or a screenshot, and never type it on a command line.
 
-## Status
+## Status (2026-10-14)
 
-Two different things, kept apart on purpose:
-
-* **The existing production backup of 9 October 2026.** It was created, and verified by the operator, **before this toolkit was repaired and not by these repaired scripts**. This guide does not record how it was made or where it is kept. It is the operator's record, not evidence about the scripts. Never delete or overwrite it while it is still needed: every run of `take-supabase-backup.sh` writes a new timestamped folder and never touches an existing one (and fails rather than reuse a name).
-* **This toolkit.** Its evidence is the local tests below: a real backup, verification and restore of a *throwaway local database* with the real Supabase CLI. It has **not yet been run against production**, and the restore (step 8) has never been run against a real Supabase project. Either needs the operator's separate approval.
-
-Why the repair was needed: the first version of `take-supabase-backup.sh` could not have produced a complete backup with the Supabase CLI now installed (2.120.0). It passed `--keep-comments` to the data dump, and the CLI refuses that flag together with `--data-only`; the CLI reports the refusal on standard output, which the script threw away, so the failure showed no reason. Both are fixed. Use these scripts for any further backup.
+* **Verified production backups** on the encrypted volume: `consilium-prod-20261009T113622Z` and
+  `consilium-prod-20261013T181641Z` (verifier `RESULT: VERIFIED`; public-schema restore test passed). Both **pre-date**
+  the admin-overhaul migrations of 13 October and the removal of 810 seeded debate votes. The 13 October backup is the
+  only copy of those 818 votes: keep it, and **never restore it into production** to "fix" anything.
+* **A fresh post-release backup has not been taken yet** (issue #129). Expected baseline, confirmed read-only on
+  2026-10-14: 23 articles (22 plus one draft an administrator created and trashed at 22:21 UTC on 13 October), 26 users,
+  3 debates (none public), 8 votes, 0 seeded votes, 41 tables.
+* **What has been proven, and what has not.** Taking, verifying and restoring a backup into a *disposable local
+  container* is proven (step 8, rehearsed on 2026-10-14 against the real 13 October backup). Recovering production into
+  a **hosted** Supabase project has **never been tested**; see "Disaster recovery" below for what that would involve.
 
 ## How the scripts were tested
 
 * **Unit tests** (`tests/unit/backup-scripts.test.ts`, Bash 3.2 as shipped with macOS): credential handling, refusals, and every way the verifier must fail. A stand-in `supabase` program now enforces the real CLI's flag rules, including that errors arrive on standard output.
 * **Contract test against the installed CLI**: the same file replays the exact flags the script uses through the real `supabase db dump --dry-run` (no connection, no Docker). It fails if a CLI upgrade rejects those flags, and it is skipped if the CLI is not installed.
-* **Local end-to-end test** (`scripts/backup/local-integration-test.sh`, needs Colima or Docker Desktop): starts a disposable Supabase Postgres container with TLS and a pooler-style login, runs the real CLI through `take-supabase-backup.sh`, runs the verifier, restores into a second disposable container exactly as step 8 does, verifies against the restored counts, and confirms the verifier rejects a mismatch. Last run: Supabase CLI 2.120.0, image `supabase/postgres:17.11.0.004`, all checks passed. It never contacts production and removes only the containers it created. **Run it again after upgrading the Supabase CLI.**
+* **Local end-to-end test** (`scripts/backup/local-integration-test.sh`, needs Colima or Docker Desktop): starts a disposable Supabase Postgres container with TLS and a pooler-style login, runs the real CLI through `take-supabase-backup.sh`, runs the verifier, restores into a second disposable container (a full restore, which works there because the throwaway source has the image's own platform schemas), verifies against the restored counts, and confirms the verifier rejects a mismatch. Last run: Supabase CLI 2.120.0, image `supabase/postgres:17.11.0.004`, all checks passed. It never contacts production and removes only the containers it created. **Run it again after upgrading the Supabase CLI.**
+
+* **Restore rehearsal** (`scripts/backup/restore-rehearsal.sh`, step 8): run on 2026-10-14 against the real 13 October production backup, three times with identical results, under the Bash 3.2 that macOS ships; its refusals are unit-tested in `tests/unit/backup-rehearsal-scripts.test.ts`.
 
 Every failure message tells you what to do, and the verifier refuses to call a doubtful backup good.
 
@@ -138,39 +144,61 @@ scripts/backup/verify-supabase-backup.sh /Volumes/ConsiliumBackup/consilium-prod
 It must end with **`RESULT: VERIFIED`**. It checks that: all five files exist and are owner-only; the SHA-256 of each matches the manifest; `schema.sql` and `data.sql` end with `pg_dump`'s completion marker (not cut short); no file contains a connection string or a role password; `schema.sql` defines every table in the live counts (the 37 core tables it always requires, plus any added since) and `data.sql` has a data block for each; and, for every one of those tables, the number of rows **actually inside the backup** lies between the live counts you took before and after. It compares row *counts*, not row contents; the restore in step 8 is the stronger proof.
 Any `FAIL` ends with `NOT VERIFIED`, exit status 1: **do not continue.** A `MISMATCH` row names the table; a busy table can drift (re-take both counts and the backup in a quiet minute), but a table like `users` or `subscribers` that differs means rows are missing or extra and must be understood first.
 
-## 8. Strongest check: restore it into a throwaway database (recommended)
+## 8. Strongest check: restore it into a throwaway database and compare it with production
 
-This proves the backup can actually be loaded. It uses a disposable container on your Mac that never touches production. These exact commands were rehearsed against a real backup of a local throwaway database with Supabase CLI 2.120.0 and `supabase/postgres:17.11.0.004` (see "How the scripts were tested"). If it fails on your Mac for an environment reason such as a missing role or extension, that is **not** by itself proof the backup is bad; the checks in step 7 still stand. Note the first error line and ask the maintainer.
+`scripts/backup/restore-rehearsal.sh` does this in one command. It starts a disposable Supabase Postgres container
+(no published port; removed afterwards), restores the backup into it, checks it, and writes owner-only evidence. It
+never connects to a hosted database and prints no row contents.
 
-Run it from `~/consilium-backup-tools` in the same terminal window as steps 5 to 7 (it uses `$C`). If an earlier attempt left its container behind, remove that one container first with `docker rm -f consilium-restore-check`.
+First, in the Supabase SQL editor, run `scripts/backup/security-fingerprint.sql` and `scripts/backup/critical-fingerprint.sql`
+on production (both read-only; names, counts and md5s only) and export each as CSV into `$C`, as
+`prod-fingerprint.csv` and `prod-critical.csv`. Take `prod-critical.csv` straight after the backup, with `after.csv`.
 
 ```bash
 B=/Volumes/ConsiliumBackup/consilium-prod-<timestamp>
-IMG=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep 'supabase/postgres' | head -1); echo "$IMG"
-docker run -d --name consilium-restore-check -e POSTGRES_PASSWORD=throwaway-local-only "$IMG"
-until docker exec consilium-restore-check pg_isready -U postgres >/dev/null 2>&1; do sleep 2; done
-
-( cat "$B/schema.sql"; echo "SET session_replication_role = replica;"; cat "$B/data.sql" ) \
-  | docker exec -i consilium-restore-check psql -U postgres -d postgres -v ON_ERROR_STOP=1 --single-transaction
-
-docker exec -i consilium-restore-check psql -U postgres -d postgres --csv < scripts/backup/table-row-counts.sql > "$C/restored.csv"
-scripts/backup/verify-supabase-backup.sh "$B" --counts-before "$C/restored.csv" | tee "$C/verify-restored-output.txt"
-docker rm -f consilium-restore-check
+scripts/backup/restore-rehearsal.sh "$B" --evidence "$C/restore" \
+  --expected-fingerprint "$C/prod-fingerprint.csv" --expected-critical "$C/prod-critical.csv"
 ```
 
-The last verifier run compares the backup's rows with the **restored** copy's counts, which must match exactly; `RESULT: VERIFIED` there means every row loaded.
+It must end with **`RESULT: RESTORE VERIFIED`**. What it checks:
 
-How it works, so a failure is easy to read: `schema.sql` creates the tables, `SET session_replication_role = replica` stops triggers and foreign-key checks firing while rows load, `data.sql` loads every row with `COPY`, and `ON_ERROR_STOP` plus `--single-transaction` mean any error rolls everything back instead of leaving a half-restored database. The container is a Supabase Postgres image, which already has the roles (`anon`, `authenticated`, `service_role`, ...) and the `auth` and `storage` schemas that the dump refers to; a plain Postgres image would fail on those. `roles.sql` is not loaded here: it is kept as a record of the cluster roles.
+1. **Strict restore of the public schema**: `schema.sql`, then `data.sql` with triggers and foreign-key checks off
+   (`session_replication_role = replica`), all in **one transaction with `ON_ERROR_STOP`**, so any error restores nothing.
+2. **Row counts**: the verifier against the restored copy's counts; they must equal the rows inside the backup exactly.
+3. **Row contents**: for every table, the sorted rows in `data.sql` and in the restored table have the same md5.
+4. **Referential integrity**: no foreign key has an orphan row.
+5. **Security**: `anon` and `authenticated` hold no table privilege, and every line of the security fingerprint (tables,
+   RLS, table and column grants, policies, functions and their EXECUTE grants, triggers, constraints, indexes, schema
+   and default privileges) equals production's. The extension list is shown but not compared (the image and the hosted
+   project ship different extension versions).
+6. **Critical content**: the counts and id fingerprints of articles, public articles, users, debates, public debates,
+   votes, subscribers, team members, comments and audit log entries equal production's.
 
-### Restoring for real (disaster recovery)
+**Why only the public schema, and why the old step 8 failed.** `data.sql` also holds the data of Supabase's platform
+schemas (`auth`, `storage`). Those tables are created and migrated by the Auth and Storage services, not by the
+Postgres image, so a bare `supabase/postgres` container has different (older or missing) tables and columns. Loading
+everything with `ON_ERROR_STOP` therefore failed on 13 October (32 errors, all in `auth`/`storage`). The rehearsal
+skips those blocks and reports how many rows it skipped (13 October backup: `auth` 26 tables, 0 rows; `storage`
+7 tables, 38 rows of bucket and object *metadata*, not the files). The application keeps all of its data in `public`
+and signs users in with its own tables, so the public schema is the application's complete database.
 
-**Never run a restore against production without separate, explicit approval**, and never into a database that already has these tables: `schema.sql` is written with `IF NOT EXISTS`, so it would skip the existing tables and `data.sql` would then collide with their rows (the single transaction rolls that back, but nothing is restored).
-What has and has not been proven: loading `schema.sql` then `data.sql` with `ON_ERROR_STOP` into a **local Supabase Postgres container** is rehearsed (above). Loading them into a **real hosted Supabase project** is **not**: nothing here has been tried against one, so hosted-specific differences (for example the privileges of the `postgres` role, extensions, `session_replication_role`) are unknown. The intended shape, to be rehearsed on a scratch project before it is ever needed:
+**Why privileges needed fixing, and how it is done safely.** A restore recreates the grants the dump records, but not
+the *absence* of others: the Supabase image's default privileges grant `anon` and `authenticated` full rights on every
+new table, while production revoked them (production: only `postgres` and `service_role` hold table privileges; `anon`
+holds SELECT on 41 vetted columns of 6 public-content tables; `authenticated` holds nothing). The 13 October test
+restored all 41 tables with `anon` and `authenticated` holding full privileges. The rehearsal now revokes the image's
+table defaults for those two roles **before** `schema.sql` runs, so no table is ever created with them, and then
+proves the result equals production's fingerprint (2026-10-14: 656 table grants, md5 `1ce2f2e6…`, identical).
 
-1. Create a **new, empty** Supabase project. Do not restore over the damaged one.
-2. Load `schema.sql`, then `SET session_replication_role = replica;`, then `data.sql`, in one transaction with `ON_ERROR_STOP`, using `psql` against the new project's Session pooler. Give the host, user and database as separate arguments and let `psql` ask for the password (hidden), so the password is never on a command line or in shell history. The exact command is deliberately not given here because it has not been tested.
-3. Run `scripts/backup/table-row-counts.sql` in the new project's SQL editor and verify the backup against that export (the last command of step 8).
-4. Only then point Vercel's database variables at the new project and redeploy. Storage files (images) are not in this backup and must be restored separately.
+Rehearsal record (2026-10-14, real 13 October backup, image `supabase/postgres:17.11.0.004`, three identical runs):
+strict load passed; 41/41 tables with exact counts and byte-identical rows; 43 foreign keys, 0 orphans; table grants,
+column grants, RLS, policies, constraints, schema and default privileges equal to today's production. Functions,
+triggers, function grants, one index and `debates."deletedAt"` differed, exactly the objects that migrations 1 to 5
+added after that backup was taken; a backup taken now will include them.
+
+If it fails for an environment reason (Docker not running, image missing), that is not by itself evidence that the
+backup is bad: step 7's checks still stand. A `FAIL` on a privilege, row-content or critical line is not an
+environment problem: stop and investigate.
 
 ## 9. Keep a second, verified copy
 
@@ -185,7 +213,7 @@ For a later backup this copies over the previous second copy. Do that only once 
 
 ## 10. Record the result (with no secrets)
 
-Keep `verify-output.txt`, `verify-restored-output.txt` and the backup's `MANIFEST.txt` with the backup (they are in `$C` and the backup folder). They contain a folder name and row counts, nothing secret, and are what you would show a reviewer. If someone cross-checks the numbers, they can run `scripts/backup/table-row-counts.sql` read-only against production and compare. **Never share the connection string, the password, or any part of a dump file.**
+Keep `verify-output.txt`, the `restore/` evidence folder from step 8 (`summary.txt` and the files beside it), the production fingerprint exports and the backup's `MANIFEST.txt` with the backup (they are in `$C` and the backup folder). They contain a folder name, row counts and md5s, nothing secret (`restore/restore.log` can quote a row if a load ever fails: keep it on the encrypted volume), and are what you would show a reviewer. If someone cross-checks the numbers, they can run `scripts/backup/table-row-counts.sql` read-only against production and compare. **Never share the connection string, the password, or any part of a dump file.**
 
 ## 11. Tidy up, and how long to keep it
 
@@ -203,9 +231,77 @@ Delete one backup at a time, by its own folder, with the volume mounted (and its
 
 ## What this backup does and does not cover
 
-Covered: every table and row in the database's `public` schema (the whole application: users, articles, subscribers, comments, audit log, and so on), its structure, policies and functions, and the cluster roles (no passwords).
-Partly covered, **Supabase Auth**: the CLI's data dump skips only its own internal exclusion list, so `data.sql` can also carry rows of tables in the `auth` schema (in the local test it held four `auth` blocks and none from `storage`; production may differ, so check with `grep -c '^COPY "auth"' data.sql`). But `schema.sql` defines none of those tables and the verifier does not count them. They load only into a Supabase Postgres that already has the `auth` schema, as in step 8. The site signs users in with its own `users` table (not Supabase Auth), so the application does not depend on them, but do not rely on this backup as a complete copy of Supabase Auth.
-Not covered: **Storage files** (article images and avatars are objects in Supabase Storage, which a database dump does not include; back them up separately if they matter), Vault secrets, and Vercel and GitHub secrets.
+Covered: every table and row of the `public` schema (the whole application: users and their password hashes, articles,
+subscribers, comments, votes, audit log, and so on), its structure, RLS policies, functions, triggers and grants, and
+the cluster role *names* (`roles.sql`, no passwords).
+
+Not covered, and needed for a full recovery:
+
+* **Storage files.** Article images and avatars are objects in Supabase Storage (36 objects in `article-images` and
+  `avatars` on 13 October). The dump holds only their metadata rows; the files must be copied separately.
+* **Supabase platform schemas** (`auth`, `storage`, `realtime`, `vault`, …): they belong to Supabase's services and are
+  recreated by a new project, not restored from this dump. Production does not use Supabase Auth (its `auth` tables are
+  empty), so nothing of the application is lost there.
+* **Secrets and configuration**: database passwords, Vault secrets, API keys, the Vercel and GitHub environment
+  variables (database URLs, `NEXTAUTH_SECRET`, Resend, Google OAuth, `CRON_SECRET`, storage keys), Supabase project
+  settings (auth, network restrictions, pooler), and GitHub Actions schedules. Keep their *list* (not their values)
+  current, so a recovery knows what must be re-created.
+* **Writes after the dump**: the backup is a copy as of its own time.
+
+## Disaster recovery
+
+First decide which kind of incident it is: the response is completely different, and restoring the database is
+almost never the answer to a bad deployment.
+
+### A. A deployment broke the site (the database is fine)
+
+Signs: errors began right after a deploy; the data is intact (row counts and the critical fingerprint match the
+previous known state).
+
+1. In Vercel, **promote the previous production deployment** (Deployments, the last good one, *Promote*; or instant
+   rollback). Schema changes are not undone by this: every migration here is additive, and the previous code tolerates
+   the newer schema, so a code rollback is normally enough.
+2. Confirm the site works, then fix forward in a PR. **Do not restore a backup**: it would discard every write since
+   it was taken.
+3. If a migration itself is at fault, use that migration's own documented rollback from `supabase/manual/` (or its
+   header), reviewed and applied deliberately, never the whole backup.
+
+### B. The database itself is damaged or lost
+
+Signs: rows missing or corrupted, the project deleted or unrecoverable. Restoring loses every write after the backup,
+so it needs the owner's explicit decision.
+
+1. **Stop writes**: put the site in maintenance or pause the Vercel project, and disable the scheduled GitHub
+   workflows, so nothing writes to a database that is about to be replaced.
+2. **Restore into a new, empty Supabase project.** Never restore over the damaged project, and never into a database
+   that already has these tables (`schema.sql` uses `IF NOT EXISTS` and would silently keep the damaged ones).
+3. Before anything else touches it, apply the same order as step 8: revoke the default table privileges of `anon` and
+   `authenticated` in `public`, load `schema.sql`, then `data.sql` without the platform-schema blocks, in one transaction
+   with `ON_ERROR_STOP`. **This has only been rehearsed on a local container, not on a hosted project**: the hosted
+   `postgres` role's rights (for example to set `session_replication_role`), extension versions and the pooler may
+   behave differently. Rehearse it on a scratch project before it is ever needed.
+4. **Verify before exposing it**, read-only, in the new project: `table-row-counts.sql` (then the verifier),
+   `security-fingerprint.sql` (every line except extensions must equal the last production export: the table grantees
+   must be exactly `postgres service_role`, RLS on every table, the same policies, triggers and EXECUTE grants), and
+   `critical-fingerprint.sql`. Do not grant anything to `anon` or `authenticated` to "make something work": the
+   application connects as `postgres` through Prisma and needs no such grant.
+5. Re-create what the dump does not hold: copy the Storage files and recreate the buckets with the same policies;
+   re-create secrets; update the Vercel database variables to the new project and redeploy; re-enable the workflows.
+6. Record the gap: which writes after the backup were lost, and tell the affected people if it matters.
+
+### Read-only checks to keep handy
+
+All of these only read the catalog (run them in the SQL editor, or with `psql` as a read-only check):
+
+* `scripts/backup/security-fingerprint.sql`: one line per category (privileges, RLS, policies, functions and their
+  EXECUTE grants, triggers, constraints, indexes, schema and default privileges); compare two exports with `diff`.
+* `scripts/backup/critical-fingerprint.sql`: counts and id fingerprints of the tables that matter most.
+* `scripts/backup/table-row-counts.sql`: every table's exact row count.
+* Which roles can read what, in detail:
+  `select grantee, table_name, privilege_type from information_schema.role_table_grants where table_schema = 'public' and grantee in ('anon', 'authenticated');`
+  (expected on production: no rows) and
+  `select grantee, table_name, count(*) from information_schema.column_privileges where table_schema = 'public' and grantee in ('anon', 'authenticated') group by 1, 2;`
+  (expected: `anon` on articles, article_tags, categories, series, tags, team_members only).
 
 ## If something goes wrong
 

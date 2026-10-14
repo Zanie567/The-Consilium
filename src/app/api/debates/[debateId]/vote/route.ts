@@ -6,8 +6,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { publicDebateWhere } from '@/lib/debateVisibility'
-import { withPublicDebate } from '@/lib/debateVoting'
+import { isDuplicateVote, withPublicDebate } from '@/lib/debateVoting'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { apiError, apiServerErrorResponse } from '@/lib/apiResponse'
 
 export const dynamic = 'force-dynamic'
 
@@ -113,11 +114,14 @@ async function POSTHandler(req: Request, { params }: Props) {
       return response
     }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err)
-    if (msg.includes('Unique constraint')) {
-      return NextResponse.json({ error: 'You have already voted on this debate.' }, { status: 409 })
-    }
-    throw err
+    // The unique constraints are the authority on "one vote per voter": the existing vote is never overwritten.
+    if (isDuplicateVote(err)) return apiError('You have already voted on this debate.', 409, 'ALREADY_VOTED')
+    // A deadlock that outlived its retries (409) or a lock wait that timed out (503) rolled back: nothing was recorded.
+    return apiServerErrorResponse(err, {
+      operation: 'debate:vote',
+      userMessage: 'Your vote could not be recorded because of a server error. Try again.',
+      code: 'VOTE_FAILED',
+    })
   }
 
   const counts = await getBreakdown(debateId)

@@ -460,11 +460,12 @@ describe('the guide matches the scripts', () => {
   const guide = readFileSync(join(ROOT, 'docs/remediation/backup-and-verify.md'), 'utf8')
   const takeSource = readFileSync(TAKE, 'utf8')
   const verifySource = readFileSync(VERIFY, 'utf8')
+  const rehearsalSource = readFileSync(join(ROOT, 'scripts/backup/restore-rehearsal.sh'), 'utf8')
 
   it('every option the guide tells you to type exists in the script it names', () => {
     const lines = guide.split('\n')
     let inspected = 0
-    for (const [script, source] of [['take-supabase-backup.sh', takeSource], ['verify-supabase-backup.sh', verifySource]] as const) {
+    for (const [script, source] of [['take-supabase-backup.sh', takeSource], ['verify-supabase-backup.sh', verifySource], ['restore-rehearsal.sh', rehearsalSource]] as const) {
       // an invocation may continue onto following lines with a trailing backslash
       for (let i = 0; i < lines.length; i++) {
         if (!lines[i].includes(`scripts/backup/${script}`) || !lines[i].trim().startsWith('scripts/backup/')) continue

@@ -3,6 +3,7 @@ import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
 import { requireVerifiedSessionUser, type VerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { withTransactionRetry } from '@/lib/transactionRetry'
 import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 import { editorCanAccessArticleCategory } from '@/lib/articleCategoryAccess'
 import { apiError, articleMutationErrorResponse } from '@/lib/apiResponse'
@@ -51,17 +52,20 @@ async function POSTHandler(_req: Request, { params }: Props) {
   }
 
   try {
-    const updated = await prisma.$transaction(async (tx) => {
+    const updated = await withTransactionRetry('article:feature', () => prisma.$transaction(async (tx) => {
       // Selecting one homepage feature is a global operation. Serialize choices
       // before locking their different target rows, preserving the single slot.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'consilium:featured-article'}))`
+      // Then the rows this changes, in id order: votes and debate lifecycle actions lock a debate's two
+      // articles in id order too, so locking target-then-others could wait on them in a cycle (issue #128).
+      await tx.$queryRaw`SELECT id FROM articles WHERE id = ${id} OR "isFeatured" ORDER BY id FOR NO KEY UPDATE`
       const saved = await tx.article.update({
         where: { id, updatedAt: access.article.updatedAt, deletedAt: null, status: 'PUBLISHED', categoryId: access.article.categoryId },
         data: { isFeatured: true },
       })
       await tx.article.updateMany({ where: { id: { not: id }, isFeatured: true }, data: { isFeatured: false } })
       return saved
-    })
+    }))
     revalidateArticleLists()
     return NextResponse.json({ ok: true, updatedAt: updated.updatedAt })
   } catch (error) {

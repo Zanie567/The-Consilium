@@ -18,6 +18,7 @@ import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 import { apiError, articleMutationErrorResponse } from '@/lib/apiResponse'
 import { ARTICLE_SAVE_TIMEOUT_MS, normalizeArticleTags } from '@/lib/articleTags'
 import { articleVersion } from '@/lib/articleVersion'
+import { withTransactionRetry } from '@/lib/transactionRetry'
 import type { ArticleStatus } from '@prisma/client'
 
 const STAFF_ARTICLE_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'ARCHIVED', 'REJECTED', 'SCHEDULED'] as const satisfies readonly ArticleStatus[]
@@ -252,7 +253,10 @@ async function PUTHandler(
     // is a known quantity.
     const normalizedTags = normalizeArticleTags(tags)
 
-    const { article: updated, savedTagNames } = await prisma.$transaction(async (tx) => {
+    // Database work only, so it is safe to run again if PostgreSQL aborts it for a lock conflict (issue #128): the
+    // write is guarded on the row as read, so a retry after someone else's change is refused, never applied over it.
+    // Image cleanup, notifications and cache refresh happen after the commit.
+    const { article: updated, savedTagNames } = await withTransactionRetry('article:update', () => prisma.$transaction(async (tx) => {
       await lockArticleImages(tx, content ?? existing.content, coverImage ?? existing.coverImage)
       const savedArticle = await tx.article.update({
         // Recheck the authorised row at the write: a concurrent submission,
@@ -309,7 +313,7 @@ async function PUTHandler(
       }
 
       return { article: savedArticle, savedTagNames }
-    }, { timeout: ARTICLE_SAVE_TIMEOUT_MS })
+    }, { timeout: ARTICLE_SAVE_TIMEOUT_MS }))
 
     await cleanupRemovedArticleImages(existing.content, existing.coverImage, updated.content, updated.coverImage)
 

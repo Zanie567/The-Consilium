@@ -30,12 +30,26 @@
  * on the row exactly as it was read (including `updatedAt`), so a duplicate click, a
  * second administrator or a concurrent edit produces a clear refusal and never a partial
  * or double application. Authorisation is the caller's job (the route is ADMIN only).
+ *
+ * Lock order (issue #128): articles before debates, each by ascending id. The database guard
+ * articles_hidden_debate_guard runs inside every write that makes an article public, after that
+ * write has locked the article row, and takes FOR SHARE on the article's debates: article, then
+ * debate. A transition therefore locks the debate's two articles first and only then writes the
+ * debate, and withPublicDebate (voting) uses the same order. Writing the debate first, as this
+ * module once did, let an article save and a hide wait on each other until PostgreSQL aborted one
+ * (40P01). A conflict that still happens (a hand-run script, a future code path) is retried a
+ * bounded number of times (transactionRetry.ts): the transaction is database work only, and the
+ * cache refresh runs after the commit.
  */
 import { revalidatePath } from 'next/cache'
-import type { Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { withTransactionRetry } from '@/lib/transactionRetry'
 import { revalidateArticleLists } from '@/lib/revalidateArticles'
 import { debateVisibility } from '@/lib/debateVisibility'
+
+/** Transaction advisory lock that serializes choosing the featured debate (create and edit routes). */
+export const FEATURED_DEBATE_LOCK = 'consilium:featured-debate'
 
 export const DEBATE_ACTIONS = ['unpublish', 'publish', 'delete', 'restore', 'purge'] as const
 export type DebateAction = (typeof DEBATE_ACTIONS)[number]
@@ -124,7 +138,7 @@ export async function transitionDebate(
 ): Promise<TransitionResult> {
   const now = options.now ?? new Date()
 
-  const result = await client.$transaction(async (tx): Promise<TransitionResult> => {
+  const result = await withTransactionRetry(`debate:${action}`, () => client.$transaction(async (tx): Promise<TransitionResult> => {
     const debate = await tx.debate.findUnique({
       where: { id: debateId },
       select: {
@@ -149,6 +163,11 @@ export async function transitionDebate(
     // so ours matches nothing and is refused instead of overwriting it.
     const guard = { id: debate.id, updatedAt: debate.updatedAt, deletedAt: debate.deletedAt, unpublishedAt: debate.unpublishedAt }
     const refuse = () => new DebateLifecycleError('CONFLICT', 'Another change was applied to this debate at the same time. Reload and try again.', 409)
+
+    // Articles first, then the debate (see "Lock order" above). Every action takes this, so no transition ever holds
+    // the debate while it waits for one of its articles. FOR NO KEY UPDATE is the mode an ordinary UPDATE of these rows
+    // takes: it waits for an in-flight article save, but not for readers or foreign-key checks (FOR KEY SHARE).
+    await tx.$queryRaw`SELECT id FROM articles WHERE id IN (${Prisma.join(articleIds)}) ORDER BY id FOR NO KEY UPDATE`
 
     let articlesChanged = 0
     let articlesNotRestored = 0
@@ -220,7 +239,7 @@ export async function transitionDebate(
     })
 
     return { id: debate.id, action, visibility, articlesChanged, articlesNotRestored, votesRemoved, publicCacheRefreshed: false }
-  })
+  }))
 
   // Only after the transaction has committed: a rolled-back change must never expire a cache.
   return { ...result, publicCacheRefreshed: revalidateDebateSurfaces() }

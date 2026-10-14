@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
     categoryEditor: { deleteMany: vi.fn(), createMany: vi.fn() },
     auditLog: { create: vi.fn() },
     debate: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+    // Featuring a debate first takes a transaction advisory lock (serializes concurrent featuring).
+    $executeRaw: vi.fn(),
     $transaction: vi.fn(),
   },
 }))
