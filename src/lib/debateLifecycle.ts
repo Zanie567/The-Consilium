@@ -48,6 +48,9 @@ import { withTransactionRetry } from '@/lib/transactionRetry'
 import { revalidateArticleLists } from '@/lib/revalidateArticles'
 import { debateVisibility } from '@/lib/debateVisibility'
 
+/** Transaction advisory lock that serializes choosing the featured debate (create and edit routes). */
+export const FEATURED_DEBATE_LOCK = 'consilium:featured-debate'
+
 export const DEBATE_ACTIONS = ['unpublish', 'publish', 'delete', 'restore', 'purge'] as const
 export type DebateAction = (typeof DEBATE_ACTIONS)[number]
 

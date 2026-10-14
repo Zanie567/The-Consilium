@@ -5,7 +5,7 @@ import { apiServerErrorResponse } from '@/lib/apiResponse'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
-import { revalidateDebateSurfaces } from '@/lib/debateLifecycle'
+import { FEATURED_DEBATE_LOCK, revalidateDebateSurfaces } from '@/lib/debateLifecycle'
 import { loadDebateAdminRows } from '@/lib/debateAdminQueries'
 
 export async function GET() {
@@ -69,7 +69,9 @@ async function POSTHandler(req: Request) {
       const againstSlug = await uniqueSlug(toSlug(againstTitle), [forSlug])
 
       if (isActive) {
-        await tx.debate.updateMany({ data: { isActive: false } })
+        // Serialized with the edit route's featuring (see FEATURED_DEBATE_LOCK); only the featured row changes.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${FEATURED_DEBATE_LOCK}))`
+        await tx.debate.updateMany({ where: { isActive: true }, data: { isActive: false } })
       }
       const common = { status: 'PUBLISHED' as const, publishedAt: new Date(), isDebate: true, categoryId: categoryId || null }
       const forArticle = await tx.article.create({

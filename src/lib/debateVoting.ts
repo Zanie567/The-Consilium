@@ -22,6 +22,7 @@ import { withTransactionRetry } from '@/lib/transactionRetry'
  *     debate that references the article. So such a write holds an article and waits for its debates, never the
  *     reverse. An article write that does not make it public (archive, draft, trash) locks only the article row.
  * Because nobody holds a debate while waiting for an article, these transactions cannot deadlock with each other.
+ * (Any transaction that locks several articles takes them in id order too, e.g. the article feature route.)
  */
 export type PublicVoteOutcome<T> = { visible: true; value: T } | { visible: false }
 
@@ -30,17 +31,19 @@ export type PublicVoteOutcome<T> = { visible: true; value: T } | { visible: fals
  *
  * Prisma's `timeout` alone cannot do this: it does not cancel a statement that is waiting for a row lock (measured
  * with @prisma/adapter-pg 7.6 on PostgreSQL 17: the transaction stayed blocked until the other side released the
- * lock, then failed with P2028). The server-side `lock_timeout` does: each statement gives up after
- * VOTE_LOCK_TIMEOUT_MS with SQLSTATE 55P03 and the transaction rolls back, leaving no vote behind. It is scoped to
- * this transaction (set_config(..., true) = SET LOCAL), which is also correct behind the Supabase transaction pooler.
- *
- * At most three statements can wait for a lock (the article locks, the debate locks, and the insert behind a
- * concurrent duplicate), so 3 x 1.5 s stays inside the 5 s `timeout`. A normal vote takes a few milliseconds and the
- * longest legitimate holder, an article save, is a few hundred. `maxWait` (a pooled connection and BEGIN) keeps
- * Prisma's default of 2 s, now explicit.
+ * lock, then failed with P2028). Server-side limits do, and the transaction then rolls back, leaving no vote:
+ *   - `lock_timeout` ends any single lock wait after VOTE_LOCK_TIMEOUT_MS (55P03);
+ *   - `statement_timeout` caps a whole statement at VOTE_STATEMENT_TIMEOUT_MS (57014), because one statement can
+ *     wait more than once (two article rows held by two different saves; an insert behind a concurrent duplicate).
+ * Both are scoped to this transaction (set_config(..., true) = SET LOCAL), which is also correct behind the Supabase
+ * transaction pooler. Three statements can wait (the article locks, the debate locks, the insert), so the worst case
+ * is 3 x 2 s, inside the 7 s `timeout`: the precise server error always arrives before Prisma's own expiry. A normal
+ * vote takes a few milliseconds and the longest legitimate holder, an article save, a few hundred. `maxWait` (a
+ * pooled connection and BEGIN) keeps Prisma's default of 2 s, now explicit.
  */
 export const VOTE_LOCK_TIMEOUT_MS = 1_500
-export const VOTE_TRANSACTION_OPTIONS = { maxWait: 2_000, timeout: 5_000 } as const
+export const VOTE_STATEMENT_TIMEOUT_MS = 2_000
+export const VOTE_TRANSACTION_OPTIONS = { maxWait: 2_000, timeout: 7_000 } as const
 
 export async function withPublicDebate<T>(
   debateId: string,
@@ -49,7 +52,8 @@ export async function withPublicDebate<T>(
   // Retried only when PostgreSQL aborted the whole transaction (deadlock or serialization failure): `work` is the
   // vote insert and nothing else, so running it again cannot double-count. A busy lock is reported, not retried.
   return withTransactionRetry('debate:vote', () => prisma.$transaction(async (tx): Promise<PublicVoteOutcome<T>> => {
-    await tx.$queryRaw`SELECT set_config('lock_timeout', ${`${VOTE_LOCK_TIMEOUT_MS}ms`}, true)`
+    await tx.$queryRaw`SELECT set_config('lock_timeout', ${`${VOTE_LOCK_TIMEOUT_MS}ms`}, true),
+                              set_config('statement_timeout', ${`${VOTE_STATEMENT_TIMEOUT_MS}ms`}, true)`
     const ref = await tx.debate.findUnique({ where: { id: debateId }, select: { forArticleId: true, againstArticleId: true } })
     if (!ref) return { visible: false }
     const articleIds = Prisma.join([ref.forArticleId, ref.againstArticleId])

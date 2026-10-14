@@ -12,7 +12,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), 
 
 import { postgresErrorCode, transactionFailure, withTransactionRetry, TRANSACTION_ATTEMPTS } from '@/lib/transactionRetry'
 import { apiServerErrorResponse, articleMutationErrorResponse, transactionFailureResponse } from '@/lib/apiResponse'
-import { isDuplicateVote, VOTE_LOCK_TIMEOUT_MS, VOTE_TRANSACTION_OPTIONS } from '@/lib/debateVoting'
+import { isDuplicateVote, VOTE_LOCK_TIMEOUT_MS, VOTE_STATEMENT_TIMEOUT_MS, VOTE_TRANSACTION_OPTIONS } from '@/lib/debateVoting'
 import { transitionDebate } from '@/lib/debateLifecycle'
 
 /** What a deadlock inside an ORM call looks like with the pg driver adapter: not a Prisma known error at all. */
@@ -205,9 +205,11 @@ describe('isDuplicateVote (#129)', () => {
 })
 
 describe('vote transaction bounds (#129)', () => {
-  it('a stuck lock is given up well inside the transaction timeout', () => {
-    // Three statements can wait for a lock; each gives up after the lock timeout, all within the transaction timeout.
-    expect(3 * VOTE_LOCK_TIMEOUT_MS).toBeLessThan(VOTE_TRANSACTION_OPTIONS.timeout)
-    expect(VOTE_TRANSACTION_OPTIONS).toEqual({ maxWait: 2_000, timeout: 5_000 })
+  it('every server-side limit fires before Prisma\'s own transaction timeout', () => {
+    // lock_timeout bounds one lock wait; a statement can wait more than once, so statement_timeout bounds a statement.
+    // Three statements can wait (article locks, debate locks, the insert): all of them fit inside the timeout.
+    expect(VOTE_LOCK_TIMEOUT_MS).toBeLessThan(VOTE_STATEMENT_TIMEOUT_MS)
+    expect(3 * VOTE_STATEMENT_TIMEOUT_MS).toBeLessThan(VOTE_TRANSACTION_OPTIONS.timeout)
+    expect(VOTE_TRANSACTION_OPTIONS).toEqual({ maxWait: 2_000, timeout: 7_000 })
   })
 })

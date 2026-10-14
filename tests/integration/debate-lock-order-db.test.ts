@@ -18,7 +18,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, vi } 
 import { NextRequest } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
-import { Client } from 'pg'
+import { Client, Pool } from 'pg'
 import { assertSafeTestDatabaseHost } from '../../scripts/lib/assertSafeTestDatabaseHost'
 
 const TEST_DB = process.env.TEST_DATABASE_URL
@@ -70,6 +70,8 @@ vi.mock('@/lib/gamification/achievements', () => ({ awardPublishAchievements: vi
 import { PUT as saveArticle } from '@/app/api/articles/[id]/route'
 import { POST as lifecycle } from '@/app/api/editorial/debates/[debateId]/lifecycle/route'
 import { POST as voteRoute } from '@/app/api/debates/[debateId]/vote/route'
+import { POST as featureArticle } from '@/app/api/editorial/articles/[id]/feature/route'
+import { PATCH as editDebate } from '@/app/api/editorial/debates/[debateId]/route'
 import { transitionDebate } from '@/lib/debateLifecycle'
 
 let db: PrismaClient
@@ -77,6 +79,9 @@ const tag = `lo-${Date.now()}`
 const ids = { admin: '', editor: '', writer: '', readers: [] as string[] }
 let n = 0
 const holders: Client[] = []
+// Featuring is global (one featured debate, one featured article): what was featured before this suite is restored
+// after it, so later suites and the browser tests sharing this database see the seeded state.
+const featuredBefore = { debates: [] as string[], articles: [] as string[] }
 
 // ── helpers ──────────────────────────────────────────────────────────────────────────────────────────────────────
 const request = (url: string, method: string, body?: unknown, headers: Record<string, string> = {}) =>
@@ -185,6 +190,8 @@ suite('debate lifecycle, article saves and votes share one lock order (real data
     ids.editor = (await mk('editor', 'EDITOR')).id
     ids.writer = (await mk('writer', 'WRITER')).id
     for (let i = 0; i < 4; i++) ids.readers.push((await mk(`reader${i}`, 'READER')).id)
+    featuredBefore.debates = (await db.debate.findMany({ where: { isActive: true }, select: { id: true } })).map((d) => d.id)
+    featuredBefore.articles = (await db.article.findMany({ where: { isFeatured: true }, select: { id: true } })).map((a) => a.id)
   })
   beforeEach(() => { cache.reset(); warn.mockClear() })
   afterEach(async () => {
@@ -203,6 +210,8 @@ suite('debate lifecycle, article saves and votes share one lock order (real data
     await db.articleTag.deleteMany({ where: { article: { slug: { startsWith: tag } } } })
     await db.article.deleteMany({ where: { slug: { startsWith: tag } } })
     await db.user.deleteMany({ where: { email: { startsWith: tag } } })
+    await db.debate.updateMany({ where: { id: { in: featuredBefore.debates } }, data: { isActive: true } })
+    await db.article.updateMany({ where: { id: { in: featuredBefore.articles } }, data: { isFeatured: true } })
     await db.$disconnect()
   })
 
@@ -357,9 +366,57 @@ suite('debate lifecycle, article saves and votes share one lock order (real data
     })
   })
 
+  describe('other writers that lock several debate articles or debates', () => {
+    it('featuring an article locks in id order: a vote holding the debate\'s articles is not deadlocked by it', async () => {
+      // Articles Q < P of one debate; Q is the featured article; an editor features P. Before the fix the feature route
+      // locked P, then Q. A vote locks Q, then P. With a reader holding Q (FOR SHARE: the vote may share it, the feature
+      // may not), the feature held P and waited for Q while the vote held Q and waited for P.
+      const { debate, low: q, high: p } = await makeDebate()
+      await db.article.updateMany({ where: { isFeatured: true }, data: { isFeatured: false } })
+      await db.article.update({ where: { id: q }, data: { isFeatured: true } })
+      const reader = await holder()
+      await reader.query('BEGIN')
+      await reader.query('SELECT 1 FROM articles WHERE id = $1 FOR SHARE', [q])
+
+      const feature = runAs(ids.admin, () => featureArticle(request(`/api/editorial/articles/${p}/feature`, 'POST'), { params: Promise.resolve({ id: p }) }))
+      await lockWaiters(1)
+      const vote = voteAs(ids.readers[0], debate.id, 'FOR')
+      expect((await vote).status).toBe(200) // it did not wait for the feature: P was not locked yet
+      await reader.query('ROLLBACK')
+      expect((await feature).status).toBe(200)
+      expect((await db.article.findMany({ where: { id: { in: [q, p] } }, orderBy: { id: 'asc' } })).map((r) => r.isFeatured)).toEqual([false, true])
+      expect(retries()).toEqual([])
+    })
+
+    it('two administrators featuring different debates at once: never a 5xx, exactly one featured debate', async () => {
+      for (let i = 0; i < 15; i++) {
+        const [one, two] = [await makeDebate(), await makeDebate()]
+        const feature = (id: string) => runAs(ids.admin, async () => {
+          const res = await editDebate(request(`/api/editorial/debates/${id}`, 'PATCH', { isActive: true }), { params: Promise.resolve({ debateId: id }) })
+          return res.status
+        })
+        expect(await Promise.all([feature(one.debate.id), feature(two.debate.id)])).toEqual([200, 200])
+        expect(await db.debate.count({ where: { isActive: true } })).toBe(1)
+      }
+      expect(retries()).toEqual([])
+    })
+
+    it('featuring a debate leaves every other debate\'s revision alone (only the featured one changes)', async () => {
+      const bystander = await makeDebate()
+      await db.debate.update({ where: { id: bystander.debate.id }, data: { isActive: false } })
+      const before = (await db.debate.findUniqueOrThrow({ where: { id: bystander.debate.id } })).updatedAt
+      const { debate } = await makeDebate()
+      const res = await runAs(ids.admin, () => editDebate(request(`/api/editorial/debates/${debate.id}`, 'PATCH', { isActive: true }), { params: Promise.resolve({ debateId: debate.id }) }))
+      expect(res.status).toBe(200)
+      expect((await db.debate.findUniqueOrThrow({ where: { id: bystander.debate.id } })).updatedAt).toEqual(before)
+    })
+  })
+
   describe('randomised interleavings of the real routes', () => {
     it('50 races of saves, hides, shows and votes: never a 5xx, never a public article of a hidden debate', async () => {
-      const ALLOWED: Record<string, number[]> = { save: [200, 409], lifecycle: [200, 409], vote: [200, 404, 409] }
+      // A vote that waits longer than its lock timeout is told to try again (503 DATABASE_BUSY): a designed answer, not
+      // an error, and possible on a heavily loaded runner. Nothing else may be a 5xx.
+      const ALLOWED: Record<string, number[]> = { save: [200, 409], lifecycle: [200, 409], vote: [200, 404, 409, 503] }
       const ALLOWED_409 = new Set(['ARTICLE_CHANGED', 'HIDDEN_DEBATE_ARTICLE', 'CONFLICT', 'INVALID_STATE', 'ALREADY_VOTED', undefined])
       const jitter = () => new Promise((r) => setTimeout(r, Math.floor(Math.random() * 8)))
       const seen: string[] = []
@@ -381,6 +438,7 @@ suite('debate lifecycle, article saves and votes share one lock order (real data
           seen.push(`${r.kind}:${r.status}`)
           expect(ALLOWED[r.kind], `${r.kind} returned ${r.status} ${JSON.stringify(r.body)}`).toContain(r.status)
           if (r.status === 409) expect(ALLOWED_409.has(r.body.code), JSON.stringify(r.body)).toBe(true)
+          if (r.status === 503) expect(r.body.code).toBe('DATABASE_BUSY')
         }
         await assertConsistent()
         // A vote is recorded only for a debate that was public when it committed: the hide/show is a total order with it.
@@ -396,28 +454,40 @@ suite('debate lifecycle, article saves and votes share one lock order (real data
   })
 
   describe('defence in depth', () => {
-    it('a lifecycle transaction that PostgreSQL aborts with a deadlock is retried once and then succeeds', async () => {
+    it('a lifecycle transaction that PostgreSQL aborts with a deadlock is retried once and then succeeds', { timeout: 15_000 }, async () => {
       // A hostile writer that still uses the old order (debate, then article). The lifecycle waits on the debate while
-      // holding the articles; the hostile writer then asks for an article. The lifecycle's deadlock check (1 s) fires
-      // first, so it is the victim; its retry waits behind the hostile writer and then applies.
-      const { debate, a, b } = await makeDebate()
-      const hostile = await holder()
-      await hostile.query('BEGIN')
-      await hostile.query(`SET LOCAL deadlock_timeout = '10s'`)
-      await hostile.query('SELECT 1 FROM debates WHERE id = $1 FOR NO KEY UPDATE', [debate.id])
+      // holding the articles; the hostile writer then asks for an article. The lifecycle's deadlock check fires first,
+      // so it is the victim; its retry waits behind the hostile writer and then applies.
+      // PostgreSQL checks for a deadlock once, when a waiter's deadlock_timeout expires. The lifecycle's connections use
+      // 2 s and the hostile writer 30 s, so the lifecycle is the one that finds the cycle even on a slow runner.
+      const pool = new Pool({ connectionString: TEST_DB!, application_name: APP })
+      pool.on('connect', (client) => { void client.query(`SET deadlock_timeout = '2s'`) })
+      const victim = new PrismaClient({ adapter: new PrismaPg(pool) })
+      state.prisma = victim
+      try {
+        const { debate, a, b } = await makeDebate()
+        const hostile = await holder()
+        await hostile.query('BEGIN')
+        await hostile.query(`SET LOCAL deadlock_timeout = '30s'`)
+        await hostile.query('SELECT 1 FROM debates WHERE id = $1 FOR NO KEY UPDATE', [debate.id])
 
-      const hide = lifecycleAs(ids.admin, debate.id, { action: 'unpublish' })
-      await lockWaiters(1)
-      await hostile.query('SELECT 1 FROM articles WHERE id = $1 FOR NO KEY UPDATE', [a.id]) // returns once the lifecycle is aborted
-      await hostile.query('COMMIT')
+        const hide = lifecycleAs(ids.admin, debate.id, { action: 'unpublish' })
+        await lockWaiters(1)
+        await hostile.query('SELECT 1 FROM articles WHERE id = $1 FOR NO KEY UPDATE', [a.id]) // returns once the lifecycle is aborted
+        await hostile.query('COMMIT')
 
-      const res = await hide
-      expect(res.status).toBe(200)
-      expect(retries()).toHaveLength(1)
-      expect(retries()[0][1]).toMatchObject({ operation: 'debate:unpublish', code: '40P01', attempt: 1 })
-      expect(await db.article.count({ where: { id: { in: [a.id, b.id] }, status: 'ARCHIVED' } })).toBe(2)
-      expect(await db.auditLog.count({ where: { targetId: debate.id, action: 'DEBATE_UNPUBLISHED' } })).toBe(1) // applied once
-      await assertConsistent()
+        const res = await hide
+        expect(res.status).toBe(200)
+        expect(retries()).toHaveLength(1)
+        expect(retries()[0][1]).toMatchObject({ operation: 'debate:unpublish', code: '40P01', attempt: 1 })
+        expect(await db.article.count({ where: { id: { in: [a.id, b.id] }, status: 'ARCHIVED' } })).toBe(2)
+        expect(await db.auditLog.count({ where: { targetId: debate.id, action: 'DEBATE_UNPUBLISHED' } })).toBe(1) // applied once
+        await assertConsistent()
+      } finally {
+        state.prisma = db
+        await victim.$disconnect()
+        await pool.end().catch(() => {})
+      }
     })
   })
 

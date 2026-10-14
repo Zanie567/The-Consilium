@@ -3,7 +3,9 @@ import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
-import { revalidateDebateSurfaces } from '@/lib/debateLifecycle'
+import { FEATURED_DEBATE_LOCK, revalidateDebateSurfaces } from '@/lib/debateLifecycle'
+import { apiServerErrorResponse } from '@/lib/apiResponse'
+import { withTransactionRetry } from '@/lib/transactionRetry'
 
 interface Props {
   params: Promise<{ debateId: string }>
@@ -78,45 +80,59 @@ async function PATCHHandler(req: Request, { params }: Props) {
   type Outcome =
     | { ok: true; debate: Awaited<ReturnType<typeof prisma.debate.update>> }
     | { ok: false; status: number; error: string }
-  const outcome = await prisma.$transaction(async (tx): Promise<Outcome> => {
-    const existing = await tx.debate.findUnique({
-      where: { id: debateId },
-      select: { id: true, updatedAt: true, deletedAt: true, unpublishedAt: true },
+  // Featuring a debate also un-features the current one: a global choice, so concurrent choices are serialized by a
+  // transaction lock taken before any row lock (as the article feature route does). Without it two administrators
+  // featuring different debates lock each other's rows in opposite orders and deadlock. Database work only, so a
+  // conflict abort is retried; the cache refresh runs after the commit.
+  let outcome: Outcome
+  try {
+    outcome = await withTransactionRetry('debate:edit', () => prisma.$transaction(async (tx): Promise<Outcome> => {
+      if (isActive === true) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${FEATURED_DEBATE_LOCK}))`
+      const existing = await tx.debate.findUnique({
+        where: { id: debateId },
+        select: { id: true, updatedAt: true, deletedAt: true, unpublishedAt: true },
+      })
+      if (!existing) return { ok: false, status: 404, error: 'Not found' }
+      if (existing.deletedAt) return { ok: false, status: 409, error: 'This debate is deleted. Restore it before editing.' }
+      if (expectedUpdatedAt && expectedUpdatedAt !== existing.updatedAt.toISOString()) {
+        return { ok: false, status: 409, error: 'This debate changed since you opened it. Reload and review it before saving.' }
+      }
+      if (isActive === true && existing.unpublishedAt) {
+        return { ok: false, status: 409, error: 'Publish this debate before making it the featured debate.' }
+      }
+      const data = {
+        ...(title !== undefined && { title: title.trim() }),
+        ...(description !== undefined && { description }),
+        ...(isActive !== undefined && { isActive }),
+        ...(closesAt !== undefined && { closesAt: closesAt ? new Date(closesAt) : null }),
+      }
+      // Guarded on the row as read, so a concurrent edit or deletion is refused, not overwritten.
+      const written = await tx.debate.updateMany({
+        where: { id: debateId, updatedAt: existing.updatedAt, deletedAt: null },
+        data,
+      })
+      if (written.count !== 1) return { ok: false, status: 409, error: 'This debate was changed at the same time. Reload and try again.' }
+      if (isActive === true) {
+        await tx.debate.updateMany({ where: { id: { not: debateId }, isActive: true }, data: { isActive: false } })
+      }
+      await tx.auditLog.create({
+        data: {
+          action: 'DEBATE_UPDATED',
+          targetId: debateId,
+          targetType: 'debate',
+          performedBy: user.id,
+          metadata: { fields: Object.keys(data) },
+        },
+      })
+      return { ok: true, debate: await tx.debate.findUniqueOrThrow({ where: { id: debateId } }) }
+    }))
+  } catch (error) {
+    return apiServerErrorResponse(error, {
+      operation: 'debate:edit',
+      userMessage: 'The debate could not be saved. Nothing was changed. Try again.',
+      code: 'DEBATE_UPDATE_FAILED',
     })
-    if (!existing) return { ok: false, status: 404, error: 'Not found' }
-    if (existing.deletedAt) return { ok: false, status: 409, error: 'This debate is deleted. Restore it before editing.' }
-    if (expectedUpdatedAt && expectedUpdatedAt !== existing.updatedAt.toISOString()) {
-      return { ok: false, status: 409, error: 'This debate changed since you opened it. Reload and review it before saving.' }
-    }
-    if (isActive === true && existing.unpublishedAt) {
-      return { ok: false, status: 409, error: 'Publish this debate before making it the featured debate.' }
-    }
-    const data = {
-      ...(title !== undefined && { title: title.trim() }),
-      ...(description !== undefined && { description }),
-      ...(isActive !== undefined && { isActive }),
-      ...(closesAt !== undefined && { closesAt: closesAt ? new Date(closesAt) : null }),
-    }
-    // Guarded on the row as read, so a concurrent edit or deletion is refused, not overwritten.
-    const written = await tx.debate.updateMany({
-      where: { id: debateId, updatedAt: existing.updatedAt, deletedAt: null },
-      data,
-    })
-    if (written.count !== 1) return { ok: false, status: 409, error: 'This debate was changed at the same time. Reload and try again.' }
-    if (isActive === true) {
-      await tx.debate.updateMany({ where: { id: { not: debateId } }, data: { isActive: false } })
-    }
-    await tx.auditLog.create({
-      data: {
-        action: 'DEBATE_UPDATED',
-        targetId: debateId,
-        targetType: 'debate',
-        performedBy: user.id,
-        metadata: { fields: Object.keys(data) },
-      },
-    })
-    return { ok: true, debate: await tx.debate.findUniqueOrThrow({ where: { id: debateId } }) }
-  })
+  }
   if (!outcome.ok) return NextResponse.json({ error: outcome.error }, { status: outcome.status })
   revalidateDebateSurfaces()
   return NextResponse.json(outcome.debate)
