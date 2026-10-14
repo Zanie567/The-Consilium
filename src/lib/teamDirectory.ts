@@ -3,6 +3,8 @@
  * account, permission role and linked card), the cards that have no owner yet, recent sign-ups
  * who are not members, and the consistency findings. Read-only.
  */
+import { normalizePublicPosition } from '@/lib/displayTitles'
+import { normalizePublicTier } from '@/lib/teamHierarchy'
 import { prisma } from '@/lib/prisma'
 import { listMembers, normalizeEmail, type MemberRow } from '@/lib/membership'
 import { buildReconciliationReport, type ReconciliationIssue } from '@/lib/teamReconciliation'
@@ -72,7 +74,7 @@ export async function loadTeamDirectory(client: typeof prisma = prisma, now: Dat
   const issues = buildReconciliationReport({
     accounts: [...accounts, ...readersByCardEmail],
     cards: cards.map((c) => ({
-      id: c.id, name: c.name, position: c.role, email: c.email, userId: c.userId, visible: c.isActive,
+      id: c.id, name: c.name, position: normalizePublicPosition(c.role), email: c.email, userId: c.userId, visible: c.isActive,
     })),
     memberships: memberships.map((m) => ({ ...m })),
   })
@@ -82,8 +84,8 @@ export async function loadTeamDirectory(client: typeof prisma = prisma, now: Dat
     unlinkedCards: unlinked.map((c) => ({
       id: c.id,
       name: c.name,
-      position: c.role,
-      publicTier: c.publicTier,
+      position: normalizePublicPosition(c.role),
+      publicTier: normalizePublicTier(c.publicTier),
       bio: c.bio,
       image: c.image,
       email: c.email,

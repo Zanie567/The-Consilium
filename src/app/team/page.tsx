@@ -68,6 +68,11 @@ export default async function TeamPage() {
                 </h2>
               )}
 
+              {section.rows.length === 0 && (
+                <p className="py-4 text-center text-sm text-[var(--fg-muted)]">
+                  {section.label} profiles will be published shortly.
+                </p>
+              )}
               {section.rows.map((row, rowIndex) => (
                 <StaggerContainer
                   key={row.tier}

@@ -18,9 +18,7 @@ export type TeamTierId =
   | 'editor_in_chief'
   | 'deputy'
   | 'leadership'
-  | 'senior_editor'
   | 'editor'
-  | 'junior_editor'
   | 'writer'
   | 'growth'
   | 'other'
@@ -65,9 +63,7 @@ const TIER_SECTION: Record<TeamTierId, TeamSectionId> = {
   editor_in_chief: 'masthead',
   deputy: 'masthead',
   leadership: 'masthead',
-  senior_editor: 'editorial',
   editor: 'editorial',
-  junior_editor: 'editorial',
   writer: 'writers',
   growth: 'growth',
   other: 'wider',
@@ -77,9 +73,7 @@ const TIER_VARIANT: Record<TeamTierId, TeamCardVariant> = {
   editor_in_chief: 'lead',
   deputy: 'feature',
   leadership: 'feature',
-  senior_editor: 'standard',
   editor: 'standard',
-  junior_editor: 'standard',
   writer: 'compact',
   growth: 'compact',
   other: 'compact',
@@ -90,9 +84,7 @@ export const TEAM_TIER_ORDER: readonly TeamTierId[] = [
   'editor_in_chief',
   'deputy',
   'leadership',
-  'senior_editor',
   'editor',
-  'junior_editor',
   'writer',
   'growth',
   'other',
@@ -150,12 +142,13 @@ export function resolveTeamTier(role: string | null | undefined): TeamTierId {
   if (/\beditor in chief\b/.test(normalized)) {
     return /\bdeputy\b/.test(normalized) ? 'deputy' : isDeputy ? 'leadership' : 'editor_in_chief'
   }
+  // Trusted public Growth titles are flat, including specialist Growth leads.
+  if (/\b(growth|comms|communications|social media|digital operations)\b/.test(normalized)) return 'growth'
+
   // "Chief Designer", "Head of Design", "Creative Director" — specialist leads.
   if (/\b(chief|head|director)\b/.test(normalized)) return 'leadership'
 
   if (/\beditor/.test(normalized)) {
-    if (/\bsenior\b/.test(normalized)) return 'senior_editor'
-    if (/\b(junior|assistant|trainee|deputy)\b/.test(normalized)) return 'junior_editor'
     return 'editor'
   }
 
@@ -163,10 +156,7 @@ export function resolveTeamTier(role: string | null | undefined): TeamTierId {
     return 'writer'
   }
 
-  // Social media, growth, digital operations and anything else an admin adds
-  // later: still rendered, in its own section, with its real title. The Growth &
-  // Communications section uses explicitly assigned publicTier; unfamiliar
-  // legacy free-text titles are deliberately not reinterpreted.
+  // Unknown titles remain visible in Wider Team for administrator review.
   return 'other'
 }
 
@@ -192,11 +182,17 @@ interface Placement {
  *    move themselves up the masthead.
  */
 function placeMember(member: TeamMemberLike): Placement {
+  const publicTier = normalizePublicTier(member.publicTier)
   const tier =
-    member.publicTier && TEAM_TIER_ORDER.includes(member.publicTier as TeamTierId)
-      ? (member.publicTier as TeamTierId)
+    publicTier && TEAM_TIER_ORDER.includes(publicTier as TeamTierId)
+      ? (publicTier as TeamTierId)
       : resolveTeamTier(member.role)
   return { section: TIER_SECTION[tier], tier }
+}
+
+/** Read old placements as Editor; new writes use the current tier options. */
+export function normalizePublicTier(tier: string | null | undefined): string | null {
+  return tier === 'senior_editor' || tier === 'junior_editor' ? 'editor' : tier ?? null
 }
 
 /** `order` asc, roleless members last within their tier, then name for stability. */
@@ -216,7 +212,7 @@ function compareMembers(a: TeamMemberLike, b: TeamMemberLike): number {
  *
  * Only one Editor-in-Chief is ever shown at the top: if the data contains more
  * than one, the lowest `order` keeps the position and the rest drop to the
- * leadership row of their own section. Empty rows and empty sections are omitted.
+ * leadership row of their own section. Empty rows are omitted; the three ordinary team sections remain available.
  */
 export function buildTeamMasthead<T extends TeamMemberLike>(members: T[]): TeamSection<T>[] {
   const buckets = new Map<string, T[]>()
@@ -254,7 +250,7 @@ export function buildTeamMasthead<T extends TeamMemberLike>(members: T[]): TeamS
       members: buckets.get(key(sectionId, tier)) ?? [],
     })).filter((row) => row.members.length > 0)
 
-    if (rows.length === 0) return []
+    if (rows.length === 0 && !['editorial', 'writers', 'growth'].includes(sectionId)) return []
     return [{ id: sectionId, ...SECTION_META[sectionId], rows }]
   })
 }

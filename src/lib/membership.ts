@@ -23,7 +23,8 @@ import { prisma } from '@/lib/prisma'
 import { isUniqueViolation } from '@/lib/prismaErrors'
 import { matchLegacyCard } from '@/lib/teamProfileLegacy'
 import { assessProfile as assessProfileFacts, defaultPublicAppointment } from '@/lib/teamProfiles'
-import { TEAM_TIER_ORDER } from '@/lib/teamHierarchy'
+import { normalizePublicPosition } from '@/lib/displayTitles'
+import { normalizePublicTier, TEAM_TIER_ORDER } from '@/lib/teamHierarchy'
 
 type Tx = Prisma.TransactionClient
 
@@ -151,7 +152,7 @@ export async function ensureProfileCard(
       {
         userId: account.id,
         name,
-        role: options.position?.trim() || appointment?.role || '',
+        role: (options.position ? normalizePublicPosition(options.position) : '') || appointment?.role || '',
         publicTier: options.publicTier ?? appointment?.publicTier ?? null,
         order: NEW_CARD_ORDER,
         isActive: false,
@@ -290,7 +291,8 @@ export async function inviteMember(actor: Actor, input: InviteInput, client: typ
   }
   const role = input.role
   const displayName = cleanText(input.displayName, MAX_DISPLAY_NAME_LENGTH, 'Name')
-  const publicPosition = cleanText(input.position, MAX_POSITION_LENGTH, 'Position')
+  const rawPosition = cleanText(input.position, MAX_POSITION_LENGTH, 'Position')
+  const publicPosition = rawPosition ? normalizePublicPosition(rawPosition) : null
   const publicTier = cleanTier(input.publicTier)
 
   const attempt = () =>
@@ -563,7 +565,7 @@ export async function updateMemberProfileFields(
   input: ProfileFieldsInput,
   client: typeof prisma = prisma,
 ): Promise<void> {
-  const position = input.position === undefined ? undefined : (cleanText(input.position, MAX_POSITION_LENGTH, 'Position') ?? '')
+  const position = input.position === undefined ? undefined : normalizePublicPosition(cleanText(input.position, MAX_POSITION_LENGTH, 'Position') ?? '')
   const publicTier = input.publicTier === undefined ? undefined : cleanTier(input.publicTier)
   const displayName = input.displayName === undefined ? undefined : cleanText(input.displayName, MAX_DISPLAY_NAME_LENGTH, 'Name')
   let order: number | undefined
@@ -746,14 +748,15 @@ interface DescribeInput {
 export function describeMember(input: DescribeInput): MemberRow {
   const { user } = input
   const card = user?.teamProfile ?? null
-  const tier = card ? card.publicTier : input.publicTier
+  const tier = normalizePublicTier(card ? card.publicTier : input.publicTier)
 
   let accountStatus: AccountStatus
   if (input.status === 'REVOKED') accountStatus = 'revoked'
   else if (input.status === 'ACTIVE') accountStatus = user && (!user.isActive || user.isBanned) ? 'suspended' : 'active'
   else accountStatus = (user ? !user.emailVerified : input.unclaimedAccount && !input.unclaimedAccount.emailVerified) ? 'unverified' : 'invited'
 
-  const position = (card ? card.role : input.publicPosition)?.trim() || null
+  const rawPosition = card ? card.role : input.publicPosition
+  const position = rawPosition ? normalizePublicPosition(rawPosition) || null : null
   const assessment = assessProfileFacts({
     name: card?.name ?? user?.name ?? input.displayName,
     bio: card?.bio,
@@ -792,8 +795,8 @@ export function describeMember(input: DescribeInput): MemberRow {
       ? {
           id: card.id,
           name: card.name,
-          position: card.role,
-          publicTier: card.publicTier,
+          position: normalizePublicPosition(card.role),
+          publicTier: normalizePublicTier(card.publicTier),
           bio: card.bio,
           image: card.image,
           email: card.email ?? null,

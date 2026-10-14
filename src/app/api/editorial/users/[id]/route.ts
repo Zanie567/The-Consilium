@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
-import { validateDisplayTitles } from '@/lib/displayTitles'
+import { readDisplayTitles, validateDisplayTitles } from '@/lib/displayTitles'
 import { ADMIN_ONLY, isRole } from '@/lib/rbac'
 import { MembershipError, setMemberRole } from '@/lib/membership'
 interface Props {
@@ -49,7 +49,7 @@ export async function GET(_req: Request, { params }: Props) {
   })
 
   if (!user) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json(user)
+  return NextResponse.json({ ...user, displayTitles: readDisplayTitles(user.displayTitles) })
 }
 
 async function PATCHHandler(req: Request, { params }: Props) {
@@ -106,7 +106,7 @@ async function PATCHHandler(req: Request, { params }: Props) {
       where: { id },
       select: { id: true, name: true, role: true, isActive: true, slug: true, email: true, bio: true, image: true, adminNotes: true, displayTitles: true },
     })
-    return NextResponse.json(updated)
+    return NextResponse.json({ ...updated, displayTitles: readDisplayTitles(updated.displayTitles) })
   }
 
   if (categoryIds !== undefined) {
@@ -192,7 +192,7 @@ async function PATCHHandler(req: Request, { params }: Props) {
     return updated
   })
 
-  return NextResponse.json(user)
+  return NextResponse.json({ ...user, displayTitles: readDisplayTitles(user.displayTitles) })
 }
 
 async function DELETEHandler(_req: Request, { params }: Props) {

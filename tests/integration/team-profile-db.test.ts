@@ -193,7 +193,7 @@ suite('PUT /api/team-profile (real database)', () => {
       const mine = roster.filter((m) => m.id === rows[0].id)
       expect(mine).toHaveLength(1)
       const sections = buildTeamMasthead(mine)
-      expect(sections.map((s) => s.id)).toEqual([section])
+      expect(sections.filter(s => s.rows.length > 0).map((s) => s.id)).toEqual([section])
     })
 
     it('rejects a team, role, title, placement, userId, order or visibility posted by the client, and writes nothing', async () => {
@@ -391,7 +391,7 @@ suite('PUT /api/team-profile (real database)', () => {
 
       const rows = await rowsFor(user.id)
       expect(rows).toHaveLength(1)
-      expect(rows[0]).toMatchObject({ id: card.id, role: 'Senior Editor', order: 5, image: '/team/x.png', bio: 'my own words' })
+      expect(rows[0]).toMatchObject({ id: card.id, role: 'Editor', order: 5, image: '/team/x.png', bio: 'my own words' })
       expect(await db.teamMember.count({ where: { name: card.name } })).toBe(1)
     })
 
@@ -472,7 +472,7 @@ suite('PUT /api/team-profile (real database)', () => {
           include: { user: { select: { email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
         })
         const sections = buildTeamMasthead(buildPublicRoster(rows, []))
-        expect(sections.map((x) => x.id), title).toEqual([title === 'Editor-in-Chief' || title === 'Chief Designer' || title === 'Head of Growth' ? 'masthead' : title === 'Senior Editor' ? 'editorial' : title === 'Writer' ? 'writers' : 'wider'])
+        expect(sections.filter(x => x.rows.length > 0).map((x) => x.id), title).toEqual([title === 'Editor-in-Chief' || title === 'Chief Designer' ? 'masthead' : title === 'Senior Editor' ? 'editorial' : title === 'Writer' ? 'writers' : title === 'Head of Growth' || title === 'Social Media' ? 'growth' : 'wider'])
         expect((await db.user.findUniqueOrThrow({ where: { id: target.id } })).role).toBe(role)
       }
     })
@@ -557,7 +557,7 @@ suite('PUT /api/team-profile (real database)', () => {
         where: { userId },
         include: { user: { select: { email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
       })
-      return buildTeamMasthead(buildPublicRoster(rows, [])).map((x) => x.id)
+      return buildTeamMasthead(buildPublicRoster(rows, [])).filter(x => x.rows.length > 0).map((x) => x.id)
     }
 
     beforeAll(async () => {
@@ -740,11 +740,11 @@ suite('PUT /api/team-profile (real database)', () => {
           [],
         )
 
-      expect(buildTeamMasthead(await load())[0].id).toBe('writers')
+      expect(buildTeamMasthead(await load()).find(s => s.rows.length > 0)?.id).toBe('writers')
       await db.user.update({ where: { id: user.id }, data: { role: 'EDITOR' } })
-      expect(buildTeamMasthead(await load())[0].id).toBe('writers')
+      expect(buildTeamMasthead(await load()).find(s => s.rows.length > 0)?.id).toBe('writers')
       await db.user.update({ where: { id: user.id }, data: { role: 'READER' } })
-      expect(buildTeamMasthead(await load())[0].id).toBe('writers')
+      expect(buildTeamMasthead(await load()).find(s => s.rows.length > 0)?.id).toBe('writers')
       // …and the same request now fails closed.
       expect((await put({ bio: 'y' })).status).toBe(403)
     })

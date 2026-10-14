@@ -181,9 +181,9 @@ describe('buildPublicRoster', () => {
 describe('explicit public appointments', () => {
   it('allows only trusted appointment data to change placement', () => {
     const base = { id: 'm', name: 'Lucas Dwyer', order: 1, role: '' }
-    expect(buildTeamMasthead([base])[0].id).toBe('wider')
+    expect(buildTeamMasthead([base]).find(s => s.rows.length > 0)?.id).toBe('wider')
     expect(buildTeamMasthead([{ ...base, publicTier: 'leadership' }])[0].rows[0].variant).toBe('feature')
-    expect(buildTeamMasthead([{ ...base, role: 'Writer' }])[0].id).toBe('writers')
+    expect(buildTeamMasthead([{ ...base, role: 'Writer' }]).find(s => s.rows.length > 0)?.id).toBe('writers')
   })
 })
 

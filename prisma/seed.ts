@@ -423,16 +423,16 @@ async function main() {
     },
     {
       name: 'Annika Sarawgi',
-      role: 'Senior Editor',
+      role: 'Editor',
       image: '/team/annika-sarawgi.png',
-      bio: 'Senior Editor at The Consilium, coordinating editorial strategy and content development.',
+      bio: 'Editor at The Consilium, coordinating editorial strategy and content development.',
       order: 2,
     },
     {
       name: 'Sam Hunt',
-      role: 'Junior Editor',
+      role: 'Editor',
       image: '/team/sam-hunt.png',
-      bio: 'Junior Editor supporting content creation and editorial processes.',
+      bio: 'Editor supporting content creation and editorial processes.',
       order: 3,
     },
     {

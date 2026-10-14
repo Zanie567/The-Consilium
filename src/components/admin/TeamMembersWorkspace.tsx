@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 import type { AccountStatus, MemberRow, ProfileStatus } from '@/lib/membership'
 import type { TeamDirectory, UnlinkedCardRow } from '@/lib/teamDirectory'
+import { assessProfile } from '@/lib/teamProfiles'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import {
   MEMBER_FILTERS,
@@ -444,6 +445,7 @@ function UnownedProfiles({ dir, run, busy, reload, onMessage }: { dir: TeamDirec
       ) : (
         <ul className="mt-3 divide-y divide-[var(--border)]">
           {dir.unlinkedCards.map((c) => {
+            const missing = assessProfile({ name: c.name, bio: c.bio, image: c.image, position: c.position, visible: true }).publicBlockers
             const editing = editId === c.id
             const target = assign[c.id] ?? ''
             return (
@@ -454,6 +456,7 @@ function UnownedProfiles({ dir, run, busy, reload, onMessage }: { dir: TeamDirec
                     <p className="text-xs text-[var(--fg-muted)]">
                       {c.position || 'No position'} · {c.visible ? 'Public' : 'Hidden'}{c.email ? ` · ${c.email}` : ''}
                     </p>
+                    {missing.length > 0 && <p className="mt-1 text-xs text-amber-600">Profile incomplete · Needs: {missing.join(', ')}</p>}
                   </div>
                   <label className="sr-only" htmlFor={`assign-card-${c.id}`}>Assign {c.name} to an account</label>
                   <select id={`assign-card-${c.id}`} value={target} onChange={(e) => setAssign({ ...assign, [c.id]: e.target.value })} className="min-w-[220px] rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-2 text-sm">

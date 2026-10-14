@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, apiRequest, asApiError } from '@/lib/apiClient'
-import { TEAM_TIER_ORDER, type TeamTierId } from '@/lib/teamHierarchy'
+import { TEAM_TIER_ORDER, normalizePublicTier, type TeamTierId } from '@/lib/teamHierarchy'
+import { normalizePublicPosition } from '@/lib/displayTitles'
 import { getInitials } from '@/lib/authorUtils'
 import { MAX_BIO_LENGTH } from '@/lib/constants'
 import type { MemberCard } from '@/lib/membership'
@@ -11,11 +12,9 @@ export const TIER_LABEL: Record<TeamTierId, string> = {
   editor_in_chief: 'Editor-in-Chief',
   deputy: 'Deputy Editor-in-Chief',
   leadership: 'Leadership',
-  senior_editor: 'Senior editor',
   editor: 'Editor',
-  junior_editor: 'Junior editor',
   writer: 'Writer',
-  growth: 'Growth & Communications',
+  growth: 'Growth & Comms',
   other: 'Wider team',
 }
 export const TIERS = [
@@ -42,8 +41,8 @@ interface FormState {
 
 const fromCard = (card: MemberCard | null, defaultName: string): FormState => ({
   name: card?.name ?? defaultName,
-  position: card?.position ?? '',
-  tier: card?.publicTier ?? '',
+  position: normalizePublicPosition(card?.position ?? ''),
+  tier: normalizePublicTier(card?.publicTier) ?? '',
   bio: card?.bio ?? '',
   image: card?.image ?? '',
   email: card?.email ?? '',

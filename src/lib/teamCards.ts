@@ -25,6 +25,7 @@ import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { isUniqueViolation } from '@/lib/prismaErrors'
 import { MAX_BIO_LENGTH } from '@/lib/constants'
+import { normalizePublicPosition } from '@/lib/displayTitles'
 import { TEAM_TIER_ORDER } from '@/lib/teamHierarchy'
 import { TEAM_PROFILE_ROLES, normalizePersonName, validateTeamBio } from '@/lib/teamProfiles'
 import { assessPlaceholder } from '@/lib/teamPlaceholder'
@@ -115,7 +116,7 @@ export function parseCardFields(input: CardFieldsInput): CardFields {
     out.name = name
   }
   if (input.position !== undefined) {
-    out.role = input.position === null ? '' : text(input.position, 'Position', MAX_CARD_POSITION_LENGTH)
+    out.role = input.position === null ? '' : normalizePublicPosition(text(input.position, 'Position', MAX_CARD_POSITION_LENGTH))
   }
   if (input.publicTier !== undefined) {
     if (input.publicTier === null || input.publicTier === '') out.publicTier = null

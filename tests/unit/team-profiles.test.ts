@@ -82,7 +82,7 @@ describe('resolveTeamMemberBios', () => {
     expect(resolved).toMatchObject({
       id: 'tm-1',
       name: 'Alex Morgan',
-      role: 'Senior Editor',
+      role: 'Editor',
       order: 3,
       image: '/x.png',
     })

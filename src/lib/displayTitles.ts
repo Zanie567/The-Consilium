@@ -5,9 +5,9 @@
  *
  * The allowed list is closed on purpose, so nobody can invent a misleading title.
  * Leadership and Wider Team are masthead tiers, not titles, and are excluded.
- * Keep this list in step with `users_display_titles_valid` in
+ * This is a subset of `users_display_titles_valid` in
  * supabase/migrations/20261005_user_display_titles.sql, which enforces it again
- * in the database.
+ * in the database. Its legacy Senior/Junior values remain readable without a data migration.
  *
  * Client-safe: no server imports.
  */
@@ -17,8 +17,6 @@ export const ALLOWED_DISPLAY_TITLES = [
   'Deputy Editor-in-Chief',
   'Editor',
   'Writer',
-  'Senior Editor',
-  'Junior Editor',
   'Growth & Communications',
 ] as const
 
@@ -49,12 +47,18 @@ export function validateDisplayTitles(value: unknown): DisplayTitlesResult {
   return { ok: true, titles: value as DisplayTitle[] }
 }
 
+/** Normalize obsolete public appointments without changing stored data or access roles. */
+export function normalizePublicPosition(value: string): string {
+  return value.trim().replace(/\b(?:senior|junior)[\s-]+editor\b/gi, 'Editor')
+}
+
 /** Defensive read of a stored value: keeps only allowed, distinct entries, in order. */
 export function readDisplayTitles(value: unknown): DisplayTitle[] {
   if (!Array.isArray(value)) return []
   const seen = new Set<string>()
   const out: DisplayTitle[] = []
-  for (const item of value) {
+  for (const stored of value) {
+    const item = typeof stored === 'string' ? normalizePublicPosition(stored) : stored
     if (typeof item === 'string' && ALLOWED.has(item) && !seen.has(item)) {
       seen.add(item)
       out.push(item as DisplayTitle)
@@ -79,5 +83,5 @@ export function resolvePublicTitleLabel(input: {
 }): string | null {
   const titles = readDisplayTitles(input.displayTitles)
   if (titles.length > 0) return titles.join(' · ')
-  return input.cardTitle?.trim() || null
+  return input.cardTitle ? normalizePublicPosition(input.cardTitle) || null : null
 }
