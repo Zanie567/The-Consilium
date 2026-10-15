@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Locator, type Page } from '@playwright/test'
-import { closeDb, createAccount, db, hydrated, removeMyAccounts, signInAs, signedIn, type TestAccount } from './helpers/workflow'
+import { closeDb, createAccount, db, hydrated, removeMyAccounts, signInAs, signedIn, withCookieConsentAnswered, type TestAccount } from './helpers/workflow'
 import { collectConsoleErrors } from './helpers/console'
 
 /**
@@ -94,7 +94,7 @@ test('assigning an existing profile to a new account: nothing is lost, the owner
   test.setTimeout(180_000)
   const account = await createAccount('WRITER', 'newhire')
   const card = await legacyCard('Assign', { email: null })
-  const admin = await signedIn(browser, 'admin')
+  const admin = await withCookieConsentAnswered(await signedIn(browser, 'admin'))
   const page = await admin.newPage()
   const errors = collectConsoleErrors(page)
 
@@ -127,7 +127,7 @@ test('assigning an existing profile to a new account: nothing is lost, the owner
   expect(text).toContain('Staff Writer')
 
   // The new owner now edits their own profile from their own portal, and can change nothing else.
-  const own = await signInAs(browser, account)
+  const own = await withCookieConsentAnswered(await signInAs(browser, account))
   const ownPage = await own.newPage()
   await ownPage.goto('/editorial/team-profile')
   await ownPage.getByLabel('Description').fill('Now in my own words.')
@@ -170,7 +170,7 @@ test('assigning an existing profile to a new account: nothing is lost, the owner
 test('creating a new profile for an account links it, starts hidden, and goes public only when shown', async ({ browser }) => {
   test.setTimeout(150_000)
   const account = await createAccount('EDITOR', 'create')
-  const admin = await signedIn(browser, 'admin')
+  const admin = await withCookieConsentAnswered(await signedIn(browser, 'admin'))
   const page = await admin.newPage()
   const row = await openMember(page, account)
   await row.getByRole('button', { name: 'Manage' }).click()
@@ -212,7 +212,7 @@ test('creating a new profile for an account links it, starts hidden, and goes pu
 test('a second profile with the same name needs an explicit confirmation', async ({ browser }) => {
   test.setTimeout(90_000)
   const existing = await legacyCard('Twin')
-  const admin = await signedIn(browser, 'admin')
+  const admin = await withCookieConsentAnswered(await signedIn(browser, 'admin'))
   const page = await admin.newPage()
   await page.goto('/editorial/members')
   await hydrated(page.getByRole('button', { name: 'New profile' }), 'onClick')
@@ -235,7 +235,7 @@ test('the Editor-in-Chief profile keeps its title and place when the account rol
   test.setTimeout(120_000)
   const chief = await createAccount('ADMIN', 'chief')
   const card = await legacyCard('Chief', { userId: chief.id, role: 'Editor-in-Chief', publicTier: null, order: -500, bio: 'Leads the publication.' })
-  const admin = await signedIn(browser, 'admin')
+  const admin = await withCookieConsentAnswered(await signedIn(browser, 'admin'))
   const page = await admin.newPage()
   const row = await openMember(page, chief)
   await expect(row).toContainText('Editor-in-Chief')
@@ -254,7 +254,7 @@ test('the Editor-in-Chief profile keeps its title and place when the account rol
 test('only administrators can open Team Members or call its APIs; a stale profile form is refused', async ({ browser }) => {
   test.setTimeout(150_000)
   for (const who of ['editor', 'writer', 'growth'] as const) {
-    const context = await signedIn(browser, who)
+    const context = await withCookieConsentAnswered(await signedIn(browser, who))
     const page = await context.newPage()
     await page.goto('/editorial/members')
     await expect(page).toHaveURL(/\/editorial$/)
@@ -273,7 +273,7 @@ test('only administrators can open Team Members or call its APIs; a stale profil
   // Stale form: two tabs open on the same profile; the second save is refused, not merged.
   const account = await createAccount('WRITER', 'stale')
   const card = await legacyCard('Stale', { userId: account.id })
-  const admin = await signedIn(browser, 'admin')
+  const admin = await withCookieConsentAnswered(await signedIn(browser, 'admin'))
   const first = await admin.newPage()
   const second = await admin.newPage()
   for (const page of [first, second]) {
@@ -302,7 +302,7 @@ test('a generated placeholder is replaced by the real profile after an explicit 
   })
   createdCardIds.push(placeholder.id)
   const real = await legacyCard('Real Profile', { email: null })
-  const admin = await signedIn(browser, 'admin')
+  const admin = await withCookieConsentAnswered(await signedIn(browser, 'admin'))
   const page = await admin.newPage()
   const errors = collectConsoleErrors(page)
 
@@ -367,7 +367,7 @@ test('the "saved" message always describes the latest attempt: it clears on a ne
   test.setTimeout(150_000)
   const account = await createAccount('WRITER', 'savemsg')
   const card = await legacyCard('SaveMsg', { email: null, userId: account.id })
-  const admin = await signedIn(browser, 'admin')
+  const admin = await withCookieConsentAnswered(await signedIn(browser, 'admin'))
   const page = await admin.newPage()
   const row = await openMember(page, account)
   await row.getByRole('button', { name: 'Manage' }).click()
@@ -397,7 +397,7 @@ test('Growth & Comms is flat and manageable through Team Members without changin
   const account = await createAccount('GROWTH', 'flat-growth')
   const card = await legacyCard('Growth Legacy', { role: 'Growth & Communications', publicTier: 'growth', order: 4000 })
   const peer = await legacyCard('Growth Lead', { role: 'Head of Growth', publicTier: null, order: 4001 })
-  const admin = await signedIn(browser, 'admin')
+  const admin = await withCookieConsentAnswered(await signedIn(browser, 'admin'))
   const page = await admin.newPage()
   await manage(await openMember(page, account))
   await page.getByLabel('Existing profile without an account').selectOption({ label: `${card.name}, Growth & Communications` })
@@ -432,7 +432,7 @@ test('Growth & Comms is flat and manageable through Team Members without changin
   }
 
   // The member still cannot change appointment, placement, ownership or access.
-  const own = await signInAs(browser, account)
+  const own = await withCookieConsentAnswered(await signInAs(browser, account))
   for (const [key, value] of [['position', 'Editor-in-Chief'], ['publicTier', 'editor_in_chief'], ['role', 'ADMIN'], ['userId', 'other']]) {
     const res = await own.request.put('/api/team-profile', { multipart: { bio: 'Member bio', [key]: value } })
     expect(res.status()).toBe(400)

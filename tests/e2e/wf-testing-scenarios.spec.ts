@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { closeDb, createAccount, db, hydrated, removeMyAccounts, signInAs } from './helpers/workflow'
+import { closeDb, createAccount, db, hydrated, removeMyAccounts, signInAs, withCookieConsentAnswered } from './helpers/workflow'
 import { collectConsoleErrors } from './helpers/console'
 
 /**
@@ -26,8 +26,19 @@ async function openTesting(page: Page) {
   await expect(page.getByRole('heading', { name: 'Testing', exact: true, level: 1 })).toBeVisible()
   await hydrated(page.getByLabel('Persona', { exact: true }), 'onChange')
 }
+/**
+ * Lands on the dashboard (/editorial) and waits for its notification bell to load. The bell fetches once when the
+ * dashboard mounts; leaving before it answers cancels that request, and WebKit reports the cancellation as a page
+ * error, sometimes before Playwright reports the navigation that caused it, so the console collector cannot attribute
+ * it (issue #135, CI run 38642801819: "Test as Editor" then an immediate goto). Waiting also proves the bell loads.
+ */
+async function onDashboard(page: Page, open: () => Promise<unknown>) {
+  const bell = page.waitForResponse((r) => r.request().method() === 'GET' && new URL(r.url()).pathname === '/api/editorial/notifications')
+  await open()
+  expect((await bell).status()).toBe(200)
+}
 async function enter(page: Page, name: string, label: string) {
-  await page.getByRole('button', { name, exact: true }).last().click()
+  await onDashboard(page, () => page.getByRole('button', { name, exact: true }).last().click())
   await expect(page.getByRole('region', { name: 'Testing environment' }).locator('strong')).toContainText(label)
 }
 
@@ -35,11 +46,8 @@ test('scenarios put a persona into a known state, show the right prompts, and re
   test.setTimeout(240_000)
   const admin = await createAccount('ADMIN', 'scenarios')
   const context = await signInAs(browser, admin)
-  // Answer the cookie banner before any page loads, as a returning visitor has. Unanswered, it slides in over the
-  // bottom of the viewport, where "Reset all personas" sits; Playwright then has to scroll the button out from under it,
-  // and with the site's smooth scrolling the click can be dispatched while the page is still moving, so WebKit
-  // generates no click and no reset is ever requested (CI run 38587261527). Consent itself is tested in wf-public-controls.
-  await context.addInitScript(() => { try { localStorage.setItem('consilium_cookie_consent', 'declined') } catch {} })
+  // "Reset all personas" sits at the bottom of the page, under where the cookie banner would slide in.
+  await withCookieConsentAnswered(context)
   const page = await context.newPage()
   const errors = collectConsoleErrors(page)
   const writer = await db().user.findUniqueOrThrow({ where: { testPersonaKey: 'writer' } })
@@ -80,7 +88,7 @@ test('scenarios put a persona into a known state, show the right prompts, and re
   await page.goto('/admin/testing')
   await hydrated(page.getByLabel('Persona', { exact: true }), 'onChange')
   await apply(page, 'completed-profile')
-  await page.goto('/editorial')
+  await onDashboard(page, () => page.goto('/editorial'))
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await expect(page.getByText(PROMPT)).toHaveCount(0)
 
@@ -88,12 +96,12 @@ test('scenarios put a persona into a known state, show the right prompts, and re
   await page.goto('/admin/testing')
   await hydrated(page.getByLabel('Persona', { exact: true }), 'onChange')
   await apply(page, 'unread-notifications')
-  await page.goto('/editorial')
+  await onDashboard(page, () => page.goto('/editorial'))
   await expect(page.getByRole('button', { name: '3 unread notifications', exact: true })).toBeVisible()
   await page.goto('/admin/testing')
   await hydrated(page.getByLabel('Persona', { exact: true }), 'onChange')
   await apply(page, 'dismissed-notifications')
-  await page.goto('/editorial')
+  await onDashboard(page, () => page.goto('/editorial'))
   await expect(page.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /unread notifications/ })).toHaveCount(0)
 
@@ -110,11 +118,11 @@ test('scenarios put a persona into a known state, show the right prompts, and re
   await page.goto('/admin/testing')
   await hydrated(page.getByLabel('Persona', { exact: true }), 'onChange')
   await apply(page, 'first-publish')
-  await page.goto('/editorial')
+  await onDashboard(page, () => page.goto('/editorial'))
   await expect(page.getByText('Your first article has been published.')).toBeVisible()
   await page.getByRole('button', { name: 'Dismiss', exact: true }).click()
   await expect(page.getByText('Your first article has been published.')).toHaveCount(0)
-  await page.reload()
+  await onDashboard(page, () => page.reload())
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await expect(page.getByText('Your first article has been published.')).toHaveCount(0) // stays dismissed
   expect(await db().writerAchievement.count({ where: { userId: writer.id, referenceId: 'testing-scenario', seenAt: null } })).toBe(0)
@@ -158,7 +166,7 @@ test('scenarios put a persona into a known state, show the right prompts, and re
   expect(await db().siteSetting.count({ where: { key: { startsWith: 'testing-scenario-snapshot:' } } })).toBe(0)
   expect(await db().user.count({ where: { id: { in: [writer.id, editor.id] }, role: { in: ['WRITER', 'EDITOR'] } } })).toBe(2) // roles untouched
 
-  await page.getByRole('button', { name: 'Exit testing mode' }).last().click()
+  await onDashboard(page, () => page.getByRole('button', { name: 'Exit testing mode' }).last().click())
   await expect(page.getByRole('region', { name: 'Testing environment' }).locator('strong')).toContainText('Administrator')
   expect(errors.filter((e) => !/status of (40[0-9]|409) /.test(e))).toEqual([])
   await db().notification.updateMany({ where: { id: { in: otherUnread.filter((id) => id !== stray.id) } }, data: { read: false } })

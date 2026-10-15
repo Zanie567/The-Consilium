@@ -33,6 +33,17 @@ export function writerLoginCredentials(context: BrowserContext) {
   return initiatingCredentials.get(context) ?? { email: 'writer@theconsilium.com', password: 'writer2024' }
 }
 
+/**
+ * Answers the cookie banner before any page loads, as a returning visitor has. Unanswered, it slides in over the bottom of
+ * the viewport while Playwright scrolls a low button into view, and with the site's smooth scrolling WebKit can press the
+ * button and release over something else, so no click happens (CI runs 38587261527 and 38642801819; issues #131, #135).
+ * Consent itself is tested in wf-public-controls.
+ */
+export async function withCookieConsentAnswered(context: BrowserContext): Promise<BrowserContext> {
+  await context.addInitScript(() => { try { localStorage.setItem('consilium_cookie_consent', 'declined') } catch {} })
+  return context
+}
+
 /** A fresh browser context signed in as `who`: one per person, so sessions never mix. */
 export async function signedIn(browser: Browser, who: SessionName | null): Promise<BrowserContext> {
   if (!test.info().project.name.startsWith('simulator-') || !who || who === 'admin' || who === 'reader') {
