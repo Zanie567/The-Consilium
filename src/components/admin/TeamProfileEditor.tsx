@@ -7,6 +7,7 @@ import { normalizePublicPosition } from '@/lib/displayTitles'
 import { getInitials } from '@/lib/authorUtils'
 import { MAX_BIO_LENGTH } from '@/lib/constants'
 import type { MemberCard } from '@/lib/membership'
+import { ProfileVisibilityPanel } from '@/components/admin/ProfileVisibilityPanel'
 
 export const TIER_LABEL: Record<TeamTierId, string> = {
   editor_in_chief: 'Editor-in-Chief',
@@ -36,7 +37,6 @@ interface FormState {
   image: string
   email: string
   order: string
-  visible: boolean
 }
 
 const fromCard = (card: MemberCard | null, defaultName: string): FormState => ({
@@ -47,7 +47,6 @@ const fromCard = (card: MemberCard | null, defaultName: string): FormState => ({
   image: card?.image ?? '',
   email: card?.email ?? '',
   order: card ? String(card.order) : '1000',
-  visible: card?.visible ?? false,
 })
 
 interface Props {
@@ -66,8 +65,12 @@ interface Props {
 
 /**
  * One form for every way an administrator edits a Meet the Team profile: name, public
- * position and placement, biography, photo, order and visibility, with a live preview. The
- * permission role is deliberately absent: changing a title here can never grant access.
+ * position and placement, biography, photo and order, with a live preview. The permission
+ * role is deliberately absent: changing a title here can never grant access.
+ *
+ * Visibility is NOT part of this form. A new profile always starts hidden, and saving details
+ * never publishes or hides anything: publishing is the separate, deliberate action at the top
+ * (ProfileVisibilityPanel), which also explains why a profile is not on the public page.
  */
 export function TeamProfileEditor({ card, linkToUserId = null, defaultName = '', onSaved, onDirtyChange, onActivity }: Props) {
   const initial = useMemo(() => fromCard(card, defaultName), [card, defaultName])
@@ -133,7 +136,6 @@ export function TeamProfileEditor({ card, linkToUserId = null, defaultName = '',
       image: form.image || null,
       email: form.email || null,
       ...(order !== undefined ? { order } : {}),
-      visible: form.visible,
     }
     try {
       if (card) {
@@ -149,7 +151,7 @@ export function TeamProfileEditor({ card, linkToUserId = null, defaultName = '',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...body, ...(linkToUserId ? { userId: linkToUserId } : {}), ...(allowDuplicateName ? { allowDuplicateName: true } : {}) }),
         })
-        await onSaved(linkToUserId ? 'Profile created and linked to the account.' : 'Profile created.')
+        await onSaved(linkToUserId ? 'Profile created and linked to the account. It is hidden until you publish it.' : 'Profile created. It is hidden until you publish it.')
       }
     } catch (reason) {
       const apiError = asApiError(reason)
@@ -164,113 +166,112 @@ export function TeamProfileEditor({ card, linkToUserId = null, defaultName = '',
   const id = card?.id ?? 'new'
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
-      <form
-        onSubmit={(e) => { e.preventDefault(); void save() }}
-        aria-label={card ? 'Edit public profile' : 'Create public profile'}
-        className="space-y-4"
-      >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`pf-name-${id}`} className={labelClass}>Name</label>
-            <input id={`pf-name-${id}`} required maxLength={100} value={form.name} onChange={(e) => set('name', e.target.value)} className={fieldClass} />
+    <div className="space-y-4">
+      {card ? (
+        <ProfileVisibilityPanel card={card} dirty={dirty} onChanged={onSaved} />
+      ) : (
+        <p className="border-l-2 border-gold pl-3 text-sm text-[var(--fg-muted)]">
+          New profiles start hidden. Once it is created, publish it from the top of this panel.
+        </p>
+      )}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
+        <form
+          onSubmit={(e) => { e.preventDefault(); void save() }}
+          aria-label={card ? 'Edit public profile' : 'Create public profile'}
+          className="space-y-4"
+        >
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor={`pf-name-${id}`} className={labelClass}>Name</label>
+              <input id={`pf-name-${id}`} required maxLength={100} value={form.name} onChange={(e) => set('name', e.target.value)} className={fieldClass} />
+            </div>
+            <div>
+              <label htmlFor={`pf-position-${id}`} className={labelClass}>Public position</label>
+              <input id={`pf-position-${id}`} maxLength={100} value={form.position} onChange={(e) => set('position', e.target.value)} placeholder="e.g. Editor-in-Chief" className={fieldClass} />
+            </div>
+            <div>
+              <label htmlFor={`pf-tier-${id}`} className={labelClass}>Public placement</label>
+              <select id={`pf-tier-${id}`} value={form.tier} onChange={(e) => set('tier', e.target.value)} className={fieldClass}>
+                {TIERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label htmlFor={`pf-order-${id}`} className={labelClass}>Display order</label>
+              <input id={`pf-order-${id}`} type="number" min={0} max={9999} value={form.order} onChange={(e) => set('order', e.target.value)} className={fieldClass} />
+            </div>
           </div>
-          <div>
-            <label htmlFor={`pf-position-${id}`} className={labelClass}>Public position</label>
-            <input id={`pf-position-${id}`} maxLength={100} value={form.position} onChange={(e) => set('position', e.target.value)} placeholder="e.g. Editor-in-Chief" className={fieldClass} />
-          </div>
-          <div>
-            <label htmlFor={`pf-tier-${id}`} className={labelClass}>Public placement</label>
-            <select id={`pf-tier-${id}`} value={form.tier} onChange={(e) => set('tier', e.target.value)} className={fieldClass}>
-              {TIERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label htmlFor={`pf-order-${id}`} className={labelClass}>Display order</label>
-            <input id={`pf-order-${id}`} type="number" min={0} max={9999} value={form.order} onChange={(e) => set('order', e.target.value)} className={fieldClass} />
-          </div>
-        </div>
 
-        <div>
-          <label htmlFor={`pf-bio-${id}`} className={labelClass}>Biography</label>
-          <textarea id={`pf-bio-${id}`} rows={4} value={form.bio} onChange={(e) => set('bio', e.target.value)} className={fieldClass} aria-describedby={`pf-bio-count-${id}`} />
-          <p id={`pf-bio-count-${id}`} className={`mt-1 text-xs ${bioLeft < 0 ? 'text-red-500' : 'text-[var(--fg-muted)]'}`}>
-            {bioLeft < 0 ? `${-bioLeft} characters too many` : `${bioLeft} characters left`}
-          </p>
-        </div>
-
-        <div>
-          <span className={labelClass}>Photo</span>
-          <div className="flex flex-wrap items-center gap-3">
-            <button type="button" disabled={uploading || busy} onClick={() => fileInput.current?.click()} className={`${buttonClass} border border-[var(--border-strong)] text-[var(--fg)]`}>
-              {uploading ? 'Uploading…' : form.image ? 'Replace photo' : 'Upload photo'}
-            </button>
-            {form.image && (
-              <button type="button" disabled={uploading || busy} onClick={() => set('image', '')} className={`${buttonClass} text-[var(--fg-muted)]`}>Remove photo</button>
-            )}
-            <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" aria-label="Photo file" tabIndex={-1} onChange={upload} />
-          </div>
-          <p className="mt-1 text-xs text-[var(--fg-muted)]">JPEG, PNG or WebP. The change is saved with the rest of the profile.</p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
+            <label htmlFor={`pf-bio-${id}`} className={labelClass}>Biography</label>
+            <textarea id={`pf-bio-${id}`} rows={4} value={form.bio} onChange={(e) => set('bio', e.target.value)} className={fieldClass} aria-describedby={`pf-bio-count-${id}`} />
+            <p id={`pf-bio-count-${id}`} className={`mt-1 text-xs ${bioLeft < 0 ? 'text-red-500' : 'text-[var(--fg-muted)]'}`}>
+              {bioLeft < 0 ? `${-bioLeft} characters too many` : `${bioLeft} characters left`}
+            </p>
+          </div>
+
+          <div>
+            <span className={labelClass}>Photo</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" disabled={uploading || busy} onClick={() => fileInput.current?.click()} className={`${buttonClass} border border-[var(--border-strong)] text-[var(--fg)]`}>
+                {uploading ? 'Uploading…' : form.image ? 'Replace photo' : 'Upload photo'}
+              </button>
+              {form.image && (
+                <button type="button" disabled={uploading || busy} onClick={() => set('image', '')} className={`${buttonClass} text-[var(--fg-muted)]`}>Remove photo</button>
+              )}
+              <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" aria-label="Photo file" tabIndex={-1} onChange={upload} />
+            </div>
+            <p className="mt-1 text-xs text-[var(--fg-muted)]">JPEG, PNG or WebP. The change is saved with the rest of the profile.</p>
+          </div>
+
+          <div className="max-w-md">
             <label htmlFor={`pf-email-${id}`} className={labelClass}>Contact email on the card (optional)</label>
             <input id={`pf-email-${id}`} type="email" value={form.email} onChange={(e) => set('email', e.target.value)} className={fieldClass} />
           </div>
-          <div className="flex items-end">
-            <label className="flex min-h-[40px] items-center gap-2 text-sm text-[var(--fg)]">
-              <input type="checkbox" checked={form.visible} onChange={(e) => set('visible', e.target.checked)} />
-              Show on Our Team page
-            </label>
-          </div>
-        </div>
 
-        {error && (
-          <div role="alert" className="border border-red-500/40 p-3 text-sm text-red-500">
-            <p>{error.text}</p>
-            {error.duplicateName && (
-              <button type="button" disabled={busy} onClick={() => void save(true)} className={`${buttonClass} mt-2 border border-red-500/50`}>
-                This is a different person. Create anyway
-              </button>
-            )}
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="submit" disabled={busy || uploading || !form.name.trim() || (!!card && !dirty)} className={`${buttonClass} bg-navy text-cream hover:bg-navy/90`}>
-            {busy ? 'Saving…' : card ? 'Save public details' : 'Create profile'}
-          </button>
-          {dirty && !busy && <span className="text-xs text-amber-600" role="status">Unsaved changes</span>}
-          {dirty && card && (
-            <button type="button" disabled={busy} onClick={() => { setForm(initial); setError(null) }} className={`${buttonClass} text-[var(--fg-muted)]`}>Discard changes</button>
-          )}
-        </div>
-      </form>
-
-      <aside aria-label="Preview" className="self-start border border-[var(--border)] bg-[var(--bg-subtle)] p-4">
-        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[var(--fg-muted)]">Preview</p>
-        <div className="flex flex-col items-center text-center">
-          {form.image ? (
-            // A plain img: the preview must show exactly what was typed or uploaded, including URLs
-            // the image optimiser has not been told about.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={form.image} alt="" className="h-24 w-24 rounded-full object-cover ring-2 ring-gold/30" />
-          ) : (
-            <div aria-hidden className="flex h-24 w-24 items-center justify-center rounded-full bg-navy text-xl font-bold text-gold">
-              {getInitials(form.name || '?')}
+          {error && (
+            <div role="alert" className="border border-red-500/40 p-3 text-sm text-red-500">
+              <p>{error.text}</p>
+              {error.duplicateName && (
+                <button type="button" disabled={busy} onClick={() => void save(true)} className={`${buttonClass} mt-2 border border-red-500/50`}>
+                  This is a different person. Create anyway
+                </button>
+              )}
             </div>
           )}
-          <p className="mt-3 font-bold text-[var(--fg)]" style={{ fontFamily: 'var(--font-serif)' }}>{form.name || 'Name'}</p>
-          <p className="text-xs uppercase tracking-widest text-gold">{form.position || 'No public position'}</p>
-          <p className="mt-2 line-clamp-5 text-xs text-[var(--fg-muted)]">{form.bio || 'No biography yet.'}</p>
-          <p className={`mt-3 text-[10px] font-bold uppercase tracking-widest ${form.visible && form.name && form.position && form.bio ? 'text-emerald-600' : 'text-amber-600'}`}>
-            {form.visible
-              ? form.name && form.position && form.bio ? 'Will show publicly' : 'Visible, but hidden until name, position and biography are set'
-              : 'Hidden from the public page'}
-          </p>
-        </div>
-      </aside>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="submit" disabled={busy || uploading || !form.name.trim() || (!!card && !dirty)} className={`${buttonClass} bg-navy text-cream hover:bg-navy/90`}>
+              {busy ? 'Saving…' : card ? 'Save public details' : 'Create profile'}
+            </button>
+            {dirty && !busy && <span className="text-xs text-amber-600" role="status">Unsaved changes</span>}
+            {dirty && card && (
+              <button type="button" disabled={busy} onClick={() => { setForm(initial); setError(null) }} className={`${buttonClass} text-[var(--fg-muted)]`}>Discard changes</button>
+            )}
+          </div>
+        </form>
+
+        <aside aria-label="Preview" className="self-start border border-[var(--border)] bg-[var(--bg-subtle)] p-4">
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[var(--fg-muted)]">Preview</p>
+          <div className="flex flex-col items-center text-center">
+            {form.image ? (
+              // A plain img: the preview must show exactly what was typed or uploaded, including URLs
+              // the image optimiser has not been told about.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={form.image} alt="" className="h-24 w-24 rounded-full object-cover ring-2 ring-gold/30" />
+            ) : (
+              <div aria-hidden className="flex h-24 w-24 items-center justify-center rounded-full bg-navy text-xl font-bold text-gold">
+                {getInitials(form.name || '?')}
+              </div>
+            )}
+            <p className="mt-3 font-bold text-[var(--fg)]" style={{ fontFamily: 'var(--font-serif)' }}>{form.name || 'Name'}</p>
+            <p className="text-xs uppercase tracking-widest text-gold">{form.position || 'No public position'}</p>
+            <p className="mt-2 line-clamp-5 text-xs text-[var(--fg-muted)]">{form.bio || 'No biography yet.'}</p>
+            <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-[var(--fg-muted)]">
+              {!card ? 'Starts hidden' : dirty ? 'Unsaved preview' : card.publication.onPublicPage ? 'As shown publicly' : 'Not public'}
+            </p>
+          </div>
+        </aside>
+      </div>
     </div>
   )
 }

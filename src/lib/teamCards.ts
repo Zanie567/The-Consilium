@@ -29,6 +29,7 @@ import { normalizePublicPosition } from '@/lib/displayTitles'
 import { TEAM_TIER_ORDER } from '@/lib/teamHierarchy'
 import { TEAM_PROFILE_ROLES, normalizePersonName, validateTeamBio } from '@/lib/teamProfiles'
 import { assessPlaceholder } from '@/lib/teamPlaceholder'
+import { BLOCKER_TEXT, assessPublication, publicationBlockers, type PublicationAssessment } from '@/lib/teamVisibility'
 
 type Tx = Prisma.TransactionClient
 
@@ -46,6 +47,7 @@ export type TeamCardErrorCode =
   | 'NOT_LINKED'
   | 'INELIGIBLE_ACCOUNT'
   | 'DUPLICATE_NAME'
+  | 'NOT_PUBLISHABLE'
   | 'CONFLICT'
 
 export class TeamCardError extends Error {
@@ -189,6 +191,66 @@ async function requireLinkableAccount(tx: Tx, userId: string) {
     )
   }
   return account
+}
+
+// ── Publication ─────────────────────────────────────────────────────────────
+
+const testingMode = () => process.env.TESTING_MODE_ENABLED === '1'
+
+async function linkedAccount(tx: Tx, userId: string | null) {
+  if (!userId) return null
+  return tx.user.findUnique({ where: { id: userId }, select: { name: true, email: true, isActive: true, isBanned: true } })
+}
+
+/**
+ * Refuses to switch a card ON when it could not appear anyway, saying exactly why, so "published" never means
+ * "silently held back". Applies to every path that can turn the switch on (create, edit, publish). Hiding is
+ * always allowed, and a card that is already switched on is left alone.
+ */
+async function assertPublishable(tx: Tx, card: { name: string; role: string; bio: string | null; userId: string | null }) {
+  const account = await linkedAccount(tx, card.userId)
+  const blockers = publicationBlockers({ name: card.name, position: card.role, bio: card.bio }, account, { testingMode: testingMode() })
+  if (blockers.length > 0) {
+    throw new TeamCardError('NOT_PUBLISHABLE', `This profile cannot be published yet. ${blockers.map((b) => BLOCKER_TEXT[b]).join(' ')}`, 409)
+  }
+}
+
+/**
+ * Publishes or hides one card, and touches nothing else: name, biography, photo, links, position, placement,
+ * order, ownership and the account's permission role are never read from the request or rewritten. Guarded on
+ * the `updatedAt` the administrator saw; asking for the state it already has is success without an audit row.
+ */
+export async function setCardVisibility(
+  actor: CardActor,
+  cardId: string,
+  visible: unknown,
+  options: { expectedUpdatedAt?: string } = {},
+  client: typeof prisma = prisma,
+): Promise<{ id: string; visible: boolean; changed: boolean; updatedAt: string; publication: PublicationAssessment }> {
+  if (typeof visible !== 'boolean') throw invalid('visible must be true or false.')
+  return client.$transaction(async (tx) => {
+    const card = await tx.teamMember.findUnique({ where: { id: cardId } })
+    if (!card) throw new TeamCardError('NOT_FOUND', 'That profile no longer exists.', 404)
+    assertFresh(options.expectedUpdatedAt, card.updatedAt)
+    const account = await linkedAccount(tx, card.userId)
+    const assess = (isActive: boolean) => assessPublication(
+      { name: card.name, position: normalizePublicPosition(card.role), bio: card.bio, image: card.image, visible: isActive },
+      account,
+      { testingMode: testingMode() },
+    )
+    if (card.isActive === visible) {
+      return { id: card.id, visible, changed: false, updatedAt: card.updatedAt.toISOString(), publication: assess(visible) }
+    }
+    if (visible) await assertPublishable(tx, card)
+    const written = await tx.teamMember.updateMany({ where: { id: card.id, updatedAt: card.updatedAt }, data: { isActive: visible } })
+    if (written.count !== 1) throw conflict()
+    await audit(tx, visible ? 'TEAM_CARD_PUBLISHED' : 'TEAM_CARD_HIDDEN', card.id, actor, {
+      cardName: card.name,
+      ...(card.userId ? { userId: card.userId } : {}),
+    })
+    const fresh = await tx.teamMember.findUniqueOrThrow({ where: { id: card.id }, select: { updatedAt: true } })
+    return { id: card.id, visible, changed: true, updatedAt: fresh.updatedAt.toISOString(), publication: assess(visible) }
+  })
 }
 
 // ── Link / unlink ────────────────────────────────────────────────────────────
@@ -384,6 +446,9 @@ export async function createCard(actor: CardActor, input: CreateCardInput, clien
           )
         }
       }
+      if (fields.isActive === true) {
+        await assertPublishable(tx, { name: fields.name!, role: fields.role ?? '', bio: fields.bio ?? null, userId })
+      }
       const card = await tx.teamMember.create({
         data: {
           name: fields.name!,
@@ -449,6 +514,11 @@ export async function updateCard(
 
       const changed = Object.keys(fields) as (keyof CardFields)[]
       if (changed.length === 0) return tx.teamMember.findUniqueOrThrow({ where: { id: card.id } })
+      if (fields.isActive === true && !card.isActive) {
+        await assertPublishable(tx, {
+          name: fields.name ?? card.name, role: fields.role ?? card.role, bio: fields.bio !== undefined ? fields.bio : card.bio, userId: current.userId,
+        })
+      }
       const written = await tx.teamMember.updateMany({ where: { id: card.id, updatedAt: current.updatedAt }, data: fields })
       if (written.count !== 1) throw conflict()
       await audit(tx, 'TEAM_CARD_UPDATED', card.id, actor, {

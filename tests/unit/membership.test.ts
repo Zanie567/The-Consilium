@@ -110,6 +110,19 @@ describe('describeMember', () => {
     expect(describeMember({ ...base, status: 'ACTIVE', user: { ...user, isBanned: true } })).toMatchObject({ accountStatus: 'suspended' })
   })
 
+  // The list must say what the public page does: a photo is optional, and a suspended account's card is held back.
+  it('a hidden profile with everything but a photo is hidden, not incomplete', () => {
+    const row = describeMember({ ...base, status: 'ACTIVE', user: { ...user, teamProfile: { ...card, image: null, isActive: false } } })
+    expect(row.profileStatus).toBe('hidden')
+  })
+
+  it('a switched-on card of a suspended or deactivated account is not eligible, never "published"', () => {
+    for (const account of [{ ...user, isBanned: true }, { ...user, isActive: false }]) {
+      const row = describeMember({ ...base, status: 'ACTIVE', user: account })
+      expect(row.profileStatus).toBe('ineligible')
+    }
+  })
+
   it('shows the public position, never the permission role, for an admin', () => {
     const row = describeMember({
       ...base,

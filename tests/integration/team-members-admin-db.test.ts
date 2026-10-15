@@ -57,6 +57,7 @@ import { GET as publicTeamApi, POST as createRoute } from '@/app/api/team/route'
 import { PUT as updateRoute, DELETE as deleteRoute } from '@/app/api/team/[id]/route'
 import { POST as linkRoute, DELETE as unlinkRoute } from '@/app/api/admin/team-cards/[id]/link/route'
 import { POST as reorderRoute } from '@/app/api/admin/team-cards/reorder/route'
+import { POST as visibilityRoute } from '@/app/api/admin/team-cards/[id]/visibility/route'
 import { GET as directoryRoute } from '@/app/api/admin/team-members/route'
 import { PUT as selfProfile } from '@/app/api/team-profile/route'
 import { loadPublicTeam } from '@/lib/publicTeam'
@@ -101,6 +102,10 @@ async function unlink(cardId: string, extra: Record<string, unknown> = {}) {
 }
 async function update(cardId: string, body: Record<string, unknown>) {
   const res = await updateRoute(json(`/api/team/${cardId}`, 'PUT', body), idCtx(cardId))
+  return { status: res.status, body: await res.json() }
+}
+async function setVisible(cardId: string, body: Record<string, unknown>) {
+  const res = await visibilityRoute(json(`/api/admin/team-cards/${cardId}/visibility`, 'POST', body), idCtx(cardId))
   return { status: res.status, body: await res.json() }
 }
 async function publicNames() {
@@ -336,6 +341,88 @@ suite('Team Members administration (real database)', () => {
     })
   })
 
+  describe('publishing and hiding (the visibility action)', () => {
+    const sectionOf = async (name: string) =>
+      buildTeamMasthead(await loadPublicTeam()).find((s) => s.rows.some((r) => r.members.some((m) => m.name === name)))?.id
+
+    it('a new profile starts hidden; publishing shows it in its section and changes nothing else; hiding removes it', async () => {
+      const writer = await makeUser('WRITER', 'publish')
+      const created = await (await createRoute(json('/api/team', 'POST', {
+        name: `${tag} Publish Me`, position: 'Writer', publicTier: 'writer', bio: 'A real biography.', image: '/team/p.png', order: 42, userId: writer.id,
+      }))).json()
+      expect(created.isActive).toBe(false)
+      expect(await sectionOf(`${tag} Publish Me`)).toBeUndefined()
+      const before = await cardOf(created.id)
+
+      const published = await setVisible(created.id, { visible: true, expectedUpdatedAt: before.updatedAt.toISOString() })
+      expect(published.status).toBe(200)
+      expect(published.body).toMatchObject({ visible: true, changed: true, publication: { status: 'published', onPublicPage: true } })
+      expect(await sectionOf(`${tag} Publish Me`)).toBe('writers')
+      const after = await cardOf(created.id)
+      // Only the switch (and its concurrency token) moved: text, photo, title, placement, order and owner are as they were.
+      const { isActive: _a, updatedAt: _u, ...rest } = after
+      const { isActive: _b, updatedAt: _v, ...restBefore } = before
+      expect(rest).toEqual(restBefore)
+      expect((await db.user.findUniqueOrThrow({ where: { id: writer.id } })).role).toBe('WRITER')
+      expect(await audits(created.id, 'TEAM_CARD_PUBLISHED')).toHaveLength(1)
+
+      // Asking again is success without a second audit row; a stale token is refused.
+      expect((await setVisible(created.id, { visible: true })).body.changed).toBe(false)
+      expect((await setVisible(created.id, { visible: false, expectedUpdatedAt: before.updatedAt.toISOString() })).body.code).toBe('STALE')
+
+      expect((await setVisible(created.id, { visible: false })).status).toBe(200)
+      expect(await sectionOf(`${tag} Publish Me`)).toBeUndefined()
+      expect(await audits(created.id, 'TEAM_CARD_HIDDEN')).toHaveLength(1)
+    })
+
+    it('an incomplete profile is refused with the exact reasons, on every path that can switch it on', async () => {
+      const growth = await makeUser('GROWTH', 'incomplete')
+      const card = await makeCard('Incomplete', { userId: growth.id, role: '', bio: null, isActive: false })
+      const res = await setVisible(card.id, { visible: true })
+      expect(res.status).toBe(409)
+      expect(res.body.code).toBe('NOT_PUBLISHABLE')
+      expect(res.body.error).toMatch(/no public position/)
+      expect(res.body.error).toMatch(/no biography/)
+      expect((await update(card.id, { isActive: true })).body.code).toBe('NOT_PUBLISHABLE')
+      expect((await createRoute(json('/api/team', 'POST', { name: `${tag} Born Public`, position: 'Writer', visible: true }))).status).toBe(409)
+      expect((await cardOf(card.id)).isActive).toBe(false)
+      // Completing it in the same edit is allowed.
+      expect((await update(card.id, { position: 'Growth & Communications', publicTier: 'growth', bio: 'Now complete.', isActive: true })).status).toBe(200)
+      expect(await sectionOf(card.name)).toBe('growth')
+    })
+
+    it('a suspended or deactivated account cannot be published, and its already-switched-on card stays off the page', async () => {
+      const banned = await makeUser('WRITER', 'banned', { isBanned: true })
+      const inactive = await makeUser('EDITOR', 'inactive', { isActive: false })
+      const hiddenCard = await makeCard('Banned Hidden', { userId: banned.id, isActive: false })
+      const onCard = await makeCard('Inactive On', { userId: inactive.id, isActive: true })
+      const refused = await setVisible(hiddenCard.id, { visible: true })
+      expect(refused.status).toBe(409)
+      expect(refused.body.error).toMatch(/suspended/)
+      expect((await cardOf(hiddenCard.id)).isActive).toBe(false)
+      expect((await publicNames()).some((m) => m.name === onCard.name)).toBe(false)
+      const dir = await loadTeamDirectory(db)
+      expect(dir.members.find((m) => m.userId === inactive.id)).toMatchObject({ profileStatus: 'ineligible', card: { publication: { blockers: ['account-inactive'] } } })
+      // Hiding is always allowed.
+      expect((await setVisible(onCard.id, { visible: false })).status).toBe(200)
+    })
+
+    it('an already-published card with a placeholder biography stays published and is only flagged', async () => {
+      const writer = await makeUser('WRITER', 'placeholder')
+      const card = await makeCard('Placeholder Bio', { userId: writer.id, bio: 'Bio to be added' })
+      expect((await publicNames()).some((m) => m.name === card.name)).toBe(true)
+      const row = (await loadTeamDirectory(db)).members.find((m) => m.userId === writer.id)
+      expect(row).toMatchObject({ profileStatus: 'published', card: { publication: { onPublicPage: true } } })
+      expect(row!.card!.publication.notes).toContain('placeholder-bio')
+    })
+
+    it('rejects a missing or non-boolean visible', async () => {
+      const card = await makeCard('Bad Visible')
+      for (const body of [{}, { visible: 'yes' }, { visible: 1 }]) expect((await setVisible(card.id, body)).status).toBe(400)
+      expect((await cardOf(card.id)).isActive).toBe(true)
+    })
+  })
+
   describe('only administrators', () => {
     it('refuse every Team Members operation for editors, writers, growth, readers and anonymous callers', async () => {
       const card = await makeCard('Protected')
@@ -353,6 +440,7 @@ suite('Team Members administration (real database)', () => {
           (await createRoute(json('/api/team', 'POST', { name: `${tag} Intruder` }))).status,
           (await deleteRoute(json(`/api/team/${card.id}`, 'DELETE'), idCtx(card.id))).status,
           (await reorderRoute(json('/api/admin/team-cards/reorder', 'POST', { ids: [card.id] }))).status,
+          (await setVisible(card.id, { visible: false })).status,
           (await directoryRoute()).status,
         ]
         for (const status of results) expect([401, 403], `${who ?? 'anonymous'} got ${status}`).toContain(status)

@@ -7,6 +7,7 @@
 
 import { normalizePublicTier, type MemberTeam } from '@/lib/teamHierarchy'
 import { normalizePublicPosition, resolvePublicTitleLabel } from '@/lib/displayTitles'
+import { publicationBlockers } from '@/lib/teamVisibility'
 
 export interface TeamMemberRow {
   id: string
@@ -154,17 +155,14 @@ export function buildPublicRoster(
       continue
     }
     linkedEmails.add(user.email.trim().toLowerCase())
-    if (!user.isActive || user.isBanned) continue
-    // Internal test accounts (the sitemap and author pages exclude them too) must
-    // never surface publicly, even if one of them creates a card.
-    if (isTestAccountEmail(user.email) && process.env.TESTING_MODE_ENABLED !== '1') continue
-    // A linked card must say who the person is, what they do and a little about them.
-    // Anything less is "not ready", never a half-empty public card ("Unknown User",
-    // "No Role"). The member edits name and description; the title is admin-managed.
-    const name = row.name.trim() || user.name?.trim() || ''
+    // A linked card must say who the person is, what they do and a little about them, and its
+    // account must be active, unsuspended and not an internal test account. Anything less is
+    // "not ready", never a half-empty public card ("Unknown User", "No Role"). The single rule
+    // lives in teamVisibility.ts so the admin screen explains exactly what this enforces.
+    if (publicationBlockers({ name: row.name, position: row.role, bio: row.bio }, user, { testingMode: process.env.TESTING_MODE_ENABLED === '1' }).length > 0) continue
+    const name = row.name.trim() || user.name!.trim()
     const position = row.role.trim()
-    const bio = row.bio?.trim() || null
-    if (!name || !position || !bio) continue
+    const bio = row.bio!.trim()
     roster.push({
       ...row,
       name,
@@ -185,11 +183,6 @@ export function buildPublicRoster(
     roster.push({ ...member, team: null })
   }
   return roster
-}
-
-/** Accounts created for testing; excluded from every public listing. */
-function isTestAccountEmail(email: string): boolean {
-  return email.trim().toLowerCase().startsWith('test-')
 }
 
 /**
