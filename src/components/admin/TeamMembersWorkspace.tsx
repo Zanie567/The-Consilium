@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 import type { AccountStatus, MemberRow, ProfileStatus } from '@/lib/membership'
 import type { TeamDirectory, UnlinkedCardRow } from '@/lib/teamDirectory'
-import { assessProfile } from '@/lib/teamProfiles'
+import { STATUS_LABEL, type PublicationAssessment, type PublicationBlocker } from '@/lib/teamVisibility'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import {
   MEMBER_FILTERS,
@@ -29,9 +29,7 @@ const ACCOUNT_LABEL: Record<AccountStatus, string> = {
 }
 const PROFILE_LABEL: Record<ProfileStatus, string> = {
   'not-started': 'No profile yet',
-  incomplete: 'Profile incomplete',
-  hidden: 'Complete, hidden',
-  published: 'Published',
+  ...STATUS_LABEL,
 }
 
 type Tone = 'good' | 'warn' | 'bad' | 'plain'
@@ -45,7 +43,20 @@ function Chip({ children, tone }: { children: React.ReactNode; tone: Tone }) {
   return <span className={`inline-block border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${colour}`}>{children}</span>
 }
 const accountTone = (s: AccountStatus): Tone => (s === 'active' ? 'good' : s === 'revoked' || s === 'suspended' ? 'bad' : 'warn')
-const profileTone = (s: ProfileStatus): Tone => (s === 'published' ? 'good' : s === 'hidden' ? 'plain' : 'warn')
+const profileTone = (s: ProfileStatus): Tone => (s === 'published' ? 'good' : s === 'hidden' ? 'plain' : s === 'ineligible' ? 'bad' : 'warn')
+/** Short reasons for the list ("Needs: bio, position"; "Account suspended"), from the same rule the page applies. */
+const BLOCKER_SHORT: Record<PublicationBlocker, string> = {
+  name: 'name', position: 'position', bio: 'bio', 'account-inactive': 'account deactivated', 'account-suspended': 'account suspended', 'test-account': 'test account',
+}
+function PublicationHint({ publication }: { publication: PublicationAssessment }) {
+  const needs = publication.blockers.map((b) => BLOCKER_SHORT[b])
+  return (
+    <>
+      {needs.length > 0 && <p className="mt-1 text-xs text-[var(--fg-muted)]">{publication.status === 'ineligible' ? 'Blocked: ' : 'Needs: '}{needs.join(', ')}</p>}
+      {publication.notes.includes('placeholder-bio') && <p className="mt-1 text-xs text-amber-600">Placeholder biography</p>}
+    </>
+  )
+}
 
 /**
  * A member's stable identity on screen. The row id is NOT stable: a staff account that pre-dates
@@ -306,7 +317,6 @@ export function TeamMembersWorkspace({ initial, currentAdminEmail }: { initial: 
               {visible.map((m) => {
                 const open = openId === keyOf(m)
                 const isNew = isNewWithoutProfile(m)
-                const todo = [...m.missingFromMember, ...m.missingFromAdmin]
                 return (
                   <MemberRowGroup key={keyOf(m)} open={open}
                     row={
@@ -328,7 +338,7 @@ export function TeamMembersWorkspace({ initial, currentAdminEmail }: { initial: 
                         <td className="px-3 py-3">
                           <Chip tone={profileTone(m.profileStatus)}>{PROFILE_LABEL[m.profileStatus]}</Chip>
                           {m.card && <p className="mt-1 text-xs text-[var(--fg-muted)]">Linked to this account</p>}
-                          {m.profileStatus === 'incomplete' && todo.length > 0 && <p className="mt-1 text-xs text-[var(--fg-muted)]">Needs: {todo.join(', ')}</p>}
+                          {m.card && <PublicationHint publication={m.card.publication} />}
                         </td>
                         <td className="px-3 py-3 text-right">
                           <button type="button" onClick={() => toggle(m)} aria-expanded={open} className={`${buttonClass} border border-[var(--border-strong)] text-[var(--fg)]`}>
@@ -445,7 +455,6 @@ function UnownedProfiles({ dir, run, busy, reload, onMessage }: { dir: TeamDirec
       ) : (
         <ul className="mt-3 divide-y divide-[var(--border)]">
           {dir.unlinkedCards.map((c) => {
-            const missing = assessProfile({ name: c.name, bio: c.bio, image: c.image, position: c.position, visible: true }).publicBlockers
             const editing = editId === c.id
             const target = assign[c.id] ?? ''
             return (
@@ -454,9 +463,9 @@ function UnownedProfiles({ dir, run, busy, reload, onMessage }: { dir: TeamDirec
                   <div className="min-w-[220px] flex-1">
                     <p className="font-semibold text-[var(--fg)]">{c.name}</p>
                     <p className="text-xs text-[var(--fg-muted)]">
-                      {c.position || 'No position'} · {c.visible ? 'Public' : 'Hidden'}{c.email ? ` · ${c.email}` : ''}
+                      {c.position || 'No position'} · {STATUS_LABEL[c.publication.status]}{c.email ? ` · ${c.email}` : ''}
                     </p>
-                    {missing.length > 0 && <p className="mt-1 text-xs text-amber-600">Profile incomplete · Needs: {missing.join(', ')}</p>}
+                    <PublicationHint publication={c.publication} />
                   </div>
                   <label className="sr-only" htmlFor={`assign-card-${c.id}`}>Assign {c.name} to an account</label>
                   <select id={`assign-card-${c.id}`} value={target} onChange={(e) => setAssign({ ...assign, [c.id]: e.target.value })} className="min-w-[220px] rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-2 text-sm">
@@ -484,7 +493,7 @@ function UnownedProfiles({ dir, run, busy, reload, onMessage }: { dir: TeamDirec
                 {editing && (
                   <div className="mt-4 border-t border-[var(--border)] pt-4">
                     <TeamProfileEditor
-                      card={{ id: c.id, name: c.name, position: c.position, publicTier: c.publicTier, bio: c.bio, image: c.image, email: c.email, order: c.order, visible: c.visible, updatedAt: c.updatedAt }}
+                      card={{ id: c.id, name: c.name, position: c.position, publicTier: c.publicTier, bio: c.bio, image: c.image, email: c.email, order: c.order, visible: c.visible, updatedAt: c.updatedAt, publication: c.publication }}
                       onSaved={saved}
                       onDirtyChange={setDirty}
                       onActivity={clearMessage}

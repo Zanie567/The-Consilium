@@ -9,6 +9,7 @@ import { prisma } from '@/lib/prisma'
 import { listMembers, normalizeEmail, type MemberRow } from '@/lib/membership'
 import { buildReconciliationReport, type ReconciliationIssue } from '@/lib/teamReconciliation'
 import { suggestCards, type CardSuggestion } from '@/lib/teamCards'
+import { assessPublication, type PublicationAssessment } from '@/lib/teamVisibility'
 
 export interface UnlinkedCardRow {
   id: string
@@ -21,6 +22,7 @@ export interface UnlinkedCardRow {
   order: number
   visible: boolean
   updatedAt: string
+  publication: PublicationAssessment
 }
 
 export interface RecentSignup {
@@ -92,6 +94,10 @@ export async function loadTeamDirectory(client: typeof prisma = prisma, now: Dat
       order: c.order,
       visible: c.isActive,
       updatedAt: c.updatedAt.toISOString(),
+      publication: assessPublication(
+        { name: c.name, position: normalizePublicPosition(c.role), bio: c.bio, image: c.image, visible: c.isActive },
+        null,
+      ),
     })),
     recentSignups: signups.map((u) => ({
       id: u.id,

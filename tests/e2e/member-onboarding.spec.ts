@@ -194,14 +194,16 @@ for (const spec of [
     // 8. The admin sees exactly where things stand, then sets position and visibility.
     await adminPage.goto('/editorial/members')
     await expect(row(adminPage, email)).toContainText('Active')
-    await expect(row(adminPage, email)).toContainText('Complete, hidden')
+    await expect(row(adminPage, email)).toContainText('Hidden')
     await row(adminPage, email).getByRole('button', { name: 'Manage' }).click()
     await adminPage.getByRole('tab', { name: 'Public profile' }).click()
     await adminPage.getByLabel('Public position', { exact: true }).fill(spec.position)
     await adminPage.getByLabel('Display order').fill('5')
-    await adminPage.getByLabel('Show on Our Team page').check()
     await adminPage.getByRole('button', { name: 'Save public details' }).click()
     await expect(adminPage.getByRole('status').filter({ hasText: 'Public details saved' })).toBeVisible()
+    await expect(row(adminPage, email)).toContainText('Hidden') // saving details never publishes
+    await adminPage.getByRole('button', { name: 'Publish profile' }).click()
+    await expect(adminPage.getByRole('status').filter({ hasText: 'now appears on the Our Team page' })).toBeVisible()
     await expect(row(adminPage, email)).toContainText('Published')
 
     // 9. They appear exactly once, in the right section, with the admin-set position.
@@ -251,8 +253,9 @@ test('promotion keeps the profile; revoking removes access but not the profile; 
   await row(adminPage, email).getByRole('button', { name: 'Manage' }).click()
   await adminPage.getByRole('tab', { name: 'Public profile' }).click()
   await adminPage.getByLabel('Public position', { exact: true }).fill('Staff Writer')
-  await adminPage.getByLabel('Show on Our Team page').check()
   await adminPage.getByRole('button', { name: 'Save public details' }).click()
+  await expect(adminPage.getByRole('status').filter({ hasText: 'Public details saved' })).toBeVisible()
+  await adminPage.getByRole('button', { name: 'Publish profile' }).click()
   await expect(row(adminPage, email)).toContainText('Published')
   const [original] = await db().teamMember.findMany({ where: { userId: user.id } })
 
@@ -286,9 +289,8 @@ test('promotion keeps the profile; revoking removes access but not the profile; 
   await adminPage.goto('/editorial/members')
   await row(adminPage, email).getByRole('button', { name: 'Manage' }).click()
   await adminPage.getByRole('tab', { name: 'Public profile' }).click()
-  await adminPage.getByLabel('Show on Our Team page').uncheck()
-  await adminPage.getByRole('button', { name: 'Save public details' }).click()
-  await expect(adminPage.getByRole('status').filter({ hasText: 'Public details saved' })).toBeVisible()
+  await adminPage.getByRole('button', { name: 'Hide from public page' }).click()
+  await expect(adminPage.getByRole('status').filter({ hasText: 'is no longer on the Our Team page' })).toBeVisible()
   expect(await publicPlacement(browser, name)).toMatchObject({ total: 0 })
   expect(await db().teamMember.count({ where: { userId: user.id } })).toBe(1)
   expect(await counts(email)).toEqual({ users: 1, memberships: 1, cards: 1 })

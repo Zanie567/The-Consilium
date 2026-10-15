@@ -23,6 +23,7 @@ import { prisma } from '@/lib/prisma'
 import { isUniqueViolation } from '@/lib/prismaErrors'
 import { matchLegacyCard } from '@/lib/teamProfileLegacy'
 import { assessProfile as assessProfileFacts, defaultPublicAppointment } from '@/lib/teamProfiles'
+import { BLOCKER_TEXT, assessPublication, publicationBlockers, type PublicationAssessment } from '@/lib/teamVisibility'
 import { normalizePublicPosition } from '@/lib/displayTitles'
 import { normalizePublicTier, TEAM_TIER_ORDER } from '@/lib/teamHierarchy'
 
@@ -63,7 +64,8 @@ export class MembershipError extends Error {
       | 'SELF_CHANGE'
       | 'LAST_ADMIN'
       | 'NOT_REVOKED'
-      | 'NO_PROFILE',
+      | 'NO_PROFILE'
+      | 'NOT_PUBLISHABLE',
     message: string,
     readonly status: number,
   ) {
@@ -611,13 +613,25 @@ export async function updateMemberProfileFields(
       { id: user.id, name: user.name, email: user.email },
       { role: user.role, displayName: displayName ?? undefined },
     )
-    const card = await tx.teamMember.findUnique({ where: { userId: user.id }, select: { id: true } })
+    const card = await tx.teamMember.findUnique({ where: { userId: user.id }, select: { id: true, name: true, role: true, bio: true, isActive: true } })
     if (!card) {
       throw new MembershipError(
         'NO_PROFILE',
         'An existing unlinked card may belong to this person. Link it from the Team page first.',
         409,
       )
+    }
+    if (visible === true && !card.isActive) {
+      // Same rule as the publish action: switching a card on that could not appear is refused, with the reason.
+      const account = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { name: true, email: true, isActive: true, isBanned: true } })
+      const blockers = publicationBlockers(
+        { name: displayName || card.name, position: position !== undefined ? position : card.role, bio: card.bio },
+        account,
+        { testingMode: process.env.TESTING_MODE_ENABLED === '1' },
+      )
+      if (blockers.length > 0) {
+        throw new MembershipError('NOT_PUBLISHABLE', `This profile cannot be published yet. ${blockers.map((b) => BLOCKER_TEXT[b]).join(' ')}`, 409)
+      }
     }
     await tx.teamMember.update({
       where: { id: card.id },
@@ -667,7 +681,8 @@ export async function resolveMembershipId(idOrRef: string, client: typeof prisma
 }
 
 export type AccountStatus = 'invited' | 'unverified' | 'active' | 'suspended' | 'revoked'
-export type ProfileStatus = 'not-started' | 'incomplete' | 'hidden' | 'published'
+/** `not-started`: no card. The others are the card's PublicationStatus (teamVisibility.ts). */
+export type ProfileStatus = 'not-started' | 'incomplete' | 'hidden' | 'published' | 'ineligible'
 
 export interface MemberRow {
   id: string
@@ -707,6 +722,8 @@ export interface MemberCard {
   visible: boolean
   /** Send back as `expectedUpdatedAt` so a stale edit is refused. */
   updatedAt: string
+  /** Whether it is on the public page, whether it may be published, and why not. */
+  publication: PublicationAssessment
 }
 
 interface DescribeInput {
@@ -765,11 +782,16 @@ export function describeMember(input: DescribeInput): MemberRow {
     visible: card?.isActive ?? false,
   })
 
-  let profileStatus: ProfileStatus
-  if (!card) profileStatus = 'not-started'
-  else if (assessment.publiclyVisible) profileStatus = 'published'
-  else if (assessment.complete) profileStatus = 'hidden'
-  else profileStatus = 'incomplete'
+  // The same rule the public page applies (a photo is optional), so the list never says "Published" for a card
+  // the page holds back, or "Incomplete" for one that is only missing its optional photo.
+  const publication = card && user
+    ? assessPublication(
+        { name: card.name, position: normalizePublicPosition(card.role), bio: card.bio, image: card.image, visible: card.isActive },
+        { name: user.name, email: input.email, isActive: user.isActive, isBanned: user.isBanned },
+        { testingMode: process.env.TESTING_MODE_ENABLED === '1' },
+      )
+    : null
+  const profileStatus: ProfileStatus = publication ? publication.status : 'not-started'
 
   return {
     id: input.id,
@@ -803,6 +825,7 @@ export function describeMember(input: DescribeInput): MemberRow {
           order: card.order,
           visible: card.isActive,
           updatedAt: card.updatedAt.toISOString(),
+          publication: publication!,
         }
       : null,
   }

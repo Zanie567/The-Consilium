@@ -272,7 +272,7 @@ function ProfileSection(p: Props) {
       <div className="space-y-6">
         <p className="text-sm text-[var(--fg-muted)]">
           This profile belongs to <strong>{m.email}</strong>. They can edit their own name, photo and biography; only administrators can
-          change the position, placement, order and visibility below.
+          publish or hide it, and change its position, placement and order.
         </p>
         <TeamProfileEditor card={card} onSaved={saved} onDirtyChange={onDirtyChange} onActivity={clearMessage} />
         {placeholder && (
@@ -367,8 +367,12 @@ function ProfileSection(p: Props) {
   return (
     <div className="space-y-6">
       <p className="text-sm text-[var(--fg)]">
-        <strong>{m.name ?? m.email}</strong> has no public profile yet. Link their existing Meet the Team profile, or create a new one.
+        <strong>{m.name ?? m.email}</strong> has no public profile yet, so nothing about them is on the Our Team page. Link their existing
+        Meet the Team profile, or create a new one; either way you publish it as a separate step.
       </p>
+      {!m.emailVerified && (
+        <p className="text-xs text-[var(--fg-muted)]">Their email address is not confirmed yet. That does not stop you creating or publishing a profile.</p>
+      )}
 
       {options.length > 0 ? (
         <div className="max-w-xl space-y-2">

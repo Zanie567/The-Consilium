@@ -97,6 +97,18 @@ async function findMember(page: Page, account: TestAccount) {
   return row
 }
 
+/**
+ * toBeVisible() ignores opacity. Under reduced motion the portal's entrance wrappers once kept the server's
+ * opacity:0 after hydration, so the whole members page was invisible yet fully clickable.
+ */
+async function effectiveOpacity(locator: Locator) {
+  return locator.evaluate((el) => {
+    let opacity = 1
+    for (let node: Element | null = el; node; node = node.parentElement) opacity *= Number(getComputedStyle(node).opacity)
+    return opacity
+  })
+}
+
 /** Opens the member's management panel and waits until it is actually there (it shows a Close control). */
 async function manage(row: Locator) {
   await row.getByRole('button', { name: 'Manage' }).click()
@@ -180,7 +192,7 @@ test('assigning an existing profile to a new account: nothing is lost, the owner
   await admin.close()
 })
 
-test('creating a new profile for an account links it, starts hidden, and goes public only when shown', async ({ browser }) => {
+test('creating a new profile for an account links it, starts hidden, and goes public only when published', async ({ browser }) => {
   test.setTimeout(150_000)
   const account = await createAccount('EDITOR', 'create')
   const admin = await withCookieConsentAnswered(await signedIn(browser, 'admin'))
@@ -204,21 +216,114 @@ test('creating a new profile for an account links it, starts hidden, and goes pu
   // The member's panel stays open after creating, now showing the new profile for editing.
   await expect(page.getByTestId(`member-${account.email}`).getByRole('button', { name: 'Close' })).toBeVisible()
   await page.getByRole('tab', { name: 'Public profile' }).click()
-  await page.getByLabel('Show on Our Team page').check()
-  await page.getByRole('button', { name: 'Save public details' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Public details saved' })).toBeVisible()
+  const visibility = page.getByTestId('profile-visibility')
+  await expect(visibility.getByTestId('publication-status')).toHaveText('Hidden')
+  await visibility.getByRole('button', { name: 'Publish profile' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'now appears on the Our Team page' })).toBeVisible()
+  await expect(visibility.getByTestId('publication-status')).toHaveText('Published')
   expect(await publicTeam(browser)).toContain(name)
 
   // Hide again, then delete: the public page follows both, the account is untouched.
-  await page.getByLabel('Show on Our Team page').uncheck()
-  await page.getByRole('button', { name: 'Save public details' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Public details saved' })).toBeVisible()
+  await visibility.getByRole('button', { name: 'Hide from public page' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'is no longer on the Our Team page' })).toBeVisible()
+  await expect(visibility.getByTestId('publication-status')).toHaveText('Hidden')
   expect(await publicTeam(browser)).not.toContain(name)
   await page.getByRole('button', { name: 'Delete profile' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete profile' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Profile deleted' })).toBeVisible()
   expect(await db().teamMember.count({ where: { userId: account.id } })).toBe(0)
   expect((await db().user.findUniqueOrThrow({ where: { id: account.id } })).role).toBe('EDITOR')
+  await admin.close()
+})
+
+test('visibility is explained and enforced: incomplete and suspended profiles cannot be published, members cannot publish themselves', async ({ browser }) => {
+  test.setTimeout(180_000)
+  // Already public before this test: it must stay exactly as it is throughout.
+  const published = await legacyCard('Untouched', { bio: 'Bio to be added' })
+  const before = await db().teamMember.findUniqueOrThrow({ where: { id: published.id } })
+
+  // An incomplete profile: hidden, no position and no biography.
+  const writer = await createAccount('WRITER', 'incomplete')
+  const incomplete = await db().teamMember.create({
+    data: { name: `WF Card ${run} Incomplete`, role: '', bio: null, order: 1000, isActive: false, userId: writer.id },
+  })
+  createdCardIds.push(incomplete.id)
+  // A complete profile whose account is suspended.
+  const suspended = await createAccount('GROWTH', 'suspended')
+  const held = await db().teamMember.create({
+    data: { name: `WF Card ${run} Suspended`, role: 'Growth & Communications', publicTier: 'growth', bio: 'A real biography.', order: 1000, isActive: false, userId: suspended.id },
+  })
+  createdCardIds.push(held.id)
+  await db().user.update({ where: { id: suspended.id }, data: { isBanned: true } })
+
+  const admin = await withCookieConsentAnswered(await signedIn(browser, 'admin'))
+  const page = await steadyPage(admin)
+
+  // The list says why, without opening anything.
+  const row = await openMember(page, writer)
+  await expect(row).toContainText('Incomplete')
+  await expect(row).toContainText('Needs: position, bio')
+  await manage(row)
+  await page.getByRole('tab', { name: 'Public profile' }).click()
+  const visibility = page.getByTestId('profile-visibility')
+  await expect(visibility.getByTestId('publication-status')).toHaveText('Incomplete')
+  await expect(visibility).toContainText('It has no public position')
+  await expect(visibility).toContainText('It has no biography')
+  await expect(visibility.getByRole('button', { name: 'Publish profile' })).toBeDisabled()
+  // The status and its controls fit a phone screen.
+  await page.setViewportSize({ width: 375, height: 800 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await visibility.scrollIntoViewIfNeeded()
+  expect(await effectiveOpacity(visibility)).toBe(1)
+  await page.setViewportSize({ width: 1280, height: 900 })
+  // Completing it makes it publishable, but saving alone does not publish it.
+  await page.getByLabel('Public position', { exact: true }).fill('Writer')
+  await page.getByLabel('Biography').fill('Now complete.')
+  await expect(visibility.getByRole('button', { name: 'Publish profile' })).toBeDisabled() // unsaved changes
+  await page.getByRole('button', { name: 'Save public details' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Public details saved' })).toBeVisible()
+  await expect(visibility.getByTestId('publication-status')).toHaveText('Hidden')
+  expect((await db().teamMember.findUniqueOrThrow({ where: { id: incomplete.id } })).isActive).toBe(false)
+  expect(await publicTeam(browser)).not.toContain(incomplete.name)
+
+  // The suspended account: explained, the button is off, and the API refuses a forced request.
+  const heldRow = await openMember(page, suspended)
+  await expect(heldRow).toContainText('Not eligible')
+  await manage(heldRow)
+  await page.getByRole('tab', { name: 'Public profile' }).click()
+  await expect(visibility).toContainText('The linked account is suspended')
+  await expect(visibility.getByRole('button', { name: 'Publish profile' })).toBeDisabled()
+  const forced = await page.request.post(`/api/admin/team-cards/${held.id}/visibility`, { data: { visible: true } })
+  expect(forced.status()).toBe(409)
+  expect((await db().teamMember.findUniqueOrThrow({ where: { id: held.id } })).isActive).toBe(false)
+  expect(await publicTeam(browser)).not.toContain(held.name)
+
+  // Ordinary members cannot publish themselves or gain anything through the publish route.
+  for (const role of ['WRITER', 'EDITOR', 'GROWTH'] as const) {
+    const member = role === 'WRITER' ? writer : await createAccount(role, `self-${role.toLowerCase()}`)
+    const own = await withCookieConsentAnswered(await signInAs(browser, member))
+    const res = await own.request.post(`/api/admin/team-cards/${incomplete.id}/visibility`, { data: { visible: true } })
+    expect([401, 403], role).toContain(res.status())
+    expect((await own.request.put('/api/team-profile', { multipart: { bio: 'Mine', visible: 'true' } })).status()).toBe(400)
+    await own.close()
+    expect((await db().user.findUniqueOrThrow({ where: { id: member.id } })).role).toBe(role)
+  }
+  expect((await db().teamMember.findUniqueOrThrow({ where: { id: incomplete.id } })).isActive).toBe(false)
+
+  // The administrator publishes it deliberately; it lands in Writers; the pre-existing card is untouched.
+  await openMember(page, writer).then(manage)
+  await page.getByRole('tab', { name: 'Public profile' }).click()
+  await visibility.getByRole('button', { name: 'Publish profile' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'now appears on the Our Team page under Writers' })).toBeVisible()
+  await visibility.scrollIntoViewIfNeeded()
+  expect(await effectiveOpacity(visibility)).toBe(1)
+  const publicPage = await steadyPage(await browser.newContext())
+  await publicPage.goto('/team')
+  await expect(publicPage.locator(`section[aria-labelledby="team-writers"] [data-team-member-id="${incomplete.id}"]`)).toBeVisible()
+  await expect(publicPage.locator(`[data-team-member-id="${published.id}"]`)).toBeVisible()
+  await publicPage.context().close()
+  expect(await db().teamMember.findUniqueOrThrow({ where: { id: published.id } })).toEqual(before)
+  expect((await db().user.findUniqueOrThrow({ where: { id: writer.id } })).role).toBe('WRITER')
   await admin.close()
 })
 
@@ -455,17 +560,17 @@ test('Growth & Comms is flat and manageable through Team Members without changin
 
   await manage(await reloadMembers(page, account))
   await page.getByRole('tab', { name: 'Public profile' }).click()
-  await page.getByLabel('Show on Our Team page').uncheck()
-  await page.getByRole('button', { name: 'Save public details' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Public details saved' })).toBeVisible()
+  await page.getByRole('button', { name: 'Hide from public page' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'is no longer on the Our Team page' })).toBeVisible()
   await publicPage.goto('/team')
   await expect(publicPage.locator(`[data-team-member-id="${card.id}"]`)).toHaveCount(0)
   await manage(await reloadMembers(page, account))
   await page.getByRole('tab', { name: 'Public profile' }).click()
-  await page.getByLabel('Show on Our Team page').check()
   await page.getByLabel('Display order', { exact: true }).fill('3999')
   await page.getByRole('button', { name: 'Save public details' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Public details saved' })).toBeVisible()
+  await page.getByRole('button', { name: 'Publish profile' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'now appears on the Our Team page' })).toBeVisible()
   await publicPage.goto('/team')
   // Wait for the restored card before checking the new order.
   await expect(publicPage.locator(`[data-team-member-id="${card.id}"]`)).toBeVisible()

@@ -190,6 +190,11 @@ function placeMember(member: TeamMemberLike): Placement {
   return { section: TIER_SECTION[tier], tier }
 }
 
+/** The public section a card appears in, by name, for admin feedback ("under Writers"). */
+export function publicSectionLabel(member: { publicTier?: string | null; role: string }): string {
+  return SECTION_META[placeMember({ id: '', name: '', order: 0, role: member.role, publicTier: member.publicTier }).section].label
+}
+
 /** Read old placements as Editor; new writes use the current tier options. */
 export function normalizePublicTier(tier: string | null | undefined): string | null {
   return tier === 'senior_editor' || tier === 'junior_editor' ? 'editor' : tier ?? null

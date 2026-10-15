@@ -8,7 +8,8 @@ const row = (over: Partial<MemberRow> & { id: string }): MemberRow => ({
   accountStatus: 'active', profileStatus: 'published', position: 'Writer', tier: null, order: 1, visible: true,
   missingFromMember: [], missingFromAdmin: [], invitedByName: null, createdAt: '2026-01-01T00:00:00.000Z',
   userId: `u-${over.id}`, accountCreatedAt: '2026-01-01T00:00:00.000Z', accountName: over.id,
-  card: { id: `c-${over.id}`, name: over.id, position: 'Writer', publicTier: null, bio: 'bio', image: null, email: null, order: 1, visible: true, updatedAt: '2026-01-01T00:00:00.000Z' },
+  card: { id: `c-${over.id}`, name: over.id, position: 'Writer', publicTier: null, bio: 'bio', image: null, email: null, order: 1, visible: true, updatedAt: '2026-01-01T00:00:00.000Z',
+    publication: { status: 'published', visible: true, onPublicPage: true, canPublish: true, blockers: [], notes: ['no-photo'] } },
   ...over,
 })
 
