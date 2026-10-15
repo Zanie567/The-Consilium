@@ -18,7 +18,7 @@
 name: Publish Scheduled Articles
 
 on:
-  # Run every 5 minutes. GitHub Actions cron runs in UTC.
+  # Run every 17 minutes. GitHub Actions cron runs in UTC.
   schedule:
     - cron: '*/17 * * * *'
 
