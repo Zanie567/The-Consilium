@@ -4,6 +4,7 @@ import { useLayoutEffect } from 'react'
 import type { Session } from 'next-auth'
 import { getTestingTabId, identityPinnedFetch, isTestingTransition, setTestingTransition } from '@/lib/testingClient'
 import { TestingControls } from './TestingControls'
+import { SessionKeepAlive } from './SessionKeepAlive'
 
 export function AuthProvider({ children, session, testWorkspace = false }: { children: React.ReactNode; session?: Session | null; testWorkspace?: boolean }) {
   // Install the identity transport before child passive effects send writes
@@ -35,6 +36,7 @@ export function AuthProvider({ children, session, testWorkspace = false }: { chi
     return () => { window.fetch = original; channel.close(); window.removeEventListener('pageshow', onPageShow); window.removeEventListener('popstate', restoreIdentity); window.removeEventListener('focus', checkIdentity) }
   }, [session?.requestIdentity, testWorkspace])
   return <SessionProvider session={session}>
+    <SessionKeepAlive renewAt={session?.renewAt} />
     {testWorkspace && <TestingControls banner testing={session?.testing} ordinaryRole={session?.user.role} />}
     {children}
   </SessionProvider>
