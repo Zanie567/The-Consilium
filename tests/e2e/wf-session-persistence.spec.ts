@@ -1,6 +1,6 @@
 import { test, expect, type Browser, type BrowserContext } from '@playwright/test'
 import bcrypt from 'bcryptjs'
-import { closeDb, createAccount, db, removeMyAccounts, signInAs, type TestAccount } from './helpers/workflow'
+import { closeDb, createAccount, db, hydrated, removeMyAccounts, signInAs, type TestAccount } from './helpers/workflow'
 
 /**
  * A returning reader stays signed in: the session cookie is persistent (an expiry date, not a browser-session
@@ -83,6 +83,8 @@ test('declining or accepting optional cookies never touches the sign-in', async 
     const page = await context.newPage()
     await page.goto('/')
     const banner = page.getByRole('dialog', { name: 'Cookie consent' })
+    // A click before React attaches the handler does nothing (CI runners are slow).
+    await hydrated(banner.getByRole('button', { name: choice }), 'onClick')
     await banner.getByRole('button', { name: choice }).click()
     await page.reload()
     expect((await sessionUser(context))?.id, choice).toBe(account.id)
@@ -96,7 +98,12 @@ test('signing out ends the session, including after a restart', async ({ browser
   const { context } = await readerSignedIn(browser, 'signout')
   const page = await context.newPage()
   await page.goto('/')
-  await page.getByRole('button', { name: 'Sign out' }).first().click()
+  const signOut = page.getByRole('button', { name: 'Sign out' }).first()
+  // A click before React attaches the handler does nothing (CI Chromium, run 38783090572).
+  await hydrated(signOut, 'onClick')
+  const signedOut = page.waitForResponse((r) => r.url().includes('/api/auth/signout') && r.request().method() === 'POST')
+  await signOut.click()
+  expect((await signedOut).ok()).toBe(true)
   await expect.poll(async () => sessionUser(context)).toBeNull()
   expect(await sessionCookie(context)).toBeUndefined()
   const reopened = await restartBrowser(browser, context)
