@@ -7,6 +7,7 @@ import { PrismaAdapter } from '@auth/prisma-adapter'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
+import { createHmac } from 'node:crypto'
 import { cache } from 'react'
 import { prisma } from './prisma'
 import { isUniqueViolation } from './prismaErrors'
@@ -59,12 +60,50 @@ async function notifyAdminOfLockout(lockedEmail: string, ip: string) {
   }
 }
 
-/** Current role/ban/active state of an account. De-duplicated within one server render by React's cache. */
+/**
+ * How long a signed-in browser stays signed in without visiting: a rolling 60 days. Each visit renews it (at most
+ * once a day, see SESSION_RENEW_AFTER_S), so active readers are not asked to sign in again. Nothing here trusts the
+ * cookie for permissions: role, suspension and deactivation are read from the database on every session read, and
+ * a password change ends every session of that account (credentialStamp below).
+ */
+export const SESSION_MAX_AGE_S = 60 * 24 * 60 * 60
+/**
+ * NextAuth's `updateAge` does not apply to JWT sessions: the cookie is re-issued (new expiry) only when
+ * /api/auth/session is called. The root layout hands the session to SessionProvider, which therefore never fetches
+ * it on load, so before this change the cookie expired 24 hours after SIGN-IN however often the person visited.
+ * AuthProvider now calls that endpoint once the cookie is older than this.
+ */
+export const SESSION_RENEW_AFTER_S = 24 * 60 * 60
+
+/**
+ * A digest of the account's current password hash (HMAC with the server secret, so neither the hash nor anything
+ * that helps guess the password is put in the cookie). Stored in the token at sign-in and compared on every read:
+ * a password reset or change makes the old digest stale, which signs out every existing session of that account.
+ */
+export function credentialStamp(userId: string, passwordHash: string | null): string {
+  return createHmac('sha256', process.env.NEXTAUTH_SECRET!).update(`${userId}\0${passwordHash ?? ''}`).digest('base64url').slice(0, 22)
+}
+
+/** Thrown from the jwt callback: NextAuth then treats the cookie as invalid, signs the browser out and clears it. */
+export class SessionRevokedError extends Error {
+  constructor(reason: 'credentials-changed' | 'account-deleted') {
+    super(`Session revoked: ${reason}`)
+  }
+}
+
+/**
+ * Current role/ban/active state of an account, and its credential stamp. De-duplicated within one server render
+ * by React's cache. `null`: the account does not exist. `undefined`: the database could not be read. Callers treat
+ * both as restricted (fail closed).
+ */
 const loadAccountState = cache(async (userId: string) => {
   try {
-    return await prisma.user.findUnique({ where: { id: userId }, select: { role: true, isActive: true, isBanned: true } })
+    const row = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, isActive: true, isBanned: true, password: true } })
+    if (!row) return null
+    const { password, ...state } = row
+    return { ...state, credential: credentialStamp(userId, password) }
   } catch {
-    return null // unverifiable: treated as restricted by the caller (fail closed)
+    return undefined
   }
 })
 
@@ -76,8 +115,7 @@ export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma as unknown as PrismaClient) as NextAuthOptions['adapter'],
   session: {
     strategy: 'jwt',
-    maxAge: 24 * 60 * 60,
-    updateAge: 60 * 60,
+    maxAge: SESSION_MAX_AGE_S,
   },
   pages: {
     signIn: '/login',
@@ -303,7 +341,19 @@ export const authOptions: NextAuthOptions = {
         token.bannedCheckedAt = Date.now()
         token.isActive = true
         token.activeCheckedAt = Date.now()
+        const state = await loadAccountState(user.id)
+        if (state) token.credential = state.credential
       } else {
+        // Every read (page render, API call, /api/auth/session): a deleted account, or one whose password has been
+        // reset or changed since this cookie was issued, is signed out here rather than trusted for 60 days.
+        const state = await loadAccountState(token.id)
+        if (state === null) throw new SessionRevokedError('account-deleted')
+        if (state) {
+          if (token.credential && token.credential !== state.credential) throw new SessionRevokedError('credentials-changed')
+          // A cookie issued before credential stamps existed adopts the current one on its first read.
+          token.credential ??= state.credential
+        }
+
         const oneMinuteAgo = Date.now() - 60 * 1000
 
         const needsBanCheck = !token.bannedCheckedAt || token.bannedCheckedAt < oneMinuteAgo
@@ -346,6 +396,13 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id
+        // When AuthProvider should ask NextAuth to re-issue the cookie (a fresh 60-day expiry). Not a secret.
+        // A cookie issued with a shorter lifetime (the old 24 hours) is renewed on the next visit, so people who
+        // are signed in when this ships move to 60 days instead of being signed out once more.
+        if (typeof token.iat === 'number') {
+          const shortLived = typeof token.exp === 'number' && token.exp - token.iat < SESSION_MAX_AGE_S - 60
+          session.renewAt = (shortLived ? token.iat : token.iat + SESSION_RENEW_AFTER_S) * 1000
+        }
         // The role, ban and active flags come from the DATABASE on every session read, not from the
         // signed cookie. The cookie caches them for up to a minute, and server components read
         // protected data straight from the database after trusting session.user.role, so a demoted,
