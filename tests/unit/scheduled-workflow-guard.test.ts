@@ -219,6 +219,15 @@ describe('publish-scheduled.yml (manual fallback publisher)', () => {
     }
   })
 
+  it('the runbook rollback enables the workflow before running it (a disabled workflow cannot be dispatched)', () => {
+    const runbook = readFileSync(join(process.cwd(), 'docs', 'scheduler-supabase-cron.md'), 'utf8')
+    const rollback = runbook.slice(runbook.indexOf('## Rollback'), runbook.indexOf('## Changing the interval'))
+    const enable = rollback.indexOf('gh workflow enable publish-scheduled.yml')
+    const run = rollback.indexOf('gh workflow run publish-scheduled.yml')
+    expect(enable).toBeGreaterThan(-1)
+    expect(run).toBeGreaterThan(enable)
+  })
+
   it('never prints the response body and never swallows a failure', () => {
     expect(text).not.toMatch(/Response body|cat "\$BODY_FILE"|cat \/tmp/)
     expect(text).not.toMatch(/continue-on-error|\|\|\s*true/)
