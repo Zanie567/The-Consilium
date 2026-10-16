@@ -1,6 +1,7 @@
 # publish-scheduled.yml
 #
-# Triggers scheduled article publishing every 5 minutes.
+# Triggers scheduled article publishing every 17 minutes (a temporary fallback cadence while
+# Supabase Cron takes over: docs/scheduler-supabase-cron.md). Manual dispatch stays available.
 # Used as the primary reliable trigger because Vercel Hobby plan does not
 # guarantee per-minute cron execution.
 #

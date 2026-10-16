@@ -206,7 +206,7 @@ There is no GitHub secret to add: GitHub keeps using `CRON_SECRET`.
 the endpoint is the real one, so it publishes anything that is **due when it runs**, and no pre-check can make that
 impossible. A check followed by a call has a gap; an editor could schedule an article in it. What bounds the risk:
 
-- The endpoint publishes only articles whose time has already passed, which is exactly the set GitHub's next run (at most 5 minutes
+- The endpoint publishes only articles whose time has already passed, which is exactly the set GitHub's next run (nominally at most 17 minutes
   away) would publish anyway. It cannot publish a draft, a trashed article or a future one (tested against a real database). The worst
   outcome is that one legitimately due article goes live a few minutes earlier than GitHub would have published it.
 - The API accepts any future minute, not only the editor UI's "at least a minute ahead", so an article can in principle become due

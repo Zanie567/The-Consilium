@@ -2,10 +2,11 @@
  * POST /api/publish-scheduled
  *
  * Finds all articles with status=SCHEDULED whose scheduledAt has passed and
- * publishes them. Called every 5 minutes by a scheduler outside Vercel (the
- * Hobby plan cannot run a 5-minute cron): currently the GitHub Actions workflow
- * .github/workflows/publish-scheduled.yml; Supabase Cron + pg_net is prepared to
- * replace it (docs/scheduler-supabase-cron.md). Either way the contract is the same.
+ * publishes them. Called by a scheduler outside Vercel (the Hobby plan cannot run a
+ * 5-minute cron): currently the GitHub Actions workflow
+ * .github/workflows/publish-scheduled.yml (every 17 minutes, best-effort); Supabase
+ * Cron + pg_net every 5 minutes is prepared to replace it
+ * (docs/scheduler-supabase-cron.md). Either way the contract is the same.
  *
  * Authentication: `Authorization: Bearer <secret>` (or `x-cron-secret`), checked in
  * constant time by verifyPublishCronAuth before anything else runs. The secret must be
