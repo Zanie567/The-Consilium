@@ -228,7 +228,7 @@ const photo = () => new File([PNG as BlobPart], 'me.png', { type: 'image/png' })
 async function publicCardsFor(userId: string) {
   const rows = await db.teamMember.findMany({
     where: { isActive: true },
-    include: { user: { select: { email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
+    include: { user: { select: { id: true, email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
   })
   return buildPublicRoster(rows, []).filter((m) => rows.find((r) => r.id === m.id)?.userId === userId)
 }

@@ -189,11 +189,11 @@ export function TeamMemberDialog({ member, open, onClose, returnFocusRef }: Team
                 </p>
               )}
 
-              {(member.email || member.authorSlug) && (
+              {(member.email || member.authorPage) && (
                 <div className="mt-8 flex flex-col items-center gap-3">
-                  {member.authorSlug && (
+                  {member.authorPage && (
                     <Link
-                      href={`/author/${member.authorSlug}`}
+                      href={member.authorPage}
                       className="inline-flex items-center gap-2 border border-gold/50 px-6 py-3 text-xs font-bold uppercase tracking-[-0.01em] text-gold transition-all duration-150 hover:bg-gold hover:text-navy"
                     >
                       Read their articles →

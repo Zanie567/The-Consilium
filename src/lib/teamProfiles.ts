@@ -23,16 +23,34 @@ export interface TeamMemberRow {
 }
 
 export interface LinkedAccount {
+  id: string
   email: string
   bio: string | null
   slug: string | null
+}
+
+/**
+ * The account a card's articles are attributed to: the card's own linked account, or an
+ * unambiguous legacy email match. Server-side only — it carries the account id, which the
+ * public page receives (as an author-page link) only once the account has published.
+ */
+export interface AuthorIdentity {
+  id: string
+  slug: string | null
+}
+
+/** A public author page. `/author/[slug]` resolves a stored slug first, then an account id. */
+export type AuthorPageHref = `/author/${string}`
+
+export function authorPageHref(author: AuthorIdentity): AuthorPageHref {
+  return `/author/${encodeURIComponent(author.slug || author.id)}`
 }
 
 export interface ResolvedTeamMember extends Omit<TeamMemberRow, 'role'> {
   role: string | null
   /** Display titles, or the role fallback. Printed only; never used for placement. */
   titleLabel?: string | null
-  authorSlug: string | null
+  author: AuthorIdentity | null
 }
 
 /** Emails to look up for a set of team members, lower-cased and de-duplicated. */
@@ -49,18 +67,26 @@ export function teamMemberEmails(members: TeamMemberRow[]): string[] {
  * Matching is case-insensitive on email, because a team email entered in the
  * admin form ("J.Smith@ed.ac.uk") frequently differs in case from the one the
  * person signed up with.
+ *
+ * Articles are attributed only when the match is unambiguous: exactly one account
+ * and exactly one of these cards share the address. Two accounts differing only in
+ * case, or a shared address on two cards, attribute nothing rather than guess.
  */
 export function resolveTeamMemberBios(
   members: TeamMemberRow[],
   accounts: LinkedAccount[],
 ): ResolvedTeamMember[] {
-  const byEmail = new Map(
-    accounts.map((account) => [account.email.trim().toLowerCase(), account]),
-  )
+  const normalise = (email: string) => email.trim().toLowerCase()
+  const byEmail = new Map(accounts.map((account) => [normalise(account.email), account]))
+  const tally = (emails: string[]) =>
+    emails.reduce((counts, email) => counts.set(email, (counts.get(email) ?? 0) + 1), new Map<string, number>())
+  const accountsPerEmail = tally(accounts.map((account) => normalise(account.email)))
+  const cardsPerEmail = tally(members.flatMap((member) => (member.email ? [normalise(member.email)] : [])))
 
   return members.map((member) => {
     const key = member.email?.trim().toLowerCase()
     const account = key ? byEmail.get(key) : undefined
+    const unambiguous = Boolean(key && accountsPerEmail.get(key) === 1 && cardsPerEmail.get(key) === 1)
     // An account with a blank bio falls back to the admin-entered one rather than
     // blanking the card — an empty self-bio is an absence, not a deletion.
     const accountBio = account?.bio?.trim() || null
@@ -70,7 +96,7 @@ export function resolveTeamMemberBios(
       role: normalizePublicPosition(member.role),
       publicTier: normalizePublicTier(member.publicTier),
       bio: accountBio ?? member.bio,
-      authorSlug: account?.slug ?? null,
+      author: account && unambiguous ? { id: account.id, slug: account.slug } : null,
     }
   })
 }
@@ -120,6 +146,7 @@ export function validateTeamBio(value: unknown, maxLength: number): BioResult {
 /** A team row together with the account it is linked to, if any. */
 export interface TeamRowWithAccount extends TeamMemberRow {
   user: {
+    id: string
     email: string
     name: string | null
     role: string
@@ -134,6 +161,31 @@ export interface TeamRowWithAccount extends TeamMemberRow {
 export interface RosterMember extends ResolvedTeamMember {
   placementName?: string
   team: MemberTeam | null
+}
+
+/** A Meet the Team card as published. Carries no account id unless it links to an author page. */
+export interface PublicRosterMember extends Omit<RosterMember, 'author'> {
+  /**
+   * Set exactly when this person's own account has at least one publicly visible article
+   * (`publishedArticleWhere`). Role, title, placement and permissions play no part.
+   */
+  authorPage: AuthorPageHref | null
+}
+
+/** Distinct accounts whose publication status decides the roster's author links. */
+export function rosterAuthorIds(roster: RosterMember[]): string[] {
+  return [...new Set(roster.flatMap((member) => (member.author ? [member.author.id] : [])))]
+}
+
+/** Replaces each internal author identity with a public author link, or none. */
+export function attachAuthorPages(
+  roster: RosterMember[],
+  publishedAuthorIds: ReadonlySet<string>,
+): PublicRosterMember[] {
+  return roster.map(({ author, ...member }) => ({
+    ...member,
+    authorPage: author && publishedAuthorIds.has(author.id) ? authorPageHref(author) : null,
+  }))
 }
 
 /** Public placement comes from the card; permissions never choose its section. */
@@ -170,7 +222,7 @@ export function buildPublicRoster(
       role: position,
       titleLabel: resolvePublicTitleLabel({ displayTitles: user.displayTitles, cardTitle: row.role }),
       bio,
-      authorSlug: user.slug,
+      author: { id: user.id, slug: user.slug },
       team: null,
     })
   }

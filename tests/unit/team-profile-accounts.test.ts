@@ -15,6 +15,7 @@ type Account = NonNullable<TeamRowWithAccount['user']>
 
 function account(overrides: Partial<Account> = {}): Account {
   return {
+    id: 'user-sam',
     email: 'sam@ed.ac.uk',
     name: 'Sam Account',
     role: 'WRITER',
@@ -171,7 +172,7 @@ describe('buildPublicRoster', () => {
   it('still resolves legacy bios from a matching account by email', () => {
     const [legacy] = buildPublicRoster(
       [row({ user: null, email: 'kim@ed.ac.uk', bio: 'Admin bio' })],
-      [{ email: 'KIM@ed.ac.uk', bio: 'Own bio', slug: 'kim' }],
+      [{ id: 'user-kim', email: 'KIM@ed.ac.uk', bio: 'Own bio', slug: 'kim' }],
     )
     expect(legacy.bio).toBe('Own bio')
     expect(legacy.team).toBeNull()
