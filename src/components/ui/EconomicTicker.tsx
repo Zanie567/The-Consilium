@@ -243,12 +243,17 @@ export function EconomicTicker() {
       role="marquee"
       aria-label="Economic data ticker"
       style={wrapperStyle}
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
+      // Hover-to-pause is for a real mouse only. A tap on a touchscreen sends a
+      // compatibility mouseenter with no mouseleave to follow (iOS Safari), which
+      // used to freeze the ticker until the page was reloaded.
+      onPointerEnter={(e) => { if (e.pointerType === 'mouse') setPaused(true) }}
+      onPointerLeave={(e) => { if (e.pointerType === 'mouse') setPaused(false) }}
     >
       {label}
       <div style={{ flex: 1, overflow: 'hidden', height: '100%', display: 'flex', alignItems: 'center' }}>
-        <div
+        {/* The animation starts only once there is something to scroll, so the
+            -50% loop distance is never resolved against an empty, 0px track. */}
+        {items.length > 0 && <div
           style={{
             display: 'flex',
             width: 'max-content',
@@ -265,7 +270,7 @@ export function EconomicTicker() {
           <div style={{ display: 'flex', alignItems: 'center' }} aria-hidden>
             {items.map((item) => <Item key={`d-${item.key}`} item={item} />)}
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   )
