@@ -132,18 +132,20 @@ for (const { name, target } of [
   })
 }
 
-test('Pixel: a vertical touch scroll that starts on the ticker scrolls the page', async ({ browser, browserName }) => {
-  test.skip(browserName !== 'chromium', 'touch gestures are synthesised through Chromium DevTools')
-  const { ctx, page } = await openHome(browser, PIXEL.device)
-  await expectMoving(page)
-  const box = (await ticker(page).boundingBox())!
-  const cdp = await ctx.newCDPSession(page)
-  await cdp.send('Input.synthesizeScrollGesture', {
-    x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2), yDistance: -300, gestureSourceType: 'touch', speed: 800,
+// The ticker could only get in the way of touch scrolling by restricting touch-action (it adds no
+// touch listeners). A synthesised DevTools scroll gesture was tried here, but Linux headless
+// Chromium on CI did not apply it to a scrollable page, so the property itself is checked.
+for (const { name, target } of [{ name: 'iPhone', target: IPHONE }, { name: 'Pixel', target: PIXEL }]) {
+  test(`${name}: the ticker leaves touch scrolling to the browser`, async ({ browser, browserName }) => {
+    test.skip(browserName !== target.engine, `${name} runs in ${target.engine}`)
+    const { ctx, page } = await openHome(browser, target.device)
+    await expectMoving(page)
+    const restricted = await ticker(page).evaluate((root) =>
+      [root, ...root.querySelectorAll('*')].map((el) => getComputedStyle(el).touchAction).filter((value) => value !== 'auto'))
+    expect(restricted).toEqual([])
+    await ctx.close()
   })
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(50)
-  await ctx.close()
-})
+}
 
 test('desktop: scrolls, pauses while the mouse is over it and resumes when it leaves', async ({ browser }) => {
   const { ctx, page } = await openHome(browser, { viewport: { width: 1280, height: 800 } }, 1_000)
