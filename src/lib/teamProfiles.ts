@@ -290,6 +290,52 @@ export function visiblePublicTitleLabel(account: {
   })
 }
 
+export interface AuthorProfileAccount {
+  name: string | null
+  email: string
+  bio: string | null
+  image: string | null
+  isActive: boolean
+  isBanned: boolean
+  teamProfile: { name: string; role: string; bio: string | null; image: string | null; isActive: boolean } | null
+}
+
+const testingModeOption = () => ({ testingMode: process.env.TESTING_MODE_ENABLED === '1' })
+
+/**
+ * The description and photo of the account's Meet the Team card, but only when the public
+ * roster shows that card (same rule as buildPublicRoster: switch on, no publication
+ * blockers). A hidden, incomplete or ineligible card returns null and must not be read.
+ */
+export function publicTeamCardProfile(
+  account: AuthorProfileAccount,
+  options: { testingMode?: boolean } = testingModeOption(),
+): { bio: string; image: string | null } | null {
+  const card = account.teamProfile
+  if (!card?.isActive) return null
+  const blockers = publicationBlockers(
+    { name: card.name, position: normalizePublicPosition(card.role), bio: card.bio },
+    account,
+    options,
+  )
+  return blockers.length > 0 ? null : { bio: card.bio!.trim(), image: card.image?.trim() || null }
+}
+
+/**
+ * The photograph and biography on a public author page. A public team card wins, so the
+ * author page and Meet the Team never disagree; the account photo fills in only when that
+ * card has none. Otherwise the account's own bio and photo apply.
+ */
+export function visibleAuthorProfile(
+  account: AuthorProfileAccount,
+  options: { testingMode?: boolean } = testingModeOption(),
+): { bio: string | null; image: string | null } {
+  const accountImage = account.image?.trim() || null
+  const card = publicTeamCardProfile(account, options)
+  if (card) return { bio: card.bio, image: card.image ?? accountImage }
+  return { bio: account.bio?.trim() || null, image: accountImage }
+}
+
 // ── Completeness ─────────────────────────────────────────────────────────────
 
 export interface ProfileFacts {
