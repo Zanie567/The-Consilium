@@ -9,9 +9,9 @@ const PRODUCTION = 'Zanie567/The-Consilium'
 const MIRROR = 'Zanie567/The-Consilium-Testing'
 const GUARD = "if: github.repository == 'Zanie567/The-Consilium' && github.ref == 'refs/heads/main'"
 
-// The production schedules must keep their exact cadence.
+// The production schedules must keep their exact cadence. Scheduled publishing is NOT here: Supabase Cron
+// publishes every 5 minutes and publish-scheduled.yml is a manual-only fallback (tested below).
 const EXPECTED_CRONS: Record<string, string> = {
-  'publish-scheduled.yml': '*/17 * * * *',
   'award-trophies.yml': '0 * * * *',
   'recalculate-streaks.yml': '0 2 * * *',
   'update-engagement-scores.yml': '0 3 * * *',
@@ -69,7 +69,7 @@ function runWithStubbedCurl(script: string, status: number) {
 describe('scheduled production workflows', () => {
   const scheduled = workflows().filter(({ text }) => /^\s{2}schedule:/m.test(text))
 
-  it('covers exactly the six production cron workflows', () => {
+  it('covers exactly the five production cron workflows', () => {
     expect(scheduled.map((w) => w.file).sort()).toEqual(Object.keys(EXPECTED_CRONS).sort())
   })
 
@@ -102,6 +102,134 @@ describe('scheduled production workflows', () => {
     expect(script).toContain('curl')
     for (const status of [401, 403, 500, 307]) expect(runWithStubbedCurl(script, status)).not.toBe(0)
     expect(runWithStubbedCurl(script, 200)).toBe(0)
+    expect(text).not.toMatch(/continue-on-error|\|\|\s*true/)
+  })
+})
+
+describe('publish-scheduled.yml (manual fallback publisher)', () => {
+  const text = readFileSync(join(WORKFLOWS_DIR, 'publish-scheduled.yml'), 'utf8')
+
+  it('has no automatic schedule, so it can never run as a second automatic publisher', () => {
+    expect(text).not.toMatch(/^\s*schedule:/m)
+    expect(text).not.toMatch(/^\s*-\s*cron:/m)
+  })
+
+  it('keeps manual dispatch', () => {
+    expect(text).toMatch(/^on:\s*\n(?:\s*#.*\n)*\s{2}workflow_dispatch:/m)
+  })
+
+  it('runs only on Production main', () => {
+    const jobs = jobBlocks(text)
+    expect(jobs.length).toBeGreaterThan(0)
+    for (const job of jobs) {
+      expect(job).toContain(GUARD)
+      expect(jobRuns(job, PRODUCTION, 'refs/heads/main')).toBe(true)
+      expect(jobRuns(job, PRODUCTION, 'refs/heads/feat/public-appointments-testing-mode')).toBe(false)
+      expect(jobRuns(job, MIRROR, 'refs/heads/main')).toBe(false)
+    }
+  })
+
+  // The real step, run against a stub curl that answers with `status` and `body` and records its arguments.
+  // The log of this public repository must never show what the endpoint returns about articles.
+  const SECRET = 'test-cron-secret-0123456789abcdef0123456789abcdef'
+  const TITLE = 'Unpublished Exclusive: Minister Resigns'
+  const SLUG = 'unpublished-exclusive-minister-resigns'
+  const ARTICLE_ID = 'cm9articleid000000000000'
+  const EMAIL = 'author@example.org'
+  const successBody = JSON.stringify({
+    ranAt: '2026-10-16T15:00:00.000Z',
+    due: 2,
+    published: 1,
+    articles: [{ id: ARTICLE_ID, title: TITLE, slug: SLUG }],
+    skipped: [{ id: 'cm9skipped0000000000000', title: `${TITLE} (2)`, slug: `${SLUG}-2` }],
+    warnings: [{ articleId: ARTICLE_ID, title: TITLE, stage: 'email', message: `Could not email ${EMAIL} about "${TITLE}"` }],
+  })
+
+  function runPublishStep(status: string, body: string) {
+    const dir = mkdtempSync(join(tmpdir(), 'publish-step-'))
+    writeFileSync(join(dir, 'body'), body)
+    const curl = join(dir, 'curl')
+    writeFileSync(
+      curl,
+      `#!/bin/sh\nout=""; prev=""\nfor a; do printf '%s\\n' "$a" >> "${dir}/args"; [ "$prev" = "--output" ] && out="$a"; prev="$a"; done\n` +
+        `cat "${dir}/body" > "$out"\nprintf '%s' "${status}"\n`,
+    )
+    chmodSync(curl, 0o755)
+    const result = spawnSync('bash', ['-e', '-c', endpointScript(jobBlocks(text)[0])], {
+      env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, CRON_SECRET: SECRET, SITE_URL: 'https://www.theconsilium.co.uk' },
+      encoding: 'utf8',
+    })
+    const args = readFileSync(join(dir, 'args'), 'utf8').split('\n')
+    return { code: result.status, log: `${result.stdout}${result.stderr}`, args }
+  }
+
+  function expectNothingSensitive(log: string) {
+    for (const leak of [SECRET, TITLE, SLUG, ARTICLE_ID, EMAIL, 'Could not email', 'duplicate key', '<html']) {
+      expect(log).not.toContain(leak)
+    }
+  }
+
+  it('authenticates exactly as before: Bearer CRON_SECRET to the canonical publish endpoint', () => {
+    const { args } = runPublishStep('200', successBody)
+    expect(args).toContain(`Authorization: Bearer ${SECRET}`)
+    expect(args).toContain('https://www.theconsilium.co.uk/api/publish-scheduled')
+    expect(args).toContain('POST')
+    // The secrets reach the script through env:, not by being written into its text.
+    expect(text).toContain('CRON_SECRET: ${{ secrets.CRON_SECRET }}')
+    expect(text).toContain('SITE_URL: ${{ secrets.SITE_URL }}')
+    expect(endpointScript(jobBlocks(text)[0])).not.toContain('secrets.')
+  })
+
+  it('on success logs counts and warning stages only, never titles, slugs, ids, messages or the secret', () => {
+    const { code, log } = runPublishStep('200', successBody)
+    expect(code).toBe(0)
+    expect(log).toContain('HTTP status: 200')
+    expect(log).toContain('Due: 2  Published: 1  Skipped: 1  Warnings: 1')
+    expect(log).toContain('::warning title=Published with non-fatal warnings::stage(s): email.')
+    expectNothingSensitive(log)
+  })
+
+  it('logs no warning annotation when there are no warnings, and never an unknown stage name', () => {
+    const quiet = runPublishStep('200', JSON.stringify({ due: 0, published: 0, articles: [], skipped: [], warnings: [] }))
+    expect(quiet.code).toBe(0)
+    expect(quiet.log).toContain('Due: 0  Published: 0  Skipped: 0  Warnings: 0')
+    expect(quiet.log).not.toContain('::warning')
+    const odd = runPublishStep('200', JSON.stringify({ due: 1, published: 1, warnings: [{ stage: TITLE, message: EMAIL }] }))
+    expect(odd.code).toBe(0)
+    expect(odd.log).toContain('Warnings: 1')
+    expectNothingSensitive(odd.log)
+  })
+
+  it('fails on any non-200 answer without printing the error body', () => {
+    const errorBody = JSON.stringify({ error: `duplicate key value violates "${TITLE}" for ${EMAIL}` })
+    for (const status of ['401', '403', '404', '500', '503', '307', '000', '']) {
+      const { code, log } = runPublishStep(status, errorBody)
+      expect(code).not.toBe(0)
+      expect(log).toContain('::error title=Publish endpoint failed::')
+      expectNothingSensitive(log)
+    }
+  })
+
+  it('fails closed on a 200 that is not the endpoint JSON (firewall or maintenance page)', () => {
+    for (const body of ['<html><body>Maintenance</body></html>', '', '{}', '{"due":"2","published":1}', 'null']) {
+      const { code, log } = runPublishStep('200', body)
+      expect(code).not.toBe(0)
+      expect(log).toContain('::error title=Publish endpoint gave an unreadable answer::')
+      expectNothingSensitive(log)
+    }
+  })
+
+  it('the runbook rollback enables the workflow before running it (a disabled workflow cannot be dispatched)', () => {
+    const runbook = readFileSync(join(process.cwd(), 'docs', 'scheduler-supabase-cron.md'), 'utf8')
+    const rollback = runbook.slice(runbook.indexOf('## Rollback'), runbook.indexOf('## Changing the interval'))
+    const enable = rollback.indexOf('gh workflow enable publish-scheduled.yml')
+    const run = rollback.indexOf('gh workflow run publish-scheduled.yml')
+    expect(enable).toBeGreaterThan(-1)
+    expect(run).toBeGreaterThan(enable)
+  })
+
+  it('never prints the response body and never swallows a failure', () => {
+    expect(text).not.toMatch(/Response body|cat "\$BODY_FILE"|cat \/tmp/)
     expect(text).not.toMatch(/continue-on-error|\|\|\s*true/)
   })
 })

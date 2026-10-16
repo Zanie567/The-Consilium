@@ -1,8 +1,10 @@
 # publish-scheduled.yml
 #
-# Triggers scheduled article publishing every 5 minutes.
-# Used as the primary reliable trigger because Vercel Hobby plan does not
-# guarantee per-minute cron execution.
+# MANUAL FALLBACK for scheduled article publishing. It has no `schedule:` trigger:
+# Supabase Cron calls /api/publish-scheduled every 5 minutes (docs/scheduler-supabase-cron.md).
+# Run it from the Actions tab (or `gh workflow run publish-scheduled.yml`) to publish
+# anything due right now, e.g. as a catch-up while the Supabase publisher is stopped.
+# To make GitHub the automatic publisher again, see "Rollback" in the runbook.
 #
 # REQUIRED GitHub Actions secrets (Settings > Secrets and variables > Actions):
 #   CRON_SECRET  — long random string matching the Vercel CRON_SECRET env var
@@ -18,11 +20,8 @@
 name: Publish Scheduled Articles
 
 on:
-  # Run every 17 minutes. GitHub Actions cron runs in UTC.
-  schedule:
-    - cron: '*/17 * * * *'
-
-  # Allow manual runs from the Actions tab for immediate testing.
+  # Manual only. The automatic schedule was retired once Supabase Cron took over publishing;
+  # never run two automatic publishers permanently.
   workflow_dispatch:
 
 jobs:
@@ -39,23 +38,44 @@ jobs:
     steps:
       - name: Call /api/publish-scheduled
         id: call
+        env:
+          # Passed through the environment, never written into the script text.
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ secrets.SITE_URL }}
         run: |
-          # Make the request, capture HTTP status code and body separately.
-          HTTP_STATUS=$(curl --silent --output /tmp/response_body.txt --write-out "%{http_code}" \
+          # This repository is public, so this log is public. The response body is NEVER printed: it
+          # lists article titles, slugs and ids, and an error body can quote database or provider
+          # messages. Only the HTTP status and counts are logged; details are in the Vercel runtime
+          # logs for /api/publish-scheduled.
+          BODY_FILE=$(mktemp)
+          HTTP_STATUS=$(curl --silent --output "$BODY_FILE" --write-out "%{http_code}" \
             --max-time 30 \
             --request POST \
-            --header "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --header "Authorization: Bearer $CRON_SECRET" \
             --header "Content-Type: application/json" \
-            "${{ secrets.SITE_URL }}/api/publish-scheduled")
-
-          RESPONSE_BODY=$(cat /tmp/response_body.txt)
+            "$SITE_URL/api/publish-scheduled")
 
           echo "HTTP status: $HTTP_STATUS"
-          echo "Response body: $RESPONSE_BODY"
 
-          # Fail the step (and thus the run) if the server returned anything
-          # other than 200, so failures are visible in the Actions dashboard.
-          if [ "$HTTP_STATUS" -ne 200 ]; then
-            echo "ERROR: Endpoint returned HTTP $HTTP_STATUS"
+          # Anything other than 200 fails the run, so a failure is visible (and emailed) in Actions.
+          # Compared as a string so that an empty or non-numeric status also fails.
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::error title=Publish endpoint failed::HTTP $HTTP_STATUS. See the Vercel runtime logs for /api/publish-scheduled."
             exit 1
+          fi
+
+          # A 200 that is not the endpoint's own JSON (a firewall, CDN or maintenance page) means the
+          # publisher did not run: fail closed, like the Supabase reconciler's bad_response.
+          if ! jq -e '(.due | type) == "number" and (.published | type) == "number"' "$BODY_FILE" > /dev/null 2>&1; then
+            echo "::error title=Publish endpoint gave an unreadable answer::HTTP 200, but not the publish endpoint's JSON; the publisher may not have run."
+            exit 1
+          fi
+
+          jq -r '"Ran at: \(.ranAt // "unknown")  Due: \(.due)  Published: \(.published)  Skipped: \((.skipped // []) | length)  Warnings: \((.warnings // []) | length)"' "$BODY_FILE"
+
+          # Non-fatal problems (author email, notification, achievement, hidden debate) do not fail the
+          # run, but are flagged. Only the stage names from this fixed list are logged, never messages.
+          WARNING_STAGES=$(jq -r '[(.warnings // [])[] | .stage | select(IN("email", "notification", "achievement", "hidden-debate"))] | unique | join(", ")' "$BODY_FILE")
+          if [ -n "$WARNING_STAGES" ]; then
+            echo "::warning title=Published with non-fatal warnings::stage(s): $WARNING_STAGES. See the Vercel runtime logs for /api/publish-scheduled."
           fi

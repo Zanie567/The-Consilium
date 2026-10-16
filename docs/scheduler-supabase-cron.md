@@ -274,6 +274,10 @@ editorial portal and expect it live within 5 minutes):
 **B5. After about a week of clean runs**, make the GitHub retirement permanent with a normal PR: delete the `schedule:` block from
 `publish-scheduled.yml`, keep `workflow_dispatch`, and update `EXPECTED_CRONS` in `tests/unit/scheduled-workflow-guard.test.ts` in the same
 change (the guard pins the expected schedule set on purpose). Until then it stays only *disabled*, which keeps rollback to one command.
+Right after the B5 merge, run `gh workflow enable publish-scheduled.yml --repo Zanie567/The-Consilium`: it was disabled in B3, and a
+disabled workflow cannot be dispatched by hand, so without this the manual fallback does not work. Being manual-only, enabling it starts
+no automatic runs. Confirm with `gh workflow list --all --repo Zanie567/The-Consilium` that it is `active`, then, while no article is due,
+run it once by hand (`gh workflow run publish-scheduled.yml --repo Zanie567/The-Consilium`) and check the run is green with `Due: 0  Published: 0`.
 
 **Optional Phase C (not recommended yet).** Making `/api/publish-scheduled` refuse `CRON_SECRET` entirely would mean only the publish-only
 secret can publish. It would also break the GitHub fallback (which sends `CRON_SECRET`) unless that workflow is switched to the new secret first.
@@ -286,8 +290,16 @@ Do not do it while rollback to GitHub is still wanted; it gains little, because 
    select cron.alter_job(job_id := (select jobid from cron.job where jobname = 'publish-scheduled'), active := false);
    ```
    (`select cron.unschedule('publish-scheduled');` removes it instead.) The health check treats a deactivated job as intentional and stays quiet about it.
-2. Restore GitHub: `gh workflow enable publish-scheduled.yml --repo Zanie567/The-Consilium`, then trigger a catch-up run:
-   `gh workflow run publish-scheduled.yml --repo Zanie567/The-Consilium`. It uses `CRON_SECRET`, which was never changed, so it works immediately.
+2. Make sure GitHub's workflow is enabled, then catch up straight away. A disabled workflow cannot even be run by hand
+   (`gh workflow run` fails), and B3 leaves it disabled, so always enable first; enabling an already enabled workflow is harmless:
+   ```bash
+   gh workflow enable publish-scheduled.yml --repo Zanie567/The-Consilium
+   gh workflow run publish-scheduled.yml --repo Zanie567/The-Consilium
+   ```
+   It uses `CRON_SECRET`, which was never changed, so it works immediately. **Before B5 is merged**, enabling also restores GitHub's
+   automatic schedule. **After B5**, the workflow is manual-only: enabling it starts no automatic runs, so while the Supabase publisher
+   is stopped either run it by hand whenever articles are due, or restore the automatic schedule by reverting the B5 pull request
+   (re-adding the `schedule:` block and its `EXPECTED_CRONS` entry) and keeping the workflow enabled.
 3. Confirm the next run returns 200 and no article stayed overdue:
    ```sql
    select count(*) from public.articles
