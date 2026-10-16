@@ -189,6 +189,21 @@ describe('Meet the Team author links (real database)', () => {
     expect(await linkOf(named.id)).toBeNull()
   })
 
+  it('gives a legacy card no link when the matching account owns its own (hidden) profile', async () => {
+    const owner = await person('owner', 'WRITER', { isActive: false }, { email: `${tag}-owner@ed.ac.uk`, slug: `${tag}-owner` })
+    await article(owner.account.id, 'PUBLISHED')
+    const legacy = await db.teamMember.create({
+      data: { name: `${tag} Owner (legacy)`, role: 'Writer', bio: 'Admin bio.', email: `${tag}-OWNER@ed.ac.uk`, order: 903, isActive: true },
+    })
+    const members = await roster()
+    // Visibility unchanged: the hidden card stays hidden, the legacy card stays listed.
+    expect(members.map((m) => m.id)).toContain(legacy.id)
+    expect(members.map((m) => m.id)).not.toContain(owner.card!.id)
+    const shown = members.find((m) => m.id === legacy.id)!
+    expect(shown.authorPage).toBeNull()
+    expect(JSON.stringify(shown)).not.toContain(owner.account.id)
+  })
+
   it('decides every link in one query, however many members there are', async () => {
     state.calls = []
     await loadPublicTeam()

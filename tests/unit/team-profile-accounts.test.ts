@@ -172,7 +172,7 @@ describe('buildPublicRoster', () => {
   it('still resolves legacy bios from a matching account by email', () => {
     const [legacy] = buildPublicRoster(
       [row({ user: null, email: 'kim@ed.ac.uk', bio: 'Admin bio' })],
-      [{ id: 'user-kim', email: 'KIM@ed.ac.uk', bio: 'Own bio', slug: 'kim' }],
+      [{ id: 'user-kim', email: 'KIM@ed.ac.uk', bio: 'Own bio', slug: 'kim', teamProfile: null }],
     )
     expect(legacy.bio).toBe('Own bio')
     expect(legacy.team).toBeNull()

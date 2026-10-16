@@ -27,6 +27,8 @@ export interface LinkedAccount {
   email: string
   bio: string | null
   slug: string | null
+  /** The profile this account already owns, visible or hidden. Its authorship stays with that card. */
+  teamProfile: { id: string } | null
 }
 
 /**
@@ -69,8 +71,10 @@ export function teamMemberEmails(members: TeamMemberRow[]): string[] {
  * person signed up with.
  *
  * Articles are attributed only when the match is unambiguous: exactly one account
- * and exactly one of these cards share the address. Two accounts differing only in
- * case, or a shared address on two cards, attribute nothing rather than guess.
+ * and exactly one of these cards share the address, and that account owns no team
+ * profile of its own (a hidden one included). Two accounts differing only in case, a
+ * shared address on two cards, or an account that already has its own card attribute
+ * nothing rather than guess.
  */
 export function resolveTeamMemberBios(
   members: TeamMemberRow[],
@@ -96,7 +100,7 @@ export function resolveTeamMemberBios(
       role: normalizePublicPosition(member.role),
       publicTier: normalizePublicTier(member.publicTier),
       bio: accountBio ?? member.bio,
-      author: account && unambiguous ? { id: account.id, slug: account.slug } : null,
+      author: account && unambiguous && !account.teamProfile ? { id: account.id, slug: account.slug } : null,
     }
   })
 }

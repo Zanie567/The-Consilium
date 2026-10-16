@@ -47,7 +47,9 @@ export async function loadPublicTeam(): Promise<PublicRosterMember[]> {
               isActive: true,
               isBanned: false,
             },
-            select: { id: true, email: true, bio: true, slug: true },
+            // teamProfile (any visibility) withholds a legacy card's author link: that
+            // person's authorship belongs to their own card, shown or hidden.
+            select: { id: true, email: true, bio: true, slug: true, teamProfile: { select: { id: true } } },
           })
 
     const roster = buildPublicRoster(rows, accounts)

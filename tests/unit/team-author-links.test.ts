@@ -32,7 +32,7 @@ function legacy(card: Partial<TeamRowWithAccount>): TeamRowWithAccount {
     order: n, publicTier: null, isActive: true, user: null, ...card }
 }
 const account = (fields: Partial<LinkedAccount> & { email: string }): LinkedAccount =>
-  ({ id: `acct-${fields.email}`, bio: null, slug: null, ...fields })
+  ({ id: `acct-${fields.email}`, bio: null, slug: null, teamProfile: null, ...fields })
 
 /** The public roster, as `loadPublicTeam` builds it, given which accounts have published. */
 function publish(rows: TeamRowWithAccount[], published: string[], accounts: LinkedAccount[] = []) {
@@ -127,6 +127,18 @@ describe('legacy (unlinked) cards', () => {
     const roster = publish([first, second], ['shared'], [account({ email: 'editors@ed.ac.uk', id: 'shared' })])
     expect(pageOf(roster, first.id)).toBeNull()
     expect(pageOf(roster, second.id)).toBeNull()
+  })
+
+  it('attributes nothing when the matching account owns another profile, even a hidden one', () => {
+    // loadPublicTeam reads only visible cards, so the owner's hidden card never reaches the
+    // roster; the account itself records that it has one.
+    const card = legacy({ email: 'kim@ed.ac.uk', bio: 'Admin bio.' })
+    const owner = account({ email: 'kim@ed.ac.uk', id: 'kim', slug: 'kim-lee', bio: 'Own bio.', teamProfile: { id: 'kims-hidden-card' } })
+    const [member] = publish([card], ['kim'], [owner])
+    expect(member.id).toBe(card.id) // still listed, as before
+    expect(member.bio).toBe('Own bio.') // biography fallback unchanged
+    expect(member.authorPage).toBeNull()
+    expect(JSON.stringify(member)).not.toContain('kim-lee')
   })
 
   it('never matches on name: a card without an email gets no link', () => {

@@ -20,7 +20,7 @@ function teamMember(overrides: Partial<TeamMemberRow> = {}): TeamMemberRow {
 }
 
 function account(overrides: Partial<LinkedAccount> = {}): LinkedAccount {
-  return { id: 'user-alex', email: 'alex@ed.ac.uk', bio: 'My own bio.', slug: 'alex-morgan', ...overrides }
+  return { id: 'user-alex', email: 'alex@ed.ac.uk', bio: 'My own bio.', slug: 'alex-morgan', teamProfile: null, ...overrides }
 }
 
 describe('teamMemberEmails', () => {
