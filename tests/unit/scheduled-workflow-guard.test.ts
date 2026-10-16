@@ -9,9 +9,9 @@ const PRODUCTION = 'Zanie567/The-Consilium'
 const MIRROR = 'Zanie567/The-Consilium-Testing'
 const GUARD = "if: github.repository == 'Zanie567/The-Consilium' && github.ref == 'refs/heads/main'"
 
-// The production schedules must keep their exact cadence.
+// The production schedules must keep their exact cadence. Scheduled publishing is NOT here: Supabase Cron
+// publishes every 5 minutes and publish-scheduled.yml is a manual-only fallback (tested below).
 const EXPECTED_CRONS: Record<string, string> = {
-  'publish-scheduled.yml': '*/17 * * * *',
   'award-trophies.yml': '0 * * * *',
   'recalculate-streaks.yml': '0 2 * * *',
   'update-engagement-scores.yml': '0 3 * * *',
@@ -69,7 +69,7 @@ function runWithStubbedCurl(script: string, status: number) {
 describe('scheduled production workflows', () => {
   const scheduled = workflows().filter(({ text }) => /^\s{2}schedule:/m.test(text))
 
-  it('covers exactly the six production cron workflows', () => {
+  it('covers exactly the five production cron workflows', () => {
     expect(scheduled.map((w) => w.file).sort()).toEqual(Object.keys(EXPECTED_CRONS).sort())
   })
 
@@ -98,6 +98,38 @@ describe('scheduled production workflows', () => {
   })
 
   it.each(scheduled)('$file still fails on a non-200 endpoint and passes on 200', ({ text }) => {
+    const script = endpointScript(jobBlocks(text)[0])
+    expect(script).toContain('curl')
+    for (const status of [401, 403, 500, 307]) expect(runWithStubbedCurl(script, status)).not.toBe(0)
+    expect(runWithStubbedCurl(script, 200)).toBe(0)
+    expect(text).not.toMatch(/continue-on-error|\|\|\s*true/)
+  })
+})
+
+describe('publish-scheduled.yml (manual fallback publisher)', () => {
+  const text = readFileSync(join(WORKFLOWS_DIR, 'publish-scheduled.yml'), 'utf8')
+
+  it('has no automatic schedule, so it can never run as a second automatic publisher', () => {
+    expect(text).not.toMatch(/^\s*schedule:/m)
+    expect(text).not.toMatch(/^\s*-\s*cron:/m)
+  })
+
+  it('keeps manual dispatch', () => {
+    expect(text).toMatch(/^on:\s*\n(?:\s*#.*\n)*\s{2}workflow_dispatch:/m)
+  })
+
+  it('runs only on Production main', () => {
+    const jobs = jobBlocks(text)
+    expect(jobs.length).toBeGreaterThan(0)
+    for (const job of jobs) {
+      expect(job).toContain(GUARD)
+      expect(jobRuns(job, PRODUCTION, 'refs/heads/main')).toBe(true)
+      expect(jobRuns(job, PRODUCTION, 'refs/heads/feat/public-appointments-testing-mode')).toBe(false)
+      expect(jobRuns(job, MIRROR, 'refs/heads/main')).toBe(false)
+    }
+  })
+
+  it('still fails on a non-200 endpoint and passes on 200', () => {
     const script = endpointScript(jobBlocks(text)[0])
     expect(script).toContain('curl')
     for (const status of [401, 403, 500, 307]) expect(runWithStubbedCurl(script, status)).not.toBe(0)

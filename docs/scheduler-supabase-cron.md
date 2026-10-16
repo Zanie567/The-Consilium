@@ -286,8 +286,11 @@ Do not do it while rollback to GitHub is still wanted; it gains little, because 
    select cron.alter_job(job_id := (select jobid from cron.job where jobname = 'publish-scheduled'), active := false);
    ```
    (`select cron.unschedule('publish-scheduled');` removes it instead.) The health check treats a deactivated job as intentional and stays quiet about it.
-2. Restore GitHub: `gh workflow enable publish-scheduled.yml --repo Zanie567/The-Consilium`, then trigger a catch-up run:
-   `gh workflow run publish-scheduled.yml --repo Zanie567/The-Consilium`. It uses `CRON_SECRET`, which was never changed, so it works immediately.
+2. Catch up straight away with GitHub's manual fallback: `gh workflow run publish-scheduled.yml --repo Zanie567/The-Consilium`.
+   It uses `CRON_SECRET`, which was never changed, so it works immediately. Once the GitHub `schedule:` has been retired (step B5),
+   GitHub no longer publishes by itself: while the Supabase publisher is stopped, either run that command when articles are due, or
+   restore the automatic schedule by reverting the B5 pull request (re-adding the `schedule:` block and its `EXPECTED_CRONS` entry).
+   Before B5 is merged, `gh workflow enable publish-scheduled.yml` also applies if the workflow was disabled in B3.
 3. Confirm the next run returns 200 and no article stayed overdue:
    ```sql
    select count(*) from public.articles

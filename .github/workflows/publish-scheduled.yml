@@ -1,8 +1,10 @@
 # publish-scheduled.yml
 #
-# Triggers scheduled article publishing every 5 minutes.
-# Used as the primary reliable trigger because Vercel Hobby plan does not
-# guarantee per-minute cron execution.
+# MANUAL FALLBACK for scheduled article publishing. It has no `schedule:` trigger:
+# Supabase Cron calls /api/publish-scheduled every 5 minutes (docs/scheduler-supabase-cron.md).
+# Run it from the Actions tab (or `gh workflow run publish-scheduled.yml`) to publish
+# anything due right now, e.g. as a catch-up while the Supabase publisher is stopped.
+# To make GitHub the automatic publisher again, see "Rollback" in the runbook.
 #
 # REQUIRED GitHub Actions secrets (Settings > Secrets and variables > Actions):
 #   CRON_SECRET  — long random string matching the Vercel CRON_SECRET env var
@@ -18,11 +20,8 @@
 name: Publish Scheduled Articles
 
 on:
-  # Run every 17 minutes. GitHub Actions cron runs in UTC.
-  schedule:
-    - cron: '*/17 * * * *'
-
-  # Allow manual runs from the Actions tab for immediate testing.
+  # Manual only. The automatic schedule was retired once Supabase Cron took over publishing;
+  # never run two automatic publishers permanently.
   workflow_dispatch:
 
 jobs:
