@@ -20,7 +20,7 @@ function teamMember(overrides: Partial<TeamMemberRow> = {}): TeamMemberRow {
 }
 
 function account(overrides: Partial<LinkedAccount> = {}): LinkedAccount {
-  return { email: 'alex@ed.ac.uk', bio: 'My own bio.', slug: 'alex-morgan', ...overrides }
+  return { id: 'user-alex', email: 'alex@ed.ac.uk', bio: 'My own bio.', slug: 'alex-morgan', teamProfile: null, ...overrides }
 }
 
 describe('teamMemberEmails', () => {
@@ -39,7 +39,7 @@ describe('resolveTeamMemberBios', () => {
   it("prefers the person's own account bio over the admin-entered one", () => {
     const [resolved] = resolveTeamMemberBios([teamMember()], [account()])
     expect(resolved.bio).toBe('My own bio.')
-    expect(resolved.authorSlug).toBe('alex-morgan')
+    expect(resolved.author).toEqual({ id: 'user-alex', slug: 'alex-morgan' })
   })
 
   it('matches emails case-insensitively', () => {
@@ -53,7 +53,7 @@ describe('resolveTeamMemberBios', () => {
   it('keeps the admin bio when the member has no account', () => {
     const [resolved] = resolveTeamMemberBios([teamMember()], [])
     expect(resolved.bio).toBe('Admin-entered bio.')
-    expect(resolved.authorSlug).toBeNull()
+    expect(resolved.author).toBeNull()
   })
 
   it('keeps the admin bio when the account bio is empty or blank', () => {
@@ -64,9 +64,9 @@ describe('resolveTeamMemberBios', () => {
     expect(missing.bio).toBe('Admin-entered bio.')
   })
 
-  it('still links the author page when the account bio is empty', () => {
+  it('still attributes the account when its bio is empty', () => {
     const [resolved] = resolveTeamMemberBios([teamMember()], [account({ bio: null })])
-    expect(resolved.authorSlug).toBe('alex-morgan')
+    expect(resolved.author).toEqual({ id: 'user-alex', slug: 'alex-morgan' })
   })
 
   it('leaves a member with neither bio empty rather than inventing text', () => {

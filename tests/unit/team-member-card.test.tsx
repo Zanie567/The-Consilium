@@ -19,7 +19,7 @@ const member = (overrides: Partial<TeamCardMember> = {}): TeamCardMember => ({
   bio: null,
   image: null,
   email: null,
-  authorSlug: null,
+  authorPage: null,
   ...overrides,
 })
 

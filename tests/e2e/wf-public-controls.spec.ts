@@ -365,6 +365,9 @@ test('public team cards trap and restore focus, close by button/backdrop/Escape,
   const owner = await createAccount('WRITER', 'team-dialog')
   const account = await db().user.findUniqueOrThrow({ where: { id: owner.id } })
   await db().teamMember.create({ data: { userId: owner.id, name: owner.name, email: owner.email, role: 'Writer', bio: 'A complete controlled team biography.', isActive: true } })
+  // "Read their articles" appears only for someone with a public article.
+  const published = uniqueTitle('Team dialog article')
+  await db().article.create({ data: { title: published, slug: published.toLowerCase().replaceAll(' ', '-'), authorId: owner.id, status: 'PUBLISHED', publishedAt: new Date(), content: paragraphs('A published team article.') } })
   const ctx = await browser.newContext({ reducedMotion: 'reduce' })
   const page = await ctx.newPage()
   await page.goto('/team', { waitUntil: 'networkidle' })
@@ -402,6 +405,7 @@ test('public team cards trap and restore focus, close by button/backdrop/Escape,
   await expect(page.locator('html')).toHaveAttribute('data-mailto', `mailto:${owner.email}`)
   await dialog.getByRole('link', { name: 'Read their articles →', exact: true }).click()
   await arrived(page, `/author/${account.slug}`, owner.name)
+  await expect(page.locator('main').getByRole('heading', { name: published })).toBeVisible()
   await ctx.close()
 })
 

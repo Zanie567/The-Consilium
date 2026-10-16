@@ -65,7 +65,7 @@ describe('parity with the public roster', () => {
   for (const name of ['Kai Writer', '']) for (const role of ['Writer', '']) for (const bio of ['A bio.', null]) for (const isActive of [true, false])
     for (const u of [{ isActive: true, isBanned: false, email: 'kai@ed.ac.uk' }, { isActive: false, isBanned: false, email: 'kai@ed.ac.uk' }, { isActive: true, isBanned: true, email: 'kai@ed.ac.uk' }, { isActive: true, isBanned: false, email: 'test-kai@ed.ac.uk' }])
       for (const accountName of ['Kai', null])
-        variants.push({ name, role, bio, isActive, user: { ...u, name: accountName, role: 'WRITER', bio: null, slug: null } })
+        variants.push({ name, role, bio, isActive, user: { ...u, id: 'u-kai', name: accountName, role: 'WRITER', bio: null, slug: null } })
 
   it.each(variants.map((v, i) => [i, v] as const))('variant %i', (_i, v) => {
     const row: TeamRowWithAccount = { id: 'c1', name: v.name, role: v.role, bio: v.bio, image: null, email: null, order: 1, publicTier: null, isActive: v.isActive, user: v.user }

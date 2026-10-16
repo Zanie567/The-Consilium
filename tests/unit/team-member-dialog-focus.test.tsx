@@ -7,7 +7,7 @@ vi.mock('next/image', () => ({ default: ({ alt }: { alt: string }) => <span>{alt
 beforeEach(() => vi.stubGlobal('IntersectionObserver', class { observe() {} unobserve() {} disconnect() {} }))
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
-const member = { id: 'm1', name: 'Alex Writer', role: 'Writer', bio: 'A biography.', image: null, email: 'alex@consilium.test', authorSlug: 'alex-writer' }
+const member = { id: 'm1', name: 'Alex Writer', role: 'Writer', bio: 'A biography.', image: null, email: 'alex@consilium.test', authorPage: '/author/alex-writer' as const }
 
 // A real browser decides where Tab goes from a programmatically focused panel, and engines differ
 // (WebKit left the dialog once it was portalled). The trap must not depend on that.

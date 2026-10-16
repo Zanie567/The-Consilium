@@ -187,7 +187,7 @@ suite('PUT /api/team-profile (real database)', () => {
 
       const all = await db.teamMember.findMany({
         where: { isActive: true },
-        include: { user: { select: { email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
+        include: { user: { select: { id: true, email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
       })
       const roster = buildPublicRoster(all, [])
       const mine = roster.filter((m) => m.id === rows[0].id)
@@ -469,7 +469,7 @@ suite('PUT /api/team-profile (real database)', () => {
         expect(res.status).toBe(200)
         const rows = await db.teamMember.findMany({
           where: { id: card.id },
-          include: { user: { select: { email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
+          include: { user: { select: { id: true, email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
         })
         const sections = buildTeamMasthead(buildPublicRoster(rows, []))
         expect(sections.filter(x => x.rows.length > 0).map((x) => x.id), title).toEqual([title === 'Editor-in-Chief' || title === 'Chief Designer' ? 'masthead' : title === 'Senior Editor' ? 'editorial' : title === 'Writer' ? 'writers' : title === 'Head of Growth' || title === 'Social Media' ? 'growth' : 'wider'])
@@ -555,7 +555,7 @@ suite('PUT /api/team-profile (real database)', () => {
     const publicSections = async (userId: string) => {
       const rows = await db.teamMember.findMany({
         where: { userId },
-        include: { user: { select: { email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
+        include: { user: { select: { id: true, email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
       })
       return buildTeamMasthead(buildPublicRoster(rows, [])).filter(x => x.rows.length > 0).map((x) => x.id)
     }
@@ -641,7 +641,7 @@ suite('PUT /api/team-profile (real database)', () => {
       expect((await put({ bio: 'x' })).status).toBe(201)
       const rows = await db.teamMember.findMany({
         where: { userId: user.id },
-        include: { user: { select: { email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
+        include: { user: { select: { id: true, email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
       })
       expect(buildPublicRoster(rows, [])).toHaveLength(0)
       await db.teamMember.deleteMany({ where: { userId: user.id } })
@@ -735,7 +735,7 @@ suite('PUT /api/team-profile (real database)', () => {
         buildPublicRoster(
           await db.teamMember.findMany({
             where: { userId: user.id },
-            include: { user: { select: { email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
+            include: { user: { select: { id: true, email: true, name: true, role: true, bio: true, slug: true, isActive: true, isBanned: true } } },
           }),
           [],
         )

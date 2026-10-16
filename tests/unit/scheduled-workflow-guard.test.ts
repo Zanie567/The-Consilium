@@ -11,7 +11,7 @@ const GUARD = "if: github.repository == 'Zanie567/The-Consilium' && github.ref =
 
 // The production schedules must keep their exact cadence.
 const EXPECTED_CRONS: Record<string, string> = {
-  'publish-scheduled.yml': '*/5 * * * *',
+  'publish-scheduled.yml': '*/17 * * * *',
   'award-trophies.yml': '0 * * * *',
   'recalculate-streaks.yml': '0 2 * * *',
   'update-engagement-scores.yml': '0 3 * * *',

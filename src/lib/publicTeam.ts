@@ -1,7 +1,14 @@
 import { prisma } from '@/lib/prisma'
-import { buildPublicRoster, teamMemberEmails } from '@/lib/teamProfiles'
+import { publishedArticleWhere } from '@/lib/articleQueries'
+import {
+  attachAuthorPages,
+  buildPublicRoster,
+  rosterAuthorIds,
+  teamMemberEmails,
+  type PublicRosterMember,
+} from '@/lib/teamProfiles'
 
-export async function loadPublicTeam() {
+export async function loadPublicTeam(): Promise<PublicRosterMember[]> {
   try {
     const rows = await prisma.teamMember.findMany({
       where: { isActive: true },
@@ -9,6 +16,7 @@ export async function loadPublicTeam() {
       include: {
         user: {
           select: {
+            id: true,
             email: true,
             name: true,
             role: true,
@@ -39,10 +47,26 @@ export async function loadPublicTeam() {
               isActive: true,
               isBanned: false,
             },
-            select: { email: true, bio: true, slug: true },
+            // teamProfile (any visibility) withholds a legacy card's author link: that
+            // person's authorship belongs to their own card, shown or hidden.
+            select: { id: true, email: true, bio: true, slug: true, teamProfile: { select: { id: true } } },
           })
 
-    return buildPublicRoster(rows, accounts)
+    const roster = buildPublicRoster(rows, accounts)
+
+    // "Read their articles" follows published authorship, never role or title: one query
+    // for every attributed account, using the same visibility rule as the author page.
+    // A failure here fails the roster like any other, rather than hiding everyone's link.
+    const authorIds = rosterAuthorIds(roster)
+    const published =
+      authorIds.length === 0
+        ? []
+        : await prisma.user.findMany({
+            where: { id: { in: authorIds }, articles: { some: publishedArticleWhere() } },
+            select: { id: true },
+          })
+
+    return attachAuthorPages(roster, new Set(published.map((account) => account.id)))
   } catch (error) {
     console.error('[team] roster unavailable', error)
     throw new Error('The team roster is unavailable. Check the deployment schema.')

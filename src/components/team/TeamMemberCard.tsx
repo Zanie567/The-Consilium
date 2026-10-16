@@ -6,6 +6,7 @@ import { Mail } from 'lucide-react'
 import { getInitials } from '@/lib/authorUtils'
 import { hasDisplayableRole, type TeamCardVariant } from '@/lib/teamHierarchy'
 import { TeamMemberDialog } from '@/components/team/TeamMemberDialog'
+import type { AuthorPageHref } from '@/lib/teamProfiles'
 
 export interface TeamCardMember {
   id: string
@@ -25,8 +26,8 @@ export interface TeamCardMember {
   bio: string | null
   image: string | null
   email: string | null
-  /** Author-page slug, present only when a matching account exists. */
-  authorSlug: string | null
+  /** Their public author page, present only when they have a publicly visible article. */
+  authorPage: AuthorPageHref | null
 }
 
 interface TeamMemberCardProps {
