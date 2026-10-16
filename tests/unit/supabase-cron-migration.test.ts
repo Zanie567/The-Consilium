@@ -35,6 +35,12 @@ describe('Supabase Cron migrations: secrets', () => {
     expect(docs).toContain('Never select from `vault.decrypted_secrets`')
     expect(docs).not.toMatch(/select[^;]*from vault\.decrypted_secrets/i)
   })
+
+  it('docs generate the secret without the trailing newline openssl prints', () => {
+    const generate = docs.split('\n').filter((line) => line.includes('openssl rand'))
+    expect(generate).toHaveLength(1)
+    expect(generate[0]).toContain("openssl rand -hex 32 | tr -d '\\n' | pbcopy")
+  })
 })
 
 describe('Supabase Cron migrations: target and schedule', () => {

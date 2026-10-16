@@ -195,7 +195,8 @@ and exactly two jobs: `reconcile-scheduler-invocations` (`* * * * *`) and `prune
 No publisher job exists yet.
 
 **A3. Create the dedicated secret.** Generate once, put the same value in Vault and in Vercel. `CRON_SECRET` is not read, changed or rotated.
-1. `openssl rand -hex 32 | pbcopy`  (clipboard only; it appears nowhere on screen or in a file)
+1. `openssl rand -hex 32 | tr -d '\n' | pbcopy`  (clipboard only; it appears nowhere on screen or in a file. `tr -d '\n'` removes the
+   newline `openssl` prints after the value: otherwise it can be stored in one place but not the other, and every call fails with 401)
 2. Supabase Dashboard > Integrations > **Vault** > Add secret: name `publish_cron_secret`, paste.
 3. `pbpaste | vercel env add PUBLISH_CRON_SECRET production --sensitive`  (reads the value from stdin; do **not** pass `--force`, so nothing existing can be overwritten)
 4. `pbcopy < /dev/null`  (clear the clipboard)
