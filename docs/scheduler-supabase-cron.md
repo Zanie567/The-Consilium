@@ -276,8 +276,8 @@ editorial portal and expect it live within 5 minutes):
 change (the guard pins the expected schedule set on purpose). Until then it stays only *disabled*, which keeps rollback to one command.
 Right after the B5 merge, run `gh workflow enable publish-scheduled.yml --repo Zanie567/The-Consilium`: it was disabled in B3, and a
 disabled workflow cannot be dispatched by hand, so without this the manual fallback does not work. Being manual-only, enabling it starts
-no automatic runs. Confirm with `gh workflow list --all` that it is `active`, then, while no article is due, run it once by hand
-(`gh workflow run publish-scheduled.yml`) and check the run is green with `Due: 0  Published: 0`.
+no automatic runs. Confirm with `gh workflow list --all --repo Zanie567/The-Consilium` that it is `active`, then, while no article is due,
+run it once by hand (`gh workflow run publish-scheduled.yml --repo Zanie567/The-Consilium`) and check the run is green with `Due: 0  Published: 0`.
 
 **Optional Phase C (not recommended yet).** Making `/api/publish-scheduled` refuse `CRON_SECRET` entirely would mean only the publish-only
 secret can publish. It would also break the GitHub fallback (which sends `CRON_SECRET`) unless that workflow is switched to the new secret first.
