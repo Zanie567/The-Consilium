@@ -11,32 +11,31 @@ import { normaliseSearchText, type SearchParamValue } from '@/lib/searchText'
 import { getInitials } from '@/lib/authorUtils'
 import { ArticleEmptyState } from '@/components/ui/ArticleEmptyState'
 import { getAuthorEmptyState } from '@/lib/sectionEmptyStates'
-import { visiblePublicTitleLabel } from '@/lib/teamProfiles'
+import { visibleAuthorProfile, visiblePublicTitleLabel } from '@/lib/teamProfiles'
 
 interface Props {
   params: Promise<{ slug: string }>
   searchParams: Promise<{ category?: SearchParamValue }>
 }
 
+const authorSelect = {
+  id: true, name: true, email: true, slug: true, bio: true, image: true, isActive: true, isBanned: true, displayTitles: true,
+  teamProfile: { select: { name: true, role: true, publicTier: true, bio: true, image: true, isActive: true } },
+} as const
+
 async function getAuthor(slug: string) {
   try {
     // Try by stored slug first, then fall back to name-derived lookup
     const bySlug = await prisma.user.findUnique({
       where: { slug },
-      select: {
-        id: true, name: true, slug: true, bio: true, image: true, isActive: true, isBanned: true, displayTitles: true,
-        teamProfile: { select: { role: true, publicTier: true, isActive: true } },
-      },
+      select: authorSelect,
     })
     if (bySlug) return bySlug
 
     // Fallback: match by ID (for authors without slugs set yet)
     return await prisma.user.findUnique({
       where: { id: slug },
-      select: {
-        id: true, name: true, slug: true, bio: true, image: true, isActive: true, isBanned: true, displayTitles: true,
-        teamProfile: { select: { role: true, publicTier: true, isActive: true } },
-      },
+      select: authorSelect,
     })
   } catch { return null }
 }
@@ -47,7 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!author) return {}
   return {
     title: author.name ?? 'Author',
-    description: author.bio ?? `Articles by ${author.name ?? 'this author'} in The Consilium.`,
+    description: visibleAuthorProfile(author).bio ?? `Articles by ${author.name ?? 'this author'} in The Consilium.`,
     // Deliberately built from the author record, not the incoming param: the
     // lookup falls back to matching on id, so /author/<id> and /author/<slug>
     // render the same page. Both should point at the slug form.
@@ -80,6 +79,8 @@ export default async function AuthorPage({ params, searchParams }: Props) {
   }).catch(() => [])
 
   const authorSlug = author.slug ?? author.id
+  // Read on every request (the page is dynamic), so profile edits show without a deploy.
+  const profile = visibleAuthorProfile(author)
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
@@ -88,9 +89,9 @@ export default async function AuthorPage({ params, searchParams }: Props) {
         <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center sm:items-start gap-8">
           {/* Avatar */}
           <div className="shrink-0">
-            {author.image ? (
+            {profile.image ? (
               <Image
-                src={author.image}
+                src={profile.image}
                 alt={author.name ?? ''}
                 width={100}
                 height={100}
@@ -119,9 +120,9 @@ export default async function AuthorPage({ params, searchParams }: Props) {
             >
               {author.name}
             </h1>
-            {author.bio && (
+            {profile.bio && (
               <p className="text-cream/65 text-base leading-relaxed max-w-xl">
-                {author.bio}
+                {profile.bio}
               </p>
             )}
             <p className="text-gold/40 text-xs mt-4 font-semibold uppercase tracking-widest">

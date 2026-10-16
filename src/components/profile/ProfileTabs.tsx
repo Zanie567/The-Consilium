@@ -518,6 +518,7 @@ function AccountSettingsTab({
   initialTitles,
   fallbackLabel,
   authorPath,
+  publicTeamCard,
   onNameChange,
   onImageChange,
 }: {
@@ -530,6 +531,8 @@ function AccountSettingsTab({
   fallbackLabel: string | null
   /** The public author page for this account, or null when it is not meant to have one. */
   authorPath: string | null
+  /** The published Meet the Team card's description and photo, which the author page shows instead. */
+  publicTeamCard: { bio: string; image: string | null } | null
   onNameChange: (name: string) => void
   onImageChange: (image: string | null) => void
 }) {
@@ -757,8 +760,9 @@ function AccountSettingsTab({
             />
             <div className="mt-1 flex items-start justify-between gap-3">
               <p className="text-[var(--fg-faint)] text-[10px] leading-relaxed">
-                Shown on your author page, under your articles, and on your Meet the
-                Team card if you are on the team. Write whatever you like.
+                {publicTeamCard
+                  ? 'Shown under your articles. Your author page shows the description and photo from your published Meet the Team profile instead; edit those in the editorial portal under Team Profile.'
+                  : 'Shown on your author page and under your articles. Write whatever you like.'}
               </p>
               <p className="text-[var(--fg-faint)] text-[10px] shrink-0">
                 {bio.length}/{MAX_BIO_LENGTH}
@@ -894,7 +898,13 @@ function AccountSettingsTab({
       </div>
 
       <aside className="min-w-0 lg:sticky lg:top-6">
-        <ProfilePreview name={name} bio={bio} image={image} titles={titles} fallbackLabel={fallbackLabel} />
+        <ProfilePreview
+          name={name}
+          bio={publicTeamCard?.bio ?? bio}
+          image={publicTeamCard?.image ?? image}
+          titles={titles}
+          fallbackLabel={fallbackLabel}
+        />
       </aside>
     </div>
   )
@@ -925,9 +935,10 @@ interface ProfileTabsProps {
   displayTitles: string[]
   fallbackLabel: string | null
   authorPath: string | null
+  publicTeamCard?: { bio: string; image: string | null } | null
 }
 
-export function ProfileTabs({ initialName, initialBio, email, image, createdAt, initialTab, role, displayTitles, fallbackLabel, authorPath }: ProfileTabsProps) {
+export function ProfileTabs({ initialName, initialBio, email, image, createdAt, initialTab, role, displayTitles, fallbackLabel, authorPath, publicTeamCard = null }: ProfileTabsProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'history')
   const [displayName, setDisplayName] = useState(initialName)
@@ -1049,6 +1060,7 @@ export function ProfileTabs({ initialName, initialBio, email, image, createdAt, 
             initialTitles={displayTitles}
             fallbackLabel={fallbackLabel}
             authorPath={authorPath}
+            publicTeamCard={publicTeamCard}
             onNameChange={setDisplayName}
             onImageChange={setAvatar}
           />
