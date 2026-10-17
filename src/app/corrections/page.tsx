@@ -37,12 +37,10 @@ export default function CorrectionsPage() {
             <h2>Accuracy</h2>
             <p>
               Every article is checked before publication: pieces by our writers are reviewed and
-              approved by an edito. We check facts, verify figures, and confirm the integrity of arguments. Despite these
-              efforts, errors occasionally occur: in statistics, in the spelling of names, in the
-              attribution of quotes, or in matters of interpretation. When they do, we correct them.
-            </p>
-            <p>
-              We do so openly: we do not quietly revise copy or leave a known error to stand.
+              approved by an editor. We check facts, verify figures, and confirm the integrity of arguments. Despite these
+              efforts, errors may still occasionally occur: in statistics, in the spelling of names, in the
+              attribution of quotes, or in matters of interpretation. If they do, we will correct them. 
+              We do so openly and transparently, as well believe in the importance of accuracy strongly.
             </p>
           </section>
 
