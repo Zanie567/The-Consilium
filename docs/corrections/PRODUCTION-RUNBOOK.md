@@ -28,12 +28,39 @@ missing trigger by name), but the editorial Manage corrections page needs the ta
    switched off on 2026-10-16). If it were on, merging the PR would let the integration apply the migration itself,
    outside this runbook.
 4. Never run `supabase db push` against production.
-5. Connection string obtained the secret-safe way described in `backup-and-verify.md` (never typed on the command line).
+5. The database password is available the secret-safe way described in `backup-and-verify.md` (step 4). It is
+   entered once at a hidden prompt (session set-up below) and never passed as a command argument.
+
+### Session set-up (once, before step 1)
+
+```bash
+# One terminal session for the whole procedure, run from the repository root (bash or zsh).
+set -o pipefail                      # a failed psql is not hidden by `| tee`
+umask 077
+CRED_DIR=$(mktemp -d)                # private, removed at the end
+# Session pooler details: Supabase Dashboard > Connect > Session pooler (no password shown there).
+export PGHOST='aws-…-eu-west-1.pooler.supabase.com' PGPORT=5432 PGDATABASE=postgres \
+       PGUSER='postgres.scllbuwkcqtmfogsgalt' PGSSLMODE=require
+printf 'Database password: '; read -rs DBPASS; echo
+printf '%s:%s:%s:%s:%s\n' "$PGHOST" "$PGPORT" "$PGDATABASE" "$PGUSER" "$DBPASS" > "$CRED_DIR/pgpass"
+export PGPASSFILE="$CRED_DIR/pgpass"                  # psql reads the password from here, never from argv
+export SUPABASE_DB_PASSWORD="$DBPASS"; unset DBPASS   # the Supabase CLI reads it from the environment
+psql -X -Atc "select current_user, current_database(), inet_server_addr() is not null"  # sanity: no URL argument
+```
+
+No command below takes a connection string: the password never appears in the process list. The registry commands
+use the linked project (`supabase link --project-ref scllbuwkcqtmfogsgalt` once, in this checkout; it needs the
+owner's `supabase login`). Finish with:
+
+```bash
+rm -rf "$CRED_DIR"; unset PGPASSFILE SUPABASE_DB_PASSWORD PGHOST PGPORT PGDATABASE PGUSER PGSSLMODE
+```
+
 
 ## 1. Preflight (read-only)
 
 ```bash
-psql "$DB" -X -v ON_ERROR_STOP=1 -f docs/corrections/production/preflight.sql | tee preflight.txt
+psql -X -v ON_ERROR_STOP=1 -f docs/corrections/production/preflight.sql | tee preflight.txt
 ```
 
 Every row must match its `expect` column (table and enums absent, version not recorded, registry 24 rows, no blocking
@@ -42,7 +69,7 @@ locks). Keep the **articles fingerprint**; it must be identical after the migrat
 ## 2. Apply (one transaction, self-verifying)
 
 ```bash
-psql "$DB" -X -v ON_ERROR_STOP=1 -f docs/corrections/production/apply.sql | tee apply.txt
+psql -X -v ON_ERROR_STOP=1 -f docs/corrections/production/apply.sql | tee apply.txt
 ```
 
 `apply.sql` checks preconditions, runs the migration file verbatim (`\i`), then checks in the same transaction that
@@ -55,14 +82,14 @@ Then record the version in the migration registry (registry row only; executes n
 migrations (`docs/remediation/migration-registry.md`, step 3):
 
 ```bash
-supabase migration repair --status applied 20261017120000 --db-url "$DB"
-supabase migration list --db-url "$DB"   # 20261017120000 now local = remote
+supabase migration repair --status applied 20261017120000 --linked
+supabase migration list --linked   # 20261017120000 now local = remote
 ```
 
 ## 3. Verify (read-only)
 
 ```bash
-psql "$DB" -X -v ON_ERROR_STOP=1 -f docs/corrections/production/verify.sql | tee verify.txt
+psql -X -v ON_ERROR_STOP=1 -f docs/corrections/production/verify.sql | tee verify.txt
 ```
 
 Expect: table true, registry true, trigger enabled, RLS true, `anon` / `authenticated` cannot select, no rows (or only
@@ -124,7 +151,7 @@ If `issued_in_app > 0`, these are real public records: export them first
 (`\copy (SELECT * FROM article_corrections ORDER BY "createdAt") TO 'article_corrections.csv' CSV HEADER`) and get the
 Editor-in-Chief's approval. The legacy columns keep every notice's text for the old build. Then run
 `supabase/manual/20261017120000_article_corrections_rollback.sql` and
-`supabase migration repair --status reverted 20261017120000 --db-url "$DB"`.
+`supabase migration repair --status reverted 20261017120000 --linked`.
 
 ## Rehearsal evidence (2026-10-17, local, synthetic data)
 

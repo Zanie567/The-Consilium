@@ -1,9 +1,9 @@
 -- Corrections migration 20261017120000: GUARDED APPLY. One transaction: preconditions, the migration file verbatim,
 -- postconditions. Any failed check raises and rolls everything back. Run with psql from the repository root:
 --
---   psql "$DB" -v ON_ERROR_STOP=1 -f docs/corrections/production/apply.sql
+--   psql -X -v ON_ERROR_STOP=1 -f docs/corrections/production/apply.sql   (session set-up: PRODUCTION-RUNBOOK.md)
 --
--- then record the version (registry only, executes nothing):  supabase migration repair --status applied 20261017120000
+-- then, only if this exited 0, record the version (registry only):  supabase migration repair --status applied 20261017120000 --linked
 \set ON_ERROR_STOP on
 BEGIN;
 SET LOCAL lock_timeout = '5s';

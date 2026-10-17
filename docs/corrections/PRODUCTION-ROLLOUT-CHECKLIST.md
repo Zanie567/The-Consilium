@@ -4,7 +4,8 @@ One page to follow on the day. The detail behind each step is in `PRODUCTION-RUN
 `docs/remediation/backup-and-verify.md` (backup). **Every step that writes to production needs the Editor-in-Chief's
 explicit approval at the time.** Never run `supabase db push`.
 
-Order: approved prerequisites → fresh verified backup → preflight → migration (one guarded transaction) → registry
+Every database command runs in the prepared session (runbook, "Session set-up"): `set -o pipefail` is on, and no
+command carries the password. Order: approved prerequisites → fresh verified backup → preflight → migration (one guarded transaction) → registry
 record → verification → merge (auto-deploys) → post-deploy checks. The migration must be in place before the merge.
 
 ## Not touched by this release (confirm, do not change)
@@ -36,24 +37,29 @@ record → verification → merge (auto-deploys) → post-deploy checks. The mig
 
 **Stop if any of these fails.**
 
-## 2. Preflight (read-only)
+## 2. Session set-up and preflight (read-only)
 
-- [ ] `psql "$DB" -X -v ON_ERROR_STOP=1 -f docs/corrections/production/preflight.sql | tee preflight.txt`
+- [ ] Session set-up from `PRODUCTION-RUNBOOK.md` (one hidden password prompt; `set -o pipefail`; temporary
+      `PGPASSFILE` and `SUPABASE_DB_PASSWORD`; no connection string on any command line). Remove the credentials at
+      the end of the day as shown there.
+
+- [ ] `psql -X -v ON_ERROR_STOP=1 -f docs/corrections/production/preflight.sql | tee preflight.txt`
 - [ ] Every row matches its `expect` column. Last checked read-only on 2026-10-17: PostgreSQL 17.6; table, enums and
       function absent; registry 24 rows (latest `20261012110000`); 0 legacy corrections; `audit_logs` present with the
       columns the trigger writes; no blocking locks.
 
 ## 3. Apply (one transaction, self-verifying) and record
 
-- [ ] `psql "$DB" -X -v ON_ERROR_STOP=1 -f docs/corrections/production/apply.sql | tee apply.txt`
+- [ ] `psql -X -v ON_ERROR_STOP=1 -f docs/corrections/production/apply.sql | tee apply.txt`
       → ends with `corrections migration verified: 0 legacy row(s) migrated, articles unchanged` and `COMMIT`.
       Any failed check rolls everything back; investigate before retrying.
-- [ ] `supabase migration repair --status applied 20261017120000 --db-url "$DB"` (registry row only).
-- [ ] `supabase migration list --db-url "$DB"`: `20261017120000` local = remote; nothing else changed.
+- [ ] `supabase migration repair --status applied 20261017120000 --linked` (registry row only). **Only if step 3's
+      `psql` exited 0 and printed the verified notice.**
+- [ ] `supabase migration list --linked`: `20261017120000` local = remote; nothing else changed.
 
 ## 4. Verify (read-only)
 
-- [ ] `psql "$DB" -X -v ON_ERROR_STOP=1 -f docs/corrections/production/verify.sql | tee verify.txt`
+- [ ] `psql -X -v ON_ERROR_STOP=1 -f docs/corrections/production/verify.sql | tee verify.txt`
       → table, registry row, trigger enabled, RLS on, `anon`/`authenticated` cannot read, fingerprint equal to preflight.
 
 ## 5. Release the code
