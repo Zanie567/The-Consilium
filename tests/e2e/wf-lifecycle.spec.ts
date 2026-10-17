@@ -162,7 +162,7 @@ test('editor adds an internal note and returns the article with feedback', async
   expect((await noteRes).status()).toBe(201)
   await expect(page.getByText('Check the headline claim.')).toBeVisible()
 
-  const ret = page.getByRole('button', { name: 'Return to Writer' })
+  const ret = page.getByRole('button', { name: 'Request revisions' })
   await expect(ret).toBeDisabled() // no feedback typed yet: cannot return blank
   await page.getByPlaceholder('What needs to be revised?').fill(FEEDBACK)
   const res = page.waitForResponse((r) => r.url().includes(`/review`) && r.request().method() === 'PATCH')
@@ -174,8 +174,8 @@ test('editor adds an internal note and returns the article with feedback', async
   expect(row!.editorNote).toBe(FEEDBACK)
   await ctx.close()
 
-  await expect.poll(() => emailsFor('writer@theconsilium.com', 'returned').length).toBeGreaterThan(0)
-  expect(emailsFor('writer@theconsilium.com', 'returned')[0].html).toContain(FEEDBACK)
+  await expect.poll(() => emailsFor('writer@theconsilium.com', 'Revisions requested').length).toBeGreaterThan(0)
+  expect(emailsFor('writer@theconsilium.com', 'Revisions requested')[0].html).toContain(FEEDBACK)
   expect(await publicStatus(browser)).toEqual({ page: 404, listed: false })
 })
 
@@ -192,7 +192,7 @@ test('writer sees the feedback, revises in the editor, and resubmits; the note c
   const saved = await ed.saving(() => page.keyboard.type(REVISED), { timeout: 15_000 }) // autosave
   expect(saved.status()).toBe(200)
 
-  const res = await ed.saving(() => page.getByRole('button', { name: 'Submit' }).click())
+  const res = await ed.saving(() => page.getByRole('button', { name: 'Resubmit for review' }).click())
   expect(res.status(), await res.text()).toBe(200)
   const row = await articleByTitle(TITLE)
   expect(row!.status).toBe('PENDING_REVIEW')
@@ -254,7 +254,7 @@ test('editor unpublishes from the review screen; the public URL disappears; repu
   const wp = await w.newPage()
   const ed = new ArticleEditorPage(wp)
   await ed.openExisting(articleId)
-  expect((await ed.saving(() => wp.getByRole('button', { name: 'Submit' }).click())).status()).toBe(200)
+  expect((await ed.saving(() => wp.getByRole('button', { name: 'Resubmit for review' }).click())).status()).toBe(200)
   await w.close()
 
   const e2 = await signedIn(browser, 'editor')
