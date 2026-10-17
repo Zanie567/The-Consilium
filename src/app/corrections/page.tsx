@@ -58,12 +58,30 @@ export default function CorrectionsPage() {
               <li>Factual claims that are demonstrably false</li>
               <li>Significant misrepresentations of an individual{"'"}s published views</li>
             </ul>
+          </section>
+
+          <section>
+            <h2>Corrections, clarifications and updates</h2>
+            <p>We label every change to a published article for what it is:</p>
+            <ul>
+              <li>
+                A <strong>correction</strong> acknowledges that something we published was wrong at the
+                time of publication. We correct the text and say what was wrong and what is right.
+              </li>
+              <li>
+                A <strong>clarification</strong> is added where a statement was not wrong but could
+                reasonably have misled readers, or lacked important context.
+              </li>
+              <li>
+                An <strong>update</strong> reflects information that has emerged since publication: for
+                example, a policy that has since been amended, or a situation that has developed
+                further. An update is not an admission of error, and we do not present it as one.
+              </li>
+            </ul>
             <p>
-              We distinguish corrections from updates. A <strong>correction</strong> acknowledges
-              that something we published was wrong at the time of publication. An{' '}
-              <strong>update</strong> reflects information that has changed since publication: for
-              example, a policy that has since been amended, or a situation that has developed
-              further. Both are labelled clearly on the article.
+              Each is labelled clearly on the article. Minor copy edits, such as spelling, punctuation or
+              formatting changes that do not alter the meaning, are made without a public note, but are
+              recorded internally.
             </p>
           </section>
 
@@ -121,16 +139,24 @@ export default function CorrectionsPage() {
               Once a correction has been verified and approved by a senior editor:
             </p>
             <ul>
+              <li>The error is corrected in the article itself</li>
               <li>
-                A correction notice is added to the top of the article, alerting readers that the
-                piece has been updated
+                A notice near the top of the article tells readers that it has been corrected, and links
+                to the details
               </li>
               <li>
-                A correction note at the end of the article states exactly what was changed, and
-                when
+                A dated note in the Corrections section at the end of the article explains what was
+                wrong and what is correct
               </li>
               <li>The original error is not silently deleted; the nature of the correction is explained</li>
-              <li>The article{"'"}s timestamp is updated to reflect the correction</li>
+              <li>
+                The original publication date remains visible; each correction carries the date on
+                which it was made
+              </li>
+              <li>
+                Correction notes are permanent. If a note itself needs correcting, we add an amendment
+                beneath it rather than rewriting it
+              </li>
             </ul>
             <p>
               We do not remove articles from the record except in exceptional circumstances, for

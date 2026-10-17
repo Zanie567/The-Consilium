@@ -113,8 +113,8 @@ describe('first-party loaded article revisions over real HTTP and PostgreSQL', (
       expect((await prisma.article.findUniqueOrThrow({ where: { id: loaded.id } })).updatedAt.toISOString()).toBe(revision)
     }
   })
-  it.each(['approve', 'return', 'schedule', 'correct', 'unpublish'])('review %s rejects stale displayed content', async action => {
-    const loaded = await fixture(['correct', 'unpublish'].includes(action) ? 'PUBLISHED' : 'PENDING_REVIEW')
+  it.each(['approve', 'return', 'schedule', 'unpublish'])('review %s rejects stale displayed content', async action => {
+    const loaded = await fixture(action === 'unpublish' ? 'PUBLISHED' : 'PENDING_REVIEW')
     const current = await newer(loaded.id)
     const res = await send(loaded.id, { action, scheduledAt: '2099-01-01T12:00', note: 'Stale feedback', corrected: true, expectedUpdatedAt: loaded.updatedAt.toISOString() }, '/api/editorial/articles/', 'PATCH')
     expect(res.status).toBe(409)
@@ -122,19 +122,25 @@ describe('first-party loaded article revisions over real HTTP and PostgreSQL', (
     expect(await prisma.article.findUniqueOrThrow({ where: { id: loaded.id } })).toEqual(current)
     expect(await prisma.notification.count({ where: { articleId: loaded.id } })).toBe(0)
   })
-  it.each(['approve', 'return', 'schedule', 'correct', 'unpublish'])('review %s succeeds at the displayed revision and preserves content', async action => {
-    const loaded = await fixture(['correct', 'unpublish'].includes(action) ? 'PUBLISHED' : 'PENDING_REVIEW')
-    const res = await send(loaded.id, { action, note: 'Sourcing feedback', scheduledAt: '2099-01-01T12:00', corrected: true, correctionNote: 'Clarified figures', expectedUpdatedAt: loaded.updatedAt.toISOString() }, '/api/editorial/articles/', 'PATCH')
+  it.each(['approve', 'return', 'schedule', 'unpublish'])('review %s succeeds at the displayed revision and preserves content', async action => {
+    const loaded = await fixture(action === 'unpublish' ? 'PUBLISHED' : 'PENDING_REVIEW')
+    const res = await send(loaded.id, { action, note: 'Sourcing feedback', scheduledAt: '2099-01-01T12:00', expectedUpdatedAt: loaded.updatedAt.toISOString() }, '/api/editorial/articles/', 'PATCH')
     expect(res.status).toBe(200)
     const saved = await res.json()
     const row = await prisma.article.findUniqueOrThrow({ where: { id: loaded.id } })
     expect(row.updatedAt.toISOString()).toBe(saved.updatedAt)
     expect(row.content).toBe(loaded.content)
-    expect(row.status).toBe(({ approve: 'PUBLISHED', return: 'REJECTED', schedule: 'SCHEDULED', correct: 'PUBLISHED', unpublish: 'DRAFT' } as Record<string, string>)[action])
-    if (action === 'correct') expect(row).toMatchObject({ corrected: true, correctionNote: 'Clarified figures' })
+    expect(row.status).toBe(({ approve: 'PUBLISHED', return: 'REJECTED', schedule: 'SCHEDULED', unpublish: 'DRAFT' } as Record<string, string>)[action])
     if (action === 'return') expect(row.editorNote).toBe('Sourcing feedback')
     if (action === 'schedule') expect(row.scheduledAt!.toISOString()).toBe('2099-01-01T12:00:00.000Z')
-    expect(await prisma.notification.count({ where: { articleId: loaded.id } })).toBe(action === 'correct' ? 0 : 1)
+    expect(await prisma.notification.count({ where: { articleId: loaded.id } })).toBe(1)
+  })
+  it('the retired review "correct" action changes nothing and points to Manage corrections', async () => {
+    const loaded = await fixture('PUBLISHED')
+    const res = await send(loaded.id, { action: 'correct', corrected: true, correctionNote: 'Clarified figures', expectedUpdatedAt: loaded.updatedAt.toISOString() }, '/api/editorial/articles/', 'PATCH')
+    expect(res.status).toBe(410)
+    expect(await res.json()).toMatchObject({ code: 'USE_CORRECTIONS_WORKFLOW' })
+    expect(await prisma.article.findUniqueOrThrow({ where: { id: loaded.id } })).toEqual(loaded)
   })
   it('concurrent valid approvals commit exactly one transition and notification', async () => {
     const loaded = await fixture('PENDING_REVIEW')

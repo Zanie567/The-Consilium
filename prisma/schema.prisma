@@ -197,6 +197,9 @@ model Article {
   isFeatured     Boolean       @default(false)
   isPinned       Boolean       @default(false)
   isDebate       Boolean       @default(false)
+  // Legacy single-note correction fields, kept for backward compatibility (never dropped).
+  // The public record is now `corrections` (ArticleCorrection). Publishing a CORRECTION
+  // mirrors `corrected = true` and the latest note here so an older build still shows it.
   corrected      Boolean       @default(false)
   correctionNote String?       @db.Text
   editorNote     String?       @db.Text
@@ -229,6 +232,7 @@ model Article {
   againstDebates  Debate[]      @relation("AgainstArticle")
   trophies        ArticleTrophy[]
   articleComments ArticleComment[]
+  corrections     ArticleCorrection[]
 
   @@index([authorId])
   @@index([categoryId])
@@ -762,6 +766,65 @@ model AuditLog {
   @@index([performedBy])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ── Post-publication corrections ─────────────────────────────────────────────
+// See docs/corrections/ and supabase/migrations/20261017120000_article_corrections.sql.
+
+enum CorrectionType {
+  CORRECTION     // a fact was wrong when published
+  CLARIFICATION  // not wrong, but could mislead or lacked context
+  UPDATE         // new information since publication
+}
+
+enum CorrectionStatus {
+  PENDING    // prepared, awaiting approval; editable and withdrawable
+  PUBLISHED  // public and permanent: the database refuses any change or direct delete
+  WITHDRAWN  // a pending correction that was never published; kept for the audit trail
+}
+
+// One row per correction, clarification or update notice. A PUBLISHED row is immutable
+// (trigger article_corrections_protect); a mistake in one is fixed by a new row that
+// `supersedes` it. User ids are plain strings with a name snapshot (like AuditLog), so the
+// record survives a staff account being deleted.
+model ArticleCorrection {
+  id             String           @id @default(cuid())
+  articleId      String
+  article        Article          @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  type           CorrectionType
+  status         CorrectionStatus @default(PENDING)
+  // Public explanation shown under the article. NULL only for a migrated legacy row that had none.
+  publicNote     String?          @db.Text
+  // Internal working record (never public).
+  originalText   String?          @db.Text
+  correctedText  String?          @db.Text
+  internalNote   String?          @db.Text
+  // articleVersion() of the article this amendment was prepared against; publishing is refused
+  // if the article has changed since. `proposed` = { title, excerpt, content } to apply;
+  // `previous` = the same fields as they stood immediately before publication.
+  baseVersion    String?
+  proposed       Json?
+  previous       Json?
+  supersedesId   String?          @unique
+  supersedes     ArticleCorrection?  @relation("CorrectionAmendments", fields: [supersedesId], references: [id], onDelete: NoAction)
+  supersededBy   ArticleCorrection?  @relation("CorrectionAmendments")
+  // Client-generated idempotency key: a replayed or double-clicked request cannot create a second row.
+  requestKey     String?          @unique
+  // Migrated from articles.corrected/correctionNote: the original date is unknown, so publishedAt is NULL.
+  legacy         Boolean          @default(false)
+  createdById    String?
+  createdByName  String?
+  approvedById   String?
+  approvedByName String?
+  withdrawnById  String?
+  withdrawnReason String?         @db.Text
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @db.Timestamptz(3)
+  publishedAt    DateTime?        @db.Timestamptz(3)
+  withdrawnAt    DateTime?        @db.Timestamptz(3)
+
+  @@index([articleId, status, publishedAt])
+  @@map("article_corrections")
 }
 
 // Managed new uploads only; legacy Storage URLs are not rewritten or garbage-collected.

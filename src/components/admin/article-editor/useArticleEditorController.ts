@@ -78,6 +78,13 @@ function articleSaveError(reason: unknown): ArticleEditorError {
           message: 'This article\'s published status was changed in another tab or by someone else, so this tab cannot save over it. Nothing was saved or published. Copy any text you need, then reload to see the current status.',
         }
       }
+      if (error.code === 'PUBLISHED_TEXT_CHANGE_UNCLASSIFIED') {
+        return {
+          ...base,
+          label: 'Live article',
+          message: 'This article is live, so text changes are not saved automatically. Use Save changes to record a minor copy edit, or Manage corrections if the change affects a fact or the meaning. Your changes are still in this tab.',
+        }
+      }
       if (base.code === 'ARTICLE_CONFLICT') {
         return {
           ...base,
@@ -194,6 +201,12 @@ export function useArticleEditorController({
   const selectedAuthorIdRef = useRef(selectedAuthorId)
 
   const canEdit = !isWriter || currentStatus === 'DRAFT' || currentStatus === 'REJECTED'
+  // A live article is never autosaved: every change to it is an explicit, classified save
+  // (a minor copy edit here, or a correction in Manage corrections).
+  const isLive = currentStatus === 'PUBLISHED'
+  // The reader-facing text as the server last confirmed it, to tell a copy edit from a metadata-only save.
+  const savedTextRef = useRef({ title: initialData?.title ?? '', excerpt: initialData?.excerpt ?? '', content: initialData?.content ?? '' })
+  const [copyEditPending, setCopyEditPending] = useState(false)
   const [recovery, setRecovery] = useState<{ at: number; stale: boolean } | null>(null)
   const [recovered, setRecovered] = useState(false)
   const [recoveryError, setRecoveryError] = useState('')
@@ -308,7 +321,7 @@ export function useArticleEditorController({
     return () => observer?.disconnect()
   }, [title, excerpt, titleDomRef, excerptDomRef])
 
-  const performSave = useCallback((explicitStatus?: string): Promise<boolean> => {
+  const performSave = useCallback((explicitStatus?: string, options: { copyEdit?: boolean } = {}): Promise<boolean> => {
     const requestedStatus = explicitStatus ?? currentStatusRef.current
     const requestNumber = ++saveRequestRef.current
     latestSaveRequestRef.current = requestNumber
@@ -359,6 +372,8 @@ export function useArticleEditorController({
           // refuses any visibility change without it (PUBLICATION_CONFIRMATION_REQUIRED).
           ...(explicitStatus ? { publicationIntent: true } : {}),
           ...(versionRef.current ? { baseVersion: versionRef.current } : {}),
+          // Declared by the editor in the copy-edit confirmation; recorded in the audit log.
+          ...(options.copyEdit ? { editKind: 'COPY_EDIT' } : {}),
           ...(finalStatus === 'SCHEDULED' && scheduledAtRef.current
             ? { scheduledAt: scheduledAtRef.current }
             : {}),
@@ -414,6 +429,7 @@ export function useArticleEditorController({
         }
 
         revisionRef.current = saved.updatedAt ?? revisionRef.current
+        savedTextRef.current = { title: body.title, excerpt: body.excerpt, content: body.content }
 
         if (explicitStatus && statusIntentVersion === statusIntentVersionRef.current) {
           setStatusState(saved.status ?? explicitStatus)
@@ -480,6 +496,10 @@ export function useArticleEditorController({
     setSavedVisible(false)
     persistLocalDraft()
     clearTimeout(autoSaveTimer.current)
+    if (currentStatusRef.current === 'PUBLISHED') {
+      setSaveStatus('idle')
+      return
+    }
     autoSaveTimer.current = setTimeout(() => {
       if (!recoveryBlockedRef.current) void performSave()
     }, 2000)
@@ -487,7 +507,7 @@ export function useArticleEditorController({
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && isDirtyRef.current && canEdit && !recoveryBlockedRef.current) {
+      if (document.visibilityState === 'hidden' && isDirtyRef.current && canEdit && !recoveryBlockedRef.current && currentStatusRef.current !== 'PUBLISHED') {
         clearTimeout(autoSaveTimer.current)
         void performSave()
       }
@@ -534,7 +554,17 @@ export function useArticleEditorController({
     setContent(nextContent)
   }, [scheduleAutosave])
 
-  const handleSave = async (explicitStatus?: string) => {
+  const liveTextChanged = () =>
+    titleRef.current !== savedTextRef.current.title
+    || (excerptRef.current ?? '') !== (savedTextRef.current.excerpt ?? '')
+    || contentRef.current !== savedTextRef.current.content
+
+  const handleSave = async (explicitStatus?: string, options: { copyEdit?: boolean } = {}) => {
+    // On a live article an ordinary save that changes the text must be declared a copy edit first.
+    if (!explicitStatus && currentStatusRef.current === 'PUBLISHED' && !options.copyEdit && liveTextChanged()) {
+      setCopyEditPending(true)
+      return
+    }
     if (explicitStatus && explicitStatus !== 'DRAFT' && !titleRef.current.trim()) {
       setError(localEditorError('A title is required before publishing or submitting.'))
       setSaveStatus('error')
@@ -544,7 +574,7 @@ export function useArticleEditorController({
     setError(null)
     if (recovery) return
     recoveryBlockedRef.current = false
-    const saved = await performSave(explicitStatus)
+    const saved = await performSave(explicitStatus, options)
 
     if (!saved || !articleIdRef.current) return
     if (explicitStatus && articleId) router.refresh()
@@ -568,6 +598,20 @@ export function useArticleEditorController({
     const touchesPublic = ['PUBLISHED', 'SCHEDULED'].includes(target) || ['PUBLISHED', 'SCHEDULED'].includes(current)
     if (touchesPublic) setPendingStatus(target)
     else void handleSave(target)
+  }
+
+  const confirmCopyEdit = async () => {
+    if (confirmingRef.current) return
+    confirmingRef.current = true
+    try {
+      await handleSave(undefined, { copyEdit: true })
+    } finally {
+      confirmingRef.current = false
+      setCopyEditPending(false)
+    }
+  }
+  const cancelCopyEdit = () => {
+    if (!confirmingRef.current) setCopyEditPending(false)
   }
 
   const cancelStatusChange = () => {
@@ -616,6 +660,12 @@ export function useArticleEditorController({
 
   const handleBack = async () => {
     if (recoveryBlockedRef.current) { router.push(returnUrl ?? '/editorial'); return }
+    if (isDirtyRef.current && canEdit && currentStatusRef.current === 'PUBLISHED') {
+      // Never save a live article implicitly on the way out: ask for the explicit save instead.
+      setError(localEditorError('This live article has unsaved changes. Use Save changes (a minor copy edit), or Manage corrections, before leaving.'))
+      setSaveStatus('error')
+      return
+    }
     if (isDirtyRef.current && canEdit) {
       clearTimeout(autoSaveTimer.current)
       const saved = await performSave()
@@ -765,6 +815,8 @@ export function useArticleEditorController({
     categories,
     canEdit,
     canPublish,
+    isLive,
+    copyEditPending,
     categoryId,
     content,
     coverError,
@@ -794,6 +846,8 @@ export function useArticleEditorController({
       requestStatusChange,
       confirmStatusChange,
       cancelStatusChange,
+      confirmCopyEdit,
+      cancelCopyEdit,
       addTag,
       handleBack,
       handleContentChange,

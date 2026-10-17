@@ -21,6 +21,22 @@ import { articleVersion } from '@/lib/articleVersion'
 import { withTransactionRetry } from '@/lib/transactionRetry'
 import type { ArticleStatus } from '@prisma/client'
 
+const PUBLISHED_TEXT_FIELDS = ['title', 'excerpt', 'content'] as const
+type PublishedTextField = (typeof PUBLISHED_TEXT_FIELDS)[number]
+
+/** Which reader-facing fields a save would change (excerpt: empty and null are the same). */
+function publishedTextChanges(
+  existing: Record<PublishedTextField, string | null>,
+  next: Partial<Record<PublishedTextField, unknown>>
+): PublishedTextField[] {
+  return PUBLISHED_TEXT_FIELDS.filter((field) => {
+    const value = next[field]
+    if (value === undefined) return false
+    if (field === 'excerpt') return ((value as string | null) ?? '') !== (existing.excerpt ?? '')
+    return value !== existing[field]
+  })
+}
+
 const STAFF_ARTICLE_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'ARCHIVED', 'REJECTED', 'SCHEDULED'] as const satisfies readonly ArticleStatus[]
 const WRITER_UPDATE_STATUSES = ['DRAFT', 'PENDING_REVIEW'] as const satisfies readonly ArticleStatus[]
 
@@ -162,8 +178,19 @@ async function PUTHandler(
       title, slug, content, excerpt, coverImage, categoryId, status,
       corrected, correctionNote, seriesId, seriesOrder, tags, scheduledAt,
       authorId: bodyAuthorId,
-      baseVersion, publicationIntent,
+      baseVersion, publicationIntent, editKind,
     } = body
+
+    // The legacy correction flag and note are now derived from the corrections record. Setting them
+    // here would publish (or hide) a notice with no date, no approval and no matching text change.
+    if (corrected !== undefined || correctionNote !== undefined) {
+      return apiError(
+        'Corrections are issued from Manage corrections, not from the article editor.',
+        400,
+        'USE_CORRECTIONS_WORKFLOW',
+        requestId
+      )
+    }
 
     // Optimistic concurrency: a client that says which version it was editing is refused
     // when the article has changed since (another tab, another person, a review action).
@@ -237,6 +264,23 @@ async function PUTHandler(
       )
     }
 
+    // A live article's reader-facing text changes through one of two doors only:
+    //   * Manage corrections (correction / clarification / update, with a public notice), or
+    //   * here, as an explicitly declared minor copy edit (spelling, punctuation, formatting), which
+    //     is recorded with before/after text in the audit log in the same transaction.
+    // An unclassified change is refused, so autosave or a script cannot silently rewrite a live article.
+    const changedPublishedText = existing.status === 'PUBLISHED' && finalStatus === 'PUBLISHED'
+      ? publishedTextChanges(existing, { title, excerpt, content })
+      : []
+    if (changedPublishedText.length > 0 && editKind !== 'COPY_EDIT') {
+      return apiError(
+        'This article is live. Save the change as a minor copy edit, or use Manage corrections if it changes a fact or the meaning.',
+        409,
+        'PUBLISHED_TEXT_CHANGE_UNCLASSIFIED',
+        requestId
+      )
+    }
+
     const wasJustSubmitted =
       existing.status !== 'PENDING_REVIEW' && finalStatus === 'PENDING_REVIEW'
     const wasPublished =
@@ -273,8 +317,6 @@ async function PUTHandler(
           ...(coverImage !== undefined && { coverImage: coverImage || null }),
           ...(categoryId !== undefined && { categoryId: categoryId || null }),
           ...(isAdminOrEditor && bodyAuthorId && { authorId: bodyAuthorId }),
-          ...(isAdminOrEditor && corrected !== undefined && { corrected }),
-          ...(isAdminOrEditor && correctionNote !== undefined && { correctionNote }),
           ...(isAdminOrEditor && seriesId !== undefined && { seriesId: seriesId || null }),
           ...(isAdminOrEditor && seriesOrder !== undefined && { seriesOrder }),
           ...(wasJustSubmitted && { editorNote: null }),
@@ -291,6 +333,23 @@ async function PUTHandler(
             : existing.publishedAt,
         },
       })
+
+      if (changedPublishedText.length > 0) {
+        await tx.auditLog.create({
+          data: {
+            action: 'article.copy_edit',
+            targetType: 'article',
+            targetId: id,
+            performedBy: user.id,
+            metadata: {
+              requestId,
+              fields: changedPublishedText,
+              before: Object.fromEntries(changedPublishedText.map((field) => [field, existing[field]])),
+              after: Object.fromEntries(changedPublishedText.map((field) => [field, savedArticle[field]])),
+            },
+          },
+        })
+      }
 
       // Article fields and tag associations are one save operation. Keeping
       // them in the same transaction prevents a 500 after a partial update.

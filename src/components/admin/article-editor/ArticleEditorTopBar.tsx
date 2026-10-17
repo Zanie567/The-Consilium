@@ -1,6 +1,7 @@
 'use client'
 
-import { AlertCircle, ArrowLeft, Check, Eye, Loader2, Moon, Save, Send, Settings, Sun } from 'lucide-react'
+import Link from 'next/link'
+import { AlertCircle, ArrowLeft, Check, Eye, FileWarning, Loader2, Moon, Save, Send, Settings, Sun } from 'lucide-react'
 import { STATUS_COLOURS, STATUS_LABELS } from './constants'
 import type { ArticleEditorController } from './types'
 
@@ -92,14 +93,24 @@ export function ArticleEditorTopBar({ editor }: ArticleEditorTopBarProps) {
         ?
       </button>
 
+      {editor.isLive && editor.canPublish && editor.articleId && (
+        <Link
+          href={`/editorial/articles/${editor.articleId}/corrections`}
+          className="hidden md:inline-flex shrink-0 items-center gap-1 text-[var(--fg-muted)] text-[12px] px-2.5 h-8 rounded border border-[var(--border)] hover:border-gold hover:text-gold transition-colors"
+        >
+          <FileWarning size={12} />
+          Manage corrections
+        </Link>
+      )}
+
       {editor.canEdit && (
         <button
           onClick={() => void actions.handleSave()}
-          disabled={editor.saveStatus === 'saving'}
-          className="hidden sm:inline-flex shrink-0 items-center gap-1 text-[var(--fg-muted)] text-[12px] px-3 h-8 rounded border border-[var(--border)] hover:border-gold hover:text-gold transition-colors disabled:opacity-50"
+          disabled={editor.saveStatus === 'saving' || editor.copyEditPending}
+          className={`${editor.isLive ? 'inline-flex' : 'hidden sm:inline-flex'} shrink-0 items-center gap-1 text-[var(--fg-muted)] text-[12px] px-3 h-8 rounded border border-[var(--border)] hover:border-gold hover:text-gold transition-colors disabled:opacity-50`}
         >
           <Save size={12} />
-          Save draft
+          {editor.isLive ? 'Save changes' : 'Save draft'}
         </button>
       )}
 

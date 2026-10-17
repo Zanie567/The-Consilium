@@ -325,6 +325,16 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                           </a>
                         </Tooltip>
                       )}
+                      {isEditor && article.status === 'PUBLISHED' && (
+                        <Tooltip content="Issue a correction, clarification or update, or see this article's correction history" variant="editorial" side="top" maxWidth={260}>
+                          <Link
+                            href={`/editorial/articles/${article.id}/corrections`}
+                            className="text-[var(--fg-muted)] text-xs font-bold hover:text-gold hover:underline px-1.5 py-1"
+                          >
+                            Corrections
+                          </Link>
+                        </Tooltip>
+                      )}
                       {isEditor && article.status === 'PENDING_REVIEW' && (
                         <Tooltip content="Open review panel to approve, schedule, or return this article" variant="editorial" side="top" maxWidth={260}>
                           <Link

@@ -159,12 +159,19 @@ async function notifyAboutComment({
 }: {
   grant: CommentAccessGrant
   parent: ArticleComment | null
-  article: { id: string; authorId: string; title: string }
+  article: { id: string; authorId: string; title: string; status: string; categoryId: string | null }
 }) {
   const { user } = grant
   const commenterName = user.name ?? 'A colleague'
 
   if (!parent) {
+    // A writer flagging a passage in their own LIVE article is how a suspected error reaches the
+    // editors (they then use Manage corrections). Tell the editors responsible for its category,
+    // or every editor and administrator when the category has none.
+    if (article.authorId === user.id && article.status === 'PUBLISHED') {
+      await notifyEditorsOfFlag(article, user.id, commenterName)
+      return
+    }
     // New thread: tell the article's author, unless they wrote it themselves.
     if (article.authorId === user.id) return
     await prisma.notification.create({
@@ -201,6 +208,33 @@ async function notifyAboutComment({
       type: 'comment_reply',
       title: 'New reply to a comment',
       message: `${commenterName} replied to a comment thread on "${article.title}".`,
+      articleId: article.id,
+    })),
+  })
+}
+
+async function notifyEditorsOfFlag(
+  article: { id: string; title: string; categoryId: string | null },
+  authorId: string,
+  authorName: string
+) {
+  let editorIds: string[] = []
+  if (article.categoryId) {
+    const assignments = await prisma.categoryEditor.findMany({ where: { categoryId: article.categoryId }, select: { userId: true } })
+    editorIds = assignments.map((a) => a.userId)
+  }
+  if (editorIds.length === 0) {
+    const editors = await prisma.user.findMany({ where: { role: { in: ['ADMIN', 'EDITOR'] }, isActive: true, isBanned: false }, select: { id: true } })
+    editorIds = editors.map((e) => e.id)
+  }
+  editorIds = editorIds.filter((id) => id !== authorId)
+  if (editorIds.length === 0) return
+  await prisma.notification.createMany({
+    data: editorIds.map((userId) => ({
+      userId,
+      type: 'published_article_flag',
+      title: 'Comment on a published article',
+      message: `${authorName} flagged a passage in their published article "${article.title}". It may need a correction.`,
       articleId: article.id,
     })),
   })

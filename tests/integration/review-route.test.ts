@@ -8,9 +8,10 @@
  *    failure creating the in-app notification must never surface to the
  *    editor as a failed request.
  *  - New: the route must enforce legal source states server-side
- *    (approve/schedule/return only from PENDING_REVIEW; unpublish/correct
- *    only from PUBLISHED) and reject illegal transitions with a structured
- *    INVALID_STATUS_TRANSITION error before any write.
+ *    (approve/schedule/return only from PENDING_REVIEW; unpublish only from
+ *    PUBLISHED) and reject illegal transitions with a structured
+ *    INVALID_STATUS_TRANSITION error before any write. The retired `correct`
+ *    action answers 410 USE_CORRECTIONS_WORKFLOW (see Manage corrections).
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
@@ -201,16 +202,16 @@ describe('PATCH /api/editorial/articles/[id]/review — server-side state-transi
     expect(prismaMock.article.update).not.toHaveBeenCalled()
   })
 
-  it('rejects correct when the article is not PUBLISHED', async () => {
-    prismaMock.article.findUnique.mockResolvedValue(baseArticle({ status: 'DRAFT' }))
+  it.each(['DRAFT', 'PUBLISHED'] as const)('retires the old correct action (%s): corrections need the dated, approved workflow', async (status) => {
+    prismaMock.article.findUnique.mockResolvedValue(baseArticle({ status }))
 
     const res = await PATCH(
       request({ action: 'correct', corrected: true, correctionNote: 'typo' }),
       params()
     )
 
-    expect(res.status).toBe(409)
-    expect(await res.json()).toMatchObject({ code: 'INVALID_STATUS_TRANSITION' })
+    expect(res.status).toBe(410)
+    expect(await res.json()).toMatchObject({ code: 'USE_CORRECTIONS_WORKFLOW' })
     expect(prismaMock.article.update).not.toHaveBeenCalled()
   })
 

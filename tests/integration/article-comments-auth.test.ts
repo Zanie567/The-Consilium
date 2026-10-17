@@ -25,6 +25,7 @@ const { prismaMock, authMock } = vi.hoisted(() => ({
       update: vi.fn(),
     },
     notification: { create: vi.fn(), createMany: vi.fn() },
+    user: { findMany: vi.fn() },
   },
   authMock: { requireVerifiedSessionUser: vi.fn(), authOptions: {} },
 }))
@@ -235,6 +236,26 @@ describe('comment notifications', () => {
     await POST(jsonReq({ commentText: 'Note to self' }), params())
     expect(prismaMock.notification.create).not.toHaveBeenCalled()
     expect(prismaMock.notification.createMany).not.toHaveBeenCalled()
+  })
+
+  it('a writer flagging a passage in their own PUBLISHED article alerts the category editors (suspected-error channel)', async () => {
+    authenticate(OWNER_WRITER)
+    prismaMock.article.findUnique.mockResolvedValue({ ...ARTICLE, status: 'PUBLISHED', categoryId: 'cat-1' })
+    prismaMock.categoryEditor.findMany.mockResolvedValue([{ userId: 'editor-1' }])
+    const res = await POST(jsonReq({ commentText: 'I think the 5.2% figure here is wrong.' }), params())
+    expect(res.status).toBe(201)
+    expect(prismaMock.notification.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ userId: 'editor-1', type: 'published_article_flag', articleId: 'article-1' })],
+    })
+  })
+
+  it('with no category editors, the flag goes to every active editor and administrator', async () => {
+    authenticate(OWNER_WRITER)
+    prismaMock.article.findUnique.mockResolvedValue({ ...ARTICLE, status: 'PUBLISHED' })
+    prismaMock.user.findMany.mockResolvedValue([{ id: 'admin-1' }, { id: 'editor-1' }])
+    await POST(jsonReq({ commentText: 'Possible error in paragraph two.' }), params())
+    const recipients = prismaMock.notification.createMany.mock.calls[0][0].data.map((n: { userId: string }) => n.userId)
+    expect(recipients.sort()).toEqual(['admin-1', 'editor-1'])
   })
 
   it('notifies thread participants of a reply, excluding the replier', async () => {

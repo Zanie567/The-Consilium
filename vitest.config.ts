@@ -38,6 +38,7 @@ const DB_BACKED_SUITES = [
   'tests/integration/public-feed-visibility-db.test.ts',
   'tests/integration/admin-overhaul-migrations.test.ts',
   'tests/integration/debate-lock-order-db.test.ts',
+  'tests/integration/corrections-db.test.ts',
 ]
 const isolatedLauncherRun = process.env.E2E_ISOLATED === '1' && Boolean(process.env.BASE_URL)
 
