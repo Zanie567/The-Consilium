@@ -104,6 +104,30 @@ Editor-in-Chief:** confirm that "senior editor" means the administrator accounts
 - Writers: a new comment thread by the author on their own published article notifies the category's editors (or all
   editors and administrators), type `published_article_flag`.
 
+### Reader-facing fields of a live article (review round 2)
+
+| Field | On a live article | Why |
+|---|---|---|
+| Headline, standfirst, body (incl. figures and captions) | Declared copy edit (audited, before/after) or a correction | Facts and meaning live here |
+| **Cover image** | Declared copy edit (audited) for the same picture improved (crop, resolution); a **correction or clarification** replaces it when the picture was wrong or misleading, atomically with the note | A wrong picture is a factual error in its own right |
+| **Byline** | **Locked** (`409 PUBLISHED_BYLINE_LOCKED`); changed only through a correction, with a note | Attribution is a matter of record |
+| **Web address (slug)** | **Locked** (`409 PUBLISHED_SLUG_LOCKED`); disabled in the editor; every other slug change audited (`article.slug_changed`) | Links, shares, bookmarks and search results point at it, and there is no redirect from an old slug |
+| Category, topics, series, featured/pinned, commendation | Unchanged behaviour | Navigation and presentation; no change to what the article says |
+
+Before this round, a live slug could be changed silently by any administrator or editor in scope (the editor sent it
+with every save, no audit, old URL then 404s); the byline likewise; the cover image could be replaced silently.
+
+### Rollback compatibility (review round 2)
+
+The previous build reads only `articles.corrected` and `articles."correctionNote"`. Originally only corrections were
+mirrored there, so a rollback would have hidden every clarification and update. Now every publication rewrites the
+mirror with **all** published notices, oldest first, each as `Label (date): note` (`composeLegacyMirror`), and sets
+`corrected = true` whenever any notice exists. Tested against the actual previous build (`main` at `141cf9a`): the
+page shows the old banner and one "Correction Note" box containing every notice with its true label and date (run
+together in one paragraph). Limits of the old build, documented in the runbook: its generic banner wording; its
+autosave on live articles; its Review Studio checkbox overwrites the mirror (the corrections record is untouched and
+the next correction after roll-forward rewrites the mirror).
+
 ### Public presentation
 
 `src/components/article/ArticleCorrections.tsx` (server-rendered, no client JavaScript): one line near the top
@@ -119,7 +143,7 @@ back to the legacy note instead of failing.
 
 - Schema and migration: `prisma/schema.prisma`, `supabase/migrations/20261017120000_article_corrections.sql`,
   rollback `supabase/manual/20261017120000_article_corrections_rollback.sql`.
-- Domain: `src/lib/corrections/{types,validation,service,public,diff,http}.ts`, `src/lib/rbac.ts`.
+- Domain: `src/lib/corrections/{types,validation,service,public,diff,http,format}.ts`, `src/lib/rbac.ts`.
 - API: `src/app/api/editorial/articles/[id]/corrections/` (`GET`/`POST`, `[correctionId]` `PATCH`, `preview` `POST`).
 - Editorial UI: `src/app/editorial/(portal)/articles/[id]/corrections/page.tsx`,
   `src/components/editorial/corrections/*`, entry points in `ArticlesList`, `ReviewPanel`, the article editor.
@@ -131,18 +155,25 @@ back to the legacy note instead of failing.
 
 ## 4. Known limits
 
-- Permanently deleting an article (30-day trash purge, account deletion) removes its corrections with it. That is the
-  removal-from-the-record case below, not an ordinary editorial action.
+- **Permanent deletion removes the notices from the site.** Paths: "Delete permanently" in the trash, the automatic
+  30-day trash purge, and the three account-deletion routes (which delete every article of that account, published
+  ones included). The foreign key cascades so these keep working (the scheduler is unchanged); the trigger first copies
+  each published notice (type, note, date, approver) into `audit_logs` as `correction.removed_with_article`, so what
+  was said publicly survives internally. The policy now says a removed article's notes are removed with it.
+  Residual risk: deleting a staff account deletes their published articles; that predates this work and needs its own
+  decision.
 - A copy edit is a declaration by the editor; the system cannot judge meaning. It is confirmed, audited with full
   before/after text and listed on the Manage corrections page.
-- Changing a live article's **slug** in the editor still changes its URL (unchanged behaviour; outside this scope).
+- A slug can still be changed by unpublishing, renaming and republishing: two confirmed visibility changes, and the
+  rename is audited (`article.slug_changed`, with an `everPublished` hint). No redirect from the old address exists.
 - Re-publishing an unpublished article sets a new `publishedAt` (existing behaviour of the publish path).
 
 ## 5. Retraction and legal takedown: interaction and missing requirements
 
 Not built. Today an editor can only unpublish (article disappears, URL 404s, corrections retained and shown again if
-re-published) or trash it (purged after 30 days, with its corrections). The policy says that when an article is removed
-"we publish a note explaining why". The application has no way to do that: no tombstone page, no reason, no notice at
-the old URL. Requirements to decide separately: who may retract; whether the URL keeps a public notice (and its
+re-published) or trash it (purged after 30 days, with its corrections, which are archived to `audit_logs`). The policy
+used to promise a published note explaining every removal; it now says a removed article and its notes are no longer
+on the site, that the decision is explained to anyone who asks, and that a separate editor's note is published where
+appropriate (an ordinary article; no tombstone at the old URL). Requirements to decide separately: who may retract; whether the URL keeps a public notice (and its
 wording) or returns 410; whether the text is retained internally under legal hold (and excluded from the trash purge);
 how search engines, RSS and the sitemap treat it; whether corrections remain visible on a tombstone.

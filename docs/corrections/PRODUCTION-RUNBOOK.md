@@ -8,7 +8,7 @@ approval at the time. Production Supabase project: `scllbuwkcqtmfogsgalt` (eu-we
 | Layer | Change | Reversible by |
 |---|---|---|
 | Database | Migration `20261017120000_article_corrections.sql`: two enums, table `article_corrections`, constraints, one partial unique index, trigger `article_corrections_protect`, RLS on, legacy backfill (0 rows in production on 2026-10-17). Additive: no existing table, column or row is altered. | `supabase/manual/20261017120000_article_corrections_rollback.sql` |
-| Application | Manage corrections, public notices, policy text, closed bypasses (see `AUDIT-AND-DESIGN.md`) | Promoting the previous Vercel deployment |
+| Application | Manage corrections, public notices, policy text, closed bypasses, locked slug and byline on live articles (see `AUDIT-AND-DESIGN.md`) | Promoting the previous Vercel deployment (tested; see Rollback) |
 
 Scheduler, cron jobs, Vault secrets, `CRON_SECRET` / `PUBLISH_CRON_SECRET`, GitHub workflows and the Supabase GitHub
 integration settings are **not** touched.
@@ -84,11 +84,37 @@ legacy rows), no invented legacy dates, fingerprint identical to preflight.
 
 ## Rollback
 
-**Code only** (preferred, any time): promote the previous production deployment in Vercel. The old code ignores the
-table. Corrections published meanwhile stay in the table, and because publishing mirrors `corrected` /
-`correctionNote` on the article, the old page still shows a correction notice for them (the latest note only).
+### Code (preferred, any time)
 
-**Schema** (only after the code rollback, and only if needed):
+Promote the previous production deployment in Vercel. The previous build never reads `article_corrections`; it reads
+`articles.corrected` / `articles."correctionNote"`, which this code keeps describing **every** published notice.
+
+Tested on 2026-10-17 by running the previous build (`main` at `141cf9a`, isolated local stack) against a database with
+this migration and a correction, a clarification and an update written as this code writes them:
+
+- readers see the old banner ("Correction — This article has been updated since its original publication") and one
+  "Correction Note" box containing all three notices, each with its true label and date, run together in one paragraph;
+- the old build's save, Review Studio and permanent-delete paths all work with the new table and trigger present
+  (permanent delete archives the three notices in `audit_logs`).
+
+While rolled back, tell editors:
+
+1. **Do not use the old "Mark as corrected" control.** It overwrites the legacy note (the corrections record itself is
+   untouched). If a correction is urgent, record it in a shared note and issue it in Manage corrections after
+   roll-forward; publishing any correction then rewrites the legacy note from the record.
+2. **Live articles autosave again** on the old build. Avoid editing live articles until roll-forward.
+3. Corrections published before the rollback remain in the table and reappear in full after roll-forward.
+
+Before rolling back, list what readers will see in degraded form (read-only):
+
+```sql
+SELECT a.slug, string_agg(c.type::text, ', ' ORDER BY c."publishedAt") AS notices
+FROM article_corrections c JOIN articles a ON a.id = c."articleId"
+WHERE c.status = 'PUBLISHED' AND a.status = 'PUBLISHED' AND a."deletedAt" IS NULL
+GROUP BY a.slug;
+```
+
+### Schema (only after the code rollback, and only if needed)
 
 ```sql
 SELECT count(*) FILTER (WHERE NOT legacy) AS issued_in_app, count(*) AS total FROM article_corrections;
@@ -96,7 +122,8 @@ SELECT count(*) FILTER (WHERE NOT legacy) AS issued_in_app, count(*) AS total FR
 
 If `issued_in_app > 0`, these are real public records: export them first
 (`\copy (SELECT * FROM article_corrections ORDER BY "createdAt") TO 'article_corrections.csv' CSV HEADER`) and get the
-Editor-in-Chief's approval. Then run `supabase/manual/20261017120000_article_corrections_rollback.sql` and
+Editor-in-Chief's approval. The legacy columns keep every notice's text for the old build. Then run
+`supabase/manual/20261017120000_article_corrections_rollback.sql` and
 `supabase migration repair --status reverted 20261017120000 --db-url "$DB"`.
 
 ## Rehearsal evidence (2026-10-17, local, synthetic data)
@@ -110,7 +137,8 @@ synthetic 24-row registry:
 - verify: trigger enabled, RLS on, `anon` / `authenticated` cannot select, no invented legacy dates;
 - second apply: refused by the precondition, nothing changed;
 - trigger as `postgres`: `UPDATE` and `DELETE` of a published row refused; deleting the article cascades;
-- rollback file: committed, original article columns intact; re-apply after rollback: committed and verified.
+- rollback file: committed, original article columns intact; re-apply after rollback: committed and verified;
+- (round 2) deleting an article as `postgres` cascades and archives its published notice in `audit_logs`.
 
 Also on PostgreSQL 16: the migration applied to the pre-change schema and to a `prisma db push` of the new schema gives
 byte-identical structures, and re-running it is a no-op.

@@ -18,7 +18,9 @@ If in doubt between a copy edit and a correction, it is a correction.
 2. **New correction, clarification or update.**
 3. Choose the type.
 4. Record what the article said and what is correct. This is the internal record.
-5. Fix the article text in the editor on the page. "Your changes to the live article" shows exactly what will change.
+5. Fix the article text in the editor on the page. If the cover picture was wrong or misleading, replace it here; if
+   the article was credited to the wrong person, change the byline here. "Your changes to the live article" shows
+   exactly what will change.
 6. Write the public note. **Draft it from step 2** gives you the house wording to edit, for example:
    *An earlier version of this article stated that unemployment had risen to 5.2%. The correct figure was 4.8%. The
    article has been amended.*
@@ -50,7 +52,13 @@ current text first. Only one correction can await approval per article.
 ## Live articles in the editor
 
 A published article is no longer saved automatically. **Save changes** asks you to confirm that the change is a minor
-copy edit; anything else goes through Manage corrections.
+copy edit (spelling, punctuation, formatting, or a better version of the same picture); anything else goes through
+Manage corrections. The web address and the byline of a published article cannot be changed in the editor.
+
+## Removing an article
+
+Deleting an article permanently (from the trash, or automatically 30 days after it was trashed) also removes its
+correction notes from the site. Their text is kept in the internal audit log. The public policy says so.
 
 ## Writers
 
