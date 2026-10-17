@@ -197,3 +197,13 @@ describe('approval roles', () => {
     expect([...CORRECTION_APPROVAL_ROLES]).toEqual(['ADMIN'])
   })
 })
+
+describe('notification destinations', async () => {
+  const { destination } = await import('@/components/editorial/NotificationBell')
+  it('sends approvers to the pending correction, everyone else to the article', () => {
+    expect(destination({ type: 'correction_submitted', articleId: 'a1' })).toBe('/editorial/articles/a1/corrections')
+    expect(destination({ type: 'correction_published', articleId: 'a1' })).toBe('/editorial/articles/a1/edit')
+    expect(destination({ type: 'published_article_flag', articleId: 'a1' })).toBe('/editorial/articles/a1/edit')
+    expect(destination({ type: 'article_submitted', articleId: 'a1' })).toBe('/editorial/review/a1')
+  })
+})

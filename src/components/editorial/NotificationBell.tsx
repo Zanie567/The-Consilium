@@ -20,10 +20,11 @@ interface Notification {
   articleId: string | null
 }
 
-function destination(n: Notification): string {
-  return n.type === 'article_submitted'
-    ? `/editorial/review/${n.articleId}`
-    : `/editorial/articles/${n.articleId}/edit`
+export function destination(n: Pick<Notification, 'type' | 'articleId'>): string {
+  if (n.type === 'article_submitted') return `/editorial/review/${n.articleId}`
+  // Sent only to approvers: open the pending correction itself.
+  if (n.type === 'correction_submitted') return `/editorial/articles/${n.articleId}/corrections`
+  return `/editorial/articles/${n.articleId}/edit`
 }
 
 export function NotificationBell({ userId }: { userId: string }) {

@@ -8,6 +8,7 @@ import { ArticleImageUnavailableError, cleanupRemovedArticleImages, lockArticleI
 import { revalidateArticleLists } from '@/lib/revalidateArticles'
 import { CORRECTION_APPROVAL_ROLES, CORRECTION_PREPARE_ROLES, isAllowedRole } from '@/lib/rbac'
 import { withTransactionRetry } from '@/lib/transactionRetry'
+import { ARTICLE_SAVE_TIMEOUT_MS } from '@/lib/articleTags'
 import { CORRECTION_TYPE_LABELS, type CorrectionErrorCode, type CorrectionText } from './types'
 import { textChanged, type CorrectionDraftInput } from './validation'
 
@@ -47,6 +48,8 @@ export interface CorrectionActor {
 /** The application client (its `omit` configuration is part of the type). */
 type Db = typeof prisma
 type Tx = Prisma.TransactionClient
+// Same bound as an article save: a correction may wait briefly for a concurrent save's row lock.
+const TX_OPTIONS = { timeout: ARTICLE_SAVE_TIMEOUT_MS }
 
 const ARTICLE_FOR_CORRECTION = {
   id: true, title: true, slug: true, content: true, excerpt: true, coverImage: true, categoryId: true,
@@ -246,7 +249,7 @@ export async function prepareCorrection(
         return { correction: created, replayed: false, published: false, article: pick(article) }
       }
       return applyCorrection(tx, actor, article, created, input.text, options.requestId)
-    }))
+    }, TX_OPTIONS))
   } catch (error) {
     // A concurrent duplicate of this very request committed first: answer with its result.
     if (isUniqueViolation(error, 'requestKey')) {
@@ -291,7 +294,7 @@ export async function publishPendingCorrection(
       if (!text || !correction.baseVersion) throw new CorrectionError('VALIDATION_ERROR', 400, 'This correction has no prepared article text.')
       assertVersion(article, correction.baseVersion, true)
       return applyCorrection(tx, actor, article, correction, text, options.requestId)
-    }))
+    }, TX_OPTIONS))
   } catch (error) {
     if (error instanceof ArticleImageUnavailableError) throw new CorrectionError('IMAGE_UNAVAILABLE', 400, error.message)
     throw error
@@ -413,7 +416,7 @@ export async function revisePendingCorrection(
       data: { action: 'correction.revised', targetType: 'article', targetId: correction.articleId, performedBy: actor.id, metadata: { correctionId, requestId: options.requestId } },
     })
     return updated
-  }))
+  }, TX_OPTIONS))
 }
 
 export async function withdrawPendingCorrection(
@@ -433,7 +436,7 @@ export async function withdrawPendingCorrection(
       data: { action: 'correction.withdrawn', targetType: 'article', targetId: correction.articleId, performedBy: actor.id, metadata: { correctionId, requestId: options.requestId } },
     })
     return updated
-  }))
+  }, TX_OPTIONS))
 }
 
 // ── After the commit ─────────────────────────────────────────────────────────────────────────────

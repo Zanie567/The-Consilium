@@ -5,7 +5,20 @@
  * Also: the public page on a phone, in dark mode and in print; keyboard access to the notes.
  */
 import { test, expect, type Page } from '@playwright/test'
+import fs from 'node:fs'
+import path from 'node:path'
 import { ArticleEditorPage, closeDb, confirmDialog, db, removeMyArticles, signedIn, uniqueTitle } from './helpers/workflow'
+
+/** Evidence: attached to the report, and written to CORRECTIONS_EVIDENCE_DIR when set (lifecycle demonstration). */
+async function snap(page: Page, name: string) {
+  const image = await page.screenshot({ fullPage: true })
+  await test.info().attach(name, { body: image, contentType: 'image/png' })
+  const dir = process.env.CORRECTIONS_EVIDENCE_DIR
+  if (dir) {
+    fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(path.join(dir, `${test.info().project.name}-${name}.png`), image)
+  }
+}
 
 test.afterAll(async () => { await removeMyArticles(); await closeDb() })
 
@@ -41,6 +54,22 @@ test('an editor prepares, an administrator approves, readers see the dated corre
   const article = await syntheticArticle()
   const managePath = `/editorial/articles/${article.id}/corrections`
 
+  // ── 0. The writer flags a suspected error in their own live article (existing comment channel) ───
+  const writer = await signedIn(browser, 'writer')
+  const wp = await writer.newPage()
+  const wed = new ArticleEditorPage(wp)
+  await wed.openExisting(article.id)
+  await wed.select('5.2%')
+  await wp.getByRole('button', { name: 'Add comment', exact: true }).click()
+  await wp.getByPlaceholder('Add a comment...').fill('I think 5.2% is wrong: the ONS bulletin says 4.8%.')
+  const flagged = wp.waitForResponse((r) => r.url().endsWith(`/articles/${article.id}/comments`) && r.request().method() === 'POST')
+  await wp.getByRole('button', { name: 'Add comment', exact: true }).click()
+  expect((await flagged).status()).toBe(201)
+  await snap(wp, '0-writer-flags-error')
+  await writer.close()
+  const globalEditor = await db().user.findFirstOrThrow({ where: { email: 'editor@theconsilium.com' } })
+  expect(await db().notification.count({ where: { articleId: article.id, type: 'published_article_flag', userId: globalEditor.id } })).toBe(1)
+
   // ── 1. The editor finds the article and prepares a correction ────────────────────────────────────
   const editor = await signedIn(browser, 'editor')
   const ep = await editor.newPage()
@@ -68,6 +97,7 @@ test('an editor prepares, an administrator approves, readers see the dated corre
   await expect(preview.getByTestId('correction-notice')).toContainText('Correction')
   await expect(preview.getByTestId('corrections-section')).toContainText(note1)
   await expect(preview).not.toContainText('Internal: ONS')
+  await snap(ep, '1-editor-prepares-and-previews')
 
   // Editors cannot publish; they submit for approval, after an explicit confirmation.
   await expect(ep.getByRole('button', { name: /^Publish/ })).toHaveCount(0)
@@ -78,6 +108,7 @@ test('an editor prepares, an administrator approves, readers see the dated corre
   expect((await submitted).status()).toBe(201)
   await expect(ep.getByRole('status').filter({ hasText: 'Submitted for approval' })).toBeVisible()
   await expect(ep.getByTestId('pending-correction')).toContainText(note1)
+  await snap(ep, '2-editor-submitted-for-approval')
 
   // Nothing public has changed yet.
   const anon = await signedIn(browser, null)
@@ -95,6 +126,7 @@ test('an editor prepares, an administrator approves, readers see the dated corre
   const pending = ap.getByTestId('pending-correction')
   await expect(pending).toContainText('Internal: ONS labour market bulletin') // internal context is visible to staff
   await expect(pending.getByTestId('text-changes')).toContainText('4.8%')
+  await snap(ap, '3-admin-reviews-pending')
   await pending.getByRole('button', { name: 'Approve and publish…' }).click()
   await expect(confirmDialog(ap)).toContainText('permanent')
   const approved = ap.waitForResponse((r) => r.url().includes(`/api/editorial/articles/${article.id}/corrections/`) && r.request().method() === 'PATCH')
@@ -115,6 +147,7 @@ test('an editor prepares, an administrator approves, readers see the dated corre
   await expect(section.getByRole('link', { name: 'Read our corrections policy' })).toHaveAttribute('href', '/corrections')
   await expect(reader.getByText('1 September 2026').first()).toBeVisible() // original publication date unchanged
   await expect(reader.locator('body')).not.toContainText('Internal: ONS')
+  await snap(reader, '4-public-after-first-correction')
   const stored = await db().articleCorrection.findMany({ where: { articleId: article.id } })
   expect(stored).toHaveLength(1)
   expect(stored[0]).toMatchObject({ status: 'PUBLISHED', type: 'CORRECTION' })
@@ -153,6 +186,8 @@ test('an editor prepares, an administrator approves, readers see the dated corre
   await expect(items.nth(0)).toContainText(note1)
   await expect(items.nth(1)).toContainText(note2)
   await expect(reader.locator('#article-body')).toContainText('2.9%')
+  await snap(reader, '6-public-after-second-correction')
+  await snap(ap, '5-admin-history')
 
   // Phone width: the notice and notes stay readable without horizontal scrolling.
   await reader.setViewportSize({ width: 390, height: 844 })
@@ -161,12 +196,13 @@ test('an editor prepares, an administrator approves, readers see the dated corre
   await reader.getByTestId('corrections-section').scrollIntoViewIfNeeded()
   await expect(reader.getByTestId('corrections-section')).toBeVisible()
   expect(await reader.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
-  await test.info().attach('public-correction-mobile', { body: await reader.screenshot({ fullPage: true }), contentType: 'image/png' })
+  await snap(reader, '7-public-mobile')
 
   // Dark theme and print keep the notes visible.
   await reader.emulateMedia({ colorScheme: 'dark' })
   await reader.evaluate(() => document.documentElement.classList.add('dark'))
   await expect(reader.getByTestId('correction-notice')).toBeVisible()
+  await snap(reader, '8-public-mobile-dark')
   await reader.emulateMedia({ media: 'print', colorScheme: 'light' })
   await expect(reader.getByTestId('corrections-section')).toBeVisible()
   await expect(reader.getByTestId('correction-notice')).toBeVisible()
