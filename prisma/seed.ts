@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
 import { assertSeedTargetIsSafe } from '../scripts/lib/assertSafeTestDatabaseHost'
+import { isLoopbackDatabase, requireSeedPassword } from '../scripts/lib/seedCredentials'
 
 // May be run by hand against a real NON-production environment, so outside the test harness
 // (TEST_HARNESS=1, set by scripts/setup-test-db.sh) only the production project is refused.
@@ -265,6 +266,10 @@ const article4Content = doc(
 async function main() {
   console.log('Seeding database...')
 
+  const localTarget = isLoopbackDatabase(process.env.DIRECT_URL)
+  const adminPassword = localTarget ? 'consilium2024' : requireSeedPassword('admin')
+  const writerPassword = localTarget ? 'writer2024' : requireSeedPassword('writer')
+
   const categories = await Promise.all([
     prisma.category.upsert({
       where: { slug: 'news' },
@@ -290,27 +295,29 @@ async function main() {
 
   console.log('Categories:', categories.map((c: { name: string }) => c.name).join(', '))
 
-  const adminPassword = await bcrypt.hash('consilium2024', 10)
+  // The built-in fixture password only on a local database; elsewhere it comes from the environment and an existing
+  // account's password is never reset (scripts/lib/seedCredentials.ts).
+  const adminHash = await bcrypt.hash(adminPassword, 10)
   const admin = await prisma.user.upsert({
     where: { email: 'admin@theconsilium.com' },
-    update: { password: adminPassword },
+    update: localTarget ? { password: adminHash } : {},
     create: {
       name: 'The Consilium Admin',
       email: 'admin@theconsilium.com',
-      password: adminPassword,
+      password: adminHash,
       role: 'ADMIN',
       bio: 'Editor-in-Chief of The Consilium.',
     },
   })
 
-  const writerPassword = await bcrypt.hash('writer2024', 10)
+  const writerHash = await bcrypt.hash(writerPassword, 10)
   const writer = await prisma.user.upsert({
     where: { email: 'writer@theconsilium.com' },
     update: {},
     create: {
       name: 'Eleanor Hughes',
       email: 'writer@theconsilium.com',
-      password: writerPassword,
+      password: writerHash,
       role: 'WRITER',
       bio: 'Eleanor Hughes is a third-year Economics student at the University of Edinburgh, specialising in macroeconomic policy and international finance.',
     },
@@ -473,8 +480,8 @@ async function main() {
 
   console.log('Team:', teamData.map((m) => m.name).join(', '))
   console.log('\nSeeding complete.')
-  console.log('\nAdmin: admin@theconsilium.com / consilium2024')
-  console.log('Writer: writer@theconsilium.com / writer2024')
+  // Passwords are never printed.
+  console.log('Accounts: admin@theconsilium.com, writer@theconsilium.com' + (localTarget ? ' (local test fixtures)' : ' (passwords from the environment)'))
 }
 
 main()
