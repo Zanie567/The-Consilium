@@ -36,8 +36,9 @@ export default function CorrectionsPage() {
           <section>
             <h2>Accuracy</h2>
             <p>
-              Every article published in The Consilium is reviewed by an editor before publication.
-              We check facts, verify figures, and confirm the integrity of arguments. Despite these
+              Every article is checked before publication: pieces by our writers are reviewed and
+              approved by an editor, and our editors apply the same checks to their own work. We
+              check facts, verify figures, and confirm the integrity of arguments. Despite these
               efforts, errors occasionally occur: in statistics, in the spelling of names, in the
               attribution of quotes, or in matters of interpretation. When they do, we correct them.
             </p>
@@ -163,7 +164,8 @@ export default function CorrectionsPage() {
               example where continued publication would cause harm or where an article has been
               found to be substantially fabricated. A removed article is no longer available on the
               site, and neither are its correction notes. We will explain the decision to anyone who
-              asks and, where appropriate, publish a separate editor{"'"}s note.
+              asks, as far as privacy, confidentiality and our legal obligations allow, and, where
+              appropriate, publish a separate editor{"'"}s note.
             </p>
           </section>
 

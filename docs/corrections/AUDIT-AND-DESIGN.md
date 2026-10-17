@@ -153,6 +153,13 @@ back to the legacy note instead of failing.
   `src/components/admin/article-editor/*`, `src/app/api/articles/[id]/comments/route.ts`.
 - Deploy check: `src/lib/deploymentReadiness.ts` reports a missing `article_corrections_protect`.
 
+### Policy accuracy (review round 3)
+
+- "Every article ... is reviewed by an editor before publication" was not enforced: administrators and editors can
+  publish their own articles. It now reads: every article is checked before publication; writers' pieces are reviewed
+  and approved by an editor, and editors apply the same checks to their own work.
+- The promise to explain a removal to anyone who asks is qualified by privacy, confidentiality and legal obligations.
+
 ## 4. Known limits
 
 - **Permanent deletion removes the notices from the site.** Paths: "Delete permanently" in the trash, the automatic
@@ -173,7 +180,7 @@ back to the legacy note instead of failing.
 Not built. Today an editor can only unpublish (article disappears, URL 404s, corrections retained and shown again if
 re-published) or trash it (purged after 30 days, with its corrections, which are archived to `audit_logs`). The policy
 used to promise a published note explaining every removal; it now says a removed article and its notes are no longer
-on the site, that the decision is explained to anyone who asks, and that a separate editor's note is published where
+on the site, that the decision is explained to anyone who asks as far as privacy, confidentiality and legal obligations allow, and that a separate editor's note is published where
 appropriate (an ordinary article; no tombstone at the old URL). Requirements to decide separately: who may retract; whether the URL keeps a public notice (and its
 wording) or returns 410; whether the text is retained internally under legal hold (and excluded from the trash purge);
 how search engines, RSS and the sitemap treat it; whether corrections remain visible on a tombstone.
