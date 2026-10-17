@@ -19,7 +19,7 @@ const STATUS_LABEL: Record<string, string> = {
   PENDING_REVIEW: 'Pending Review',
   PUBLISHED: 'Published',
   SCHEDULED: 'Scheduled',
-  REJECTED: 'Rejected',
+  REJECTED: 'Revisions requested',
   ARCHIVED: 'Archived',
 }
 

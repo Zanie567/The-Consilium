@@ -126,7 +126,7 @@ export function ArticleEditorTopBar({ editor }: ArticleEditorTopBarProps) {
           className="shrink-0 inline-flex items-center gap-1 bg-amber-600 text-white text-[12px] font-semibold px-3 h-8 rounded hover:bg-amber-700 transition-colors disabled:opacity-50"
         >
           <Send size={12} />
-          Submit
+          {editor.currentStatus === 'REJECTED' ? 'Resubmit for review' : 'Submit'}
         </button>
       )}
 

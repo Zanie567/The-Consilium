@@ -1,4 +1,5 @@
 'use client'
+import { articleStatusLabel } from '@/lib/articleStatusLabel'
 
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
@@ -40,7 +41,7 @@ const STATUS_STYLE: Record<string, string> = {
   PENDING_REVIEW: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
   PUBLISHED: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
   SCHEDULED: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  REJECTED: 'bg-red-500/10 text-red-600 dark:text-red-400',
+  REJECTED: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
   ARCHIVED: 'bg-[var(--bg-subtle)] text-[var(--fg-faint)]',
 }
 
@@ -201,7 +202,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                 : 'bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--fg-muted)] hover:border-gold hover:text-gold'
             }`}
           >
-            {s === 'all' ? 'All' : s.replace('_', ' ')}
+            {s === 'all' ? 'All' : articleStatusLabel(s)}
             <span className="ml-1.5 opacity-60">
               {s === 'all'
                 ? articles.length
@@ -270,7 +271,7 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                   </td>
                   <td className="px-4 py-3">
                     <span className={`text-xs font-bold px-2 py-0.5 ${STATUS_STYLE[article.status] ?? ''}`}>
-                      {article.status.replace('_', ' ')}
+                      {articleStatusLabel(article.status)}
                     </span>
                     {article.status === 'SCHEDULED' && article.scheduledAt && (
                       <p className="text-[10px] text-blue-500 mt-0.5">

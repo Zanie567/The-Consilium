@@ -131,8 +131,8 @@ async function PATCHHandler(req: Request, { params }: Props) {
       }
       case 'return': {
         updates = { status: 'REJECTED', editorNote: note ?? null }
-        notifTitle = 'Article returned'
-        notifMessage = `Your article "${article.title}" has been returned with feedback.`
+        notifTitle = 'Revisions requested'
+        notifMessage = `An editor has requested revisions to your article "${article.title}". Review the feedback and resubmit it.`
         const authorEmail = article.author.email
         if (authorEmail && note) {
           sendPostCommitEmail = async () => {

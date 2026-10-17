@@ -117,7 +117,7 @@ test('review rejects stale page; commendation revision propagates to successful 
   const revision = (await saved.json()).updatedAt
   await page.getByPlaceholder('What needs to be revised?').fill('Please update the sources')
   const returned = page.waitForResponse(res => res.url().endsWith(`/${loaded.id}/review`) && res.request().method() === 'PATCH')
-  await page.getByRole('button', { name: 'Return to Writer' }).click()
+  await page.getByRole('button', { name: 'Request revisions' }).click()
   const result = await returned
   expect(result.status()).toBe(200)
   expect(result.request().postDataJSON().expectedUpdatedAt).toBe(revision)
