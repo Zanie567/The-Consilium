@@ -321,6 +321,12 @@ export function useArticleEditorController({
     return () => observer?.disconnect()
   }, [title, excerpt, titleDomRef, excerptDomRef])
 
+  // Refs only, so this reads the latest values whenever it is called.
+  const liveTextChanged = () =>
+    titleRef.current !== savedTextRef.current.title
+    || (excerptRef.current ?? '') !== (savedTextRef.current.excerpt ?? '')
+    || contentRef.current !== savedTextRef.current.content
+
   const performSave = useCallback((explicitStatus?: string, options: { copyEdit?: boolean } = {}): Promise<boolean> => {
     const requestedStatus = explicitStatus ?? currentStatusRef.current
     const requestNumber = ++saveRequestRef.current
@@ -350,6 +356,14 @@ export function useArticleEditorController({
         // server holds NOW, so one queued behind a publish sees whether it succeeded (and does
         // not revert it), and one queued behind a FAILED publish does not retry it.
         const finalStatus = explicitStatus ?? currentStatusRef.current
+        // An ordinary save queued while the article was a draft, that only runs once it is live (e.g. text typed
+        // while a publication was in flight): keep the text in this tab for an explicit, classified save rather
+        // than writing it to the live article unannounced.
+        if (!explicitStatus && !options.copyEdit && finalStatus === 'PUBLISHED' && liveTextChanged()) {
+          if (requestNumber === latestSaveRequestRef.current) setSaveStatus('idle')
+          persistLocalDraft()
+          return false
+        }
         if (finalStatus === 'SCHEDULED' && !scheduledAtRef.current) {
           throw new ApiError(
             'validation',
@@ -553,11 +567,6 @@ export function useArticleEditorController({
     scheduleAutosave()
     setContent(nextContent)
   }, [scheduleAutosave])
-
-  const liveTextChanged = () =>
-    titleRef.current !== savedTextRef.current.title
-    || (excerptRef.current ?? '') !== (savedTextRef.current.excerpt ?? '')
-    || contentRef.current !== savedTextRef.current.content
 
   const handleSave = async (explicitStatus?: string, options: { copyEdit?: boolean } = {}) => {
     // On a live article an ordinary save that changes the text must be declared a copy edit first.
