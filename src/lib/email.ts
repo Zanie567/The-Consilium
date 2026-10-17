@@ -110,11 +110,12 @@ export function articleSubmittedEmail(writerName: string, articleTitle: string, 
 
 export function articleReturnedEmail(articleTitle: string, editorNote: string, articleId: string) {
   return {
-    subject: `Your article has been returned: "${articleTitle}"`,
+    subject: `Revisions requested: "${articleTitle}"`,
     html: `
       <p>Hi,</p>
-      <p>Your article <strong>"${esc(articleTitle)}"</strong> has been returned to you with feedback:</p>
+      <p>An editor has requested revisions to your article <strong>"${esc(articleTitle)}"</strong>. Their feedback:</p>
       <blockquote style="border-left:3px solid #c9a227;padding:8px 16px;margin:16px 0;color:#555">${esc(editorNote)}</blockquote>
+      <p>Please review the feedback, make the necessary changes and resubmit your article for editorial review.</p>
       <p><a href="${process.env.NEXTAUTH_URL}/editorial/articles/${articleId}/edit">Open your article →</a></p>
       <p>The Consilium</p>
     `,

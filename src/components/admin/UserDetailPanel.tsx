@@ -1,4 +1,5 @@
 'use client'
+import { articleStatusLabel } from '@/lib/articleStatusLabel'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { format, formatDistanceToNow } from 'date-fns'
@@ -102,13 +103,13 @@ function ArticleStatusBadge({ status }: { status: string }) {
     PUBLISHED: 'bg-green-500/15 text-green-600',
     DRAFT: 'bg-[var(--border)] text-[var(--fg-faint)]',
     PENDING_REVIEW: 'bg-amber-500/15 text-amber-600',
-    REJECTED: 'bg-red-500/15 text-red-500',
+    REJECTED: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
     ARCHIVED: 'bg-navy/30 text-[var(--fg-faint)]',
     SCHEDULED: 'bg-blue-500/15 text-blue-500',
   }
   return (
     <span className={`text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 ${map[status] ?? ''}`}>
-      {status.replace('_', ' ')}
+      {articleStatusLabel(status)}
     </span>
   )
 }

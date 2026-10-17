@@ -1,4 +1,5 @@
 'use client'
+import { articleStatusLabel } from '@/lib/articleStatusLabel'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { format } from 'date-fns'
@@ -52,7 +53,7 @@ const STATUS_STYLE: Record<string, string> = {
   PENDING_REVIEW: 'bg-amber-500/10 text-amber-600',
   PUBLISHED: 'bg-emerald-500/10 text-emerald-600',
   SCHEDULED: 'bg-blue-500/10 text-blue-600',
-  REJECTED: 'bg-red-500/10 text-red-600',
+  REJECTED: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
   ARCHIVED: 'bg-[var(--bg-subtle)] text-[var(--fg-faint)]',
 }
 
@@ -522,7 +523,7 @@ export function UserProfileEditor({ user: initial, categories }: Props) {
                       </td>
                       <td className="px-4 py-3">
                         <span className={`text-[10px] font-bold px-2 py-0.5 ${STATUS_STYLE[a.status] ?? ''}`}>
-                          {a.status.replace('_', ' ')}
+                          {articleStatusLabel(a.status)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-[var(--fg-faint)] text-xs hidden md:table-cell">

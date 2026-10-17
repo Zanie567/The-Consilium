@@ -1,4 +1,5 @@
 'use client'
+import { articleStatusLabel } from '@/lib/articleStatusLabel'
 
 import { useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
@@ -311,10 +312,10 @@ export function ReviewPanel({ article }: Props) {
                     <button
                       onClick={() => act('return', { note: returnNote })}
                       disabled={loading !== null || !returnNote.trim()}
-                      className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 border border-red-500/50 px-4 py-3 text-xs font-bold uppercase tracking-widest text-red-500 disabled:opacity-60"
+                      className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 border border-amber-500/50 px-4 py-3 text-xs font-bold uppercase tracking-widest text-amber-700 dark:text-amber-400 disabled:opacity-60"
                     >
                       <RotateCcw size={14} />
-                      {loading === 'return' ? 'Returning...' : 'Return to Writer'}
+                      {loading === 'return' ? 'Requesting revisions...' : 'Request revisions'}
                     </button>
                   </Panel>
                 )}
@@ -429,8 +430,8 @@ function StatusPill({ status }: { status: string }) {
     PENDING_REVIEW: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
     PUBLISHED: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
     SCHEDULED: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-    REJECTED: 'bg-red-500/10 text-red-600 dark:text-red-400',
+    REJECTED: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
     ARCHIVED: 'bg-[var(--bg-subtle)] text-[var(--fg-faint)]',
   }
-  return <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${statusClass[status] ?? ''}`}>{status.replace('_', ' ')}</span>
+  return <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${statusClass[status] ?? ''}`}>{articleStatusLabel(status)}</span>
 }
