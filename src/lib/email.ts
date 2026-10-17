@@ -110,7 +110,7 @@ export function articleSubmittedEmail(writerName: string, articleTitle: string, 
 
 export function articleReturnedEmail(articleTitle: string, editorNote: string, articleId: string) {
   return {
-    subject: `Revisions requested: "${articleTitle}"`
+    subject: `Revisions requested: "${articleTitle}"`,
     html: `
       <p>Hi,</p>
       <p>An editor has requested revisions to your article <strong>"${esc(articleTitle)}"</strong>. Their feedback:</p>
