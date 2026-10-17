@@ -55,7 +55,8 @@ Database-enforced, not just application-enforced:
 - **Consistency.** CHECK constraints: a non-legacy row always has a preparer, a note (1–2000 characters), a base version,
   proposed text and a request key; a published non-legacy row always has a publication time, an approver and the
   before-text snapshot; only published rows have a publication time.
-- **One pending correction per article** (partial unique index).
+- **One pending correction per article**, and **one live amendment per published notice** (partial unique indexes;
+  a withdrawn amendment does not block a new one).
 - RLS on, no grants to `anon` / `authenticated`.
 
 The legacy columns are kept. Publishing a *correction* also sets `corrected = true` and copies the note into
