@@ -75,6 +75,7 @@ import { PATCH as reviewArticle } from '@/app/api/editorial/articles/[id]/review
 import { articleVersion } from '@/lib/articleVersion'
 import { loadPublicCorrections } from '@/lib/corrections/public'
 import { publishScheduledArticles } from '@/lib/scheduledPublishing'
+import { composeLegacyMirror } from '@/lib/corrections/format'
 
 let db: PrismaClient
 const tag = `corr-${Date.now()}`
@@ -193,8 +194,9 @@ suite('post-publication corrections (real PostgreSQL)', () => {
       status: 'PUBLISHED', publishedAt: PUBLISHED_AT, slug: article.slug, scheduledAt: null, isFeatured: false,
       isPinned: true, viewCount: 42, authorId: ids.writer, categoryId: ids.catB,
     })
-    // Rollback-compatibility mirror for an older build.
-    expect(row).toMatchObject({ corrected: true, correctionNote: body.correction.publicNote })
+    // Rollback-compatibility mirror for an older build: every published notice, labelled and dated.
+    expect(row).toMatchObject({ corrected: true, correctionNote: composeLegacyMirror([body.correction].map((c) => ({ ...c, publishedAt: new Date(c.publishedAt) }))) })
+    expect(row.correctionNote).toMatch(/^Correction \(\d{1,2} \w+ \d{4}\): An earlier version/)
     expect(await db.bookmark.count({ where: { articleId: article.id } })).toBe(1)
 
     const [c] = await corrections(article.id)
@@ -260,7 +262,9 @@ suite('post-publication corrections (real PostgreSQL)', () => {
     expect(clarification.status).toBe(201)
     const row = await db.article.findUniqueOrThrow({ where: { id: article.id } })
     expect(row.content).toBe(ORIGINAL)
-    expect(row.corrected).toBe(false)
+    // The legacy mirror carries the clarification with its true label, so a rollback would not lose it.
+    expect(row.corrected).toBe(true)
+    expect(row.correctionNote).toMatch(/^Clarification \(/)
     expect((await corrections(article.id))[0]).toMatchObject({ type: 'CLARIFICATION', status: 'PUBLISHED' })
 
     const update = await publishNow(article.id, {
@@ -544,9 +548,14 @@ suite('post-publication corrections (real PostgreSQL)', () => {
     // The API never offers to change a published record.
     expect((await patch(article.id, published.id, { action: 'withdraw', reason: 'x', expectedUpdatedAt: published.updatedAt })).body.code).toBe('CORRECTION_NOT_PENDING')
 
-    // Permanent deletion of the article itself (trash purge, account deletion) cascades.
+    // Permanent deletion of the article itself (trash purge, account deletion) cascades, but the public text of
+    // each published notice is kept in the internal audit log first.
     await db.article.delete({ where: { id: article.id } })
     expect(await db.articleCorrection.count({ where: { articleId: article.id } })).toBe(0)
+    const archived = await db.auditLog.findMany({ where: { targetId: article.id, action: 'correction.removed_with_article' } })
+    expect(archived).toHaveLength(1) // the published correction; the withdrawn one was never public
+    expect(archived[0]).toMatchObject({ performedBy: 'system:article-deletion', metadata: { correctionId: published.id, type: 'CORRECTION', publicNote: published.publicNote } })
+    await db.auditLog.deleteMany({ where: { targetId: article.id } })
   })
 
   it('a published note is amended by a superseding record, once; the original stays intact', async () => {
@@ -596,6 +605,88 @@ suite('post-publication corrections (real PostgreSQL)', () => {
     expect(res.status).toBe(409)
     expect(res.body.code).toBe('ARTICLE_CHANGED')
     expect((await db.article.findUniqueOrThrow({ where: { id: article.id } })).title).toBe(`${article.title} (copy edited)`)
+  })
+
+  // ── Rollback mirror, URL, byline and media ─────────────────────────────────────────────────────
+
+  it('the legacy mirror lists every published notice, oldest first, with its own label and date', async () => {
+    const article = await makeArticle()
+    await publishNow(article.id)
+    await publishNow(article.id, { type: 'CLARIFICATION', content: CORRECTED, correctedText: '', publicNote: 'Clarified: seasonally adjusted figure.' })
+    await publishNow(article.id, { type: 'UPDATE', content: CORRECTED, originalText: '', correctedText: '', publicNote: 'Updated with the October figures.' })
+    const row = await db.article.findUniqueOrThrow({ where: { id: article.id } })
+    const parts = row.correctionNote!.split('\n\n')
+    expect(parts).toHaveLength(3)
+    expect(parts[0]).toMatch(/^Correction \(.+\): An earlier version/)
+    expect(parts[1]).toBe(`Clarification (${parts[1].match(/\((.+?)\)/)![1]}): Clarified: seasonally adjusted figure.`)
+    expect(parts[2]).toMatch(/^Update \(.+\): Updated with the October figures\.$/)
+    expect(row.corrected).toBe(true)
+  })
+
+  it("a published article's web address is locked; other slug changes are audited", async () => {
+    const article = await makeArticle()
+    const loaded = await db.article.findUniqueOrThrow({ where: { id: article.id } })
+    const res = await saveArticle(req(`/api/articles/${article.id}`, 'PUT', { slug: `${article.slug}-renamed`, expectedUpdatedAt: loaded.updatedAt.toISOString() }), ctx(article.id))
+    expect(res.status).toBe(409)
+    expect((await res.json()).code).toBe('PUBLISHED_SLUG_LOCKED')
+    expect((await db.article.findUniqueOrThrow({ where: { id: article.id } })).slug).toBe(article.slug)
+    // Re-sending the same slug (what the editor does on every save) is fine.
+    expect((await saveArticle(req(`/api/articles/${article.id}`, 'PUT', { slug: article.slug, tags: [] }), ctx(article.id))).status).toBe(200)
+
+    const draftArticle = await makeArticle({ status: 'DRAFT', publishedAt: null })
+    const renamed = await saveArticle(req(`/api/articles/${draftArticle.id}`, 'PUT', { slug: `${draftArticle.slug}-renamed` }), ctx(draftArticle.id))
+    expect(renamed.status).toBe(200)
+    const audit = await db.auditLog.findFirstOrThrow({ where: { targetId: draftArticle.id, action: 'article.slug_changed' } })
+    expect(audit.metadata).toMatchObject({ before: draftArticle.slug, after: `${draftArticle.slug}-renamed`, status: 'DRAFT' })
+  })
+
+  it('a live byline cannot be changed by an ordinary save; a correction changes it atomically with its note', async () => {
+    const article = await makeArticle()
+    const loaded = await db.article.findUniqueOrThrow({ where: { id: article.id } })
+    const res = await saveArticle(req(`/api/articles/${article.id}`, 'PUT', { authorId: ids.editor, expectedUpdatedAt: loaded.updatedAt.toISOString(), editKind: 'COPY_EDIT' }), ctx(article.id))
+    expect(res.status).toBe(409)
+    expect((await res.json()).code).toBe('PUBLISHED_BYLINE_LOCKED')
+    expect((await db.article.findUniqueOrThrow({ where: { id: article.id } })).authorId).toBe(ids.writer)
+
+    const bad = await publishNow(article.id, { content: ORIGINAL, authorId: ids.reader, publicNote: 'Byline corrected.' })
+    expect(bad.status).toBe(400)
+    expect(bad.body.code).toBe('INVALID_AUTHOR')
+
+    const fixed = await publishNow(article.id, {
+      content: ORIGINAL, authorId: ids.editor, originalText: 'Byline: writer', correctedText: 'Byline: editor',
+      publicNote: 'An earlier version of this article was attributed to the wrong author.',
+    })
+    expect(fixed.status).toBe(201)
+    expect((await db.article.findUniqueOrThrow({ where: { id: article.id } })).authorId).toBe(ids.editor)
+    const [c] = await corrections(article.id)
+    expect(c.previous).toMatchObject({ authorId: ids.writer, authorName: `writer ${tag}` })
+    expect(c.proposed).toMatchObject({ authorId: ids.editor, authorName: `editor ${tag}` })
+    // Both the previous and the new author are told.
+    const told = await db.notification.findMany({ where: { articleId: article.id, type: 'correction_published' }, select: { userId: true } })
+    expect(told.map((t) => t.userId).sort()).toEqual([ids.editor, ids.writer].sort())
+  })
+
+  it('a live cover image changes only as a declared copy edit (audited) or through a correction', async () => {
+    const article = await makeArticle({ coverImage: '/images/original-cover.png' })
+    let loaded = await db.article.findUniqueOrThrow({ where: { id: article.id } })
+    const silent = await saveArticle(req(`/api/articles/${article.id}`, 'PUT', { coverImage: '/images/other.png', expectedUpdatedAt: loaded.updatedAt.toISOString() }), ctx(article.id))
+    expect(silent.status).toBe(409)
+    expect((await silent.json()).code).toBe('PUBLISHED_TEXT_CHANGE_UNCLASSIFIED')
+
+    const crop = await saveArticle(req(`/api/articles/${article.id}`, 'PUT', { coverImage: '/images/original-cover-cropped.png', editKind: 'COPY_EDIT', expectedUpdatedAt: loaded.updatedAt.toISOString() }), ctx(article.id))
+    expect(crop.status).toBe(200)
+    const audit = await db.auditLog.findFirstOrThrow({ where: { targetId: article.id, action: 'article.copy_edit' } })
+    expect(audit.metadata).toMatchObject({ fields: ['coverImage'], before: { coverImage: '/images/original-cover.png' }, after: { coverImage: '/images/original-cover-cropped.png' } })
+
+    loaded = await db.article.findUniqueOrThrow({ where: { id: article.id } })
+    const wrongPicture = await publishNow(article.id, {
+      type: 'CORRECTION', content: ORIGINAL, coverImage: '/images/correct-person.png',
+      originalText: 'Cover photo showed the wrong minister', correctedText: 'Replaced with the correct photo',
+      publicNote: 'An earlier version of this article was illustrated with a photograph of the wrong person.',
+    })
+    expect(wrongPicture.status).toBe(201)
+    expect((await db.article.findUniqueOrThrow({ where: { id: article.id } })).coverImage).toBe('/images/correct-person.png')
+    expect((await corrections(article.id))[0]).toMatchObject({ previous: { coverImage: '/images/original-cover-cropped.png' }, proposed: { coverImage: '/images/correct-person.png' } })
   })
 
   // ── Other editing paths ────────────────────────────────────────────────────────────────────────

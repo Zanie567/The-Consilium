@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { requirePortalRole } from '@/lib/portalAccess'
 import { prisma } from '@/lib/prisma'
 import { CORRECTION_PREPARE_ROLES } from '@/lib/rbac'
-import { CorrectionError, canApproveCorrections, loadArticleForCorrections, loadCorrectionHistory } from '@/lib/corrections/service'
+import { CorrectionError, canApproveCorrections, loadArticleForCorrections, loadAuthorOptions, loadCorrectionHistory } from '@/lib/corrections/service'
 import { CorrectionsManager, type ManagerData } from '@/components/editorial/corrections/CorrectionsManager'
 
 export const metadata: Metadata = {
@@ -29,16 +29,18 @@ export default async function ManageCorrectionsPage({ params }: Props) {
     if (error instanceof CorrectionError) notFound()
     throw error
   }
-  const history = await loadCorrectionHistory(prisma, id)
+  const [history, authors] = await Promise.all([loadCorrectionHistory(prisma, id), loadAuthorOptions(prisma)])
   const { article, version } = loaded
 
   const data: ManagerData = JSON.parse(JSON.stringify({
     article: {
       id: article.id, title: article.title, slug: article.slug, excerpt: article.excerpt, content: article.content,
+      coverImage: article.coverImage, authorId: article.authorId, authorName: article.author.name,
       status: article.status, publishedAt: article.publishedAt, updatedAt: article.updatedAt,
     },
     version,
     viewer: { id: user.id, canApprove: canApproveCorrections(user.role) },
+    authors,
     ...history,
   }))
 

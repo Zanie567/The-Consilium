@@ -57,7 +57,8 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
           label="Author"
           value={editor.selectedAuthorId}
           onChange={actions.setSelectedAuthorId}
-          disabled={!editor.canEdit}
+          disabled={!editor.canEdit || editor.isLive}
+          hint={editor.isLive ? 'A published byline is corrected through Manage corrections.' : undefined}
         >
           {editor.users.map((user) => (
             <option key={user.id} value={user.id}>
@@ -202,8 +203,13 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
             value={editor.slug}
             onChange={(event) => actions.setSlug(event.target.value)}
             placeholder="url-slug"
-            className="w-full h-8 text-[16px] sm:text-[11px] font-mono border border-[var(--border)] rounded px-2 bg-[var(--bg-elevated)] focus:outline-none focus:border-gold"
+            disabled={editor.isLive}
+            aria-describedby={editor.isLive ? 'slug-locked-hint' : undefined}
+            className="w-full h-8 text-[16px] sm:text-[11px] font-mono border border-[var(--border)] rounded px-2 bg-[var(--bg-elevated)] focus:outline-none focus:border-gold disabled:opacity-60"
           />
+          {editor.isLive && (
+            <p id="slug-locked-hint" className="text-[10px] text-[var(--fg-faint)] mt-1">The address of a published article is fixed so that existing links keep working.</p>
+          )}
         </div>
       )}
     </fieldset>
@@ -214,12 +220,14 @@ interface SelectFieldProps {
   children?: React.ReactNode
   disabled?: boolean
   hidden?: boolean
+  /** Short explanation under the field (e.g. why it is locked). */
+  hint?: string
   label: string
   onChange: (value: string) => void
   value?: string
 }
 
-function SelectField({ children, disabled, hidden, label, onChange, value }: SelectFieldProps) {
+function SelectField({ children, disabled, hidden, hint, label, onChange, value }: SelectFieldProps) {
   const id = useId()
   if (hidden) return null
 
@@ -232,12 +240,14 @@ function SelectField({ children, disabled, hidden, label, onChange, value }: Sel
           value={value}
           onChange={(event) => onChange(event.target.value)}
           disabled={disabled}
+          aria-describedby={hint ? `${id}-hint` : undefined}
           className="w-full h-8 text-[16px] sm:text-[12px] border border-[var(--border)] rounded px-2 pr-6 bg-[var(--bg-elevated)] focus:outline-none focus:border-gold appearance-none cursor-pointer disabled:opacity-60"
         >
           {children}
         </select>
         <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--fg-faint)] pointer-events-none" />
       </div>
+      {hint && <p id={`${id}-hint`} className="text-[10px] text-[var(--fg-faint)] mt-1">{hint}</p>}
     </div>
   )
 }

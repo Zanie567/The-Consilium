@@ -93,6 +93,9 @@ export interface TextVersion {
   title: string
   excerpt: string | null
   content: string
+  coverImage?: string | null
+  authorId?: string
+  authorName?: string | null
 }
 
 /** Everything that differs between two versions, with one unchanged passage of context either side. */
@@ -100,6 +103,13 @@ export function describeTextChanges(before: TextVersion, after: TextVersion) {
   const title = before.title !== after.title ? { before: before.title, after: after.title } : null
   const excerpt = (before.excerpt ?? '').trim() !== (after.excerpt ?? '').trim()
     ? { before: before.excerpt ?? '', after: after.excerpt ?? '' }
+    : null
+  // Cover image and byline are compared only when the later version states them (older snapshots may not).
+  const coverImage = after.coverImage !== undefined && (before.coverImage ?? null) !== (after.coverImage ?? null)
+    ? { before: before.coverImage ?? null, after: after.coverImage ?? null }
+    : null
+  const byline = after.authorId !== undefined && before.authorId !== undefined && before.authorId !== after.authorId
+    ? { before: before.authorName ?? before.authorId, after: after.authorName ?? after.authorId }
     : null
   const all = diffPassages(passagesOf(before.content), passagesOf(after.content))
   const keep = new Set<number>()
@@ -116,5 +126,5 @@ export function describeTextChanges(before: TextVersion, after: TextVersion) {
   })
   while (passages.at(-1)?.kind === 'gap') passages.pop()
   const changedPassages = all.filter((c) => c.kind !== 'same').length
-  return { title, excerpt, passages, changedPassages, changed: Boolean(title || excerpt || changedPassages) }
+  return { title, excerpt, coverImage, byline, passages, changedPassages, changed: Boolean(title || excerpt || coverImage || byline || changedPassages) }
 }

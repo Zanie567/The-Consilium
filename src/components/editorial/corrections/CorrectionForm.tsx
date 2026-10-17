@@ -16,6 +16,8 @@ import {
 } from '@/lib/corrections/types'
 import { suggestPublicNote, textChanged } from '@/lib/corrections/validation'
 import { TextChanges } from './TextChanges'
+import type { TextVersion } from '@/lib/corrections/diff'
+import { ARTICLE_IMAGE_TOO_LARGE_MESSAGE, MAX_ARTICLE_IMAGE_BYTES } from '@/lib/constants'
 import type { CorrectionRow, ManagerArticle, MutationResult } from './CorrectionsManager'
 
 const TiptapEditor = dynamic(
@@ -37,12 +39,17 @@ interface Fields {
   title: string
   excerpt: string
   content: string
+  /** Uploaded image URL, or '' for none. */
+  coverImage: string
+  authorId: string
 }
 
 interface Props {
   article: ManagerArticle
   version: string
   canApprove: boolean
+  /** Accounts a byline may name. */
+  authors: readonly { id: string; name: string | null; role: string }[]
   mode: FormMode
   published: readonly PublicCorrection[]
   onDone: (result: MutationResult) => void
@@ -65,7 +72,7 @@ export function staleProposal(version: string, mode: FormMode) {
   if (mode.kind !== 'revise' || !mode.correction.proposed || !mode.correction.baseVersion) return null
   if (mode.correction.baseVersion === version) return null
   const p = mode.correction.proposed
-  return { title: p.title, excerpt: p.excerpt ?? '', content: p.content }
+  return { title: p.title, excerpt: p.excerpt ?? '', content: p.content, coverImage: p.coverImage, authorId: p.authorId, authorName: p.authorName }
 }
 
 export function initialFields(article: ManagerArticle, version: string, mode: FormMode): Fields {
@@ -73,13 +80,13 @@ export function initialFields(article: ManagerArticle, version: string, mode: Fo
     const c = mode.correction
     // A proposal prepared against an older version is not reloaded as the text to submit: the form starts from
     // the current article and shows the proposal for reference, so nothing written since can be reverted.
-    const proposed = !staleProposal(version, mode) && c.proposed
-      ? c.proposed
-      : { title: article.title, excerpt: article.excerpt, content: article.content }
+    const current = { title: article.title, excerpt: article.excerpt, content: article.content, coverImage: article.coverImage, authorId: article.authorId }
+    const proposed = !staleProposal(version, mode) && c.proposed ? { ...current, ...c.proposed } : current
     return {
       type: c.type, originalText: c.originalText ?? '', correctedText: c.correctedText ?? '',
       publicNote: c.publicNote ?? '', internalNote: c.internalNote ?? '',
       title: proposed.title, excerpt: proposed.excerpt ?? '', content: proposed.content,
+      coverImage: proposed.coverImage ?? '', authorId: proposed.authorId ?? article.authorId,
     }
   }
   return {
@@ -88,6 +95,7 @@ export function initialFields(article: ManagerArticle, version: string, mode: Fo
     publicNote: mode.kind === 'amend' ? (mode.target.publicNote ?? '') : '',
     internalNote: '',
     title: article.title, excerpt: article.excerpt ?? '', content: article.content,
+    coverImage: article.coverImage ?? '', authorId: article.authorId,
   }
 }
 
@@ -110,7 +118,7 @@ export function initialBaseVersion(version: string, mode: FormMode): string {
   return mode.kind === 'revise' && mode.correction.baseVersion && !staleProposal(version, mode) ? mode.correction.baseVersion : version
 }
 
-export function CorrectionForm({ article, version, canApprove, mode, published, onDone, onCancel, onReload }: Props) {
+export function CorrectionForm({ article, version, canApprove, authors, mode, published, onDone, onCancel, onReload }: Props) {
   const key = draftKey(article.id, mode)
   const [fields, setFields] = useState<Fields>(() => initialFields(article, version, mode))
   const [restored, setRestored] = useState(false)
@@ -124,14 +132,17 @@ export function CorrectionForm({ article, version, canApprove, mode, published, 
   const [confirm, setConfirm] = useState<'publish' | 'submit' | null>(null)
   const [preview, setPreview] = useState<{ html: string; at: string } | null>(null)
   const [previewError, setPreviewError] = useState('')
-  const [staleText, setStaleText] = useState<{ title: string; excerpt: string; content: string } | null>(() => staleProposal(version, mode))
+  const [staleText, setStaleText] = useState<TextVersion | null>(() => staleProposal(version, mode))
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
   const submitting = useRef(false)
 
   // Bring back unsent work from this device (a failed save never loses the editor's text).
   useEffect(() => {
     const saved = readDraft(key)
     if (saved) {
-      setFields(saved.fields)
+      // Merge over the starting fields: a draft saved before a field existed must not read as "clear it".
+      setFields((current) => ({ ...current, ...saved.fields }))
       setBaseVersion(saved.baseVersion)
       setEditorKey((k) => k + 1)
       setRestored(true)
@@ -151,8 +162,15 @@ export function CorrectionForm({ article, version, canApprove, mode, published, 
   }, [])
 
   const isAmendment = mode.kind === 'amend' || (mode.kind === 'revise' && Boolean(mode.correction.supersedesId))
-  const proposedText = { title: fields.title.trim(), excerpt: fields.excerpt.trim() ? fields.excerpt : null, content: fields.content }
-  const liveText = { title: baseArticle.title, excerpt: baseArticle.excerpt, content: baseArticle.content }
+  const nameOf = (id: string) => authors.find((a) => a.id === id)?.name ?? (id === baseArticle.authorId ? baseArticle.authorName : null)
+  const proposedText = {
+    title: fields.title.trim(), excerpt: fields.excerpt.trim() ? fields.excerpt : null, content: fields.content,
+    coverImage: fields.coverImage || null, authorId: fields.authorId, authorName: nameOf(fields.authorId),
+  }
+  const liveText = {
+    title: baseArticle.title, excerpt: baseArticle.excerpt, content: baseArticle.content,
+    coverImage: baseArticle.coverImage, authorId: baseArticle.authorId, authorName: baseArticle.authorName,
+  }
   const hasTextChange = textChanged(liveText, proposedText)
 
   const validate = (): string => {
@@ -181,6 +199,24 @@ export function CorrectionForm({ article, version, canApprove, mode, published, 
     }
   }
 
+  const uploadCover = async (file: File) => {
+    setUploadError('')
+    if (file.size > MAX_ARTICLE_IMAGE_BYTES) { setUploadError(ARTICLE_IMAGE_TOO_LARGE_MESSAGE); return }
+    setUploading(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      form.append('bucket', 'article-images')
+      const data = await apiRequest<{ url?: string }>('/api/upload', { method: 'POST', body: form })
+      if (!data.url) throw new Error('The upload returned no image address.')
+      set('coverImage', data.url)
+    } catch (reason) {
+      setUploadError(asApiError(reason).message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const ask = (intent: 'publish' | 'submit') => {
     const problem = validate()
     setLocalError(problem)
@@ -202,6 +238,8 @@ export function CorrectionForm({ article, version, canApprove, mode, published, 
       title: proposedText.title,
       excerpt: proposedText.excerpt,
       content: proposedText.content,
+      coverImage: proposedText.coverImage,
+      authorId: proposedText.authorId,
       baseVersion,
       supersedesId: mode.kind === 'amend' ? mode.target.id : mode.kind === 'revise' ? mode.correction.supersedesId : null,
     }
@@ -233,10 +271,10 @@ export function CorrectionForm({ article, version, canApprove, mode, published, 
     const fresh = await onReload()
     if (!fresh) return
     // Keep the editor's amendment for reference, then start again from the current text.
-    setStaleText({ title: fields.title, excerpt: fields.excerpt, content: fields.content })
+    setStaleText({ title: fields.title, excerpt: fields.excerpt, content: fields.content, coverImage: fields.coverImage || null, authorId: fields.authorId, authorName: nameOf(fields.authorId) })
     setBaseArticle(fresh)
     setBaseVersion(fresh.version)
-    setFields((current) => ({ ...current, title: fresh.title, excerpt: fresh.excerpt ?? '', content: fresh.content }))
+    setFields((current) => ({ ...current, title: fresh.title, excerpt: fresh.excerpt ?? '', content: fresh.content, coverImage: fresh.coverImage ?? '', authorId: fresh.authorId }))
     setEditorKey((k) => k + 1)
     setError(null)
     setPreview(null)
@@ -337,6 +375,30 @@ export function CorrectionForm({ article, version, canApprove, mode, published, 
             <Field label="Standfirst">
               <textarea value={fields.excerpt} onChange={(e) => set('excerpt', e.target.value)} rows={2} maxLength={CORRECTION_LIMITS.excerpt} className={inputClass} />
             </Field>
+            <Field label="Byline" hint="Change only if the article was attributed to the wrong person.">
+              <select value={fields.authorId} onChange={(e) => set('authorId', e.target.value)} className={inputClass}>
+                {!authors.some((a) => a.id === fields.authorId) && <option value={fields.authorId}>{nameOf(fields.authorId) ?? 'Current author'}</option>}
+                {authors.map((a) => <option key={a.id} value={a.id}>{a.name ?? a.id}</option>)}
+              </select>
+            </Field>
+            <div>
+              <p className={labelClass}>Cover image</p>
+              <div className="flex flex-wrap items-center gap-3">
+                {fields.coverImage
+                  // eslint-disable-next-line @next/next/no-img-element -- internal preview of an uploaded image
+                  ? <img src={fields.coverImage} alt="Current cover image" className="h-20 w-32 border border-[var(--border)] object-cover" />
+                  : <span className="text-xs text-[var(--fg-faint)]">No cover image</span>}
+                <label className="cursor-pointer text-xs font-semibold text-gold hover:underline">
+                  {uploading ? 'Uploading…' : 'Replace image'}
+                  <input type="file" accept="image/*" className="sr-only" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void uploadCover(f) }} />
+                </label>
+                {fields.coverImage && (
+                  <button type="button" onClick={() => set('coverImage', '')} className="text-xs text-[var(--fg-faint)] hover:text-red-500">Remove</button>
+                )}
+              </div>
+              {uploadError && <p role="alert" className="mt-1 text-xs text-red-500">{uploadError}</p>}
+              <p className="mt-1 text-[11px] text-[var(--fg-faint)]">Replace the picture here when it was wrong or misleading, so the change and the note are published together.</p>
+            </div>
             <div>
               <p className={labelClass}>Article text</p>
               <div className="border border-[var(--border)]">
@@ -401,8 +463,13 @@ export function CorrectionForm({ article, version, canApprove, mode, published, 
               <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-gold/70">Preview: as readers will see it</p>
               <div className="mx-auto max-w-[680px]">
                 <CorrectionNotice corrections={previewCorrections} />
+                {proposedText.coverImage && (
+                  // eslint-disable-next-line @next/next/no-img-element -- preview of the uploaded cover image
+                  <img src={proposedText.coverImage} alt="" className="mb-6 max-h-72 w-full object-cover" />
+                )}
                 <h3 className="mb-4 text-3xl font-extrabold leading-tight text-[var(--fg)]" style={{ fontFamily: 'var(--font-serif)' }}>{proposedText.title}</h3>
                 {proposedText.excerpt && <p className="mb-6 border-l-[3px] border-gold pl-5 text-lg italic text-[var(--fg-muted)]">{proposedText.excerpt}</p>}
+                {proposedText.authorName && <p className="mb-6 text-sm font-semibold text-[var(--fg)]">{proposedText.authorName}</p>}
                 {/* Sanitised by the same server renderer as the public article page. */}
                 <div className="prose-consilium" dangerouslySetInnerHTML={{ __html: preview.html }} />
                 <CorrectionsSection corrections={previewCorrections} />

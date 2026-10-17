@@ -82,6 +82,15 @@ export function parseCorrectionDraft(body: unknown): ParseResult<CorrectionDraft
   const altError = figureAltError(b.content)
   if (altError) return { ok: false, error: altError }
 
+  // Cover image: an uploaded image URL, or empty/null to remove it. Omitted means "unchanged".
+  let coverImage: string | null | undefined
+  if (b.coverImage === undefined) coverImage = undefined
+  else if (b.coverImage === null || b.coverImage === '') coverImage = null
+  else if (typeof b.coverImage === 'string' && b.coverImage.length <= CORRECTION_LIMITS.coverImage && /^(https?:\/\/|\/)/.test(b.coverImage.trim())) coverImage = b.coverImage.trim()
+  else return { ok: false, error: 'The cover image must be an uploaded image address.' }
+  // Byline: the id of an author account (checked against the database by the service). Omitted means "unchanged".
+  if (b.authorId !== undefined && (typeof b.authorId !== 'string' || !b.authorId)) return { ok: false, error: 'Choose the author for the byline.' }
+
   if (typeof b.baseVersion !== 'string' || !VERSION.test(b.baseVersion)) {
     return { ok: false, error: 'This form does not say which version of the article it was prepared from. Reload and try again.' }
   }
@@ -97,7 +106,11 @@ export function parseCorrectionDraft(body: unknown): ParseResult<CorrectionDraft
       originalText: originalText.value,
       correctedText: correctedText.value,
       internalNote: internalNote.value,
-      text: { title: b.title.trim(), excerpt, content: b.content },
+      text: {
+        title: b.title.trim(), excerpt, content: b.content,
+        ...(coverImage !== undefined ? { coverImage } : {}),
+        ...(typeof b.authorId === 'string' ? { authorId: b.authorId } : {}),
+      },
       baseVersion: b.baseVersion,
       supersedesId: typeof b.supersedesId === 'string' ? b.supersedesId : null,
     },
@@ -120,11 +133,13 @@ export function parseRevision(value: unknown): Date | null {
 
 const normaliseExcerpt = (excerpt: string | null | undefined) => (excerpt ?? '').trim()
 
-/** True when the proposed reader-facing text differs from what is live. */
+/** True when the proposed reader-facing fields differ from what is live (cover and byline only when proposed). */
 export function textChanged(current: CorrectionText, proposed: CorrectionText): boolean {
   return current.title !== proposed.title
     || normaliseExcerpt(current.excerpt) !== normaliseExcerpt(proposed.excerpt)
     || current.content !== proposed.content
+    || (proposed.coverImage !== undefined && (current.coverImage ?? null) !== (proposed.coverImage ?? null))
+    || (proposed.authorId !== undefined && current.authorId !== proposed.authorId)
 }
 
 /**

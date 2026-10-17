@@ -15,7 +15,7 @@ import {
 import { CorrectionForm, type FormMode } from './CorrectionForm'
 import { TextChanges } from './TextChanges'
 
-interface StoredText { title: string; excerpt: string | null; content: string }
+interface StoredText { title: string; excerpt: string | null; content: string; coverImage?: string | null; authorId?: string; authorName?: string | null }
 
 export interface CorrectionRow {
   id: string
@@ -47,6 +47,9 @@ export interface ManagerArticle {
   slug: string
   excerpt: string | null
   content: string
+  coverImage: string | null
+  authorId: string
+  authorName: string | null
   status: string
   publishedAt: string | null
   updatedAt: string
@@ -56,6 +59,8 @@ export interface ManagerData {
   article: ManagerArticle
   version: string
   viewer: { id: string; canApprove: boolean }
+  /** Accounts a byline may name. */
+  authors: { id: string; name: string | null; role: string }[]
   corrections: CorrectionRow[]
   copyEdits: { id: string; createdAt: string; editorName: string; fields: string[] }[]
 }
@@ -144,7 +149,7 @@ export function CorrectionsManager({ initialData }: { initialData: ManagerData }
   }
 
   const canChangePending = pending && (viewer.canApprove || pending.createdById === viewer.id)
-  const liveText = { title: article.title, excerpt: article.excerpt, content: article.content }
+  const liveText = { title: article.title, excerpt: article.excerpt, content: article.content, coverImage: article.coverImage, authorId: article.authorId, authorName: article.authorName }
 
   return (
     <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
@@ -264,6 +269,7 @@ export function CorrectionsManager({ initialData }: { initialData: ManagerData }
             article={article}
             version={data.version}
             canApprove={viewer.canApprove}
+            authors={data.authors}
             mode={mode}
             published={published}
             onCancel={() => setMode(null)}

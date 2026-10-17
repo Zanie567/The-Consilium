@@ -207,3 +207,50 @@ describe('notification destinations', async () => {
     expect(destination({ type: 'article_submitted', articleId: 'a1' })).toBe('/editorial/review/a1')
   })
 })
+
+describe('legacy mirror (read only by an older build after a rollback)', async () => {
+  const { composeLegacyMirror } = await import('@/lib/corrections/format')
+  it('keeps every notice with its own label and date, including an undated legacy note', () => {
+    expect(composeLegacyMirror([
+      { type: 'CORRECTION', publicNote: 'Old note', publishedAt: null },
+      { type: 'CLARIFICATION', publicNote: ' Context added. ', publishedAt: new Date('2026-10-16T09:00:00Z') },
+      { type: 'UPDATE', publicNote: 'New figures.', publishedAt: '2026-10-16T23:30:00.000Z' },
+    ])).toBe('Correction (date not recorded): Old note\n\nClarification (16 October 2026): Context added.\n\nUpdate (17 October 2026): New figures.')
+  })
+  it('says when an old note had no text, and is empty when there are no notices', () => {
+    expect(composeLegacyMirror([{ type: 'CORRECTION', publicNote: null, publishedAt: null }])).toContain('were not recorded')
+    expect(composeLegacyMirror([])).toBeNull()
+  })
+})
+
+describe('change summary for cover image and byline', () => {
+  const base = { title: 'T', excerpt: null, content: doc('a'), coverImage: '/a.png', authorId: 'u1', authorName: 'Ada' }
+  it('reports a replaced cover image and a changed byline', () => {
+    const changes = describeTextChanges(base, { ...base, coverImage: '/b.png', authorId: 'u2', authorName: 'Ben' })
+    expect(changes.coverImage).toEqual({ before: '/a.png', after: '/b.png' })
+    expect(changes.byline).toEqual({ before: 'Ada', after: 'Ben' })
+    expect(changes.changed).toBe(true)
+  })
+  it('ignores cover and byline when the later snapshot does not state them (older rows)', () => {
+    const changes = describeTextChanges(base, { title: 'T', excerpt: null, content: doc('a') })
+    expect(changes.changed).toBe(false)
+  })
+  it('textChanged treats a cover or byline change as a change, and omitted ones as unchanged', () => {
+    expect(textChanged(base, { ...base, coverImage: null })).toBe(true)
+    expect(textChanged(base, { ...base, authorId: 'u2' })).toBe(true)
+    expect(textChanged(base, { title: 'T', excerpt: null, content: doc('a') })).toBe(false)
+  })
+})
+
+describe('cover image and byline parsing', () => {
+  it('accepts an uploaded image address or removal, and refuses anything else', () => {
+    expect(parseCorrectionDraft({ ...valid, coverImage: 'https://cdn.test/a.png' }).ok).toBe(true)
+    expect(parseCorrectionDraft({ ...valid, coverImage: '/team/a.png' }).ok).toBe(true)
+    const removed = parseCorrectionDraft({ ...valid, coverImage: '' })
+    expect(removed.ok && removed.value.text.coverImage).toBeNull()
+    expect(parseCorrectionDraft({ ...valid, coverImage: 'javascript:alert(1)' }).ok).toBe(false)
+    expect(parseCorrectionDraft({ ...valid, authorId: '' }).ok).toBe(false)
+    const omitted = parseCorrectionDraft(valid)
+    expect(omitted.ok && 'coverImage' in omitted.value.text).toBe(false)
+  })
+})

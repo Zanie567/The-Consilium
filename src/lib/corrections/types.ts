@@ -36,15 +36,23 @@ export const CORRECTION_LIMITS = {
   withdrawnReason: 1000,
   title: 300,
   excerpt: 1000,
+  coverImage: 2000,
   // Article bodies are TipTap JSON; generous, but bounded before any transaction opens.
   content: 2_000_000,
 } as const
 
-/** The text a correction amends: exactly the reader-facing fields of the article. */
+/**
+ * What a correction amends: the reader-facing fields of the article. `coverImage` and `authorId` are optional
+ * in stored snapshots (a row written before they were added leaves them out, meaning "unchanged"); the form
+ * always sends them. `authorName` is a display snapshot only, never applied.
+ */
 export interface CorrectionText {
   title: string
   excerpt: string | null
   content: string
+  coverImage?: string | null
+  authorId?: string
+  authorName?: string | null
 }
 
 /** What a reader sees for one published notice. No internal fields, ever. */
@@ -73,3 +81,4 @@ export type CorrectionErrorCode =
   | 'DUPLICATE_REQUEST'
   | 'NO_TEXT_CHANGE'
   | 'IMAGE_UNAVAILABLE'
+  | 'INVALID_AUTHOR'

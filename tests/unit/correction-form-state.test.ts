@@ -6,6 +6,7 @@ import type { CorrectionRow, ManagerArticle } from '@/components/editorial/corre
 
 const article: ManagerArticle = {
   id: 'a', title: 'Current title', slug: 'a', excerpt: 'Current standfirst', content: 'CURRENT',
+  coverImage: '/current.png', authorId: 'author-1', authorName: 'Author One',
   status: 'PUBLISHED', publishedAt: null, updatedAt: '2026-10-17T00:00:00.000Z',
 }
 const pending = (baseVersion: string): CorrectionRow => ({
@@ -30,7 +31,8 @@ describe('revising a pending correction', () => {
       publicNote: 'Note', originalText: 'was', correctedText: 'is', internalNote: 'evidence',
     })
     expect(initialBaseVersion('v2', mode)).toBe('v2')
-    expect(staleProposal('v2', mode)).toEqual({ title: 'Proposed title', excerpt: '', content: 'PROPOSED' })
+    expect(staleProposal('v2', mode)).toMatchObject({ title: 'Proposed title', excerpt: '', content: 'PROPOSED' })
+    expect(initialFields(article, 'v2', mode)).toMatchObject({ coverImage: '/current.png', authorId: 'author-1' })
   })
 
   it('a new correction always starts from the live article and version', () => {

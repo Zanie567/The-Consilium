@@ -22,7 +22,8 @@
 --     (partial unique indexes);
 --   * trigger article_corrections_protect: PUBLISHED and WITHDRAWN rows are permanent (no UPDATE), and no
 --     row can be deleted directly. The only deletion allowed is the cascade when the article itself is
---     permanently deleted (trash purge, account deletion), which removes the article from the record;
+--     permanently deleted (trash purge, "delete permanently", account deletion); each published notice removed
+--     that way is first copied into audit_logs ('correction.removed_with_article') so its public text survives;
 --   * RLS on, no grants to anon/authenticated (the app connects as the table owner, as for every table);
 --   * a backfill of legacy single-note corrections (articles.corrected = true) as PUBLISHED rows with
 --     legacy = true and "publishedAt" NULL, because the real correction date was never stored and must
@@ -132,6 +133,21 @@ BEGIN
     -- Inside the FK cascade from deleting the article the nesting depth is 2 (the RI trigger on
     -- articles runs this DELETE). A direct DELETE runs at depth 1 and is refused.
     IF pg_trigger_depth() > 1 THEN
+      -- The article itself is being permanently deleted (trash purge, "delete permanently", account deletion).
+      -- The site stops showing its notices, but what was said publicly is kept in the internal audit log.
+      IF OLD."status" = 'PUBLISHED' THEN
+        INSERT INTO audit_logs ("id", "action", "targetId", "targetType", "performedBy", "metadata", "createdAt")
+        VALUES (
+          'corr_del_' || OLD.id || '_' || md5(clock_timestamp()::text),
+          'correction.removed_with_article', OLD."articleId", 'article', 'system:article-deletion',
+          jsonb_build_object(
+            'correctionId', OLD.id, 'type', OLD."type", 'publicNote', OLD."publicNote",
+            'publishedAt', OLD."publishedAt", 'legacy', OLD."legacy", 'approvedByName', OLD."approvedByName",
+            'supersedesId', OLD."supersedesId"
+          ),
+          CURRENT_TIMESTAMP
+        );
+      END IF;
       RETURN OLD;
     END IF;
     RAISE EXCEPTION 'CORRECTION_RECORD_PROTECTED: correction % cannot be deleted; withdraw a pending correction instead', OLD.id

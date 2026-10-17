@@ -6,7 +6,8 @@ import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 import { ArticleImageUnavailableError, cleanupRemovedArticleImages, lockArticleImages } from '@/lib/articleImageStorage'
 import { revalidateArticleLists } from '@/lib/revalidateArticles'
-import { CORRECTION_APPROVAL_ROLES, CORRECTION_PREPARE_ROLES, isAllowedRole } from '@/lib/rbac'
+import { ARTICLE_MUTATION_ROLES, CORRECTION_APPROVAL_ROLES, CORRECTION_PREPARE_ROLES, isAllowedRole } from '@/lib/rbac'
+import { composeLegacyMirror } from './format'
 import { withTransactionRetry } from '@/lib/transactionRetry'
 import { ARTICLE_SAVE_TIMEOUT_MS } from '@/lib/articleTags'
 import { CORRECTION_TYPE_LABELS, type CorrectionErrorCode, type CorrectionText } from './types'
@@ -54,6 +55,7 @@ const TX_OPTIONS = { timeout: ARTICLE_SAVE_TIMEOUT_MS }
 const ARTICLE_FOR_CORRECTION = {
   id: true, title: true, slug: true, content: true, excerpt: true, coverImage: true, categoryId: true,
   authorId: true, status: true, scheduledAt: true, deletedAt: true, publishedAt: true, updatedAt: true,
+  author: { select: { name: true } },
   tags: { select: { tag: { select: { name: true } } } },
 } satisfies Prisma.ArticleSelect
 
@@ -63,18 +65,40 @@ export function currentArticleVersion(article: LoadedArticle): string {
   return articleVersion(article, article.tags.map((t) => t.tag.name))
 }
 
-function textOf(article: Pick<LoadedArticle, 'title' | 'excerpt' | 'content'>): CorrectionText {
-  return { title: article.title, excerpt: article.excerpt, content: article.content }
+function textOf(article: Pick<LoadedArticle, 'title' | 'excerpt' | 'content' | 'coverImage' | 'authorId' | 'author'>): CorrectionText {
+  return {
+    title: article.title, excerpt: article.excerpt, content: article.content,
+    coverImage: article.coverImage, authorId: article.authorId, authorName: article.author.name,
+  }
 }
 
 export function parseStoredText(value: Prisma.JsonValue | null): CorrectionText | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const v = value as Record<string, unknown>
   if (typeof v.title !== 'string' || typeof v.content !== 'string') return null
-  return { title: v.title, content: v.content, excerpt: typeof v.excerpt === 'string' ? v.excerpt : null }
+  return {
+    title: v.title, content: v.content, excerpt: typeof v.excerpt === 'string' ? v.excerpt : null,
+    ...('coverImage' in v ? { coverImage: typeof v.coverImage === 'string' ? v.coverImage : null } : {}),
+    ...(typeof v.authorId === 'string' ? { authorId: v.authorId } : {}),
+    ...(typeof v.authorName === 'string' ? { authorName: v.authorName } : {}),
+  }
 }
 
-const toJson = (text: CorrectionText): Prisma.InputJsonValue => ({ title: text.title, excerpt: text.excerpt, content: text.content })
+const toJson = (text: CorrectionText): Prisma.InputJsonValue => ({
+  title: text.title, excerpt: text.excerpt, content: text.content,
+  ...(text.coverImage !== undefined ? { coverImage: text.coverImage } : {}),
+  ...(text.authorId !== undefined ? { authorId: text.authorId, authorName: text.authorName ?? null } : {}),
+})
+
+/** A byline may name only an active, unbanned account that can author articles. Returns the name snapshot. */
+async function assertValidAuthor(tx: Tx, text: CorrectionText): Promise<CorrectionText> {
+  if (text.authorId === undefined) return text
+  const author = await tx.user.findUnique({ where: { id: text.authorId }, select: { name: true, role: true, isActive: true, isBanned: true } })
+  if (!author || !author.isActive || author.isBanned || !isAllowedRole(author.role, ARTICLE_MUTATION_ROLES)) {
+    throw new CorrectionError('INVALID_AUTHOR', 400, 'The byline must name an active writer, editor or administrator.')
+  }
+  return { ...text, authorName: author.name }
+}
 
 // ── Access ───────────────────────────────────────────────────────────────────────────────────────
 
@@ -224,6 +248,7 @@ export async function prepareCorrection(
         )
       }
 
+      const text = await assertValidAuthor(tx, input.text)
       const created = await tx.articleCorrection.create({
         data: {
           articleId,
@@ -234,7 +259,7 @@ export async function prepareCorrection(
           correctedText: input.correctedText,
           internalNote: input.internalNote,
           baseVersion: input.baseVersion,
-          proposed: toJson(input.text),
+          proposed: toJson(text),
           supersedesId: input.supersedesId,
           requestKey: options.requestKey,
           createdById: actor.id,
@@ -251,7 +276,7 @@ export async function prepareCorrection(
       if (!options.publishNow) {
         return { correction: created, replayed: false, published: false, article: pick(article) }
       }
-      return applyCorrection(tx, actor, article, created, input.text, options.requestId)
+      return applyCorrection(tx, actor, article, created, text, options.requestId)
     }, TX_OPTIONS))
   } catch (error) {
     // A concurrent duplicate of this very request committed first: answer with its result.
@@ -296,7 +321,7 @@ export async function publishPendingCorrection(
       const text = parseStoredText(correction.proposed)
       if (!text || !correction.baseVersion) throw new CorrectionError('VALIDATION_ERROR', 400, 'This correction has no prepared article text.')
       assertVersion(article, correction.baseVersion, true)
-      return applyCorrection(tx, actor, article, correction, text, options.requestId)
+      return applyCorrection(tx, actor, article, correction, await assertValidAuthor(tx, text), options.requestId)
     }, TX_OPTIONS))
   } catch (error) {
     if (error instanceof ArticleImageUnavailableError) throw new CorrectionError('IMAGE_UNAVAILABLE', 400, error.message)
@@ -322,15 +347,16 @@ async function applyCorrection(
 ): Promise<CorrectionResult> {
   const before = textOf(article)
   const changed = textChanged(before, text)
-  if (changed) await lockArticleImages(tx, text.content, article.coverImage)
+  const nextCover = text.coverImage !== undefined ? text.coverImage : article.coverImage
+  if (changed) await lockArticleImages(tx, text.content, nextCover)
 
   const updatedArticle = await tx.article.update({
     where: { id: article.id, status: 'PUBLISHED', deletedAt: null },
-    data: {
-      ...(changed ? { title: text.title, excerpt: text.excerpt, content: text.content } : {}),
-      // Mirrors the legacy fields so an older build (rollback) still shows a correction notice.
-      ...(correction.type === 'CORRECTION' ? { corrected: true, correctionNote: correction.publicNote } : {}),
-    },
+    data: changed ? {
+      title: text.title, excerpt: text.excerpt, content: text.content,
+      ...(text.coverImage !== undefined ? { coverImage: text.coverImage } : {}),
+      ...(text.authorId !== undefined ? { authorId: text.authorId } : {}),
+    } : {},
     select: { id: true, slug: true, authorId: true, title: true },
   })
 
@@ -346,6 +372,7 @@ async function applyCorrection(
       proposed: toJson(text),
     },
   })
+  await mirrorLegacyFields(tx, article.id)
   await tx.auditLog.create({
     data: {
       action: 'correction.published', targetType: 'article', targetId: article.id, performedBy: actor.id,
@@ -364,10 +391,26 @@ async function applyCorrection(
     ...(changed ? {
       replacedText: {
         before: { ...before, coverImage: article.coverImage },
-        after: { ...text, coverImage: article.coverImage },
+        after: { ...text, coverImage: nextCover },
       },
     } : {}),
   }
+}
+
+/**
+ * Keeps the legacy single-note columns describing EVERY published notice, so that if the previous build is
+ * restored (it reads only these columns) no clarification or update silently disappears. See composeLegacyMirror.
+ */
+async function mirrorLegacyFields(tx: Tx, articleId: string): Promise<void> {
+  const notices = await tx.articleCorrection.findMany({
+    where: { articleId, status: 'PUBLISHED' },
+    select: { type: true, publicNote: true, publishedAt: true },
+    orderBy: [{ publishedAt: { sort: 'asc', nulls: 'first' } }, { createdAt: 'asc' }],
+  })
+  await tx.article.update({
+    where: { id: articleId },
+    data: { corrected: notices.length > 0, correctionNote: composeLegacyMirror(notices) },
+  })
 }
 
 // ── Revise / withdraw a pending correction ───────────────────────────────────────────────────────
@@ -412,7 +455,7 @@ export async function revisePendingCorrection(
       data: {
         type: input.type, publicNote: input.publicNote, originalText: input.originalText,
         correctedText: input.correctedText, internalNote: input.internalNote,
-        baseVersion: input.baseVersion, proposed: toJson(input.text),
+        baseVersion: input.baseVersion, proposed: toJson(await assertValidAuthor(tx, input.text)),
       },
     })
     await tx.auditLog.create({
@@ -482,7 +525,8 @@ export async function afterCorrectionPublished(db: Db, actor: CorrectionActor, r
   }
 
   const label = CORRECTION_TYPE_LABELS[result.correction.type].toLowerCase()
-  const recipients = new Set([result.article.authorId, result.correction.createdById].filter((id): id is string => Boolean(id)))
+  // Includes the previous author when the correction changed the byline.
+  const recipients = new Set([result.article.authorId, result.replacedText?.before.authorId, result.correction.createdById].filter((id): id is string => Boolean(id)))
   recipients.delete(actor.id)
   if (recipients.size > 0) {
     try {
@@ -558,6 +602,15 @@ export async function loadCorrectionHistory(db: Db, articleId: string) {
       }
     }),
   }
+}
+
+/** Accounts a byline may name (active, unbanned writers, editors and administrators). */
+export async function loadAuthorOptions(db: Db) {
+  return db.user.findMany({
+    where: { role: { in: [...ARTICLE_MUTATION_ROLES] }, isActive: true, isBanned: false },
+    select: { id: true, name: true, role: true },
+    orderBy: { name: 'asc' },
+  })
 }
 
 export async function loadArticleForCorrections(db: Db, actor: CorrectionActor, articleId: string) {

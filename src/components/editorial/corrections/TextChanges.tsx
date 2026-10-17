@@ -15,6 +15,16 @@ export function TextChanges({ before, after, emptyMessage = 'The article text is
     <div className="space-y-2 text-sm" data-testid="text-changes">
       {changes.title && <FieldChange label="Headline" before={changes.title.before} after={changes.title.after} />}
       {changes.excerpt && <FieldChange label="Standfirst" before={changes.excerpt.before} after={changes.excerpt.after} />}
+      {changes.byline && <FieldChange label="Byline" before={changes.byline.before} after={changes.byline.after} />}
+      {changes.coverImage && (
+        <div>
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--fg-faint)]">Cover image</p>
+          <div className="flex flex-wrap gap-3">
+            <ImageThumb label="Removed" src={changes.coverImage.before} tone="removed" />
+            <ImageThumb label="Added" src={changes.coverImage.after} tone="added" />
+          </div>
+        </div>
+      )}
       {changes.passages.length > 0 && (
         <div>
           <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--fg-faint)]">
@@ -58,5 +68,17 @@ function FieldChange({ label, before, after }: { label: string; before: string; 
         <span className="sr-only">Added: </span>{after || '(empty)'}
       </p>
     </div>
+  )
+}
+
+function ImageThumb({ label, src, tone }: { label: string; src: string | null; tone: 'removed' | 'added' }) {
+  return (
+    <figure className={`border-l-2 px-2 py-1 text-xs ${tone === 'removed' ? 'border-red-500/60 bg-red-500/5' : 'border-emerald-500/60 bg-emerald-500/5'}`}>
+      <figcaption className="mb-1 text-[var(--fg-faint)]">{label}</figcaption>
+      {src
+        // eslint-disable-next-line @next/next/no-img-element -- an internal comparison thumbnail of an uploaded image
+        ? <img src={src} alt={`${label} cover image`} className="h-20 w-32 object-cover" />
+        : <span className="text-[var(--fg-faint)]">(no cover image)</span>}
+    </figure>
   )
 }

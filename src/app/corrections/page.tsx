@@ -154,15 +154,16 @@ export default function CorrectionsPage() {
                 which it was made
               </li>
               <li>
-                Correction notes are permanent. If a note itself needs correcting, we add an amendment
-                beneath it rather than rewriting it
+                Correction notes stay with the article for as long as it is published. They are not
+                edited or deleted: if a note itself needs correcting, we add an amendment beneath it
               </li>
             </ul>
             <p>
               We do not remove articles from the record except in exceptional circumstances, for
               example where continued publication would cause harm or where an article has been
-              found to be substantially fabricated. In such cases, we publish a note explaining
-              why the article has been removed.
+              found to be substantially fabricated. A removed article is no longer available on the
+              site, and neither are its correction notes. We will explain the decision to anyone who
+              asks and, where appropriate, publish a separate editor{"'"}s note.
             </p>
           </section>
 

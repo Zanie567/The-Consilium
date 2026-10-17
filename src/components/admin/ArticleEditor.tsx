@@ -172,7 +172,7 @@ export function ArticleEditor(props: ArticleEditorProps) {
       <ConfirmDialog
         open={editor.copyEditPending}
         title="Save as a minor copy edit?"
-        message="This article is live, so the change appears to readers immediately. Use this only for spelling, punctuation, formatting or similar fixes that do not change any fact or the meaning. The change is recorded internally with the text before and after. Anything else needs a correction, clarification or update from Manage corrections."
+        message="This article is live, so the change appears to readers immediately. Use this only for spelling, punctuation, formatting, or a better version of the same image, where no fact or meaning changes. The change is recorded internally with the text before and after. A wrong fact, figure, quotation or picture needs a correction, clarification or update from Manage corrections."
         confirmLabel="Save copy edit"
         busy={editor.saveStatus === 'saving'}
         onConfirm={() => void editor.actions.confirmCopyEdit()}

@@ -9,6 +9,7 @@ import {
   afterCorrectionSubmitted,
   canApproveCorrections,
   loadArticleForCorrections,
+  loadAuthorOptions,
   loadCorrectionHistory,
   prepareCorrection,
 } from '@/lib/corrections/service'
@@ -27,10 +28,12 @@ export async function GET(_req: Request, { params }: Props) {
     if (!auth.ok) return auth.response
     const { id } = await params
     const { article, version } = await loadArticleForCorrections(prisma, auth.user, id)
-    const history = await loadCorrectionHistory(prisma, id)
+    const [history, authors] = await Promise.all([loadCorrectionHistory(prisma, id), loadAuthorOptions(prisma)])
     return NextResponse.json({
+      authors,
       article: {
         id: article.id, title: article.title, slug: article.slug, excerpt: article.excerpt, content: article.content,
+        coverImage: article.coverImage, authorId: article.authorId, authorName: article.author.name,
         status: article.status, publishedAt: article.publishedAt, updatedAt: article.updatedAt,
       },
       version,

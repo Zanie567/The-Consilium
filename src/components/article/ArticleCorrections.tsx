@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { CORRECTION_TYPE_LABELS, type PublicCorrection } from '@/lib/corrections/types'
 import { correctionsHeading, summariseCorrections } from '@/lib/corrections/public'
+import { formatCorrectionDate } from '@/lib/corrections/format'
 
 /**
  * Public correction notices. Server components with no client JavaScript: they render for print,
@@ -8,11 +9,7 @@ import { correctionsHeading, summariseCorrections } from '@/lib/corrections/publ
  * as React text (escaped); nothing here uses dangerouslySetInnerHTML.
  */
 
-const DATE = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/London' })
-
-export function formatCorrectionDate(iso: string): string {
-  return DATE.format(new Date(iso))
-}
+export { formatCorrectionDate }
 
 const VERB: Record<PublicCorrection['type'], string> = {
   CORRECTION: 'corrected',

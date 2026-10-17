@@ -205,7 +205,7 @@ export function useArticleEditorController({
   // (a minor copy edit here, or a correction in Manage corrections).
   const isLive = currentStatus === 'PUBLISHED'
   // The reader-facing text as the server last confirmed it, to tell a copy edit from a metadata-only save.
-  const savedTextRef = useRef({ title: initialData?.title ?? '', excerpt: initialData?.excerpt ?? '', content: initialData?.content ?? '' })
+  const savedTextRef = useRef({ title: initialData?.title ?? '', excerpt: initialData?.excerpt ?? '', content: initialData?.content ?? '', coverImage: initialData?.coverImage ?? '' })
   const [copyEditPending, setCopyEditPending] = useState(false)
   const [recovery, setRecovery] = useState<{ at: number; stale: boolean } | null>(null)
   const [recovered, setRecovered] = useState(false)
@@ -326,6 +326,7 @@ export function useArticleEditorController({
     titleRef.current !== savedTextRef.current.title
     || (excerptRef.current ?? '') !== (savedTextRef.current.excerpt ?? '')
     || contentRef.current !== savedTextRef.current.content
+    || (coverImageRef.current || '') !== (savedTextRef.current.coverImage || '')
 
   const performSave = useCallback((explicitStatus?: string, options: { copyEdit?: boolean } = {}): Promise<boolean> => {
     const requestedStatus = explicitStatus ?? currentStatusRef.current
@@ -443,7 +444,7 @@ export function useArticleEditorController({
         }
 
         revisionRef.current = saved.updatedAt ?? revisionRef.current
-        savedTextRef.current = { title: body.title, excerpt: body.excerpt, content: body.content }
+        savedTextRef.current = { title: body.title, excerpt: body.excerpt, content: body.content, coverImage: body.coverImage ?? '' }
 
         if (explicitStatus && statusIntentVersion === statusIntentVersionRef.current) {
           setStatusState(saved.status ?? explicitStatus)
