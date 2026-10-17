@@ -20,6 +20,15 @@ describe('seed credentials', () => {
     expect(requireSeedPassword('testingWorkspace', { TESTING_FIXTURE_PASSWORD: 'a-long-new-secret-value' })).toBe('a-long-new-secret-value')
   })
 
+  it('rejects the built-in testing-workspace password without changing admin or writer validation', () => {
+    expect(() => requireSeedPassword('testingWorkspace', { TESTING_FIXTURE_PASSWORD: 'testing-local-1234' }))
+      .toThrow(/TESTING_FIXTURE_PASSWORD must differ/)
+    expect(requireSeedPassword('admin', { SEED_ADMIN_PASSWORD: 'testing-local-1234' })).toBe('testing-local-1234')
+    expect(requireSeedPassword('writer', { SEED_WRITER_PASSWORD: 'testing-local-1234' })).toBe('testing-local-1234')
+    expect(() => requireSeedPassword('admin', { SEED_ADMIN_PASSWORD: 'consilium2024' })).toThrow(/16 characters/)
+    expect(() => requireSeedPassword('writer', { SEED_WRITER_PASSWORD: 'writer2024' })).toThrow(/16 characters/)
+  })
+
   it('the seed scripts never print a password and choose the hash through the local-database check', () => {
     const seed = readFileSync('prisma/seed.ts', 'utf8')
     expect(seed).not.toMatch(/console\.log\([^)]*\/ /) // the old "email / password" lines

@@ -266,6 +266,10 @@ const article4Content = doc(
 async function main() {
   console.log('Seeding database...')
 
+  const localTarget = isLoopbackDatabase(process.env.DIRECT_URL)
+  const adminPassword = localTarget ? 'consilium2024' : requireSeedPassword('admin')
+  const writerPassword = localTarget ? 'writer2024' : requireSeedPassword('writer')
+
   const categories = await Promise.all([
     prisma.category.upsert({
       where: { slug: 'news' },
@@ -291,11 +295,9 @@ async function main() {
 
   console.log('Categories:', categories.map((c: { name: string }) => c.name).join(', '))
 
-  const adminPassword = await bcrypt.hash('consilium2024', 10)
   // The built-in fixture password only on a local database; elsewhere it comes from the environment and an existing
   // account's password is never reset (scripts/lib/seedCredentials.ts).
-  const localTarget = isLoopbackDatabase(process.env.DIRECT_URL)
-  const adminHash = localTarget ? adminPassword : await bcrypt.hash(requireSeedPassword('admin'), 10)
+  const adminHash = await bcrypt.hash(adminPassword, 10)
   const admin = await prisma.user.upsert({
     where: { email: 'admin@theconsilium.com' },
     update: localTarget ? { password: adminHash } : {},
@@ -308,8 +310,7 @@ async function main() {
     },
   })
 
-  const writerPassword = await bcrypt.hash('writer2024', 10)
-  const writerHash = localTarget ? writerPassword : await bcrypt.hash(requireSeedPassword('writer'), 10)
+  const writerHash = await bcrypt.hash(writerPassword, 10)
   const writer = await prisma.user.upsert({
     where: { email: 'writer@theconsilium.com' },
     update: {},

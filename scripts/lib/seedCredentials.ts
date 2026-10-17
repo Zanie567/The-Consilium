@@ -44,5 +44,8 @@ export function requireSeedPassword(account: FixtureAccount, env: Record<string,
     )
   }
   if (supplied.length < 16) throw new Error(`${variable} must be at least 16 characters.`)
+  if (account === 'testingWorkspace' && supplied === 'testing-local-1234') {
+    throw new Error(`${variable} must differ from the built-in testing-workspace fixture password.`)
+  }
   return supplied
 }
