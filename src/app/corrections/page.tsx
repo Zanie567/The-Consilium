@@ -37,8 +37,7 @@ export default function CorrectionsPage() {
             <h2>Accuracy</h2>
             <p>
               Every article is checked before publication: pieces by our writers are reviewed and
-              approved by an editor, and our editors apply the same checks to their own work. We
-              check facts, verify figures, and confirm the integrity of arguments. Despite these
+              approved by an edito. We check facts, verify figures, and confirm the integrity of arguments. Despite these
               efforts, errors occasionally occur: in statistics, in the spelling of names, in the
               attribution of quotes, or in matters of interpretation. When they do, we correct them.
             </p>
