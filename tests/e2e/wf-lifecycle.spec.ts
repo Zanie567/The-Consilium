@@ -254,7 +254,7 @@ test('editor unpublishes from the review screen; the public URL disappears; repu
   const wp = await w.newPage()
   const ed = new ArticleEditorPage(wp)
   await ed.openExisting(articleId)
-  expect((await ed.saving(() => wp.getByRole('button', { name: 'Resubmit for review' }).click())).status()).toBe(200)
+  expect((await ed.saving(() => wp.getByRole('button', { name: 'Submit' }).click())).status()).toBe(200)
   await w.close()
 
   const e2 = await signedIn(browser, 'editor')
