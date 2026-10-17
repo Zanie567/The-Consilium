@@ -79,11 +79,24 @@ test.describe('ordinary saves never change visibility', () => {
     expect(await publicStatus(browser, slug)).toBe(200)
 
     await statusSelect(page).selectOption('DRAFT')
+    // A live article is never autosaved: typing sends nothing (corrections policy: no silent changes).
+    const writes: string[] = []
+    page.on('request', (r) => { if (isWrite(r.url(), r.method())) writes.push(r.postData() ?? '') })
     await ed.moveToEnd()
-    const res = await ed.saving(() => page.keyboard.type(' Edit on a live article.'), { timeout: 15_000 })
+    await page.keyboard.type(' Edit on a live article.')
+    await page.waitForTimeout(3_000)
+    expect(writes, 'no autosave on a live article').toHaveLength(0)
+    await expect(page.getByTestId('live-article-notice')).toBeVisible()
+    // The explicit save is a declared minor copy edit; it restates PUBLISHED and carries no publication intent.
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect(confirmDialog(page)).toContainText('minor copy edit')
+    const res = await ed.saving(() => confirmDialog(page).getByRole('button', { name: 'Save copy edit' }).click())
     expect(res.status()).toBe(200)
-    await ed.saveNow()
-    expect((await articleByTitle(title))!.status, 'still published after autosave and Save draft').toBe('PUBLISHED')
+    expect(res.request().postDataJSON()).toMatchObject({ status: 'PUBLISHED', editKind: 'COPY_EDIT' })
+    expect(res.request().postDataJSON().publicationIntent).toBeUndefined()
+    const saved = (await articleByTitle(title))!
+    expect(saved.status, 'still published after the copy edit').toBe('PUBLISHED')
+    expect(saved.content).toContain('Edit on a live article.')
     expect(await publicStatus(browser, slug)).toBe(200)
 
     // The explicit button is "Set to Draft" and asks first.
@@ -161,11 +174,11 @@ test.describe('publishing is explicit and confirmed', () => {
     await ctx.close()
   })
 
-  test('text typed while a publish is in flight is saved, and does not undo or repeat the publication', async ({ browser }) => {
+  test('text typed while a publish is in flight is kept for an explicit save, and does not undo or repeat the publication', async ({ browser }) => {
     const { ctx, page, ed, title, slug } = await newDraft(browser, 'inflight')
-    const writes: { status: string; intent: unknown }[] = []
+    const writes: { status: string; intent: unknown; editKind: unknown }[] = []
     page.on('request', (r) => {
-      if (isWrite(r.url(), r.method())) { const b = JSON.parse(r.postData() ?? '{}'); writes.push({ status: b.status, intent: b.publicationIntent }) }
+      if (isWrite(r.url(), r.method())) { const b = JSON.parse(r.postData() ?? '{}'); writes.push({ status: b.status, intent: b.publicationIntent, editKind: b.editKind }) }
     })
     await page.route('**/api/articles/*', async (route) => {
       if (isWrite(route.request().url(), route.request().method()) && (route.request().postData() ?? '').includes('"PUBLISHED"')) {
@@ -178,13 +191,21 @@ test.describe('publishing is explicit and confirmed', () => {
     await ed.moveToEnd()
     await page.keyboard.type(' Typed during the publish.')
 
+    await expect.poll(async () => (await articleByTitle(title))!.status, { timeout: 20_000 }).toBe('PUBLISHED')
+    await page.waitForTimeout(3_000)
+    // Once live, the queued autosave does not write the late text to the public article unannounced…
+    expect((await articleByTitle(title))!.content).not.toContain('Typed during the publish.')
+    await expect(ed.body()).toContainText('Typed during the publish.') // …it is still in the tab
+    // …and the editor saves it explicitly, as a declared copy edit.
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await confirmPublicChange(page, 'Save copy edit')
     await expect.poll(async () => (await articleByTitle(title))!.content, { timeout: 20_000 }).toContain('Typed during the publish.')
-    const row = await articleByTitle(title)
-    expect(row!.status).toBe('PUBLISHED')
+    expect((await articleByTitle(title))!.status).toBe('PUBLISHED')
     expect(await publicStatus(browser, slug)).toBe(200)
-    // Exactly one request asked for publication; the follow-up autosave only restated PUBLISHED.
+    // Exactly one request asked for publication; nothing ever asked to change it back.
     expect(writes.filter((w) => w.intent === true)).toHaveLength(1)
     expect(writes.filter((w) => w.status !== 'PUBLISHED')).toHaveLength(0)
+    expect(writes.filter((w) => w.editKind === 'COPY_EDIT')).toHaveLength(1)
     await ctx.close()
   })
 
@@ -206,10 +227,14 @@ test.describe('publishing is explicit and confirmed', () => {
     await second.keyboard.type(' Stale tab text.')
     await ed2.saving(() => ed2.saveDraftButton().click())
     await expect(second.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText(/changed/i)
-    const keep = await ed2.saving(() => second.getByRole('button', { name: 'Keep my version' }).click())
+    // The article is now live, so keeping this tab's text is a declared copy edit (asked first), never a republish.
+    await second.getByRole('button', { name: 'Keep my version' }).click()
+    await expect(confirmDialog(second)).toContainText('minor copy edit')
+    const keep = await ed2.saving(() => confirmDialog(second).getByRole('button', { name: 'Save copy edit' }).click())
     expect(keep.status()).toBe(200)
     const keptBody = keep.request().postDataJSON()
     expect(keptBody.status).toBe('PUBLISHED')
+    expect(keptBody.editKind).toBe('COPY_EDIT')
     expect(keptBody.publicationIntent).not.toBe(true)
     expect(keptBody.expectedUpdatedAt).toBeTruthy()
     expect(keptBody.baseVersion).toMatch(/^[a-f0-9]{24}$/)

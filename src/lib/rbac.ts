@@ -27,6 +27,13 @@ export const PREDICTIONS_MANAGE_ROLES = ['ADMIN'] as const satisfies readonly Ro
 export const GLOSSARY_MANAGE_ROLES = ['ADMIN'] as const satisfies readonly Role[]
 // Who can open the read-through page (/editorial/readers and its API).
 // Everyone here sees their own articles only; ADMIN may view any author's.
+// Who can approve and publish a post-publication correction, clarification or update notice.
+// The public Corrections Policy promises approval by a senior editor; the only role above EDITOR is
+// ADMIN, so editors prepare and submit, administrators approve. To let editors publish their own
+// corrections, add 'EDITOR' here and nothing else (and update /corrections to match).
+export const CORRECTION_APPROVAL_ROLES = ['ADMIN'] as const satisfies readonly Role[]
+// Who can prepare a correction and submit it for approval (category scope still applies to EDITOR).
+export const CORRECTION_PREPARE_ROLES = EDITORIAL_MANAGEMENT_ROLES
 export const READ_THROUGH_ACCESS_ROLES = ['ADMIN', 'EDITOR', 'WRITER'] as const satisfies readonly Role[]
 
 export function isRole(value: unknown): value is Role {

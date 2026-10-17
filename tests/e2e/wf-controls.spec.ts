@@ -70,7 +70,7 @@ test('delete table, edit/cancel/remove footnotes, spacing, counts and theme surv
   await ctx.close()
 })
 
-test('review correction, commendation, feature and pin persist and corrections appear publicly', async ({ browser }) => {
+test('review studio links to Manage corrections; commendation, feature and pin persist', async ({ browser }) => {
   test.setTimeout(90_000) // Several saves, reloads and public pages; per-action deadline remains 10s.
   const ctx = await signedIn(browser, 'editor')
   const page = await ctx.newPage()
@@ -80,16 +80,13 @@ test('review correction, commendation, feature and pin persist and corrections a
     await ed.openNew()
     const title = uniqueTitle('review-controls')
     await ed.title().fill(title)
-    await ed.typeBody('A body that will receive a correction.')
+    await ed.typeBody('A body that is reviewed after publication.')
     const { id } = await ed.saveNow()
     expect((await ed.saving(async () => { await page.getByRole('button', { name: 'Publish', exact: true }).click(); await confirmPublicChange(page, 'Publish now') })).status()).toBe(200)
     await page.goto(`/editorial/review/${id}`, { waitUntil: 'networkidle' })
-    await page.getByRole('checkbox', { name: 'Mark as corrected' }).check()
-    const correction = 'Corrected the reported rate to 4.5 percent.'
-    await page.getByPlaceholder('Correction note').fill(correction)
-    const wait = page.waitForResponse(r => r.url().endsWith(`/articles/${id}/review`) && r.request().method() === 'PATCH')
-    await page.getByRole('button', { name: 'Save Correction' }).click()
-    expect((await wait).status()).toBe(200)
+    // The old checkbox-and-note control is retired: corrections have their own dated, approved workflow.
+    await expect(page.getByRole('checkbox', { name: 'Mark as corrected' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Manage corrections' })).toHaveAttribute('href', `/editorial/articles/${id}/corrections`)
     await page.getByLabel('Editorial commendation (optional)').fill('Clear reporting with strong sources.')
     const commendation = page.waitForResponse(r => r.url().endsWith('/commendation') && r.request().method() === 'PATCH')
     await page.getByRole('button', { name: 'Save commendation' }).click()
@@ -102,16 +99,9 @@ test('review correction, commendation, feature and pin persist and corrections a
       await expect(button).toHaveAttribute('aria-pressed', 'true')
     }
     await page.reload({ waitUntil: 'networkidle' })
-    await expect(page.getByRole('checkbox', { name: 'Mark as corrected' })).toBeChecked()
-    await expect(page.getByPlaceholder('Correction note')).toHaveValue(correction)
     await expect(page.getByLabel('Editorial commendation (optional)')).toHaveValue('Clear reporting with strong sources.')
     const row = (await articleByTitle(title))!
-    expect(row).toMatchObject({ corrected: true, correctionNote: correction, isFeatured: true, isPinned: true })
-    const anon = await signedIn(browser, null)
-    const reader = await anon.newPage()
-    expect((await reader.goto(`/articles/${row.slug}`))?.status()).toBe(200)
-    await expect(reader.getByText(correction)).toBeVisible()
-    await anon.close()
+    expect(row).toMatchObject({ corrected: false, correctionNote: null, isFeatured: true, isPinned: true })
     for (const [name, endpoint] of [['Featured', 'feature'], ['Pinned', 'pin']]) {
       const response = page.waitForResponse(r => r.url().endsWith(`/${endpoint}`) && r.request().method() === 'DELETE')
       await page.getByRole('button', { name, exact: true }).click()

@@ -30,6 +30,8 @@ import { getInitials, displayAuthorName } from '@/lib/authorUtils'
 import type { Metadata } from 'next'
 import { canonicalAlternates } from '@/lib/seo'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/constants'
+import { loadPublicCorrections, correctionsStructuredData } from '@/lib/corrections/public'
+import { CorrectionNotice, CorrectionsSection } from '@/components/article/ArticleCorrections'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -186,6 +188,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       siteName: SITE_NAME,
       locale: 'en_GB',
       publishedTime: article.publishedAt?.toISOString(),
+      modifiedTime: article.updatedAt.toISOString(),
       authors: article.author.name ? [article.author.name] : undefined,
       images: article.coverImage
         ? [{ url: article.coverImage }]
@@ -218,12 +221,12 @@ export default async function ArticlePage({ params }: Props) {
     ? { id: session.user.id, name: session.user.name, role: session.user.role }
     : null
 
-  const related = await getRelatedArticles(
-    article.id,
-    article.categoryId,
-    article.title,
-    article.excerpt,
-  )
+  // Read separately from the article so a corrections-table problem can never 404 the article.
+  const [related, corrections] = await Promise.all([
+    getRelatedArticles(article.id, article.categoryId, article.title, article.excerpt),
+    loadPublicCorrections(prisma, article),
+  ])
+  const correctionComments = correctionsStructuredData(corrections)
   const { html: htmlContent, footnotes } = renderContent(article.content)
   // Glossary term linking runs on the sanitized HTML and returns it untouched
   // when the site-wide switch is off, so the page renders exactly as before.
@@ -256,6 +259,7 @@ export default async function ArticlePage({ params }: Props) {
     dateModified: article.updatedAt.toISOString(),
     url: articleUrl,
     mainEntityOfPage: articleUrl,
+    ...(correctionComments.length > 0 ? { correction: correctionComments } : {}),
   }
 
   return (
@@ -295,20 +299,8 @@ export default async function ArticlePage({ params }: Props) {
 
       <div className="max-w-[680px] mx-auto px-6 sm:px-8 lg:px-12 py-12 print-article-wrapper">
 
-        {/* Correction banner - above everything */}
-        {article.corrected && (
-          <AnimateIn variant="fade-in" duration={0.4}>
-            <div className="correction-notice mb-8 flex items-start gap-3">
-              <span className="text-gold font-bold text-sm shrink-0 mt-px">Correction</span>
-              <span>
-                This article has been updated since its original publication.{' '}
-                <a href="#correction-note" className="text-gold underline underline-offset-2 hover:no-underline font-semibold">
-                  See the correction note below.
-                </a>
-              </span>
-            </div>
-          </AnimateIn>
-        )}
+        {/* One restrained notice above everything; the detail is in the Corrections section below. */}
+        <CorrectionNotice corrections={corrections} />
 
         {/* Category */}
         {article.category && (
@@ -454,28 +446,8 @@ export default async function ArticlePage({ params }: Props) {
           </AnimateIn>
         )}
 
-        {/* Correction note - at bottom of article */}
-        {article.corrected && article.correctionNote && (
-          <AnimateIn variant="fade-up" delay={0.05} className="mt-10">
-            <div id="correction-note" className="border border-[var(--border-strong)] bg-[var(--bg-subtle)] p-5">
-              <p className="text-[0.65rem] text-gold font-bold uppercase tracking-[0.2em] mb-2">
-                Correction Note
-              </p>
-              <p className="text-[var(--fg-muted)] text-sm leading-relaxed">
-                {article.correctionNote}
-              </p>
-              <p className="text-[var(--fg-faint)] text-xs mt-2">
-                Last updated:{' '}
-                {format(new Date(article.updatedAt), 'd MMMM yyyy')}
-              </p>
-              <p className="text-[var(--fg-faint)] text-xs mt-1">
-                <Link href="/corrections" className="text-gold hover:underline">
-                  Read our corrections policy
-                </Link>
-              </p>
-            </div>
-          </AnimateIn>
-        )}
+        {/* Permanent public record of corrections, clarifications and updates */}
+        <CorrectionsSection corrections={corrections} />
 
         {/* Series navigation */}
         {article.series && (prevInSeries || nextInSeries) && (

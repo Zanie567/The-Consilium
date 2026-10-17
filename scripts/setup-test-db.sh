@@ -87,7 +87,8 @@ for migration in \
   supabase/migrations/20261010000000_debate_lifecycle.sql \
   supabase/migrations/20261010000100_team_member_updated_at.sql \
   supabase/migrations/20261011000000_hidden_debate_article_guard.sql \
-  supabase/migrations/20261012100000_article_hidden_by_debate_marker.sql; do
+  supabase/migrations/20261012100000_article_hidden_by_debate_marker.sql \
+  supabase/migrations/20261017120000_article_corrections.sql; do
   psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$migration"
 done
 npx ts-node -P tsconfig.seed.json scripts/seed-testing-workspace.ts

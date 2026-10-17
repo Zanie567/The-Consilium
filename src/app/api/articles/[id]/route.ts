@@ -21,6 +21,24 @@ import { articleVersion } from '@/lib/articleVersion'
 import { withTransactionRetry } from '@/lib/transactionRetry'
 import type { ArticleStatus } from '@prisma/client'
 
+// Reader-facing fields of a live article that change only through a declared copy edit (audited) or a
+// correction. Slug and byline are stricter: locked while the article is published (see the PUT handler).
+const PUBLISHED_TEXT_FIELDS = ['title', 'excerpt', 'content', 'coverImage'] as const
+type PublishedTextField = (typeof PUBLISHED_TEXT_FIELDS)[number]
+
+/** Which reader-facing fields a save would change (excerpt and cover image: empty and null are the same). */
+function publishedTextChanges(
+  existing: Record<PublishedTextField, string | null>,
+  next: Partial<Record<PublishedTextField, unknown>>
+): PublishedTextField[] {
+  return PUBLISHED_TEXT_FIELDS.filter((field) => {
+    const value = next[field]
+    if (value === undefined) return false
+    if (field === 'excerpt' || field === 'coverImage') return ((value as string | null) || '') !== (existing[field] || '')
+    return value !== existing[field]
+  })
+}
+
 const STAFF_ARTICLE_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'ARCHIVED', 'REJECTED', 'SCHEDULED'] as const satisfies readonly ArticleStatus[]
 const WRITER_UPDATE_STATUSES = ['DRAFT', 'PENDING_REVIEW'] as const satisfies readonly ArticleStatus[]
 
@@ -162,8 +180,19 @@ async function PUTHandler(
       title, slug, content, excerpt, coverImage, categoryId, status,
       corrected, correctionNote, seriesId, seriesOrder, tags, scheduledAt,
       authorId: bodyAuthorId,
-      baseVersion, publicationIntent,
+      baseVersion, publicationIntent, editKind,
     } = body
+
+    // The legacy correction flag and note are now derived from the corrections record. Setting them
+    // here would publish (or hide) a notice with no date, no approval and no matching text change.
+    if (corrected !== undefined || correctionNote !== undefined) {
+      return apiError(
+        'Corrections are issued from Manage corrections, not from the article editor.',
+        400,
+        'USE_CORRECTIONS_WORKFLOW',
+        requestId
+      )
+    }
 
     // Optimistic concurrency: a client that says which version it was editing is refused
     // when the article has changed since (another tab, another person, a review action).
@@ -237,6 +266,53 @@ async function PUTHandler(
       )
     }
 
+    // Reader-facing text must be text: anything else would be compared and written as garbage.
+    if ((title !== undefined && typeof title !== 'string') || (content !== undefined && typeof content !== 'string')
+      || (excerpt !== undefined && excerpt !== null && typeof excerpt !== 'string')
+      || (coverImage !== undefined && coverImage !== null && typeof coverImage !== 'string')
+      || (slug !== undefined && typeof slug !== 'string')) {
+      return apiError('Title, standfirst, article text, cover image and web address must be text.', 400, 'VALIDATION_ERROR', requestId)
+    }
+
+    // A live article's reader-facing text changes through one of two doors only:
+    //   * Manage corrections (correction / clarification / update, with a public notice), or
+    //   * here, as an explicitly declared minor copy edit (spelling, punctuation, formatting), which
+    //     is recorded with before/after text in the audit log in the same transaction.
+    // An unclassified change is refused, so autosave or a script cannot silently rewrite a live article.
+    const liveBefore = existing.status === 'PUBLISHED'
+    // A published article's address is fixed: links, shares, bookmarks and search results point at it, and there is
+    // no redirect from an old slug. Unpublish first to change it deliberately (audited below).
+    if (liveBefore && typeof slug === 'string' && slug !== existing.slug) {
+      return apiError(
+        'The web address of a published article cannot be changed: existing links would break.',
+        409,
+        'PUBLISHED_SLUG_LOCKED',
+        requestId
+      )
+    }
+    // A byline on a live article is a matter of record: changing it is a correction, made in Manage corrections
+    // together with a public note, never a silent save.
+    if (liveBefore && isAdminOrEditor && typeof bodyAuthorId === 'string' && bodyAuthorId && bodyAuthorId !== existing.authorId) {
+      return apiError(
+        'The byline of a published article is changed through Manage corrections, with a public note.',
+        409,
+        'PUBLISHED_BYLINE_LOCKED',
+        requestId
+      )
+    }
+
+    const changedPublishedText = liveBefore && finalStatus === 'PUBLISHED'
+      ? publishedTextChanges(existing, { title, excerpt, content, coverImage })
+      : []
+    if (changedPublishedText.length > 0 && editKind !== 'COPY_EDIT') {
+      return apiError(
+        'This article is live. Save the change as a minor copy edit, or use Manage corrections if it changes a fact or the meaning.',
+        409,
+        'PUBLISHED_TEXT_CHANGE_UNCLASSIFIED',
+        requestId
+      )
+    }
+
     const wasJustSubmitted =
       existing.status !== 'PENDING_REVIEW' && finalStatus === 'PENDING_REVIEW'
     const wasPublished =
@@ -273,8 +349,6 @@ async function PUTHandler(
           ...(coverImage !== undefined && { coverImage: coverImage || null }),
           ...(categoryId !== undefined && { categoryId: categoryId || null }),
           ...(isAdminOrEditor && bodyAuthorId && { authorId: bodyAuthorId }),
-          ...(isAdminOrEditor && corrected !== undefined && { corrected }),
-          ...(isAdminOrEditor && correctionNote !== undefined && { correctionNote }),
           ...(isAdminOrEditor && seriesId !== undefined && { seriesId: seriesId || null }),
           ...(isAdminOrEditor && seriesOrder !== undefined && { seriesOrder }),
           ...(wasJustSubmitted && { editorNote: null }),
@@ -291,6 +365,31 @@ async function PUTHandler(
             : existing.publishedAt,
         },
       })
+
+      if (typeof slug === 'string' && slug !== existing.slug) {
+        await tx.auditLog.create({
+          data: {
+            action: 'article.slug_changed', targetType: 'article', targetId: id, performedBy: user.id,
+            metadata: { requestId, before: existing.slug, after: savedArticle.slug, status: existing.status, everPublished: existing.viewCount > 0 },
+          },
+        })
+      }
+      if (changedPublishedText.length > 0) {
+        await tx.auditLog.create({
+          data: {
+            action: 'article.copy_edit',
+            targetType: 'article',
+            targetId: id,
+            performedBy: user.id,
+            metadata: {
+              requestId,
+              fields: changedPublishedText,
+              before: Object.fromEntries(changedPublishedText.map((field) => [field, existing[field]])),
+              after: Object.fromEntries(changedPublishedText.map((field) => [field, savedArticle[field]])),
+            },
+          },
+        })
+      }
 
       // Article fields and tag associations are one save operation. Keeping
       // them in the same transaction prevents a 500 after a partial update.
