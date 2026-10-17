@@ -60,10 +60,22 @@ function newRequestKey(): string {
     : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`
 }
 
-function initialFields(article: ManagerArticle, mode: FormMode): Fields {
+/** A pending correction prepared against an article version that is no longer live. */
+export function staleProposal(version: string, mode: FormMode) {
+  if (mode.kind !== 'revise' || !mode.correction.proposed || !mode.correction.baseVersion) return null
+  if (mode.correction.baseVersion === version) return null
+  const p = mode.correction.proposed
+  return { title: p.title, excerpt: p.excerpt ?? '', content: p.content }
+}
+
+export function initialFields(article: ManagerArticle, version: string, mode: FormMode): Fields {
   if (mode.kind === 'revise') {
     const c = mode.correction
-    const proposed = c.proposed ?? { title: article.title, excerpt: article.excerpt, content: article.content }
+    // A proposal prepared against an older version is not reloaded as the text to submit: the form starts from
+    // the current article and shows the proposal for reference, so nothing written since can be reverted.
+    const proposed = !staleProposal(version, mode) && c.proposed
+      ? c.proposed
+      : { title: article.title, excerpt: article.excerpt, content: article.content }
     return {
       type: c.type, originalText: c.originalText ?? '', correctedText: c.correctedText ?? '',
       publicNote: c.publicNote ?? '', internalNote: c.internalNote ?? '',
@@ -93,14 +105,14 @@ function readDraft(key: string): StoredDraft | null {
   }
 }
 
-/** The version the form's initial text belongs to: a pending correction's own base, otherwise the live article. */
-function initialBaseVersion(version: string, mode: FormMode): string {
-  return mode.kind === 'revise' && mode.correction.baseVersion ? mode.correction.baseVersion : version
+/** The version the form's initial text belongs to: a current pending correction's own base, otherwise the live article. */
+export function initialBaseVersion(version: string, mode: FormMode): string {
+  return mode.kind === 'revise' && mode.correction.baseVersion && !staleProposal(version, mode) ? mode.correction.baseVersion : version
 }
 
 export function CorrectionForm({ article, version, canApprove, mode, published, onDone, onCancel, onReload }: Props) {
   const key = draftKey(article.id, mode)
-  const [fields, setFields] = useState<Fields>(() => initialFields(article, mode))
+  const [fields, setFields] = useState<Fields>(() => initialFields(article, version, mode))
   const [restored, setRestored] = useState(false)
   const [baseVersion, setBaseVersion] = useState(() => initialBaseVersion(version, mode))
   const [baseArticle, setBaseArticle] = useState(article)
@@ -112,7 +124,7 @@ export function CorrectionForm({ article, version, canApprove, mode, published, 
   const [confirm, setConfirm] = useState<'publish' | 'submit' | null>(null)
   const [preview, setPreview] = useState<{ html: string; at: string } | null>(null)
   const [previewError, setPreviewError] = useState('')
-  const [staleText, setStaleText] = useState<{ title: string; excerpt: string; content: string } | null>(null)
+  const [staleText, setStaleText] = useState<{ title: string; excerpt: string; content: string } | null>(() => staleProposal(version, mode))
   const submitting = useRef(false)
 
   // Bring back unsent work from this device (a failed save never loses the editor's text).
@@ -232,8 +244,9 @@ export function CorrectionForm({ article, version, canApprove, mode, published, 
 
   const discardRestored = () => {
     try { localStorage.removeItem(key) } catch { /* ignore */ }
-    setFields(initialFields(article, mode))
+    setFields(initialFields(article, version, mode))
     setBaseVersion(initialBaseVersion(version, mode))
+    setStaleText(staleProposal(version, mode))
     setEditorKey((k) => k + 1)
     setRestored(false)
   }
