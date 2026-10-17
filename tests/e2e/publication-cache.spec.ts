@@ -33,8 +33,13 @@ test('warm category list follows create, edit, unpublish, republish, trash and r
     await page.reload()
     await expect(heading()).toBeVisible()
 
+    // A live article's text changes only through a declared, audited copy edit (or a correction): an
+    // unclassified edit is refused and leaves the public page as it was.
+    const unclassified = await request.put(`/api/articles/${id}`, { data: { title: `${title} revised` } })
+    expect(unclassified.status()).toBe(409)
+    expect((await unclassified.json()).code).toBe('PUBLISHED_TEXT_CHANGE_UNCLASSIFIED')
     currentTitle = `${title} revised`
-    expect((await request.put(`/api/articles/${id}`, { data: { title: currentTitle } })).status()).toBe(200)
+    expect((await request.put(`/api/articles/${id}`, { data: { title: currentTitle, editKind: 'COPY_EDIT' } })).status()).toBe(200)
     await page.reload()
     await expect(heading()).toBeVisible()
 

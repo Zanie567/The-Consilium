@@ -33,7 +33,17 @@ async function save(page: Page) {
       ['POST', 'PUT', 'PATCH'].includes(r.request().method()) &&
       r.ok()
   )
-  await page.getByRole('button', { name: 'Save draft', exact: true }).click()
+  const live = page.getByRole('button', { name: 'Save changes', exact: true })
+  if (await live.isVisible()) {
+    // A live article is never autosaved: a text or figure change is saved explicitly and confirmed as a minor
+    // copy edit (the corrections policy). The dialog appears only when the text changed.
+    await live.click()
+    const dialog = page.getByRole('alertdialog')
+    const settled = await Promise.race([dialog.waitFor().then(() => 'dialog' as const), response.then(() => 'saved' as const)])
+    if (settled === 'dialog') await dialog.getByRole('button', { name: 'Save copy edit', exact: true }).click()
+  } else {
+    await page.getByRole('button', { name: 'Save draft', exact: true }).click()
+  }
   return (await response).json()
 }
 async function paste(page: Page, html: string) {
