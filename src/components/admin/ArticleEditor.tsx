@@ -169,6 +169,16 @@ export function ArticleEditor(props: ArticleEditorProps) {
         onCancel={editor.actions.cancelStatusChange}
       />
 
+      <ConfirmDialog
+        open={editor.copyEditPending}
+        title="Save as a minor copy edit?"
+        message="This article is live, so the change appears to readers immediately. Use this only for spelling, punctuation, formatting, or a better version of the same image, where no fact or meaning changes. The change is recorded internally with the text before and after. A wrong fact, figure, quotation or picture needs a correction, clarification or update from Manage corrections."
+        confirmLabel="Save copy edit"
+        busy={editor.saveStatus === 'saving'}
+        onConfirm={() => void editor.actions.confirmCopyEdit()}
+        onCancel={editor.actions.cancelCopyEdit}
+      />
+
       <ArticleEditorMobileSettings editor={editor} coverFileRef={coverFileRef} />
       <ArticleEditorTutorial editor={editor} />
     </div>
@@ -193,7 +203,8 @@ interface EditorBannersProps {
 }
 
 function EditorBanners({ editor }: EditorBannersProps) {
-  if (!editor.initialEditorNote && !editor.error && !editor.recovery && !editor.recovered && !editor.recoveryError && editor.canEdit) return null
+  const liveNotice = editor.isLive && editor.canPublish && editor.canEdit
+  if (!liveNotice && !editor.initialEditorNote && !editor.error && !editor.recovery && !editor.recovered && !editor.recoveryError && editor.canEdit) return null
 
   return (
     <div className="max-w-[1120px] mx-auto px-3 sm:px-6 pt-4 sm:pt-5 space-y-3">
@@ -207,6 +218,17 @@ function EditorBanners({ editor }: EditorBannersProps) {
       )}
       {editor.recovered && <p role="status" className="border border-amber-500 p-4">Recovered local work — not server-saved. Review it and press Save draft. Recovery never changes publication status.</p>}
       {editor.recoveryError && <p role="alert">{editor.recoveryError}</p>}
+      {liveNotice && (
+        <div role="note" className="bg-[var(--bg-elevated)] border border-[var(--border)] border-l-[3px] border-l-gold px-4 py-3 rounded text-sm text-[var(--fg-muted)]" data-testid="live-article-notice">
+          <p className="text-[10px] font-bold text-gold uppercase tracking-widest mb-1">Live article</p>
+          <p>
+            Changes are not saved automatically. Fix spelling, punctuation or formatting here and press
+            {' '}<strong>Save changes</strong>; it is recorded as a minor copy edit. If a fact or the meaning changes, use{' '}
+            <a href={`/editorial/articles/${editor.articleId}/corrections`} className="text-gold font-semibold underline underline-offset-2">Manage corrections</a>{' '}
+            so readers see a dated note.
+          </p>
+        </div>
+      )}
       {editor.initialEditorNote && (
         <div className="bg-amber-500/8 border border-amber-500/20 px-4 py-3 rounded">
           <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Editor feedback</p>

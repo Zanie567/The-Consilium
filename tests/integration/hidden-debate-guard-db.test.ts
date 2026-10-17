@@ -202,8 +202,8 @@ suite('hidden debate articles can never become public (real database)', () => {
     await transitionDebate({ id: ids.admin }, debate.id, 'publish')
     expect(await isPublic(a.id)).toBe(true)
     expect(await isPublic(b.id)).toBe(true)
-    // And an editor may once more save the articles of a visible debate.
-    const res = await saveArticle(json(`/api/articles/${a.id}`, 'PUT', { excerpt: 'edited while visible' }), ctx(a.id))
+    // And an editor may once more save the articles of a visible debate (a live article: a declared copy edit).
+    const res = await saveArticle(json(`/api/articles/${a.id}`, 'PUT', { excerpt: 'edited while visible', editKind: 'COPY_EDIT' }), ctx(a.id))
     expect(res.status).toBe(200)
   })
 

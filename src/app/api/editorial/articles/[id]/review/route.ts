@@ -19,7 +19,7 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
-type ReviewAction = 'approve' | 'schedule' | 'return' | 'unpublish' | 'correct'
+type ReviewAction = 'approve' | 'schedule' | 'return' | 'unpublish'
 
 // The source status each review action is legal from, enforced server-side
 // so a stale client or a replayed request can never push an article through
@@ -30,7 +30,6 @@ const REQUIRED_SOURCE_STATUS: Record<ReviewAction, ArticleStatus> = {
   schedule: 'PENDING_REVIEW',
   return: 'PENDING_REVIEW',
   unpublish: 'PUBLISHED',
-  correct: 'PUBLISHED',
 }
 
 function isReviewAction(value: unknown): value is ReviewAction {
@@ -38,7 +37,9 @@ function isReviewAction(value: unknown): value is ReviewAction {
 }
 
 // PATCH - editor action on a submitted article
-// action: 'approve' | 'schedule' | 'return' | 'unpublish' | 'correct'
+// action: 'approve' | 'schedule' | 'return' | 'unpublish'
+// The former 'correct' action (a checkbox and a free-text note, with no dated record and no link to
+// the article text) is retired: corrections go through /api/editorial/articles/[id]/corrections.
 async function PATCHHandler(req: Request, { params }: Props) {
   const requestId = crypto.randomUUID()
 
@@ -48,8 +49,16 @@ async function PATCHHandler(req: Request, { params }: Props) {
     const user = auth.user
 
     const { id } = await params
-    const { action, note, scheduledAt, corrected, correctionNote, expectedUpdatedAt } = await req.json()
+    const { action, note, scheduledAt, expectedUpdatedAt } = await req.json()
 
+    if (action === 'correct') {
+      return apiError(
+        'Corrections are now issued from Manage corrections, which records the date, the amended text and the approval.',
+        410,
+        'USE_CORRECTIONS_WORKFLOW',
+        requestId
+      )
+    }
     if (!isReviewAction(action)) {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }
@@ -147,14 +156,6 @@ async function PATCHHandler(req: Request, { params }: Props) {
         notifTitle = 'Article unpublished'
         notifMessage = `Your article "${article.title}" has been unpublished.`
         break
-      }
-      case 'correct': {
-        const updated = await prisma.article.update({
-          where: { id, status: requiredStatus, deletedAt: null, updatedAt: article.updatedAt },
-          data: { corrected: corrected ?? false, correctionNote: correctionNote ?? null },
-        })
-        revalidateArticleLists() // correction edits a live article
-        return NextResponse.json(updated)
       }
     }
 

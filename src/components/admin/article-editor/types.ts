@@ -86,6 +86,10 @@ export interface ArticleEditorController {
   categories: Category[]
   canEdit: boolean
   canPublish: boolean
+  /** The server holds this article as PUBLISHED: no autosave; saves are explicit and classified. */
+  isLive: boolean
+  /** The "save as a minor copy edit?" confirmation is open. */
+  copyEditPending: boolean
   categoryId: string
   content: string
   coverError: string
@@ -117,11 +121,14 @@ export interface ArticleEditorController {
     requestStatusChange: (target: string) => void
     confirmStatusChange: () => Promise<void>
     cancelStatusChange: () => void
+    /** Save the live article's text change as a declared minor copy edit (audited). */
+    confirmCopyEdit: () => Promise<void>
+    cancelCopyEdit: () => void
     addTag: (raw: string) => void
     handleBack: () => Promise<void>
     handleContentChange: (content: string) => void
     handleCoverUpload: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>
-    handleSave: (overrideStatus?: string) => Promise<void>
+    handleSave: (overrideStatus?: string, options?: { copyEdit?: boolean }) => Promise<void>
     /** After a conflict: save this tab's version over the newer one, on purpose. */
     keepMyVersion: () => void
     /** After a conflict: discard this tab's unsaved changes and load the newer version. */

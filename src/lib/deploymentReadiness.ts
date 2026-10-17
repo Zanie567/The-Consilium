@@ -13,10 +13,11 @@ export async function deploymentReadiness(db: Pick<PrismaClient, '$queryRaw'>, e
   if (!indexes.some(i => /UNIQUE.*\("userId"\)/.test(i.indexdef))) gaps.push('Missing one-card-per-account unique index')
   const tables = await db.$queryRaw<{ relrowsecurity: boolean }[]>`SELECT relrowsecurity FROM pg_class WHERE oid=to_regclass('public.testing_sessions')`
   if (!tables[0]?.relrowsecurity) gaps.push('Testing session row-level security is missing')
-  const triggers = await db.$queryRaw<{ tgname: string }[]>`SELECT tgname FROM pg_trigger WHERE tgname IN ('articles_hidden_debate_guard','articles_clear_hidden_by_debate') AND NOT tgisinternal AND tgenabled <> 'D'`
+  const triggers = await db.$queryRaw<{ tgname: string }[]>`SELECT tgname FROM pg_trigger WHERE tgname IN ('articles_hidden_debate_guard','articles_clear_hidden_by_debate','article_corrections_protect') AND NOT tgisinternal AND tgenabled <> 'D'`
   const triggerNames = new Set(triggers.map(t => t.tgname))
   if (!triggerNames.has('articles_hidden_debate_guard')) gaps.push('Missing database guard: articles_hidden_debate_guard (migration 20261011)')
   if (!triggerNames.has('articles_clear_hidden_by_debate')) gaps.push('Missing database trigger: articles_clear_hidden_by_debate (migration 20261012100000)')
+  if (!triggerNames.has('article_corrections_protect')) gaps.push('Missing corrections record: article_corrections_protect (migration 20261017120000)')
   try {
     const buckets = await db.$queryRaw<{ id: string; public: boolean; file_size_limit: bigint | null; allowed_mime_types: string[] | null }[]>`SELECT id, public, file_size_limit, allowed_mime_types FROM storage.buckets WHERE id IN ('avatars','article-images')`
     for (const id of ['avatars', 'article-images']) {

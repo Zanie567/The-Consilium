@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, nextFriday } from 'date-fns'
-import { ArrowLeft, Star, Pin, Clock, CheckCircle, RotateCcw, EyeOff, MessageSquare } from 'lucide-react'
+import { ArrowLeft, Star, Pin, Clock, CheckCircle, RotateCcw, EyeOff, MessageSquare, FileWarning } from 'lucide-react'
 import Link from 'next/link'
 import { Tooltip } from '@/components/ui/Tooltip'
 import {
@@ -36,8 +36,6 @@ interface Article {
   status: string
   isFeatured: boolean
   isPinned: boolean
-  corrected: boolean
-  correctionNote: string | null
   editorNote: string | null
   scheduledAt: string | null
   publishedAt: string | null
@@ -67,8 +65,6 @@ export function ReviewPanel({ article }: Props) {
   const [scheduledAt, setScheduledAt] = useState(
     formatEditorialScheduleInput(article.scheduledAt ?? nextFriday(new Date()))
   )
-  const [corrected, setCorrected] = useState(article.corrected)
-  const [correctionNote, setCorrectionNote] = useState(article.correctionNote ?? '')
   const [isFeatured, setIsFeatured] = useState(article.isFeatured)
   const [isPinned, setIsPinned] = useState(article.isPinned)
   const [notes, setNotes] = useState<Note[]>(article.notes)
@@ -76,7 +72,7 @@ export function ReviewPanel({ article }: Props) {
   const [error, setError] = useState('')
 
   // Publish / schedule / unpublish change what the public sees, so the buttons only ASK; this
-  // dialog confirms. (Return, correction and notes are not public-facing and act directly.)
+  // dialog confirms. (Return and notes are not public-facing and act directly; corrections have their own page.)
   const [pendingAct, setPendingAct] = useState<'approve' | 'schedule' | 'unpublish' | null>(null)
 
   const act = async (action: string, extra?: Record<string, unknown>) => {
@@ -325,28 +321,16 @@ export function ReviewPanel({ article }: Props) {
 
                 {status === 'PUBLISHED' && (
                   <Panel title="Published Actions">
-                    <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--fg)]">
-                      <input
-                        type="checkbox"
-                        checked={corrected}
-                        onChange={(e) => setCorrected(e.target.checked)}
-                        className="accent-gold"
-                      />
-                      Mark as corrected
-                    </label>
-                    <input
-                      value={correctionNote}
-                      onChange={(e) => setCorrectionNote(e.target.value)}
-                      placeholder="Correction note"
-                      className="mt-3 w-full border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-[var(--fg)] outline-none focus:border-gold"
-                    />
-                    <button
-                      onClick={() => act('correct', { corrected, correctionNote })}
-                      disabled={loading !== null}
-                      className="mt-3 w-full border border-[var(--border)] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[var(--fg-muted)] disabled:opacity-60"
+                    <Link
+                      href={`/editorial/articles/${article.id}/corrections`}
+                      className="flex min-h-[44px] w-full items-center justify-center gap-2 border border-gold/50 px-4 py-2 text-xs font-bold uppercase tracking-widest text-gold hover:bg-gold/10 transition-colors"
                     >
-                      Save Correction
-                    </button>
+                      <FileWarning size={14} />
+                      Manage corrections
+                    </Link>
+                    <p className="mt-2 text-[11px] leading-relaxed text-[var(--fg-faint)]">
+                      Issue a correction, clarification or update with a dated public note, or review this article&apos;s correction history.
+                    </p>
                     <button
                       onClick={() => setPendingAct('unpublish')}
                       disabled={loading !== null}

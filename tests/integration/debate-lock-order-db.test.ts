@@ -426,8 +426,8 @@ suite('debate lifecycle, article saves and votes share one lock order (real data
         if (startsHidden) await transitionDebate({ id: ids.admin }, debate.id, 'unpublish')
         const hideAction = i % 2 === 0 ? 'unpublish' : 'delete'
         const ops: Array<{ kind: keyof typeof ALLOWED; run: () => Promise<{ status: number; body: { code?: string } }> }> = [
-          { kind: 'save', run: () => saveAs(ids.editor, a.id, { title: `${tag} ${i} edited A`, status: 'PUBLISHED', publicationIntent: true }) },
-          { kind: 'save', run: () => saveAs(ids.admin, b.id, { excerpt: `edited ${i}`, status: 'PUBLISHED', publicationIntent: true }) },
+          { kind: 'save', run: () => saveAs(ids.editor, a.id, { title: `${tag} ${i} edited A`, status: 'PUBLISHED', publicationIntent: true, editKind: 'COPY_EDIT' }) },
+          { kind: 'save', run: () => saveAs(ids.admin, b.id, { excerpt: `edited ${i}`, status: 'PUBLISHED', publicationIntent: true, editKind: 'COPY_EDIT' }) },
           { kind: 'lifecycle', run: () => lifecycleAs(ids.admin, debate.id, { action: startsHidden ? 'publish' : hideAction }) },
           { kind: 'vote', run: () => voteAs(ids.readers[i % ids.readers.length], debate.id, i % 2 ? 'FOR' : 'AGAINST') },
           { kind: 'vote', run: () => voteAs(null, debate.id, 'FOR', `198.51.100.${i}`) },

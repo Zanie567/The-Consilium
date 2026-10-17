@@ -18,7 +18,7 @@ import type { Role } from '@prisma/client'
 
 export interface CommentAccessGrant {
   user: { id: string; role: Role; name: string | null; email: string | null }
-  article: { id: string; authorId: string; title: string }
+  article: { id: string; authorId: string; title: string; status: string; categoryId: string | null }
   /** True for admins and in-scope editors; false for the article's author. */
   isEditorial: boolean
   isArticleAuthor: boolean
@@ -35,7 +35,7 @@ export async function checkArticleCommentAccess(articleId: string): Promise<Comm
 
   const article = await prisma.article.findUnique({
     where: { id: articleId },
-    select: { id: true, authorId: true, title: true, categoryId: true, deletedAt: true },
+    select: { id: true, authorId: true, title: true, categoryId: true, deletedAt: true, status: true },
   })
   if (!article || article.deletedAt) {
     return { ok: false, response: NextResponse.json({ error: 'Not found' }, { status: 404 }) }
@@ -46,7 +46,7 @@ export async function checkArticleCommentAccess(articleId: string): Promise<Comm
     ok: true,
     grant: {
       user,
-      article: { id: article.id, authorId: article.authorId, title: article.title },
+      article: { id: article.id, authorId: article.authorId, title: article.title, status: article.status, categoryId: article.categoryId },
       isEditorial,
       isArticleAuthor,
     },
