@@ -40,7 +40,7 @@ export default function CorrectionsPage() {
               approved by an editor. We check facts, verify figures, and confirm the integrity of arguments. Despite these
               efforts, errors may still occasionally occur: in statistics, in the spelling of names, in the
               attribution of quotes, or in matters of interpretation. If they do, we will correct them. 
-              We do so openly and transparently, as we believe in the importance of accuracy strongly.
+              We do so openly and transparently, as we strongly believe in the importance of accuracy and accountability.
             </p>
           </section>
 
