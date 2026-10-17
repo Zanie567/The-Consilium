@@ -136,7 +136,7 @@ export default function CorrectionsPage() {
               We do not remove articles from the record except in exceptional circumstances, for
               example where continued publication would cause harm or where an article has been
               found to be substantially fabricated. In such cases, we publish a note explaining
-              why the article has been removed.
+              why the article has been removed and will explain the circumstances to any reader who requests it.
             </p>
           </section>
 

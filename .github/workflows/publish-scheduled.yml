@@ -77,5 +77,4 @@ jobs:
           # run, but are flagged. Only the stage names from this fixed list are logged, never messages.
           WARNING_STAGES=$(jq -r '[(.warnings // [])[] | .stage | select(IN("email", "notification", "achievement", "hidden-debate"))] | unique | join(", ")' "$BODY_FILE")
           if [ -n "$WARNING_STAGES" ]; then
-            echo "::warning title=Published with non-fatal warnings::stage(s): $WARNING_STAGES. See the Vercel runtime logs for /api/publish-scheduled."
-          fi
+            echo "::warning title=Published with non-fatal warnings::stage(s): $WARNING_STAGES. See the Vercel runtime logs for /api/publish-scheduled."          fi
