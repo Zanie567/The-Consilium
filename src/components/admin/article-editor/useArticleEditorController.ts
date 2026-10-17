@@ -569,11 +569,6 @@ export function useArticleEditorController({
   }, [scheduleAutosave])
 
   const handleSave = async (explicitStatus?: string, options: { copyEdit?: boolean } = {}) => {
-    // On a live article an ordinary save that changes the text must be declared a copy edit first.
-    if (!explicitStatus && currentStatusRef.current === 'PUBLISHED' && !options.copyEdit && liveTextChanged()) {
-      setCopyEditPending(true)
-      return
-    }
     if (explicitStatus && explicitStatus !== 'DRAFT' && !titleRef.current.trim()) {
       setError(localEditorError('A title is required before publishing or submitting.'))
       setSaveStatus('error')
@@ -582,6 +577,12 @@ export function useArticleEditorController({
     clearTimeout(autoSaveTimer.current)
     setError(null)
     if (recovery) return
+    // On a live article an ordinary save that changes the text must be declared a copy edit first
+    // (checked after the recovery guard, so the dialog never opens for a save that would be blocked).
+    if (!explicitStatus && currentStatusRef.current === 'PUBLISHED' && !options.copyEdit && liveTextChanged()) {
+      setCopyEditPending(true)
+      return
+    }
     recoveryBlockedRef.current = false
     const saved = await performSave(explicitStatus, options)
 

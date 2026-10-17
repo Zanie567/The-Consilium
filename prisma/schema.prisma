@@ -805,9 +805,11 @@ model ArticleCorrection {
   baseVersion    String?
   proposed       Json?
   previous       Json?
-  supersedesId   String?          @unique
+  // At most one non-withdrawn amendment per notice: partial unique index
+  // article_corrections_one_amendment_per_notice in the migration (not expressible here).
+  supersedesId   String?
   supersedes     ArticleCorrection?  @relation("CorrectionAmendments", fields: [supersedesId], references: [id], onDelete: NoAction)
-  supersededBy   ArticleCorrection?  @relation("CorrectionAmendments")
+  supersededBy   ArticleCorrection[] @relation("CorrectionAmendments")
   // Client-generated idempotency key: a replayed or double-clicked request cannot create a second row.
   requestKey     String?          @unique
   // Migrated from articles.corrected/correctionNote: the original date is unknown, so publishedAt is NULL.

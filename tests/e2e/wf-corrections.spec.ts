@@ -67,7 +67,7 @@ test('an editor prepares, an administrator approves, readers see the dated corre
   expect((await flagged).status()).toBe(201)
   await snap(wp, '0-writer-flags-error')
   await writer.close()
-  const globalEditor = await db().user.findFirstOrThrow({ where: { email: 'editor@theconsilium.com' } })
+  const globalEditor = await db().user.findFirstOrThrow({ where: { email: 'editor.global@consilium.test' } })
   expect(await db().notification.count({ where: { articleId: article.id, type: 'published_article_flag', userId: globalEditor.id } })).toBe(1)
 
   // ── 1. The editor finds the article and prepares a correction ────────────────────────────────────

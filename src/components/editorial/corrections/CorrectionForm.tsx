@@ -79,20 +79,30 @@ function initialFields(article: ManagerArticle, mode: FormMode): Fields {
   }
 }
 
-function readDraft(key: string): Fields | null {
+/** A local copy of unsent work keeps the article version its text was based on, so restoring it can never
+ *  submit old text against a newer version (the server then answers ARTICLE_CHANGED and offers a reload). */
+interface StoredDraft { fields: Fields; baseVersion: string }
+
+function readDraft(key: string): StoredDraft | null {
   try {
     const raw = localStorage.getItem(key)
-    return raw ? (JSON.parse(raw) as Fields) : null
+    const parsed = raw ? (JSON.parse(raw) as Partial<StoredDraft>) : null
+    return parsed?.fields && typeof parsed.baseVersion === 'string' ? (parsed as StoredDraft) : null
   } catch {
     return null
   }
+}
+
+/** The version the form's initial text belongs to: a pending correction's own base, otherwise the live article. */
+function initialBaseVersion(version: string, mode: FormMode): string {
+  return mode.kind === 'revise' && mode.correction.baseVersion ? mode.correction.baseVersion : version
 }
 
 export function CorrectionForm({ article, version, canApprove, mode, published, onDone, onCancel, onReload }: Props) {
   const key = draftKey(article.id, mode)
   const [fields, setFields] = useState<Fields>(() => initialFields(article, mode))
   const [restored, setRestored] = useState(false)
-  const [baseVersion, setBaseVersion] = useState(version)
+  const [baseVersion, setBaseVersion] = useState(() => initialBaseVersion(version, mode))
   const [baseArticle, setBaseArticle] = useState(article)
   const [editorKey, setEditorKey] = useState(0)
   const [requestKey] = useState(newRequestKey)
@@ -109,15 +119,19 @@ export function CorrectionForm({ article, version, canApprove, mode, published, 
   useEffect(() => {
     const saved = readDraft(key)
     if (saved) {
-      setFields(saved)
+      setFields(saved.fields)
+      setBaseVersion(saved.baseVersion)
       setEditorKey((k) => k + 1)
       setRestored(true)
     }
   }, [key])
 
   useEffect(() => {
-    try { localStorage.setItem(key, JSON.stringify(fields)) } catch { /* storage unavailable: the form still holds the text */ }
-  }, [key, fields])
+    try {
+      const draft: StoredDraft = { fields, baseVersion }
+      localStorage.setItem(key, JSON.stringify(draft))
+    } catch { /* storage unavailable: the form still holds the text */ }
+  }, [key, fields, baseVersion])
 
   const set = useCallback(<K extends keyof Fields>(field: K, value: Fields[K]) => {
     setFields((current) => ({ ...current, [field]: value }))
@@ -219,6 +233,7 @@ export function CorrectionForm({ article, version, canApprove, mode, published, 
   const discardRestored = () => {
     try { localStorage.removeItem(key) } catch { /* ignore */ }
     setFields(initialFields(article, mode))
+    setBaseVersion(initialBaseVersion(version, mode))
     setEditorKey((k) => k + 1)
     setRestored(false)
   }

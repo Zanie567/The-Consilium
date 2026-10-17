@@ -18,7 +18,8 @@
 --     model ArticleCorrection, so a `prisma db push` database and a migrated one are identical;
 --   * CHECK constraints that make an inconsistent row impossible (a published, non-legacy row always
 --     has a public note, a publication time, an approver and its text snapshots);
---   * at most one PENDING correction per article (partial unique index);
+--   * at most one PENDING correction per article, and at most one non-withdrawn amendment per notice
+--     (partial unique indexes);
 --   * trigger article_corrections_protect: PUBLISHED and WITHDRAWN rows are permanent (no UPDATE), and no
 --     row can be deleted directly. The only deletion allowed is the cascade when the article itself is
 --     permanently deleted (trash purge, account deletion), which removes the article from the record;
@@ -71,7 +72,8 @@ CREATE TABLE IF NOT EXISTS "article_corrections" (
     CONSTRAINT "article_corrections_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "article_corrections_supersedesId_key" ON "article_corrections"("supersedesId");
+-- A published notice has at most one live amendment; a withdrawn amendment does not block a new one.
+CREATE UNIQUE INDEX IF NOT EXISTS "article_corrections_one_amendment_per_notice" ON "article_corrections"("supersedesId") WHERE "status" <> 'WITHDRAWN';
 CREATE UNIQUE INDEX IF NOT EXISTS "article_corrections_requestKey_key" ON "article_corrections"("requestKey");
 CREATE INDEX IF NOT EXISTS "article_corrections_articleId_status_publishedAt_idx" ON "article_corrections"("articleId", "status", "publishedAt");
 -- Two editors cannot both have a correction awaiting approval on the same article.

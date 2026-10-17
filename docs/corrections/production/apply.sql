@@ -56,8 +56,8 @@ BEGIN
                       'article_corrections_articleId_fkey', 'article_corrections_supersedesId_fkey', 'article_corrections_pkey')) <> 6 THEN
     RAISE EXCEPTION 'postcondition: constraints missing';
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'article_corrections_one_pending_per_article') THEN
-    RAISE EXCEPTION 'postcondition: pending index missing';
+  IF (SELECT count(*) FROM pg_indexes WHERE indexname IN ('article_corrections_one_pending_per_article', 'article_corrections_one_amendment_per_notice')) <> 2 THEN
+    RAISE EXCEPTION 'postcondition: partial unique indexes missing';
   END IF;
   IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.article_corrections'::regclass) THEN
     RAISE EXCEPTION 'postcondition: RLS not enabled';

@@ -206,11 +206,14 @@ export async function prepareCorrection(
       }
 
       if (input.supersedesId) {
-        const target = await tx.articleCorrection.findUnique({ where: { id: input.supersedesId }, include: { supersededBy: { select: { id: true } } } })
+        const target = await tx.articleCorrection.findUnique({
+          where: { id: input.supersedesId },
+          include: { supersededBy: { where: { status: { not: 'WITHDRAWN' } }, select: { id: true } } },
+        })
         if (!target || target.articleId !== articleId || target.status !== 'PUBLISHED') {
           throw new CorrectionError('VALIDATION_ERROR', 400, 'Only a published notice on this article can be amended.')
         }
-        if (target.supersededBy) {
+        if (target.supersededBy.length > 0) {
           throw new CorrectionError('CORRECTION_ALREADY_AMENDED', 409, 'That notice has already been amended. Amend the latest notice instead.')
         }
       } else if (input.type === 'CORRECTION' && !textChanged(textOf(article), input.text)) {
@@ -259,7 +262,7 @@ export async function prepareCorrection(
     if (isUniqueViolation(error, 'one_pending_per_article') || isUniqueViolation(error, 'articleId')) {
       throw new CorrectionError('PENDING_CORRECTION_EXISTS', 409, 'Another correction for this article was submitted at the same moment. Reload to review it.')
     }
-    if (isUniqueViolation(error, 'supersedesId')) {
+    if (isUniqueViolation(error, 'supersedesId') || isUniqueViolation(error, 'one_amendment_per_notice')) {
       throw new CorrectionError('CORRECTION_ALREADY_AMENDED', 409, 'That notice was amended by someone else at the same moment. Reload to see it.')
     }
     if (error instanceof ArticleImageUnavailableError) throw new CorrectionError('IMAGE_UNAVAILABLE', 400, error.message)

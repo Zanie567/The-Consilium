@@ -264,6 +264,12 @@ async function PUTHandler(
       )
     }
 
+    // Reader-facing text must be text: anything else would be compared and written as garbage.
+    if ((title !== undefined && typeof title !== 'string') || (content !== undefined && typeof content !== 'string')
+      || (excerpt !== undefined && excerpt !== null && typeof excerpt !== 'string')) {
+      return apiError('Title, standfirst and article text must be text.', 400, 'VALIDATION_ERROR', requestId)
+    }
+
     // A live article's reader-facing text changes through one of two doors only:
     //   * Manage corrections (correction / clarification / update, with a public notice), or
     //   * here, as an explicitly declared minor copy edit (spelling, punctuation, formatting), which

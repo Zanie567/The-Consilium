@@ -569,6 +569,35 @@ suite('post-publication corrections (real PostgreSQL)', () => {
     expect(cross.status).toBe(400)
   })
 
+  it('a withdrawn amendment does not block a later amendment of the same note', async () => {
+    const article = await makeArticle()
+    const original = (await publishNow(article.id)).body.correction
+    as('editor')
+    const pending = (await create(article.id, await draft(article.id, { supersedesId: original.id, content: CORRECTED, publicNote: 'First attempt at an amendment' }))).body.correction
+    expect((await patch(article.id, pending.id, { action: 'withdraw', reason: 'Wrong wording', expectedUpdatedAt: pending.updatedAt })).status).toBe(200)
+    as('admin')
+    const second = await publishNow(article.id, { supersedesId: original.id, content: CORRECTED, publicNote: 'Our correction gave the wrong month; the figure was for August.' })
+    expect(second.status).toBe(201)
+    expect((await corrections(article.id)).map((c) => [c.status, c.supersedesId])).toEqual([
+      ['PUBLISHED', null], ['WITHDRAWN', original.id], ['PUBLISHED', original.id],
+    ])
+  })
+
+  it('revising a pending correction against a changed article is refused (no lost update)', async () => {
+    const article = await makeArticle()
+    as('editor')
+    const pending = (await create(article.id, await draft(article.id))).body.correction
+    await db.article.update({ where: { id: article.id }, data: { title: `${article.title} (copy edited)` } })
+    // The form revises from the version the proposal was prepared against, never the newer one.
+    const res = await patch(article.id, pending.id, {
+      action: 'revise', ...(await draft(article.id, { title: article.title, publicNote: 'Revised' })),
+      baseVersion: pending.baseVersion, expectedUpdatedAt: pending.updatedAt,
+    })
+    expect(res.status).toBe(409)
+    expect(res.body.code).toBe('ARTICLE_CHANGED')
+    expect((await db.article.findUniqueOrThrow({ where: { id: article.id } })).title).toBe(`${article.title} (copy edited)`)
+  })
+
   // ── Other editing paths ────────────────────────────────────────────────────────────────────────
 
   it('the article editor cannot silently change a live article: unclassified text changes are refused, copy edits are audited', async () => {
@@ -580,6 +609,11 @@ suite('post-publication corrections (real PostgreSQL)', () => {
     expect(silent.status).toBe(409)
     expect((await silent.json()).code).toBe('PUBLISHED_TEXT_CHANGE_UNCLASSIFIED')
     expect((await db.article.findUniqueOrThrow({ where: { id: article.id } })).content).toBe(ORIGINAL)
+
+    for (const bad of [{ title: 42 }, { content: { type: 'doc' } }, { excerpt: ['x'] }]) {
+      const res = await save({ ...bad, status: 'PUBLISHED', editKind: 'COPY_EDIT', expectedUpdatedAt: loaded.updatedAt.toISOString() })
+      expect(res.status).toBe(400)
+    }
 
     const legacy = await save({ corrected: true, correctionNote: 'sneaky', expectedUpdatedAt: loaded.updatedAt.toISOString() })
     expect(legacy.status).toBe(400)
