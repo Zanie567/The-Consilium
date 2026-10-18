@@ -42,84 +42,68 @@ export const dynamic = 'force-dynamic'
 const PUBLIC_LIST_CACHE = { revalidate: ARTICLES_REVALIDATE_SECONDS, tags: [ARTICLES_CACHE_TAG] }
 
 const getFeaturedArticle = unstable_cache(async () => {
-  try {
-    // First try explicitly featured, then fall back to most recent published.
-    // The single oversized hero slot intentionally skips debate articles
-    // (one side of a two-sided debate is a poor standalone lead) — they still
-    // appear in the grid below and on their category page.
-    const featured = await prisma.article.findFirst({
-      where: publishedArticleWhere({ isFeatured: true, isDebate: false }),
-      include: { author: true, category: true },
-    })
-    if (featured) return featured
-    return await prisma.article.findFirst({
-      where: publishedArticleWhere({ isDebate: false }),
-      orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
-      include: { author: true, category: true },
-    })
-  } catch {
-    return null
-  }
+  // First try explicitly featured, then fall back to most recent published.
+  // The single oversized hero slot intentionally skips debate articles
+  // (one side of a two-sided debate is a poor standalone lead) — they still
+  // appear in the grid below and on their category page.
+  const featured = await prisma.article.findFirst({
+    where: publishedArticleWhere({ isFeatured: true, isDebate: false }),
+    include: { author: true, category: true },
+  })
+  if (featured) return featured
+  return await prisma.article.findFirst({
+    where: publishedArticleWhere({ isDebate: false }),
+    orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
+    include: { author: true, category: true },
+  })
 }, ['home-featured'], PUBLIC_LIST_CACHE)
 
 const getMostReadArticles = unstable_cache(async () => {
-  try {
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-    const topIds = await prisma.articleView.groupBy({
-      by: ['articleId'],
-      where: { viewedAt: { gte: weekAgo } },
-      _count: { articleId: true },
-      orderBy: { _count: { articleId: 'desc' } },
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  const topIds = await prisma.articleView.groupBy({
+    by: ['articleId'],
+    where: { viewedAt: { gte: weekAgo } },
+    _count: { articleId: true },
+    orderBy: { _count: { articleId: 'desc' } },
+    take: 5,
+  })
+  if (topIds.length === 0) {
+    return prisma.article.findMany({
+      where: publishedArticleWhere(),
+      orderBy: { viewCount: 'desc' },
       take: 5,
-    })
-    if (topIds.length === 0) {
-      return prisma.article.findMany({
-        where: publishedArticleWhere(),
-        orderBy: { viewCount: 'desc' },
-        take: 5,
-        select: { id: true, title: true, slug: true, viewCount: true, author: { select: { name: true } }, category: { select: { name: true } } },
-      })
-    }
-    const ids = topIds.map((r) => r.articleId)
-    const articles = await prisma.article.findMany({
-      where: publishedArticleWhere({ id: { in: ids } }),
       select: { id: true, title: true, slug: true, viewCount: true, author: { select: { name: true } }, category: { select: { name: true } } },
     })
-    // Sort by weekly views order
-    return ids.map((id) => articles.find((a) => a.id === id)).filter(Boolean)
-  } catch {
-    return []
   }
+  const ids = topIds.map((r) => r.articleId)
+  const articles = await prisma.article.findMany({
+    where: publishedArticleWhere({ id: { in: ids } }),
+    select: { id: true, title: true, slug: true, viewCount: true, author: { select: { name: true } }, category: { select: { name: true } } },
+  })
+  // Sort by weekly views order
+  return ids.map((id) => articles.find((a) => a.id === id)).filter(Boolean)
 }, ['home-most-read'], PUBLIC_LIST_CACHE)
 
 const getArticles = unstable_cache(async (categorySlug?: string) => {
-  try {
-    return await prisma.article.findMany({
-      // Homepage hero + grid: published articles EXCLUDING debates.
-      // Debate articles are surfaced on the homepage only through the dedicated
-      // DebatePanel (and the /opinion-debate experience); listing each side again
-      // in the general "all articles" feed was redundant and read as duplicates.
-      // They still appear on their category page and in the archive.
-      where: publishedArticleWhere(
-        categorySlug
-          ? { isDebate: false, category: { slug: categorySlug } }
-          : { isDebate: false },
-      ),
-      orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
-      take: 16,
-      include: { author: true, category: true },
-    })
-  } catch {
-    return []
-  }
+  return await prisma.article.findMany({
+    // Homepage hero + grid: published articles EXCLUDING debates.
+    // Debate articles are surfaced on the homepage only through the dedicated
+    // DebatePanel (and the /opinion-debate experience); listing each side again
+    // in the general "all articles" feed was redundant and read as duplicates.
+    // They still appear on their category page and in the archive.
+    where: publishedArticleWhere(
+      categorySlug
+        ? { isDebate: false, category: { slug: categorySlug } }
+        : { isDebate: false },
+    ),
+    orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
+    take: 16,
+    include: { author: true, category: true },
+  })
 }, ['home-grid'], PUBLIC_LIST_CACHE)
 
 const getCategories = unstable_cache(async () => {
-  try {
-    return await prisma.category.findMany({ orderBy: { name: 'asc' } })
-  } catch {
-    return []
-  }
+  return await prisma.category.findMany({ orderBy: { name: 'asc' } })
 }, ['home-categories'], PUBLIC_LIST_CACHE)
 
 function estimateReadTime(content: string): string {
@@ -199,29 +183,25 @@ async function getActiveDebate(userId?: string, anonymousId?: string): Promise<D
 }
 
 const getTrendingTags = unstable_cache(async () => {
-  try {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    // Get tags on articles published in the last 30 days, ordered by view count
-    // Same visibility rule as every public list, so a hidden debate's tags never trend.
-    const rows = await findTrendingTagRows(prisma, thirtyDaysAgo)
-    // Aggregate view counts per tag
-    const tally = new Map<string, { tag: { id: string; name: string; slug: string }; views: number; count: number }>()
-    for (const row of rows) {
-      const key = row.tagId
-      const existing = tally.get(key)
-      if (existing) {
-        existing.views += row.article.viewCount
-        existing.count += 1
-      } else {
-        tally.set(key, { tag: row.tag, views: row.article.viewCount, count: 1 })
-      }
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  // Get tags on articles published in the last 30 days, ordered by view count
+  // Same visibility rule as every public list, so a hidden debate's tags never trend.
+  const rows = await findTrendingTagRows(prisma, thirtyDaysAgo)
+  // Aggregate view counts per tag
+  const tally = new Map<string, { tag: { id: string; name: string; slug: string }; views: number; count: number }>()
+  for (const row of rows) {
+    const key = row.tagId
+    const existing = tally.get(key)
+    if (existing) {
+      existing.views += row.article.viewCount
+      existing.count += 1
+    } else {
+      tally.set(key, { tag: row.tag, views: row.article.viewCount, count: 1 })
     }
-    return Array.from(tally.values())
-      .sort((a, b) => b.views + b.count * 2 - (a.views + a.count * 2))
-      .slice(0, 8)
-  } catch {
-    return []
   }
+  return Array.from(tally.values())
+    .sort((a, b) => b.views + b.count * 2 - (a.views + a.count * 2))
+    .slice(0, 8)
 }, ['home-trending-tags'], PUBLIC_LIST_CACHE)
 
 // Title is inherited from layout's default value.
@@ -260,8 +240,8 @@ export default async function HomePage({
     getFeaturedArticle(),
     getArticles(categorySlug),
     getCategories(),
-    getMostReadArticles(),
-    getTrendingTags(),
+    getMostReadArticles().catch(() => []),
+    getTrendingTags().catch(() => []),
     getActiveDebate(session?.user?.id, anonymousId),
   ])
 
