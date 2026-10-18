@@ -160,7 +160,7 @@ describe('canonical analytics persistence', () => {
     expect(await pruneReadingAnalytics(now)).toBeGreaterThanOrEqual(1)
     expect(await prisma.articleEngagementSession.findUnique({ where: { id } })).toBeNull()
   })
-  it('returns ok on analytics database failure without leaking errors', async () => {
+  it('returns a retryable acknowledgement failure without leaking database details', async () => {
     const spy = vi.spyOn(prisma, '$transaction').mockRejectedValueOnce(new Error('private'))
     const response = await POST(
       new NextRequest('http://localhost/api/analytics/track', {
@@ -168,9 +168,11 @@ describe('canonical analytics persistence', () => {
         body: JSON.stringify({ articleId, sessionId }),
       })
     )
-    expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ ok: true })
-    spy.mockRestore()
+    try {
+      expect(response.status).toBe(503)
+      expect(response.headers.get('retry-after')).toBe('30')
+      expect(await response.json()).toEqual({ error: 'Tracking temporarily unavailable' })
+    } finally { spy.mockRestore() }
   })
   it('drops bots, malformed and oversized events safely', async () => {
     for (const [body, ua] of [

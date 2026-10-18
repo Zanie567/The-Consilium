@@ -38,8 +38,8 @@ export const dynamic = 'force-dynamic'
 // The page stays dynamic (it reads the session/cookies for the personalised
 // debate panel), but every NON-personalised list below is wrapped in the Next
 // data cache. A burst of RSC navigations therefore renders from cache instead
-// of firing six Postgres queries per request — the root cause of the 503s when
-// the serverless pool is pinned to one connection (Priority 2).
+// of repeating the list reads. Prisma's includes can issue several SQL queries;
+// the historic prefetch 503 cause is not established for today's adapter/pool.
 const PUBLIC_LIST_CACHE = { revalidate: ARTICLES_REVALIDATE_SECONDS, tags: [ARTICLES_CACHE_TAG] }
 
 const getFeaturedArticle = unstable_cache(async () => {
@@ -234,9 +234,11 @@ export default async function HomePage({
   const anonymousId = cookieStore.get('consilium_anon_id')?.value
 
   const [featured, articles, categories, mostRead, trendingTags, activeDebate] = await Promise.all([
-    getFeaturedArticle(),
+    // Optional panels can degrade, but fallbacks stay OUTSIDE shared caches.
+    // A failed main feed must show recovery UI rather than "nothing published".
+    getFeaturedArticle().catch(() => null),
     getArticles(categorySlug),
-    getCategories(),
+    getCategories().catch(() => []),
     getMostReadArticles().catch(() => []),
     getTrendingTags().catch(() => []),
     getActiveDebate(session?.user?.id, anonymousId),
