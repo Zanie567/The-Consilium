@@ -27,6 +27,14 @@ function nWords(n: number) {
 // ── readTimeMinutes ───────────────────────────────────────────────────────────
 
 describe('readTimeMinutes', () => {
+  it('counts many one-word paragraphs rather than JSON whitespace or image attributes', () => {
+    const document = JSON.stringify({ type: 'doc', content: [
+      ...Array.from({ length: 500 }, () => ({ type: 'paragraph', content: [{ type: 'text', text: 'word' }] })),
+      { type: 'image', attrs: { src: '/image.png', alt: 'not article body '.repeat(500) } },
+    ] })
+    expect(wordCountFromContent(document)).toBe(500)
+    expect(readTimeLabel(document)).toBe('3 min read')
+  })
   it('returns at least 1 for empty string', () => {
     expect(readTimeMinutes('')).toBe(1)
   })
