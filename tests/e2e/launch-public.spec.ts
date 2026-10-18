@@ -17,6 +17,14 @@ test('public launch routes, article SEO, feed distribution and images work at th
     const response = await page.goto(path, { waitUntil: 'networkidle' })
     expect(response?.status(), path).toBe(200)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), path).toBe(true)
+    await page.locator('img').evaluateAll(async nodes => {
+      await Promise.all(nodes.map(async node => {
+        const img = node as HTMLImageElement
+        img.loading = 'eager'
+        try { await img.decode() } catch { /* Assertion below records the failure. */ }
+      }))
+    })
+    expect(await page.locator('img').evaluateAll(nodes => nodes.filter(node => !(node as HTMLImageElement).naturalWidth).length), path).toBe(0)
   }
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${process.env.E2E_BASE_URL}/articles/${article.slug}`)
   await expect(page.locator('meta[property="og:type"]')).toHaveAttribute('content', 'article')
@@ -42,5 +50,10 @@ test('public launch routes, article SEO, feed distribution and images work at th
   expect((await request.get('/articles/launch-deliberately-missing')).status()).toBe(404)
   // Only synthetic local fixtures appear in the retained screenshot.
   await page.screenshot({ path: testInfo.outputPath('launch-article.png'), fullPage: true })
+  if (/iphone|android/.test(testInfo.project.name)) {
+    await page.setViewportSize({ width: 844, height: 390 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
+    await page.screenshot({ path: testInfo.outputPath('launch-article-landscape.png'), fullPage: true })
+  }
   expect(errors).toEqual([])
 })
