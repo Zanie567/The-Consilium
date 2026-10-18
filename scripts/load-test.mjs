@@ -11,9 +11,11 @@ const base = new URL(process.env.E2E_BASE_URL)
 if (base.protocol !== 'http:' || !['localhost', '127.0.0.1'].includes(base.hostname)) throw Error('Local HTTP only')
 const isolation = JSON.parse(fs.readFileSync(`${process.env.E2E_RESULTS_DIR}/isolation.json`))
 if (isolation.app.run !== process.env.E2E_RUN_ID) throw Error('Missing run attestation')
+const profile = process.env.E2E_LOAD_PROFILE ?? 'mixed'
+if (!['mixed', 'analytics'].includes(profile)) throw Error('Unknown local load profile')
 const db = new pg.Client({ connectionString: process.env.TEST_DATABASE_URL })
 await db.connect()
-const report = { run: process.env.E2E_RUN_ID, node: process.version, stages: [], limits: 'Local production build; testing mode on; rate limiter off; no CDN/Supavisor/WAN; synthetic fixtures; no browser assets or signed-in load.' }
+const report = { run: process.env.E2E_RUN_ID, profile, node: process.version, stages: [], limits: 'Local production build; testing mode on; rate limiter off; no CDN/Supavisor/WAN; synthetic fixtures; no browser assets or signed-in load.' }
 let monitor
 let sampling = false
 let peakConnections = 0, peakActive = 0, peakLockWaits = 0
@@ -57,11 +59,13 @@ try {
       peakConnections = Math.max(peakConnections,r.connections); peakActive = Math.max(peakActive,r.active); peakLockWaits = Math.max(peakLockWaits,r.locks)
     } finally { sampling = false }
   }, 200)
-  await stage('first-touch-mix', 5, n => request(paths[n % paths.length]), 15)
-  for (const concurrency of [1, 5, 10, 20, 40, 100]) {
-    await stage('warm-html-rsc', concurrency, n => request(paths[n % paths.length] + (n % 2 ? `?_rsc=launch${n}` : ''), n % 2 ? { headers: { RSC: '1', 'Next-Router-Prefetch': '1' } } : {}), Math.max(30, concurrency * 3))
+  if (profile === 'mixed') {
+    await stage('first-touch-mix', 5, n => request(paths[n % paths.length]), 15)
+    for (const concurrency of [1, 5, 10, 20, 40, 100]) {
+      await stage('warm-html-rsc', concurrency, n => request(paths[n % paths.length] + (n % 2 ? `?_rsc=launch${n}` : ''), n % 2 ? { headers: { RSC: '1', 'Next-Router-Prefetch': '1' } } : {}), Math.max(30, concurrency * 3))
+    }
+    await stage('paced-reads-across-cache-expiry', 10, n => request(paths[n % paths.length]), 5000, 35000)
   }
-  await stage('paced-reads-across-cache-expiry', 10, n => request(paths[n % paths.length]), 5000, 35000)
   const prefix = `launch-${randomUUID()}`
   let unique = 0
   const visitIds = []
