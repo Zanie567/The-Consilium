@@ -157,6 +157,11 @@ if [ "$#" -gt 0 ]; then
   npx playwright test "$@"
   BROWSER_STATUS=$?
   [ "$BROWSER_STATUS" = "0" ] || STATUS=1
+  # Reuse this attested production build for a final load probe after successful
+  # correctness checks. Existing E2E_LOAD_TEST=1 remains load-only.
+  if [ "${E2E_LOAD_TEST:-0}" = after ] && [ "$STATUS" = 0 ]; then
+    node scripts/load-test.mjs || STATUS=1
+  fi
   exit "$STATUS"
 fi
 
@@ -169,4 +174,7 @@ E2E_PHASE=workflow npx playwright test --workers=1 || STATUS=1
 E2E_PHASE=team-profile npx playwright test --workers=1 || STATUS=1
 # Platform upgrade journeys publish articles and upload figures to the shared storage server.
 E2E_PHASE=upgrade npx playwright test --workers=1 || STATUS=1
+if [ "${E2E_LOAD_TEST:-0}" = after ] && [ "$STATUS" = 0 ]; then
+  node scripts/load-test.mjs || STATUS=1
+fi
 exit $STATUS
