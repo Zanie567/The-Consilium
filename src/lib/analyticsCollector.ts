@@ -41,17 +41,22 @@ export async function collectAnalytics(body: Record<string, unknown>, now = new 
       }))
     )
       return
-    if (!(await tx.articleView.findFirst({ where: { sessionHash: hash }, select: { id: true } }))) {
+    const newView = !(await tx.articleView.findFirst({ where: { sessionHash: hash }, select: { id: true } }))
+    if (newView) {
       await tx.articleView.create({ data: { articleId, sessionHash: hash, referrer } })
+    }
+    const incrementViewCount = async () => {
+      if (!newView) return
       // Telemetry must not advance the editorial revision/dateModified or
       // invalidate an editor's open document. Increment atomically without
-      // Prisma's automatic @updatedAt write.
+      // Prisma's automatic @updatedAt write. Do this LAST so first visitors to
+      // the same article don't hold its row lock through engagement queries.
       await tx.$executeRaw`UPDATE articles SET "viewCount" = "viewCount" + 1 WHERE id = ${articleId}`
     }
-    if (typeof visitId !== 'string' || !uuid.test(visitId)) return
+    if (typeof visitId !== 'string' || !uuid.test(visitId)) return incrementViewCount()
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`visit:${visitId}`}))`
     let visit = await tx.articleEngagementSession.findUnique({ where: { id: visitId } })
-    if (visit && visit.articleId !== articleId) return
+    if (visit && visit.articleId !== articleId) return incrementViewCount()
     const readerHash =
       body.consent === true &&
       typeof readerId === 'string' &&
@@ -119,5 +124,6 @@ export async function collectAnalytics(body: Record<string, unknown>, now = new 
         ...(!readerHash ? { readerHash: null, returning: false } : {}),
       },
     })
+    await incrementViewCount()
   })
 }

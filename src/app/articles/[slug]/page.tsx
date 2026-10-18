@@ -1,6 +1,6 @@
 import { articleShareUrl } from '@/lib/shareUrl'
 import { publishedArticleWhere } from '@/lib/articleQueries'
-import { SERIES_ARTICLES_ARGS } from '@/lib/publicArticleReads'
+import { getPublicArticle as getArticle } from '@/lib/publicPageData'
 import { notFound, permanentRedirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -37,23 +37,6 @@ interface Props {
   params: Promise<{ slug: string }>
 }
 
-async function getArticle(slug: string) {
-  try {
-    return await prisma.article.findFirst({
-      where: publishedArticleWhere({ slug }),
-      include: {
-        author: true,
-        category: true,
-        tags: { include: { tag: true } },
-        series: {
-          include: {
-            articles: SERIES_ARTICLES_ARGS, // only articles a reader could open: never a hidden debate's or a trashed one
-          },
-        },
-      },
-    })
-  } catch { return null }
-}
 
 function getArticleUrl(slug: string): string {
   return `${SITE_URL.replace(/\/$/, '')}/articles/${slug}`
@@ -69,22 +52,18 @@ function getArticleUrl(slug: string): string {
  * live replacement of a real former duplicate, never an unrelated article.
  */
 async function findDuplicateRedirectTarget(slug: string): Promise<string | null> {
-  try {
-    const removed = await prisma.article.findUnique({
-      where: { slug },
-      select: { title: true, deletedAt: true },
-    })
-    if (!removed?.deletedAt) return null
+  const removed = await prisma.article.findUnique({
+    where: { slug },
+    select: { title: true, deletedAt: true },
+  })
+  if (!removed?.deletedAt) return null
 
-    const canonical = await prisma.article.findFirst({
-      where: publishedArticleWhere({ title: { equals: removed.title, mode: 'insensitive' } }),
-      select: { slug: true },
-      orderBy: { publishedAt: 'desc' },
-    })
-    return canonical?.slug ?? null
-  } catch {
-    return null
-  }
+  const canonical = await prisma.article.findFirst({
+    where: publishedArticleWhere({ title: { equals: removed.title, mode: 'insensitive' } }),
+    select: { slug: true },
+    orderBy: { publishedAt: 'desc' },
+  })
+  return canonical?.slug ?? null
 }
 
 // ── Relevance-scored related articles ────────────────────────────────────────

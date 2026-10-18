@@ -132,6 +132,13 @@ done
 export E2E_BASE_URL="http://localhost:$PORT"
 node scripts/attest-test-run.mjs || exit 1
 
+# Opt-in bounded load probes use only the services owned and attested above.
+# No remote target override is accepted by the probe.
+if [ "${E2E_LOAD_TEST:-0}" = 1 ]; then
+  node scripts/load-test.mjs
+  exit $?
+fi
+
 STATUS=0
 if [ "${RUN_VITEST:-0}" = "1" ]; then
   mkdir -p test-results
