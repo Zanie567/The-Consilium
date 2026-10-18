@@ -1,0 +1,9 @@
+
+ RUN  v4.1.7 /Users/zanie/The-Consilium
+
+
+ Test Files  1 passed (1)
+      Tests  41 passed (41)
+   Start at  01:29:18
+   Duration  21.64s (transform 41ms, setup 32ms, import 305ms, tests 21.22s, environment 0ms)
+
