@@ -11,10 +11,13 @@ export function ViewCounter({ articleId }: { articleId: string }) {
       document.hasFocus()
     )
     let lastSent = -1
+    let inFlight = false
+    let pendingConsent = false
+    let disposed = false
     const send = (beacon = false) => {
       const seconds = clock.tick(performance.now())
       if (seconds === lastSent && !beacon) return
-      lastSent = seconds
+      if (inFlight && !beacon) return
       const body = JSON.stringify({
         articleId,
         visitId,
@@ -30,12 +33,22 @@ export function ViewCounter({ articleId }: { articleId: string }) {
         )
       )
         return
+      inFlight = true
       void fetch('/api/analytics/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body,
         keepalive: beacon,
-      }).catch(() => {})
+      }).then(response => {
+        if (response.ok) lastSent = seconds
+      }).catch(() => {}).finally(() => {
+        inFlight = false
+        if (pendingConsent && !disposed) {
+          pendingConsent = false
+          lastSent = -1
+          send()
+        }
+      })
     }
     const activity = () => clock.interact(performance.now())
     const visibility = () => {
@@ -50,6 +63,7 @@ export function ViewCounter({ articleId }: { articleId: string }) {
     const unload = () => send(true)
     const consent = () => {
       analyticsIdentity()
+      if (inFlight) { pendingConsent = true; return }
       lastSent = -1
       send()
     }
@@ -67,6 +81,7 @@ export function ViewCounter({ articleId }: { articleId: string }) {
     window.addEventListener('consilium-consent-change', consent)
     window.addEventListener('storage', storage)
     return () => {
+      disposed = true
       send(true)
       clearInterval(interval)
       for (const type of ['pointerdown', 'keydown', 'scroll', 'touchstart'])

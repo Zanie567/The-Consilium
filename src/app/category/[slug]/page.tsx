@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
+import { getPublicCategory } from '@/lib/publicPageData'
 import { publishedArticleWhere, ARTICLES_CACHE_TAG, ARTICLES_REVALIDATE_SECONDS } from '@/lib/articleQueries'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { ArticleCard } from '@/components/ui/ArticleCard'
@@ -15,7 +16,7 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const category = await prisma.category.findUnique({ where: { slug } }).catch(() => null)
+  const category = await getPublicCategory(slug)
   if (!category) return {}
   return {
     title: category.name,
@@ -43,25 +44,11 @@ const getCachedCategoryArticles = unstable_cache(
 export default async function CategoryPage({ params }: Props) {
   const { slug } = await params
 
-  let category = null
-  try {
-    category = await prisma.category.findUnique({ where: { slug } })
-  } catch {
-    // DB not available - fall through to notFound
-  }
+  const category = await getPublicCategory(slug)
 
   if (!category) notFound()
 
-  type ArticleRow = Awaited<ReturnType<typeof prisma.article.findMany<{
-    include: { author: true; category: true }
-  }>>>[number]
-
-  let articles: ArticleRow[] = []
-  try {
-    articles = await getCachedCategoryArticles(category.id)
-  } catch {
-    articles = []
-  }
+  const articles = await getCachedCategoryArticles(category.id)
 
   const emptyState = getSectionEmptyState(slug, category.name)
 

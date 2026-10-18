@@ -12,15 +12,12 @@ const globalForPrisma = globalThis as unknown as {
 function createPrismaClient() {
   if (process.env.E2E_ISOLATED === '1') assertRunDatabase()
   const connectionString = process.env.DATABASE_URL!
-  // Pool hardening (Priority 2 — intermittent 503s under prefetch bursts).
-  //   * `max`: explicit pool size. The serverless pooler URL pins this to 1
-  //     connection; a burst of RSC prefetches then renders many pages that all
-  //     queue on that single connection. Make it configurable so production can
-  //     raise it above 1, while keeping a safe default for normal deployments.
-  //   * `connectionTimeoutMillis`: fail fast instead of letting a render hang
-  //     waiting for a connection until the platform kills the function with a
-  //     503. A thrown error is caught by each page's try/catch and degrades to
-  //     empty data (HTTP 200) rather than a hard 503.
+  // Prisma 7 uses node-postgres pooling: URL connection_limit/pool_timeout
+  // options from the old Prisma engine do not configure this adapter. `max`
+  // applies per client/function instance, not across the Vercel deployment.
+  // The acquisition timeout bounds pool waits, not SQL execution time.
+  // Keep the existing defaults until an isolated hosted test establishes a
+  // better pool budget; increasing this can exhaust Supavisor's client limit.
   const adapter = new PrismaPg({
     ...databaseConnection(process.env, connectionString),
     max: Number(process.env.DB_POOL_MAX ?? 10),
