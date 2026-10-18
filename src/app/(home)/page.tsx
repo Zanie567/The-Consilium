@@ -1,3 +1,4 @@
+import { readTimeLabel as estimateReadTime } from '@/lib/readTime'
 import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { unstable_cache } from 'next/cache'
@@ -106,14 +107,6 @@ const getCategories = unstable_cache(async () => {
   return await prisma.category.findMany({ orderBy: { name: 'asc' } })
 }, ['home-categories'], PUBLIC_LIST_CACHE)
 
-function estimateReadTime(content: string): string {
-  try {
-    const words = JSON.stringify(JSON.parse(content)).split(/\s+/).length
-    return `${Math.max(1, Math.round(words / 200))} min read`
-  } catch {
-    return `${Math.max(1, Math.round(content.split(/\s+/).length / 200))} min read`
-  }
-}
 
 async function getActiveDebate(userId?: string, anonymousId?: string): Promise<DebateData | null> {
   try {
