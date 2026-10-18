@@ -3,7 +3,7 @@ import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { ViewCounter } from '@/components/ui/ViewCounter'
 vi.mock('@/lib/activeReading', () => ({ActiveReadingClock:class {tick(){return 0} interact(){} visibility(){} focus(){}}}))
-const identity = vi.hoisted(() => vi.fn(() => ({sessionId:'retry-fixture',consent:false})))
+const identity = vi.hoisted(() => vi.fn(() => ({sessionId:'retry-fixture',consent:false,readerId:undefined as string | undefined})))
 vi.mock('@/lib/analyticsIdentity', () => ({analyticsIdentity:identity}))
 afterEach(() => {cleanup();vi.useRealTimers();vi.unstubAllGlobals()})
 it('retries unacknowledged views even when reading time has not advanced, then suppresses unchanged acknowledged events', async () => {
@@ -22,12 +22,17 @@ it('retries unacknowledged views even when reading time has not advanced, then s
 })
 it('flushes a consent change after an in-flight event without waiting for a heartbeat', async () => {
   vi.useFakeTimers()
+  identity.mockReturnValue({sessionId:'retry-fixture',consent:true,readerId:'reader'})
   let resolve!: (value: {ok:boolean}) => void
   const fetcher = vi.fn().mockImplementationOnce(() => new Promise(r => {resolve=r})).mockResolvedValue({ok:true})
   vi.stubGlobal('fetch',fetcher)
   render(<ViewCounter articleId="a" />)
+  expect(JSON.parse(fetcher.mock.calls[0][1].body).readerId).toBe('reader')
+  identity.mockReturnValue({sessionId:'retry-fixture',consent:false,readerId:undefined})
   await act(async () => {window.dispatchEvent(new Event('consilium-consent-change'))})
   expect(fetcher).toHaveBeenCalledTimes(1)
   await act(async () => {resolve({ok:true})})
   expect(fetcher).toHaveBeenCalledTimes(2)
+  expect(JSON.parse(fetcher.mock.calls[1][1].body)).toMatchObject({consent:false})
+  expect(JSON.parse(fetcher.mock.calls[1][1].body).readerId).toBeUndefined()
 })

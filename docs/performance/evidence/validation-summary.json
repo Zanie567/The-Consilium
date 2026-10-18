@@ -1,0 +1,37 @@
+{
+  "applicationCommit": "501d971",
+  "finalProbeCommit": "1cf4f5f",
+  "baselineCommit": "c3785a2e64899945ef87c601481aca1300655110",
+  "typecheck": "passed",
+  "lint": "passed",
+  "regionFieldSchema": "passed; crons unchanged",
+  "broadVitest": {
+    "passed": 1996,
+    "failedTimeouts": 2,
+    "skipped": 111,
+    "backupFileRerunPassed": 41
+  },
+  "firstRealIntegration": {
+    "passed": 754,
+    "failedOldAnalyticsStatusContract": 1,
+    "skipped": 111
+  },
+  "firstSelectedBrowser": {
+    "passed": 21
+  },
+  "finalVerification": "pending",
+  "finalRealIntegration": {
+    "passed": 755,
+    "skipped": 111,
+    "filesPassed": 50,
+    "filesSkipped": 5
+  },
+  "browserBeforeAsyncAssertionFix": {
+    "passed": 20,
+    "failed": 1
+  },
+  "focusedRegressions": {
+    "files": 5,
+    "passed": 18
+  }
+}
