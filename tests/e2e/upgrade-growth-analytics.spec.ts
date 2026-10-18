@@ -165,12 +165,18 @@ test('analytics heartbeat pauses hidden, consent controls persistence, failure l
   })
   await page.getByRole('button', { name: 'Accept', exact: true }).click()
   expect(await page.evaluate(() => localStorage.getItem('consilium_analytics_reader'))).toBeTruthy()
+  // Collection is acknowledged asynchronously; a consent change waits for an
+  // in-flight event before sending the new identity. Observe actual deliveries
+  // rather than assuming the fetch completed in the page.evaluate task.
+  await expect.poll(() => events.some(e => e.consent && Boolean(e.readerId))).toBe(true)
+  const beforeDecline = events.length
   await page.evaluate(() => {
     localStorage.setItem('consilium_cookie_consent', 'declined')
     window.dispatchEvent(new Event('consilium-consent-change'))
   })
   expect(await page.evaluate(() => localStorage.getItem('consilium_analytics_reader'))).toBeNull()
-  expect(events.at(-1)?.readerId).toBeUndefined()
+  await expect.poll(() => events.length > beforeDecline &&
+    events.at(-1)?.consent === false && !events.at(-1)?.readerId).toBe(true)
   await page.unroute('**/api/analytics/track')
   await page.route('**/api/analytics/track', (route) =>
     route.fulfill({ status: 503, json: { error: 'unavailable' } })
