@@ -74,6 +74,15 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: ([
+    ...[
+      { name: 'launch-desktop-chromium', device: 'Desktop Chrome' },
+      { name: 'launch-desktop-webkit', device: 'Desktop Safari' },
+      { name: 'launch-android-chromium', device: 'Pixel 7' },
+      { name: 'launch-iphone-webkit', device: 'iPhone 14' },
+    ].map(({ name, device }) => ({
+      name, testMatch: /launch-public\.spec\.ts/,
+      use: { ...devices[device] },
+    })),
     // Part of every run now: scripts/run-e2e.sh always provides the local storage
     // server and a build pointed at it. The specs share that one server and assert on
     // its contents, so they run serially (see `workers` in the project's spec files).
@@ -105,6 +114,7 @@ export default defineConfig({
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
       name: 'public',
+      testIgnore: /launch-public\.spec\.ts/,
       testMatch: /(public|network-crawl|footnotes)\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
@@ -114,6 +124,7 @@ export default defineConfig({
       //
       // Keep footnotes and view-transition checks enabled: failures retain evidence.
       name: 'public-webkit',
+      testIgnore: /launch-public\.spec\.ts/,
       testMatch: /(public|footnotes)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },

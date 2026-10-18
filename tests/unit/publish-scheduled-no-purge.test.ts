@@ -29,12 +29,14 @@ vi.mock('@/lib/gamification/achievements', () => ({ awardPublishAchievements: vi
 
 import { publishScheduledArticles } from '@/lib/scheduledPublishing'
 import { POST } from '@/app/api/publish-scheduled/route'
+import { sendEmail } from '@/lib/email'
 
 const SECRET = 'test-secret-value-that-is-long-enough-0123456789'
 let originalSecret: string | undefined
 
 beforeEach(() => {
   vi.resetAllMocks()
+  vi.mocked(sendEmail).mockResolvedValue(true)
   originalSecret = process.env.CRON_SECRET
   process.env.CRON_SECRET = SECRET
   vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -124,6 +126,18 @@ describe('POST /api/publish-scheduled response contract (read by the Supabase re
     const body = await res.json()
     expect(body.published).toBe(1)
     expect(body.warnings).toEqual([expect.objectContaining({ articleId: 'a1', stage: 'notification' })])
+  })
+
+  it('reports a rejected email transport without republishing or duplicating notifications', async () => {
+    prismaMock.article.findMany.mockResolvedValue([due])
+    prismaMock.article.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 })
+    prismaMock.notification.create.mockResolvedValue({})
+    vi.mocked(sendEmail).mockResolvedValue(false)
+    const body = await (await POST(authed())).json()
+    expect(body).toMatchObject({ due: 1, published: 1, warnings: [{ stage: 'email', articleId: 'a1' }] })
+    await POST(authed())
+    expect(sendEmail).toHaveBeenCalledTimes(1)
+    expect(prismaMock.notification.create).toHaveBeenCalledTimes(1)
   })
 
   it('answers 500 with a JSON error (never a 2xx) when the database is unavailable', async () => {
