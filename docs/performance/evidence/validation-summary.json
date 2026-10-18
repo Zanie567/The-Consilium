@@ -19,7 +19,17 @@
   "firstSelectedBrowser": {
     "passed": 21
   },
-  "finalVerification": "pending",
+  "finalVerification": {
+    "integrationPassed": 755,
+    "integrationSkipped": 111,
+    "selectedBrowserPassed": 21,
+    "focusedPassed": 18,
+    "strengthenedConsentUnitPassed": 2,
+    "productionBuild": "passed",
+    "typecheck": "passed",
+    "eslint": "passed",
+    "localProbeSyntax": "passed"
+  },
   "finalRealIntegration": {
     "passed": 755,
     "skipped": 111,
@@ -33,5 +43,6 @@
   "focusedRegressions": {
     "files": 5,
     "passed": 18
-  }
+  },
+  "finalBrowserCommit": "f9dbbb1"
 }
