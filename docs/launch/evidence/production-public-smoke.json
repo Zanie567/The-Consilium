@@ -1,0 +1,202 @@
+[
+  {
+    "path": "/",
+    "status": 200,
+    "finalUrl": "https://www.theconsilium.co.uk/",
+    "canonical": [
+      "https://theconsilium.co.uk"
+    ],
+    "contentType": "text/html; charset=utf-8",
+    "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+    "xVercelCache": "MISS",
+    "cspPresent": true,
+    "ogImagePresent": true,
+    "structuredDataPresent": true,
+    "rssItems": null
+  },
+  {
+    "path": "/team",
+    "status": 200,
+    "finalUrl": "https://www.theconsilium.co.uk/team",
+    "canonical": [
+      "https://theconsilium.co.uk/team"
+    ],
+    "contentType": "text/html; charset=utf-8",
+    "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+    "xVercelCache": "MISS",
+    "cspPresent": true,
+    "ogImagePresent": true,
+    "structuredDataPresent": false,
+    "rssItems": null
+  },
+  {
+    "path": "/about",
+    "status": 200,
+    "finalUrl": "https://www.theconsilium.co.uk/about",
+    "canonical": [
+      "https://theconsilium.co.uk/about"
+    ],
+    "contentType": "text/html; charset=utf-8",
+    "cacheControl": "public, max-age=0, must-revalidate",
+    "xVercelCache": "STALE",
+    "cspPresent": true,
+    "ogImagePresent": true,
+    "structuredDataPresent": false,
+    "rssItems": null
+  },
+  {
+    "path": "/archive",
+    "status": 200,
+    "finalUrl": "https://www.theconsilium.co.uk/archive",
+    "canonical": [
+      "https://theconsilium.co.uk/archive"
+    ],
+    "contentType": "text/html; charset=utf-8",
+    "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+    "xVercelCache": "MISS",
+    "cspPresent": true,
+    "ogImagePresent": true,
+    "structuredDataPresent": false,
+    "rssItems": null
+  },
+  {
+    "path": "/category/opinion",
+    "status": 200,
+    "finalUrl": "https://www.theconsilium.co.uk/category/opinion",
+    "canonical": [
+      "https://theconsilium.co.uk/category/opinion"
+    ],
+    "contentType": "text/html; charset=utf-8",
+    "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+    "xVercelCache": "MISS",
+    "cspPresent": true,
+    "ogImagePresent": true,
+    "structuredDataPresent": false,
+    "rssItems": null
+  },
+  {
+    "path": "/category/analysis",
+    "status": 200,
+    "finalUrl": "https://www.theconsilium.co.uk/category/analysis",
+    "canonical": [
+      "https://theconsilium.co.uk/category/analysis"
+    ],
+    "contentType": "text/html; charset=utf-8",
+    "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+    "xVercelCache": "MISS",
+    "cspPresent": true,
+    "ogImagePresent": true,
+    "structuredDataPresent": false,
+    "rssItems": null
+  },
+  {
+    "path": "/category/news",
+    "status": 200,
+    "finalUrl": "https://www.theconsilium.co.uk/category/news",
+    "canonical": [
+      "https://theconsilium.co.uk/category/news"
+    ],
+    "contentType": "text/html; charset=utf-8",
+    "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+    "xVercelCache": "MISS",
+    "cspPresent": true,
+    "ogImagePresent": true,
+    "structuredDataPresent": false,
+    "rssItems": null
+  },
+  {
+    "path": "/search",
+    "status": 200,
+    "finalUrl": "https://www.theconsilium.co.uk/search",
+    "canonical": [],
+    "contentType": "text/html; charset=utf-8",
+    "cacheControl": "public, max-age=0, must-revalidate",
+    "xVercelCache": "STALE",
+    "cspPresent": true,
+    "ogImagePresent": true,
+    "structuredDataPresent": false,
+    "rssItems": null
+  },
+  {
+    "path": "/login",
+    "status": 200,
+    "finalUrl": "https://www.theconsilium.co.uk/login",
+    "canonical": [],
+    "contentType": "text/html; charset=utf-8",
+    "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+    "xVercelCache": "MISS",
+    "cspPresent": true,
+    "ogImagePresent": true,
+    "structuredDataPresent": false,
+    "rssItems": null
+  },
+  {
+    "path": "/editorial/login",
+    "status": 200,
+    "finalUrl": "https://www.theconsilium.co.uk/editorial/login",
+    "canonical": [],
+    "contentType": "text/html; charset=utf-8",
+    "cacheControl": "public, max-age=0, must-revalidate",
+    "xVercelCache": "PRERENDER",
+    "cspPresent": true,
+    "ogImagePresent": true,
+    "structuredDataPresent": false,
+    "rssItems": null
+  },
+  {
+    "path": "/sitemap.xml",
+    "status": 200,
+    "finalUrl": "https://www.theconsilium.co.uk/sitemap.xml",
+    "canonical": [],
+    "contentType": "application/xml",
+    "cacheControl": "public, max-age=0, must-revalidate",
+    "xVercelCache": "MISS",
+    "cspPresent": true,
+    "ogImagePresent": false,
+    "structuredDataPresent": false,
+    "rssItems": null
+  },
+  {
+    "path": "/feed.xml",
+    "status": 200,
+    "finalUrl": "https://www.theconsilium.co.uk/feed.xml",
+    "canonical": [],
+    "contentType": "application/xml; charset=utf-8",
+    "cacheControl": "public, max-age=0, must-revalidate",
+    "xVercelCache": "MISS",
+    "cspPresent": true,
+    "ogImagePresent": false,
+    "structuredDataPresent": false,
+    "rssItems": 0
+  },
+  {
+    "path": "/robots.txt",
+    "status": 200,
+    "finalUrl": "https://www.theconsilium.co.uk/robots.txt",
+    "canonical": [],
+    "contentType": "text/plain; charset=utf-8",
+    "cacheControl": "public, max-age=0, must-revalidate",
+    "xVercelCache": "MISS",
+    "cspPresent": true,
+    "ogImagePresent": false,
+    "structuredDataPresent": false,
+    "rssItems": null
+  },
+  {
+    "path": "/logo.png",
+    "status": 200,
+    "finalUrl": "https://www.theconsilium.co.uk/logo.png",
+    "canonical": [],
+    "contentType": "image/png",
+    "cacheControl": "public, max-age=0, must-revalidate",
+    "xVercelCache": "MISS",
+    "cspPresent": true,
+    "ogImagePresent": false,
+    "structuredDataPresent": false,
+    "rssItems": null
+  },
+  {
+    "path": "/audit-intentionally-missing-page",
+    "status": 404
+  }
+]

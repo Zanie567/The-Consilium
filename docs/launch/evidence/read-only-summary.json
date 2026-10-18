@@ -1,0 +1,72 @@
+{
+  "observedAt": "2026-10-18T00:27Z\u201300:36Z",
+  "scope": "Read-only catalog/aggregate inspection; no credentials or row contents retained",
+  "productionCommit": "c3785a2e64899945ef87c601481aca1300655110",
+  "supabase": {
+    "publicTables": 42,
+    "tablesWithoutRls": 0,
+    "rlsNoPolicyAdvisoryCount": 34,
+    "publicTableGrantsAnonAuthenticated": 0,
+    "anonColumnGrants": 41,
+    "mutableSearchPathFunction": "public.users_display_titles_valid(text[])",
+    "functionSecurityDefiner": false,
+    "anonCanCreatePublicObjects": false,
+    "correctionsTableExists": false,
+    "correctionsProtectionTriggerCount": 0,
+    "publishedNonTrashedArticles": 0,
+    "publishedTrashedArticles": 3,
+    "duplicateSlugGroups": 0,
+    "inactiveTeamRows": 3,
+    "maxConnections": 60,
+    "statementTimeoutMs": 120000,
+    "activeClientConnectionsIncludingAudit": 1,
+    "idleClientConnections": 7,
+    "supabaseAuthUsers": 0,
+    "articleImagesObjects": 35,
+    "avatarObjects": 9,
+    "articleImagesBucketSizeMimeLimitsConfigured": false
+  },
+  "scheduler": {
+    "publisher": "*/5 * * * *",
+    "reconciler": "* * * * *",
+    "jobsActive": true,
+    "canonicalHttpsEndpointMatched": true,
+    "last24hInvocations": 288,
+    "last24hOutcomes": "all success",
+    "last24hArticlesDue": 0,
+    "last24hArticlesPublished": 0,
+    "last24hWarnings": 0,
+    "lastRecordedNonemptySuccess": "2026-10-16T23:40:00Z",
+    "overdueArticles": 0,
+    "healthWorkflowRecentRunIds": [
+      39075221393,
+      39063252718,
+      39053441814
+    ],
+    "healthWorkflowConclusions": [
+      "success",
+      "success",
+      "success"
+    ],
+    "humanAlertReceiptVerified": false
+  },
+  "backup": {
+    "latestEvidencedDatabase": "consilium-prod-20261016T135715Z",
+    "verifiedChecks": 19,
+    "verifiedFailures": 0,
+    "localRestorePublicTables": 41,
+    "localRestoreForeignKeys": 43,
+    "orphanRows": 0,
+    "storageSnapshot": "storage-20261015T145909Z",
+    "localStorageObjectsRechecked": 41,
+    "localStorageBytesRechecked": 9860402,
+    "localStoragePathSizeMd5Checks": "all matched inventory",
+    "hostedRecoveryVerified": false,
+    "productionRestorePerformed": false,
+    "mountedOuterImageEncrypted": true,
+    "artifactDirectoryMode": "0700",
+    "exampleSparsebundlePathExists": false
+  },
+  "dependencyAudit": "dependency-audit.json",
+  "publicSmoke": "production-public-smoke.json"
+}
