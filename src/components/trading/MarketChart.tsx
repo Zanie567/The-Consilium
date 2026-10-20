@@ -1,4 +1,4 @@
-import type { ChallengePhase } from '@/lib/tradingChallenge'
+import { TRADING_CHALLENGE as TC, type ChallengePhase } from '@/lib/tradingChallenge'
 
 /**
  * The hero's trading-terminal illustration: candlesticks, a moving average and
@@ -65,14 +65,26 @@ const average = candles.map((_, i) => {
 })
 const averagePath = average.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
 
-/** Month gridlines for the real competition window (28 Oct 2026 – 25 Mar 2027). */
-const MONTHS = [
-  { label: 'Nov', at: 4 / 148 },
-  { label: 'Dec', at: 34 / 148 },
-  { label: 'Jan', at: 65 / 148 },
-  { label: 'Feb', at: 96 / 148 },
-  { label: 'Mar', at: 124 / 148 },
-]
+/** Month gridlines for the real competition window, derived from the configured dates. */
+const MONTHS = (() => {
+  const start = Date.parse(`${TC.startDate}T00:00:00Z`)
+  const end = Date.parse(`${TC.endDate}T00:00:00Z`)
+  const months: { label: string; at: number }[] = []
+  const d = new Date(start)
+  d.setUTCDate(1)
+  d.setUTCMonth(d.getUTCMonth() + 1)
+  for (; d.getTime() < end; d.setUTCMonth(d.getUTCMonth() + 1)) {
+    months.push({
+      label: d.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' }).slice(0, 3),
+      at: (d.getTime() - start) / (end - start),
+    })
+  }
+  return months
+})()
+
+const shortDate = (date: string) =>
+  new Date(`${date}T00:00:00Z`).toLocaleString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+const WINDOW_LABEL = `${shortDate(TC.startDate)} → ${shortDate(TC.endDate)}`
 
 export function MarketChart({ phase, progress, daysToStart }: { phase: ChallengePhase; progress: number; daysToStart: number }) {
   const markerX = PAD.left + plotW * progress
@@ -82,11 +94,12 @@ export function MarketChart({ phase, progress, daysToStart }: { phase: Challenge
   return (
     <figure className="trading-terminal relative m-0 border border-gold/30 bg-navy-dark shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
       <div className="flex items-center justify-between gap-3 border-b border-gold/20 px-4 py-2.5 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-cream/70">
-        <span className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-gold" aria-hidden />
-          EconSoc · Virtual Stock Exchange
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold" aria-hidden />
+          <span className="truncate">Virtual Stock Exchange</span>
         </span>
-        <span className="tabular-nums text-cream/60">28 Oct → 25 Mar</span>
+        {/* The x-axis already shows the months; on phones the range would crowd the label. */}
+        <span className="hidden shrink-0 whitespace-nowrap tabular-nums text-cream/60 sm:inline">{WINDOW_LABEL}</span>
       </div>
 
       <div className="relative overflow-hidden">

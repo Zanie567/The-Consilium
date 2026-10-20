@@ -65,7 +65,8 @@ export function ChallengeHero({
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-cream/80">
               Build a virtual investment portfolio. Compete against fellow EconSoc members. Prove your
               strategy and battle for the top of the leaderboard in{' '}
-              <span className="text-cream">{TC.name}</span>.
+              {/* Keep the season (2026–27) on one line; the rest of the name may wrap. */}
+              <span className="text-cream">{TC.name.replace(/ (\S+)$/, '')} <span className="whitespace-nowrap">{TC.name.split(' ').at(-1)}.</span></span>
             </p>
           </AnimateIn>
 

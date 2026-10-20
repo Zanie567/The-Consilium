@@ -7,6 +7,9 @@
  *     --out docs/performance/trading-challenge/evidence/after-local.json \
  *     / /about /category/news /articles/some-slug
  *
+ * Add --compare <url> --compare-out <file> to measure a second build in the same
+ * session, alternating run by run (recommended on a shared machine).
+ *
  * Lighthouse is deliberately not a project dependency: install it anywhere (for example
  * `npm i lighthouse@12` in a scratch directory) and point LIGHTHOUSE_BIN at it.
  *
@@ -38,6 +41,11 @@ const flag = (name) => {
 }
 
 const base = opt('base')
+// --compare <url> --compare-out <file>: measure a second server in the same session,
+// alternating A and B run by run, so both builds see the same machine conditions.
+const compareBase = opt('compare')
+const compareOut = opt('compare-out')
+const compareLabel = opt('compare-label', '')
 const runs = Number(opt('runs', '5'))
 const out = opt('out')
 const label = opt('label', '')
@@ -105,30 +113,45 @@ function runOnce(url) {
   }
 }
 
+const keys = ['score', 'fcp', 'lcp', 'tbt', 'cls', 'si', 'ttfb', 'mainThreadMs', 'bootupMs', 'jsTransfer', 'fontTransfer', 'imageTransfer', 'totalTransfer', 'requests']
+const summarise = (samples) => ({
+  runs: samples.length,
+  median: Object.fromEntries(keys.map((k) => [k, median(samples.map((s) => s[k]))])),
+  lcpElements: [...new Set(samples.map((s) => s.lcpElement))],
+  samples: samples.map(({ throttling, lighthouseVersion, formFactor, ...rest }) => rest),
+})
+const measure = (origin, route, i, tag) => {
+  try {
+    const sample = runOnce(new URL(route, origin).toString())
+    process.stderr.write(`${tag}${route} run ${i + 1}/${runs}: score ${sample.score}, LCP ${Math.round(sample.lcp)}ms\n`)
+    return sample
+  } catch (error) {
+    process.stderr.write(`${tag}${route} run ${i + 1}/${runs} failed: ${error.message}\n`)
+    return null
+  }
+}
+
 const results = {}
+const compareResults = {}
 for (const route of routes) {
-  const url = new URL(route, base).toString()
-  const samples = []
+  const a = []
+  const b = []
   for (let i = 0; i < runs; i++) {
-    try {
-      samples.push(runOnce(url))
-      process.stderr.write(`${route} run ${i + 1}/${runs}: score ${samples.at(-1).score}, LCP ${Math.round(samples.at(-1).lcp)}ms\n`)
-    } catch (error) {
-      process.stderr.write(`${route} run ${i + 1}/${runs} failed: ${error.message}\n`)
+    // Alternate which server goes first so neither always benefits from a warm machine.
+    const order = compareBase && i % 2 ? ['B', 'A'] : ['A', 'B']
+    for (const which of order) {
+      if (which === 'A') { const s = measure(base, route, i, compareBase ? '[A] ' : ''); if (s) a.push(s) }
+      else if (compareBase) { const s = measure(compareBase, route, i, '[B] '); if (s) b.push(s) }
     }
   }
-  const keys = ['score', 'fcp', 'lcp', 'tbt', 'cls', 'si', 'ttfb', 'mainThreadMs', 'bootupMs', 'jsTransfer', 'fontTransfer', 'imageTransfer', 'totalTransfer', 'requests']
-  results[route] = {
-    runs: samples.length,
-    median: Object.fromEntries(keys.map((k) => [k, median(samples.map((s) => s[k]))])),
-    lcpElements: [...new Set(samples.map((s) => s.lcpElement))],
-    samples: samples.map(({ throttling, lighthouseVersion, formFactor, ...rest }) => rest),
-  }
+  results[route] = summarise(a)
+  if (compareBase) compareResults[route] = summarise(b)
 }
 
 const report = {
   label,
   base,
+  ...(compareBase ? { pairedWith: compareBase, interleaved: true } : {}),
   generatedAt: new Date().toISOString(),
   runsPerRoute: runs,
   preset: desktop ? 'desktop' : 'mobile (Lighthouse default)',
@@ -139,6 +162,11 @@ const report = {
 if (out) {
   mkdirSync(dirname(out), { recursive: true })
   writeFileSync(out, JSON.stringify(report, null, 2) + '\n')
+}
+if (compareBase && compareOut) {
+  mkdirSync(dirname(compareOut), { recursive: true })
+  const paired = { ...report, label: compareLabel, base: compareBase, pairedWith: base, results: compareResults }
+  writeFileSync(compareOut, JSON.stringify(paired, null, 2) + '\n')
 }
 for (const [route, r] of Object.entries(results)) {
   const m = r.median
