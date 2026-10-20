@@ -1528,6 +1528,11 @@ mark {
 [data-metal="silver"] { --metal: #a3acb9; --metal-face: #dde2e9; --metal-deep: #5f6976; }
 [data-metal="bronze"] { --metal: #b5814f; --metal-face: #e3bc93; --metal-deep: #7a4f27; }
 
+/* Long below-the-fold sections skip layout and paint until they near the viewport.
+   They stay in the accessibility tree and find-in-page; the intrinsic size keeps
+   the scrollbar steady and is replaced by the real size once rendered. */
+.trading-deferred { content-visibility: auto; contain-intrinsic-size: auto 1100px; }
+
 /* Hero: a fine ledger grid in place of the site's dot texture. */
 .trading-hero-grid {
   background-image:
@@ -1545,11 +1550,14 @@ mark {
 .trading-status[data-tone="closed"] { color: rgba(250, 248, 243, 0.75); }
 @keyframes trading-ping { 75%, 100% { transform: scale(2.6); opacity: 0; } }
 
-/* Chart: candles rise from the axis, then the average draws through them. */
-.trading-candle { transform-box: fill-box; transform-origin: 50% 100%; animation: trading-candle-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; animation-delay: calc(0.25s + var(--i) * 0.035s); }
-@keyframes trading-candle-in { from { opacity: 0; transform: scaleY(0.2); } }
-.trading-average { stroke-dasharray: 1; stroke-dashoffset: 0; animation: trading-draw 1.6s cubic-bezier(0.65, 0, 0.35, 1) 0.9s backwards; }
-@keyframes trading-draw { from { stroke-dashoffset: 1; } }
+/* Chart: one panel slides off the plot left to right (a composited transform), so
+   the chart appears to be drawn over time. The gold leading edge is the "pen". */
+.trading-wipe {
+  transform: translateX(101%);
+  border-left: 1px solid #c9a227;
+  animation: trading-wipe 1.6s cubic-bezier(0.65, 0, 0.35, 1) 0.35s backwards;
+}
+@keyframes trading-wipe { from { transform: translateX(0); } }
 
 /* Prize podium: second, first, third on wide screens, plinths by place. */
 .trading-amount { font-size: 2.75rem; }
@@ -1632,5 +1640,6 @@ mark {
 .trading-faq > summary:focus-visible { outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .trading-candle, .trading-average, .trading-status-dot::after, .trading-spinner { animation: none !important; }
+  .trading-wipe { display: none; }
+  .trading-status-dot::after, .trading-spinner { animation: none !important; }
 }

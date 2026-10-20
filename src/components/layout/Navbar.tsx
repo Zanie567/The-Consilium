@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
-import { Menu, X, Search, LayoutDashboard, PlusCircle } from 'lucide-react'
+import { Menu, X, Search, LayoutDashboard, PlusCircle, UserCog } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
 import { usePathname, useRouter } from 'next/navigation'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
@@ -123,10 +123,12 @@ export function Navbar() {
           </Link>
 
           {/* Desktop nav */}
-          {/* Inline from 1280px. Eight sections plus the account controls do not fit a
-              narrower bar without shrinking the type, so 1024–1279px uses the menu drawer,
-              which carries every link and account action. */}
-          <nav className="hidden xl:flex items-center gap-5 2xl:gap-8" aria-label="Main navigation">
+          {/* Inline from 1260px (78.75rem). Eight sections plus the account controls do
+              not fit a narrower bar without shrinking the type, so narrower windows use the
+              menu drawer, which carries every link and account action. 1260 rather than
+              1280 so a 1280px-wide window still gets the inline bar after the browser
+              reserves its scrollbar (WebKit/Safari reports 1274px; Windows Chrome 1263px). */}
+          <nav className="hidden min-[78.75rem]:flex items-center gap-5 2xl:gap-8" aria-label="Main navigation">
             {navLinks.map((link) => (
               <NavLink
                 key={link.href}
@@ -138,7 +140,7 @@ export function Navbar() {
           </nav>
 
           {/* Desktop right actions */}
-          <div className="hidden xl:flex items-center gap-3 shrink-0">
+          <div className="hidden min-[78.75rem]:flex items-center gap-3 shrink-0">
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search"
@@ -183,9 +185,13 @@ export function Navbar() {
                 </Link>
                 <Link
                   href="/profile?tab=settings"
-                  className="text-cream/50 text-xs hover:text-cream/80 transition-colors"
+                  aria-label="Edit profile"
+                  title="Edit profile"
+                  className="flex min-h-6 min-w-6 items-center justify-center text-cream/50 text-xs hover:text-cream/80 transition-colors"
                 >
-                  Edit profile
+                  {/* Icon-only below 1536px, like the staff shortcuts. */}
+                  <UserCog size={14} aria-hidden className="2xl:hidden" />
+                  <span className="hidden 2xl:inline">Edit profile</span>
                 </Link>
                 <button
                   onClick={() => signOut()}
@@ -205,7 +211,7 @@ export function Navbar() {
           </div>
 
           {/* Mobile/tablet: search + theme + hamburger */}
-          <div className="xl:hidden flex items-center gap-1">
+          <div className="min-[78.75rem]:hidden flex items-center gap-1">
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search"
@@ -269,7 +275,7 @@ export function Navbar() {
             {/* Backdrop */}
             <div
               data-shown={drawer.shown ? '' : undefined}
-              className="presence-fade xl:hidden fixed inset-0 z-[94] bg-navy/60 backdrop-blur-sm"
+              className="presence-fade min-[78.75rem]:hidden fixed inset-0 z-[94] bg-navy/60 backdrop-blur-sm"
               aria-hidden
               onClick={() => setMobileOpen(false)}
             />
@@ -278,7 +284,7 @@ export function Navbar() {
             <div
               ref={mobileMenuRef}
               data-shown={drawer.shown ? '' : undefined}
-              className="presence-drawer xl:hidden fixed top-0 right-0 bottom-0 w-72 z-[95] bg-navy border-l border-gold/25 shadow-[-16px_0_40px_rgba(0,0,0,0.45)] overflow-y-auto flex flex-col"
+              className="presence-drawer min-[78.75rem]:hidden fixed top-0 right-0 bottom-0 w-72 z-[95] bg-navy border-l border-gold/25 shadow-[-16px_0_40px_rgba(0,0,0,0.45)] overflow-y-auto flex flex-col"
               style={{ top: 'var(--testing-banner-height, 0px)' }}
             >
               {/* Drawer header */}

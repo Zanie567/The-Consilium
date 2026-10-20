@@ -95,7 +95,7 @@ test('"Enter the Challenge" jumps to registration and loads the form; "How it wo
   await expect(page.getByRole('heading', { name: 'How to enter' })).toBeInViewport()
   await page.getByRole('link', { name: 'Enter the Challenge' }).click()
   await expect(page).toHaveURL(/#register$/)
-  await expect(page.getByRole('heading', { name: 'Register for the Challenge' })).toBeInViewport()
+  await expect(page.getByRole('heading', { name: 'Register for the Challenge', exact: true })).toBeInViewport()
   await expect(studentFrame(page)).toHaveAttribute('src', EMBED)
 })
 
@@ -113,16 +113,18 @@ test('non-student members see an accurate, gated route with no form and verified
   const requests = await stubGoogleForms(page.context())
   await open(page)
   const choice = page.getByRole('group', { name: 'Which describes you?' })
-  await choice.getByRole('radio', { name: /non-student EconSoc member/ }).check()
+  // The radios are visually hidden inside their cards; people click the card (label).
+  await choice.getByText('I’m a non-student EconSoc member').click()
+  await expect(choice.getByRole('radio', { name: /non-student EconSoc member/ })).toBeChecked()
   await expect(page.getByText('Registration for non-student members isn’t open yet.')).toBeVisible()
   await expect(page.getByText('Submitting the form does not by itself give you access.')).toBeVisible()
   await expect(page.locator('iframe')).toHaveCount(0)
-  const membership = page.getByRole('link', { name: /EconSoc membership/ })
+  const membership = page.getByRole('link', { name: 'EconSoc membership (opens EUSA in a new tab)', exact: true })
   await expect(membership).toHaveAttribute('href', MEMBERSHIP)
   await expect(membership).toHaveAttribute('rel', /noopener/)
   await expect(page.getByRole('link', { name: 'Ask the committee' })).toHaveAttribute('href', /^mailto:economics\.society@ed\.ac\.uk/)
   // Switching back restores the student route.
-  await choice.getByRole('radio', { name: /University of Edinburgh student/ }).check()
+  await choice.getByText('I’m a University of Edinburgh student').click()
   await expect(page.getByRole('heading', { name: 'Student registration' })).toBeVisible()
   // Re-choosing the student route is explicit intent, so its form loads.
   expect(requests.some((url) => url.includes('/forms/'))).toBe(true)
@@ -193,8 +195,8 @@ for (const theme of ['light', 'dark'] as const) {
   })
 }
 
-test('the 1024–1279px bar uses the menu drawer, so the eight sections never overflow', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: { width: 1100, height: 800 } })
+test('below 1260px the bar uses the menu drawer, so the eight sections never overflow', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 } })
   const page = await ctx.newPage()
   await open(page)
   await expect(page.getByRole('navigation', { name: 'Main navigation', exact: true })).toBeHidden()

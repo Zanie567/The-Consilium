@@ -187,7 +187,7 @@ export default function TradingChallengePage() {
       </section>
 
       {/* ── Standings and results ──────────────────────────────────────── */}
-      <section id="standings" aria-labelledby="standings-title" className="scroll-mt-20 bg-navy text-cream">
+      <section id="standings" aria-labelledby="standings-title" className="trading-deferred scroll-mt-20 bg-navy text-cream">
         <div className="mx-auto grid max-w-6xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-12 lg:gap-14 lg:px-8 lg:py-24">
           <AnimateIn className="lg:col-span-5">
             <h2 id="standings-title" className="text-balance text-3xl font-bold leading-tight text-cream sm:text-4xl" style={{ fontFamily: 'var(--font-serif)' }}>
@@ -240,7 +240,7 @@ export default function TradingChallengePage() {
       </section>
 
       {/* ── Rules ──────────────────────────────────────────────────────── */}
-      <section id="rules" aria-labelledby="rules-title" className="scroll-mt-20 mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
+      <section id="rules" aria-labelledby="rules-title" className="trading-deferred scroll-mt-20 mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
         <AnimateIn>
           <h2 id="rules-title" className={sectionTitle} style={{ fontFamily: 'var(--font-serif)' }}>
             Rules and game settings
@@ -255,7 +255,7 @@ export default function TradingChallengePage() {
       </section>
 
       {/* ── FAQ ────────────────────────────────────────────────────────── */}
-      <section id="faq" aria-labelledby="faq-title" className="scroll-mt-20 border-t border-[var(--border)] bg-[var(--bg-subtle)]">
+      <section id="faq" aria-labelledby="faq-title" className="trading-deferred scroll-mt-20 border-t border-[var(--border)] bg-[var(--bg-subtle)]">
         <div className="mx-auto grid max-w-6xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-12 lg:gap-14 lg:px-8 lg:py-24">
           <div className="lg:col-span-4">
             <div className="lg:sticky lg:top-28">

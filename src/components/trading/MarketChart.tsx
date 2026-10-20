@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react'
 import type { ChallengePhase } from '@/lib/tradingChallenge'
 
 /**
@@ -10,8 +9,11 @@ import type { ChallengePhase } from '@/lib/tradingChallenge'
  * datum is the calendar: the x-axis spans the actual trading window and the
  * marker shows where today falls in it.
  *
- * Pure SVG + CSS (no charting library, no client JavaScript). The candles rise
- * and the average line draws once on load; reduced motion shows the final frame.
+ * Pure SVG + CSS (no charting library, no client JavaScript). On load a single
+ * panel slides off the plot from left to right, so the chart appears to be drawn
+ * over time. It is one compositor-friendly transform: animating each candle and
+ * the line's stroke instead cost ~0.5 s of style and paint work on a throttled
+ * phone. Reduced motion shows the finished chart.
  */
 
 const W = 560
@@ -78,7 +80,7 @@ export function MarketChart({ phase, progress, daysToStart }: { phase: Challenge
     phase === 'upcoming' ? 'Opening bell' : phase === 'live' ? 'Today' : 'Closing bell'
 
   return (
-    <figure className="trading-terminal relative m-0 border border-gold/30 bg-navy-dark/80 shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
+    <figure className="trading-terminal relative m-0 border border-gold/30 bg-navy-dark shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
       <div className="flex items-center justify-between gap-3 border-b border-gold/20 px-4 py-2.5 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-cream/70">
         <span className="flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full bg-gold" aria-hidden />
@@ -87,6 +89,7 @@ export function MarketChart({ phase, progress, daysToStart }: { phase: Challenge
         <span className="tabular-nums text-cream/60">28 Oct → 25 Mar</span>
       </div>
 
+      <div className="relative overflow-hidden">
       <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" aria-hidden="true" focusable="false">
         {/* Horizontal grid */}
         {[0.2, 0.4, 0.6, 0.8].map((f) => (
@@ -107,13 +110,13 @@ export function MarketChart({ phase, progress, daysToStart }: { phase: Challenge
         <line x1={PAD.left} x2={W - PAD.right} y1={PAD.top + plotH} y2={PAD.top + plotH} className="stroke-gold/35" strokeWidth="1" />
 
         {/* Candles */}
-        <g className="trading-candles">
+        <g>
           {candles.map((c, i) => {
             const up = c.close >= c.open
             const top = y(Math.max(c.open, c.close))
             const bodyH = Math.max(1.5, Math.abs(y(c.open) - y(c.close)))
             return (
-              <g key={i} className="trading-candle" style={{ '--i': i } as CSSProperties}>
+              <g key={i}>
                 <line x1={x(i)} x2={x(i)} y1={y(c.high)} y2={y(c.low)} className={up ? 'stroke-gold/80' : 'stroke-cream/40'} strokeWidth="1" />
                 <rect
                   x={x(i) - step * 0.28}
@@ -129,7 +132,7 @@ export function MarketChart({ phase, progress, daysToStart }: { phase: Challenge
         </g>
 
         {/* Moving average */}
-        <path d={averagePath} pathLength={1} className="trading-average fill-none stroke-cream/80" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+        <path d={averagePath} className="fill-none stroke-cream/80" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
 
         {/* Today / opening / closing marker on the real calendar */}
         <g>
@@ -140,6 +143,8 @@ export function MarketChart({ phase, progress, daysToStart }: { phase: Challenge
           </text>
         </g>
       </svg>
+      <div aria-hidden className="trading-wipe absolute inset-0 bg-navy-dark" />
+      </div>
 
       <figcaption className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-gold/20 px-4 py-2.5 text-[0.7rem] text-cream/65">
         <span>Illustrative chart. Not market data or competition results.</span>
