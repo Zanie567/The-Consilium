@@ -55,10 +55,13 @@ test('the page states the confirmed competition facts and never a password or pr
     const item = page.getByRole('list', { name: 'Prizes' }).getByRole('listitem').filter({ hasText: place })
     await expect(item).toContainText(amount)
   }
-  await expect(main.getByText('28 October 2026 – 25 March 2027').first()).toBeVisible()
-  // Unconfirmed settings are marked, never asserted.
-  for (const label of ['Short selling', 'Margin trading']) {
-    await expect(page.locator('dl.trading-termsheet > div').filter({ hasText: label })).toContainText('To be confirmed')
+  // The essentials only, prizes included; detailed MarketWatch settings are not restated.
+  const glance = page.locator('dl.trading-glance')
+  await expect(glance.locator('div').filter({ hasText: /^Competition dates/ })).toContainText(/Starts28 October 2026\s*Ends25 March 2027/)
+  await expect(glance.locator('div').filter({ hasText: /^Markets/ })).toContainText('Nasdaq, NYSE, NYSE American and OTC')
+  await expect(glance.locator('div').filter({ hasText: /^Prizes/ })).toContainText(/First£100.*Second£50.*Third£25/)
+  for (const gone of ['Commission', 'Short selling', 'Margin trading', 'Fractional shares', 'Minimum share price']) {
+    await expect(main.getByText(gone)).toHaveCount(0)
   }
   expect(html).not.toMatch(/docs\.google\.com\/spreadsheets|script\.google\.com|game password\s*[:=]/i)
   expect(html).toContain('Illustrative chart. Not market data or competition results.')
@@ -93,7 +96,7 @@ test('"Enter the Challenge" jumps to registration and loads the form; "How it wo
   await page.getByRole('link', { name: 'How it works' }).click()
   await expect(page).toHaveURL(/#how-it-works$/)
   await expect(page.getByRole('heading', { name: 'How to enter' })).toBeInViewport()
-  await page.getByRole('link', { name: 'Enter the Challenge' }).click()
+  await page.getByRole('link', { name: 'Enter the Challenge' }).first().click()
   await expect(page).toHaveURL(/#register$/)
   await expect(page.getByRole('heading', { name: 'Register for the Challenge', exact: true })).toBeInViewport()
   await expect(studentFrame(page)).toHaveAttribute('src', EMBED)
@@ -109,25 +112,80 @@ test('with cookie consent the form loads as the registration section approaches'
   await expect(studentFrame(page)).toHaveAttribute('src', EMBED)
 })
 
-test('non-student members see an accurate, gated route with no form and verified links', async ({ page }) => {
+test('non-student members are asked to email the committee, with a prefilled message and no form', async ({ page }) => {
   const requests = await stubGoogleForms(page.context())
   await open(page)
   const choice = page.getByRole('group', { name: 'Which describes you?' })
   // The radios are visually hidden inside their cards; people click the card (label).
   await choice.getByText('I’m a non-student EconSoc member').click()
   await expect(choice.getByRole('radio', { name: /non-student EconSoc member/ })).toBeChecked()
-  await expect(page.getByText('Registration for non-student members isn’t open yet.')).toBeVisible()
-  await expect(page.getByText('Submitting the form does not by itself give you access.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Not a University of Edinburgh student?' })).toBeVisible()
+  await expect(page.getByText(/opening soon|isn’t open yet/i)).toHaveCount(0)
   await expect(page.locator('iframe')).toHaveCount(0)
-  const membership = page.getByRole('link', { name: 'EconSoc membership (opens EUSA in a new tab)', exact: true })
+  const contact = page.getByRole('link', { name: 'Contact EconSoc to Register' })
+  const href = (await contact.getAttribute('href')) ?? ''
+  const url = new URL(href)
+  expect(url.protocol).toBe('mailto:')
+  expect(url.pathname).toBe('economics.society@ed.ac.uk')
+  expect(url.searchParams.get('subject')).toBe('Trading Challenge – Non-Student Registration')
+  expect(url.searchParams.get('body')).toMatch(/Full name:[\s\S]*MarketWatch display name:[\s\S]*Email address used to buy my EconSoc membership:/)
+  expect(url.searchParams.get('body')).not.toMatch(/password/i)
+  await expect(page.getByText('Never send a password.')).toBeVisible()
+  const membership = page.getByRole('link', { name: 'Buy EconSoc membership (opens EUSA in a new tab)', exact: true })
   await expect(membership).toHaveAttribute('href', MEMBERSHIP)
   await expect(membership).toHaveAttribute('rel', /noopener/)
-  await expect(page.getByRole('link', { name: 'Ask the committee' })).toHaveAttribute('href', /^mailto:economics\.society@ed\.ac\.uk/)
   // Switching back restores the student route.
   await choice.getByText('I’m a University of Edinburgh student').click()
   await expect(page.getByRole('heading', { name: 'Student registration' })).toBeVisible()
-  // Re-choosing the student route is explicit intent, so its form loads.
-  expect(requests.some((url) => url.includes('/forms/'))).toBe(true)
+  // Re-choosing the student route is explicit intent, so its form loads (the iframe
+  // requests it after the re-render, so wait for the request rather than reading once).
+  await expect.poll(() => requests.some((u) => u.includes('/forms/'))).toBe(true)
+})
+
+/** Share of the trend currently drawn: the reveal clip's right edge across the plot. */
+const drawn = (page: Page) =>
+  page.evaluate(() => {
+    const plot = document.querySelector('.trading-plot')!.getBoundingClientRect()
+    const clip = document.querySelector('.trading-reveal')!.getBoundingClientRect()
+    return (clip.right - plot.left) / plot.width
+  })
+
+test('the hero chart draws part of the trend on load and grows with scrolling', async ({ page }) => {
+  await open(page)
+  const scrollDriven = await page.evaluate(() => CSS.supports('animation-timeline: view()'))
+  await page.waitForTimeout(2300) // the load stretch has finished drawing
+  const atRest = await drawn(page)
+  if (scrollDriven) {
+    expect(atRest).toBeGreaterThan(0.3)
+    expect(atRest).toBeLessThan(0.6)
+    await page.mouse.wheel(0, 100)
+    await expect.poll(() => drawn(page)).toBeGreaterThan(atRest + 0.1)
+    await page.mouse.wheel(0, 200)
+    await expect.poll(() => drawn(page)).toBeGreaterThan(0.99)
+  } else {
+    // No scroll-driven animations: the whole chart draws on load.
+    expect(atRest).toBeGreaterThan(0.99)
+  }
+})
+
+test('the podium waits for the reader, plays its entrance once and settles in order', async ({ page }) => {
+  await open(page, 'declined')
+  const podium = page.getByRole('list', { name: 'Prizes' })
+  // Below the fold after hydration, so its entrance is held until it is seen.
+  await expect(podium).toHaveAttribute('data-reveal-state', 'pending')
+  await podium.scrollIntoViewIfNeeded()
+  await expect(podium).not.toHaveAttribute('data-reveal-state', 'pending')
+  // Every column ends in place and fully visible.
+  await expect.poll(() =>
+    podium.locator('li').evaluateAll((els) => els.map((e) => [getComputedStyle(e).opacity, getComputedStyle(e).transform])),
+  ).toEqual([['1', 'none'], ['1', 'none'], ['1', 'none']])
+  // Second, first, third from left to right.
+  const lefts = await podium.locator('li').evaluateAll((els) => els.map((e) => [e.getAttribute('data-place'), e.getBoundingClientRect().left] as const))
+  expect([...lefts].sort((a, b) => a[1] - b[1]).map((x) => x[0])).toEqual(['2', '1', '3'])
+  // Scrolling away and back does not replay it.
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await podium.scrollIntoViewIfNeeded()
+  await expect(podium).not.toHaveAttribute('data-reveal-state', 'pending')
 })
 
 test('route choice and FAQ work from the keyboard', async ({ page }) => {
@@ -161,9 +219,11 @@ test('reduced motion shows content immediately and the page has one h1 and landm
   const page = await ctx.newPage()
   await open(page)
   await expect(page.locator('h1')).toHaveCount(1)
+  // The finished chart, with nothing left to draw.
+  expect(await drawn(page)).toBeGreaterThan(0.99)
   const opacities = await page.locator('.consilium-reveal').evaluateAll((els) => els.map((e) => getComputedStyle(e).opacity))
   expect(opacities.every((o) => o === '1')).toBe(true)
-  for (const name of ['Think you can beat the market?', 'How to enter', 'Standings', 'Rules and game settings', 'Questions']) {
+  for (const name of ['Think you can beat the market?', 'How to enter', 'Standings', 'The rules', 'Questions']) {
     await expect(page.getByRole('region', { name })).toBeAttached()
   }
   await ctx.close()
@@ -182,7 +242,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.waitForURL('**/trading-challenge')
     await expect(page.locator('html')).toHaveClass(new RegExp(theme === 'dark' ? '\\bdark\\b' : '^(?!.*\\bdark\\b)'))
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)
-    await page.getByRole('link', { name: 'Enter the Challenge' }).tap()
+    await page.getByRole('link', { name: 'Enter the Challenge' }).first().tap()
     await expect(page).toHaveURL(/#register$/)
     // Phones show the form before the "what happens next" notes.
     const direct = page.getByRole('link', { name: /Open in Google Forms/ }).first()

@@ -9,11 +9,18 @@ import { TRADING_CHALLENGE as TC, type ChallengePhase } from '@/lib/tradingChall
  * datum is the calendar: the x-axis spans the actual trading window and the
  * marker shows where today falls in it.
  *
- * Pure SVG + CSS (no charting library, no client JavaScript). On load a single
- * panel slides off the plot from left to right, so the chart appears to be drawn
- * over time. It is one compositor-friendly transform: animating each candle and
- * the line's stroke instead cost ~0.5 s of style and paint work on a throttled
- * phone. Reduced motion shows the finished chart.
+ * Pure SVG + CSS: no charting library and no client JavaScript. The chart draws
+ * itself in two parts (globals.css, "Chart reveal"):
+ *   1. on load, the first stretch of the trend is drawn;
+ *   2. as the reader scrolls through the hero, the rest grows in, tied to scroll
+ *      position (CSS scroll-driven animations). Browsers without them draw the
+ *      whole chart on load instead.
+ * The reveal is a clip that slides across the plot while its contents slide the
+ * other way, so they stay put. Both are transforms, which the compositor runs off
+ * the main thread: nothing in the SVG is re-laid-out or repainted per frame. A
+ * second, narrow clip rides the same edge over a glowing copy of the line, so the
+ * leading point of the trend lights up wherever the line is. Reduced motion, and
+ * any browser that skips the animations, shows the finished chart.
  */
 
 const W = 560
@@ -64,6 +71,8 @@ const average = candles.map((_, i) => {
   return window.reduce((s, c) => s + c.close, 0) / window.length
 })
 const averagePath = average.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
+const baseline = PAD.top + plotH
+const areaPath = `${averagePath} L${x(COUNT - 1).toFixed(1)},${baseline} L${x(0).toFixed(1)},${baseline} Z`
 
 /** Month gridlines for the real competition window, derived from the configured dates. */
 const MONTHS = (() => {
@@ -102,61 +111,87 @@ export function MarketChart({ phase, progress, daysToStart }: { phase: Challenge
         <span className="hidden shrink-0 whitespace-nowrap tabular-nums text-cream/60 sm:inline">{WINDOW_LABEL}</span>
       </div>
 
-      <div className="relative overflow-hidden">
-      <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" aria-hidden="true" focusable="false">
-        {/* Horizontal grid */}
-        {[0.2, 0.4, 0.6, 0.8].map((f) => (
-          <line key={f} x1={PAD.left} x2={W - PAD.right} y1={PAD.top + plotH * f} y2={PAD.top + plotH * f} className="stroke-cream/[0.07]" strokeWidth="1" />
-        ))}
-        {/* Month grid + labels: the real competition calendar */}
-        {MONTHS.map((m) => {
-          const mx = PAD.left + plotW * m.at
-          return (
-            <g key={m.label}>
-              <line x1={mx} x2={mx} y1={PAD.top} y2={PAD.top + plotH} className="stroke-cream/[0.07]" strokeWidth="1" strokeDasharray="2 4" />
-              <text x={mx + 4} y={H - 12} className="fill-cream/55 text-[11px] font-semibold tracking-[0.12em]" style={{ fontFamily: 'var(--font-sans)' }}>
-                {m.label.toUpperCase()}
-              </text>
-            </g>
-          )
-        })}
-        <line x1={PAD.left} x2={W - PAD.right} y1={PAD.top + plotH} y2={PAD.top + plotH} className="stroke-gold/35" strokeWidth="1" />
-
-        {/* Candles */}
-        <g>
-          {candles.map((c, i) => {
-            const up = c.close >= c.open
-            const top = y(Math.max(c.open, c.close))
-            const bodyH = Math.max(1.5, Math.abs(y(c.open) - y(c.close)))
+      <div className="trading-plot relative">
+        {/* Axes: the real calendar, always fully drawn. */}
+        <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" aria-hidden="true" focusable="false">
+          {[0.2, 0.4, 0.6, 0.8].map((f) => (
+            <line key={f} x1={PAD.left} x2={W - PAD.right} y1={PAD.top + plotH * f} y2={PAD.top + plotH * f} className="stroke-cream/[0.07]" strokeWidth="1" />
+          ))}
+          {MONTHS.map((m) => {
+            const mx = PAD.left + plotW * m.at
             return (
-              <g key={i}>
-                <line x1={x(i)} x2={x(i)} y1={y(c.high)} y2={y(c.low)} className={up ? 'stroke-gold/80' : 'stroke-cream/40'} strokeWidth="1" />
-                <rect
-                  x={x(i) - step * 0.28}
-                  y={top}
-                  width={step * 0.56}
-                  height={bodyH}
-                  className={up ? 'fill-gold stroke-gold' : 'fill-navy-dark stroke-cream/50'}
-                  strokeWidth="1"
-                />
+              <g key={m.label}>
+                <line x1={mx} x2={mx} y1={PAD.top} y2={baseline} className="stroke-cream/[0.07]" strokeWidth="1" strokeDasharray="2 4" />
+                <text x={mx + 4} y={H - 12} className="fill-cream/55 text-[11px] font-semibold tracking-[0.12em]" style={{ fontFamily: 'var(--font-sans)' }}>
+                  {m.label.toUpperCase()}
+                </text>
               </g>
             )
           })}
-        </g>
+          <line x1={PAD.left} x2={W - PAD.right} y1={baseline} y2={baseline} className="stroke-gold/35" strokeWidth="1" />
+        </svg>
 
-        {/* Moving average */}
-        <path d={averagePath} className="fill-none stroke-cream/80" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+        {/* The trend, revealed left to right. */}
+        <div className="trading-reveal absolute inset-0 overflow-hidden" aria-hidden>
+          <div className="trading-reveal-counter absolute inset-0">
+            <svg viewBox={`0 0 ${W} ${H}`} className="block h-full w-full" aria-hidden="true" focusable="false">
+              <defs>
+                <linearGradient id="trading-area" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="#c9a227" stopOpacity="0.22" />
+                  <stop offset="1" stopColor="#c9a227" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path d={areaPath} fill="url(#trading-area)" />
+              {candles.map((c, i) => {
+                const up = c.close >= c.open
+                const top = y(Math.max(c.open, c.close))
+                const bodyH = Math.max(1.5, Math.abs(y(c.open) - y(c.close)))
+                return (
+                  <g key={i}>
+                    <line x1={x(i)} x2={x(i)} y1={y(c.high)} y2={y(c.low)} className={up ? 'stroke-gold/80' : 'stroke-cream/40'} strokeWidth="1" />
+                    <rect
+                      x={x(i) - step * 0.28}
+                      y={top}
+                      width={step * 0.56}
+                      height={bodyH}
+                      className={up ? 'fill-gold stroke-gold' : 'fill-navy-dark stroke-cream/50'}
+                      strokeWidth="1"
+                    />
+                  </g>
+                )
+              })}
+              <path d={averagePath} className="fill-none stroke-cream/80" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+            </svg>
+          </div>
+          {/* The pen: a soft leading edge the candles emerge from. */}
+          <span className="trading-reveal-edge" />
+        </div>
 
-        {/* Today / opening / closing marker on the real calendar */}
-        <g>
-          <line x1={markerX} x2={markerX} y1={PAD.top - 6} y2={PAD.top + plotH} className="stroke-gold" strokeWidth="1" strokeDasharray="3 3" />
+        {/* The glint: a narrow window on the same edge, over a glowing copy of the line. */}
+        <div className="trading-glint absolute inset-0" aria-hidden>
+          <div className="trading-glint-window">
+            <div className="trading-glint-counter">
+              <svg viewBox={`0 0 ${W} ${H}`} className="block h-full w-full" aria-hidden="true" focusable="false">
+                <defs>
+                  <filter id="trading-glow" x="-10%" y="-30%" width="120%" height="160%">
+                    <feGaussianBlur stdDeviation="3.5" />
+                  </filter>
+                </defs>
+                <path d={averagePath} fill="none" stroke="#e3c35a" strokeWidth="5" strokeLinejoin="round" strokeLinecap="round" filter="url(#trading-glow)" opacity="0.9" />
+                <path d={averagePath} fill="none" stroke="#fbeec4" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Today / opening / closing marker on the real calendar, above the trend. */}
+        <svg viewBox={`0 0 ${W} ${H}`} className="pointer-events-none absolute inset-0 block h-full w-full" aria-hidden="true" focusable="false">
+          <line x1={markerX} x2={markerX} y1={PAD.top - 6} y2={baseline} className="stroke-gold" strokeWidth="1" strokeDasharray="3 3" />
           <rect x={Math.min(markerX + 4, W - PAD.right - 92)} y={PAD.top - 12} width="88" height="18" className="fill-gold" />
           <text x={Math.min(markerX + 4, W - PAD.right - 92) + 44} y={PAD.top + 1} textAnchor="middle" className="fill-navy text-[10px] font-bold tracking-[0.14em]" style={{ fontFamily: 'var(--font-sans)' }}>
             {markerLabel.toUpperCase()}
           </text>
-        </g>
-      </svg>
-      <div aria-hidden className="trading-wipe absolute inset-0 bg-navy-dark" />
+        </svg>
       </div>
 
       <figcaption className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-gold/20 px-4 py-2.5 text-[0.7rem] text-cream/65">

@@ -66,11 +66,17 @@ export function ChallengeFaq() {
         },
         {
           q: 'Can non-student members take part?',
-          a: 'Yes, paid non-student EconSoc members are eligible. Their membership is checked by hand by the committee rather than automatically, so their login is sent once that check is complete. Non-student registration opens soon on this page.',
+          a: (
+            <>
+              Yes, paid non-student EconSoc members are welcome. To register, email {email} with your full name, your
+              MarketWatch display name and the email address you used to buy your membership. The committee checks your
+              membership by hand and sends your login details once that check is complete.
+            </>
+          ),
         },
         {
           q: 'When will I receive the game password?',
-          a: 'If you are a student already on EconSoc’s membership list, usually shortly after you register, by email to your university address. Otherwise it is sent once your membership has been verified.',
+          a: 'If you are a student already on EconSoc’s membership list, usually shortly after you register, by email to your university address. Otherwise, including for non-student members, it is sent once your membership has been verified.',
         },
         {
           q: 'I bought my membership recently. What happens?',

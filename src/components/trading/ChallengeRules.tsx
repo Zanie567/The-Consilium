@@ -1,14 +1,16 @@
+import { Fragment } from 'react'
 import { TRADING_CHALLENGE as TC, TOTAL_PRIZE_POOL_GBP, formatChallengeDate } from '@/lib/tradingChallenge'
 
 /**
- * Competition terms (a term sheet of the configured game settings) and the
- * official rules. Settings marked 'tbc' in the config appear only as "to be
- * confirmed"; nothing unverified is stated as fact.
+ * The competition at a glance (the essentials only: who, where, when, how much)
+ * and the official rules. Detailed MarketWatch game settings are deliberately not
+ * restated here; the game itself is the authority on them. Anything the
+ * organisers have not yet decided is marked "to be confirmed", never stated.
  */
 
 function Tbc() {
   return (
-    <span className="ml-2 inline-block border border-gold/50 px-1.5 py-0.5 align-middle text-[0.6rem] font-bold uppercase tracking-[0.16em] text-gold-dark dark:text-gold">
+    <span className="ml-2 inline-block border border-gold/50 px-1.5 py-0.5 align-middle text-[0.6rem] font-bold uppercase tracking-[0.16em] text-[#8a6d14] dark:text-gold">
       To be confirmed
     </span>
   )
@@ -40,8 +42,9 @@ export function ChallengeRules() {
       title: 'Registration and the game password',
       body: (
         <>
-          Register through the official form for your route. The password is sent only to verified members and must not be
-          shared.
+          University of Edinburgh students register through the official Google Form. Paid non-student members register
+          by emailing the committee, who verify their membership by hand. The password is sent only to verified members and
+          must not be shared.
         </>
       ),
     },
@@ -98,52 +101,79 @@ export function ChallengeRules() {
     },
   ]
 
-  return (
-    <div className="grid gap-12 lg:grid-cols-12 lg:gap-14">
-      <div className="lg:col-span-5">
-        <h3 className="text-xl font-bold text-[var(--fg)]" style={{ fontFamily: 'var(--font-serif)' }}>
-          Game settings
-        </h3>
-        <p className="mt-2 text-sm text-[var(--fg-muted)]">As configured in the MarketWatch game.</p>
-        <dl className="trading-termsheet mt-5 border-t-2 border-navy dark:border-gold/60">
-          {[
-            { label: 'Organiser', value: TC.organiser, status: 'confirmed' as const },
-            { label: 'Platform', value: TC.platform, status: 'confirmed' as const },
-            { label: 'Trading window', value: `${formatChallengeDate(TC.startDate)} – ${formatChallengeDate(TC.endDate)}`, status: 'confirmed' as const },
-            ...TC.settings,
-            { label: 'Prizes', value: `${prizes}`, status: 'confirmed' as const },
-          ].map((row) => (
-            <div key={row.label} className="flex items-baseline justify-between gap-6 border-b border-[var(--border-strong)] py-3">
-              <dt className="text-sm text-[var(--fg-muted)]">{row.label}</dt>
-              <dd className="text-right text-sm font-semibold tabular-nums text-[var(--fg)]">
-                {row.status === 'tbc' ? <Tbc /> : row.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-
-      <div className="lg:col-span-7">
-        <h3 className="text-xl font-bold text-[var(--fg)]" style={{ fontFamily: 'var(--font-serif)' }}>
-          Official rules
-        </h3>
-        <ol className="trading-rules mt-5 divide-y divide-[var(--border-strong)] border-y border-[var(--border-strong)]">
-          {rules.map((r, i) => (
-            <li key={r.title} className="grid grid-cols-[2.25rem_1fr] gap-x-3 py-4">
-              <span className="pt-0.5 text-sm font-bold tabular-nums text-gold-dark dark:text-gold" aria-hidden>
-                {String(i + 1).padStart(2, '0')}
+  const glance: { term: string; detail: React.ReactNode }[] = [
+    { term: 'Organiser', detail: TC.organiser },
+    { term: 'Platform', detail: TC.platform },
+    {
+      term: 'Competition dates',
+      detail: (
+        <span className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+          <span className="trading-glance-sub">Starts</span>
+          <span>{formatChallengeDate(TC.startDate)}</span>
+          <span className="trading-glance-sub">Ends</span>
+          <span>{formatChallengeDate(TC.endDate)}</span>
+        </span>
+      ),
+    },
+    {
+      term: 'Starting balance',
+      detail: (
+        <>
+          ${TC.startingCapitalUsd.toLocaleString('en-GB')} <span className="trading-glance-sub ml-1">virtual</span>
+        </>
+      ),
+    },
+    { term: 'Markets', detail: TC.markets },
+    {
+      term: 'Prizes',
+      detail: (
+        <span className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-0.5">
+          {TC.prizes.map((p) => (
+            <Fragment key={p.place}>
+              <span className="trading-glance-sub">{['First', 'Second', 'Third'][p.place - 1]}</span>
+              <span className="trading-glance-prize" data-metal={p.place === 1 ? 'gold' : p.place === 2 ? 'silver' : 'bronze'}>
+                <span className="text-lg font-bold tabular-nums" style={{ fontFamily: 'var(--font-serif)' }}>£{p.amountGbp}</span>
               </span>
-              <div>
-                <h4 className="font-semibold text-[var(--fg)]">
-                  {r.title}
-                  {r.tbc && <Tbc />}
-                </h4>
-                <p className="mt-1 text-[0.95rem] leading-relaxed text-[var(--fg-muted)]">{r.body}</p>
-              </div>
-            </li>
+            </Fragment>
           ))}
-        </ol>
-      </div>
+        </span>
+      ),
+    },
+  ]
+
+  return (
+    <div>
+      <h3 className="text-xl font-bold text-[var(--fg)]" style={{ fontFamily: 'var(--font-serif)' }}>
+        Competition at a glance
+      </h3>
+      <dl className="trading-glance mt-5 grid border-t-2 border-navy sm:grid-cols-2 lg:grid-cols-3 dark:border-gold/60">
+        {glance.map((g) => (
+          <div key={g.term}>
+            <dt className="text-sm text-[var(--fg-muted)]">{g.term}</dt>
+            <dd className="mt-1.5 font-semibold leading-snug text-[var(--fg)]">{g.detail}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <h3 className="mt-16 text-xl font-bold text-[var(--fg)]" style={{ fontFamily: 'var(--font-serif)' }}>
+        Official rules
+      </h3>
+      <ol className="trading-rules mt-5 grid border-b border-[var(--border-strong)] lg:grid-cols-2 lg:gap-x-14">
+        {rules.map((r, i) => (
+          <li key={r.title} className="grid grid-cols-[2.25rem_1fr] gap-x-3 border-t border-[var(--border-strong)] py-4">
+            <span className="pt-0.5 text-sm font-bold tabular-nums text-[#8a6d14] dark:text-gold" aria-hidden>
+              {String(i + 1).padStart(2, '0')}
+            </span>
+            <div>
+              <h4 className="font-semibold text-[var(--fg)]">
+                {r.title}
+                {r.tbc && <Tbc />}
+              </h4>
+              <p className="mt-1 text-[0.95rem] leading-relaxed text-[var(--fg-muted)]">{r.body}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
     </div>
   )
 }

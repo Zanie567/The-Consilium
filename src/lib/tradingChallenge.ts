@@ -9,8 +9,8 @@
  *
  * To change what the page says, edit this file:
  *   - dates/prizes/links ........ the constants below
- *   - a registration form ....... set `registration.<route>.responderUrl` (null = gated)
- *   - a game setting ............ `settings` (status 'tbc' keeps it off the public rules)
+ *   - the student form .......... `registration.student.responderUrl` (null = unavailable)
+ *   - non-student registration .. `registration.nonStudent` (an email to the committee)
  *   - announce winners .......... fill `results.winners` and set `results.published`
  *     ONLY after the committee has verified eligibility and announced them.
  */
@@ -31,16 +31,6 @@ export interface Winner {
   displayName: string
   /** Final return as a percentage, only if independently verified and approved for publication. */
   finalReturnPct?: number
-}
-
-/**
- * A MarketWatch game setting. `confirmed` settings were read from the configured game
- * (read-only, 20 Oct 2026). `tbc` settings are not shown as fact anywhere on the page.
- */
-export interface GameSetting {
-  label: string
-  value: string
-  status: 'confirmed' | 'tbc'
 }
 
 export interface RegistrationRoute {
@@ -81,28 +71,36 @@ export const TRADING_CHALLENGE = {
         'https://docs.google.com/forms/d/e/1FAIpQLSeC6thVEEGseljEprbWRaGXqBUuDhfunC_5YzW7DqLy0ZT7zA/viewform',
     } as RegistrationRoute,
     /**
-     * Paid non-student members: manual committee verification. Not yet operational —
-     * keep null until the form AND the manual review process are confirmed.
+     * Paid non-student members email the committee, who register them and verify their
+     * membership by hand. There is no form and nothing is automated: the email starts a
+     * conversation, it does not confirm a place or send any login details.
      */
-    member: { responderUrl: null } as RegistrationRoute,
+    nonStudent: {
+      subject: 'Trading Challenge – Non-Student Registration',
+      /** Prefilled message. Asks only for what the committee needs; never a password. */
+      body: [
+        'Hello EconSoc committee,',
+        '',
+        'I am a paid non-student EconSoc member and would like to register for the EconSoc Trading Challenge 2026–27.',
+        '',
+        'Full name: ',
+        'MarketWatch display name: ',
+        'Email address used to buy my EconSoc membership: ',
+        '',
+        'Thank you.',
+        // CRLF: the line break RFC 6068 specifies for mailto bodies.
+      ].join('\r\n'),
+    },
   },
 
   /** EconSoc's contact address, as listed on its EUSA society page. */
   supportEmail: 'economics.society@ed.ac.uk',
 
-  settings: [
-    { label: 'Starting balance', value: '$100,000 (virtual)', status: 'confirmed' },
-    { label: 'Commission', value: '$10 per trade', status: 'confirmed' },
-    { label: 'Order types', value: 'Market, limit and stop-loss orders', status: 'confirmed' },
-    { label: 'Fractional shares', value: 'Allowed', status: 'confirmed' },
-    { label: 'Minimum share price', value: '$5', status: 'confirmed' },
-    { label: 'Interest on cash or borrowing', value: 'None (0%)', status: 'confirmed' },
-    { label: 'Markets', value: 'Nasdaq, NYSE, NYSE American and OTC', status: 'confirmed' },
-    // The configured game currently ENABLES both; the organisers' proposal was to
-    // disable them. Unpublished until the organisers confirm the final setting.
-    { label: 'Short selling', value: 'To be confirmed', status: 'tbc' },
-    { label: 'Margin trading', value: 'To be confirmed', status: 'tbc' },
-  ] satisfies GameSetting[],
+  /** Markets available in the game, as configured on MarketWatch. */
+  markets: 'Nasdaq, NYSE, NYSE American and OTC',
+  // Other MarketWatch game settings (commission, order types, short selling, margin and
+  // so on) are deliberately not published here: the game itself is the authority on
+  // them. Leaving them off this page does not change anything on MarketWatch.
 
   /** Decisions the organisers still owe before the page can state them as rules. */
   pendingDecisions: {
@@ -115,6 +113,12 @@ export const TRADING_CHALLENGE = {
     winners: [] as Winner[],
   },
 } as const
+
+/** `mailto:` link for non-student registration, with the subject and prefilled message. */
+export function nonStudentMailto(email: string = TRADING_CHALLENGE.supportEmail): string {
+  const { subject, body } = TRADING_CHALLENGE.registration.nonStudent
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+}
 
 export const TOTAL_PRIZE_POOL_GBP = TRADING_CHALLENGE.prizes.reduce((sum, p) => sum + p.amountGbp, 0)
 

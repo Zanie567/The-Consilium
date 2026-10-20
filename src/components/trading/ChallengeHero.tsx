@@ -38,18 +38,20 @@ export function ChallengeHero({
 
   const facts = [
     { term: 'Starting capital', value: usd(TC.startingCapitalUsd), note: 'virtual' },
-    { term: 'Prize pool', value: `£${TOTAL_PRIZE_POOL_GBP}`, note: 'top three' },
+    { term: 'Prize pool', value: `£${TOTAL_PRIZE_POOL_GBP}`, note: TC.prizes.map((p) => `£${p.amountGbp}`).join(' · ') },
     { term: 'Trading window', value: `${formatChallengeDate(TC.startDate, { withYear: false })} – ${formatChallengeDate(TC.endDate)}`, note: null },
     { term: 'Who can enter', value: 'Paid EconSoc members', note: null },
     { term: 'Real money at stake', value: 'None', note: 'simulated trading' },
   ]
 
   return (
-    <section aria-labelledby="challenge-title" className="trading-hero relative overflow-hidden border-b-2 border-gold bg-navy text-cream">
+    // On wide screens the hero fills the first screen (capped on very tall ones), which
+    // centres the chart a little lower and gives its scroll-driven growth more room.
+    <section aria-labelledby="challenge-title" className="trading-hero relative overflow-hidden border-b-2 border-gold bg-navy text-cream lg:flex lg:min-h-[min(calc(100svh-66px-3rem),52rem)] lg:flex-col">
       {/* Fine ruled paper: the site's dotted texture, reworked as a ledger grid. */}
       <div aria-hidden className="trading-hero-grid pointer-events-none absolute inset-0" />
 
-      <div className="relative mx-auto grid max-w-7xl grid-cols-1 gap-12 px-4 pb-14 pt-12 sm:px-6 sm:pt-16 lg:grid-cols-12 lg:gap-10 lg:px-8 lg:pb-16 lg:pt-20">
+      <div className="relative mx-auto grid w-full max-w-7xl grid-cols-1 gap-12 px-4 pb-14 pt-12 sm:px-6 sm:pt-16 lg:flex-1 lg:grid-cols-12 lg:items-center lg:gap-10 lg:px-8 lg:pb-16 lg:pt-16">
         <div className="min-w-0 lg:col-span-6">
           <AnimateIn variant="fade-up" duration={0.6}>
             <h1
@@ -83,23 +85,23 @@ export function ChallengeHero({
               {open ? (
                 <a
                   href="#register"
-                  className="btn-lift inline-flex min-h-12 items-center gap-2 bg-gold px-6 text-sm font-bold uppercase tracking-[0.16em] text-navy hover:bg-gold-light"
+                  className="btn-lift trading-cta group inline-flex min-h-12 items-center gap-2 bg-gold px-6 text-sm font-bold uppercase tracking-[0.16em] text-navy hover:bg-gold-light"
                 >
                   Enter the Challenge
-                  <ArrowRight size={16} aria-hidden />
+                  <ArrowRight size={16} aria-hidden className="transition-transform duration-200 group-hover:translate-x-1" />
                 </a>
               ) : (
                 <a
                   href="#standings"
-                  className="btn-lift inline-flex min-h-12 items-center gap-2 bg-gold px-6 text-sm font-bold uppercase tracking-[0.16em] text-navy hover:bg-gold-light"
+                  className="btn-lift trading-cta group inline-flex min-h-12 items-center gap-2 bg-gold px-6 text-sm font-bold uppercase tracking-[0.16em] text-navy hover:bg-gold-light"
                 >
                   {resultsPublished ? 'See the winners' : 'Standings and results'}
-                  <ArrowRight size={16} aria-hidden />
+                  <ArrowRight size={16} aria-hidden className="transition-transform duration-200 group-hover:translate-x-1" />
                 </a>
               )}
               <a
                 href="#how-it-works"
-                className="inline-flex min-h-12 items-center border border-gold/60 px-6 text-sm font-bold uppercase tracking-[0.16em] text-gold hover:border-gold hover:bg-gold/10"
+                className="btn-press inline-flex min-h-12 items-center border border-gold/60 px-6 text-sm font-bold uppercase tracking-[0.16em] text-gold transition-colors hover:border-gold hover:bg-gold/10"
               >
                 How it works
               </a>
@@ -118,8 +120,10 @@ export function ChallengeHero({
           </AnimateIn>
         </div>
 
-        <div className="min-w-0 lg:col-span-6 lg:pl-4 xl:pl-10">
-          <AnimateIn variant="fade-in" delay={0.1} duration={0.7}>
+        <div className="relative min-w-0 lg:col-span-6 lg:pl-4 xl:pl-10">
+          {/* A low gold light behind the terminal: depth without moving anything. */}
+          <div aria-hidden className="trading-chart-light pointer-events-none absolute -inset-x-8 -inset-y-10" />
+          <AnimateIn variant="scale-in" delay={0.12} duration={0.8} className="relative">
             <MarketChart phase={phase} progress={progress} daysToStart={daysToStart} />
           </AnimateIn>
         </div>
@@ -131,7 +135,10 @@ export function ChallengeHero({
           {facts.map((f, i) => (
             <div
               key={f.term}
-              className={`trading-fact py-5 pr-4 ${i > 0 ? 'lg:border-l lg:border-gold/20 lg:pl-6' : ''} ${i === 4 ? 'col-span-2 md:col-span-1' : ''}`}
+              className={`trading-fact consilium-reveal py-5 pr-4 ${i > 0 ? 'lg:border-l lg:border-gold/20 lg:pl-6' : ''} ${i === 4 ? 'col-span-2 md:col-span-1' : ''}`}
+              data-reveal="fade-up"
+              // The quote board settles in after the headline, left to right.
+              style={{ '--reveal-delay': `${0.3 + i * 0.06}s`, '--reveal-duration': '0.6s' } as React.CSSProperties}
             >
               <dt className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-cream/60">{f.term}</dt>
               <dd className="mt-1.5 text-base font-semibold tabular-nums text-cream sm:text-lg" style={{ fontFamily: 'var(--font-serif)' }}>

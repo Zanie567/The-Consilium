@@ -7,6 +7,7 @@ import {
   formatChallengeDate,
   googleFormEmbedUrl,
   londonDate,
+  nonStudentMailto,
   publishedWinners,
   windowProgress,
 } from '@/lib/tradingChallenge'
@@ -20,13 +21,26 @@ describe('competition facts', () => {
     expect(TOTAL_PRIZE_POOL_GBP).toBe(175)
   })
 
-  it('keeps the non-student route gated until it is confirmed operational', () => {
-    expect(TRADING_CHALLENGE.registration.member.responderUrl).toBeNull()
+  it('registers non-student members by email to the committee, with no form and no automation', () => {
+    expect(Object.keys(TRADING_CHALLENGE.registration)).toEqual(['student', 'nonStudent'])
+    expect(TRADING_CHALLENGE.registration.nonStudent).not.toHaveProperty('responderUrl')
+    const link = nonStudentMailto()
+    expect(link.startsWith('mailto:economics.society@ed.ac.uk?subject=')).toBe(true)
+    const params = new URLSearchParams(link.slice(link.indexOf('?') + 1).replace(/\+/g, '%2B'))
+    expect(params.get('subject')).toBe('Trading Challenge – Non-Student Registration')
+    const body = params.get('body') ?? ''
+    for (const field of ['Full name:', 'MarketWatch display name:', 'Email address used to buy my EconSoc membership:']) {
+      expect(body).toContain(field)
+    }
+    // Asks for nothing sensitive, and the encoding keeps spaces as %20 (not "+").
+    expect(body).not.toMatch(/password|student number|date of birth|phone/i)
+    expect(link).not.toContain('+')
+    expect(body.split('\r\n').length).toBeGreaterThan(5)
   })
 
-  it('never states an unconfirmed game setting as confirmed', () => {
-    const tbc = TRADING_CHALLENGE.settings.filter((s) => s.status === 'tbc').map((s) => s.label)
-    expect(tbc).toEqual(expect.arrayContaining(['Short selling', 'Margin trading']))
+  it('publishes only the essential settings, never detailed MarketWatch configuration', () => {
+    expect(TRADING_CHALLENGE).not.toHaveProperty('settings')
+    expect(TRADING_CHALLENGE.markets).toBe('Nasdaq, NYSE, NYSE American and OTC')
   })
 
   it('publishes no winners until results are explicitly published', () => {

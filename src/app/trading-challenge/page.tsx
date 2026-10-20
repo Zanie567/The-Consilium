@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { ArrowUpRight, Mail } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, Mail } from 'lucide-react'
 import { AnimateIn } from '@/components/ui/AnimateIn'
 import { ChallengeHero } from '@/components/trading/ChallengeHero'
 import { PrizePodium } from '@/components/trading/PrizePodium'
@@ -14,6 +14,7 @@ import {
   daysUntil,
   formatChallengeDate,
   googleFormEmbedUrl,
+  nonStudentMailto,
   publishedWinners,
   windowProgress,
 } from '@/lib/tradingChallenge'
@@ -45,6 +46,8 @@ export const metadata: Metadata = {
 // it and hydration cannot disagree near midnight.
 export const revalidate = 3600
 
+const usd = (n: number) => `$${n.toLocaleString('en-GB')}`
+
 const sectionTitle = 'text-balance text-3xl font-bold leading-tight tracking-[-0.01em] text-[var(--fg)] sm:text-4xl'
 
 export default function TradingChallengePage() {
@@ -55,7 +58,6 @@ export default function TradingChallengePage() {
   const open = phase !== 'closed'
 
   const student = { responderUrl: TC.registration.student.responderUrl, embedUrl: googleFormEmbedUrl(TC.registration.student.responderUrl) }
-  const member = { responderUrl: TC.registration.member.responderUrl, embedUrl: googleFormEmbedUrl(TC.registration.member.responderUrl) }
 
   const steps = [
     {
@@ -70,7 +72,7 @@ export default function TradingChallengePage() {
     },
     {
       title: 'Register for the Challenge',
-      body: 'Complete the registration form for your route, so we can verify your membership. Students give their student number; non-student members are checked by the committee.',
+      body: 'Register so we can verify your membership. Students complete a short form with their student number; non-student members email the committee.',
       action: open ? { href: '#register', label: 'Register below', external: false } : null,
     },
     {
@@ -96,9 +98,10 @@ export default function TradingChallengePage() {
               {formatChallengeDate(TC.endDate)}, after the committee has verified each winner’s membership and registration.
             </p>
           </AnimateIn>
-          <AnimateIn className="lg:col-span-7" delay={0.08}>
+          {/* The podium choreographs its own entrance (PrizePodium). */}
+          <div className="lg:col-span-7">
             <PrizePodium prizes={TC.prizes} />
-          </AnimateIn>
+          </div>
         </div>
       </section>
 
@@ -115,15 +118,16 @@ export default function TradingChallengePage() {
             </p>
           </AnimateIn>
 
-          <ol className="trading-steps mt-12 grid gap-10 md:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+          {/* The ruled line joining the steps draws in as they arrive (wide screens). */}
+          <ol className="trading-steps consilium-reveal mt-12 grid gap-10 md:grid-cols-2 lg:grid-cols-4 lg:gap-8" data-reveal="steps">
             {steps.map((s, i) => (
               <li
                 key={s.title}
                 className="consilium-reveal trading-step-item relative flex h-full flex-col"
                 data-reveal="fade-up"
-                style={{ '--reveal-delay': `${i * 0.06}s` } as React.CSSProperties}
+                style={{ '--reveal-delay': `${0.1 + i * 0.09}s`, '--reveal-duration': '0.6s' } as React.CSSProperties}
               >
-                  <span className="trading-step-node flex h-10 w-10 items-center justify-center border border-gold bg-[var(--bg)] text-sm font-bold tabular-nums text-gold-dark dark:text-gold" aria-hidden>
+                  <span className="trading-step-node flex h-10 w-10 items-center justify-center border border-gold bg-[var(--bg)] text-sm font-bold tabular-nums text-[#8a6d14] dark:text-gold" aria-hidden>
                     {i + 1}
                   </span>
                   <h3 className="mt-5 text-lg font-bold leading-snug text-[var(--fg)]" style={{ fontFamily: 'var(--font-serif)' }}>
@@ -166,15 +170,15 @@ export default function TradingChallengePage() {
         </AnimateIn>
 
         {open ? (
-          <div className="mt-10">
+          <AnimateIn className="mt-10" delay={0.08} duration={0.6}>
             <RegistrationPanel
               student={student}
-              member={member}
+              nonStudentMailto={nonStudentMailto()}
               supportEmail={TC.supportEmail}
               membershipUrl={TC.links.membership}
               lateEntry={phase === 'live'}
             />
-          </div>
+          </AnimateIn>
         ) : (
           <p className="mt-6 text-[var(--fg-muted)]">
             Questions about your entry? Email{' '}
@@ -213,7 +217,7 @@ export default function TradingChallengePage() {
           <AnimateIn className="lg:col-span-7" delay={0.08}>
             {resultsPublished ? (
               <div className="trading-results">
-                <PrizePodium prizes={TC.prizes} winners={winners} />
+                <PrizePodium prizes={TC.prizes} winners={winners} idPrefix="winners" />
               </div>
             ) : (
               <div className="trading-awaiting border border-dashed border-gold/35 px-6 py-10 sm:px-10">
@@ -243,7 +247,7 @@ export default function TradingChallengePage() {
       <section id="rules" aria-labelledby="rules-title" className="trading-deferred scroll-mt-20 mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
         <AnimateIn>
           <h2 id="rules-title" className={sectionTitle} style={{ fontFamily: 'var(--font-serif)' }}>
-            Rules and game settings
+            The rules
           </h2>
           <p className="mt-4 max-w-2xl leading-relaxed text-[var(--fg-muted)]">
             The Challenge is a simulation for learning and friendly competition. Nothing on this page is investment advice.
@@ -258,7 +262,7 @@ export default function TradingChallengePage() {
       <section id="faq" aria-labelledby="faq-title" className="trading-deferred scroll-mt-20 border-t border-[var(--border)] bg-[var(--bg-subtle)]">
         <div className="mx-auto grid max-w-6xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-12 lg:gap-14 lg:px-8 lg:py-24">
           <div className="lg:col-span-4">
-            <div className="lg:sticky lg:top-28">
+            <AnimateIn className="lg:sticky lg:top-28">
               <h2 id="faq-title" className={sectionTitle} style={{ fontFamily: 'var(--font-serif)' }}>
                 Questions
               </h2>
@@ -272,13 +276,39 @@ export default function TradingChallengePage() {
                 <Mail size={16} aria-hidden className="shrink-0" />
                 {TC.supportEmail}
               </a>
-            </div>
+            </AnimateIn>
           </div>
-          <div className="lg:col-span-8">
+          <AnimateIn className="lg:col-span-8" delay={0.08}>
             <ChallengeFaq />
-          </div>
+          </AnimateIn>
         </div>
       </section>
+
+      {/* ── Closing call to action ─────────────────────────────────────── */}
+      {open && (
+        <section aria-labelledby="closing-title" className="trading-closing relative overflow-hidden border-t-2 border-gold bg-navy text-cream">
+          <div aria-hidden className="trading-hero-grid pointer-events-none absolute inset-0" />
+          <AnimateIn className="relative mx-auto flex max-w-6xl flex-col gap-8 px-4 py-16 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:py-20">
+            <div className="max-w-2xl">
+              <h2 id="closing-title" className="text-balance text-3xl font-bold leading-tight text-cream sm:text-4xl" style={{ fontFamily: 'var(--font-serif)' }}>
+                {phase === 'live' ? 'There’s still time to take your seat at the table.' : 'Take your seat at the opening bell.'}
+              </h2>
+              <p className="mt-4 leading-relaxed text-cream/75">
+                {usd(TC.startingCapitalUsd)} of virtual capital, nearly five months of trading and{' '}
+                <span className="whitespace-nowrap font-semibold text-gold">£{TC.prizes[0].amountGbp} · £{TC.prizes[1].amountGbp} · £{TC.prizes[2].amountGbp}</span>{' '}
+                for the top three. {phase === 'live' ? `Late entries are open until ${formatChallengeDate(TC.endDate)}.` : `Trading opens ${formatChallengeDate(TC.startDate, { withYear: false })}.`}
+              </p>
+            </div>
+            <a
+              href="#register"
+              className="btn-lift trading-cta group inline-flex min-h-12 shrink-0 items-center gap-2 self-start bg-gold px-7 text-sm font-bold uppercase tracking-[0.16em] text-navy hover:bg-gold-light lg:self-auto"
+            >
+              Enter the Challenge
+              <ArrowRight size={16} aria-hidden className="transition-transform duration-200 group-hover:translate-x-1" />
+            </a>
+          </AnimateIn>
+        </section>
+      )}
 
       <p className="mx-auto max-w-6xl px-4 py-8 text-xs leading-relaxed text-[var(--fg-muted)] sm:px-6 lg:px-8">
         {TC.name} is organised by the {TC.organiser} and hosted on MarketWatch’s Virtual Stock Exchange. MarketWatch is not

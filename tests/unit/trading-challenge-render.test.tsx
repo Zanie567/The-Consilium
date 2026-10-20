@@ -3,8 +3,11 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { ChallengeHero, statusLine } from '@/components/trading/ChallengeHero'
 import { PrizePodium } from '@/components/trading/PrizePodium'
 import { MarketChart } from '@/components/trading/MarketChart'
+import { ChallengeRules } from '@/components/trading/ChallengeRules'
+import { ChallengeFaq } from '@/components/trading/ChallengeFaq'
+import { RegistrationPanel } from '@/components/trading/RegistrationPanel'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
-import { TRADING_CHALLENGE } from '@/lib/tradingChallenge'
+import { TRADING_CHALLENGE, nonStudentMailto } from '@/lib/tradingChallenge'
 
 const hero = (phase: 'upcoming' | 'live' | 'closed', resultsPublished = false) =>
   renderToStaticMarkup(<ChallengeHero phase={phase} progress={phase === 'upcoming' ? 0 : phase === 'live' ? 0.5 : 1} daysToStart={8} resultsPublished={resultsPublished} />)
@@ -42,7 +45,8 @@ describe('prize podium', () => {
     const html = renderToStaticMarkup(<PrizePodium prizes={TRADING_CHALLENGE.prizes} />)
     const order = [...html.matchAll(/data-place="(\d)"/g)].map((m) => m[1])
     expect(order).toEqual(['1', '2', '3'])
-    for (const amount of ['£100', '£50', '£25']) expect(html).toContain(amount)
+    const text = html.replace(/<[^>]+>/g, '')
+    for (const amount of ['£100', '£50', '£25']) expect(text).toContain(amount)
   })
 
   it('shows verified winners only when they are passed in', () => {
@@ -56,14 +60,77 @@ describe('prize podium', () => {
 })
 
 describe('illustrative chart', () => {
+  const html = renderToStaticMarkup(<MarketChart phase="upcoming" progress={0} daysToStart={8} />)
+
   it('is labelled as illustrative and hidden from assistive technology', () => {
-    const html = renderToStaticMarkup(<MarketChart phase="upcoming" progress={0} daysToStart={8} />)
     expect(html).toContain('Illustrative chart. Not market data or competition results.')
-    expect(html).toMatch(/<svg[^>]*aria-hidden="true"/)
+    const svgs = [...html.matchAll(/<svg[^>]*>/g)].map((m) => m[0])
+    expect(svgs).toHaveLength(4)
+    for (const svg of svgs) expect(svg).toContain('aria-hidden="true"')
     // The graphic's only text is the real calendar and the marker: no prices or percentages.
-    const svg = html.slice(html.indexOf('<svg'), html.indexOf('</svg>'))
-    const labels = [...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1])
+    const labels = [...html.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1])
     expect(labels).toEqual(['NOV', 'DEC', 'JAN', 'FEB', 'MAR', 'OPENING BELL'])
+  })
+
+  it('ships the complete chart in the HTML; the reveal is CSS only', () => {
+    // All 28 candles and the trend line are in the server markup, inside the reveal layer.
+    const reveal = html.slice(html.indexOf('trading-reveal '), html.indexOf('trading-glint '))
+    expect(reveal.match(/<rect/g)).toHaveLength(28)
+    expect(reveal).toContain('fill="url(#trading-area)"')
+    // The glint layer redraws the same line, so it lines up with the trend beneath.
+    const glint = html.slice(html.indexOf('trading-glint '))
+    const line = (chunk: string) => chunk.match(/<path d="(M[^"]+)"[^>]*class="fill-none/)?.[1] ?? chunk.match(/d="(M[^"]+)"/)?.[1]
+    expect(line(glint)).toBe(line(reveal.slice(reveal.indexOf('</rect>'))))
+    expect(html).not.toMatch(/opacity:\s*0/)
+  })
+})
+
+describe('rules and settings', () => {
+  const html = renderToStaticMarkup(<ChallengeRules />)
+
+  it('shows the competition at a glance with the prizes, and no detailed game settings', () => {
+    for (const text of ['Competition at a glance', 'Organiser', 'Platform', 'Competition dates', 'Starting balance', 'Markets', 'Prizes', 'Nasdaq, NYSE, NYSE American and OTC', '£100', '£50', '£25', '28 October 2026', '25 March 2027']) {
+      expect(html).toContain(text)
+    }
+    for (const text of ['Commission', 'Order types', 'Fractional', 'Minimum share price', 'Interest', 'Short selling', 'Margin']) {
+      expect(html).not.toContain(text)
+    }
+  })
+
+  it('keeps the official rules on eligibility, registration and winner verification', () => {
+    for (const title of ['Eligibility', 'Registration and the game password', 'Prizes and winner verification', 'Ineligible entries', 'Ties']) {
+      expect(html).toContain(title)
+    }
+    expect(html).toContain('register by emailing the committee')
+  })
+})
+
+describe('non-student registration', () => {
+  const panel = renderToStaticMarkup(
+    <RegistrationPanel
+      student={{ responderUrl: TRADING_CHALLENGE.registration.student.responderUrl, embedUrl: null }}
+      nonStudentMailto={nonStudentMailto()}
+      supportEmail={TRADING_CHALLENGE.supportEmail}
+      membershipUrl={TRADING_CHALLENGE.links.membership}
+      lateEntry={false}
+    />,
+  )
+
+  it('offers an email to the committee instead of a form, without promising instant access', () => {
+    expect(panel).toContain('Not a University of Edinburgh student?')
+    expect(panel).toContain('Contact EconSoc to Register')
+    expect(panel).toContain(`href="${nonStudentMailto().replace(/&/g, '&amp;')}"`)
+    expect(panel).toContain('Never send a password.')
+    expect(panel).toContain('your login details follow once that check is done')
+    expect(panel).not.toMatch(/opening soon|isn’t open yet/i)
+    // Only the student route has a Google Form.
+    expect(panel.match(/docs\.google\.com/g)).toHaveLength(1)
+  })
+
+  it('leaves no “opening soon” wording in the FAQ', () => {
+    const faq = renderToStaticMarkup(<ChallengeFaq />)
+    expect(faq).not.toMatch(/opens soon|opening soon/i)
+    expect(faq).toContain('MarketWatch display name')
   })
 })
 

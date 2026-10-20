@@ -1,11 +1,15 @@
 'use client'
 
-import { useEffect, useId, useRef, useState } from 'react'
-import { ArrowUpRight, GraduationCap, IdCard, Mail } from 'lucide-react'
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
+import { ArrowUpRight, Check, Copy, GraduationCap, IdCard, Mail } from 'lucide-react'
 import { getCookieConsent } from '@/components/ui/CookieConsent'
 
 /**
- * Registration: choose a route, then complete that route's Google Form.
+ * Registration: choose a route.
+ *   - University of Edinburgh students complete the Google Form (automated
+ *     verification by the existing Form → Sheet → Apps Script system).
+ *   - Paid non-student members email the committee, who register them and verify
+ *     their membership by hand. Nothing about that route is automated.
  *
  * The Google Form stays the source of truth for submission. This component never
  * claims a registration succeeded: it cannot see inside the cross-origin form and
@@ -159,13 +163,14 @@ function FormFrame({ route, title, intent, fields }: { route: FormRoute & { labe
 
 export function RegistrationPanel({
   student,
-  member,
+  nonStudentMailto,
   supportEmail,
   membershipUrl,
   lateEntry,
 }: {
   student: FormRoute
-  member: FormRoute
+  /** mailto: link with the non-student subject and prefilled template. */
+  nonStudentMailto: string
   supportEmail: string
   membershipUrl: string
   /** True once trading has started: late entry is allowed. */
@@ -182,7 +187,7 @@ export function RegistrationPanel({
 
   const options: { key: RouteKey; title: string; detail: string; icon: React.ReactNode }[] = [
     { key: 'student', title: 'I’m a University of Edinburgh student', detail: 'Verified automatically with your student number', icon: <GraduationCap size={22} aria-hidden /> },
-    { key: 'member', title: 'I’m a non-student EconSoc member', detail: 'Verified by the committee', icon: <IdCard size={22} aria-hidden /> },
+    { key: 'member', title: 'I’m a non-student EconSoc member', detail: 'Register by email with the committee', icon: <IdCard size={22} aria-hidden /> },
   ]
 
   return (
@@ -218,7 +223,7 @@ export function RegistrationPanel({
         </p>
       )}
 
-      <div className="mt-8" hidden={route !== 'student'}>
+      <div className="trading-route-panel mt-8" hidden={route !== 'student'}>
         {/* Phones read: what you need → the form → what happens next. Wide screens
             put both notes in the left column beside the form. */}
         <div className="grid gap-10 lg:grid-cols-12 lg:grid-rows-[auto_1fr] lg:gap-x-12 lg:gap-y-0">
@@ -288,71 +293,102 @@ export function RegistrationPanel({
         </div>
       </div>
 
-      <div className="mt-8" hidden={route !== 'member'}>
-        <div className="grid gap-10 lg:grid-cols-12 lg:gap-12">
-          <div className="lg:col-span-5">
-            <h3 className="text-xl font-bold text-[var(--fg)]" style={{ fontFamily: 'var(--font-serif)' }}>
-              Non-student member registration
-            </h3>
-            <p className="mt-4 text-[0.95rem] leading-relaxed text-[var(--fg-muted)]">
-              Paid EconSoc members who aren’t University of Edinburgh students can take part. Without a student number to
-              check automatically, the committee verifies each membership by hand against EUSA’s purchase records.
-            </p>
-            <ol className="trading-sequence mt-6 space-y-4 text-[0.95rem] leading-relaxed text-[var(--fg-muted)]">
-              <li>
-                <span className="font-semibold text-[var(--fg)]">Register</span> with your name, the email address you used
-                to buy membership, and your MarketWatch username.
-              </li>
-              <li>
-                <span className="font-semibold text-[var(--fg)]">The committee checks</span> your purchase against EUSA’s
-                membership records.
-              </li>
-              <li>
-                <span className="font-semibold text-[var(--fg)]">Once confirmed,</span> the private game link and password
-                are emailed to you. Submitting the form does not by itself give you access.
-              </li>
-            </ol>
+      <div className="trading-route-panel mt-8" hidden={route !== 'member'}>
+        <NonStudentContact mailto={nonStudentMailto} email={supportEmail} membershipUrl={membershipUrl} />
+      </div>
+    </div>
+  )
+}
+
+const noSubscribe = () => () => {}
+
+/** Non-student members register by emailing the committee. */
+function NonStudentContact({ mailto, email, membershipUrl }: { mailto: string; email: string; membershipUrl: string }) {
+  const [copied, setCopied] = useState(false)
+  // Offer "Copy" only where the Clipboard API exists (it needs a secure context).
+  // The server render leaves it out; it never changes after load.
+  const canCopy = useSyncExternalStore(
+    noSubscribe,
+    () => typeof navigator.clipboard?.writeText === 'function',
+    () => false,
+  )
+
+  useEffect(() => {
+    if (!copied) return
+    const t = setTimeout(() => setCopied(false), 2400)
+    return () => clearTimeout(t)
+  }, [copied])
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(email)
+      setCopied(true)
+    } catch {
+      // Clipboard permission refused: the address stays visible to copy by hand.
+    }
+  }
+
+  return (
+    <div className="trading-contact relative overflow-hidden border border-[var(--border-strong)] bg-[var(--bg-elevated)] shadow-[var(--shadow-card)]">
+      <div className="grid lg:grid-cols-12">
+        <div className="px-6 py-9 sm:px-10 sm:py-11 lg:col-span-7">
+          <h3 className="text-balance text-2xl font-bold leading-snug text-[var(--fg)] sm:text-[1.75rem]" style={{ fontFamily: 'var(--font-serif)' }}>
+            Not a University of Edinburgh student?
+          </h3>
+          <p className="mt-4 max-w-xl leading-relaxed text-[var(--fg-muted)]">
+            Paid non-student EconSoc members are welcome to participate in the Trading Challenge.
+          </p>
+          <p className="mt-3 max-w-xl leading-relaxed text-[var(--fg-muted)]">
+            To register, simply get in touch with our committee. We’ll guide you through the process, verify your membership
+            and provide the details you need to join.
+          </p>
+
+          <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-4">
+            <a
+              href={mailto}
+              className="btn-lift trading-cta inline-flex min-h-12 w-full items-center justify-center gap-2.5 bg-navy px-5 text-[0.8rem] font-bold uppercase tracking-[0.1em] text-gold hover:bg-navy-light sm:w-auto sm:px-6 sm:text-sm sm:tracking-[0.14em] dark:bg-gold dark:text-navy dark:hover:bg-gold-light"
+            >
+              <Mail size={16} aria-hidden className="shrink-0" />
+              Contact EconSoc to Register
+            </a>
+            <span className="inline-flex items-center gap-1">
+              <a href={mailto} className="break-all font-semibold text-[var(--fg)] underline decoration-gold/60 underline-offset-4 hover:decoration-gold">
+                {email}
+              </a>
+              {canCopy && (
+                <button
+                  type="button"
+                  onClick={copy}
+                  className="btn-press inline-flex h-11 w-11 shrink-0 items-center justify-center text-[var(--fg-muted)] transition-colors hover:text-[var(--fg)]"
+                  aria-label={copied ? 'Email address copied' : 'Copy email address'}
+                >
+                  {copied ? <Check size={16} aria-hidden className="text-gold-dark dark:text-gold" /> : <Copy size={16} aria-hidden />}
+                </button>
+              )}
+              <span role="status" className="sr-only">{copied ? 'Email address copied' : ''}</span>
+            </span>
           </div>
-          <div className="lg:col-span-7">
-            {member.responderUrl ? (
-              <FormFrame
-                route={{ ...member, label: 'Non-student registration · Google Forms' }}
-                title="EconSoc Trading Challenge non-student member registration form (Google Forms)"
-                fields={['Full name', 'Membership purchase email', 'MarketWatch username']}
-                intent={intent.member}
-              />
-            ) : (
-              <div className="trading-pending border border-dashed border-[var(--border-strong)] bg-[var(--bg-elevated)] px-6 py-10 sm:px-10">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-dark dark:text-gold">Opening soon</p>
-                <p className="mt-3 text-2xl font-bold text-[var(--fg)]" style={{ fontFamily: 'var(--font-serif)' }}>
-                  Registration for non-student members isn’t open yet.
-                </p>
-                <p className="mt-4 max-w-lg leading-relaxed text-[var(--fg-muted)]">
-                  The form will appear here once the committee’s verification process is ready. In the meantime you can
-                  make sure your membership is in place, and set up your MarketWatch account.
-                </p>
-                <div className="mt-7 flex flex-wrap gap-3">
-                  <a
-                    href={membershipUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-12 items-center gap-2 bg-navy px-5 text-sm font-bold uppercase tracking-[0.14em] text-gold hover:bg-navy-light dark:bg-gold dark:text-navy dark:hover:bg-gold-light"
-                  >
-                    EconSoc membership
-                    <ArrowUpRight size={15} aria-hidden />
-                    <span className="sr-only">(opens EUSA in a new tab)</span>
-                  </a>
-                  <a
-                    href={`mailto:${supportEmail}?subject=${encodeURIComponent('Trading Challenge: non-student registration')}`}
-                    className="inline-flex min-h-12 items-center gap-2 border border-[var(--border-strong)] px-5 text-sm font-bold uppercase tracking-[0.14em] text-[var(--fg)] hover:border-gold"
-                  >
-                    <Mail size={15} aria-hidden />
-                    Ask the committee
-                  </a>
-                </div>
-              </div>
-            )}
-          </div>
+        </div>
+
+        <div className="border-t border-[var(--border)] bg-[var(--bg-subtle)] px-6 py-9 sm:px-10 sm:py-11 lg:col-span-5 lg:border-l lg:border-t-0">
+          <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--fg-muted)]">Include in your email</h4>
+          <ul className="trading-ticks mt-4 space-y-2.5 text-[0.95rem] text-[var(--fg)]">
+            <li>Your full name</li>
+            <li>Your MarketWatch display name</li>
+            <li>The email address you used to buy your EconSoc membership</li>
+          </ul>
+          <p className="mt-6 text-sm leading-relaxed text-[var(--fg-muted)]">
+            The button starts an email with these lines ready to fill in. Never send a password. The committee checks your
+            membership by hand, so your login details follow once that check is done.
+          </p>
+          <p className="mt-4 text-sm leading-relaxed text-[var(--fg-muted)]">
+            Not a member yet?{' '}
+            <a href={membershipUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold text-[var(--fg)] underline decoration-gold/60 underline-offset-4 hover:decoration-gold">
+              Buy EconSoc membership
+              <ArrowUpRight size={14} aria-hidden />
+              <span className="sr-only">(opens EUSA in a new tab)</span>
+            </a>
+          </p>
         </div>
       </div>
     </div>

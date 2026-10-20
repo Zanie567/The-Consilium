@@ -94,6 +94,49 @@ security headers other than the one `frame-src` addition.
   product decision, so it was left alone; it is the obvious next LCP candidate.
 - **Article page** gains least because its LCP is the cover image, not text.
 
+## Refinement pass: motion and design (scroll chart, podium, medals)
+
+A second round redesigned the Trading Challenge page's motion and graphics. It was
+measured against the previous PR head (`be16de9`) with the same method: local
+production builds, the same seeded database, Lighthouse 12.8.2 mobile preset, applied
+throttling, interleaved runs. The machine was quiet this time (load average ~3).
+
+**What the new motion costs.** All of it is CSS: no new script, no animation library.
+The chart reveal moves two clip layers and two counter layers with `translate` and
+`transform`, which the compositor runs. Lighthouse's *Avoid non-composited
+animations* audit finds nothing on either build.
+
+| Route | LCP before | LCP after | Δ | FCP before | FCP after | TBT before | TBT after | CLS after | Score before → after | Runs |
+|---|---|---|---|---|---|---|---|---|---|---|
+| /trading-challenge | 2.03 s | 2.05 s | +1% | 1.79 s | 1.87 s | 11 ms | 24 ms | 0.000 | 98 → 98 | 9/9 |
+| Home | 3.41 s | 3.38 s | −1% | 1.79 s | 1.80 s | 8 ms | 9 ms | 0.000 | 90 → 91 | 5/5 |
+| /about | 1.85 s | 1.86 s | +0% | 1.74 s | 1.78 s | 6 ms | 4 ms | 0.000 | 99 → 98 | 5/5 |
+
+| Route | Initial JS before (gzip) | after |
+|---|---|---|
+| /trading-challenge | 211.0 KB | 211.4 KB (+0.4 KB: the copy-address button) |
+| Home | 232.4 KB | 232.4 KB |
+| /about | 206.9 KB | 206.9 KB |
+
+- **No regression shown.** Medians are within run-to-run noise on all three routes.
+  The LCP element on the trading page is still the hero paragraph, which this pass
+  did not change; the chart's draw-in does not delay it.
+- **An intermittent stall, not caused by the page.** Some runs paint first at ~3.7 s
+  instead of ~1.8 s. It happened on both builds and on routes this pass did not touch
+  (Home and About "before" in the first batch). In the 9-pair Trading batch it landed
+  on two "after" runs. Eight further standalone runs of the new build had FCP
+  1.81–1.91 s with no stall. Every sample is in the evidence files.
+- The first 5-run Trading batch read +13% LCP for the same reason (two stalled runs
+  of five); the 9-pair rerun supersedes it. Both are kept in `evidence/refinement/`.
+- TBT stays in the tens of milliseconds on both builds; no claim either way.
+
+After these runs, one value changed: the desktop scroll distance for the chart
+(`--trading-scroll-end`, 200 → 150 px on screens shorter than 860 px). It is a custom
+property inside a media query and adds no work, so the runs were not repeated for it.
+
+Evidence: `evidence/refinement/` (`lh-devtools-*` for the 3-route batch,
+`lh-devtools-trading-9-*` for the 9-pair rerun, `initial-js-*`).
+
 ## Monitoring recommendation (not enabled)
 
 Current state: Speed Insights is **not installed** (no `@vercel/speed-insights` package or

@@ -1,0 +1,21 @@
+{
+  "base": "http://localhost:3311",
+  "generatedAt": "2026-10-20T13:44:23.214Z",
+  "results": {
+    "/trading-challenge": {
+      "scripts": 12,
+      "rawBytes": 727581,
+      "gzipBytes": 216473
+    },
+    "/": {
+      "scripts": 13,
+      "rawBytes": 792394,
+      "gzipBytes": 237955
+    },
+    "/about": {
+      "scripts": 11,
+      "rawBytes": 712754,
+      "gzipBytes": 211900
+    }
+  }
+}
