@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Link2, Check, Mail, Share2 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { Tooltip } from '@/components/ui/Tooltip'
 
 function TwitterIcon() {
@@ -37,15 +36,13 @@ interface ShareBtnProps {
 
 function ShareBtn({ onClick, label, children }: ShareBtnProps) {
   return (
-    <motion.button
+    <button
       onClick={onClick}
-      className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center border border-[var(--border)] text-[var(--fg-muted)] hover:bg-navy hover:text-gold hover:border-navy dark:hover:bg-gold dark:hover:text-navy dark:hover:border-gold transition-colors duration-150"
-      whileHover={{ scale: 1.08 }}
-      whileTap={{ scale: 0.9 }}
+      className="share-btn w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center border border-[var(--border)] text-[var(--fg-muted)] hover:bg-navy hover:text-gold hover:border-navy dark:hover:bg-gold dark:hover:text-navy dark:hover:border-gold transition-colors duration-150"
       aria-label={label}
     >
       {children}
-    </motion.button>
+    </button>
   )
 }
 
@@ -143,38 +140,22 @@ export function ShareButtons({ title, url }: { title: string; url: string }) {
       )}
       {/* Copy link with animated checkmark */}
       <Tooltip content={copied ? 'Link copied!' : 'Copy link to clipboard'}>
-        <motion.button
+        <button
           onClick={copyLink}
-          className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center border border-[var(--border)] text-[var(--fg-muted)] hover:bg-navy hover:text-gold hover:border-navy dark:hover:bg-gold dark:hover:text-navy dark:hover:border-gold transition-colors duration-150 overflow-hidden"
-          whileHover={{ scale: 1.08 }}
-          whileTap={{ scale: 0.9 }}
+          className="share-btn w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center border border-[var(--border)] text-[var(--fg-muted)] hover:bg-navy hover:text-gold hover:border-navy dark:hover:bg-gold dark:hover:text-navy dark:hover:border-gold transition-colors duration-150 overflow-hidden"
           aria-label={copied ? 'Link copied!' : 'Copy link'}
         >
-          <AnimatePresence mode="wait" initial={false}>
-            {copied ? (
-              <motion.span
-                key="check"
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ duration: 0.18, ease: 'backOut' }}
-                className="text-gold"
-              >
-                <Check size={13} strokeWidth={2.5} />
-              </motion.span>
-            ) : (
-              <motion.span
-                key="link"
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ duration: 0.18 }}
-              >
-                <Link2 size={13} />
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </motion.button>
+          {/* The checkmark pops in when the link is copied (globals.css .share-icon-pop). */}
+          {copied ? (
+            <span key="check" className="share-icon-pop text-gold">
+              <Check size={13} strokeWidth={2.5} />
+            </span>
+          ) : (
+            <span key="link" className="flex">
+              <Link2 size={13} />
+            </span>
+          )}
+        </button>
       </Tooltip>
     </div>
   )

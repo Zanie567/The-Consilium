@@ -1375,11 +1375,150 @@ mark {
 .prose-consilium .table-source, .prose-consilium .table-note { font-size: 0.85rem; margin: 0.4rem 0; color: var(--fg-muted); }
 .figure-centered img { width: auto; max-height: 40rem; margin-inline: auto; }
 .tiptap-editor .tableWrapper table { table-layout: auto; }
-/* Preserve identical SSR/client animation wrappers. Reduced-motion readers see
-   the content immediately, including before hydration or intersection callbacks. */
+/* ─── Entrance reveals (AnimateIn / StaggerContainer) ───────────────────────
+   CSS-only, so server-rendered content is visible at first paint without
+   waiting for JavaScript (see src/components/ui/AnimateIn.tsx). The animation
+   starts when the element renders; RevealOnScroll parks below-the-fold reveals
+   with data-reveal-state="pending" and releases them on scroll, which restarts
+   the animation. Reduced-motion readers see the content immediately. */
+@keyframes consilium-reveal-fade-up    { from { opacity: 0; transform: translateY(20px); } }
+@keyframes consilium-reveal-fade-in    { from { opacity: 0; } }
+@keyframes consilium-reveal-fade-left  { from { opacity: 0; transform: translateX(-20px); } }
+@keyframes consilium-reveal-fade-right { from { opacity: 0; transform: translateX(20px); } }
+@keyframes consilium-reveal-scale-in   { from { opacity: 0; transform: scale(0.96); } }
+
+.consilium-reveal {
+  animation-name: consilium-reveal-fade-up;
+  animation-duration: var(--reveal-duration, 0.5s);
+  animation-delay: var(--reveal-delay, 0s);
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  /* backwards, not both: once finished the animation stops applying, so the
+     wrapper never keeps a transform (which would trap position:fixed children). */
+  animation-fill-mode: backwards;
+}
+.consilium-reveal[data-reveal="fade-in"]    { animation-name: consilium-reveal-fade-in; }
+.consilium-reveal[data-reveal="fade-left"]  { animation-name: consilium-reveal-fade-left; }
+.consilium-reveal[data-reveal="fade-right"] { animation-name: consilium-reveal-fade-right; }
+.consilium-reveal[data-reveal="scale-in"]   { animation-name: consilium-reveal-scale-in; }
+.consilium-reveal[data-reveal-state="pending"] { animation: none; opacity: 0; }
+
+/* Stagger: item n starts at base + (n - 1) × step. */
+.consilium-stagger > [data-reveal-item] { --reveal-delay: calc(var(--stagger-base, 0s) + var(--stagger-i, 0) * var(--stagger-step, 0.07s)); }
+.consilium-stagger > [data-reveal-item]:nth-child(2)  { --stagger-i: 1; }
+.consilium-stagger > [data-reveal-item]:nth-child(3)  { --stagger-i: 2; }
+.consilium-stagger > [data-reveal-item]:nth-child(4)  { --stagger-i: 3; }
+.consilium-stagger > [data-reveal-item]:nth-child(5)  { --stagger-i: 4; }
+.consilium-stagger > [data-reveal-item]:nth-child(6)  { --stagger-i: 5; }
+.consilium-stagger > [data-reveal-item]:nth-child(7)  { --stagger-i: 6; }
+.consilium-stagger > [data-reveal-item]:nth-child(8)  { --stagger-i: 7; }
+.consilium-stagger > [data-reveal-item]:nth-child(9)  { --stagger-i: 8; }
+.consilium-stagger > [data-reveal-item]:nth-child(10) { --stagger-i: 9; }
+.consilium-stagger > [data-reveal-item]:nth-child(11) { --stagger-i: 10; }
+.consilium-stagger > [data-reveal-item]:nth-child(n+12) { --stagger-i: 11; }
+
 @media (prefers-reduced-motion: reduce) {
-  .consilium-reveal {
+  .consilium-reveal,
+  .consilium-reveal[data-reveal-state="pending"] {
+    animation: none !important;
     opacity: 1 !important;
     transform: none !important;
   }
+}
+@media print {
+  .consilium-reveal { animation: none !important; opacity: 1 !important; transform: none !important; }
+}
+
+/* ─── Chrome micro-interactions (formerly framer-motion) ─────────────────────
+   The site chrome on every page (navbar, theme toggle, tooltips, cookie banner,
+   sign-up prompt) animates with CSS so framer-motion is no longer part of the
+   JavaScript every page downloads. Same durations and easing as before. */
+
+/* Theme toggle: hover/tap scale and a quarter-turn icon crossfade. */
+.theme-toggle { transition: color 0.2s ease, transform 0.18s ease; }
+.theme-toggle:hover { transform: scale(1.1); }
+.theme-toggle:active { transform: scale(0.88); }
+.theme-toggle-icon {
+  position: absolute;
+  display: flex;
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+.theme-toggle-icon[data-icon="moon"],
+.theme-toggle[data-dark] .theme-toggle-icon[data-icon="sun"] { opacity: 1; transform: none; }
+.theme-toggle-icon[data-icon="sun"],
+.theme-toggle[data-dark] .theme-toggle-icon[data-icon="moon"] { opacity: 0; transform: rotate(60deg) scale(0.7); }
+
+/* Tooltip entrance: `scale`, not `transform`, so it composes with the
+   positioning transform set inline. */
+@keyframes consilium-tooltip-in { from { opacity: 0; scale: 0.94; } }
+.consilium-tooltip { animation: consilium-tooltip-in 0.12s ease-out; }
+
+/* Presence transitions (usePresence): elements render their "from" state until
+   data-shown is set, then transition in; clearing it plays the exit. */
+.presence-fade { opacity: 0; transition: opacity var(--presence-ms, 200ms) ease; }
+.presence-fade[data-shown] { opacity: 1; }
+.presence-rise {
+  opacity: 0;
+  transform: translateY(var(--presence-y, 24px)) scale(var(--presence-scale, 1));
+  transition: opacity var(--presence-ms, 300ms) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--presence-ms, 300ms) cubic-bezier(0.22, 1, 0.36, 1);
+}
+.presence-rise[data-shown] { opacity: 1; transform: none; }
+.presence-drawer {
+  transform: translateX(100%);
+  /* Approximates the former spring (stiffness 300, damping 35): fast start, soft settle. */
+  transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.presence-drawer[data-shown] { transform: none; }
+.presence-drawer .presence-stagger {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.22s ease-out, transform 0.22s ease-out, color 0.15s ease;
+  transition-delay: calc(0.05s + var(--i, 0) * 0.02s);
+}
+.presence-drawer[data-shown] .presence-stagger { opacity: 1; transform: none; }
+
+/* Navbar active underline: grows from the centre under the current section. */
+.nav-underline-bar {
+  transform: scaleX(0);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+[aria-current="page"] > .nav-underline-bar { transform: scaleX(1); }
+
+/* Menu button: crossfade/rotate between the open and close icons. */
+.menu-icon { position: absolute; display: flex; transition: opacity 0.15s ease, transform 0.15s ease; }
+.menu-icon[data-active="false"] { opacity: 0; transform: rotate(90deg); }
+.menu-toggle:active { transform: scale(0.9); }
+
+@media (prefers-reduced-motion: reduce) {
+  .presence-fade, .presence-rise, .presence-drawer, .presence-drawer .presence-stagger,
+  .nav-underline-bar, .menu-icon, .theme-toggle, .theme-toggle-icon, .consilium-tooltip {
+    transition: none !important;
+    animation: none !important;
+  }
+  .theme-toggle:hover, .theme-toggle:active, .menu-toggle:active { transform: none; }
+}
+
+/* Category tab indicator: grows in under the selected tab. */
+.tab-indicator { transform: scaleX(0); transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
+.tab-indicator[data-active] { transform: scaleX(1); }
+
+/* Reading-progress bars: written per frame from scroll; this smooths the steps. */
+.reading-progress-bar { transition: transform 0.15s ease-out; }
+
+/* Share: hover/press scale and the copied checkmark's pop-in. */
+.share-btn { transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.18s ease; }
+.share-btn:hover { transform: scale(1.08); }
+.share-btn:active { transform: scale(0.9); }
+@keyframes share-icon-pop { from { opacity: 0; transform: scale(0); } 70% { transform: scale(1.12); } }
+.share-icon-pop { display: flex; animation: share-icon-pop 0.18s ease-out; }
+
+/* Newsletter: success card and error line entrances. */
+@keyframes newsletter-success-in { from { opacity: 0; transform: translateY(10px) scale(0.94); } }
+.newsletter-success-in { animation: newsletter-success-in 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes newsletter-error-in { from { opacity: 0; transform: translateY(6px); } }
+.newsletter-error-in { animation: newsletter-error-in 0.2s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-indicator, .reading-progress-bar, .share-btn { transition: none !important; }
+  .share-btn:hover, .share-btn:active { transform: none; }
 }

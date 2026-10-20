@@ -17,12 +17,11 @@ vi.mock('@/components/ui/BlurImage', () => ({
 }))
 
 /**
- * framer-motion resolves the reduced-motion media query once per module, so a
- * per-test matchMedia stub would never be read after the first render. The hook
- * itself is the seam instead.
+ * The reduced-motion hook is the seam: mocking it lets each test choose the
+ * reader's preference without stubbing matchMedia before module load.
  */
 let prefersReducedMotion = false
-vi.mock('framer-motion', () => ({ useReducedMotion: () => prefersReducedMotion }))
+vi.mock('@/hooks/usePrefersReducedMotion', () => ({ usePrefersReducedMotion: () => prefersReducedMotion }))
 
 const slide = (n: number): HeroSlide => ({
   id: `id-${n}`,

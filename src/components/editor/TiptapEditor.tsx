@@ -10,6 +10,7 @@ import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import CharacterCount from '@tiptap/extension-character-count'
+import { editorFont } from '@/lib/editorFont'
 import TextAlign from '@tiptap/extension-text-align'
 import Highlight from '@tiptap/extension-highlight'
 import {
@@ -1381,14 +1382,14 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
       {noWrapper ? (
         <EditorContent
           editor={editor}
-          className={`tiptap-editor ${noWrapper ? 'tiptap-no-wrapper' : ''} ${darkMode ? 'editor-dark-mode' : ''} ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
+          className={`tiptap-editor ${editorFont.variable} ${noWrapper ? 'tiptap-no-wrapper' : ''} ${darkMode ? 'editor-dark-mode' : ''} ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
         />
       ) : (
         <div className="editor-outer min-h-[600px] py-8 px-4">
           <div className="editor-page max-w-[1000px] mx-auto">
             <EditorContent
               editor={editor}
-              className={`tiptap-editor ${darkMode ? 'editor-dark-mode' : ''} ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
+              className={`tiptap-editor ${editorFont.variable} ${darkMode ? 'editor-dark-mode' : ''} ${!editable ? 'opacity-60 cursor-not-allowed' : ''}`}
             />
           </div>
         </div>

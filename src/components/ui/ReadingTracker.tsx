@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { motion, useMotionValue, useSpring, AnimatePresence } from 'framer-motion'
+import { usePresence } from '@/hooks/usePresence'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { BookOpen, X } from 'lucide-react'
@@ -42,8 +42,8 @@ export function ReadingTracker({ articleId }: { articleId: string }) {
 }
 
 function ScopedReadingTracker({ articleId, userId }: { articleId: string; userId: string | null }) {
-  const rawProgress = useMotionValue(0)
-  const scaleX = useSpring(rawProgress, { stiffness: 200, damping: 35, restDelta: 0.001 })
+  // The bar's transform is written directly; a CSS transition smooths it (see ReadingProgress).
+  const bar = useRef<HTMLDivElement>(null)
 
   const [restoreBanner, setRestoreBanner] = useState<{ scrollY: number; progress: number } | null>(null)
   const [guestNudge, setGuestNudge] = useState(false)
@@ -126,7 +126,7 @@ function ScopedReadingTracker({ articleId, userId }: { articleId: string; userId
     }
     const onScroll = () => {
       const pct = getProgress()
-      rawProgress.set(pct / 100)
+      if (bar.current) bar.current.style.transform = `scaleX(${Math.min(1, Math.max(0, pct / 100))})`
       if (!hasReadingIntent.current) return
 
       // Once the reader scrolls past their saved position the "continue where you
@@ -162,7 +162,7 @@ function ScopedReadingTracker({ articleId, userId }: { articleId: string; userId
       window.removeEventListener('keydown', onKey)
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
-  }, [getProgress, persist, rawProgress, dismissBanner])
+  }, [getProgress, persist, dismissBanner])
 
   // ── Load saved position on mount ──────────────────────────────────────────
   useEffect(() => {
@@ -205,6 +205,13 @@ function ScopedReadingTracker({ articleId, userId }: { articleId: string; userId
     }
   }, [articleId, userId, noteSyncFailure])
 
+  const restorePresence = usePresence(restoreBanner !== null, 250)
+  const nudgePresence = usePresence(guestNudge, 300)
+  // Keep showing the last banner's content while it animates out (React's
+  // "store information from previous renders" pattern).
+  const [shownBanner, setShownBanner] = useState(restoreBanner)
+  if (restoreBanner && restoreBanner !== shownBanner) setShownBanner(restoreBanner)
+
   const scrollToSaved = (scrollY: number) => {
     hasReadingIntent.current = true
     window.scrollTo({ top: scrollY, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
@@ -214,9 +221,10 @@ function ScopedReadingTracker({ articleId, userId }: { articleId: string; userId
   return (
     <>
       {/* Progress bar */}
-      <motion.div
-        className="fixed top-0 left-0 right-0 z-[70] h-[3px] bg-gold origin-left pointer-events-none"
-        style={{ scaleX }}
+      <div
+        ref={bar}
+        className="reading-progress-bar fixed top-0 left-0 right-0 z-[70] h-[3px] bg-gold origin-left pointer-events-none"
+        style={{ transform: 'scaleX(0)' }}
       />
 
       {syncFailing && userId && (
@@ -231,14 +239,11 @@ function ScopedReadingTracker({ articleId, userId }: { articleId: string; userId
       )}
 
       {/* Restore banner */}
-      <AnimatePresence>
-        {restoreBanner && (
-          <motion.div
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="fixed top-16 inset-x-0 z-[60] flex justify-center px-4 pointer-events-none"
+      {restorePresence.mounted && shownBanner && (
+          <div
+            data-shown={restorePresence.shown ? '' : undefined}
+            className="presence-rise fixed top-16 inset-x-0 z-[60] flex justify-center px-4 pointer-events-none"
+            style={{ '--presence-y': '-12px', '--presence-ms': '250ms' } as React.CSSProperties}
           >
             <div className="pointer-events-auto bg-navy border border-gold/30 shadow-xl flex items-center gap-3 px-4 py-2.5 max-w-sm w-full">
               <BookOpen size={15} className="text-gold shrink-0" />
@@ -247,11 +252,11 @@ function ScopedReadingTracker({ articleId, userId }: { articleId: string; userId
                   Continue where you left off
                 </p>
                 <p className="text-cream/45 text-[10px]">
-                  {Math.round(restoreBanner.progress)}% through this article
+                  {Math.round(shownBanner.progress)}% through this article
                 </p>
               </div>
               <button
-                onClick={() => scrollToSaved(restoreBanner.scrollY)}
+                onClick={() => scrollToSaved(shownBanner.scrollY)}
                 className="shrink-0 bg-gold text-navy text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 hover:bg-gold/85 transition-colors"
               >
                 Jump back
@@ -264,19 +269,15 @@ function ScopedReadingTracker({ articleId, userId }: { articleId: string; userId
                 <X size={14} />
               </button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      )}
 
       {/* Guest nudge */}
-      <AnimatePresence>
-        {guestNudge && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="fixed bottom-6 right-4 sm:right-6 z-[60] max-w-[280px] bg-navy border border-gold/25 shadow-2xl p-4"
+      {nudgePresence.mounted && (
+          <div
+            data-shown={nudgePresence.shown ? '' : undefined}
+            className="presence-rise fixed bottom-6 right-4 sm:right-6 z-[60] max-w-[280px] bg-navy border border-gold/25 shadow-2xl p-4"
+            style={{ '--presence-y': '20px', '--presence-ms': '300ms' } as React.CSSProperties}
           >
             <button
               onClick={() => setGuestNudge(false)}
@@ -307,9 +308,8 @@ function ScopedReadingTracker({ articleId, userId }: { articleId: string; userId
                 Maybe Later
               </button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      )}
     </>
   )
 }

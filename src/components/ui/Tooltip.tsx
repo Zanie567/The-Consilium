@@ -2,7 +2,6 @@
 
 import { useState, useRef, useId, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { AnimatePresence, motion } from 'framer-motion'
 
 interface TooltipProps {
   content: string
@@ -81,14 +80,13 @@ export function Tooltip({
     right:  'translateY(-50%)',
   }
 
+  // Enters with a 120 ms fade/scale (CSS keyframes in globals.css, using the
+  // independent `scale` property so it composes with the positioning transform).
   const tooltipEl = visible ? (
-    <motion.div
+    <div
       id={id}
       role="tooltip"
-      initial={{ opacity: 0, scale: 0.94 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.94 }}
-      transition={{ duration: 0.12, ease: 'easeOut' }}
+      className="consilium-tooltip"
       style={{
         position: 'absolute',
         top: pos.top,
@@ -102,7 +100,7 @@ export function Tooltip({
       <span className={`block text-xs px-3 py-2 leading-snug text-center whitespace-normal ${variantClass[variant]}`}>
         {content}
       </span>
-    </motion.div>
+    </div>
   ) : null
 
   return (
@@ -117,11 +115,9 @@ export function Tooltip({
     >
       {children}
 
-      <AnimatePresence>
-        {visible && typeof document !== 'undefined'
-          ? createPortal(tooltipEl, document.body)
-          : null}
-      </AnimatePresence>
+      {visible && typeof document !== 'undefined'
+        ? createPortal(tooltipEl, document.body)
+        : null}
     </span>
   )
 }
