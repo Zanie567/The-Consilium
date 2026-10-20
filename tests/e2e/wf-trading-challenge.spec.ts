@@ -168,6 +168,26 @@ test('the hero chart draws part of the trend on load and grows with scrolling', 
   }
 })
 
+test('on phones the chart grows as it scrolls up into view', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } })
+  const page = await ctx.newPage()
+  await open(page)
+  const scrollDriven = await page.evaluate(() => CSS.supports('animation-timeline: view()'))
+  await page.waitForTimeout(2300)
+  if (scrollDriven) {
+    // Below the hero text, so barely started at rest...
+    expect(await drawn(page)).toBeLessThan(0.4)
+    // ...part way as it rises into view, and complete by the middle of the screen.
+    await page.evaluate(() => window.scrollTo(0, 220))
+    await expect.poll(() => drawn(page)).toBeGreaterThan(0.4)
+    await page.evaluate(() => window.scrollTo(0, 500))
+    await expect.poll(() => drawn(page)).toBeGreaterThan(0.99)
+  } else {
+    expect(await drawn(page)).toBeGreaterThan(0.99)
+  }
+  await ctx.close()
+})
+
 test('the podium waits for the reader, plays its entrance once and settles in order', async ({ page }) => {
   await open(page, 'declined')
   const podium = page.getByRole('list', { name: 'Prizes' })

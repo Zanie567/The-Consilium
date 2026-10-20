@@ -47,7 +47,10 @@ export function ChallengeHero({
   return (
     // On wide screens the hero fills the first screen (capped on very tall ones), which
     // centres the chart a little lower and gives its scroll-driven growth more room.
-    <section aria-labelledby="challenge-title" className="trading-hero relative overflow-hidden border-b-2 border-gold bg-navy text-cream lg:flex lg:min-h-[min(calc(100svh-66px-3rem),52rem)] lg:flex-col">
+    // overflow-clip, not overflow-hidden: `hidden` makes the section a scroll container,
+    // and the chart's scroll-driven view timeline would then track this (never-scrolling)
+    // section instead of the page.
+    <section aria-labelledby="challenge-title" className="trading-hero relative overflow-clip border-b-2 border-gold bg-navy text-cream lg:flex lg:min-h-[min(calc(100svh-66px-3rem),52rem)] lg:flex-col">
       {/* Fine ruled paper: the site's dotted texture, reworked as a ledger grid. */}
       <div aria-hidden className="trading-hero-grid pointer-events-none absolute inset-0" />
 
