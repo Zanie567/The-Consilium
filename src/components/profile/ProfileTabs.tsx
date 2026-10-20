@@ -607,9 +607,9 @@ function AccountSettingsTab({
     setChoiceMessage(null)
     setUploading(true)
     try {
-      await sendShared({ [field]: value })
+      if (field === 'image') await persistImage(value)
+      else await sendShared({ [field]: value })
       setChoiceMessage({ ok: true, text: 'Saved. That detail is now the same everywhere.' })
-      router.refresh()
     } catch (reason) {
       setChoiceMessage({ ok: false, text: asApiError(reason).message })
     } finally {
@@ -673,7 +673,6 @@ function AccountSettingsTab({
         { ...(nameDirty ? { name } : {}), ...(bioDirty ? { bio } : {}) },
         canEditTitles ? { displayTitles: titles } : {},
       )
-      router.refresh()
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (reason) {

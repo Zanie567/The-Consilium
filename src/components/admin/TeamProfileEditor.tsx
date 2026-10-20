@@ -204,7 +204,15 @@ export function TeamProfileEditor({ card, linkToUserId = null, defaultName = '',
                     {differs.map((field) => (
                       <div key={field}>
                         <dt className="font-bold uppercase tracking-widest">{field === 'bio' ? 'Biography' : field === 'image' ? 'Photo' : 'Name'} on the account</dt>
-                        <dd className="mt-0.5 whitespace-pre-line break-words">{account[field] ?? 'None'}</dd>
+                        <dd className="mt-0.5 whitespace-pre-line break-words">
+                          {field === 'image' && account.image ? (
+                            // A plain img, as in the preview beside this form.
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={account.image} alt="Photo on the account" className="h-12 w-12 rounded-full object-cover" />
+                          ) : (
+                            account[field] ?? 'None'
+                          )}
+                        </dd>
                       </div>
                     ))}
                   </dl>
