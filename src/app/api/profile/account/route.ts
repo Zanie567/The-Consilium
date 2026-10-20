@@ -5,8 +5,15 @@ import { prisma } from '@/lib/prisma'
 import { ALL_ROLES } from '@/lib/rbac'
 import { MAX_BIO_LENGTH, MAX_NAME_LENGTH } from '@/lib/constants'
 import { readDisplayTitles, validateDisplayTitles } from '@/lib/displayTitles'
-import { removeTeamPhoto } from '@/lib/teamPhotoStorage'
-import { isInOwnAvatarFolder, validateAvatarUrl } from '@/lib/avatarUrl'
+import {
+  ProfileSaveError,
+  applySharedProfileChanges,
+  parseExpectedValues,
+  profileSaveErrorBody,
+  releaseUnusedPhotos,
+  type SharedChanges,
+} from '@/lib/contributorProfile'
+import { sharedProfileView } from '@/lib/profileFields'
 import { apiServerErrorResponse } from '@/lib/apiResponse'
 
 // PATCH /api/profile/account - update the caller's own display name, bio, profile
@@ -19,9 +26,13 @@ import { apiServerErrorResponse } from '@/lib/apiResponse'
 // is admin-only (PATCH /api/editorial/users/[id], which logs the change) and is
 // never written here under any circumstances.
 //
+// Name, bio and photo are shared with the caller's linked Meet the Team card: they are
+// saved through contributorProfile.ts, which writes only the fields sent, to the account
+// and the card together, and refuses a field whose `expected` value is out of date.
+//
 // displayTitles are labels, not permissions. Only an ADMIN may write them, checked
 // here against the role on the verified session user; everyone else gets a 403.
-const ALLOWED_KEYS = new Set(['name', 'bio', 'image', 'displayTitles'])
+const ALLOWED_KEYS = new Set(['name', 'bio', 'image', 'displayTitles', 'expected'])
 
 async function PATCHHandler(request: NextRequest) {
   const auth = await requireVerifiedSessionUser(ALL_ROLES)
@@ -70,9 +81,10 @@ async function PATCHHandler(request: NextRequest) {
   if (image !== undefined && typeof image !== 'string') {
     return NextResponse.json({ error: 'image must be a string' }, { status: 400 })
   }
-  // The photo is validated below, once the stored one has been read: whether a URL
-  // is acceptable depends on whether it is the one already saved.
-  const requestedImage = typeof image === 'string' ? image.trim() : undefined
+  const expected = parseExpectedValues(body.expected)
+  if (!expected) {
+    return NextResponse.json({ error: 'expected may only map name, bio and image to text or null.' }, { status: 400 })
+  }
 
   let nextTitles: string[] | undefined
   if (displayTitles !== undefined) {
@@ -84,62 +96,46 @@ async function PATCHHandler(request: NextRequest) {
     nextTitles = result.titles
   }
 
-  try {
-    // Read the stored photo first: it decides whether a submitted URL is acceptable,
-    // and it is what gets removed once the new one is saved.
-    const before =
-      requestedImage !== undefined
-        ? await prisma.user.findUnique({ where: { id: user.id }, select: { image: true } })
-        : null
-
-    // undefined = leave the photo alone, null = clear it, string = replace it.
-    let nextImage: string | null | undefined
-    if (requestedImage === '') {
-      nextImage = null
-    } else if (requestedImage !== undefined && requestedImage === before?.image) {
-      // Identical to what is already stored: never re-validated, so saving other
-      // fields cannot fail on an existing photo that predates these rules (for
-      // example a Google profile picture from sign-in). Nothing is written.
-      nextImage = undefined
-    } else if (requestedImage !== undefined) {
-      // A new photo must be a file in our own avatars bucket (see validateAvatarUrl
-      // for why an arbitrary URL is not safe to render publicly) AND sit inside this
-      // caller's own `<userId>/` folder, so nobody can point their profile at a file
-      // another account uploaded.
-      const result = validateAvatarUrl(requestedImage)
-      if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 })
-      if (result.url !== null && !isInOwnAvatarFolder(result.url, user.id)) {
-        return NextResponse.json(
-          { error: 'You can only use a photo that you uploaded yourself.' },
-          { status: 400 },
-        )
-      }
-      nextImage = result.url
+  // Only the fields sent are saved. A photo is validated inside the save, once the stored
+  // ones are known: re-sending a photo already on the account or card is always accepted.
+  const changes: SharedChanges = {}
+  for (const [field, value] of [['name', name], ['bio', bio], ['image', image]] as const) {
+    if (typeof value === 'string') {
+      changes[field] = { value, ...(expected[field] !== undefined ? { expected: expected[field] } : {}) }
     }
+  }
 
-    const updated = await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        ...(typeof name === 'string' ? { name: name.trim() || null } : {}),
-        ...(typeof bio === 'string' ? { bio: bio.trim() || null } : {}),
-        ...(nextImage !== undefined ? { image: nextImage } : {}),
-        ...(nextTitles !== undefined ? { displayTitles: nextTitles } : {}),
-      },
-      select: { id: true, name: true, bio: true, image: true, displayTitles: true },
+  try {
+    const saved = await prisma.$transaction(async (tx) => {
+      const shared = await applySharedProfileChanges(tx, {
+        userId: user.id,
+        changes,
+        actor: { id: user.id, administrator: false },
+        via: 'account',
+        imageRule: 'own-upload',
+        keepPublishedBio: true,
+      })
+      const titles = nextTitles !== undefined
+        ? (await tx.user.update({ where: { id: user.id }, data: { displayTitles: nextTitles }, select: { displayTitles: true } })).displayTitles
+        : (await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { displayTitles: true } })).displayTitles
+      return { shared, titles }
     })
 
-    // Only after the row points at the new photo is the old one safe to delete.
-    // removeTeamPhoto refuses anything outside `<userId>/` in the avatars bucket and
-    // never throws, so a leftover file cannot fail a save that already succeeded.
-    if (nextImage !== undefined && before?.image && before.image !== nextImage) {
-      const stillUsed = await prisma.teamMember
-        .findFirst({ where: { image: before.image }, select: { id: true } })
-        .catch(() => ({ id: 'unknown' }))
-      if (!stillUsed) await removeTeamPhoto(before.image, user.id)
-    }
+    // Only after both rows point at the new photo is the old one safe to delete, and only
+    // if no account or card anywhere still uses it. Never throws.
+    await releaseUnusedPhotos(saved.shared.previousPhotos, user.id)
 
-    return NextResponse.json({ ...updated, displayTitles: readDisplayTitles(updated.displayTitles) })
+    const { shared } = saved
+    return NextResponse.json({
+      id: user.id,
+      ...shared.account,
+      displayTitles: readDisplayTitles(saved.titles),
+      profile: sharedProfileView(shared.account, shared.card, shared.linked),
+    })
   } catch (error) {
+    if (error instanceof ProfileSaveError) {
+      return NextResponse.json(profileSaveErrorBody(error), { status: error.status })
+    }
     return apiServerErrorResponse(error, {
       operation: 'profile/account:update',
       userMessage: 'Your account could not be updated because of a server error.',

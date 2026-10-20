@@ -184,7 +184,13 @@ export function UserProfileEditor({ user: initial, categories }: Props) {
     }
   }, [user.id, showToast])
 
-  const saveField = (key: string) => async (value: string) => patch({ [key]: value })
+  // Name, bio and photo are shared with the person's linked team profile; the value shown here is
+  // sent as `expected`, so a change saved elsewhere since this page loaded is refused, not overwritten.
+  const saveField = (key: string) => async (value: string) =>
+    patch({
+      [key]: value,
+      ...(key === 'name' || key === 'bio' || key === 'image' ? { expected: { [key]: user[key] ?? null } } : {}),
+    })
 
   const [titles, setTitles] = useState<string[]>(user.displayTitles ?? [])
   const titlesChanged =

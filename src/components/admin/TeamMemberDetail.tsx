@@ -274,7 +274,7 @@ function ProfileSection(p: Props) {
           This profile belongs to <strong>{m.email}</strong>. They can edit their own name, photo and biography; only administrators can
           publish or hide it, and change its position, placement and order.
         </p>
-        <TeamProfileEditor card={card} onSaved={saved} onDirtyChange={onDirtyChange} onActivity={clearMessage} />
+        <TeamProfileEditor card={card} ownerEmail={m.email} onSaved={saved} onDirtyChange={onDirtyChange} onActivity={clearMessage} />
         {placeholder && (
           <section aria-labelledby={`replace-${m.id}`} className="max-w-xl space-y-2 border-t border-[var(--border)] pt-4" data-testid="replace-placeholder">
             <h3 id={`replace-${m.id}`} className="text-sm font-bold">Replace with an existing profile</h3>

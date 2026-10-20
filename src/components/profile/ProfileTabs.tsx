@@ -17,6 +17,14 @@ import { apiRequest, asApiError } from '@/lib/apiClient'
 import { MAX_AVATAR_BYTES, MAX_BIO_LENGTH } from '@/lib/constants'
 import { DisplayTitlesPicker } from '@/components/profile/DisplayTitlesPicker'
 import { ProfilePreview } from '@/components/profile/ProfilePreview'
+import { DifferingDetails, LinkedProfileBanner } from '@/components/profile/SharedProfileNotices'
+import {
+  previewPublicProfile,
+  sameShared,
+  type ProfileEditorState,
+  type SharedField,
+  type SharedProfileView,
+} from '@/lib/profileFields'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -510,36 +518,35 @@ function MyCommentsTab() {
 }
 
 function AccountSettingsTab({
-  initialName,
-  initialBio,
-  initialImage,
+  editor,
   email,
   role,
   initialTitles,
   fallbackLabel,
   authorPath,
-  publicTeamCard,
   onNameChange,
   onImageChange,
 }: {
-  initialName: string | null
-  initialBio: string | null
-  initialImage: string | null
+  /** Name, bio and photo as saved: the shared contributor profile when there is a linked team profile. */
+  editor: ProfileEditorState
   email: string
   role: string
   initialTitles: string[]
   fallbackLabel: string | null
   /** The public author page for this account, or null when it is not meant to have one. */
   authorPath: string | null
-  /** The published Meet the Team card's description and photo, which the author page shows instead. */
-  publicTeamCard: { bio: string; image: string | null } | null
   onNameChange: (name: string) => void
   onImageChange: (image: string | null) => void
 }) {
   const router = useRouter()
-  const [name, setName] = useState(initialName ?? '')
-  const [bio, setBio] = useState(initialBio ?? '')
-  const [image, setImage] = useState(initialImage)
+  // `saved` is what the server last confirmed; it is also the `expected` value sent with a change,
+  // so a save made elsewhere in the meantime (another tab, the Team Profile, an administrator) is
+  // refused instead of silently overwritten.
+  const [savedView, setSavedView] = useState<SharedProfileView>(editor.view)
+  const [name, setName] = useState(editor.view.values.name ?? '')
+  const [bio, setBio] = useState(editor.view.values.bio ?? '')
+  const image = savedView.values.image
+  const linked = savedView.linked
   const [titles, setTitles] = useState<string[]>(initialTitles)
   // Titles are admin-write. The control is read-only for everyone else; the server
   // refuses the field from a non-admin regardless of what this renders.
@@ -550,6 +557,9 @@ function AccountSettingsTab({
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [choiceMessage, setChoiceMessage] = useState<{ ok: boolean; text: string } | null>(null)
+  const nameDirty = !sameShared(name, savedView.values.name)
+  const bioDirty = !sameShared(bio, savedView.values.bio)
 
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [confirmEmail, setConfirmEmail] = useState('')
@@ -566,16 +576,45 @@ function AccountSettingsTab({
   // Saving the avatar is two steps: upload the file, then store the URL it
   // returns. The URL is never typed by the user — the account route only accepts
   // files from our own avatars bucket.
-  const persistImage = async (nextImage: string | null) => {
-    await apiRequest('/api/profile/account', {
+  const sendShared = async (fields: Partial<Record<SharedField, string | null>>, extra: Record<string, unknown> = {}) => {
+    const expected = Object.fromEntries(Object.keys(fields).map((field) => [field, savedView.values[field as SharedField]]))
+    const data = await apiRequest<{ name?: string | null; profile: SharedProfileView }>('/api/profile/account', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: nextImage ?? '' }),
+      body: JSON.stringify({
+        ...Object.fromEntries(Object.entries(fields).map(([field, value]) => [field, value ?? ''])),
+        expected,
+        ...extra,
+      }),
     })
-    setImage(nextImage)
-    onImageChange(nextImage)
-    // The header avatar and any server-rendered copy of it come from the session.
+    setSavedView(data.profile)
+    // Fields not in this save keep what the person is typing.
+    if ('name' in fields) setName(data.profile.values.name ?? '')
+    if ('bio' in fields) setBio(data.profile.values.bio ?? '')
+    onImageChange(data.profile.values.image)
+    if (data.profile.values.name) onNameChange(data.profile.values.name)
+    return data
+  }
+
+  const persistImage = async (nextImage: string | null) => {
+    await sendShared({ image: nextImage })
+    // Server-rendered copies (author page, Our Team, bylines) read the saved photo.
     router.refresh()
+  }
+
+  // A choice in "Some details still differ": saved straight away, one field at a time.
+  const chooseVersion = async (field: SharedField, value: string | null) => {
+    setChoiceMessage(null)
+    setUploading(true)
+    try {
+      await sendShared({ [field]: value })
+      setChoiceMessage({ ok: true, text: 'Saved. That detail is now the same everywhere.' })
+      router.refresh()
+    } catch (reason) {
+      setChoiceMessage({ ok: false, text: asApiError(reason).message })
+    } finally {
+      setUploading(false)
+    }
   }
 
   const handleImageSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -629,12 +668,12 @@ function AccountSettingsTab({
     setSaving(true)
     setSaveError('')
     try {
-      const data = await apiRequest<{ name?: string | null }>('/api/profile/account', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, bio, ...(canEditTitles ? { displayTitles: titles } : {}) }),
-      })
-      onNameChange(data.name ?? name)
+      // Only what was changed is sent: an untouched field is never rewritten on either record.
+      await sendShared(
+        { ...(nameDirty ? { name } : {}), ...(bioDirty ? { bio } : {}) },
+        canEditTitles ? { displayTitles: titles } : {},
+      )
+      router.refresh()
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (reason) {
@@ -674,6 +713,14 @@ function AccountSettingsTab({
     } catch { setCopyError('Could not copy the link. Please copy it from the text above.') }
   }
 
+  // What the public pages will show once the form is saved, by the same rules the pages use.
+  const preview = previewPublicProfile({
+    view: savedView,
+    card: editor.card,
+    pending: { ...(nameDirty ? { name } : {}), ...(bioDirty ? { bio } : {}) },
+  })
+  const publicNow = previewPublicProfile({ view: savedView, card: editor.card, pending: {} }).teamCard?.onPublicPage ?? false
+
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,32rem)_minmax(0,1fr)] lg:items-start">
       <div className="min-w-0 space-y-8">
@@ -681,6 +728,16 @@ function AccountSettingsTab({
       <section>
         <h3 className="text-[var(--fg)] font-bold text-sm uppercase tracking-widest mb-4">Profile Details</h3>
         <div className="space-y-4">
+          {linked && <LinkedProfileBanner where="account" published={publicNow} />}
+          <DifferingDetails
+            view={savedView}
+            busy={uploading || saving}
+            onUseAccount={(field, value) => void chooseVersion(field, value)}
+            onUseShown={(field) => void chooseVersion(field, savedView.values[field])}
+          />
+          {choiceMessage && (
+            <p role="status" className={`text-xs ${choiceMessage.ok ? 'text-emerald-600' : 'text-red-500'}`}>{choiceMessage.text}</p>
+          )}
           <div>
             <span className="block text-[var(--fg-faint)] text-xs font-semibold uppercase tracking-widest mb-1.5">
               Profile Photo
@@ -730,7 +787,7 @@ function AccountSettingsTab({
             {imageError && <p className="mt-2 text-xs text-red-500">{imageError}</p>}
             <p className="mt-2 text-[10px] leading-relaxed text-[var(--fg-faint)]">
               JPEG, PNG or WebP, up to {MAX_AVATAR_BYTES / (1024 * 1024)} MB. Saved as
-              soon as you choose it.
+              soon as you choose it{linked ? ', and used on your team profile too' : ''}.
             </p>
           </div>
           <div>
@@ -760,8 +817,8 @@ function AccountSettingsTab({
             />
             <div className="mt-1 flex items-start justify-between gap-3">
               <p className="text-[var(--fg-faint)] text-[10px] leading-relaxed">
-                {publicTeamCard
-                  ? 'Shown under your articles. Your author page shows the description and photo from your published Meet the Team profile instead; edit those in the editorial portal under Team Profile.'
+                {linked
+                  ? 'Shown on the Our Team page, your author page and under your articles.'
                   : 'Shown on your author page and under your articles. Write whatever you like.'}
               </p>
               <p className="text-[var(--fg-faint)] text-[10px] shrink-0">
@@ -812,7 +869,7 @@ function AccountSettingsTab({
               Only an administrator can change your role.
             </p>
           </div>
-          {saveError && <p className="text-red-500 text-xs">{saveError}</p>}
+          {saveError && <p role="alert" className="text-red-500 text-xs">{saveError}</p>}
           <button
             onClick={handleSave}
             disabled={saving}
@@ -899,11 +956,10 @@ function AccountSettingsTab({
 
       <aside className="min-w-0 lg:sticky lg:top-6">
         <ProfilePreview
-          name={name}
-          bio={publicTeamCard?.bio ?? bio}
-          image={publicTeamCard?.image ?? image}
+          preview={preview}
           titles={titles}
           fallbackLabel={fallbackLabel}
+          unsaved={nameDirty || bioDirty}
         />
       </aside>
     </div>
@@ -926,7 +982,6 @@ function StatPill({ icon, value, label }: { icon: React.ReactNode; value: string
 
 interface ProfileTabsProps {
   initialName: string | null
-  initialBio: string | null
   email: string
   image: string | null
   createdAt: string
@@ -935,10 +990,10 @@ interface ProfileTabsProps {
   displayTitles: string[]
   fallbackLabel: string | null
   authorPath: string | null
-  publicTeamCard?: { bio: string; image: string | null } | null
+  editor: ProfileEditorState
 }
 
-export function ProfileTabs({ initialName, initialBio, email, image, createdAt, initialTab, role, displayTitles, fallbackLabel, authorPath, publicTeamCard = null }: ProfileTabsProps) {
+export function ProfileTabs({ initialName, email, image, createdAt, initialTab, role, displayTitles, fallbackLabel, authorPath, editor }: ProfileTabsProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'history')
   const [displayName, setDisplayName] = useState(initialName)
@@ -1052,15 +1107,12 @@ export function ProfileTabs({ initialName, initialBio, email, image, createdAt, 
         {activeTab === 'comments' && <MyCommentsTab />}
         {activeTab === 'settings' && (
           <AccountSettingsTab
-            initialName={initialName}
-            initialBio={initialBio}
-            initialImage={image}
+            editor={editor}
             email={email}
             role={role}
             initialTitles={displayTitles}
             fallbackLabel={fallbackLabel}
             authorPath={authorPath}
-            publicTeamCard={publicTeamCard}
             onNameChange={setDisplayName}
             onImageChange={setAvatar}
           />

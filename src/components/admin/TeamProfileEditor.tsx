@@ -6,6 +6,7 @@ import { TEAM_TIER_ORDER, normalizePublicTier, type TeamTierId } from '@/lib/tea
 import { normalizePublicPosition } from '@/lib/displayTitles'
 import { getInitials } from '@/lib/authorUtils'
 import { MAX_BIO_LENGTH } from '@/lib/constants'
+import { sameShared } from '@/lib/profileFields'
 import type { MemberCard } from '@/lib/membership'
 import { ProfileVisibilityPanel } from '@/components/admin/ProfileVisibilityPanel'
 
@@ -61,6 +62,8 @@ interface Props {
   onDirtyChange?: (dirty: boolean) => void
   /** A new edit or a new save attempt has begun: any earlier "saved" message is no longer about what is on screen. */
   onActivity?: () => void
+  /** The linked account's email, when the card belongs to one. */
+  ownerEmail?: string
 }
 
 /**
@@ -72,7 +75,7 @@ interface Props {
  * never publishes or hides anything: publishing is the separate, deliberate action at the top
  * (ProfileVisibilityPanel), which also explains why a profile is not on the public page.
  */
-export function TeamProfileEditor({ card, linkToUserId = null, defaultName = '', onSaved, onDirtyChange, onActivity }: Props) {
+export function TeamProfileEditor({ card, linkToUserId = null, defaultName = '', onSaved, onDirtyChange, onActivity, ownerEmail }: Props) {
   const initial = useMemo(() => fromCard(card, defaultName), [card, defaultName])
   const [form, setForm] = useState(initial)
   const [busy, setBusy] = useState(false)
@@ -164,6 +167,11 @@ export function TeamProfileEditor({ card, linkToUserId = null, defaultName = '',
 
   const bioLeft = MAX_BIO_LENGTH - form.bio.length
   const id = card?.id ?? 'new'
+  // Shared details on a linked card: what the account itself currently holds where it differs.
+  const account = card?.account
+  const differs = account
+    ? (['name', 'bio', 'image'] as const).filter((field) => !sameShared(account[field], card![field]))
+    : []
 
   return (
     <div className="space-y-4">
@@ -180,6 +188,33 @@ export function TeamProfileEditor({ card, linkToUserId = null, defaultName = '',
           aria-label={card ? 'Edit public profile' : 'Create public profile'}
           className="space-y-4"
         >
+          {account && (
+            <div className="border-l-2 border-gold pl-3 text-sm text-[var(--fg-muted)]" data-testid="shared-account-note">
+              <p>
+                Name, biography and photo are shared with {ownerEmail ? <strong>{ownerEmail}</strong> : 'the linked account'}: a change
+                saved here also appears on their account page and under their articles. Position, placement, order, visibility and
+                their access role are not shared.
+              </p>
+              {differs.length > 0 && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-xs font-bold uppercase tracking-widest text-amber-600">
+                    Their account still has a different {differs.map((f) => (f === 'bio' ? 'biography' : f === 'image' ? 'photo' : 'name')).join(', ')}
+                  </summary>
+                  <dl className="mt-2 space-y-2 text-xs">
+                    {differs.map((field) => (
+                      <div key={field}>
+                        <dt className="font-bold uppercase tracking-widest">{field === 'bio' ? 'Biography' : field === 'image' ? 'Photo' : 'Name'} on the account</dt>
+                        <dd className="mt-0.5 whitespace-pre-line break-words">{account[field] ?? 'None'}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p className="mt-2 text-xs">
+                    Only fields you change are copied to the account; saving other changes leaves these as they are.
+                  </p>
+                </details>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor={`pf-name-${id}`} className={labelClass}>Name</label>

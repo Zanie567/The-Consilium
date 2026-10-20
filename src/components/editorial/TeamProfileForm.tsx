@@ -7,40 +7,53 @@ import { Check, AlertCircle, Loader2, Upload, X } from 'lucide-react'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 import { getInitials } from '@/lib/authorUtils'
 import { detectImageMimeType } from '@/lib/imageSniff'
+import { sameShared, type SharedField, type SharedProfileView } from '@/lib/profileFields'
+import { DifferingDetails } from '@/components/profile/SharedProfileNotices'
 
 interface SavedProfile {
   name?: string
   bio: string | null
   image: string | null
+  profile: SharedProfileView
 }
 
 interface TeamProfileFormProps {
-  /** The display name shown on the card (the member's own to edit). */
-  name: string
+  /** Name, description and photo as saved (shared with the account), and any old differences. */
+  view: SharedProfileView
+  /** A card already exists (or a legacy card will be adopted): "Save changes" rather than "Create profile". */
+  exists: boolean
+  /** Used for initials and as the name when none is set yet. */
+  fallbackName: string
   /** Trusted public title. Read-only: administrators set it. */
   positionLabel: string
-  profile: SavedProfile | null
   maxNameLength: number
   maxBioLength: number
   maxPhotoBytes: number
 }
 
-const ACCEPTED = 'image/jpeg,image/png,image/gif,image/webp,image/avif'
+// The photo is also the account photo (bylines), so it follows the account photo rules.
+const ACCEPTED = 'image/jpeg,image/png,image/webp'
+const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const labelClass = 'block text-xs uppercase tracking-widest text-[var(--fg-muted)] mb-1.5'
 
 export function TeamProfileForm({
-  name: initialName,
+  view,
+  exists: initiallyExists,
+  fallbackName,
   positionLabel,
-  profile,
   maxNameLength,
   maxBioLength,
   maxPhotoBytes,
 }: TeamProfileFormProps) {
   const router = useRouter()
-  const [exists, setExists] = useState(profile !== null)
-  const [name, setName] = useState(initialName)
-  const [bio, setBio] = useState(profile?.bio ?? '')
-  const [image, setImage] = useState(profile?.image ?? null)
+  const [exists, setExists] = useState(initiallyExists)
+  // What the server last confirmed. It is sent back as the `expected` value of each changed field,
+  // so a change saved elsewhere since (the account page, another tab, an administrator) is refused
+  // instead of silently overwritten.
+  const [savedView, setSavedView] = useState(view)
+  const [name, setName] = useState(view.values.name ?? fallbackName)
+  const [bio, setBio] = useState(view.values.bio ?? '')
+  const image = savedView.values.image
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [removeImage, setRemoveImage] = useState(false)
@@ -78,6 +91,11 @@ export function TeamProfileForm({
       if (fileInput.current) fileInput.current.value = ''
       return
     }
+    if (next.type && !ACCEPTED_TYPES.has(next.type)) {
+      setStatus({ ok: false, message: 'Photos must be JPEG, PNG or WebP.' })
+      if (fileInput.current) fileInput.current.value = ''
+      return
+    }
     setFile(next)
     setPreview(null)
     setRemoveImage(false)
@@ -91,31 +109,42 @@ export function TeamProfileForm({
   }
 
   const shownImage = preview ?? (removeImage ? null : image)
+  const nameDirty = name.trim() !== '' && !sameShared(name, savedView.values.name)
+  const bioDirty = !sameShared(bio, savedView.values.bio)
 
-  const save = async (event: React.FormEvent) => {
-    event.preventDefault()
+  /** Sends only the given changes, each with the value this page showed for it. */
+  const send = async (changes: { name?: string; bio?: string; file?: File; removeImage?: boolean; imageUrl?: string }) => {
+    const body = new FormData()
+    const expect = (field: SharedField, key: string) => body.set(key, savedView.values[field] ?? '')
+    if (changes.name !== undefined) { body.set('name', changes.name); expect('name', 'expectedName') }
+    if (changes.bio !== undefined) { body.set('bio', changes.bio); expect('bio', 'expectedBio') }
+    if (changes.file) { body.set('image', changes.file); expect('image', 'expectedImage') }
+    else if (changes.removeImage) { body.set('removeImage', 'true'); expect('image', 'expectedImage') }
+    else if (changes.imageUrl !== undefined) { body.set('imageUrl', changes.imageUrl); expect('image', 'expectedImage') }
+
+    const saved = await apiRequest<SavedProfile>('/api/team-profile', { method: 'PUT', body })
+    setExists(true)
+    setSavedView(saved.profile)
+    if (changes.name !== undefined) setName(saved.profile.values.name ?? fallbackName)
+    if (changes.bio !== undefined) setBio(saved.profile.values.bio ?? '')
+    if (changes.file || changes.removeImage || changes.imageUrl !== undefined) {
+      setFile(null)
+      setPreview(null)
+      setRemoveImage(false)
+      if (fileInput.current) fileInput.current.value = ''
+    }
+    router.refresh()
+    return saved
+  }
+
+  const run = async (action: () => Promise<unknown>, message: string) => {
     if (inFlight.current) return
     inFlight.current = true
     setSaving(true)
     setStatus(null)
     try {
-      const body = new FormData()
-      body.set('name', name)
-      body.set('bio', bio)
-      if (file) body.set('image', file)
-      else if (removeImage) body.set('removeImage', 'true')
-
-      const saved = await apiRequest<SavedProfile>('/api/team-profile', { method: 'PUT', body })
-      setExists(true)
-      if (saved.name) setName(saved.name)
-      setBio(saved.bio ?? '')
-      setImage(saved.image)
-      setFile(null)
-      setPreview(null)
-      setRemoveImage(false)
-      if (fileInput.current) fileInput.current.value = ''
-      setStatus({ ok: true, message: 'Your team profile has been saved.' })
-      router.refresh()
+      await action()
+      setStatus({ ok: true, message })
     } catch (reason) {
       setStatus({ ok: false, message: asApiError(reason).message })
     } finally {
@@ -124,8 +153,36 @@ export function TeamProfileForm({
     }
   }
 
+  const save = (event: React.FormEvent) => {
+    event.preventDefault()
+    void run(
+      () => send({
+        ...(nameDirty ? { name } : {}),
+        ...(bioDirty ? { bio } : {}),
+        ...(file ? { file } : removeImage ? { removeImage: true } : {}),
+      }),
+      'Your team profile has been saved. Your account shows the same details.',
+    )
+  }
+
+  // A choice in "Some details still differ": saved straight away.
+  const chooseVersion = (field: SharedField, value: string | null) =>
+    void run(
+      () => field === 'image'
+        ? (value === null ? send({ removeImage: true }) : send({ imageUrl: value }))
+        : send({ [field]: value ?? '' }),
+      'Saved. That detail is now the same everywhere.',
+    )
+
   return (
     <form onSubmit={save} className="space-y-6" noValidate>
+      <DifferingDetails
+        view={savedView}
+        busy={saving}
+        onUseAccount={chooseVersion}
+        onUseShown={(field) => chooseVersion(field, savedView.values[field])}
+      />
+
       <div className="flex items-center gap-5">
         <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full bg-navy">
           {shownImage ? (
@@ -141,7 +198,7 @@ export function TeamProfileForm({
               className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-gold"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
-              {getInitials(name || initialName)}
+              {getInitials(name || fallbackName)}
             </span>
           )}
         </div>
@@ -176,7 +233,7 @@ export function TeamProfileForm({
             )}
           </div>
           <p className="text-xs text-[var(--fg-faint)]">
-            JPEG, PNG, GIF, WebP or AVIF, up to {maxPhotoBytes / (1024 * 1024)} MB.
+            JPEG, PNG or WebP, up to {maxPhotoBytes / (1024 * 1024)} MB. Also used as your account photo.
           </p>
         </div>
       </div>
@@ -193,7 +250,7 @@ export function TeamProfileForm({
           autoComplete="name"
           className="w-full rounded border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--fg)] focus:border-gold focus:outline-none"
         />
-        <p className="mt-1 text-xs text-[var(--fg-faint)]">Use the name you&apos;d like readers to see.</p>
+        <p className="mt-1 text-xs text-[var(--fg-faint)]">Use the name you&apos;d like readers to see, here and on your articles.</p>
       </div>
 
       <div>
@@ -228,6 +285,9 @@ export function TeamProfileForm({
           {saving && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
           {saving ? 'Saving…' : exists ? 'Save changes' : 'Create profile'}
         </button>
+        {(nameDirty || bioDirty || file || removeImage) && !saving && (
+          <span className="text-xs text-amber-600">Unsaved changes</span>
+        )}
         <p role="status" aria-live="polite" // No colour until there is a message: an empty status must not start out error-red,
           // or a successful save fades from red to green.
           className={`flex items-center gap-2 text-sm ${status ? (status.ok ? 'text-emerald-600' : 'text-red-500') : ''}`}>

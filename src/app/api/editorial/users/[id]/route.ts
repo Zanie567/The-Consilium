@@ -7,11 +7,12 @@ import bcrypt from 'bcryptjs'
 import { readDisplayTitles, validateDisplayTitles } from '@/lib/displayTitles'
 import { ADMIN_ONLY, isRole } from '@/lib/rbac'
 import { MembershipError, setMemberRole } from '@/lib/membership'
+import { ProfileSaveError, applySharedProfileChanges, parseExpectedValues, profileSaveErrorBody, type SharedChanges } from '@/lib/contributorProfile'
 interface Props {
   params: Promise<{ id: string }>
 }
 
-const ADMIN_PROFILE_FIELDS = new Set(['name', 'email', 'bio', 'image', 'slug', 'adminNotes', 'isActive', 'categoryIds', 'displayTitles'])
+const ADMIN_PROFILE_FIELDS = new Set(['name', 'email', 'bio', 'image', 'slug', 'adminNotes', 'isActive', 'categoryIds', 'displayTitles', 'expected'])
 
 function bodyKeys(body: Record<string, unknown>) {
   return Object.keys(body).filter((key) => body[key] !== undefined)
@@ -125,10 +126,21 @@ async function PATCHHandler(req: Request, { params }: Props) {
   const categorySelection = categoryIds as string[] | undefined
   const updates: Record<string, unknown> = {}
   if (typeof isActive === 'boolean') updates.isActive = isActive
-  if (typeof name === 'string' && name.trim()) updates.name = name.trim()
   if (typeof email === 'string' && email.trim()) updates.email = email.trim().toLowerCase()
-  if (typeof bio === 'string') updates.bio = bio.trim() || null
-  if (typeof image === 'string') updates.image = image.trim() || null
+
+  // Name, bio and photo are shared with the person's linked Meet the Team card, so they are
+  // saved through contributorProfile.ts (both records, one transaction, stale-checked) rather
+  // than written to the account alone. An empty name is ignored, as before.
+  const expected = parseExpectedValues(body.expected)
+  if (!expected) return NextResponse.json({ error: 'expected must map name, bio or image to text or null.' }, { status: 400 })
+  const sharedChanges: SharedChanges = {}
+  const withExpected = (value: string, field: 'name' | 'bio' | 'image') => ({
+    value,
+    ...(expected[field] !== undefined ? { expected: expected[field] } : {}),
+  })
+  if (typeof name === 'string' && name.trim()) sharedChanges.name = withExpected(name, 'name')
+  if (typeof bio === 'string') sharedChanges.bio = withExpected(bio, 'bio')
+  if (typeof image === 'string') sharedChanges.image = withExpected(image, 'image')
 
   if (typeof adminNotes === 'string') updates.adminNotes = adminNotes.trim() || null
 
@@ -159,38 +171,55 @@ async function PATCHHandler(req: Request, { params }: Props) {
     updates.password = await bcrypt.hash(password, 10)
   }
 
-  const user = await prisma.$transaction(async (tx) => {
-    const updated = await tx.user.update({
-      where: { id },
-      data: updates,
-      select: { id: true, name: true, role: true, isActive: true, slug: true, email: true, bio: true, image: true, adminNotes: true, displayTitles: true },
-    })
-
-    if (updates.displayTitles) {
-      await tx.auditLog.create({
-        data: {
-          action: 'USER_DISPLAY_TITLES_CHANGED',
-          targetId: id,
-          targetType: 'user',
-          performedBy: caller.id,
-          metadata: {
-            oldTitles: target.displayTitles,
-            newTitles: updates.displayTitles,
-            targetName: target.name,
-            targetEmail: target.email,
-          },
-        },
-      })
-    }
-
-    if (categorySelection !== undefined) {
-      await tx.categoryEditor.deleteMany({ where: { userId: id } })
-      if (categorySelection.length > 0) {
-        await tx.categoryEditor.createMany({ data: categorySelection.map((categoryId: string) => ({ userId: id, categoryId })) })
+  let user
+  try {
+    user = await prisma.$transaction(async (tx) => {
+      if (Object.keys(sharedChanges).length > 0) {
+        await applySharedProfileChanges(tx, {
+          userId: id,
+          changes: sharedChanges,
+          actor: { id: caller.id, administrator: true },
+          via: 'admin-user',
+          // This screen shows the account's own values.
+          compareWith: 'account',
+          imageRule: 'admin',
+        })
       }
-    }
-    return updated
-  })
+      const updated = await tx.user.update({
+        where: { id },
+        data: updates,
+        select: { id: true, name: true, role: true, isActive: true, slug: true, email: true, bio: true, image: true, adminNotes: true, displayTitles: true },
+      })
+
+      if (updates.displayTitles) {
+        await tx.auditLog.create({
+          data: {
+            action: 'USER_DISPLAY_TITLES_CHANGED',
+            targetId: id,
+            targetType: 'user',
+            performedBy: caller.id,
+            metadata: {
+              oldTitles: target.displayTitles,
+              newTitles: updates.displayTitles,
+              targetName: target.name,
+              targetEmail: target.email,
+            },
+          },
+        })
+      }
+
+      if (categorySelection !== undefined) {
+        await tx.categoryEditor.deleteMany({ where: { userId: id } })
+        if (categorySelection.length > 0) {
+          await tx.categoryEditor.createMany({ data: categorySelection.map((categoryId: string) => ({ userId: id, categoryId })) })
+        }
+      }
+      return updated
+    })
+  } catch (error) {
+    if (error instanceof ProfileSaveError) return NextResponse.json(profileSaveErrorBody(error), { status: error.status })
+    throw error
+  }
 
   return NextResponse.json({ ...user, displayTitles: readDisplayTitles(user.displayTitles) })
 }
