@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
-import { useReducedMotion } from 'framer-motion'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import { BlurImage } from '@/components/ui/BlurImage'
 
 /**
@@ -56,7 +56,7 @@ export function FeaturedArticleHero({ slides }: FeaturedArticleHeroProps) {
   const [index, setIndex] = useState(0)
   const [engaged, setEngaged] = useState(false)
   const [tabVisible, setTabVisible] = useState(true)
-  const prefersReducedMotion = useReducedMotion()
+  const prefersReducedMotion = usePrefersReducedMotion()
 
   // A single eligible article is an ordinary static hero: no controls, no timer.
   const rotates = slides.length > 1

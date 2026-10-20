@@ -2,7 +2,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import type { Metadata } from 'next'
 import Script from 'next/script'
-import { Playfair_Display, Inter, EB_Garamond } from 'next/font/google'
+import { Playfair_Display, Inter } from 'next/font/google'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
@@ -14,6 +14,7 @@ import { SignupPrompt } from '@/components/ui/SignupPrompt'
 import { CookieConsentBanner } from '@/components/ui/CookieConsent'
 import { InstallBanner } from '@/components/ui/InstallBanner'
 import { FaviconSwitcher } from '@/components/ui/FaviconSwitcher'
+import { RevealOnScroll } from '@/components/ui/RevealOnScroll'
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
 
 const playfair = Playfair_Display({
@@ -29,13 +30,8 @@ const inter = Inter({
   display: 'swap',
 })
 
-const ebGaramond = EB_Garamond({
-  subsets: ['latin'],
-  variable: '--font-eb-garamond',
-  display: 'swap',
-  weight: ['400', '500', '600', '700'],
-  style: ['normal', 'italic'],
-})
+// EB Garamond (the editor's document face) is loaded by src/lib/editorFont.ts,
+// only where the editor renders.
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -107,7 +103,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${playfair.variable} ${inter.variable} ${ebGaramond.variable} h-full`}
+      className={`${playfair.variable} ${inter.variable} h-full`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-[var(--bg)] text-[var(--fg)]" style={testWorkspace ? { paddingTop: 'var(--testing-banner-height, 40px)' } : undefined}>
@@ -138,6 +134,7 @@ export default async function RootLayout({
             <CookieConsentBanner />
             <InstallBanner />
             <FaviconSwitcher />
+            <RevealOnScroll />
           </AuthProvider>
         </ThemeProvider>
       </body>

@@ -43,6 +43,11 @@ const securityHeaders = [
       `img-src 'self' data: blob: https:${localImageSource}`,
       "connect-src 'self' https:",
       "media-src 'self'",
+      // Frames this site may EMBED: only Google Forms, for the Trading Challenge
+      // registration form (https://docs.google.com/forms/...). Without this, frames
+      // fall back to default-src 'self'. frame-ancestors below is unrelated: it still
+      // forbids any other site from embedding The Consilium.
+      "frame-src 'self' https://docs.google.com",
       "frame-ancestors 'none'",
     ].join('; '),
   },

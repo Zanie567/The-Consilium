@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimateIn } from '@/components/ui/AnimateIn'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 
 // Same rule as /api/subscribe, so an address the server would reject is never sent.
@@ -53,12 +53,7 @@ export function NewsletterSignup() {
       />
 
       <div className="relative max-w-2xl mx-auto text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        >
+        <AnimateIn variant="fade-up" duration={0.6}>
           <p className="text-gold/70 text-[0.65rem] tracking-[0.35em] uppercase mb-3 font-semibold">
             Stay Informed
           </p>
@@ -80,29 +75,22 @@ export function NewsletterSignup() {
             </a>
             .
           </p>
-        </motion.div>
+        </AnimateIn>
 
-        <AnimatePresence mode="wait">
           {status === 'success' ? (
-            <motion.div
+            <div
               key="success"
               role="status"
-              initial={{ opacity: 0, scale: 0.94, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="border border-gold/40 bg-gold/10 px-8 py-5 text-gold text-sm font-medium tracking-wide"
+              className="newsletter-success-in border border-gold/40 bg-gold/10 px-8 py-5 text-gold text-sm font-medium tracking-wide"
             >
               ✓ &nbsp;{message}
-            </motion.div>
+            </div>
           ) : (
-            <motion.form
+            <form
               key="form"
               onSubmit={handleSubmit}
               aria-busy={status === 'loading'}
               className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto"
-              initial={{ opacity: 1 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
             >
               <div className="relative flex-1 group">
                 <input
@@ -118,44 +106,34 @@ export function NewsletterSignup() {
                 {/* Animated bottom border on focus */}
                 <span className="absolute bottom-0 left-0 h-px w-0 bg-gold group-focus-within:w-full transition-all duration-300 ease-out" />
               </div>
-              <motion.button
+              <button
                 type="submit"
                 disabled={status === 'loading'}
                 className="bg-gold text-navy px-7 py-3 text-xs font-bold uppercase tracking-widest hover:bg-gold-light disabled:opacity-60 whitespace-nowrap btn-lift"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97 }}
               >
                 {status === 'loading' ? (
                   <span className="inline-flex items-center gap-2">
-                    <motion.span
-                      animate={{ rotate: 360 }}
-                      transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}
-                      className="inline-block w-3 h-3 border border-navy/40 border-t-navy rounded-full"
+                    <span
+                      className="inline-block w-3 h-3 border border-navy/40 border-t-navy rounded-full animate-spin [animation-duration:0.8s]"
                     />
                     Subscribing
                   </span>
                 ) : (
                   'Subscribe'
                 )}
-              </motion.button>
-            </motion.form>
+              </button>
+            </form>
           )}
-        </AnimatePresence>
 
-        <AnimatePresence>
           {status === 'error' && (
-            <motion.p
+            <p
               key="error"
               role="alert"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-red-400 text-xs mt-4"
+              className="newsletter-error-in text-red-400 text-xs mt-4"
             >
               {message}
-            </motion.p>
+            </p>
           )}
-        </AnimatePresence>
       </div>
     </section>
   )

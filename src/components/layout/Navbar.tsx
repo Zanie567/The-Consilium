@@ -2,12 +2,12 @@
 
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
-import { Menu, X, Search, LayoutDashboard, PlusCircle } from 'lucide-react'
+import { Menu, X, Search, LayoutDashboard, PlusCircle, UserCog } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { usePathname, useRouter } from 'next/navigation'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { useScrolled } from '@/hooks/useScrolled'
+import { usePresence } from '@/hooks/usePresence'
 import { isAllowedRole, ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 
 const navLinks = [
@@ -17,6 +17,7 @@ const navLinks = [
   { href: '/category/analysis', label: 'Analysis' },
   { href: '/category/interviews', label: 'Interviews' },
   { href: '/opinion-debate', label: 'Debate' },
+  { href: '/trading-challenge', label: 'Trading' },
   { href: '/about', label: 'About' },
 ]
 
@@ -35,18 +36,13 @@ function NavLink({
     <Link
       href={href}
       onClick={onClick}
-      className={`relative text-xs font-semibold tracking-widest uppercase py-1 transition-[color,transform] duration-100 active:scale-[0.95] active:opacity-75 ${
+      aria-current={active ? 'page' : undefined}
+      className={`relative text-xs font-semibold tracking-widest uppercase py-1 whitespace-nowrap transition-[color,transform] duration-100 active:scale-[0.95] active:opacity-75 ${
         active ? 'text-gold' : 'text-cream/70 hover:text-cream'
       }`}
     >
       {label}
-      {active && (
-        <motion.span
-          layoutId="nav-underline"
-          className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-gold"
-          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-        />
-      )}
+      <span aria-hidden className="nav-underline-bar absolute -bottom-0.5 left-0 right-0 h-0.5 bg-gold" />
     </Link>
   )
 }
@@ -59,7 +55,8 @@ export function Navbar() {
   const { data: session } = useSession()
   const pathname = usePathname()
   const router = useRouter()
-  const prefersReducedMotion = useReducedMotion()
+  const search = usePresence(searchOpen, 180)
+  const drawer = usePresence(mobileOpen, 420)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -126,7 +123,12 @@ export function Navbar() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden lg:flex items-center gap-6 xl:gap-8" aria-label="Main navigation">
+          {/* Inline from 1260px (78.75rem). Eight sections plus the account controls do
+              not fit a narrower bar without shrinking the type, so narrower windows use the
+              menu drawer, which carries every link and account action. 1260 rather than
+              1280 so a 1280px-wide window still gets the inline bar after the browser
+              reserves its scrollbar (WebKit/Safari reports 1274px; Windows Chrome 1263px). */}
+          <nav className="hidden min-[78.75rem]:flex items-center gap-5 2xl:gap-8" aria-label="Main navigation">
             {navLinks.map((link) => (
               <NavLink
                 key={link.href}
@@ -138,7 +140,7 @@ export function Navbar() {
           </nav>
 
           {/* Desktop right actions */}
-          <div className="hidden lg:flex items-center gap-3 shrink-0">
+          <div className="hidden min-[78.75rem]:flex items-center gap-3 shrink-0">
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search"
@@ -153,21 +155,25 @@ export function Navbar() {
                   !pathname.startsWith('/editorial') &&
                   !pathname.startsWith('/admin') && (
                   <>
+                    {/* Icon-only below 1536px so the bar fits; the accessible names stay
+                        "Dashboard" and "New Article" at every width. */}
                     <Link
                       href="/editorial"
-                      className="flex items-center gap-1 text-gold/70 text-[10px] font-semibold uppercase tracking-widest hover:text-gold transition-colors"
+                      aria-label="Dashboard"
+                      className="flex min-h-6 min-w-6 items-center justify-center gap-1 text-gold/70 text-[10px] font-semibold uppercase tracking-widest hover:text-gold transition-colors"
                       title="Editorial dashboard"
                     >
-                      <LayoutDashboard size={12} />
-                      <span>Dashboard</span>
+                      <LayoutDashboard size={12} aria-hidden />
+                      <span className="hidden 2xl:inline">Dashboard</span>
                     </Link>
                     <Link
                       href="/editorial/articles/new"
-                      className="flex items-center gap-1 text-gold/70 text-[10px] font-semibold uppercase tracking-widest hover:text-gold transition-colors"
+                      aria-label="New Article"
+                      className="flex min-h-6 min-w-6 items-center justify-center gap-1 text-gold/70 text-[10px] font-semibold uppercase tracking-widest hover:text-gold transition-colors"
                       title="Write a new article"
                     >
-                      <PlusCircle size={12} />
-                      <span>New Article</span>
+                      <PlusCircle size={12} aria-hidden />
+                      <span className="hidden 2xl:inline">New Article</span>
                     </Link>
                   </>
                 )}
@@ -179,9 +185,13 @@ export function Navbar() {
                 </Link>
                 <Link
                   href="/profile?tab=settings"
-                  className="text-cream/50 text-xs hover:text-cream/80 transition-colors"
+                  aria-label="Edit profile"
+                  title="Edit profile"
+                  className="flex min-h-6 min-w-6 items-center justify-center text-cream/50 text-xs hover:text-cream/80 transition-colors"
                 >
-                  Edit profile
+                  {/* Icon-only below 1536px, like the staff shortcuts. */}
+                  <UserCog size={14} aria-hidden className="2xl:hidden" />
+                  <span className="hidden 2xl:inline">Edit profile</span>
                 </Link>
                 <button
                   onClick={() => signOut()}
@@ -201,7 +211,7 @@ export function Navbar() {
           </div>
 
           {/* Mobile/tablet: search + theme + hamburger */}
-          <div className="lg:hidden flex items-center gap-1">
+          <div className="min-[78.75rem]:hidden flex items-center gap-1">
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search"
@@ -210,40 +220,25 @@ export function Navbar() {
               <Search size={17} />
             </button>
             <ThemeToggle />
-            <motion.button
-              className="text-cream w-11 h-11 flex items-center justify-center hover:text-gold transition-colors"
+            <button
+              className="menu-toggle relative text-cream w-11 h-11 flex items-center justify-center hover:text-gold transition-colors"
               onClick={() => setMobileOpen((o) => !o)}
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileOpen}
-              whileTap={prefersReducedMotion ? undefined : { scale: 0.9 }}
             >
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.span
-                  key={mobileOpen ? 'close' : 'open'}
-                  initial={prefersReducedMotion ? undefined : { opacity: 0, rotate: -90 }}
-                  animate={{ opacity: 1, rotate: 0 }}
-                  exit={prefersReducedMotion ? undefined : { opacity: 0, rotate: 90 }}
-                  transition={{ duration: 0.15 }}
-                >
-                  {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-                </motion.span>
-              </AnimatePresence>
-            </motion.button>
+              <span className="menu-icon" data-active={!mobileOpen} aria-hidden><Menu size={22} /></span>
+              <span className="menu-icon" data-active={mobileOpen} aria-hidden><X size={22} /></span>
+            </button>
           </div>
         </div>
       </header>
 
       {/* Search overlay */}
-      <AnimatePresence>
-        {searchOpen && (
-          <motion.div
-            key="search-overlay"
-            initial={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
-            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed top-16 inset-x-0 z-40 bg-navy/[0.98] backdrop-blur-md border-b border-gold/30 shadow-[0_16px_32px_rgba(0,0,0,0.4)] py-4 px-4"
-            style={{ top: 'calc(4rem + var(--testing-banner-height, 0px))' }}
+      {search.mounted && (
+          <div
+            data-shown={search.shown ? '' : undefined}
+            className="presence-rise fixed top-16 inset-x-0 z-40 bg-navy/[0.98] backdrop-blur-md border-b border-gold/30 shadow-[0_16px_32px_rgba(0,0,0,0.4)] py-4 px-4"
+            style={{ top: 'calc(4rem + var(--testing-banner-height, 0px))', '--presence-y': '-8px', '--presence-ms': '180ms' } as React.CSSProperties}
           >
             <form onSubmit={handleSearch} className="max-w-2xl mx-auto flex items-center gap-3">
               <Search size={16} className="text-gold/60 shrink-0" />
@@ -271,35 +266,25 @@ export function Navbar() {
                 <X size={16} />
               </button>
             </form>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      )}
 
       {/* Mobile menu - right-side drawer with backdrop */}
-      <AnimatePresence>
-        {mobileOpen && (
+      {drawer.mounted && (
           <>
             {/* Backdrop */}
-            <motion.div
-              key="mobile-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
-              className="lg:hidden fixed inset-0 z-[94] bg-navy/60 backdrop-blur-sm"
+            <div
+              data-shown={drawer.shown ? '' : undefined}
+              className="presence-fade min-[78.75rem]:hidden fixed inset-0 z-[94] bg-navy/60 backdrop-blur-sm"
               aria-hidden
               onClick={() => setMobileOpen(false)}
             />
 
             {/* Drawer panel */}
-            <motion.div
+            <div
               ref={mobileMenuRef}
-              key="mobile-menu"
-              initial={prefersReducedMotion ? undefined : { x: '100%' }}
-              animate={{ x: 0 }}
-              exit={prefersReducedMotion ? undefined : { x: '100%' }}
-              transition={{ type: 'spring', stiffness: 300, damping: 35 }}
-              className="lg:hidden fixed top-0 right-0 bottom-0 w-72 z-[95] bg-navy border-l border-gold/25 shadow-[-16px_0_40px_rgba(0,0,0,0.45)] overflow-y-auto flex flex-col"
+              data-shown={drawer.shown ? '' : undefined}
+              className="presence-drawer min-[78.75rem]:hidden fixed top-0 right-0 bottom-0 w-72 z-[95] bg-navy border-l border-gold/25 shadow-[-16px_0_40px_rgba(0,0,0,0.45)] overflow-y-auto flex flex-col"
               style={{ top: 'var(--testing-banner-height, 0px)' }}
             >
               {/* Drawer header */}
@@ -322,22 +307,18 @@ export function Navbar() {
               {/* Nav links */}
               <nav className="flex-1 px-5 py-4 flex flex-col gap-0.5" aria-label="Mobile navigation">
                 {navLinks.map((link, i) => (
-                  <motion.div
-                    key={link.href}
-                    initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.02 + 0.05, duration: 0.22, ease: 'easeOut' }}
-                  >
+                  <div key={link.href} className="presence-stagger" style={{ '--i': i } as React.CSSProperties}>
                     <Link
                       href={link.href}
                       onClick={() => setMobileOpen(false)}
+                      aria-current={isActive(link.href) ? 'page' : undefined}
                       className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${
                         isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold'
                       }`}
                     >
                       {link.label}
                     </Link>
-                  </motion.div>
+                  </div>
                 ))}
               </nav>
 
@@ -398,10 +379,9 @@ export function Navbar() {
                 )}
                 </div>
               </div>
-            </motion.div>
+            </div>
           </>
-        )}
-      </AnimatePresence>
+      )}
     </>
   )
 }

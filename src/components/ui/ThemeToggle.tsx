@@ -1,7 +1,6 @@
 'use client'
 
 import { useTheme } from 'next-themes'
-import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { Tooltip } from '@/components/ui/Tooltip'
 
@@ -43,25 +42,17 @@ export function ThemeToggle() {
 
   return (
     <Tooltip content={isDark ? 'Switch to light mode' : 'Switch to dark mode'} side="bottom">
-    <motion.button
+    {/* Both icons stay mounted and crossfade with a quarter-turn (CSS in globals.css,
+        .theme-toggle), replacing the former framer-motion swap and hover/tap scale. */}
+    <button
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      className="relative w-8 h-8 flex items-center justify-center text-cream/60 hover:text-gold transition-colors duration-200 rounded-sm"
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.88 }}
+      className="theme-toggle relative w-8 h-8 flex items-center justify-center text-cream/60 hover:text-gold transition-colors duration-200 rounded-sm"
+      data-dark={isDark ? '' : undefined}
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
     >
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.span
-          key={isDark ? 'sun' : 'moon'}
-          initial={{ rotate: -60, opacity: 0, scale: 0.7 }}
-          animate={{ rotate: 0, opacity: 1, scale: 1 }}
-          exit={{ rotate: 60, opacity: 0, scale: 0.7 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
-        >
-          {isDark ? <SunIcon /> : <MoonIcon />}
-        </motion.span>
-      </AnimatePresence>
-    </motion.button>
+      <span className="theme-toggle-icon" data-icon="sun" aria-hidden><SunIcon /></span>
+      <span className="theme-toggle-icon" data-icon="moon" aria-hidden><MoonIcon /></span>
+    </button>
     </Tooltip>
   )
 }
