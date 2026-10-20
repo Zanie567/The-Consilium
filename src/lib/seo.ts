@@ -55,7 +55,12 @@ export function canonicalAlternates(path: string): NonNullable<Metadata['alterna
  */
 export function pageOpenGraph(
   path: string,
-  overrides: { title?: string; description?: string } = {}
+  overrides: {
+    title?: string
+    description?: string
+    /** A page-specific share image; defaults to the site logo. */
+    image?: { url: string; width: number; height: number; alt: string }
+  } = {}
 ): Metadata['openGraph'] {
   return {
     title: overrides.title ?? SITE_NAME,
@@ -64,7 +69,7 @@ export function pageOpenGraph(
     locale: 'en_GB',
     url: path.startsWith('/') ? path : `/${path}`,
     siteName: SITE_NAME,
-    images: [DEFAULT_OG_IMAGE],
+    images: [overrides.image ?? DEFAULT_OG_IMAGE],
   }
 }
 

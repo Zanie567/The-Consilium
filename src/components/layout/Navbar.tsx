@@ -17,6 +17,7 @@ const navLinks = [
   { href: '/category/analysis', label: 'Analysis' },
   { href: '/category/interviews', label: 'Interviews' },
   { href: '/opinion-debate', label: 'Debate' },
+  { href: '/trading-challenge', label: 'Trading' },
   { href: '/about', label: 'About' },
 ]
 
@@ -122,7 +123,10 @@ export function Navbar() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden lg:flex items-center gap-6 xl:gap-8" aria-label="Main navigation">
+          {/* Inline from 1280px. Eight sections plus the account controls do not fit a
+              narrower bar without shrinking the type, so 1024–1279px uses the menu drawer,
+              which carries every link and account action. */}
+          <nav className="hidden xl:flex items-center gap-5 2xl:gap-8" aria-label="Main navigation">
             {navLinks.map((link) => (
               <NavLink
                 key={link.href}
@@ -134,7 +138,7 @@ export function Navbar() {
           </nav>
 
           {/* Desktop right actions */}
-          <div className="hidden lg:flex items-center gap-3 shrink-0">
+          <div className="hidden xl:flex items-center gap-3 shrink-0">
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search"
@@ -149,21 +153,25 @@ export function Navbar() {
                   !pathname.startsWith('/editorial') &&
                   !pathname.startsWith('/admin') && (
                   <>
+                    {/* Icon-only below 1536px so the bar fits; the accessible names stay
+                        "Dashboard" and "New Article" at every width. */}
                     <Link
                       href="/editorial"
-                      className="flex items-center gap-1 text-gold/70 text-[10px] font-semibold uppercase tracking-widest hover:text-gold transition-colors"
+                      aria-label="Dashboard"
+                      className="flex min-h-6 min-w-6 items-center justify-center gap-1 text-gold/70 text-[10px] font-semibold uppercase tracking-widest hover:text-gold transition-colors"
                       title="Editorial dashboard"
                     >
-                      <LayoutDashboard size={12} />
-                      <span>Dashboard</span>
+                      <LayoutDashboard size={12} aria-hidden />
+                      <span className="hidden 2xl:inline">Dashboard</span>
                     </Link>
                     <Link
                       href="/editorial/articles/new"
-                      className="flex items-center gap-1 text-gold/70 text-[10px] font-semibold uppercase tracking-widest hover:text-gold transition-colors"
+                      aria-label="New Article"
+                      className="flex min-h-6 min-w-6 items-center justify-center gap-1 text-gold/70 text-[10px] font-semibold uppercase tracking-widest hover:text-gold transition-colors"
                       title="Write a new article"
                     >
-                      <PlusCircle size={12} />
-                      <span>New Article</span>
+                      <PlusCircle size={12} aria-hidden />
+                      <span className="hidden 2xl:inline">New Article</span>
                     </Link>
                   </>
                 )}
@@ -197,7 +205,7 @@ export function Navbar() {
           </div>
 
           {/* Mobile/tablet: search + theme + hamburger */}
-          <div className="lg:hidden flex items-center gap-1">
+          <div className="xl:hidden flex items-center gap-1">
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search"
@@ -261,7 +269,7 @@ export function Navbar() {
             {/* Backdrop */}
             <div
               data-shown={drawer.shown ? '' : undefined}
-              className="presence-fade lg:hidden fixed inset-0 z-[94] bg-navy/60 backdrop-blur-sm"
+              className="presence-fade xl:hidden fixed inset-0 z-[94] bg-navy/60 backdrop-blur-sm"
               aria-hidden
               onClick={() => setMobileOpen(false)}
             />
@@ -270,7 +278,7 @@ export function Navbar() {
             <div
               ref={mobileMenuRef}
               data-shown={drawer.shown ? '' : undefined}
-              className="presence-drawer lg:hidden fixed top-0 right-0 bottom-0 w-72 z-[95] bg-navy border-l border-gold/25 shadow-[-16px_0_40px_rgba(0,0,0,0.45)] overflow-y-auto flex flex-col"
+              className="presence-drawer xl:hidden fixed top-0 right-0 bottom-0 w-72 z-[95] bg-navy border-l border-gold/25 shadow-[-16px_0_40px_rgba(0,0,0,0.45)] overflow-y-auto flex flex-col"
               style={{ top: 'var(--testing-banner-height, 0px)' }}
             >
               {/* Drawer header */}
