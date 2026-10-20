@@ -233,7 +233,7 @@ suite('team photo storage (real client, local storage server)', () => {
     const old = (await (await put({ image: png() })).json()).image as string
     expect(await mine(u.id)).toHaveLength(1)
 
-    const spy = vi.spyOn(db.teamMember, 'upsert').mockRejectedValueOnce(new Error('db down'))
+    const spy = vi.spyOn(db, '$transaction').mockRejectedValueOnce(new Error('db down')) // the save runs in one transaction
     const res = await put({ bio: 'new', image: png(2, 'n.png') })
     spy.mockRestore()
 

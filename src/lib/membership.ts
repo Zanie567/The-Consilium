@@ -26,6 +26,8 @@ import { assessProfile as assessProfileFacts, defaultPublicAppointment } from '@
 import { BLOCKER_TEXT, assessPublication, publicationBlockers, type PublicationAssessment } from '@/lib/teamVisibility'
 import { normalizePublicPosition } from '@/lib/displayTitles'
 import { normalizePublicTier, TEAM_TIER_ORDER } from '@/lib/teamHierarchy'
+import { lockProfileRows, writeAccountFromCard } from '@/lib/contributorProfile'
+import { pickShared } from '@/lib/profileFields'
 
 type Tx = Prisma.TransactionClient
 
@@ -603,6 +605,8 @@ export async function updateMemberProfileFields(
       return
     }
 
+    // The card's name is shared with the account: lock the account, then the card, as every profile save does.
+    await lockProfileRows(tx, membership.userId)
     const user = await tx.user.findUniqueOrThrow({
       where: { id: membership.userId },
       select: { id: true, name: true, email: true, role: true },
@@ -613,7 +617,7 @@ export async function updateMemberProfileFields(
       { id: user.id, name: user.name, email: user.email },
       { role: user.role, displayName: displayName ?? undefined },
     )
-    const card = await tx.teamMember.findUnique({ where: { userId: user.id }, select: { id: true, name: true, role: true, bio: true, isActive: true } })
+    const card = await tx.teamMember.findUnique({ where: { userId: user.id }, select: { id: true, name: true, role: true, bio: true, image: true, isActive: true } })
     if (!card) {
       throw new MembershipError(
         'NO_PROFILE',
@@ -643,7 +647,11 @@ export async function updateMemberProfileFields(
         ...(visible !== undefined ? { isActive: visible } : {}),
       },
     })
+    // A new display name is the person's name everywhere, so the account follows the card.
+    const account = displayName ? await writeAccountFromCard(tx, user.id, pickShared(card), { name: displayName }) : null
     await audit(tx, 'MEMBER_PROFILE_ADMIN_EDIT', user.id, actor.id, {
+      ...(account && account.fields.length > 0 ? { accountFields: account.fields } : {}),
+      ...(account && account.fields.length > 0 ? { previousAccountValues: account.previous } : {}),
       ...(position !== undefined ? { position } : {}),
       ...(publicTier !== undefined ? { publicTier } : {}),
       ...(order !== undefined ? { order } : {}),
@@ -724,6 +732,11 @@ export interface MemberCard {
   updatedAt: string
   /** Whether it is on the public page, whether it may be published, and why not. */
   publication: PublicationAssessment
+  /**
+   * The linked account's own name, biography and photo (bylines, comments). Saving a changed
+   * name, biography or photo on this card writes it there too; until then they may differ.
+   */
+  account?: { name: string | null; bio: string | null; image: string | null }
 }
 
 interface DescribeInput {
@@ -742,6 +755,8 @@ interface DescribeInput {
     id?: string
     createdAt?: Date
     name: string | null
+    bio?: string | null
+    image?: string | null
     role: Role
     emailVerified: Date | null
     isActive: boolean
@@ -826,6 +841,7 @@ export function describeMember(input: DescribeInput): MemberRow {
           visible: card.isActive,
           updatedAt: card.updatedAt.toISOString(),
           publication: publication!,
+          ...(user && user.bio !== undefined ? { account: { name: user.name, bio: user.bio ?? null, image: user.image ?? null } } : {}),
         }
       : null,
   }
@@ -837,6 +853,8 @@ export async function listMembers(client: typeof prisma = prisma): Promise<Membe
   const userSelect = {
     id: true,
     name: true,
+    bio: true,
+    image: true,
     role: true,
     emailVerified: true,
     isActive: true,

@@ -18,6 +18,9 @@
  *     administrator chooses. The stable account id is what gets stored.
  *   - Every write is guarded on the `updatedAt` the administrator loaded, so a stale form is
  *     refused rather than overwriting a newer change, and commits with its audit row.
+ *   - Name, biography and photo are shared with the linked account (contributorProfile.ts): an
+ *     edit to one of them on a linked card is written to the account in the same transaction.
+ *     Fields the administrator did not change are never copied either way.
  *
  * Authorisation of the caller is the route's job (ADMIN only).
  */
@@ -30,6 +33,9 @@ import { TEAM_TIER_ORDER } from '@/lib/teamHierarchy'
 import { TEAM_PROFILE_ROLES, normalizePersonName, validateTeamBio } from '@/lib/teamProfiles'
 import { assessPlaceholder } from '@/lib/teamPlaceholder'
 import { BLOCKER_TEXT, assessPublication, publicationBlockers, type PublicationAssessment } from '@/lib/teamVisibility'
+import { checkImageRef } from '@/lib/imageRef'
+import { lockProfileRows, writeAccountFromCard } from '@/lib/contributorProfile'
+import { pickShared, type SharedValues } from '@/lib/profileFields'
 
 type Tx = Prisma.TransactionClient
 
@@ -95,18 +101,9 @@ function text(value: unknown, label: string, max: number): string {
 
 /** Only an https URL or a site-relative path may be stored as a photo; never script or data URLs. */
 export function cleanImageRef(value: unknown): string | null {
-  if (value === null || value === '') return null
-  if (typeof value !== 'string') throw invalid('Photo must be an image URL.')
-  const trimmed = value.trim()
-  if (trimmed.length > 2048) throw invalid('Photo URL is too long.')
-  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return trimmed
-  try {
-    const url = new URL(trimmed)
-    if (url.protocol === 'https:' || url.protocol === 'http:') return trimmed
-  } catch {
-    // fall through
-  }
-  throw invalid('Photo must be an http(s) image URL or a path starting with /.')
+  const result = checkImageRef(value)
+  if (!result.ok) throw invalid(result.error)
+  return result.value
 }
 
 /** Parses the admin-editable public fields. `undefined` means "leave as it is". */
@@ -498,6 +495,11 @@ export async function updateCard(
   const fields = parseCardFields(input)
   try {
     return await client.$transaction(async (tx) => {
+      const found = await tx.teamMember.findUnique({ where: { id: cardId }, select: { userId: true } })
+      if (!found) throw new TeamCardError('NOT_FOUND', 'That profile no longer exists.', 404)
+      // A linked card's name, biography and photo are shared with its account. Lock the account,
+      // then the card (the same order as every other profile save), before reading what to change.
+      if (found.userId) await lockProfileRows(tx, found.userId)
       const card = await tx.teamMember.findUnique({ where: { id: cardId } })
       if (!card) throw new TeamCardError('NOT_FOUND', 'That profile no longer exists.', 404)
       assertFresh(options.expectedUpdatedAt, card.updatedAt)
@@ -521,16 +523,31 @@ export async function updateCard(
       }
       const written = await tx.teamMember.updateMany({ where: { id: card.id, updatedAt: current.updatedAt }, data: fields })
       if (written.count !== 1) throw conflict()
+      // The account follows the shared fields the administrator changed, but only for the account
+      // that already owned this card: linking in the same request never rewrites an account.
+      const account = card.userId && current.userId === card.userId
+        ? await writeAccountFromCard(tx, card.userId, pickShared(card), sharedFieldsOf(fields))
+        : null
       await audit(tx, 'TEAM_CARD_UPDATED', card.id, actor, {
         cardName: card.name,
         ...(current.userId ? { userId: current.userId } : {}),
         fields: changed,
+        ...(account && account.fields.length > 0 ? { accountFields: account.fields } : {}),
+        ...(account && account.fields.length > 0 ? { previousAccountValues: account.previous } : {}),
       })
       return tx.teamMember.findUniqueOrThrow({ where: { id: card.id } })
     })
   } catch (error) {
     return mapUniqueViolation(error)
   }
+}
+
+function sharedFieldsOf(fields: CardFields): Partial<SharedValues> {
+  const shared: Partial<SharedValues> = {}
+  if (fields.name !== undefined) shared.name = fields.name
+  if (fields.bio !== undefined) shared.bio = fields.bio
+  if (fields.image !== undefined) shared.image = fields.image
+  return shared
 }
 
 export async function deleteCard(
