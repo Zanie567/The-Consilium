@@ -23,7 +23,8 @@ import { getSectionEmptyState, siteEmptyState } from '@/lib/sectionEmptyStates'
 import { selectHeroArticles } from '@/lib/heroArticles'
 import type { Metadata } from 'next'
 import { SITE_NAME, SITE_URL } from '@/lib/constants'
-import { canonicalAlternates, pageOpenGraph } from '@/lib/seo'
+import { canonicalAlternates, pageOpenGraph, pageTwitter } from '@/lib/seo'
+import { BRAND_MARK } from '@/lib/brand'
 import { normaliseSearchText, type SearchParamValue } from '@/lib/searchText'
 
 export const dynamic = 'force-dynamic'
@@ -233,11 +234,7 @@ export const metadata: Metadata = {
   // root layout's openGraph wholesale, so the homepage was shipping no
   // og:image, siteName or locale at all.
   openGraph: pageOpenGraph('/', { title: 'The Consilium', description: 'Ratione et Consilio' }),
-  twitter: {
-    card: 'summary',
-    title: 'The Consilium',
-    description: 'Ratione et Consilio',
-  },
+  twitter: pageTwitter({ title: 'The Consilium', description: 'Ratione et Consilio' }),
 }
 
 export default async function HomePage({
@@ -306,6 +303,7 @@ export default async function HomePage({
     '@type': 'Organization',
     name: SITE_NAME,
     url: SITE_URL,
+    logo: `${SITE_URL}${BRAND_MARK.url}`,
     description: 'The official publication of the University of Edinburgh Economics Society',
   }
 

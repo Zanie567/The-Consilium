@@ -1,0 +1,47 @@
+/**
+ * The Consilium's brand assets — the only place that names them.
+ *
+ * Every page, metadata helper and structured-data block takes its images from
+ * here, so a future change of artwork is one edit rather than a hunt for paths.
+ * The files themselves are produced from the approved navy-and-gold emblem
+ * (src/app/icon.png) by scripts/brand/generate-brand-assets.mjs, and
+ * tests/unit/brand-assets.test.ts checks they match what is declared below.
+ *
+ * New artwork goes to a new versioned path (…-v3.png) rather than over an old
+ * file: social platforms cache images by URL, so a changed file at a URL they
+ * have already seen can stay stale for weeks.
+ */
+
+export interface BrandImage {
+  /** Root-relative; metadata resolves it against `metadataBase` (SITE_URL). */
+  url: string
+  width: number
+  height: number
+  type: 'image/png'
+  alt: string
+}
+
+/** Default 1200×630 social-sharing card for any page without its own image. */
+export const SHARE_IMAGE: BrandImage = {
+  url: '/og/consilium-share-v2.png',
+  width: 1200,
+  height: 630,
+  type: 'image/png',
+  alt: 'The Consilium: the navy-and-gold emblem above the wordmark and the motto Ratione et Consilio',
+}
+
+/** Square brand mark (the emblem) for wherever a logo is required: structured data, avatars. */
+export const BRAND_MARK: BrandImage = {
+  url: '/brand/consilium-mark-v2.png',
+  width: 512,
+  height: 512,
+  type: 'image/png',
+  alt: 'The Consilium emblem',
+}
+
+/**
+ * The obsolete logo's old address. It now serves the same bytes as BRAND_MARK,
+ * only because old links, user records and external caches still request it.
+ * Never reference it from new code.
+ */
+export const LEGACY_LOGO_PATH = '/logo.png'

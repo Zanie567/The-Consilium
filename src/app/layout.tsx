@@ -16,6 +16,7 @@ import { InstallBanner } from '@/components/ui/InstallBanner'
 import { FaviconSwitcher } from '@/components/ui/FaviconSwitcher'
 import { RevealOnScroll } from '@/components/ui/RevealOnScroll'
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
+import { DEFAULT_SHARE_IMAGE, pageTwitter } from '@/lib/seo'
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -58,14 +59,9 @@ export const metadata: Metadata = {
     // which had every article and category page reporting og:url as the
     // homepage. Pages set their own via `pageOpenGraph()` in src/lib/seo.ts.
     siteName: SITE_NAME,
-    images: [{ url: '/logo.png', width: 512, height: 512, alt: 'The Consilium logo' }],
+    images: [DEFAULT_SHARE_IMAGE],
   },
-  twitter: {
-    card: 'summary',
-    title: 'The Consilium',
-    description: SITE_DESCRIPTION,
-    images: ['/logo.png'],
-  },
+  twitter: pageTwitter({ title: 'The Consilium' }),
   icons: {
     icon: [
       // Light browser theme: dark navy emblem (high contrast on light tab bar)
