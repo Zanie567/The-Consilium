@@ -43,7 +43,7 @@ node scripts/diagnostics/image-optimizer-abort.mjs --original --output=test-resu
 node scripts/diagnostics/image-optimizer-abort.mjs --output=test-results/image-abort-after.json
 ```
 
-The image probe restores the original pinned function only in its disposable child process. Installation applies the exact, version-checked upstream Next PR #98168 response-socket backport to both module distributions. Review/remove that backport before changing Next versions.
+The image probe's `--original` mode rebuilds the pre-#98168 code only in its disposable child process (on 16.4.2 every request after an aborted one then times out; as installed, all return 200). Next 16.4.2 ships upstream PR #98168, so installation no longer patches Next: `scripts/backport-next-image-abort.mjs` only verifies that the fix is present and refuses any other Next version until it has been checked.
 
 Local stand-ins do not prove staging storage policies, signed URLs, transformations, CDN behaviour, email delivery, OAuth, real Safari or physical-device behaviour. Those checks require separate controlled resources and remain explicitly reported.
 
