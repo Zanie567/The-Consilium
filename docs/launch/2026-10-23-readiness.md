@@ -1,6 +1,6 @@
 # The Consilium: launch readiness for Friday 23 October 2026 (refreshed 22 October)
 
-**Recommendation: NO-GO as of 22 October 17:00 BST.**
+**Recommendation: NO-GO as of 22 October 21:30 BST, for production.** The code is ready for review, but the confirmed exposures are still live until #155 is deployed and its SQL applied. Code readiness and production readiness are separated in the GO criteria below.
 
 Two confirmed security defects are still live in production:
 - the public Data API and Storage exposures;
@@ -23,10 +23,10 @@ were read. Nothing was written, migrated, deployed, merged, restored or rotated.
 
 | PR | Scope | State |
 |---|---|---|
-| **#155** `security/public-access-hardening` | Data API/Storage migration `20261018002859` + guarded operator scripts; public JSON article API projection | Draft. CI green except the two long E2E jobs, still running at time of writing. SQL **not applied** |
-| **#156** `security/data-api-permissions-audit` (stacked on #155) | Function/sequence default privileges, bucket declaration, full-rebuild permission inventory, 30 October change | Branch ready; see `docs/security/DATA-API-PERMISSIONS.md` |
-| **#157** `deps/runtime-security-advisories` | Next 16.4.2, next-auth 4.24.15, sanitize-html 2.18.1, Tiptap 3.31.4, resend 6.12.4 | Branch ready |
-| **#158** `launch/readiness-consolidated` (this branch) | #150 in full plus #151's non-security fixes, rebased on `main`; this report | Branch ready |
+| **#155** `security/public-access-hardening` | Data API/Storage migration `20261018002859` + guarded operator scripts; public JSON article API projection | CI green; mergeable. SQL **not applied** (needs approval + backup) |
+| **#156** `security/data-api-permissions-audit` (stacked on #155) | Function/sequence default privileges, bucket declaration, full-rebuild permission inventory, 30 October change | CI green (after one WebKit re-run). Merge after #155, then retarget to `main`. SQL after #155's |
+| **#157** `deps/runtime-security-advisories` | Next 16.4.2, next-auth 4.24.15, sanitize-html 2.18.1, Tiptap 3.31.4, resend 6.12.4; read-after-write restored; error-boundary `retry` | Ready for review once CI on `67bff04` is green |
+| **#158** `launch/readiness-consolidated` (this branch) | #150 in full plus #151's non-security fixes, rebased on `main`; this report | CI green. Moves functions to `dub1` on deploy |
 
 ## Gates
 
@@ -34,18 +34,18 @@ were read. Nothing was written, migrated, deployed, merged, restored or rotated.
 |---|---|---|---|
 | **Data API / Storage exposure** | **Open (confirmed).** The anon key can read the full text of the 2 trashed articles and every team card (including inactive). Any Supabase Auth user can upload any file to `article-images`. Anyone can list `article-images`. | Catalog + local Supabase stack reproduction (PostgREST/Storage over HTTP); preflight of the fix returns all `ok` on production | Owner approval → backup → merge #155 → run `docs/launch/POLICY-ROLLOUT.md` |
 | **Public JSON article API** | **Open (confirmed from source).** `GET /api/articles` and `/api/articles/[id]` return `editorNote`, `editorialCommendation`, `engagementScore`, `scheduledAt` to visitors | Real-DB integration test fails on `main`, passes on #155 | Deploy #155 |
-| **Runtime dependencies** | **Open (confirmed affected versions; exposure narrower than the labels).** Next 16.2.2 critical advisories: `next/og` RCE (not used here) and Image Optimizer RCE (likely not applicable on Vercel, which serves `/_next/image` itself). Proxy bypasses, RSC DoS and cache poisoning do apply; our server-side permission checks limit the bypasses. sanitize-html bypasses (public article HTML) and editor paste XSS also apply | Fresh `npm audit`: 46 findings, 4 critical. #157 fixes them. But every fixed Next release (16.3.0+) finishes cache invalidation *after* responding: there is a brief stale window after publish/trash, caught by tests locally | Owner decides: merge #157 accepting eventual consistency (and approve adjusting those tests), or keep 16.2.2 through launch and merge right after |
+| **Runtime dependencies** | **Open in production; fix ready (#157).** Applicable to production today: Proxy bypasses (limited by our server-side permission checks), RSC DoS, cache poisoning, sanitize-html bypasses on public article HTML, editor paste XSS. Not applicable here: `next/og` RCE (not used), Server Action/rewrite SSRF (none). Likely not applicable on Vercel: the Image Optimizer RCE | Fresh `npm audit`. The upgrade's one behaviour change (Next 16.3+ writes cache invalidation after responding) is **fixed** in #157: mutations await the write, so lists, feed and sitemap are fresh on the next request | Merge + deploy #157 |
 | **Corrections schema** | **Closed.** `20261017120000` applied 20 October; trigger enabled; registry 25 rows | Catalog | Do not reapply |
 | **RLS coverage** | **OK.** 43/43 public tables have RLS. 35 INFO "no policy" notices are server-only tables by design. 1 WARN (search path), fixed by #155 | Advisors 22 Oct 15:55 UTC | — |
 | **Scheduler** | **OK, not yet exercised with content.** `publish-scheduled` `*/5`, 288/288 successes in 24 h, 0 warnings; reconciler active; GitHub health checks green (01:39, 07:46, 13:56 UTC). **0 live articles; 4 scheduled, first due 23 Oct 08:00 UTC (09:00 BST)** | Aggregates + Actions | Editor watches 09:00–09:10 BST; manual fallback ready (runbook below) |
 | **Email delivery** | **Unverified.** Code path tested with captured transport only. #151's fix (a rejected send now raises a warning) is on this branch | Isolated tests | A human confirms real receipt of a publication email |
 | **DB failure handling** | **Fix ready.** On `main`, a database error renders as a 404 or a cached empty home page. This branch keeps failures retryable and uncached (#150) | Unit + real-DB tests | Deploy this branch |
 | **Analytics persistence** | **Fix ready.** On `main`, staff time-series/top-articles queries use non-existent columns (`viewed_at`/`article_id`; production has `viewedAt`/`articleId`), so both endpoints fail. Tracking silently acknowledges failures | Production column list; tests | Deploy this branch |
-| **Performance** | **Risk confirmed.** Functions run in **Washington (iad1)**; the database is in **Ireland (eu-west-1)**: `x-vercel-id: lhr1::iad1::…`. Every query crosses the Atlantic; home page took 2.9 s (one sample). #150's `regions: ["dub1"]` is on this branch | Production headers | Validate on this branch's preview (expect `::dub1::` and lower TTFB) before relying on it |
+| **Performance** | **Fix validated on preview.** Production functions run in **Washington (iad1)** and the database is in **Ireland (eu-west-1)** (`x-vercel-id: lhr1::iad1::…`). #158's preview answers from **`lhr1::dub1::…`**. Previews have no database, so the latency gain on database-backed pages (one transatlantic round-trip saved per query) is inferred, not measured; no production load test was run | Production headers; preview headers | Deploy #158; then confirm `::dub1::` and home-page TTFB in production |
 | **Caches** | Personalised HTML `private, no-store`; lists cached 30 s with publish-time invalidation; feed 300 s | Headers + tests | — |
 | **SEO / social** | **Partly.** #154 share card live (`/og/consilium-share-v2.png` 200, `summary_large_image`). **Canonical and `og:url` point at `https://theconsilium.co.uk`, which 307-redirects to `www`.** Sitemap 15 URLs; RSS 0 items (expected: nothing is live yet) | HTTP smoke 22 Oct | Owner decides canonical host (`SITE_URL`); check real previews after the first article goes live |
 | **Backups / DR** | **Open.** Latest evidenced verified DB backup: 16 Oct; Storage copy: 15 Oct (41 objects; production now 59). Hosted recovery untested (#132) | Historical receipts; volume not mounted today | Fresh verified encrypted DB + Storage backup before launch and before any SQL rollout; owner accepts the #132 gap |
-| **CI on `main`** | **Red.** `59c2015` failed one WebKit test (`wf-trading-challenge.spec.ts:115`), the same intermittent failure seen on #154 | Actions run | Investigate/fix or explicitly accept as a test flake |
+| **CI** | **`main` red; all four PRs green or finishing.** `main`'s `59c2015` failed `wf-trading-challenge.spec.ts:115` (WebKit, CI only; 15/15 locally). #156/#158 each failed one unrelated WebKit test and passed on re-run. Locally, a paired comparison found `wf-unified-profile.spec.ts:68` failing **identically on `main`**: a script cancelled by the next navigation, with the save verified. These are pre-existing WebKit test-timing issues, investigated and recorded, not regressions | Actions runs; traces | Accept as known flakes, or fix in a follow-up |
 | **Real devices** | **Unverified.** Engine emulation only | — | Human smoke on iPhone Safari, Android Chrome, desktop Safari/Chrome |
 | **Hosted load** | **Not demonstrated.** Local probes only (#150) | — | Owner accepts the envelope or tests an isolated hosted preview. **Never load-test production** |
 
@@ -98,6 +98,11 @@ No `npm audit fix --force`, no major-version changes.
 - Rebasing #151 would reintroduce the outdated migration and its fake-schema test.
 - Merging #150 alone would miss #151's bug fixes.
 
+Verified line by line (22 October): **every line #150 added** is present in #158. Every line #151 added is present in #158 or #155, except deliberate omissions:
+- its 18 October report and evidence files (rewritten from fresh evidence; the originals remain on #151's branch);
+- its migration, rollout doc, `[id]` projection and fake-schema test (superseded by #155's versions);
+- earlier wordings that #150 later refined.
+
 Nothing from #152, #153 or #154 is reverted. Every line `main` added to the files these PRs touch survives on this branch.
 
 ## Separate Supabase permissions audit
@@ -117,14 +122,28 @@ The 18 October procedures in #151 remain valid, with these updates:
 - **Rollback:** Vercel Hobby Instant Rollback reaches only the immediately previous production deployment. It doesn't undo database policies (none are needed: the app doesn't depend on them). Never restore a database to fix a code problem.
 - **Suspected exposure:** preserve evidence. The fix is the reviewed migration, not ad-hoc dashboard edits.
 
-## GO criteria (all required, each with an owner and a timestamp)
+## Release sequence (each merge or SQL step needs owner approval)
 
-- [ ] **#155 merged and deployed**, and its migration applied and verified per `POLICY-ROLLOUT.md`, after a fresh verified backup.
-- [ ] **#157 merged and deployed** (with the owner's decision on the stale-after-publish window), production reports Next 16.4.2, and the image and article pages smoke-test OK. Alternatively, the owner explicitly accepts 16.2.2's remaining exposure (proxy bypass, DoS, cache poisoning, sanitiser bypasses) for launch day, with #157 merged immediately after.
-- [ ] CI green on the deployed commit (or the WebKit flake explicitly accepted with evidence).
-- [ ] This branch deployed, or the owner explicitly accepts `main`'s 404-on-DB-error and analytics defects for launch. The region change is validated on preview first.
-- [ ] Scheduler: a recent success within 10 minutes at 08:55 BST, and an editor on watch.
-- [ ] Real-device smoke and a real publication-email receipt.
-- [ ] Owner decision on canonical host, and acceptance of the hosted-recovery (#132) and load-test gaps.
+1. **Before any merge that adds a migration:** confirm Supabase → Integrations → GitHub → "Deploy to production" is **OFF**. Merges have never applied migrations (the integration's branch record is unchanged since 16 October, and #144's migration waited for its manual rollout), but check anyway.
+2. **#155:** merge and deploy. The site behaves the same before and after its SQL. Until the SQL runs, the Data API exposures remain exactly as today.
+3. **Fresh verified encrypted backup**, then **#155's SQL** (`docs/launch/POLICY-ROLLOUT.md`: preflight → guarded apply → `migration repair` → verify).
+4. **#157:** merge and deploy (independent of the SQL). Smoke-test images, an article, login and the editor.
+5. **#158:** merge and deploy (moves functions to `dub1`), ideally after launch-morning publication, or before it if you want its database-error and analytics fixes live.
+6. **#156:** retarget to `main` after #155 merges, merge, then its SQL (`docs/security/DATA-API-PERMISSIONS.md`). It isn't urgent: it closes future-default exposure, and no current exposure is known.
+7. Close #150 and #151 as superseded.
 
-Until the first three are done, the confirmed vulnerabilities stay live, so the answer stays **NO-GO**.
+All four were merged together locally onto current `main`. Typecheck, lint and unit tests pass, the Data API suite and both rollout rehearsals pass, and the full isolated browser and real-database suite was run (results in #158).
+
+## GO criteria
+
+**Code readiness (met when CI is green on the final heads):**
+- [x] Security fixes implemented and tested against real Supabase roles and APIs (#155, #156).
+- [x] Dependency fixes with read-after-write preserved and regressions fixed (#157).
+- [x] #150/#151 reconciled without losing changes (#158).
+
+**Production readiness (requires owner actions):**
+- [ ] #155 deployed **and** its SQL applied and verified, after a fresh verified backup. *Until then the confirmed exposures are live: NO-GO.*
+- [ ] #157 deployed (production reports Next 16.4.2), or the owner explicitly accepts the remaining 16.2.2 exposure for launch day with #157 merged straight after.
+- [ ] Scheduler: a recent success within 10 minutes at 08:55 BST, and an editor watching the 09:00 publication of the four scheduled articles.
+- [ ] Real-device smoke and one real publication-email receipt.
+- [ ] Owner decisions: canonical host (apex vs `www`); acceptance of the hosted-recovery (#132) and hosted-load gaps.
