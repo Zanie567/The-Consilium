@@ -6,7 +6,7 @@ import { PrizePodium } from '@/components/trading/PrizePodium'
 import { RegistrationPanel } from '@/components/trading/RegistrationPanel'
 import { ChallengeRules } from '@/components/trading/ChallengeRules'
 import { ChallengeFaq } from '@/components/trading/ChallengeFaq'
-import { canonicalAlternates, pageOpenGraph } from '@/lib/seo'
+import { canonicalAlternates, pageOpenGraph, pageTwitter } from '@/lib/seo'
 import {
   TRADING_CHALLENGE as TC,
   TOTAL_PRIZE_POOL_GBP,
@@ -20,6 +20,8 @@ import {
 } from '@/lib/tradingChallenge'
 
 const TITLE = 'EconSoc Trading Challenge 2026–27'
+/** The campaign's own share card; it replaces the site default on this page only. */
+const SHARE_IMAGE = { url: '/og/trading-challenge.png', width: 1200, height: 630, type: 'image/png', alt: 'The EconSoc Trading Challenge 2026–27: think you can beat the market?' }
 const DESCRIPTION =
   'Build a virtual portfolio with $100,000 of simulated capital and compete with fellow EconSoc members for £175 in prizes. Trading runs 28 October 2026 to 25 March 2027 on MarketWatch.'
 
@@ -30,14 +32,9 @@ export const metadata: Metadata = {
   openGraph: pageOpenGraph('/trading-challenge', {
     title: `${TITLE} | The Consilium`,
     description: DESCRIPTION,
-    image: { url: '/og/trading-challenge.png', width: 1200, height: 630, alt: 'The EconSoc Trading Challenge 2026–27: think you can beat the market?' },
+    image: SHARE_IMAGE,
   }),
-  twitter: {
-    card: 'summary_large_image',
-    title: TITLE,
-    description: DESCRIPTION,
-    images: ['/og/trading-challenge.png'],
-  },
+  twitter: pageTwitter({ title: TITLE, description: DESCRIPTION, images: [SHARE_IMAGE] }),
 }
 
 // No database, no cookies: the page is static and re-rendered hourly so the

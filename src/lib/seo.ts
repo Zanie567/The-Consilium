@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
+import { SHARE_IMAGE } from '@/lib/brand'
 
 /**
  * Per-page metadata helpers.
@@ -23,12 +24,24 @@ import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
 /** The feed link the root layout advertises; re-declared by any page that sets `alternates`. */
 const RSS_ALTERNATE_TYPES = { 'application/rss+xml': `${SITE_URL}/feed.xml` }
 
+/** An image a page offers for its share card. Dimensions are optional for editor-supplied covers. */
+export interface ShareImage {
+  url: string
+  width?: number
+  height?: number
+  type?: string
+  alt: string
+}
+
 /** The site's fallback share image, used whenever a page has nothing better. */
-const DEFAULT_OG_IMAGE = {
-  url: '/logo.png',
-  width: 512,
-  height: 512,
-  alt: `${SITE_NAME} logo`,
+export const DEFAULT_SHARE_IMAGE: ShareImage = { ...SHARE_IMAGE }
+
+/**
+ * The share images for an article: its cover image when it has one (the
+ * editor's choice always wins), otherwise the site's default card.
+ */
+export function articleShareImages(coverImage: string | null | undefined, title: string): ShareImage[] {
+  return coverImage ? [{ url: coverImage, alt: title }] : [DEFAULT_SHARE_IMAGE]
 }
 
 /**
@@ -58,8 +71,8 @@ export function pageOpenGraph(
   overrides: {
     title?: string
     description?: string
-    /** A page-specific share image; defaults to the site logo. */
-    image?: { url: string; width: number; height: number; alt: string }
+    /** A page-specific share image; defaults to the site's share card. */
+    image?: ShareImage
   } = {}
 ): Metadata['openGraph'] {
   return {
@@ -69,7 +82,25 @@ export function pageOpenGraph(
     locale: 'en_GB',
     url: path.startsWith('/') ? path : `/${path}`,
     siteName: SITE_NAME,
-    images: [overrides.image ?? DEFAULT_OG_IMAGE],
+    images: [overrides.image ?? DEFAULT_SHARE_IMAGE],
+  }
+}
+
+/**
+ * Build a complete `twitter` object for a page.
+ *
+ * Same reasoning as pageOpenGraph: a page that sets `twitter` at all replaces
+ * the root's object, and one written without `images` falls back to whatever
+ * the openGraph happens to hold. This always names the card type and image.
+ */
+export function pageTwitter(
+  overrides: { title?: string; description?: string; images?: ShareImage[] } = {}
+): Metadata['twitter'] {
+  return {
+    card: 'summary_large_image',
+    title: overrides.title ?? SITE_NAME,
+    description: overrides.description ?? SITE_DESCRIPTION,
+    images: (overrides.images ?? [DEFAULT_SHARE_IMAGE]).map(({ url, alt }) => ({ url, alt })),
   }
 }
 

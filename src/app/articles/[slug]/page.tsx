@@ -28,7 +28,8 @@ import { CommentSection } from '@/components/ui/CommentSection'
 import { readTimeLabel } from '@/lib/readTime'
 import { getInitials, displayAuthorName } from '@/lib/authorUtils'
 import type { Metadata } from 'next'
-import { canonicalAlternates } from '@/lib/seo'
+import { articleShareImages, canonicalAlternates, pageTwitter } from '@/lib/seo'
+import { BRAND_MARK } from '@/lib/brand'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/constants'
 import { loadPublicCorrections, correctionsStructuredData } from '@/lib/corrections/public'
 import { CorrectionNotice, CorrectionsSection } from '@/components/article/ArticleCorrections'
@@ -169,6 +170,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const article = await getArticle(slug)
   if (!article) return {}
   const articleUrl = getArticleUrl(article.slug)
+  const shareImages = articleShareImages(article.coverImage, article.title)
 
   return {
     title: {
@@ -190,15 +192,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       publishedTime: article.publishedAt?.toISOString(),
       modifiedTime: article.updatedAt.toISOString(),
       authors: article.author.name ? [article.author.name] : undefined,
-      images: article.coverImage
-        ? [{ url: article.coverImage }]
-        : [{ url: '/logo.png', width: 512, height: 512, alt: `${SITE_NAME} logo` }],
+      images: shareImages,
     },
-    twitter: {
-      card: 'summary_large_image',
+    twitter: pageTwitter({
       title: article.title,
-      description: article.excerpt ?? undefined,
-    },
+      description: article.excerpt ?? SITE_DESCRIPTION,
+      images: shareImages,
+    }),
   }
 }
 
@@ -254,6 +254,7 @@ export default async function ArticlePage({ params }: Props) {
       '@type': 'Organization',
       name: SITE_NAME,
       url: SITE_URL,
+      logo: { '@type': 'ImageObject', url: `${SITE_URL}${BRAND_MARK.url}`, width: BRAND_MARK.width, height: BRAND_MARK.height },
     },
     datePublished: article.publishedAt?.toISOString() ?? '',
     dateModified: article.updatedAt.toISOString(),
