@@ -58,7 +58,8 @@ export default defineConfig({
     // does not exhaust Postgres/CPU while its production app is also running.
     maxWorkers: 2,
     // E2E specs live in tests/e2e and use @playwright/test, not vitest.
-    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**', ...(isolatedLauncherRun ? [] : DB_BACKED_SUITES)],
+    // tests/data-api needs its own disposable Supabase stack: scripts/db/data-api-harness.sh.
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**', 'tests/data-api/**', ...(isolatedLauncherRun ? [] : DB_BACKED_SUITES)],
     // Forward the live-server base URL (and seed credentials) into the test
     // workers. Read here in the main process — where an inline `BASE_URL=…`
     // prefix is reliably visible — so integration specs can reach the server
