@@ -24,9 +24,9 @@ were read. Nothing was written, migrated, deployed, merged, restored or rotated.
 | PR | Scope | State |
 |---|---|---|
 | **#155** `security/public-access-hardening` | Data API/Storage migration `20261018002859` + guarded operator scripts; public JSON article API projection | Draft. CI green except the two long E2E jobs, still running at time of writing. SQL **not applied** |
-| **Permissions audit** `security/data-api-permissions-audit` (stacked on #155) | Function/sequence default privileges, bucket declaration, full-rebuild permission inventory, 30 October change | Branch ready; see `docs/security/DATA-API-PERMISSIONS.md` |
-| **Dependencies** `deps/runtime-security-advisories` | Next 16.4.2, next-auth 4.24.15, sanitize-html 2.18.1, Tiptap 3.31.4, resend 6.12.4 | Branch ready |
-| **This branch** `launch/readiness-consolidated` | #150 in full plus #151's non-security fixes, rebased on `main`; this report | Branch ready |
+| **#156** `security/data-api-permissions-audit` (stacked on #155) | Function/sequence default privileges, bucket declaration, full-rebuild permission inventory, 30 October change | Branch ready; see `docs/security/DATA-API-PERMISSIONS.md` |
+| **#157** `deps/runtime-security-advisories` | Next 16.4.2, next-auth 4.24.15, sanitize-html 2.18.1, Tiptap 3.31.4, resend 6.12.4 | Branch ready |
+| **#158** `launch/readiness-consolidated` (this branch) | #150 in full plus #151's non-security fixes, rebased on `main`; this report | Branch ready |
 
 ## Gates
 
@@ -34,7 +34,7 @@ were read. Nothing was written, migrated, deployed, merged, restored or rotated.
 |---|---|---|---|
 | **Data API / Storage exposure** | **Open (confirmed).** The anon key can read the full text of the 2 trashed articles and every team card (including inactive). Any Supabase Auth user can upload any file to `article-images`. Anyone can list `article-images`. | Catalog + local Supabase stack reproduction (PostgREST/Storage over HTTP); preflight of the fix returns all `ok` on production | Owner approval → backup → merge #155 → run `docs/launch/POLICY-ROLLOUT.md` |
 | **Public JSON article API** | **Open (confirmed from source).** `GET /api/articles` and `/api/articles/[id]` return `editorNote`, `editorialCommendation`, `engagementScore`, `scheduledAt` to visitors | Real-DB integration test fails on `main`, passes on #155 | Deploy #155 |
-| **Runtime dependencies** | **Open (confirmed affected versions).** Next 16.2.2: critical RCE advisories (Image Optimizer with AVIF, `next/og`), proxy bypasses, SSRF. Also next-auth, sanitize-html (used on public article HTML), prosemirror-view (editor paste XSS) | Fresh `npm audit`: 46 findings, 4 critical. Classification below | Merge + deploy the dependency PR after CI and preview checks |
+| **Runtime dependencies** | **Open (confirmed affected versions).** Next 16.2.2: critical RCE advisories (Image Optimizer with AVIF, `next/og`), proxy bypasses, SSRF. Also next-auth, sanitize-html (used on public article HTML), prosemirror-view (editor paste XSS) | Fresh `npm audit`: 46 findings, 4 critical. Classification below | Merge + deploy #157 after CI and preview checks |
 | **Corrections schema** | **Closed.** `20261017120000` applied 20 October; trigger enabled; registry 25 rows | Catalog | Do not reapply |
 | **RLS coverage** | **OK.** 43/43 public tables have RLS. 35 INFO "no policy" notices are server-only tables by design. 1 WARN (search path), fixed by #155 | Advisors 22 Oct 15:55 UTC | — |
 | **Scheduler** | **OK, not yet exercised with content.** `publish-scheduled` `*/5`, 288/288 successes in 24 h, 0 warnings; reconciler active; GitHub health checks green (01:39, 07:46, 13:56 UTC). **0 live articles; 4 scheduled, first due 23 Oct 08:00 UTC (09:00 BST)** | Aggregates + Actions | Editor watches 09:00–09:10 BST; manual fallback ready (runbook below) |
@@ -65,7 +65,7 @@ were read. Nothing was written, migrated, deployed, merged, restored or rotated.
   - eslint and plugins, jscpd/braces/micromatch, type-coverage, js-yaml, smol-toml;
   - postcss/source-map-js at build time.
 
-**Remediation branch:** after it, `npm audit` reports only build/test tooling, plus `@auth/core@0.34.3`. That package is an optional *type-only* peer of next-auth v4: no next-auth JavaScript loads it (verified by searching its runtime files). `eslint-config-next` stays 16.2.2: 16.4.2 adds React Compiler lint rules that would need component refactors.
+**#157:** after it, `npm audit` reports only build/test tooling, plus `@auth/core@0.34.3`. That package is an optional *type-only* peer of next-auth v4: no next-auth JavaScript loads it (verified by searching its runtime files). `eslint-config-next` stays 16.2.2: 16.4.2 adds React Compiler lint rules that would need component refactors.
 
 Verification on the branch:
 - typecheck, lint and 1,819 unit tests pass;
@@ -104,7 +104,7 @@ Nothing from #152, #153 or #154 is reverted. Every line `main` added to the file
 
 See `docs/security/DATA-API-PERMISSIONS.md`. In short:
 - The 30 October change needs **no grants** here. Do **not** add a bulk re-grant.
-- The remaining default exposure is functions (callable via `/rpc` by anon) and sequences. The stacked PR closes it and adds a full-rebuild permission inventory to CI.
+- The remaining default exposure is functions (callable via `/rpc` by anon) and sequences. #156 closes it and adds a full-rebuild permission inventory to CI.
 
 The old `consilium/security-permissions-fix` branch has no commits ahead of `main` and was not used.
 
@@ -120,7 +120,7 @@ The 18 October procedures in #151 remain valid, with these updates:
 ## GO criteria (all required, each with an owner and a timestamp)
 
 - [ ] **#155 merged and deployed**, and its migration applied and verified per `POLICY-ROLLOUT.md`, after a fresh verified backup.
-- [ ] **Dependency PR merged and deployed**; production reports Next 16.4.2; the image and article pages smoke-test OK.
+- [ ] **#157 merged and deployed**; production reports Next 16.4.2; the image and article pages smoke-test OK.
 - [ ] CI green on the deployed commit (or the WebKit flake explicitly accepted with evidence).
 - [ ] This branch deployed, or the owner explicitly accepts `main`'s 404-on-DB-error and analytics defects for launch. The region change is validated on preview first.
 - [ ] Scheduler: a recent success within 10 minutes at 08:55 BST, and an editor on watch.
