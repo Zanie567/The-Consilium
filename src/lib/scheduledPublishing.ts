@@ -135,7 +135,7 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
   // Publishing never deletes. Permanent trash removal is a separate, audited job
   // (src/lib/trashPurge.ts, POST /api/cron/purge-trash): it used to run here, silently,
   // and removed two articles on the first run after the scheduler was restored.
-  if (published.length > 0) revalidateArticleLists()
+  if (published.length > 0) await revalidateArticleLists()
 
   return {
     ranAt: now.toISOString(),

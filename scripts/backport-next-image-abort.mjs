@@ -30,3 +30,12 @@ for (const [file, request, response] of [
     throw new Error(`Next.js #98168 is not present in ${file}; do not install this Next version without the fix.`)
   }
 }
+
+// src/lib/cacheInvalidation.ts waits for queued cache invalidations through these internals (read-after-write
+// for publish/withdraw/trash since Next 16.3 moved the write after the response). Fail the install, not
+// production, if a Next change removes them.
+const { executeRevalidates } = require('next/dist/server/revalidation-utils')
+const workStorageSource = fs.readFileSync(require.resolve('next/dist/server/app-render/work-async-storage.external.js'), 'utf8')
+if (typeof executeRevalidates !== 'function' || !/workAsyncStorage/.test(workStorageSource)) {
+  throw new Error('Next internals used by src/lib/cacheInvalidation.ts changed; review read-after-write before upgrading.')
+}

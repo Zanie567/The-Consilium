@@ -479,7 +479,7 @@ async function PUTHandler(
     // change the public lists — refresh their cache immediately.
     if (wasPublished || wasUnpublished || existing.status === 'PUBLISHED' || finalStatus === 'PUBLISHED') {
       try {
-        revalidateArticleLists()
+        await revalidateArticleLists()
       } catch (revalidationError) {
         console.error('[api/articles:update:revalidation]', { requestId, revalidationError })
       }
@@ -547,7 +547,7 @@ async function DELETEHandler(
 
     // Soft delete - move to trash; permanently removed after 30 days by the cron job
     await prisma.article.update({ where: { id, updatedAt: existing.updatedAt, deletedAt: null, categoryId: existing.categoryId, authorId: existing.authorId }, data: { deletedAt: new Date() } })
-    if (existing.status === 'PUBLISHED') revalidateArticleLists()
+    if (existing.status === 'PUBLISHED') await revalidateArticleLists()
     return NextResponse.json(
       { success: true },
       { headers: { 'x-request-id': requestId } }

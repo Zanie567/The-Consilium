@@ -242,12 +242,16 @@ export async function transitionDebate(
   }))
 
   // Only after the transaction has committed: a rolled-back change must never expire a cache.
-  return { ...result, publicCacheRefreshed: revalidateDebateSurfaces() }
+  return { ...result, publicCacheRefreshed: await revalidateDebateSurfaces() }
 }
 
-/** After commit only: public pages that list debates or their articles. Never throws; returns whether everything refreshed. */
-export function revalidateDebateSurfaces(): boolean {
-  let ok = revalidateArticleLists()
+/**
+ * After commit only: public pages that list debates or their articles. Never throws; resolves to whether
+ * everything refreshed. The paths are queued first so the awaited list expiry also writes them before the
+ * response is sent (see cacheInvalidation.ts).
+ */
+export async function revalidateDebateSurfaces(): Promise<boolean> {
+  let ok = true
   for (const path of ['/', '/opinion-debate']) {
     try {
       revalidatePath(path)
@@ -256,5 +260,5 @@ export function revalidateDebateSurfaces(): boolean {
       console.error('[debate] revalidatePath failed', path, error)
     }
   }
-  return ok
+  return (await revalidateArticleLists()) && ok
 }

@@ -136,7 +136,7 @@ async function PATCHHandler(req: Request, { params }: Props) {
     })
   }
   if (!outcome.ok) return NextResponse.json({ error: outcome.error }, { status: outcome.status })
-  revalidateDebateSurfaces()
+  await revalidateDebateSurfaces()
   return NextResponse.json(outcome.debate)
 }
 
