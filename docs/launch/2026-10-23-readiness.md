@@ -132,7 +132,12 @@ The 18 October procedures in #151 remain valid, with these updates:
 6. **#156:** retarget to `main` after #155 merges, merge, then its SQL (`docs/security/DATA-API-PERMISSIONS.md`). It isn't urgent: it closes future-default exposure, and no current exposure is known.
 7. Close #150 and #151 as superseded.
 
-All four were merged together locally onto current `main`. Typecheck, lint and unit tests pass, the Data API suite and both rollout rehearsals pass, and the full isolated browser and real-database suite was run (results in #158).
+**Combined verification (22 October, late evening):** all four merged together locally onto current `main`, with the machine kept awake (`caffeinate`):
+- Typecheck, lint and unit tests pass.
+- The Data API suite and both rollout rehearsals pass.
+- Full isolated suite on Postgres 17: Vitest **2,644 passed**; Playwright **835 passed**, **1 failed**. The failure is `wf-unified-profile.spec.ts:138` on WebKit, also failed by #158's CI on unchanged Next 16.2.2.
+
+Earlier failures in long local runs came from two Next 16.3+ cache-invalidation defects, both fixed in #157, made worse by this laptop sleeping (`pmset`: 19:27–19:34 and 21:35–21:55). The uncaught `ECONNRESET` log lines in long runs are pre-existing: `main`'s CI on 16.2.2 logged 5.
 
 ## GO criteria
 
