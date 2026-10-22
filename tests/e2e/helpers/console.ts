@@ -30,8 +30,12 @@ function isThirdPartyResourceFailure(msg: ConsoleMessage): boolean {
  * navigation). It is a same-origin cancelled fetch, not an application failure, and
  * Chromium does not surface it. Only that exact shape, for a localhost `_rsc` URL, is
  * tolerated: every other page error, including other `_rsc` failures, remains evidence.
+ * The `_rsc` value is base64url, so it may contain `-` as well as `\w` characters: matching
+ * only `\w` let the same cancelled prefetch fail a test whenever its hash held a `-`
+ * (wf-testing-scenarios on WebKit, Next 16.4; the trace showed status -1, no response, at a
+ * page.goto, while every completed prefetch of those URLs answered 200).
  */
-const CANCELLED_PREFETCH = /^\/localhost:\d+\/[^\s?]*\?(?:[^\s&]*&)*_rsc=\w+ due to access control checks\.$/
+const CANCELLED_PREFETCH = /^\/localhost:\d+\/[^\s?]*\?(?:[^\s&]*&)*_rsc=[\w-]+ due to access control checks\.$/
 
 /**
  * The notification bell fetches `GET /api/editorial/notifications` once, when the portal mounts. A full-document navigation
