@@ -25,11 +25,30 @@ The 35 "RLS enabled, no policy" advisor notices are expected: those tables are s
 - Corrections migration `20261017120000` (already applied 2026-10-20) and its trigger.
 - Hidden-debate triggers, scheduler, the anon column allowlist (41 columns on 6 tables), any row of content.
 
+## Order, and the interval between deploying the code and applying the SQL
+
+The code and the SQL are independent, and either can go first:
+
+- **Merging #155 deploys only the app change.** The public JSON article API stops returning internal fields, and it
+  applies the hidden-debate rule. That change doesn't read or depend on any database policy: the site uses Prisma as
+  the table owner and the service role for Storage. Public pages, editing, uploads and image URLs behave the same
+  before and after the SQL.
+- **Until the SQL is applied, the Data API exposures in the table above remain** exactly as they are today. Deploying
+  the code neither widens nor narrows them. Keep the interval short: apply the SQL as soon as the backup is verified.
+- **Applying the SQL before the code deploy is equally safe.** No deployed code uses the policies being changed.
+- **#156** (function/sequence privileges) must follow this rollout. Its `apply.sql` refuses to run until
+  `20261018002859` is recorded.
+
+**Merging never applies these migrations.** The Supabase GitHub integration is connected (PRs show a "Supabase
+Preview" check), but its production branch record hasn't changed since it was created on 16 October. #144 merged
+migration `20261017120000` to `main` on 17 October without anything being applied; it was applied manually on
+20 October. Still, confirm the toggle below before every merge that adds a migration file.
+
 ## 0. Prerequisites
 
 - [ ] The security PR's CI is green on its head commit, including **Data API permissions**.
 - [ ] Supabase Dashboard → Integrations → GitHub: "Deploy to production" is **OFF** (otherwise a merge could apply
-      migrations outside this procedure).
+      migrations outside this procedure). Check this **before merging #155 or #156**, not only before the SQL.
 - [ ] Record the deployed production commit SHA (Vercel → Deployments → Production).
 - [ ] Confirm nothing outside this repository reads `team_members` or uploads to Storage with a Supabase Auth token
       (the repository has no such client; external integrations were not inventoried).
