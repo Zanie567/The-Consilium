@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postinstall": "node scripts/backport-next-image-abort.mjs && prisma generate",
+    "postinstall": "node scripts/backport-next-image-abort.mjs && node scripts/patch-next-tag-expiry-clock.mjs && prisma generate",
     "start": "next start",
     "lint": "eslint .",
     "format": "prettier --write .",
