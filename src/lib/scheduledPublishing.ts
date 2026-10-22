@@ -80,7 +80,15 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
     if (article.author.email) {
       try {
         const { subject, html } = articlePublishedEmail(article.title, article.slug)
-        await sendEmail({ to: article.author.email, subject, html })
+        const accepted = await sendEmail({ to: article.author.email, subject, html })
+        if (!accepted) {
+          warnings.push({
+            articleId: article.id,
+            title: article.title,
+            stage: 'email',
+            message: 'The email transport did not accept the publication notification.',
+          })
+        }
       } catch (error) {
         warnings.push({
           articleId: article.id,

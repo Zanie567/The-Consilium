@@ -5,7 +5,10 @@ import { prisma } from '@/lib/prisma'
 import { collectAnalytics, referrerOrigin } from '@/lib/analyticsCollector'
 import { readingEngagement, pruneReadingAnalytics } from '@/lib/analyticsEngagement'
 vi.mock('@/lib/rate-limit', () => ({ checkRateLimit: () => true, getIp: () => 'local' }))
+vi.mock('@/lib/auth', () => ({ requireVerifiedSessionUser: vi.fn(async () => ({ ok: true })) }))
 import { POST } from '@/app/api/analytics/track/route'
+import { GET as topArticles } from '@/app/api/analytics/top-articles/route'
+import { GET as timeseries } from '@/app/api/analytics/timeseries/route'
 let articleId: string, draftId: string, userId: string
 const sessionId = randomUUID(),
   visitId = randomUUID(),
@@ -38,6 +41,26 @@ afterAll(async () => {
   await prisma.user.delete({ where: { id: userId } })
 })
 describe('canonical analytics persistence', () => {
+  it('legacy analytics reports query the actual mapped columns and count a known view exactly', async () => {
+    const fixture = await prisma.article.create({ data: {
+      title: 'Legacy metrics fixture', slug: randomUUID(), authorId: userId, content: 'Body',
+      status: 'PUBLISHED', publishedAt: new Date(),
+    } })
+    try {
+      await collectAnalytics({ articleId: fixture.id, sessionId: randomUUID() })
+      const top = await topArticles(new Request('http://localhost/api/analytics/top-articles?limit=100'))
+      expect(top.status).toBe(200)
+      expect(await top.json()).toContainEqual(expect.objectContaining({ article_id: fixture.id, views: 1, views_last_period: 0 }))
+      const series = await timeseries(new Request('http://localhost/api/analytics/timeseries?days=30'))
+      expect(series.status).toBe(200)
+      const rows = await series.json() as { views: number }[]
+      expect(rows.reduce((sum, row) => sum + row.views, 0)).toBe(await prisma.articleView.count({
+        where: { viewedAt: { gte: new Date(Date.now() - 30 * 86400000) } },
+      }))
+    } finally {
+      await prisma.article.delete({ where: { id: fixture.id } })
+    }
+  })
   it('deduplicates concurrent views and strips referrer paths', async () => {
     const editorialRevision = (await prisma.article.findUniqueOrThrow({ where: { id: articleId } })).updatedAt
     await Promise.all(
