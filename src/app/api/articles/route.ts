@@ -12,6 +12,8 @@ import { ARTICLE_SAVE_TIMEOUT_MS, normalizeArticleTags } from '@/lib/articleTags
 import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
 import { ARTICLE_MUTATION_ROLES, EDITORIAL_MANAGEMENT_ROLES, isAllowedRole } from '@/lib/rbac'
 import { PUBLIC_AUTHOR_SELECT } from '@/lib/publicUser'
+import { PUBLIC_ARTICLE_SELECT } from '@/lib/publicArticle'
+import { publishedArticleWhere } from '@/lib/articleQueries'
 import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 import { apiError, articleMutationErrorResponse } from '@/lib/apiResponse'
@@ -117,19 +119,27 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const articles = await prisma.article.findMany({
-      where: {
-        status: requestedStatus as never,
-        deletedAt: null,
-        ...(category ? { category: { slug: category } } : {}),
-        ...(session?.user.role === 'WRITER' && requestedStatus !== 'PUBLISHED'
-          ? { authorId: session.user.id }
-          : {}),
-      },
-      orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
-      take,
-      include: { author: { select: PUBLIC_AUTHOR_SELECT }, category: true },
-    })
+    const categoryFilter = category ? { category: { slug: category } } : {}
+    // The published list is public: the site's visibility rule (trash and hidden debates
+    // excluded) and an explicit column allowlist, never whole rows.
+    const articles = requestedStatus === 'PUBLISHED'
+      ? await prisma.article.findMany({
+          where: publishedArticleWhere(categoryFilter),
+          orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
+          take,
+          select: { ...PUBLIC_ARTICLE_SELECT, author: { select: PUBLIC_AUTHOR_SELECT }, category: true },
+        })
+      : await prisma.article.findMany({
+          where: {
+            status: requestedStatus as never,
+            deletedAt: null,
+            ...categoryFilter,
+            ...(session?.user.role === 'WRITER' ? { authorId: session.user.id } : {}),
+          },
+          orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
+          take,
+          include: { author: { select: PUBLIC_AUTHOR_SELECT }, category: true },
+        })
     return NextResponse.json(articles)
   } catch {
     // Public route: degrade to an empty list at 200 rather than a 500, matching

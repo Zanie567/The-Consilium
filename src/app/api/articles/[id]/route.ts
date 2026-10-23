@@ -13,6 +13,8 @@ import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
 import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 import { revalidateArticleLists } from '@/lib/revalidateArticles'
 import { PUBLIC_AUTHOR_SELECT } from '@/lib/publicUser'
+import { toPublicArticle } from '@/lib/publicArticle'
+import { publishedArticleWhere } from '@/lib/articleQueries'
 import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 import { apiError, articleMutationErrorResponse } from '@/lib/apiResponse'
@@ -73,7 +75,12 @@ export async function GET(
     const isEditorial = isAdmin || isEditor
 
     if (article.status === 'PUBLISHED' && !isOwner && !isEditorial) {
-      return NextResponse.json(article)
+      // Visitors get the site's own visibility rule (which also hides an article of an
+      // unpublished or deleted debate) and an explicit column allowlist, so editorial notes,
+      // scores, schedule times and future internal columns never reach a public response.
+      const isPublic = await prisma.article.count({ where: publishedArticleWhere({ id }) })
+      if (!isPublic) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      return NextResponse.json(toPublicArticle(article, ['author', 'category', 'series', 'tags']))
     }
 
     const authError = requireActiveSession(session)
