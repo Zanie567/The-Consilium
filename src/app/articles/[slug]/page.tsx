@@ -281,12 +281,15 @@ export default async function ArticlePage({ params }: Props) {
 
       {/* Cover Image */}
       {article.coverImage && (
-        <div className="relative h-[260px] md:h-[480px] w-full overflow-hidden bg-navy/10 dark:bg-navy/20 no-print">
+        <div className="relative h-[clamp(220px,42vw,680px)] w-full overflow-hidden bg-navy/10 dark:bg-navy/20 no-print">
+          {/* A source photograph may contain labels/maps at its edges. Unlike a
+              decorative card, the article cover must never crop that evidence.
+              A viewport-responsive frame keeps the full source visible. */}
           <BlurImage
             src={article.coverImage}
             alt={article.title}
             fill
-            className="object-cover"
+            className="object-contain"
             priority
             sizes="100vw"
           />
