@@ -91,13 +91,28 @@ export function ArticleEditor(props: ArticleEditorProps) {
             onCommentClick={handleHighlightClick}
           />
 
-          <aside className="hidden min-[1100px]:block flex-none w-[280px] sticky top-24 space-y-4">
+          {/* Keep the article and its settings as independent scroll surfaces.
+              Previously the sticky aside grew with its content, forcing users
+              to scroll the entire article just to reach image controls. */}
+          <aside
+            className="hidden min-[1100px]:flex flex-none w-[280px] sticky min-h-0 flex-col gap-4"
+            style={{
+              top: 'calc(6rem + var(--testing-banner-height, 0px))',
+              height: 'calc(100dvh - 7rem - var(--testing-banner-height, 0px))',
+            }}
+            aria-label="Article editor sidebar"
+          >
             {showComments && (comments.length > 0 || commentsError) && (
-              <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg overflow-hidden shadow-[var(--shadow-card)] max-h-[45vh] overflow-y-auto">
+              <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg shadow-[var(--shadow-card)] flex-none max-h-[38%] min-h-0 overflow-y-auto overscroll-contain">
                 {commentsPanel}
               </div>
             )}
-            <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg p-5 overflow-hidden shadow-[var(--shadow-card)]">
+            <div
+              role="region"
+              aria-label="Article settings (scroll independently)"
+              tabIndex={0}
+              className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg p-5 shadow-[var(--shadow-card)] flex-1 min-h-0 overflow-y-auto overscroll-contain focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
+            >
               <ArticleEditorMetadataPanel editor={editor} coverFileRef={coverFileRef} />
             </div>
           </aside>

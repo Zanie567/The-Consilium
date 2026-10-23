@@ -1,13 +1,14 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 
 interface BlurImageProps {
   src: string
   alt: string
   fill?: boolean
   className?: string
+  style?: CSSProperties
   priority?: boolean
   sizes?: string
 }
@@ -22,7 +23,7 @@ interface BlurImageProps {
  * and produce a white GPU compositing artefact in dark mode. A plain opaque
  * overlay provides the same visual polish without the compositing issues.
  */
-export function BlurImage({ src, alt, fill, className = '', priority, sizes }: BlurImageProps) {
+export function BlurImage({ src, alt, fill, className = '', style, priority, sizes }: BlurImageProps) {
   const [loaded, setLoaded] = useState(false)
   const imgRef = useRef<HTMLImageElement>(null)
 
@@ -46,6 +47,7 @@ export function BlurImage({ src, alt, fill, className = '', priority, sizes }: B
         alt={alt}
         fill={fill}
         className={className}
+        style={style}
         onLoad={() => setLoaded(true)}
         priority={priority}
         sizes={sizes}
