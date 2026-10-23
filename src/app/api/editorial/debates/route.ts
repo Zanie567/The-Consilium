@@ -107,7 +107,7 @@ async function POSTHandler(req: Request) {
   await prisma.auditLog.create({
     data: { action: 'DEBATE_CREATED', targetId: debate.id, targetType: 'debate', performedBy: user.id, metadata: { title: debate.title, forArticleId: forArticle.id, againstArticleId: againstArticle.id } },
   }).catch((error) => console.error('[debate] create audit failed', error))
-  revalidateDebateSurfaces()
+  await revalidateDebateSurfaces()
 
   return NextResponse.json({ debate, forArticle, againstArticle }, { status: 201 })
 }

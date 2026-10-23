@@ -269,7 +269,7 @@ async function POSTHandler(request: NextRequest) {
       return { article: created, savedTagNames: tagRecords.map(tag => tag.name) }
     }, { timeout: ARTICLE_SAVE_TIMEOUT_MS })
 
-    if (article.status === 'PUBLISHED') revalidateArticleLists()
+    if (article.status === 'PUBLISHED') await revalidateArticleLists()
 
     return NextResponse.json({ ...article, version: articleVersion(article, savedTagNames) }, {
       status: 201,

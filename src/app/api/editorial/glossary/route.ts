@@ -1,6 +1,6 @@
 import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
-import { revalidateTag } from 'next/cache'
+import { expireCacheTag } from '@/lib/cacheInvalidation'
 import { Prisma } from '@prisma/client'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -52,7 +52,7 @@ async function POSTHandler(req: Request) {
       data,
       select: { id: true },
     })
-    revalidateTag(GLOSSARY_CACHE_TAG, { expire: 0 })
+    await expireCacheTag(GLOSSARY_CACHE_TAG)
     return NextResponse.json({ ok: true, id: created.id })
   } catch (err) {
     // Two concurrent creates can both pass the check above; the unique index

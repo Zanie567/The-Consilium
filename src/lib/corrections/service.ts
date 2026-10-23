@@ -505,8 +505,9 @@ export async function afterCorrectionPublished(db: Db, actor: CorrectionActor, r
 
   try {
     // Lists, the RSS feed and the sitemap share this tag (the sitemap's lastmod moves forward).
-    if (!revalidateArticleLists()) throw new Error('list revalidation failed')
+    // Queue the article path first: the awaited list expiry writes both before the response is sent.
     revalidatePath(`/articles/${result.article.slug}`)
+    if (!(await revalidateArticleLists())) throw new Error('list revalidation failed')
   } catch (error) {
     console.error('[corrections:revalidate]', error)
     warnings.push({ stage: 'cache', message: 'The correction is live, but some cached pages may take up to a minute to show it.' })

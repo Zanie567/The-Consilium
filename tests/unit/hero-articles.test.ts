@@ -151,20 +151,20 @@ describe('hero eligibility comes from the shared published filter', () => {
 describe('publishing refreshes the hero', () => {
   beforeEach(() => revalidateTag.mockClear())
 
-  it('expires the same cache tag the homepage queries are stored under', () => {
-    revalidateArticleLists()
+  it('expires the same cache tag the homepage queries are stored under', async () => {
+    await revalidateArticleLists()
     expect(revalidateTag).toHaveBeenCalledWith(ARTICLES_CACHE_TAG, { expire: 0 })
   })
 
-  it('never turns a revalidation hiccup into a failed publish', () => {
+  it('never turns a revalidation hiccup into a failed publish', async () => {
     const error = new Error('cache unavailable')
     revalidateTag.mockImplementationOnce(() => {
       throw error
     })
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-    expect(() => revalidateArticleLists()).not.toThrow()
-    expect(revalidateArticleLists()).toBe(true) // the next call works again, and reports success
-    expect(consoleError).toHaveBeenCalledWith('[revalidateArticleLists] FAILED, public lists may be stale for up to the data-cache TTL:', error)
+    expect(await revalidateArticleLists()).toBe(false) // never throws; the failure is reported
+    expect(await revalidateArticleLists()).toBe(true) // the next call works again, and reports success
+    expect(consoleError).toHaveBeenCalledWith('[cache] expiring "articles" FAILED; cached data may be stale until its TTL:', error)
     consoleError.mockRestore()
   })
 })

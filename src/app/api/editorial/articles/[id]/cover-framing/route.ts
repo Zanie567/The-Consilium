@@ -5,6 +5,7 @@ import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 import { editorCanAccessArticleCategory } from '@/lib/articleCategoryAccess'
 import { prisma } from '@/lib/prisma'
 import { withTestingAudit } from '@/lib/testingAudit'
+import { settleCacheInvalidations } from '@/lib/cacheInvalidation'
 import {
   coverFramingKey, parseCoverFraming,
   validateCoverFraming, writerMayFrameCover,
@@ -82,6 +83,8 @@ async function PATCHHandler(request: Request, { params }: Context) {
     let cacheRefreshed = true
     try {
       revalidatePath(`/articles/${access.article.slug}`)
+      // Since Next 16.3 the queued invalidation is written after the response; write it now.
+      await settleCacheInvalidations()
     } catch (error) {
       cacheRefreshed = false
       console.error('[cover-framing] saved but public cache invalidation failed:', error)
