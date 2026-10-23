@@ -77,4 +77,24 @@ describe('cache invalidation is written before a mutation responds (Next 16.3+)'
     }
     expect(missing).toEqual([])
   })
+
+  it('every file that queues revalidatePath also waits for the queue to be written', () => {
+    // revalidatePath only queues; since Next 16.3 the write happens after the response unless an
+    // awaited expiry (or settleCacheInvalidations) in the same request writes it first.
+    const files: string[] = []
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const full = path.join(dir, name)
+        if (statSync(full).isDirectory()) walk(full)
+        else if (/\.tsx?$/.test(name)) files.push(full)
+      }
+    }
+    walk('src')
+    const unsettled = files.filter((file) => {
+      const code = readFileSync(file, 'utf8')
+      return /\brevalidatePath\(/.test(code) &&
+        !/await\s+(settleCacheInvalidations|revalidateArticleLists|revalidateDebateSurfaces|expireCacheTag)\(/.test(code)
+    })
+    expect(unsettled).toEqual([])
+  })
 })

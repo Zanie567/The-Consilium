@@ -72,8 +72,8 @@ async function PATCHHandler(req: Request) {
       create: { key: HOME_CAROUSEL_SETTING_KEY, value, updatedBy: auth.user.id },
       update: { value, updatedBy: auth.user.id },
     })
-    revalidateArticleLists()
-    return NextResponse.json({ ok: true, selected: ids, message: 'Carousel updated. A new publication automatically resets this order.' })
+    const cacheRefreshed = await revalidateArticleLists()
+    return NextResponse.json({ ok: true, selected: ids, cacheRefreshed, message: 'Carousel updated. A new publication automatically resets this order.' })
   } catch {
     return NextResponse.json({ error: 'Unable to save the carousel right now.' }, { status: 503 })
   }
@@ -88,8 +88,8 @@ async function DELETEHandler(_req: Request) {
       create: { key: HOME_CAROUSEL_SETTING_KEY, value: null, updatedBy: auth.user.id },
       update: { value: null, updatedBy: auth.user.id },
     })
-    revalidateArticleLists()
-    return NextResponse.json({ ok: true })
+    const cacheRefreshed = await revalidateArticleLists()
+    return NextResponse.json({ ok: true, cacheRefreshed })
   } catch {
     return NextResponse.json({ error: 'Unable to reset the carousel.' }, { status: 503 })
   }
