@@ -30,9 +30,9 @@ export function defaultCoverFraming(imageUrl: string): CoverFraming {
 
 /** Literal class values, so Tailwind retains all variants in the production CSS. */
 export const bannerHeightClass: Record<CoverBannerHeight, string> = {
-  compact: 'h-[clamp(200px,30vw,430px)]',
-  standard: 'h-[clamp(220px,42vw,680px)]',
-  tall: 'h-[clamp(260px,56vw,760px)]',
+  compact: 'h-[clamp(180px,23vw,360px)]',
+  standard: 'h-[clamp(220px,32vw,510px)]',
+  tall: 'h-[clamp(240px,42vw,650px)]',
 }
 
 /** Untrusted user-controlled settings may be corrupted. Ignore rather than clamp silently. */
