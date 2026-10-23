@@ -21,10 +21,10 @@ export async function GET(req: Request) {
   else truncFn = 'day'
 
   const rows = await prisma.$queryRawUnsafe<{ date: Date; views: bigint }[]>(
-    `SELECT date_trunc($1, "viewed_at" AT TIME ZONE 'UTC') AS date,
+    `SELECT date_trunc($1, "viewedAt" AT TIME ZONE 'UTC') AS date,
             COUNT(*) AS views
      FROM article_views
-     WHERE "viewed_at" >= $2
+     WHERE "viewedAt" >= $2
      GROUP BY 1
      ORDER BY 1 ASC`,
     truncFn,

@@ -1,0 +1,116 @@
+{
+  "run": "next-e2e-3291-69482",
+  "profile": "analytics",
+  "node": "v20.20.2",
+  "stages": [
+    {
+      "name": "same-article-analytics",
+      "concurrency": 1,
+      "requests": 3,
+      "elapsedMs": 220.26016699999997,
+      "requestsPerSecond": 13.620256630423786,
+      "p50": 28.19566700000007,
+      "p95": 169.07654199999996,
+      "p99": 169.07654199999996,
+      "max": 169.07654199999996,
+      "errors": 0,
+      "statuses": {
+        "200": 3
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 5,
+      "requests": 15,
+      "elapsedMs": 201.42008299999998,
+      "requestsPerSecond": 74.47122340824376,
+      "p50": 36.172916999999984,
+      "p95": 168.491625,
+      "p99": 168.491625,
+      "max": 168.491625,
+      "errors": 0,
+      "statuses": {
+        "200": 15
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 10,
+      "requests": 30,
+      "elapsedMs": 158.65987500000006,
+      "requestsPerSecond": 189.08372390940048,
+      "p50": 47.092750000000024,
+      "p95": 101.2398750000001,
+      "p99": 104.27129200000002,
+      "max": 104.27129200000002,
+      "errors": 0,
+      "statuses": {
+        "200": 30
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 20,
+      "requests": 60,
+      "elapsedMs": 308.93104100000005,
+      "requestsPerSecond": 194.2181006019398,
+      "p50": 97.32883399999992,
+      "p95": 149.36420799999996,
+      "p99": 179.90820800000006,
+      "max": 179.90820800000006,
+      "errors": 0,
+      "statuses": {
+        "200": 60
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 40,
+      "requests": 120,
+      "elapsedMs": 675.4448749999999,
+      "requestsPerSecond": 177.66068622550435,
+      "p50": 185.84287500000005,
+      "p95": 375.35725,
+      "p99": 410.53433399999994,
+      "max": 415.96174999999994,
+      "errors": 0,
+      "statuses": {
+        "200": 120
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 100,
+      "requests": 300,
+      "elapsedMs": 1969.075042,
+      "requestsPerSecond": 152.3557983322405,
+      "p50": 534.1977920000004,
+      "p95": 1203.4986670000003,
+      "p99": 1306.8302079999999,
+      "max": 1321.7240000000002,
+      "errors": 0,
+      "statuses": {
+        "200": 300
+      },
+      "failures": []
+    }
+  ],
+  "limits": "Local production build; testing mode on; rate limiter off; no CDN/Supavisor/WAN; synthetic fixtures; no browser assets or signed-in load.",
+  "analytics": {
+    "expectedUnique": 176,
+    "actualViews": 176,
+    "actualRows": 176,
+    "sessions": 176
+  },
+  "database": {
+    "peakConnections": 22,
+    "peakActive": 4,
+    "peakLockWaits": 3,
+    "samplingMs": 200
+  }
+}

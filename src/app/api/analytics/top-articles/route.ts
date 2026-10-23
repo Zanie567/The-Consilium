@@ -18,12 +18,12 @@ export async function GET(req: Request) {
   const rows = await prisma.$queryRawUnsafe<
     { article_id: string; views: bigint; prev_views: bigint }[]
   >(
-    `SELECT av."article_id",
-            COUNT(*) FILTER (WHERE av."viewed_at" >= $2)                          AS views,
-            COUNT(*) FILTER (WHERE av."viewed_at" >= $3 AND av."viewed_at" < $2)  AS prev_views
+    `SELECT av."articleId" AS article_id,
+            COUNT(*) FILTER (WHERE av."viewedAt" >= $2)                          AS views,
+            COUNT(*) FILTER (WHERE av."viewedAt" >= $3 AND av."viewedAt" < $2)  AS prev_views
      FROM article_views av
-     WHERE av."viewed_at" >= $3
-     GROUP BY av."article_id"
+     WHERE av."viewedAt" >= $3
+     GROUP BY av."articleId"
      ORDER BY views DESC
      LIMIT $1`,
     limit,
