@@ -56,7 +56,7 @@ or sent. Production activation is a separate, owner-approved checklist (see ROLL
    (previous sent edition's cut-off or 7 days, cut-off], cut-off = send time − 60 min safe delay. Eligible =
    the site's own `publishedArticleWhere` + `publishedAt` in window + `publishedAt <= now − delay` + a
    buildable canonical link + not already in a sent weekly edition. Content = title, author, approved summary
-   (the article's published excerpt; editors can edit the snapshot summary before approval), https cover
+   (the article's published excerpt, locked: editors add an introduction instead), https cover
    image, canonical `https://www.theconsilium.co.uk/articles/<slug>` link. The tick auto-builds a DRAFT at
    cut-off; it is sent only once approved (or if an admin enabled auto-send). Re-check at send: every article
    must still be public with the same slug/title/summary, else BLOCKED for re-approval.
@@ -71,8 +71,8 @@ or sent. Production activation is a separate, owner-approved checklist (see ROLL
     meant to run hourly. Activation SQL for a Supabase Cron job is provided in `supabase/manual/` and a
     manual-only GitHub workflow as fallback. Nothing is scheduled by merging. The pause switch defaults to
     **paused** when unset (fail closed).
-13. **Permissions**: view/preview = ADMIN, EDITOR, GROWTH; build/edit/cancel/alert drafts = ADMIN, EDITOR;
-    approve/schedule/unpause/auto-send = ADMIN; pause = ADMIN, EDITOR. Every route re-checks server-side.
+13. **Permissions**: view/preview, build/edit/cancel, prepare alerts, pause = ADMIN, EDITOR, GROWTH;
+    approve/schedule/unpause/auto-send = ADMIN only. Every route re-checks server-side.
 14. **Database security**: new tables RLS on, no anon/authenticated grants, no new functions; migration has
     no BEGIN/COMMIT (applied with a guarded script), is idempotent and self-checking, like 20261017120000.
 
@@ -87,3 +87,12 @@ or sent. Production activation is a separate, owner-approved checklist (see ROLL
    `/unsubscribe`, editorial Newsletter pages (list, preview, approve/schedule/cancel, audit), dashboards show status.
 5. Privacy policy update. Docs: env config, rollout checklist, Resend setup.
 6. Tests: unit, DB integration (isolated launcher), Playwright spec. Capture only.
+
+## Second round (review feedback, 2026-10-23)
+
+- No contact cap: complete pagination; rolling, budgeted topic audit (`resendVerifiedAt`); sends wait, never fail,
+  until the whole segment is proven correct. Tested with 1,300 rows against a faithful Resend fake.
+- Exactly-once hardened: set-once broadcast id, `sendRequestedAt`, settle window, fencing, request timeouts.
+- Growth may prepare; only admins approve/resume/auto-send.
+- Article content locked; intro + contents list + phone styles in the email.
+- `apply.sql` resume mode; migration tested interrupted after every statement.

@@ -5,6 +5,10 @@ secrets, schedules jobs or sends. Stop at any red result; each step lists its ro
 
 ## R0. Review (no production contact)
 
+- [ ] Merge order with the launch/security work: #158 (which supersedes #150/#151) and this PR touch no common
+      application code; the only textual conflict is the `DB_BACKED_SUITES` list in `vitest.config.ts` (keep both
+      entries). Apply #155/#156's production SQL in their own windows; this migration is independent of them.
+
 - [ ] PR reviewed; CI green (lint, typecheck, unit, build, both E2E jobs: the newsletter DB suites run inside them).
 - [ ] Owner confirms the copy: signup text, confirmation email, privacy policy section, email footer address.
 - [ ] Decide: weekly auto-send stays OFF at launch (recommended), approvals by an admin each Friday.
@@ -19,7 +23,12 @@ secrets, schedules jobs or sends. Stop at any red result; each step lists its ro
 ## R2. Apply the migration (owner-approved window)
 
 - [ ] `psql -X -v ON_ERROR_STOP=1 -f docs/newsletter/production/apply.sql` → notice
-      `newsletter migration verified: N historical subscriber(s) classified LEGACY, addresses unchanged`.
+      `newsletter migration verified (first): N subscriber(s) LEGACY, addresses unchanged`.
+- If psql/the network/the server stops part-way: it was one transaction, nothing was applied. Re-run R1 preflight and
+  the same command.
+- If the file was ever run statement-by-statement (e.g. an editor) and stopped part-way: re-run with
+  `psql -X -v ON_ERROR_STOP=1 -v resume=1 -f docs/newsletter/production/apply.sql` (verifies the end state; refuses if
+  the new code has already been running). Never edit rows by hand to "finish" it.
 - [ ] `supabase migration repair --status applied 20261023120000 --linked`
 - [ ] `psql -X -v ON_ERROR_STOP=1 -f docs/newsletter/production/verify.sql` — fingerprint identical to R1.
 - The currently deployed code keeps working (inserts become PENDING, never mailed; old unsubscribe still deletes).
@@ -41,10 +50,15 @@ secrets, schedules jobs or sends. Stop at any red result; each step lists its ro
 
 - [ ] Follow README "Resend set-up": domain verified, **open/click tracking off**, segment, two opt-out topics, separate
       full-access key, webhook endpoint + signing secret.
+- [ ] Resend rate limit: the default is 2 requests/second per team and is shared with transactional mail. Fine for
+      ~1,000 subscribers (verification is spread across hourly ticks); above ~5,000, ask Resend for a higher limit.
 - [ ] Vercel **Production only** (sensitive where marked): `RESEND_MARKETING_API_KEY`, `RESEND_NEWSLETTER_SEGMENT_ID`,
       `RESEND_TOPIC_WEEKLY_ID`, `RESEND_TOPIC_ALERTS_ID`, `RESEND_WEBHOOK_SECRET`, `NEWSLETTER_CRON_SECRET`,
       `NEWSLETTER_DELIVERY=resend`. Confirm none of them exist in Preview or Development.
 - [ ] Redeploy production; `/editorial/newsletter` shows Delivery "Resend". Still paused.
+- [ ] Run the tick manually a few times (R5 manual step) and wait until the Newsletter page shows **0 changes not yet
+      synced**: the first sync pushes every confirmed subscriber and stamps them verified. With delivery enabled but
+      paused, nothing is sent while this happens.
 - [ ] Send a Resend test webhook from the dashboard: `/api/webhooks/resend` answers 200; `newsletter_webhook_events` has
       the row (then it is pruned after 30 days).
 - Rollback: unset `NEWSLETTER_DELIVERY` and redeploy (sending becomes impossible immediately).
@@ -70,6 +84,9 @@ secrets, schedules jobs or sends. Stop at any red result; each step lists its ro
       broadcasts), and Resend's unsubscribe page works and comes back as `UNSUBSCRIBED` on the Subscribers page.
 - [ ] Pause again if you want manual control between editions.
 - Abort at any time: "Pause all sending" (takes effect before claim and again after claim), or cancel the edition.
+- If an edition shows **Sending** for more than ~30 minutes or **Failed** with a broadcast id: do NOT create anything in
+  Resend by hand. Check the broadcast in the Resend dashboard; the next tick reconciles it automatically (sent →
+  recorded as sent; draft after the 15-minute settle window → sent once).
 
 ## R7. Afterwards
 

@@ -29,11 +29,17 @@ through `src/lib/newsletter/provider.ts` with `RESEND_MARKETING_API_KEY`.
 | Action | Roles |
 |---|---|
 | View editions, previews, audit trail, delivery status | ADMIN, EDITOR, GROWTH |
-| Build/rebuild/edit/cancel editions; draft special alerts | ADMIN, EDITOR |
-| Approve (= schedule) a send; resume sending; turn on weekly auto-send | ADMIN |
-| Pause all sending | ADMIN, EDITOR |
+| Build/rebuild/edit/cancel editions; prepare special alerts for approval | ADMIN, EDITOR, GROWTH |
+| Pause all sending | ADMIN, EDITOR, GROWTH |
+| Approve (= schedule) a send; resume sending; turn on weekly auto-send | **ADMIN only** |
 
 Approval is bound to the exact content hash the approver previewed; any later edit returns the edition to draft.
+
+**What editors can change in an edition:** subject, inbox preview text, an introduction ("From the editors",
+plain text, paragraphs), and which articles are included. Article titles, authors, summaries (the published
+excerpt), images and links are locked to the published article; the send-time check compares them again.
+The email has an "In this edition" contents list and phone styles; the editorial preview shows desktop,
+mobile and plain text.
 
 ## Environment variables
 
@@ -86,9 +92,21 @@ Preview deployments therefore can never broadcast, whatever variables they inher
 - **Failed**: Resend refused or was unreachable before anything was sent; automatic retries at +10 min, +30 min,
   +2 h, then it stops and needs an editor. If the outcome was unknown (timeout during send), the campaign stays
   "Sending" until its lease expires and then Resend's own broadcast state decides; it is never sent twice.
-- **Audience safety**: before every send all pending preference changes are synced to Resend (send held otherwise),
-  every subscribed contact in the segment that is not an active confirmed subscriber here is switched off, and (for
-  up to 60 contacts) each contact's topics are checked and corrected.
+- **Audience safety (no size limit)**: before every send, for the whole segment (cursor pagination to the end):
+  every pending change is pushed; every contact able to receive mail must be an active confirmed subscriber here
+  (others are switched off first); every active subscriber must be present (missing ones are re-pushed); and every
+  active subscriber's topics must have been confirmed in Resend within 7 days (by a push, a webhook or the rolling
+  audit). Until all of that is true the send **waits** (status stays Scheduled, no attempt used) instead of failing
+  or guessing. The hourly tick spends up to ~100 s syncing and auditing, least recently verified first; at Resend's
+  default 2 requests/second that re-verifies ~1,000 contacts every few hours. Drift is only ever resolved in the safe
+  direction: Resend more permissive → Resend corrected; a withdrawal made in Resend → adopted here with a consent
+  record. Nobody is re-opted in by an audit.
+- **Exactly once**: the Resend broadcast id is stored the moment it exists (set once); `sendRequestedAt` is stored
+  before the send request; any retry first asks Resend for the broadcast's status (anything but draft = recorded as
+  sent). After an unanswered send request a "draft" answer is not trusted for 15 minutes. A crash between create and
+  save leaves only an unsent draft (found again by its unique name `consilium:<campaignId>`). Every write after the
+  claim is fenced to the claiming attempt, so a worker whose lease expired cannot act. Every Resend request times out
+  after 30 s and is treated as an unknown outcome.
 - **Webhook backlog**: failed webhook events are retried by every tick (max 10 attempts); events are kept 30 days.
 
 ## Data and retention
