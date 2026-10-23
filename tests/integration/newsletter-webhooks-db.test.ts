@@ -7,7 +7,7 @@ import { createHmac, randomBytes, randomUUID } from 'node:crypto'
 import { prisma } from '@/lib/prisma'
 import { assertSafeTestDatabaseHost } from '../../scripts/lib/assertSafeTestDatabaseHost'
 import { POST as webhook } from '@/app/api/webhooks/resend/route'
-import { createMemoryProvider, setMarketingProviderForTests, type MemoryProvider } from '@/lib/newsletter/provider'
+import { ProviderError, createMemoryProvider, setMarketingProviderForTests, type MemoryProvider } from '@/lib/newsletter/provider'
 import { requestSubscription } from '@/lib/newsletter/subscriptions'
 import { retryWebhookEvents } from '@/lib/newsletter/webhooks'
 import { emailHash } from '@/lib/newsletter/identity'
@@ -118,12 +118,13 @@ describe('contact events', () => {
 
   it('a processing failure answers 500 (Resend retries) and the tick reconciles it later', async () => {
     const sub = await active('retry', { specialAlerts: true })
-    setMarketingProviderForTests(null) // the provider is unavailable: topics cannot be fetched
+    // Resend is unreachable while the webhook is processed: topics cannot be fetched.
+    provider.failWith((op) => (op === 'getContactTopics' ? new ProviderError('service unavailable', true, 503) : undefined))
     const delivery = signed(contactEvent('contact.updated', sub, { unsubscribed: false }))
     const res = await webhook(delivery.request())
     expect(res.status).toBe(500)
     expect(await prisma.newsletterWebhookEvent.findUnique({ where: { id: delivery.id } })).toMatchObject({ status: 'FAILED', attempts: 1 })
-    setMarketingProviderForTests(provider)
+    provider.failWith(null)
     await provider.syncContact({ email: sub.email, subscribed: true, topics: { weekly: false, alerts: true } })
     await retryWebhookEvents()
     expect(await prisma.newsletterWebhookEvent.findUnique({ where: { id: delivery.id } })).toMatchObject({ status: 'PROCESSED', attempts: 2 })
