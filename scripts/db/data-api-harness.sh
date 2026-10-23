@@ -13,8 +13,11 @@
 #      dashboard (tests/data-api/fixtures).
 #   4. Runs tests/data-api with vitest. Those tests apply the hardening migration
 #      themselves, so they prove both "before" (the defect) and "after" (the fix).
-#   5. Rebuilds again and rehearses the operator rollout exactly as documented in
-#      docs/launch/POLICY-ROLLOUT.md: preflight.sql, apply.sql, registry repair, verify.sql.
+#   5. Rebuilds from Supabase defaults with EVERY migration in the repository (what a new
+#      environment or a disaster-recovery rebuild gets) and runs the permission inventory.
+#   6. Rebuilds production's state again and rehearses each pending production rollout exactly
+#      as documented (docs/launch/POLICY-ROLLOUT.md, docs/security/DATA-API-PERMISSIONS.md):
+#      preflight.sql, apply.sql, registry repair, verify.sql, refused re-apply.
 #
 # Never points at a hosted project: there is no link step, and every URL is checked.
 #
@@ -53,59 +56,73 @@ for url in "$DB_URL" "$API_URL"; do
   fi
 done
 
-# Production's state before the hardening migration, rebuilt from Supabase defaults.
-prepare_production_state() {
-  echo "→ resetting the local database to Supabase defaults"
+# $1 = production: production's state before the pending migrations (applied files recorded in
+#                   the registry, plus the dashboard-created Storage policies);
+#      rebuild:    every migration in the repository, as a new environment would get.
+prepare() {
+  echo "→ [$1] resetting the local database to Supabase defaults"
   supabase db reset --workdir "$WORKDIR" --no-seed >/dev/null 2>&1
   # The CLI only creates its registry when a migrations folder exists; create the same table.
   psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "CREATE SCHEMA IF NOT EXISTS supabase_migrations;
     CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (version text PRIMARY KEY, statements text[], name text);" >/dev/null
-  echo "→ prisma db push (as postgres, like production)"
+  echo "→ [$1] prisma db push (as postgres, like production)"
   TEST_HARNESS=1 DATABASE_URL="$DB_URL" DIRECT_URL="$DB_URL" npx prisma db push >/dev/null 2>&1
-  echo "→ applying and recording the migrations production has applied"
+  echo "→ [$1] applying and recording migrations"
   for migration in supabase/migrations/*.sql; do
     name="$(basename "$migration" .sql)"
     version="${name%%_*}"
-    [ "$version" \< "$FIRST_UNAPPLIED" ] || continue
+    if [ "$1" = production ]; then [ "$version" \< "$FIRST_UNAPPLIED" ] || continue; fi
     case "$SKIP_MIGRATIONS" in *" $name.sql "*) ;; *) psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f "$migration" >/dev/null ;; esac
     psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c \
       "INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES ('$version', '${name#*_}')" >/dev/null
   done
-  echo "→ recreating production's dashboard-created Storage policies"
-  psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f tests/data-api/fixtures/production-dashboard-drift.sql >/dev/null
+  if [ "$1" = production ]; then
+    echo "→ [$1] recreating production's dashboard-created Storage policies"
+    psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f tests/data-api/fixtures/production-dashboard-drift.sql >/dev/null
+  fi
+}
+
+run_tests() {
+  echo "→ running $*"
+  DATA_API_HARNESS=1 DATA_API_DB_URL="$DB_URL" DATA_API_URL="$API_URL" \
+    DATA_API_ANON_KEY="$ANON_KEY" DATA_API_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+    npx vitest run -c vitest.data-api.config.ts "$@"
+}
+
+# One documented rollout: $1 = directory with preflight/apply/verify.sql, $2 = version, $3 = notice
+# printed by a verified apply. Every preflight/verify row must be ok; the content fingerprint must not move.
+rehearse() {
+  local dir="$1" version="$2" notice="$3" out before after
+  out="$(psql "$DB_URL" -X -A -F '|' -v ON_ERROR_STOP=1 -f "$dir/preflight.sql")"
+  if printf '%s\n' "$out" | grep -E '\|f$' >&2; then echo "✗ $dir/preflight.sql has failing rows (above)" >&2; return 1; fi
+  before="$(printf '%s\n' "$out" | grep '^content fingerprint|' | cut -d'|' -f2)"
+  out="$(PGOPTIONS='-c client_min_messages=notice' psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$dir/apply.sql" 2>&1)"
+  printf '%s\n' "$out" | grep -q "$notice" || { printf '%s\n' "$out" >&2; echo "✗ $dir/apply.sql did not verify" >&2; return 1; }
+  # Same command the operator runs from the repository root (there with --linked).
+  supabase migration repair --status applied $version --db-url "$DB_URL" >/dev/null 2>&1 \
+    || { echo "✗ registry repair failed for $version" >&2; return 1; }
+  out="$(psql "$DB_URL" -X -A -F '|' -v ON_ERROR_STOP=1 -f "$dir/verify.sql")"
+  if printf '%s\n' "$out" | grep -E '\|f$' >&2; then echo "✗ $dir/verify.sql has failing rows (above)" >&2; return 1; fi
+  after="$(printf '%s\n' "$out" | grep '^content fingerprint|' | cut -d'|' -f2)"
+  [ -n "$before" ] && [ "$before" = "$after" ] || { echo "✗ content fingerprint changed ($before → $after)" >&2; return 1; }
+  if psql "$DB_URL" -X -v ON_ERROR_STOP=1 -q -f "$dir/apply.sql" >/dev/null 2>&1; then
+    echo "✗ $dir/apply.sql ran twice" >&2; return 1
+  fi
+  echo "  ✓ $version: preflight ok, apply verified, registry recorded, verify ok, content unchanged, re-apply refused"
 }
 
 STATUS=0
-prepare_production_state
-echo "→ running tests/data-api"
-DATA_API_HARNESS=1 DATA_API_DB_URL="$DB_URL" DATA_API_URL="$API_URL" \
-  DATA_API_ANON_KEY="$ANON_KEY" DATA_API_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
-  npx vitest run -c vitest.data-api.config.ts || STATUS=1
+prepare production
+run_tests tests/data-api/public-access-hardening.test.ts || STATUS=1
 
-echo "→ rehearsing the documented production rollout"
-prepare_production_state
+prepare rebuild
+run_tests tests/data-api/permissions-inventory.test.ts || STATUS=1
+
+echo "→ rehearsing the documented production rollouts, in order"
+prepare production
 psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f tests/data-api/fixtures/rehearsal-content.sql >/dev/null
-rehearse() {
-  local out
-  out="$(psql "$DB_URL" -X -A -F '|' -v ON_ERROR_STOP=1 -f docs/launch/production/preflight.sql)"
-  if printf '%s\n' "$out" | grep -E '\|f$' >&2; then echo "✗ preflight has failing rows (above)" >&2; return 1; fi
-  local before; before="$(printf '%s\n' "$out" | grep '^content fingerprint|' | cut -d'|' -f2)"
-  out="$(PGOPTIONS='-c client_min_messages=notice' psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f docs/launch/production/apply.sql 2>&1)"
-  printf '%s\n' "$out" | grep -q 'public-access hardening verified' || { printf '%s\n' "$out" >&2; echo "✗ apply.sql did not verify" >&2; return 1; }
-  # Same command the operator runs from the repository root (there with --linked).
-  supabase migration repair --status applied "$FIRST_UNAPPLIED" --db-url "$DB_URL" >/dev/null 2>&1 \
-    || { echo "✗ registry repair failed" >&2; return 1; }
-  out="$(psql "$DB_URL" -X -A -F '|' -v ON_ERROR_STOP=1 -f docs/launch/production/verify.sql)"
-  if printf '%s\n' "$out" | grep -E '\|f$' >&2; then echo "✗ verify has failing rows (above)" >&2; return 1; fi
-  local after; after="$(printf '%s\n' "$out" | grep '^content fingerprint|' | cut -d'|' -f2)"
-  [ -n "$before" ] && [ "$before" = "$after" ] || { echo "✗ content fingerprint changed ($before → $after)" >&2; return 1; }
-  # A second apply must be refused by its precondition (already recorded), changing nothing.
-  if psql "$DB_URL" -X -v ON_ERROR_STOP=1 -q -f docs/launch/production/apply.sql >/dev/null 2>&1; then
-    echo "✗ apply.sql ran twice" >&2; return 1
-  fi
-  echo "  ✓ preflight all ok, apply verified, registry recorded, verify all ok, content unchanged, re-apply refused"
-}
-rehearse || STATUS=1
+rehearse docs/launch/production 20261018002859 'public-access hardening verified' || STATUS=1
+rehearse docs/security/production '20261022120000 20261022120100' 'data api privileges verified' || STATUS=1
 
 if [ "${DATA_API_STOP:-0}" = 1 ]; then
   supabase stop --workdir "$WORKDIR" --no-backup >/dev/null || true
