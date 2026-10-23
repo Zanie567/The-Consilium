@@ -1,6 +1,46 @@
-# The Consilium: launch readiness for Friday 23 October 2026 (refreshed 22 October)
+# The Consilium: launch readiness for Friday 23 October 2026 (refreshed 22 October, updated 23 October)
 
-**Recommendation: NO-GO as of 22 October 21:30 BST, for production.** The code is ready for review, but the confirmed exposures are still live until #155 is deployed and its SQL applied. Code readiness and production readiness are separated in the GO criteria below.
+## 23 October update (16:30 BST)
+
+**Still NO-GO for production security, now with the site live.** The four scheduled articles published at
+09:00 BST, so the site is serving launch content while the confirmed exposures below remain. Checked read-only
+on 23 October (aggregates, catalog, one public HTTP request):
+
+- **Publishing worked.** 4 articles PUBLISHED today by the scheduler; 0 overdue; `publish-scheduled` 288/288
+  successes in 24 h with 0 warnings. 2 articles are pending review.
+- **Data API exposure still live.** `anon_read_published_articles` is still `status = 'PUBLISHED'` only and
+  `20261018002859` is not in the registry (25 rows). #155's SQL is not applied.
+- **Production is `103f0b0`** (current `main`, deployed 10:33 UTC): still Next 16.2.2, still `iad1`
+  (`x-vercel-id: lhr1::iad1::…`), with the database in `eu-west-1`. None of #155, #157 or #158 is deployed.
+- **The email-warning fix is not deployed.** 0 warnings were recorded, but on `103f0b0` a send rejected by the
+  transport is still reported as success. Real receipt of the authors' publication emails is unverified.
+
+### What changed in the code today
+
+| Fix | Why | Branch |
+|---|---|---|
+| E2E tests aligned with the carousel; new carousel browser test | `main` CI red since #163: two tests clicked the removed "featured" buttons | **#168** (merge first) |
+| Writers can't change a submitted article's photo credit | #162's route allowed it in every state but PUBLISHED; every other writer edit is DRAFT/REJECTED only | **#170** |
+| Await invalidation in the carousel and cover-framing routes | Routes added on `main` after #157 was cut; #157's own guard test fails on them | **#157** |
+| Homepage and category caches hold card columns only | Cached rows carried author accounts (email, moderation fields), editorial columns and every body; unbounded category entries could exceed Next's 2 MB item limit and silently stop caching | #150 → **#158** |
+| One view per reading; Retry-After honoured | Heartbeats crossing :00/:30 counted a second view; consented refreshes counted again; the counter retried every 30 s through a 429/503 | #150 → **#158** |
+| One failing article no longer aborts a scheduled run | Previously it skipped cache invalidation for articles already live and hid them from the response | #151 → **#158** |
+| One word count everywhere | Formatted words split in two; editorial pages used `JSON.stringify` × 0.75 | #151 → **#158** |
+| All four raw-SQL analytics reports tested on the real schema | `by-author`/`by-category` had no test | #151 → **#158** |
+| #151's superseded security migration, projection and tests removed | Same migration version as #155 with different contents | **#151** only |
+
+**CI on 23 October (GitHub Actions, isolated database, no production access):**
+
+- **Fully green:** #155 (`c3aac07`), #156 (`f1b3fc1`), #158 (`da07a6e`, before this report commit).
+- **#157** (`d0899b5`): 731 of 732 browser tests passed. The one failure, `wf-unified-profile` in WebKit, is the
+  `router.refresh` navigation race fixed by #168's `97eac0b`. That fix is now merged into #157 (`e407727`) and CI is re-running.
+- **#168 / #170:** earlier runs failed only on the known WebKit flake (`wf-trading-challenge.spec.ts:115`) and a one-off
+  Vercel font-fetch build error; re-runs are in progress.
+- **#171** (all combined): typecheck, unit, E2E, Data API permissions and upgrade journeys pass. The critical-roles job was
+  cancelled at its 75-minute limit (the others finish in about 50 minutes) with no test reported failing; re-running.
+- #150 and #151 were closed by the owner at 16:08 UTC.
+
+**Recommendation (22 October, still applicable): NO-GO as of 22 October 21:30 BST, for production.** The code is ready for review, but the confirmed exposures are still live until #155 is deployed and its SQL applied. Code readiness and production readiness are separated in the GO criteria below.
 
 Two confirmed security defects are still live in production:
 - the public Data API and Storage exposures;
@@ -23,10 +63,13 @@ were read. Nothing was written, migrated, deployed, merged, restored or rotated.
 
 | PR | Scope | State |
 |---|---|---|
-| **#155** `security/public-access-hardening` | Data API/Storage migration `20261018002859` + guarded operator scripts; public JSON article API projection | CI green; mergeable. SQL **not applied** (needs approval + backup) |
+| **#168** `fix/e2e-carousel-editorial-controls` | Tests only: align with the carousel (#163), add a carousel browser test | Merge first: every branch below includes it |
+| **#155** `security/public-access-hardening` | Data API/Storage migration `20261018002859` + guarded operator scripts; public JSON article API projection | Updated with `main` 23 Oct; CI green. SQL **not applied** (needs approval + backup) |
 | **#156** `security/data-api-permissions-audit` (stacked on #155) | Function/sequence default privileges, bucket declaration, full-rebuild permission inventory, 30 October change | CI green (after one WebKit re-run). Merge after #155, then retarget to `main`. SQL after #155's |
-| **#157** `deps/runtime-security-advisories` | Next 16.4.2, next-auth 4.24.15, sanitize-html 2.18.1, Tiptap 3.31.4, resend 6.12.4; read-after-write restored; error-boundary `retry` | Ready for review once CI on `67bff04` is green |
-| **#158** `launch/readiness-consolidated` (this branch) | #150 in full plus #151's non-security fixes, rebased on `main`; this report | CI green. Moves functions to `dub1` on deploy |
+| **#157** `deps/runtime-security-advisories` | Next 16.4.2, next-auth 4.24.15, sanitize-html 2.18.1, Tiptap 3.31.4, resend 6.12.4; read-after-write restored (now including the carousel and cover-framing routes); error-boundary `retry` | Updated with `main` 23 Oct; CI re-running after the profile-test fix |
+| **#158** `launch/readiness-consolidated` (this branch) | #150 and #151's non-security work, including the 23 October fixes above; this report | CI green. Moves functions to `dub1` on deploy |
+| **#170** `fix/cover-attribution-writer-lock` | Writer lock on cover attribution | Independent; any order |
+| **#171** `integration/release-2026-10-23` | **Draft, do not merge.** All of the above combined, so CI validates the release together | Close after recording results |
 
 ## Gates
 
@@ -37,10 +80,10 @@ were read. Nothing was written, migrated, deployed, merged, restored or rotated.
 | **Runtime dependencies** | **Open in production; fix ready (#157).** Applicable to production today: Proxy bypasses (limited by our server-side permission checks), RSC DoS, cache poisoning, sanitize-html bypasses on public article HTML, editor paste XSS. Not applicable here: `next/og` RCE (not used), Server Action/rewrite SSRF (none). Likely not applicable on Vercel: the Image Optimizer RCE | Fresh `npm audit`. The upgrade's one behaviour change (Next 16.3+ writes cache invalidation after responding) is **fixed** in #157: mutations await the write, so lists, feed and sitemap are fresh on the next request | Merge + deploy #157 |
 | **Corrections schema** | **Closed.** `20261017120000` applied 20 October; trigger enabled; registry 25 rows | Catalog | Do not reapply |
 | **RLS coverage** | **OK.** 43/43 public tables have RLS. 35 INFO "no policy" notices are server-only tables by design. 1 WARN (search path), fixed by #155 | Advisors 22 Oct 15:55 UTC | — |
-| **Scheduler** | **OK, not yet exercised with content.** `publish-scheduled` `*/5`, 288/288 successes in 24 h, 0 warnings; reconciler active; GitHub health checks green (01:39, 07:46, 13:56 UTC). **0 live articles; 4 scheduled, first due 23 Oct 08:00 UTC (09:00 BST)** | Aggregates + Actions | Editor watches 09:00–09:10 BST; manual fallback ready (runbook below) |
-| **Email delivery** | **Unverified.** Code path tested with captured transport only. #151's fix (a rejected send now raises a warning) is on this branch | Isolated tests | A human confirms real receipt of a publication email |
+| **Scheduler** | **Exercised, OK.** 23 Oct: the 4 scheduled articles published at 09:00 BST; 0 overdue; 288/288 successes in 24 h, 0 warnings. #158 also stops one failing article from aborting a run | Aggregates (23 Oct) | — |
+| **Email delivery** | **Unverified.** Code path tested with captured transport only. The fix that turns a rejected send into a warning is on this branch, **not deployed**: this morning's 0 warnings do not prove delivery | Isolated tests | A human confirms the four authors received their publication emails |
 | **DB failure handling** | **Fix ready.** On `main`, a database error renders as a 404 or a cached empty home page. This branch keeps failures retryable and uncached (#150) | Unit + real-DB tests | Deploy this branch |
-| **Analytics persistence** | **Fix ready.** On `main`, staff time-series/top-articles queries use non-existent columns (`viewed_at`/`article_id`; production has `viewedAt`/`articleId`), so both endpoints fail. Tracking silently acknowledges failures | Production column list; tests | Deploy this branch |
+| **Analytics persistence** | **Fix ready.** On `main`, staff time-series/top-articles queries use non-existent columns (`viewed_at`/`article_id`; production has `viewedAt`/`articleId`), so both endpoints fail. Tracking silently acknowledges failures. A reading that crosses :00/:30 counts twice; consented refreshes count again | Production column list; real-DB tests (all four raw-SQL reports, view counting) | Deploy this branch |
 | **Performance** | **Fix validated on preview.** Production functions run in **Washington (iad1)** and the database is in **Ireland (eu-west-1)** (`x-vercel-id: lhr1::iad1::…`). #158's preview answers from **`lhr1::dub1::…`**. Previews have no database, so the latency gain on database-backed pages (one transatlantic round-trip saved per query) is inferred, not measured; no production load test was run | Production headers; preview headers | Deploy #158; then confirm `::dub1::` and home-page TTFB in production |
 | **Caches** | Personalised HTML `private, no-store`; lists cached 30 s with publish-time invalidation; feed 300 s. **Two Next 16.3+ invalidation defects found and fixed in #157:** (1) invalidation was written after the response, so mutations now await it; (2) tag expiry compared a wall-clock stamp against the monotonic clock, so invalidations were ignored while the clocks drifted (about 0.4 ms/min, or a whole sleep). A version-pinned patch takes the later clock. Withdrawn article **bodies** were never affected: article pages read the database uncached | Next's own modules; paired browser runs; `pmset` | After deploying #157, confirm the 09:00 scheduled articles appear in lists and the feed at once |
 | **SEO / social** | **Partly.** #154 share card live (`/og/consilium-share-v2.png` 200, `summary_large_image`). **Canonical and `og:url` point at `https://theconsilium.co.uk`, which 307-redirects to `www`.** Sitemap 15 URLs; RSS 0 items (expected: nothing is live yet) | HTTP smoke 22 Oct | Owner decides canonical host (`SITE_URL`); check real previews after the first article goes live |
@@ -93,7 +136,13 @@ No `npm audit fix --force`, no major-version changes.
   - load probe hook;
   - backup-guide updates.
 
-**Recommendation:** close #150 and #151 as superseded once this branch has a PR; don't merge either.
+**Recommendation:** close #150 and #151 as superseded; don't merge either.
+
+On 23 October both were still updated, so each could be tested on its own: current `main` and #168 merged in,
+and each received the fixes for its own area (#150: card-only caches, view counting, Retry-After; #151: scheduled-run
+isolation, one word count, analytics report tests, and **removal of its superseded security migration, `[id]`
+projection and tests**). The same commits were cherry-picked here, so this branch remains the complete set and the
+two branches are subsets of it.
 - This branch already carries everything worth keeping from both, rebased on current `main`.
 - Rebasing #151 would reintroduce the outdated migration and its fake-schema test.
 - Merging #150 alone would miss #151's bug fixes.
@@ -124,13 +173,14 @@ The 18 October procedures in #151 remain valid, with these updates:
 
 ## Release sequence (each merge or SQL step needs owner approval)
 
+0. **#168** (tests only): merge first so `main` and every PR below run green CI. **#170** can merge at any point.
 1. **Before any merge that adds a migration:** confirm Supabase → Integrations → GitHub → "Deploy to production" is **OFF**. Merges have never applied migrations (the integration's branch record is unchanged since 16 October, and #144's migration waited for its manual rollout), but check anyway.
 2. **#155:** merge and deploy. The site behaves the same before and after its SQL. Until the SQL runs, the Data API exposures remain exactly as today.
 3. **Fresh verified encrypted backup**, then **#155's SQL** (`docs/launch/POLICY-ROLLOUT.md`: preflight → guarded apply → `migration repair` → verify).
 4. **#157:** merge and deploy (independent of the SQL). Smoke-test images, an article, login and the editor.
 5. **#158:** merge and deploy (moves functions to `dub1`), ideally after launch-morning publication, or before it if you want its database-error and analytics fixes live.
 6. **#156:** retarget to `main` after #155 merges, merge, then its SQL (`docs/security/DATA-API-PERMISSIONS.md`). It isn't urgent: it closes future-default exposure, and no current exposure is known.
-7. Close #150 and #151 as superseded.
+7. Close the validation draft #171 (#150 and #151 were closed on 23 October).
 
 **Combined verification (22 October, late evening):** all four merged together locally onto current `main`, with the machine kept awake (`caffeinate`):
 - Typecheck, lint and unit tests pass.
