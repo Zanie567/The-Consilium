@@ -33,6 +33,7 @@ import { BRAND_MARK } from '@/lib/brand'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/constants'
 import { loadPublicCorrections, correctionsStructuredData } from '@/lib/corrections/public'
 import { CorrectionNotice, CorrectionsSection } from '@/components/article/ArticleCorrections'
+import { coverMetadataKey, parseCoverMetadata } from '@/lib/coverImageMetadata'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -222,10 +223,17 @@ export default async function ArticlePage({ params }: Props) {
     : null
 
   // Read separately from the article so a corrections-table problem can never 404 the article.
-  const [related, corrections] = await Promise.all([
+  const [related, corrections, coverSetting] = await Promise.all([
     getRelatedArticles(article.id, article.categoryId, article.title, article.excerpt),
     loadPublicCorrections(prisma, article),
+    article.coverImage
+      ? prisma.siteSetting.findUnique({
+          where: { key: coverMetadataKey(article.id) },
+          select: { value: true },
+        }).catch(() => null)
+      : Promise.resolve(null),
   ])
+  const coverMetadata = parseCoverMetadata(coverSetting?.value, article.coverImage)
   const correctionComments = correctionsStructuredData(corrections)
   const { html: htmlContent, footnotes } = renderContent(article.content)
   // Glossary term linking runs on the sanitized HTML and returns it untouched
@@ -279,9 +287,10 @@ export default async function ArticlePage({ params }: Props) {
         <div className="print-masthead-sub">University of Edinburgh Economics Society</div>
       </div>
 
-      {/* Cover Image */}
+      {/* The cover and its attribution are a single semantic figure. */}
       {article.coverImage && (
-        <div className="relative h-[clamp(220px,42vw,680px)] w-full overflow-hidden bg-navy/10 dark:bg-navy/20 no-print">
+        <figure className="m-0 no-print">
+          <div className="relative h-[clamp(220px,42vw,680px)] w-full overflow-hidden bg-navy/10 dark:bg-navy/20">
           {/* A source photograph may contain labels/maps at its edges. Unlike a
               decorative card, the article cover must never crop that evidence.
               A viewport-responsive frame keeps the full source visible. */}
@@ -298,7 +307,22 @@ export default async function ArticlePage({ params }: Props) {
             <Clock size={11} className="shrink-0" />
             {readTimeLabel(article.content)}
           </div>
-        </div>
+          </div>
+          {coverMetadata && (
+            <figcaption className="mx-auto max-w-[1100px] px-6 sm:px-8 py-2.5 flex flex-col sm:flex-row gap-1 sm:gap-4 justify-between text-[11px] leading-relaxed text-[var(--fg-muted)] border-b border-[var(--border)]">
+              <span>{coverMetadata.caption}</span>
+              <span className="shrink-0">
+                Source:{' '}
+                {coverMetadata.sourceUrl ? (
+                  <a href={coverMetadata.sourceUrl} target="_blank" rel="noopener noreferrer"
+                     className="underline underline-offset-2 hover:text-gold">
+                    {coverMetadata.source}
+                  </a>
+                ) : coverMetadata.source}
+              </span>
+            </figcaption>
+          )}
+        </figure>
       )}
 
       <div className="max-w-[680px] mx-auto px-6 sm:px-8 lg:px-12 py-12 print-article-wrapper">
