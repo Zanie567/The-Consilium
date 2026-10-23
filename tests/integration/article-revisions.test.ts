@@ -42,6 +42,20 @@ async function newer(id: string) {
   return prisma.article.update({ where: { id }, data: { title: 'Newer title', content: 'Newer content', updatedAt: new Date(Date.now() + 100) } })
 }
 describe('first-party loaded article revisions over real HTTP and PostgreSQL', () => {
+  it('preserves an article after duplicate-slug rejection, including a slug retained in trash', async () => {
+    const owner = await fixture()
+    const other = await fixture()
+    await prisma.article.update({ where: { id: owner.id }, data: { deletedAt: new Date() } })
+    const rejected = await send(other.id, { slug: owner.slug, title: 'Must not be saved' })
+    expect(rejected.status).toBe(409)
+    expect((await rejected.json()).code).toBe('SLUG_CONFLICT')
+    const unchanged = await prisma.article.findUniqueOrThrow({ where: { id: other.id } })
+    expect(unchanged.title).toBe(other.title)
+    expect(unchanged.slug).toBe(other.slug)
+    const saved = await send(other.id, { slug: other.slug, title: 'Saved with its existing unique slug' })
+    expect(saved.status).toBe(200)
+    expect((await prisma.article.findUniqueOrThrow({ where: { id: other.id } })).title).toBe('Saved with its existing unique slug')
+  })
   it('create and update fingerprints use stored canonical topic names for subsequent saves', async () => {
     const name = `Revision Topic ${randomUUID()}`
     const topic = await prisma.tag.create({ data: { name, slug: canonicalTagSlug(name) } })

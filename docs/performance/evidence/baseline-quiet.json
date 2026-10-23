@@ -1,0 +1,243 @@
+{
+  "run": "next-e2e-3292-34826",
+  "node": "v20.20.2",
+  "stages": [
+    {
+      "name": "first-touch-mix",
+      "concurrency": 5,
+      "requests": 15,
+      "elapsedMs": 584.1762920000001,
+      "requestsPerSecond": 25.677180339937514,
+      "p50": 95.92733299999998,
+      "p95": 421.69779200000005,
+      "p99": 421.69779200000005,
+      "max": 421.69779200000005,
+      "errors": 0,
+      "statuses": {
+        "200": 15
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 1,
+      "requests": 30,
+      "elapsedMs": 278.9242909999999,
+      "requestsPerSecond": 107.55606796541076,
+      "p50": 6.881750000000011,
+      "p95": 20.451084000000037,
+      "p99": 21.400582999999983,
+      "max": 21.400582999999983,
+      "errors": 0,
+      "statuses": {
+        "200": 30
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 5,
+      "requests": 30,
+      "elapsedMs": 309.24970800000006,
+      "requestsPerSecond": 97.00898407962278,
+      "p50": 31.83679200000006,
+      "p95": 136.114916,
+      "p99": 138.4765420000001,
+      "max": 138.4765420000001,
+      "errors": 0,
+      "statuses": {
+        "200": 30
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 10,
+      "requests": 30,
+      "elapsedMs": 185.00087500000018,
+      "requestsPerSecond": 162.16139518259018,
+      "p50": 42.74891700000012,
+      "p95": 134.878334,
+      "p99": 135.33720800000015,
+      "max": 135.33720800000015,
+      "errors": 0,
+      "statuses": {
+        "200": 30
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 20,
+      "requests": 60,
+      "elapsedMs": 429.56383299999993,
+      "requestsPerSecond": 139.67656350622053,
+      "p50": 95.5127500000001,
+      "p95": 290.0842500000001,
+      "p99": 365.504958,
+      "max": 365.504958,
+      "errors": 0,
+      "statuses": {
+        "200": 60
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 40,
+      "requests": 120,
+      "elapsedMs": 910.6146250000002,
+      "requestsPerSecond": 131.77912665305587,
+      "p50": 227.43754200000012,
+      "p95": 678.7546659999998,
+      "p99": 857.1431670000002,
+      "max": 871.8689589999999,
+      "errors": 0,
+      "statuses": {
+        "200": 120
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 100,
+      "requests": 300,
+      "elapsedMs": 1887.679125,
+      "requestsPerSecond": 158.92531523332917,
+      "p50": 467.6755830000002,
+      "p95": 1668.7480420000002,
+      "p99": 1835.0942090000003,
+      "max": 1864.845167,
+      "errors": 0,
+      "statuses": {
+        "200": 300
+      },
+      "failures": []
+    },
+    {
+      "name": "paced-reads-across-cache-expiry",
+      "concurrency": 10,
+      "requests": 2000,
+      "elapsedMs": 35057.047915999996,
+      "requestsPerSecond": 57.049869252887156,
+      "p50": 70.15945799999827,
+      "p95": 103.71575000000121,
+      "p99": 126.7582080000011,
+      "max": 160.0802079999994,
+      "errors": 0,
+      "statuses": {
+        "200": 2000
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 1,
+      "requests": 3,
+      "elapsedMs": 44.16287499999453,
+      "requestsPerSecond": 67.93036005922104,
+      "p50": 5.558499999999185,
+      "p95": 34.11616700000013,
+      "p99": 34.11616700000013,
+      "max": 34.11616700000013,
+      "errors": 0,
+      "statuses": {
+        "200": 3
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 5,
+      "requests": 15,
+      "elapsedMs": 42.65520799999649,
+      "requestsPerSecond": 351.6569418674792,
+      "p50": 9.411708999999973,
+      "p95": 33.506249999998545,
+      "p99": 33.506249999998545,
+      "max": 33.506249999998545,
+      "errors": 0,
+      "statuses": {
+        "200": 15
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 10,
+      "requests": 30,
+      "elapsedMs": 66.41891699999542,
+      "requestsPerSecond": 451.6785481461866,
+      "p50": 15.24629200000345,
+      "p95": 50.115499999999884,
+      "p99": 57.33245800000441,
+      "max": 57.33245800000441,
+      "errors": 0,
+      "statuses": {
+        "200": 30
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 20,
+      "requests": 60,
+      "elapsedMs": 124.18725000000268,
+      "requestsPerSecond": 483.1413852871265,
+      "p50": 33.076458000003186,
+      "p95": 76.59070799999608,
+      "p99": 101.42475000000559,
+      "max": 101.42475000000559,
+      "errors": 0,
+      "statuses": {
+        "200": 60
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 40,
+      "requests": 120,
+      "elapsedMs": 219.71170800000255,
+      "requestsPerSecond": 546.1702568895355,
+      "p50": 64.4027500000011,
+      "p95": 122.01633299999958,
+      "p99": 159.62887499999488,
+      "max": 172.5422499999986,
+      "errors": 0,
+      "statuses": {
+        "200": 120
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 100,
+      "requests": 300,
+      "elapsedMs": 505.31029199999466,
+      "requestsPerSecond": 593.6946164555919,
+      "p50": 155.42599999999948,
+      "p95": 272.28870800000004,
+      "p99": 317.6032090000008,
+      "max": 344.7123330000031,
+      "errors": 0,
+      "statuses": {
+        "200": 300
+      },
+      "failures": []
+    }
+  ],
+  "limits": "Local production build; testing mode on; rate limiter off; no CDN/Supavisor/WAN; synthetic fixtures; no browser assets or signed-in load.",
+  "analytics": {
+    "expectedUnique": 176,
+    "actualViews": 176,
+    "actualRows": 176,
+    "sessions": 176
+  },
+  "database": {
+    "peakConnections": 32,
+    "peakActive": 10,
+    "peakLockWaits": 9,
+    "samplingMs": 200
+  }
+}

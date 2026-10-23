@@ -132,6 +132,13 @@ done
 export E2E_BASE_URL="http://localhost:$PORT"
 node scripts/attest-test-run.mjs || exit 1
 
+# Opt-in bounded load probes use only the services owned and attested above.
+# No remote target override is accepted by the probe.
+if [ "${E2E_LOAD_TEST:-0}" = 1 ]; then
+  node scripts/load-test.mjs
+  exit $?
+fi
+
 STATUS=0
 if [ "${RUN_VITEST:-0}" = "1" ]; then
   mkdir -p test-results
@@ -150,6 +157,11 @@ if [ "$#" -gt 0 ]; then
   npx playwright test "$@"
   BROWSER_STATUS=$?
   [ "$BROWSER_STATUS" = "0" ] || STATUS=1
+  # Reuse this attested production build for a final load probe after successful
+  # correctness checks. Existing E2E_LOAD_TEST=1 remains load-only.
+  if [ "${E2E_LOAD_TEST:-0}" = after ] && [ "$STATUS" = 0 ]; then
+    node scripts/load-test.mjs || STATUS=1
+  fi
   exit "$STATUS"
 fi
 
@@ -162,4 +174,7 @@ E2E_PHASE=workflow npx playwright test --workers=1 || STATUS=1
 E2E_PHASE=team-profile npx playwright test --workers=1 || STATUS=1
 # Platform upgrade journeys publish articles and upload figures to the shared storage server.
 E2E_PHASE=upgrade npx playwright test --workers=1 || STATUS=1
+if [ "${E2E_LOAD_TEST:-0}" = after ] && [ "$STATUS" = 0 ]; then
+  node scripts/load-test.mjs || STATUS=1
+fi
 exit $STATUS

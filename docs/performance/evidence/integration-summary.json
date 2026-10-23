@@ -1,0 +1,232 @@
+{
+  "success": true,
+  "numTotalTests": 866,
+  "numPassedTests": 755,
+  "numFailedTests": 0,
+  "numPendingTests": 111,
+  "numTotalTestSuites": 206,
+  "numPassedTestSuites": 206,
+  "numFailedTestSuites": 0,
+  "files": [
+    {
+      "name": "admin-directory-sort.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "admin-overhaul-migrations.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "analytics-display-period.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "analytics-engagement.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "analytics-track-resilience.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "api-audit.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "api.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "article-comments-auth.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "article-create-route.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "article-image-storage.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "article-image-upload-route.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "article-revisions.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "article-save-route.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "auth-testing-identity.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "calendar-access.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "comments-resilience.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "corrections-db.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "data-layer.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "debate-article-marker-db.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "debate-lifecycle-db.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "debate-lock-order-db.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "debate-public-visibility-db.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "discovery-search-route.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "discovery.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "growth-subscribe.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "hidden-debate-guard-db.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "hidden-debate-public-reads-db.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "hosted-verification-lease.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "management-data-protection.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "member-onboarding.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "pr117-migrations-rehearsal.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "profile-account-route.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "proxy.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "public-appointment-migration.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "public-feed-visibility-db.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "publication-cache-routes.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "publish-scheduled-race-db.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "read-through-db.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "read-through-routes.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "review-route.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "route-handlers.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "scheduled-publication.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "scheduler-cron-sql.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "scheduler-end-to-end.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "scheduling-routes.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "team-author-links-db.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "team-members-admin-db.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "team-placeholder-replace-db.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "team-profile-db.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "team-profile-storage.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "testing-scenarios-db.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "testing-sessions.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "trash-purge-db.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "upgrade-migrations.test.ts",
+      "status": "passed"
+    },
+    {
+      "name": "upload-sharp-unavailable.test.ts",
+      "status": "passed"
+    }
+  ]
+}

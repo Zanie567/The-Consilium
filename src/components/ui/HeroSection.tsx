@@ -1,7 +1,6 @@
 import { format } from 'date-fns'
 import { AnimateIn } from '@/components/ui/AnimateIn'
 import { FeaturedArticleHero, type HeroSlide } from '@/components/ui/FeaturedArticleHero'
-import { readTimeLabel } from '@/lib/readTime'
 import { displayAuthorName } from '@/lib/authorUtils'
 
 interface ArticleBase {
@@ -9,7 +8,7 @@ interface ArticleBase {
   slug: string
   title: string
   excerpt: string | null
-  content: string
+  readTime: string
   coverImage: string | null
   publishedAt: Date | string | null
   author: { name: string | null }
@@ -26,8 +25,8 @@ interface HeroSectionProps {
 
 /**
  * Server half of the homepage hero. It resolves each article into a flat,
- * serializable slide — read time derived from the body here so the body itself
- * never ships to the browser, and the date formatted here so hydration cannot
+ * serializable slide — the read time arrives precomputed (toArticleCard), so the body
+ * is neither cached nor shipped to the browser, and the date formatted here so hydration cannot
  * disagree — and hands the small array to the client component that rotates it.
  */
 export function HeroSection({ articles }: HeroSectionProps) {
@@ -38,7 +37,7 @@ export function HeroSection({ articles }: HeroSectionProps) {
     excerpt: article.excerpt,
     coverImage: article.coverImage,
     categoryName: article.category?.name ?? null,
-    readTime: readTimeLabel(article.content),
+    readTime: article.readTime,
     authorName: displayAuthorName(article.author.name),
     dateLabel: article.publishedAt ? format(new Date(article.publishedAt), 'd MMMM yyyy') : '',
   }))

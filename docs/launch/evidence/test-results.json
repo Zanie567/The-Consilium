@@ -1,0 +1,305 @@
+{
+  "baseline": "c3785a2e64899945ef87c601481aca1300655110",
+  "date": "2026-10-18",
+  "applicationRevision": "e317c29c9b680c96c5c1509b59e78dc6f8ad50f5",
+  "additionalTestOnlyRevision": "52f9d60",
+  "runtime": "Local Node 20.20.2 / PostgreSQL 16; repository Node 22 / production Node 24, Supabase PostgreSQL 17",
+  "productionMutations": false,
+  "unit": {
+    "finalPassed": 1772,
+    "finalFailed": 0,
+    "filesPassed": 138,
+    "command": "npx vitest run tests/unit --maxWorkers=1",
+    "initialFailure": "One unchanged backup-verifier case exceeded its five-second test timeout while builds ran; serial repeat passed."
+  },
+  "quality": {
+    "lint": "passed",
+    "typecheck": "passed",
+    "isolatedProductionBuild": "passed",
+    "diffCheck": "passed"
+  },
+  "integration": [
+    {
+      "run": "next-e2e-3297-45630",
+      "passed": 758,
+      "failed": 1,
+      "skipped": 111,
+      "total": 870,
+      "success": false,
+      "guardedSkips": [
+        {
+          "file": "pr117-migrations-rehearsal.test.ts",
+          "count": 21
+        },
+        {
+          "file": "publish-scheduled-race-db.test.ts",
+          "count": 9
+        },
+        {
+          "file": "scheduler-cron-sql.test.ts",
+          "count": 30
+        },
+        {
+          "file": "scheduler-end-to-end.test.ts",
+          "count": 44
+        },
+        {
+          "file": "trash-purge-db.test.ts",
+          "count": 7
+        }
+      ]
+    },
+    {
+      "run": "next-e2e-3298-72762",
+      "passed": 759,
+      "failed": 0,
+      "skipped": 111,
+      "total": 870,
+      "success": true,
+      "guardedSkips": [
+        {
+          "file": "pr117-migrations-rehearsal.test.ts",
+          "count": 21
+        },
+        {
+          "file": "publish-scheduled-race-db.test.ts",
+          "count": 9
+        },
+        {
+          "file": "scheduler-cron-sql.test.ts",
+          "count": 30
+        },
+        {
+          "file": "scheduler-end-to-end.test.ts",
+          "count": 44
+        },
+        {
+          "file": "trash-purge-db.test.ts",
+          "count": 7
+        }
+      ]
+    },
+    {
+      "run": "next-e2e-3299-85843",
+      "passed": 760,
+      "failed": 0,
+      "skipped": 111,
+      "total": 871,
+      "success": true,
+      "guardedSkips": [
+        {
+          "file": "pr117-migrations-rehearsal.test.ts",
+          "count": 21
+        },
+        {
+          "file": "publish-scheduled-race-db.test.ts",
+          "count": 9
+        },
+        {
+          "file": "scheduler-cron-sql.test.ts",
+          "count": 30
+        },
+        {
+          "file": "scheduler-end-to-end.test.ts",
+          "count": 44
+        },
+        {
+          "file": "trash-purge-db.test.ts",
+          "count": 7
+        }
+      ]
+    }
+  ],
+  "schedulerDedicated": {
+    "passed": 44,
+    "failed": 0,
+    "skipped": 0,
+    "scope": "Disposable sched_e2e database; real SQL/route/Prisma, stand-in Vault/pg_net/pg_cron/email; removed by trap",
+    "result": {
+      "passed": 44,
+      "failed": 0,
+      "skipped": 0,
+      "total": 44,
+      "success": true,
+      "guardedSkips": []
+    }
+  },
+  "browsers": [
+    {
+      "run": "next-e2e-3297-45630",
+      "stats": {
+        "startTime": "2026-10-18T00:33:51.271Z",
+        "duration": 405724.02300000004,
+        "expected": 90,
+        "skipped": 0,
+        "unexpected": 2,
+        "flaky": 0
+      },
+      "projects": {
+        "setup": {
+          "expected": 6
+        },
+        "public": {
+          "unexpected": 1,
+          "expected": 20
+        },
+        "public-webkit": {
+          "unexpected": 1,
+          "expected": 17
+        },
+        "lifecycle": {
+          "expected": 5
+        },
+        "wf-chromium": {
+          "expected": 16
+        },
+        "wf-webkit": {
+          "expected": 16
+        },
+        "wf-mobile-chromium": {
+          "expected": 5
+        },
+        "wf-mobile-webkit": {
+          "expected": 5
+        }
+      },
+      "failures": [
+        {
+          "project": "public",
+          "file": "launch-public.spec.ts",
+          "title": "public launch routes, article SEO, feed distribution and images work at the configured device size",
+          "status": "unexpected"
+        },
+        {
+          "project": "public-webkit",
+          "file": "launch-public.spec.ts",
+          "title": "public launch routes, article SEO, feed distribution and images work at the configured device size",
+          "status": "unexpected"
+        }
+      ],
+      "cleanup": {
+        "database": "consilium_audit_next_e2e_3297_45630",
+        "databaseAbsent": true,
+        "ownedServicesWaited": true,
+        "productionServicesUsed": false
+      },
+      "source": "143c1d8fbd5908c2b77f62352263cb2e196d6627"
+    },
+    {
+      "run": "next-e2e-3298-72762",
+      "stats": {
+        "startTime": "2026-10-18T00:40:50.938Z",
+        "duration": 45740.244,
+        "expected": 12,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "projects": {
+        "setup": {
+          "expected": 6
+        },
+        "launch-desktop-chromium": {
+          "expected": 1
+        },
+        "launch-desktop-webkit": {
+          "expected": 1
+        },
+        "launch-android-chromium": {
+          "expected": 1
+        },
+        "launch-iphone-webkit": {
+          "expected": 1
+        },
+        "wf-chromium": {
+          "expected": 1
+        },
+        "wf-webkit": {
+          "expected": 1
+        }
+      },
+      "failures": [],
+      "cleanup": {
+        "database": "consilium_audit_next_e2e_3298_72762",
+        "databaseAbsent": true,
+        "ownedServicesWaited": true,
+        "productionServicesUsed": false
+      },
+      "source": "1622908019b40667ef0205ca34cd97124cfa4383"
+    },
+    {
+      "run": "next-e2e-3299-85843",
+      "stats": {
+        "startTime": "2026-10-18T00:43:26.704Z",
+        "duration": 32124.592,
+        "expected": 4,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "projects": {
+        "launch-desktop-chromium": {
+          "expected": 1
+        },
+        "launch-desktop-webkit": {
+          "expected": 1
+        },
+        "launch-android-chromium": {
+          "expected": 1
+        },
+        "launch-iphone-webkit": {
+          "expected": 1
+        }
+      },
+      "failures": [],
+      "cleanup": {
+        "database": "consilium_audit_next_e2e_3299_85843",
+        "databaseAbsent": true,
+        "ownedServicesWaited": true,
+        "productionServicesUsed": false
+      },
+      "source": "e317c29c9b680c96c5c1509b59e78dc6f8ad50f5"
+    }
+  ],
+  "historicalRunLimits": "3297 diagnostics began with dirty audit changes and had two category-less fixture selection failures plus a stale analytics expectation; 3298 precedes the final public API projection; neither is represented as a clean final combined pass. Final runtime sources are e317c29, with expanded test-only coverage from 52f9d60. The 90 passing broader workflow checks remain historical regression evidence across unchanged workflow code.",
+  "initialBuildFailure": "3297-44925 rejected node_modules symlink out of Turbopack root; corrected with worktree-local dependency copy.",
+  "skipsAssessment": "Final integration has 111 guarded skips. The 44 scheduler cases passed separately; the remaining 67 specialised historical migration/race/cron/trash cases were not executed in their dedicated databases. Existing live tests cover core publication/concurrency/visibility but do not turn those skips into passes.",
+  "realBrowserSmoke": {
+    "desktopChrome": "home and article inspected in connected browser",
+    "desktopSafari": "Computer Use was not approved to use Safari",
+    "iphoneSafari": "requires physical-device human verification",
+    "androidChrome": "requires physical-device human verification"
+  },
+  "manualOutstanding": [
+    "Real Safari/Android/iPhone hardware smoke",
+    "Production OAuth callbacks and auth persistence",
+    "Provider acceptance and real inbox delivery",
+    "Human receipt of induced failure alert",
+    "Production launch content/assets/social previews",
+    "Actual newsletter sending and unsubscribe integration",
+    "Isolated hosted traffic and pool/plan envelope",
+    "Fresh DB and asset backup, second-copy and passphrase checks",
+    "End-to-end hosted recovery and RTO"
+  ],
+  "finalCommand": "TEST_DATABASE_URL=<verified-loopback-db> E2E_APP_PORT=3299 FAKE_STORAGE_PORT=54969 RUN_VITEST=1 E2E_VITEST_SUITE=integration E2E_LOAD_TEST=after npm run test:e2e -- --project=launch-desktop-chromium --project=launch-desktop-webkit --project=launch-android-chromium --project=launch-iphone-webkit launch-public.spec.ts",
+  "load": {
+    "run": "next-e2e-3299-85843",
+    "requests": 3073,
+    "errors": 0,
+    "stopped": null,
+    "analytics": {
+      "expectedUnique": 176,
+      "actualViews": 176,
+      "actualRows": 176,
+      "sessions": 176
+    },
+    "database": {
+      "peakConnections": 32,
+      "peakActive": 4,
+      "peakLockWaits": 2,
+      "samplingMs": 200
+    },
+    "evidence": "local-release-ramp.json",
+    "note": "Local production build; testing mode on; rate limiter off; no CDN/Supavisor/WAN; synthetic fixtures; no browser assets or signed-in load."
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "run": "next-e2e-3291-53048",
+  "node": "v20.20.2",
+  "stages": [
+    {
+      "name": "first-touch-mix",
+      "concurrency": 5,
+      "requests": 15,
+      "elapsedMs": 1007.617209,
+      "requestsPerSecond": 14.886605613739572,
+      "p50": 216.1284589999999,
+      "p95": 605.79775,
+      "p99": 605.79775,
+      "max": 605.79775,
+      "errors": 0,
+      "statuses": {
+        "200": 15
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 1,
+      "requests": 30,
+      "elapsedMs": 751.918584,
+      "requestsPerSecond": 39.89793660958378,
+      "p50": 14.740791999999828,
+      "p95": 48.07775000000015,
+      "p99": 50.16491700000006,
+      "max": 50.16491700000006,
+      "errors": 0,
+      "statuses": {
+        "200": 30
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 5,
+      "requests": 30,
+      "elapsedMs": 572.3775420000002,
+      "requestsPerSecond": 52.41295787946898,
+      "p50": 60.09770800000024,
+      "p95": 189.13274999999976,
+      "p99": 194.5210830000001,
+      "max": 194.5210830000001,
+      "errors": 0,
+      "statuses": {
+        "200": 30
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 10,
+      "requests": 30,
+      "elapsedMs": 430.5619160000001,
+      "requestsPerSecond": 69.67639005025237,
+      "p50": 108.69104100000004,
+      "p95": 317.5312090000002,
+      "p99": 320.96245899999985,
+      "max": 320.96245899999985,
+      "errors": 0,
+      "statuses": {
+        "200": 30
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 20,
+      "requests": 60,
+      "elapsedMs": 749.5538749999996,
+      "requestsPerSecond": 80.04761498964972,
+      "p50": 193.07474999999977,
+      "p95": 486.32608400000026,
+      "p99": 548.7142090000002,
+      "max": 548.7142090000002,
+      "errors": 0,
+      "statuses": {
+        "200": 60
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 40,
+      "requests": 120,
+      "elapsedMs": 1479.362541,
+      "requestsPerSecond": 81.11601901105593,
+      "p50": 331.4820829999999,
+      "p95": 1131.248917,
+      "p99": 1365.0197079999998,
+      "max": 1382.5414999999998,
+      "errors": 0,
+      "statuses": {
+        "200": 120
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 100,
+      "requests": 300,
+      "elapsedMs": 3387.5046249999996,
+      "requestsPerSecond": 88.56076469563493,
+      "p50": 759.7492499999998,
+      "p95": 3144.945832999999,
+      "p99": 3327.7416669999993,
+      "max": 3337.4101659999988,
+      "errors": 0,
+      "statuses": {
+        "200": 300
+      },
+      "failures": []
+    }
+  ],
+  "limits": "Local production build; testing mode on; rate limiter off; no CDN/Supavisor/WAN; synthetic fixtures; no browser assets or signed-in load.",
+  "stopped": "Stop threshold reached: warm-html-rsc/100",
+  "database": {
+    "peakConnections": 23,
+    "peakActive": 2,
+    "peakLockWaits": 0,
+    "samplingMs": 200
+  }
+}

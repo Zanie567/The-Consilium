@@ -1,0 +1,45 @@
+→ test database : localhost:55439
+→ storage       : http://127.0.0.1:55442 (local fake)
+→ email         : captured to /Users/zanie/The-Consilium/test-results/next-e2e-3293-9948/outbox.jsonl (nothing is sent)
+→ run evidence  : test-results/next-e2e-3293-9948
+psql:supabase/migrations/20261001000000_team_member_user_link.sql:22: NOTICE:  column "userId" of relation "team_members" already exists, skipping
+psql:supabase/migrations/20261001000000_team_member_user_link.sql:25: NOTICE:  relation "team_members_userId_key" already exists, skipping
+psql:supabase/migrations/20261003231314_public_appointments_testing_sessions.sql:4: NOTICE:  column "publicTier" of relation "team_members" already exists, skipping
+psql:supabase/migrations/20261003231314_public_appointments_testing_sessions.sql:5: NOTICE:  column "testPersonaKey" of relation "users" already exists, skipping
+psql:supabase/migrations/20261003231314_public_appointments_testing_sessions.sql:6: NOTICE:  column "testingRevision" of relation "users" already exists, skipping
+psql:supabase/migrations/20261003231314_public_appointments_testing_sessions.sql:7: NOTICE:  relation "users_testPersonaKey_key" already exists, skipping
+psql:supabase/migrations/20261003231314_public_appointments_testing_sessions.sql:18: NOTICE:  relation "testing_sessions" already exists, skipping
+psql:supabase/migrations/20261003231314_public_appointments_testing_sessions.sql:19: NOTICE:  relation "testing_sessions_administratorId_stoppedAt_idx" already exists, skipping
+{
+  "healthy": true,
+  "gaps": []
+}
+Only owned local avatar references of verified fixture personas reset; IDs, appointments and ownership preserved.
+→ building (isolated env) into .next-e2e-3293-9948...
+fake storage listening on 127.0.0.1:55442
+
+Running 21 tests using 1 worker
+
+  ✓   1 [setup] › tests/e2e/auth.setup.ts:23:6 › authenticate as admin (851ms)
+  ✓   2 [setup] › tests/e2e/auth.setup.ts:60:6 › authenticate as an editor with no category assignments (470ms)
+  ✓   3 [setup] › tests/e2e/auth.setup.ts:64:6 › authenticate as an editor scoped to Opinion (473ms)
+  ✓   4 [setup] › tests/e2e/auth.setup.ts:72:6 › authenticate as the seeded writer (425ms)
+  ✓   5 [setup] › tests/e2e/auth.setup.ts:91:6 › authenticate as growth (418ms)
+  ✓   6 [setup] › tests/e2e/auth.setup.ts:101:6 › authenticate as a reader (569ms)
+  ✓   7 [public] › tests/e2e/network-crawl.spec.ts:39:5 › single-threaded crawl: no internal URL (page or ?_rsc=) returns >= 400 (1.0s)
+  ✓   8 [public] › tests/e2e/network-crawl.spec.ts:53:5 › concurrent crawl: bursts of page + ?_rsc= requests return exactly 200 (900ms)
+  ✓   9 [public] › tests/e2e/network-crawl.spec.ts:105:5 › no broken images on key public pages (3.6s)
+  ✓  10 [upgrade] › tests/e2e/upgrade-growth-analytics.spec.ts:49:5 › newsletter validates, retries network failure, normalizes and deduplicates at mobile width (5.9s)
+  ✓  11 [upgrade] › tests/e2e/upgrade-growth-analytics.spec.ts:76:5 › canonical copy, clipboard fallback, LinkedIn, email and native sharing are keyboard accessible (1.4s)
+  ✓  12 [upgrade] › tests/e2e/upgrade-growth-analytics.spec.ts:136:5 › analytics heartbeat pauses hidden, consent controls persistence, failure leaves article readable (637ms)
+  ✓  13 [upgrade] › tests/e2e/upgrade-growth-analytics.spec.ts:183:5 › existing analytics dashboard exposes active reading and rejects writer permissions (499ms)
+  ✓  14 [upgrade] › tests/e2e/upgrade-growth-analytics.spec.ts:209:5 › one publication LinkedIn setting updates footer/contact and refuses writer changes (1.3s)
+  ✓  15 [lifecycle] › tests/e2e/publication-cache.spec.ts:7:5 › warm category list follows create, edit, unpublish, republish, trash and restore (1.8s)
+  ✓  16 [lifecycle] › tests/e2e/publication-lifecycle.spec.ts:46:7 › full article lifecycle › draft → submit → return → edit/resubmit → publish → public → unpublish → gone (763ms)
+  ✓  17 [lifecycle] › tests/e2e/publication-lifecycle.spec.ts:118:7 › full article lifecycle › editor can schedule a reviewed article for a future publish time (129ms)
+  ✓  18 [lifecycle] › tests/e2e/publication-lifecycle.spec.ts:150:7 › full article lifecycle › an illegal review transition is rejected with a structured 409 (113ms)
+  ✓  19 [lifecycle] › tests/e2e/publication-lifecycle.spec.ts:178:7 › full article lifecycle › inline article comments can be created and read back (article_comments table) (178ms)
+  ✓  20 [wf-chromium] › tests/e2e/wf-corrections.spec.ts:52:5 › an editor prepares, an administrator approves, readers see the dated correction; a second one joins the history (12.2s)
+  ✓  21 [wf-chromium] › tests/e2e/wf-corrections.spec.ts:214:5 › the live-article editor offers Manage corrections and never autosaves the public text (5.3s)
+
+  21 passed (42.3s)
