@@ -10,6 +10,30 @@ interface Subscriber {
   id: string
   email: string
   subscribedAt: string
+  status: 'PENDING' | 'ACTIVE' | 'UNSUBSCRIBED' | 'SUPPRESSED' | 'LEGACY'
+  confirmedAt: string | null
+  weeklyDigest: boolean
+  specialAlerts: boolean
+}
+
+const STATUS_LABEL: Record<Subscriber['status'], string> = {
+  ACTIVE: 'Confirmed',
+  PENDING: 'Awaiting confirmation',
+  LEGACY: 'Legacy (not mailed)',
+  UNSUBSCRIBED: 'Unsubscribed',
+  SUPPRESSED: 'Suppressed',
+}
+const STATUS_STYLE: Record<Subscriber['status'], string> = {
+  ACTIVE: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+  PENDING: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
+  LEGACY: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+  UNSUBSCRIBED: 'bg-slate-500/10 text-slate-600 dark:text-slate-300',
+  SUPPRESSED: 'bg-red-500/10 text-red-700 dark:text-red-300',
+}
+
+function topics(s: Subscriber) {
+  if (s.status !== 'ACTIVE') return '—'
+  return [s.weeklyDigest ? 'Weekly' : null, s.specialAlerts ? 'Alerts' : null].filter(Boolean).join(' + ') || '—'
 }
 
 export default function SubscribersPage() {
@@ -33,11 +57,13 @@ export default function SubscribersPage() {
 
   const exportCSV = useCallback(() => {
     const rows = [
-      ['Email', 'Subscribed At', 'Status'],
+      ['Email', 'Signed Up At', 'Status', 'Confirmed At', 'Topics'],
       ...subscribers.map((s) => [
         s.email,
         format(new Date(s.subscribedAt), 'yyyy-MM-dd HH:mm'),
-        'Active',
+        STATUS_LABEL[s.status] ?? s.status,
+        s.confirmedAt ? format(new Date(s.confirmedAt), 'yyyy-MM-dd HH:mm') : '',
+        topics(s),
       ]),
     ]
     // Subscriber addresses are public input. A cell that starts with = + - @ (or a tab/CR) is run as a
@@ -63,7 +89,7 @@ export default function SubscribersPage() {
           >
             Subscribers
           </h1>
-          <p className="text-[var(--fg-muted)] text-sm">Newsletter subscriber list and export.</p>
+          <p className="text-[var(--fg-muted)] text-sm">Newsletter sign-ups, their consent status and topics. Only confirmed subscribers are ever mailed.</p>
         </div>
       </PortalSection>
 
@@ -74,14 +100,17 @@ export default function SubscribersPage() {
           <Users size={18} className="text-gold/60 shrink-0" />
           <div>
             <p className="text-[var(--fg-faint)] text-[10px] uppercase tracking-widest mb-0.5">
-              Total Subscribers
+              Confirmed Subscribers
             </p>
             <p
               className="text-3xl font-bold text-[var(--fg)]"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
-              {loading ? '-' : subscribers.length.toLocaleString()}
+              {loading ? '-' : subscribers.filter((s) => s.status === 'ACTIVE').length.toLocaleString()}
             </p>
+            {!loading && (
+              <p className="text-[var(--fg-faint)] text-[11px] mt-0.5">of {subscribers.length.toLocaleString()} sign-ups recorded</p>
+            )}
           </div>
         </div>
       </PortalSection>
@@ -150,9 +179,10 @@ export default function SubscribersPage() {
                         {format(new Date(sub.subscribedAt), 'd MMM yyyy')}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <span className="text-xs font-bold px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                          Active
+                        <span className={`text-xs font-bold px-2 py-0.5 whitespace-nowrap ${STATUS_STYLE[sub.status] ?? STATUS_STYLE.PENDING}`}>
+                          {STATUS_LABEL[sub.status] ?? sub.status}
                         </span>
+                        <span className="block text-[11px] text-[var(--fg-faint)] mt-1">{topics(sub)}</span>
                       </td>
                     </tr>
                   ))}

@@ -10,7 +10,7 @@
  *   (Overview)            Dashboard, Team Profile (own profile, for roles that have one)
  *   Content               articles, drafts, series, scheduling, trash, debates
  *   Review                review queue, comments                             editors and admins
- *   People & Audience     Team Members, Users, Subscribers                   admins (subscribers: editors too)
+ *   People & Audience     Team Members, Users, Subscribers, Newsletter       admins (subscribers, newsletter: editors too)
  *   Insights              analytics, readers, predictions, glossary, leaderboard
  *   Administration        Login Attempts, Data Management                    admins
  *   Testing               role testing, kept apart from everyday administration (admins)
@@ -63,6 +63,7 @@ export function buildNav({ role, trashCount = 0 }: NavInput): NavGroupSpec[] {
           { href: '/editorial', icon: 'dashboard', label: 'Dashboard', exact: true },
           { href: '/editorial/analytics', icon: 'analytics', label: 'Analytics' },
           { href: '/editorial/growth/subscribers', icon: 'subscribers', label: 'Subscribers', exact: true },
+          { href: '/editorial/newsletter', icon: 'mail', label: 'Newsletter' },
           { href: '/editorial/growth/engagement', icon: 'engagement', label: 'Engagement', exact: true },
           { href: '/editorial/team-profile', icon: 'profile', label: 'Team Profile', exact: true },
         ],
@@ -120,7 +121,8 @@ export function buildNav({ role, trashCount = 0 }: NavInput): NavGroupSpec[] {
               { href: '/editorial/users', icon: 'users' as const, label: 'Users' },
             ]
           : []),
-        { href: '/admin/subscribers', icon: 'mail', label: 'Subscribers' },
+        { href: '/admin/subscribers', icon: 'subscribers', label: 'Subscribers' },
+        { href: '/editorial/newsletter', icon: 'mail', label: 'Newsletter' },
       ],
     })
   }

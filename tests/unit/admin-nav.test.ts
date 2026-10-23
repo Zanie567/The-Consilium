@@ -8,7 +8,7 @@ const ADMIN_ONLY_HREFS = [
 ]
 const EDITOR_HREFS = [
   '/editorial/debates', '/editorial/series', '/editorial/scheduled', '/editorial/trash', '/editorial/review',
-  '/editorial/comments', '/admin/subscribers',
+  '/editorial/comments', '/admin/subscribers', '/editorial/newsletter',
 ]
 const hrefs = (role: string) => navHrefs({ role })
 
@@ -21,7 +21,7 @@ describe('navigation by role', () => {
     const labels = (id: string) => groups.find((g) => g.id === id)!.items.map((i) => i.label)
     expect(labels('overview')).toEqual(['Dashboard', 'Team Profile'])
     expect(labels('content')).toEqual(expect.arrayContaining(['All Articles', 'New Article', 'Debates']))
-    expect(labels('people')).toEqual(['Team Members', 'Users', 'Subscribers'])
+    expect(labels('people')).toEqual(['Team Members', 'Users', 'Subscribers', 'Newsletter'])
     expect(labels('administration')).toEqual(['Login Attempts', 'Data Management'])
   })
 
@@ -56,7 +56,7 @@ describe('navigation by role', () => {
 
   it('growth gets its own small set and nothing from editing or administration', () => {
     expect(hrefs('GROWTH')).toEqual([
-      '/editorial', '/editorial/analytics', '/editorial/growth/subscribers', '/editorial/growth/engagement', '/editorial/team-profile',
+      '/editorial', '/editorial/analytics', '/editorial/growth/subscribers', '/editorial/newsletter', '/editorial/growth/engagement', '/editorial/team-profile',
     ])
   })
 

@@ -49,6 +49,10 @@ export function isolatedServiceEnv(opts: IsolatedServiceOptions): Record<string,
     EMAIL_TRANSPORT: 'capture',
     EMAIL_CAPTURE_FILE: opts.emailCaptureFile,
     RESEND_API_KEY: '',
+    // Newsletter (marketing) delivery: explicitly off, with no marketing key. The app also forces capture in
+    // any test environment; this keeps .env.local from ever filling these in for next build/start.
+    NEWSLETTER_DELIVERY: 'disabled',
+    RESEND_MARKETING_API_KEY: '',
     // Auth + site URLs point at the test server; Google sign-in is switched off.
     NEXTAUTH_SECRET: 'local_e2e_secret',
     NEXTAUTH_URL: appUrl,
@@ -96,7 +100,8 @@ export function assertIsolatedServiceEnv(env: Env = process.env): void {
   if (env.GOOGLE_CLIENT_ID || env.GOOGLE_CLIENT_SECRET) problems.push('Google OAuth credentials must be empty')
 
   // Missing is unsafe too: Next would fill missing values from .env.local.
-  for (const key of ['RESEND_API_KEY', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'FRED_API_KEY', 'ALPHA_VANTAGE_API_KEY']) {
+  if (env.NEWSLETTER_DELIVERY !== 'disabled') problems.push('NEWSLETTER_DELIVERY must be disabled')
+  for (const key of ['RESEND_API_KEY', 'RESEND_MARKETING_API_KEY', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'FRED_API_KEY', 'ALPHA_VANTAGE_API_KEY']) {
     if (env[key] !== '') problems.push(`${key} must be explicitly empty`)
   }
   for (const [key, value] of Object.entries({

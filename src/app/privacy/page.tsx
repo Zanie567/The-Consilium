@@ -27,7 +27,7 @@ export default function PrivacyPage() {
             This policy sets out what data we collect, why we collect it, how long we keep it, and
             what rights you have over it.
           </p>
-          <p className="text-[var(--fg-faint)] text-sm mt-4">Last updated: 19 October 2026</p>
+          <p className="text-[var(--fg-faint)] text-sm mt-4">Last updated: 23 October 2026</p>
         </div>
 
         <div className="prose-consilium space-y-10">
@@ -51,12 +51,40 @@ export default function PrivacyPage() {
               collect:
             </p>
 
-            <h3>Newsletter subscriptions</h3>
+            <h3 id="newsletter">Newsletter subscriptions</h3>
             <p>
-              When you subscribe to our newsletter, we store your email address. We use it to send
-              you new articles and updates. The legal basis is your consent: you can unsubscribe at
-              any time using the link at the bottom of any newsletter email, and we will delete your
-              email address immediately.
+              Our newsletter is The Weekly Edition, sent on Fridays with the articles we published that
+              week. You can also choose to receive occasional special-article alerts; these are off
+              unless you tick the box, and we send at most one a week. Creating an account on the site
+              does not subscribe you to anything.
+            </p>
+            <p>
+              <strong>Confirmation first.</strong> When you enter your address we send one email asking
+              you to confirm. Nothing else is sent until you press the confirmation button, and sign-ups
+              that are never confirmed are deleted after 30 days. Addresses that signed up before
+              23 October 2026, when we introduced confirmation, are kept but not sent anything until
+              they confirm.
+            </p>
+            <p>
+              <strong>What we keep as proof of your consent:</strong> your email address, the topics you
+              chose, when you asked and when you confirmed, the version of the wording you agreed to, a
+              one-way keyed hash of your IP address (not the address itself) and your browser&apos;s
+              user-agent string, plus a record of every later change of preference. The legal basis is
+              your consent.
+            </p>
+            <p>
+              <strong>Changing your mind.</strong> Every newsletter has a link to change topics or
+              unsubscribe in one step, and you can ask for a personal preferences link at{' '}
+              <Link href="/newsletter/manage">/newsletter/manage</Link>. When you unsubscribe we stop
+              sending straight away and tell our email provider. We keep a record that you withdrew
+              consent and a one-way hash of your address on a suppression list, so the address cannot be
+              added again unless you subscribe and confirm afresh.
+            </p>
+            <p>
+              <strong>Delivery information.</strong> Our email provider tells us when a newsletter is
+              delivered, bounces or is reported as spam. Addresses that permanently bounce or report us
+              as spam are not mailed again. We do not track whether you open newsletters or which links
+              you click.
             </p>
 
             <h3>Reader accounts</h3>
@@ -122,7 +150,27 @@ export default function PrivacyPage() {
             <h2>How long we keep your data</h2>
             <ul>
               <li>
-                <strong>Newsletter subscriptions:</strong> until you unsubscribe
+                <strong>Newsletter subscriptions:</strong> until you unsubscribe; the record of an
+                unsubscribed address is deleted two years after you unsubscribe
+              </li>
+              <li>
+                <strong>Unconfirmed newsletter sign-ups:</strong> 30 days
+              </li>
+              <li>
+                <strong>Newsletter consent records</strong> (when and how you agreed, preference
+                changes, hashed IP address, user agent): while your subscription record exists and for
+                up to two years after it is deleted, so that we can show you consented
+              </li>
+              <li>
+                <strong>Newsletter suppression list:</strong> a one-way hash of the address only, kept
+                for as long as we send newsletters, so that we keep honouring your opt-out
+              </li>
+              <li>
+                <strong>Email delivery notifications</strong> (delivered, bounced, complained): 30 days
+              </li>
+              <li>
+                <strong>Sent newsletter editions:</strong> the content, send time and recipient totals
+                are kept as part of the publication&apos;s record; they contain no list of recipients
               </li>
               <li>
                 <strong>Account data, reading progress, and bookmarks:</strong> until you delete
@@ -167,7 +215,11 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong>Email delivery services:</strong> process email addresses and relevant message
-                information to deliver newsletters, account notifications, and other communications.
+                information to deliver account notifications and other communications. For the
+                newsletter, our email provider also holds the address and topic choices of confirmed
+                subscribers, sends each edition, handles one-click unsubscribes and tells us about
+                bounces and spam complaints. It may process this information outside the UK under
+                appropriate safeguards.
               </li>
             </ul>
             <p>

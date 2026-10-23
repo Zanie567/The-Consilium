@@ -383,12 +383,190 @@ model Bookmark {
   @@map("bookmarks")
 }
 
+// ── Newsletter ───────────────────────────────────────────────────────────────
+// See docs/newsletter/ and supabase/migrations/20261023120000_newsletter_subscriptions.sql.
+// The database is the source of truth for consent; Resend holds a synced copy.
+
+enum SubscriberStatus {
+  PENDING // signed up, not yet confirmed (double opt-in): never mailed
+  ACTIVE // confirmed: receives only the topics it opted in to
+  UNSUBSCRIBED // withdrew consent: re-subscribing needs a fresh confirmation
+  SUPPRESSED // hard bounce, complaint or provider suppression: never mailed
+  LEGACY // signed up before double opt-in existed: kept, never mailed until it reconfirms
+}
+
+enum SubscriberTokenPurpose {
+  CONFIRM // single use, 48 h: confirms a sign-up
+  MANAGE // 14 days: opens the preference centre; revoked on unsubscribe
+}
+
+enum NewsletterSyncState {
+  PENDING // the database changed and Resend has not been told yet
+  SYNCED
+  FAILED // last attempt failed; retried by the newsletter tick
+}
+
+enum NewsletterCampaignKind {
+  WEEKLY
+  ALERT
+}
+
+enum NewsletterCampaignStatus {
+  DRAFT // built, awaiting approval
+  SCHEDULED // approved for exactly this content, waiting for its send time
+  SENDING // claimed by one worker (lease); Resend broadcast being created or sent
+  SENT // handed to Resend exactly once (immutable apart from delivery counters)
+  FAILED // a send attempt failed before anything went out; retried with backoff
+  BLOCKED // the fail-closed publication check refused it; needs a rebuild and re-approval
+  CANCELLED
+  SKIPPED // nothing eligible this week: no empty email is sent
+}
+
 model Subscriber {
   id           String   @id @default(cuid())
   email        String   @unique
   subscribedAt DateTime @default(now())
 
+  status               SubscriberStatus    @default(PENDING)
+  // Topic preferences. Weekly is what people sign up for; alerts are opt-in only (never defaulted on).
+  weeklyDigest         Boolean             @default(true)
+  specialAlerts        Boolean             @default(false)
+  confirmedAt          DateTime?           @db.Timestamptz(3)
+  // Proof of consent for the current subscription: where, which wording, and a salted hash of the IP.
+  consentSource        String?
+  consentVersion       String?
+  consentIpHash        String?
+  preferencesUpdatedAt DateTime?           @db.Timestamptz(3)
+  unsubscribedAt       DateTime?           @db.Timestamptz(3)
+  unsubscribeSource    String?
+  suppressedAt         DateTime?           @db.Timestamptz(3)
+  suppressionReason    String?
+  // Resend Contacts mirror of this row.
+  resendContactId      String?             @unique
+  resendSyncState      NewsletterSyncState @default(PENDING)
+  resendSyncedAt       DateTime?           @db.Timestamptz(3)
+  resendSyncAttempts   Int                 @default(0)
+  resendSyncError      String?
+  // Provider-side time of the last contact change applied from a webhook (ignores out-of-order events).
+  resendUpdatedAt      DateTime?           @db.Timestamptz(3)
+
+  tokens        SubscriberToken[]
+  consentEvents SubscriberConsentEvent[]
+
+  @@index([status])
+  @@index([resendSyncState])
   @@map("subscribers")
+}
+
+// Hashed (SHA-256) tokens for email links. The raw token only ever exists in the email itself.
+model SubscriberToken {
+  id           String                 @id @default(cuid())
+  subscriberId String
+  subscriber   Subscriber             @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  purpose      SubscriberTokenPurpose
+  tokenHash    String                 @unique
+  createdAt    DateTime               @default(now()) @db.Timestamptz(3)
+  expiresAt    DateTime               @db.Timestamptz(3)
+  usedAt       DateTime?              @db.Timestamptz(3)
+
+  @@index([subscriberId, purpose, createdAt])
+  @@index([createdAt])
+  @@map("subscriber_tokens")
+}
+
+// Append-only consent record. Survives erasure of the subscriber row (subscriberId -> NULL, emailHash kept)
+// so the publication can still show when consent was given or withdrawn.
+model SubscriberConsentEvent {
+  id             String      @id @default(cuid())
+  subscriberId   String?
+  subscriber     Subscriber? @relation(fields: [subscriberId], references: [id], onDelete: SetNull)
+  emailHash      String
+  action         String
+  source         String
+  weeklyDigest   Boolean?
+  specialAlerts  Boolean?
+  consentVersion String?
+  ipHash         String?
+  userAgent      String?
+  actor          String?
+  detail         Json?
+  createdAt      DateTime    @default(now()) @db.Timestamptz(3)
+
+  @@index([subscriberId, createdAt])
+  @@index([emailHash, createdAt])
+  @@index([createdAt])
+  @@map("subscriber_consent_events")
+}
+
+// Addresses that must not be mailed (or must not be re-subscribed without a fresh confirmation), keyed by
+// a hash of the normalised address so the record outlives the subscriber row.
+model NewsletterSuppression {
+  emailHash String   @id
+  reason    String
+  source    String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@map("newsletter_suppressions")
+}
+
+// One row per edition or alert. `editionKey` is the database-level guarantee of one send per edition.
+model NewsletterCampaign {
+  id                String                   @id @default(cuid())
+  kind              NewsletterCampaignKind
+  editionKey        String                   @unique
+  status            NewsletterCampaignStatus @default(DRAFT)
+  subject           String
+  previewText       String?
+  intro             String?                  @db.Text
+  // Snapshot of the articles exactly as approved: [{ id, slug, title, author, summary, imageUrl, url, publishedAt }].
+  articles          Json
+  contentHash       String
+  windowStart       DateTime?                @db.Timestamptz(3)
+  windowEnd         DateTime?                @db.Timestamptz(3)
+  articleId         String?
+  scheduledFor      DateTime?                @db.Timestamptz(3)
+  createdById       String?
+  createdByName     String?
+  approvedById      String?
+  approvedByName    String?
+  approvedAt        DateTime?                @db.Timestamptz(3)
+  approvedHash      String?
+  cancelledById     String?
+  cancelledAt       DateTime?                @db.Timestamptz(3)
+  cancelReason      String?
+  blockedReason     String?                  @db.Text
+  resendBroadcastId String?                  @unique
+  sendAttempts      Int                      @default(0)
+  leaseUntil        DateTime?                @db.Timestamptz(3)
+  nextAttemptAt     DateTime?                @db.Timestamptz(3)
+  lastError         String?                  @db.Text
+  sentAt            DateTime?                @db.Timestamptz(3)
+  recipientCount    Int?
+  deliveredCount    Int                      @default(0)
+  bouncedCount      Int                      @default(0)
+  complainedCount   Int                      @default(0)
+  createdAt         DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime                 @updatedAt @db.Timestamptz(3)
+
+  @@index([status, scheduledFor])
+  @@index([kind, sentAt])
+  @@map("newsletter_campaigns")
+}
+
+// Verified Resend (Svix) webhook deliveries, keyed by svix-id for idempotency. Pruned after 30 days.
+model NewsletterWebhookEvent {
+  id          String    @id
+  type        String
+  status      String    @default("RECEIVED")
+  attempts    Int       @default(0)
+  payload     Json
+  lastError   String?   @db.Text
+  receivedAt  DateTime  @default(now()) @db.Timestamptz(3)
+  processedAt DateTime? @db.Timestamptz(3)
+
+  @@index([status, receivedAt])
+  @@map("newsletter_webhook_events")
 }
 
 model ContactMessage {
