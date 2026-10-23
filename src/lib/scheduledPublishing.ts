@@ -13,7 +13,7 @@ interface ScheduledPublishArticleResult {
 interface ScheduledPublishWarning {
   articleId: string
   title: string
-  stage: 'email' | 'notification' | 'achievement' | 'hidden-debate'
+  stage: 'publish' | 'email' | 'notification' | 'achievement' | 'hidden-debate'
   message: string
 }
 
@@ -22,6 +22,8 @@ export interface ScheduledPublishResult {
   dueCount: number
   published: ScheduledPublishArticleResult[]
   skipped: ScheduledPublishArticleResult[]
+  /** Due articles whose publication write failed. They stay SCHEDULED; the next run retries them. */
+  failed: ScheduledPublishArticleResult[]
   warnings: ScheduledPublishWarning[]
 }
 
@@ -41,6 +43,7 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
 
   const published: ScheduledPublishArticleResult[] = []
   const skipped: ScheduledPublishArticleResult[] = []
+  const failed: ScheduledPublishArticleResult[] = []
   const warnings: ScheduledPublishWarning[] = []
 
   for (const article of due) {
@@ -66,9 +69,18 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
     } catch (error) {
       // The debate was hidden between the listing above and this write. Skip this article only:
       // one refusal must not abort the rest of the run.
-      if (!isHiddenDebateViolation(error)) throw error
-      skipped.push(summary)
-      warnings.push({ articleId: article.id, title: article.title, stage: 'hidden-debate', message: 'Skipped: its debate is unpublished or deleted.' })
+      if (isHiddenDebateViolation(error)) {
+        skipped.push(summary)
+        warnings.push({ articleId: article.id, title: article.title, stage: 'hidden-debate', message: 'Skipped: its debate is unpublished or deleted.' })
+        continue
+      }
+      // Any other failure (a dropped connection, a timeout) is confined to this article too.
+      // Throwing here used to abandon the run after earlier articles were already live: their
+      // cache invalidation never ran and the response hid that they had been published. This
+      // article is untouched (the write did not commit), so it stays due and the next run retries it.
+      console.error(`[publish-scheduled] publishing ${article.id} failed:`, error instanceof Error ? error.message : error)
+      failed.push(summary)
+      warnings.push({ articleId: article.id, title: article.title, stage: 'publish', message: 'Publishing failed; it is still scheduled and the next run will retry it.' })
       continue
     }
 
@@ -150,6 +162,7 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
     dueCount: due.length,
     published,
     skipped,
+    failed,
     warnings,
   }
 }
