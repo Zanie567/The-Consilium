@@ -70,12 +70,11 @@ test('delete table, edit/cancel/remove footnotes, spacing, counts and theme surv
   await ctx.close()
 })
 
-test('review studio links to Manage corrections; commendation, feature and pin persist', async ({ browser }) => {
+test('review studio links to Manage corrections and the carousel manager; commendation and pin persist', async ({ browser }) => {
   test.setTimeout(90_000) // Several saves, reloads and public pages; per-action deadline remains 10s.
   const ctx = await signedIn(browser, 'editor')
   const page = await ctx.newPage()
   const ed = new ArticleEditorPage(page)
-  const featuredBefore = await db().article.findMany({ where: { isFeatured: true }, select: { id: true } })
   try {
     await ed.openNew()
     const title = uniqueTitle('review-controls')
@@ -87,29 +86,27 @@ test('review studio links to Manage corrections; commendation, feature and pin p
     // The old checkbox-and-note control is retired: corrections have their own dated, approved workflow.
     await expect(page.getByRole('checkbox', { name: 'Mark as corrected' })).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Manage corrections' })).toHaveAttribute('href', `/editorial/articles/${id}/corrections`)
+    // The single "featured" flag is retired (#163): the homepage carousel is curated in the article editor.
+    await expect(page.getByRole('button', { name: 'Featured', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Manage homepage carousel in article editor' })).toHaveAttribute('href', `/editorial/articles/${id}/edit`)
     await page.getByLabel('Editorial commendation (optional)').fill('Clear reporting with strong sources.')
     const commendation = page.waitForResponse(r => r.url().endsWith('/commendation') && r.request().method() === 'PATCH')
     await page.getByRole('button', { name: 'Save commendation' }).click()
     expect((await commendation).status()).toBe(200)
-    for (const [name, endpoint] of [['Featured', 'feature'], ['Pinned', 'pin']]) {
-      const button = page.getByRole('button', { name, exact: true })
-      const response = page.waitForResponse(r => r.url().endsWith(`/${endpoint}`) && r.request().method() === 'POST')
-      await button.click()
-      expect((await response).status()).toBe(200)
-      await expect(button).toHaveAttribute('aria-pressed', 'true')
-    }
+    const pin = page.getByRole('button', { name: 'Pinned', exact: true })
+    const pinned = page.waitForResponse(r => r.url().endsWith('/pin') && r.request().method() === 'POST')
+    await pin.click()
+    expect((await pinned).status()).toBe(200)
+    await expect(pin).toHaveAttribute('aria-pressed', 'true')
     await page.reload({ waitUntil: 'networkidle' })
     await expect(page.getByLabel('Editorial commendation (optional)')).toHaveValue('Clear reporting with strong sources.')
     const row = (await articleByTitle(title))!
-    expect(row).toMatchObject({ corrected: false, correctionNote: null, isFeatured: true, isPinned: true })
-    for (const [name, endpoint] of [['Featured', 'feature'], ['Pinned', 'pin']]) {
-      const response = page.waitForResponse(r => r.url().endsWith(`/${endpoint}`) && r.request().method() === 'DELETE')
-      await page.getByRole('button', { name, exact: true }).click()
-      expect((await response).status()).toBe(200)
-      await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute('aria-pressed', 'false')
-    }
+    expect(row).toMatchObject({ corrected: false, correctionNote: null, isPinned: true })
+    const unpinned = page.waitForResponse(r => r.url().endsWith('/pin') && r.request().method() === 'DELETE')
+    await page.getByRole('button', { name: 'Pinned', exact: true }).click()
+    expect((await unpinned).status()).toBe(200)
+    await expect(page.getByRole('button', { name: 'Pinned', exact: true })).toHaveAttribute('aria-pressed', 'false')
   } finally {
-    await db().article.updateMany({ where: { id: { in: featuredBefore.map(a => a.id) } }, data: { isFeatured: true } })
     await ctx.close()
   }
 })
@@ -169,4 +166,63 @@ test('editor document settings, publish, live link, unpublish and schedule work 
   expect(row.scheduledAt?.toISOString()).toBe('2027-01-15T12:30:00.000Z')
   expect(row.authorId).toBe(writerOption)
   await ctx.close()
+})
+
+test('homepage carousel: an editor reorders it, the homepage follows, and the next publication restores newest-first', async ({ browser }) => {
+  test.setTimeout(120_000) // Editor, list and homepage navigations; each action keeps its own 10s deadline.
+  const ctx = await signedIn(browser, 'editor')
+  const page = await ctx.newPage()
+  const author = await db().user.findFirstOrThrow({ where: { role: 'EDITOR' }, select: { id: true } })
+  const previous = await db().siteSetting.findUnique({ where: { key: 'homepage_carousel_v1' } })
+  const now = Date.now()
+  // Three stories newer than anything published so far, so they form the automatic (newest-first) carousel.
+  const [newest, middle, oldest] = await Promise.all([0, 1, 2].map(i => {
+    const title = uniqueTitle(`carousel-${i}`)
+    return db().article.create({ data: {
+      title, slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-'), content: 'Carousel fixture body.',
+      authorId: author.id, status: 'PUBLISHED', publishedAt: new Date(now - i * 10),
+    } })
+  }))
+  const dot = (position: number, title: string) => page.getByRole('button', { name: `Featured article ${position} of 3: ${title}`, exact: true })
+  try {
+    await db().siteSetting.deleteMany({ where: { key: 'homepage_carousel_v1' } })
+    await page.goto(`/editorial/articles/${newest.id}/edit`, { waitUntil: 'networkidle' })
+    const manager = page.getByRole('region', { name: 'Homepage carousel management' }).filter({ visible: true })
+    const order = manager.getByRole('list', { name: 'Carousel articles in display order' })
+    await expect(order.getByRole('listitem')).toHaveCount(3)
+    await expect(order.getByRole('listitem').first()).toContainText(newest.title)
+    await manager.getByRole('button', { name: `Move ${newest.title} down`, exact: true }).click()
+    await expect(order.getByRole('listitem').first()).toContainText(middle.title)
+    const saved = page.waitForResponse(r => r.url().endsWith('/api/editorial/homepage-carousel') && r.request().method() === 'PATCH')
+    await manager.getByRole('button', { name: 'Save carousel order', exact: true }).click()
+    expect((await saved).status()).toBe(200)
+    await expect(manager.getByRole('status')).toContainText('Order saved')
+
+    // A fresh request reflects the saved order: the invalidation reached the cached homepage.
+    await page.goto('/', { waitUntil: 'networkidle' })
+    await expect(dot(1, middle.title)).toBeVisible()
+    await expect(dot(2, newest.title)).toBeVisible()
+    await expect(dot(3, oldest.title)).toBeVisible()
+
+    // Publishing a newer story expires the manual order: newest-first comes back automatically.
+    const latestTitle = uniqueTitle('carousel-latest')
+    const latest = await db().article.create({ data: {
+      title: latestTitle, slug: latestTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'), content: 'Newest carousel story.',
+      authorId: author.id, status: 'DRAFT',
+    } })
+    await page.goto('/editorial/articles', { waitUntil: 'networkidle' })
+    const row = page.getByRole('row').filter({ hasText: latest.title })
+    const published = page.waitForResponse(r => r.url().endsWith(`/api/articles/${latest.id}`) && r.request().method() === 'PUT')
+    await row.getByRole('button', { name: 'Publish', exact: true }).click()
+    await confirmPublicChange(page, 'Publish now')
+    expect((await published).status()).toBe(200)
+    await page.goto('/', { waitUntil: 'networkidle' })
+    await expect(dot(1, latest.title)).toBeVisible()
+    await expect(dot(2, newest.title)).toBeVisible()
+    await expect(dot(3, middle.title)).toBeVisible()
+  } finally {
+    await db().siteSetting.deleteMany({ where: { key: 'homepage_carousel_v1' } })
+    if (previous) await db().siteSetting.create({ data: previous })
+    await ctx.close()
+  }
 })
