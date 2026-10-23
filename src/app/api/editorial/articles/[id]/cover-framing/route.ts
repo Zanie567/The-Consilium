@@ -6,7 +6,7 @@ import { editorCanAccessArticleCategory } from '@/lib/articleCategoryAccess'
 import { prisma } from '@/lib/prisma'
 import { withTestingAudit } from '@/lib/testingAudit'
 import {
-  coverFramingKey, defaultCoverFraming, parseCoverFraming,
+  coverFramingKey, parseCoverFraming,
   validateCoverFraming, writerMayFrameCover,
 } from '@/lib/coverFraming'
 
