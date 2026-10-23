@@ -10,28 +10,28 @@ interface Context { params: Promise<{ id: string }> }
 
 async function authorisedCover(id: string) {
   const auth = await requireVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
-  if (!auth.ok) return { response: auth.response } as const
+  if (!auth.ok) return { ok: false as const, response: auth.response }
   const article = await prisma.article.findUnique({
     where: { id },
     select: { id: true, coverImage: true, categoryId: true, deletedAt: true, authorId: true, status: true },
   })
   if (!article || article.deletedAt) {
-    return { response: NextResponse.json({ error: 'Article not found.' }, { status: 404 }) } as const
+    return { ok: false as const, response: NextResponse.json({ error: 'Article not found.' }, { status: 404 }) } as const
   }
   if (auth.user.role === 'WRITER' && (article.authorId !== auth.user.id || article.status === 'PUBLISHED')) {
-    return { response: NextResponse.json({ error: 'Writers can change attribution only on their own unpublished drafts.' }, { status: 403 }) } as const
+    return { ok: false as const, response: NextResponse.json({ error: 'Writers can change attribution only on their own unpublished drafts.' }, { status: 403 }) } as const
   }
   if (auth.user.role === 'EDITOR' &&
       !(await editorCanAccessArticleCategory(auth.user.id, article.categoryId))) {
-    return { response: NextResponse.json({ error: 'This article is outside your assigned categories.' }, { status: 403 }) } as const
+    return { ok: false as const, response: NextResponse.json({ error: 'This article is outside your assigned categories.' }, { status: 403 }) } as const
   }
-  return { article, user: auth.user } as const
+  return { ok: true as const, article, user: auth.user }
 }
 
 export async function GET(_req: Request, { params }: Context) {
   const { id } = await params
   const auth = await authorisedCover(id)
-  if ('response' in auth) return auth.response
+  if (!auth.ok) return auth.response
   try {
     const setting = await prisma.siteSetting.findUnique({
       where: { key: coverMetadataKey(id) },
@@ -48,7 +48,7 @@ export async function GET(_req: Request, { params }: Context) {
 async function PATCHHandler(req: Request, { params }: Context) {
   const { id } = await params
   const auth = await authorisedCover(id)
-  if ('response' in auth) return auth.response
+  if (!auth.ok) return auth.response
   let metadata
   try {
     metadata = validateCoverMetadata(await req.json())
