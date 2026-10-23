@@ -1,4 +1,4 @@
-import { test, expect, type Browser, type Page } from '@playwright/test'
+import { test, expect, type Browser, type BrowserContext, type Page } from '@playwright/test'
 import {
   closeDb,
   createAccount,
@@ -49,6 +49,19 @@ async function teamProfile(page: Page) {
   return bio
 }
 
+/**
+ * Each save calls router.refresh(). Navigating the same tab while that refresh is still in flight
+ * makes WebKit interrupt the navigation or abort the refresh's script loads ("Load failed"), and
+ * waitForLoadState('networkidle') cannot wait for it: the document reached that state long before.
+ * After a save, continue in a fresh tab instead, as wf-controls does. Console errors from every tab
+ * still count.
+ */
+async function freshTab(ctx: BrowserContext, errors: string[][]) {
+  const tab = await ctx.newPage()
+  errors.push(collectConsoleErrors(tab))
+  return tab
+}
+
 const accountRow = (id: string) => db().user.findUniqueOrThrow({ where: { id } })
 const cardRow = (userId: string) => db().teamMember.findUniqueOrThrow({ where: { userId } })
 
@@ -69,8 +82,8 @@ test('the account page and the Team Profile edit one profile; previews and publi
   test.setTimeout(150_000)
   const { account } = await contributor('one-profile', { accountBio: DETAILED, cardBio: 'Short card bio.' })
   const ctx = await withCookieConsentAnswered(await signInAs(browser, account))
-  const page = await ctx.newPage()
-  const errors = collectConsoleErrors(page)
+  const errors: string[][] = []
+  let page = await freshTab(ctx, errors)
 
   // The account page explains the link prominently and shows the team profile's version, with the
   // account's own different text offered rather than lost.
@@ -91,23 +104,25 @@ test('the account page and the Team Profile edit one profile; previews and publi
   const saved = page.waitForResponse((r) => r.url().endsWith('/api/profile/account') && r.request().method() === 'PATCH')
   await page.getByRole('button', { name: 'Save Changes', exact: true }).click()
   expect((await saved).status()).toBe(200)
-  // The save refreshes the server-rendered page; let that finish before navigating away.
   await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeVisible()
-  await page.waitForLoadState('networkidle')
   expect((await accountRow(account.id)).bio).toBe(typed)
   expect((await cardRow(account.id)).bio).toBe(typed)
   await expect(page.getByTestId('differs-bio')).toHaveCount(0)
 
-  // Test A: the Team Profile, after a reload, and the public pages show it.
+  // Test A: the Team Profile, freshly loaded, and the public pages show it.
+  page = await freshTab(ctx, errors)
   await expect(await teamProfile(page)).toHaveValue(typed)
   await expectPublic(browser, account, typed)
 
   // Test B: edit on the Team Profile; the account page follows.
   const second = 'Edited on the Team Profile: covers fiscal policy.'
   await page.locator('#tp-bio').fill(second)
+  const teamSaved = page.waitForResponse((r) => r.url().endsWith('/api/team-profile') && r.request().method() === 'PUT')
   await page.getByRole('button', { name: 'Save changes' }).click()
+  expect((await teamSaved).status()).toBe(200)
   await expect(page.getByRole('status').filter({ hasText: 'Your team profile has been saved' })).toBeVisible()
-  await page.waitForLoadState('networkidle')
+  expect((await accountRow(account.id)).bio).toBe(second)
+  page = await freshTab(ctx, errors)
   await expect(await settings(page)).toHaveValue(second)
   await expectPublic(browser, account, second)
 
@@ -115,7 +130,7 @@ test('the account page and the Team Profile edit one profile; previews and publi
   await page.setViewportSize({ width: 390, height: 844 })
   await settings(page)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-  expect(errors).toEqual([])
+  expect(errors.flat()).toEqual([])
   await ctx.close()
 })
 
@@ -139,14 +154,13 @@ test('photos: uploaded on the account page, removed on the Team Profile, consist
   test.setTimeout(120_000)
   const { account } = await contributor('photo')
   const ctx = await withCookieConsentAnswered(await signInAs(browser, account))
-  const page = await ctx.newPage()
-  const errors = collectConsoleErrors(page)
+  const errors: string[][] = []
+  let page = await freshTab(ctx, errors)
 
   await settings(page)
   const uploaded = page.waitForResponse((r) => r.url().endsWith('/api/profile/account') && r.request().method() === 'PATCH')
   await page.locator('input[type="file"]').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: makePng(96, [30, 90, 160]) })
   expect((await uploaded).status()).toBe(200)
-  await page.waitForLoadState('networkidle')
   const accountImage = (await accountRow(account.id)).image
   expect(accountImage).toContain(`/avatars/${account.id}/`)
   expect((await cardRow(account.id)).image).toBe(accountImage)
@@ -156,16 +170,17 @@ test('photos: uploaded on the account page, removed on the Team Profile, consist
   await expect(pub.getByRole('img', { name: new RegExp(`^${account.name},`) })).toHaveAttribute('src', new RegExp(encodeURIComponent(`avatars/${account.id}/`)))
   await pub.context().close()
 
+  page = await freshTab(ctx, errors)
   await teamProfile(page)
   await page.getByRole('button', { name: 'Remove' }).click()
   await page.getByRole('button', { name: 'Save changes' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Your team profile has been saved' })).toBeVisible()
-  await page.waitForLoadState('networkidle')
   expect((await accountRow(account.id)).image).toBeNull()
   expect((await cardRow(account.id)).image).toBeNull()
+  page = await freshTab(ctx, errors)
   await settings(page)
   await expect(page.getByRole('button', { name: 'Upload Photo' })).toBeVisible()
-  expect(errors).toEqual([])
+  expect(errors.flat()).toEqual([])
   await ctx.close()
 })
 
