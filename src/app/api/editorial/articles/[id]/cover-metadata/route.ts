@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireVerifiedSessionUser } from '@/lib/auth'
-import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
+import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 import { editorCanAccessArticleCategory } from '@/lib/articleCategoryAccess'
 import { withTestingAudit } from '@/lib/testingAudit'
 import { coverMetadataKey, parseCoverMetadata, validateCoverMetadata } from '@/lib/coverImageMetadata'
@@ -9,14 +9,17 @@ import { coverMetadataKey, parseCoverMetadata, validateCoverMetadata } from '@/l
 interface Context { params: Promise<{ id: string }> }
 
 async function authorisedCover(id: string) {
-  const auth = await requireVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
+  const auth = await requireVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
   if (!auth.ok) return { response: auth.response } as const
   const article = await prisma.article.findUnique({
     where: { id },
-    select: { id: true, coverImage: true, categoryId: true, deletedAt: true },
+    select: { id: true, coverImage: true, categoryId: true, deletedAt: true, authorId: true, status: true },
   })
   if (!article || article.deletedAt) {
     return { response: NextResponse.json({ error: 'Article not found.' }, { status: 404 }) } as const
+  }
+  if (auth.user.role === 'WRITER' && (article.authorId !== auth.user.id || article.status === 'PUBLISHED')) {
+    return { response: NextResponse.json({ error: 'Writers can change attribution only on their own unpublished drafts.' }, { status: 403 }) } as const
   }
   if (auth.user.role === 'EDITOR' &&
       !(await editorCanAccessArticleCategory(auth.user.id, article.categoryId))) {
