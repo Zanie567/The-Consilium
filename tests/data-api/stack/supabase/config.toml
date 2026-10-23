@@ -1,0 +1,53 @@
+# Disposable local Supabase stack for the Data API / Storage permission tests only.
+# Started with `supabase start --workdir tests/data-api/stack` by scripts/db/data-api-harness.sh.
+# It is never linked to a hosted project, and its migrations folder is intentionally
+# absent: the harness rebuilds the schema itself so it can model production's state.
+project_id = "consilium-data-api-tests"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.pooler]
+enabled = false
+
+[db.seed]
+enabled = false
+
+[realtime]
+enabled = false
+
+[studio]
+enabled = false
+
+[local_smtp]
+enabled = false
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+# Mirrors the worst case for production: anyone can self-register and obtain an
+# `authenticated` JWT. The app itself uses NextAuth, not Supabase Auth.
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+[edge_runtime]
+enabled = false
+
+[analytics]
+enabled = false
