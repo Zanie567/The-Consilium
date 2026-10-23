@@ -79,7 +79,7 @@ async function PATCHHandler(req: Request) {
   }
 }
 
-async function DELETEHandler() {
+async function DELETEHandler(_req: Request) {
   const auth = await requireVerifiedSessionUser(GLOSSARY_MANAGE_ROLES)
   if (!auth.ok) return auth.response
   try {
