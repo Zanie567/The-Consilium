@@ -21,7 +21,7 @@ import { safeJsonLd } from '@/lib/jsonLd'
 import { HeroSection } from '@/components/ui/HeroSection'
 import { ArticleEmptyState } from '@/components/ui/ArticleEmptyState'
 import { getSectionEmptyState, siteEmptyState } from '@/lib/sectionEmptyStates'
-import { selectHeroArticles } from '@/lib/heroArticles'
+import { HOME_CAROUSEL_SETTING_KEY, orderHomeCarousel, parseHomeCarouselSetting } from '@/lib/homeCarousel'
 import type { Metadata } from 'next'
 import { SITE_NAME, SITE_URL } from '@/lib/constants'
 import { canonicalAlternates, pageOpenGraph, pageTwitter } from '@/lib/seo'
@@ -43,22 +43,12 @@ export const dynamic = 'force-dynamic'
 // the historic prefetch 503 cause is not established for today's adapter/pool.
 const PUBLIC_LIST_CACHE = { revalidate: ARTICLES_REVALIDATE_SECONDS, tags: [ARTICLES_CACHE_TAG] }
 
-const getFeaturedArticle = unstable_cache(async () => {
-  // First try explicitly featured, then fall back to most recent published.
-  // The single oversized hero slot intentionally skips debate articles
-  // (one side of a two-sided debate is a poor standalone lead) — they still
-  // appear in the grid below and on their category page.
-  const featured = await prisma.article.findFirst({
-    where: publishedArticleWhere({ isFeatured: true, isDebate: false }),
-    include: { author: true, category: true },
+const getHomeCarouselSetting = unstable_cache(async () => {
+  return prisma.siteSetting.findUnique({
+    where: { key: HOME_CAROUSEL_SETTING_KEY },
+    select: { value: true },
   })
-  if (featured) return featured
-  return await prisma.article.findFirst({
-    where: publishedArticleWhere({ isDebate: false }),
-    orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
-    include: { author: true, category: true },
-  })
-}, ['home-featured'], PUBLIC_LIST_CACHE)
+}, ['home-carousel-settings'], PUBLIC_LIST_CACHE)
 
 const getMostReadArticles = unstable_cache(async () => {
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
@@ -226,27 +216,28 @@ export default async function HomePage({
   const cookieStore = await cookies()
   const anonymousId = cookieStore.get('consilium_anon_id')?.value
 
-  const [featured, articles, categories, mostRead, trendingTags, activeDebate] = await Promise.all([
-    // Optional panels can degrade, but fallbacks stay OUTSIDE shared caches.
-    // A failed main feed must show recovery UI rather than "nothing published".
-    getFeaturedArticle().catch(() => null),
+  const [articles, categories, mostRead, trendingTags, activeDebate, carouselSetting] = await Promise.all([
+    // Optional panels degrade outside their shared cache; a failed article feed
+    // remains an error so the existing recovery UI can retry it.
     getArticles(categorySlug),
     getCategories().catch(() => []),
     getMostReadArticles().catch(() => []),
     getTrendingTags().catch(() => []),
     getActiveDebate(session?.user?.id, anonymousId),
+    getHomeCarouselSetting().catch(() => null),
   ])
 
   // The featured hero is only shown on the unfiltered "All" view. On a
   // category-filtered view it must NOT be rendered, otherwise it would show the
   // global featured article that may not belong to the category.
-  const showHero = !categorySlug && !!featured
-  // The hero rotates through the featured article and the newest published ones
-  // — ordered and capped by selectHeroArticles, never by anything hard-coded
-  // here. Whatever it takes is withheld from the grid, so no article the hero is
-  // currently showing is repeated as a card directly beneath it; the rest of the
-  // feed continues unchanged, and nothing leaves the page.
-  const heroArticles = showHero ? selectHeroArticles(featured, articles) : []
+  const showHero = !categorySlug && articles.length > 0
+  // Newest-first is the default. Editors can temporarily reorder/replace the
+  // three visible stories. As soon as a newer story is published, the stored
+  // order expires and the newest three become the carousel automatically.
+  // Reuse these same articles for the grid exclusion, preventing duplicates.
+  const heroArticles = showHero
+    ? orderHomeCarousel(articles, parseHomeCarouselSetting(carouselSetting?.value))
+    : []
   const heroIds = new Set(heroArticles.map((a) => a.id))
   const articleGrid = showHero ? articles.filter((a) => !heroIds.has(a.id)) : articles
   // Empty-state copy for the grid. On a category tab it names the section ("News

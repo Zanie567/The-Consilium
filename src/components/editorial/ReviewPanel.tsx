@@ -4,7 +4,7 @@ import { articleStatusLabel } from '@/lib/articleStatusLabel'
 import { useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, nextFriday } from 'date-fns'
-import { ArrowLeft, Star, Pin, Clock, CheckCircle, RotateCcw, EyeOff, MessageSquare, FileWarning } from 'lucide-react'
+import { ArrowLeft, ListOrdered, Pin, Clock, CheckCircle, RotateCcw, EyeOff, MessageSquare, FileWarning } from 'lucide-react'
 import Link from 'next/link'
 import { Tooltip } from '@/components/ui/Tooltip'
 import {
@@ -66,7 +66,6 @@ export function ReviewPanel({ article }: Props) {
   const [scheduledAt, setScheduledAt] = useState(
     formatEditorialScheduleInput(article.scheduledAt ?? nextFriday(new Date()))
   )
-  const [isFeatured, setIsFeatured] = useState(article.isFeatured)
   const [isPinned, setIsPinned] = useState(article.isPinned)
   const [notes, setNotes] = useState<Note[]>(article.notes)
   const [status, setStatus] = useState(article.status)
@@ -116,18 +115,6 @@ export function ReviewPanel({ article }: Props) {
       setError(asApiError(reason).message)
     } finally {
       setLoading(null)
-    }
-  }
-
-  const toggleFeature = async () => {
-    const method = isFeatured ? 'DELETE' : 'POST'
-    setError('')
-    try {
-      const saved = await apiRequest<{ updatedAt: string }>(`/api/editorial/articles/${article.id}/feature`, { method, headers: { 'x-article-revision': revision } })
-      setRevision(saved.updatedAt)
-      setIsFeatured(!isFeatured)
-    } catch (reason) {
-      setError(asApiError(reason).message)
     }
   }
 
@@ -184,7 +171,12 @@ export function ReviewPanel({ article }: Props) {
           </div>
           {status === 'PUBLISHED' && (
             <div className="hidden gap-2 sm:flex">
-              <IconToggle active={isFeatured} label="Featured" onClick={toggleFeature} icon={<Star size={16} />} />
+              <Link href={`/editorial/articles/${article.id}/edit`}
+                aria-label="Manage homepage carousel in article editor"
+                title="Manage homepage carousel in article editor"
+                className="inline-flex items-center gap-2 rounded border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--fg-muted)] hover:text-gold">
+                <ListOrdered size={16} /> Carousel
+              </Link>
               <IconToggle active={isPinned} label="Pinned" onClick={togglePin} icon={<Pin size={16} />} />
             </div>
           )}

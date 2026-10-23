@@ -128,6 +128,7 @@ body {
 
 /* ─── Prose styles for article content ────────────────────────────────────── */
 .prose-consilium {
+  font-family: var(--font-eb-garamond), "EB Garamond", Georgia, serif;
   color: #1a1a1a;
   line-height: 1.7;
   font-size: 1.125rem; /* 18px desktop */
@@ -214,34 +215,22 @@ body {
   margin-bottom: 1.6em;
 }
 
+/* Links are part of the paragraph, not inline-block buttons.
+   In particular a multi-word citation must be free to wrap at spaces. */
 .prose-consilium a {
   color: #c9a227;
-  text-decoration: none;
-  position: relative;
-  transition: color 0.15s ease;
-  display: inline-block;
-}
-
-.prose-consilium a::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: 0px;
-  width: 100%;
-  height: 1px;
-  background: currentColor;
-  transform: scaleX(0);
-  transform-origin: right;
-  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  display: inline;
+  text-decoration: underline;
+  text-decoration-color: rgba(201, 162, 39, 0.65);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  overflow-wrap: break-word;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
 
 .prose-consilium a:hover {
   color: #a8841e;
-}
-
-.prose-consilium a:hover::after {
-  transform: scaleX(1);
-  transform-origin: left;
+  text-decoration-color: currentColor;
 }
 
 /* ── Glossary tooltips ──────────────────────────────────────────────────────
