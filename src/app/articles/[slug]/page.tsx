@@ -33,6 +33,7 @@ import { BRAND_MARK } from '@/lib/brand'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/constants'
 import { loadPublicCorrections, correctionsStructuredData } from '@/lib/corrections/public'
 import { CorrectionNotice, CorrectionsSection } from '@/components/article/ArticleCorrections'
+import { ArticleOpeningPosition } from '@/components/article/ArticleOpeningPosition'
 import { coverMetadataKey, parseCoverMetadata } from '@/lib/coverImageMetadata'
 import { bannerHeightClass, coverFramingImageStyle, coverFramingKey, parseCoverFraming } from '@/lib/coverFraming'
 
@@ -284,6 +285,7 @@ export default async function ArticlePage({ params }: Props) {
       />
       <ReadingProgress />
       <ReadingTracker articleId={article.id} />
+      {article.coverImage && <ArticleOpeningPosition articleId={article.id} />}
       <ViewCounter articleId={article.id} />
 
       {/* Print masthead - hidden on screen, shown when printing */}
@@ -362,6 +364,7 @@ export default async function ArticlePage({ params }: Props) {
         {/* Title */}
         <AnimateIn variant="fade-up" delay={0.05} duration={0.6}>
           <h1
+            data-article-opening-headline
             className="font-bold text-[var(--fg)] leading-tight mb-6 tracking-tight"
             style={{
               fontFamily: 'var(--font-serif)',
