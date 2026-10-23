@@ -158,13 +158,13 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
         </p>
       </div>
 
-      {editor.canPublish && !editor.isWriter && (
-        <HomeCarouselManager articleId={editor.articleId} />
-      )}
-
       <CoverFramingEditor articleId={editor.articleId} coverImage={editor.coverImage} canEdit={editor.canEdit && !Boolean(editor.recovery)} />
 
       <CoverAttributionEditor articleId={editor.articleId} coverImage={editor.coverImage} canEdit={editor.canEdit} />
+
+      {editor.canPublish && !editor.isWriter && (
+        <HomeCarouselManager articleId={editor.articleId} />
+      )}
 
       <div>
         <FieldLabel>
