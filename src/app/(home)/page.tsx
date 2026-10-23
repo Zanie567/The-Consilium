@@ -21,6 +21,7 @@ import { safeJsonLd } from '@/lib/jsonLd'
 import { HeroSection } from '@/components/ui/HeroSection'
 import { ArticleEmptyState } from '@/components/ui/ArticleEmptyState'
 import { getSectionEmptyState, siteEmptyState } from '@/lib/sectionEmptyStates'
+import { ARTICLE_CARD_SELECT, toArticleCard } from '@/lib/publicArticleCards'
 import { HOME_CAROUSEL_SETTING_KEY, orderHomeCarousel, parseHomeCarouselSetting } from '@/lib/homeCarousel'
 import type { Metadata } from 'next'
 import { SITE_NAME, SITE_URL } from '@/lib/constants'
@@ -77,7 +78,7 @@ const getMostReadArticles = unstable_cache(async () => {
 }, ['home-most-read'], PUBLIC_LIST_CACHE)
 
 const getArticles = unstable_cache(async (categorySlug?: string) => {
-  return await prisma.article.findMany({
+  const rows = await prisma.article.findMany({
     // Homepage hero + grid: published articles EXCLUDING debates.
     // Debate articles are surfaced on the homepage only through the dedicated
     // DebatePanel (and the /opinion-debate experience); listing each side again
@@ -90,8 +91,10 @@ const getArticles = unstable_cache(async (categorySlug?: string) => {
     ),
     orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
     take: 16,
-    include: { author: true, category: true },
+    // Card columns only: this list lives in the shared data cache (see publicArticleCards.ts).
+    select: ARTICLE_CARD_SELECT,
   })
+  return rows.map(toArticleCard)
 }, ['home-grid'], PUBLIC_LIST_CACHE)
 
 const getCategories = unstable_cache(async () => {
