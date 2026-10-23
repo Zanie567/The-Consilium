@@ -6,7 +6,7 @@ import { ArticlesList } from '@/components/editorial/ArticlesList'
 import { apiRequest } from '@/lib/apiClient'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
-vi.mock('next/link', () => ({ default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a> }))
+vi.mock('next/link', () => ({ default: ({ children, href, ...props }: React.ComponentProps<'a'>) => <a href={href} {...props}>{children}</a> }))
 vi.mock('@/lib/apiClient', () => ({ apiRequest: vi.fn(), asApiError: (reason: unknown) => reason }))
 afterEach(() => { cleanup(); vi.clearAllMocks() })
 
