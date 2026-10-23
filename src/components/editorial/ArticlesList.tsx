@@ -1,7 +1,6 @@
 'use client'
 import { articleStatusLabel } from '@/lib/articleStatusLabel'
 
-import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import Link from 'next/link'
@@ -46,7 +45,6 @@ const STATUS_STYLE: Record<string, string> = {
 }
 
 export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter, emptyMessage }: Props) {
-  const router = useRouter()
   const [articles, setArticles] = useState(initial)
   const [filter, setFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
