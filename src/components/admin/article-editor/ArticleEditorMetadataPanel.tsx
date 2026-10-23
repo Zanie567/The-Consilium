@@ -8,6 +8,7 @@ import { EDITORIAL_TIME_ZONE_LABEL, getEditorialScheduleMinInput } from '@/lib/e
 import { readTimeLabel, wordCountFromContent } from '@/lib/readTime'
 import { STATUS_COLOURS, STATUS_LABELS } from './constants'
 import { CoverAttributionEditor } from './CoverAttributionEditor'
+import { HomeCarouselManager } from './HomeCarouselManager'
 import type { ArticleEditorController, ArticleEditorRefs } from './types'
 
 interface ArticleEditorMetadataPanelProps {
@@ -155,6 +156,10 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
           For best results: landscape orientation, minimum 1200 px wide, subject centred in frame.
         </p>
       </div>
+
+      {editor.canPublish && !editor.isWriter && (
+        <HomeCarouselManager articleId={editor.articleId} />
+      )}
 
       <CoverAttributionEditor articleId={editor.articleId} coverImage={editor.coverImage} canEdit={editor.canEdit} />
 
