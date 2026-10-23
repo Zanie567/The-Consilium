@@ -317,7 +317,8 @@ test.describe('subscribers (growth, admin)', () => {
       await box.fill(email)
       const res = p.waitForResponse((r) => r.url().includes('/api/subscribe'))
       await p.locator('form', { has: box }).locator('button[type="submit"]').click()
-      expect((await res).status()).toBe(201)
+      // Double opt-in: the form answers 202 for every address; the row is recorded as awaiting confirmation.
+      expect((await res).status()).toBe(202)
       await p.close()
     }
     await anon.close()
@@ -337,7 +338,8 @@ test.describe('subscribers (growth, admin)', () => {
       const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Export CSV/i }).click()])
       expect(download.suggestedFilename()).toMatch(/^subscribers-\d{4}-\d{2}-\d{2}\.csv$/)
       const csv = fs.readFileSync((await download.path())!, 'utf8')
-      expect(csv.split('\n')[0]).toBe('"Email","Subscribed At","Status"')
+      expect(csv.split('\n')[0]).toBe('"Email","Signed Up At","Status","Confirmed At","Topics"')
+      expect(csv).toContain('"Awaiting confirmation"')
       expect(csv).toContain(a)
       expect(csv).toContain(b)
       expect(csv, 'formula cells are neutralised').not.toMatch(/(^|,)"[=+\-@]/m)

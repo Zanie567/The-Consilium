@@ -46,7 +46,7 @@ test.afterAll(async () => {
   await db.$disconnect()
 })
 
-test('newsletter validates, retries network failure, normalizes and deduplicates at mobile width', async ({
+test('newsletter validates, retries network failure, normalizes and deduplicates at mobile width (double opt-in)', async ({
   page,
 }) => {
   const errors: string[] = []
@@ -63,11 +63,11 @@ test('newsletter validates, retries network failure, normalizes and deduplicates
   await expect(page.getByRole('alert').filter({ hasText: 'Unable to subscribe' })).toBeVisible()
   await page.getByRole('button', { name: 'Subscribe', exact: true }).focus()
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('status')).toContainText('Thank you for subscribing')
+  await expect(page.getByRole('status')).toContainText('Check your inbox')
   await page.reload()
   await input.fill(email)
   await page.getByRole('button', { name: 'Subscribe', exact: true }).click()
-  await expect(page.getByRole('status')).toContainText('Thank you for subscribing')
+  await expect(page.getByRole('status')).toContainText('Check your inbox')
   expect(await db.subscriber.count({ where: { email } })).toBe(1)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   expect(errors).toEqual([])

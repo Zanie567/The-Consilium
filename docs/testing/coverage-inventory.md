@@ -20,6 +20,7 @@ The complete final-source [route/control census](control-inventory.json) records
 | Analytics/subscribers/engagement/writer metrics | Denied reports | Denied reports | Allowed | Allowed | Denied | BROWSER ranges/tabs/search/CSV; metrics partly UNIT/API_DB |
 | Your Readers/leaderboard | Own metrics | Own | Any/management | Direct permitted leaderboard | Denied portal | BROWSER `wf-discovery` author/period/sort/detail controls; calculations UNIT/API_DB |
 | Legacy `/admin/data`, `/admin/login-attempts`, `/admin/team` | Denied | Denied | Allowed | Denied | Denied | BROWSER `wf-remaining`, Team Profile; deletion API negative checks separate |
+| Newsletter `/editorial/newsletter` (view, build, edit, cancel, pause; approve/resume admin only) | Denied | Allowed (no approve) | Allowed | Allowed (no approve) | Denied | BROWSER `wf-newsletter` (Chromium+WebKit), API/DB `newsletter-*-db` |
 | Legacy `/admin/subscribers` | Denied | Allowed by existing route policy | Allowed | Denied | Denied | BROWSER navigation; portal subscriber workflows use Admin/Growth |
 | `/predictions`, detail, leaderboard trial | Denied | Denied | Allowed | Denied | Denied | BROWSER `wf-portal`; intentionally gated trial |
 | `/editorial/setup` | First-admin form only without existing admin | Same | Same | Same | Same | BROWSER conditional empty-admin fixture in owned database; existing-admin redirect/403 |
