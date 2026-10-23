@@ -14,10 +14,14 @@ export function ViewCounter({ articleId }: { articleId: string }) {
     let inFlight = false
     let pendingConsent = false
     let disposed = false
+    // After a 429/503 the server says when to come back. Heartbeats wait until then; the
+    // cumulative reading time is resent afterwards, so nothing is lost by waiting.
+    let retryAt = 0
     const send = (beacon = false) => {
       const seconds = clock.tick(performance.now())
       if (seconds === lastSent && !beacon) return
       if (inFlight && !beacon) return
+      if (!beacon && performance.now() < retryAt) return
       const body = JSON.stringify({
         articleId,
         visitId,
@@ -41,6 +45,10 @@ export function ViewCounter({ articleId }: { articleId: string }) {
         keepalive: beacon,
       }).then(response => {
         if (response.ok) lastSent = seconds
+        else if (response.status === 429 || response.status === 503) {
+          const after = Number(response.headers?.get('Retry-After'))
+          retryAt = performance.now() + Math.min(Math.max(Number.isFinite(after) && after > 0 ? after : 30, 1), 300) * 1000
+        }
       }).catch(() => {}).finally(() => {
         inFlight = false
         if (pendingConsent && !disposed) {

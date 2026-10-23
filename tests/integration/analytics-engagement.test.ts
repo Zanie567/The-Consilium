@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest'
+import { beforeAll, afterAll, beforeEach, afterEach, describe, it, expect, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -215,5 +215,55 @@ describe('canonical analytics persistence', () => {
         ).status
       ).toBe(200)
     expect(referrerOrigin('javascript:alert(1)')).toBeNull()
+  })
+})
+
+describe('view counting is one per reading, not one per event', () => {
+  let storyId: string
+  const views = async () => ({
+    rows: await prisma.articleView.count({ where: { articleId: storyId } }),
+    counter: (await prisma.article.findUniqueOrThrow({ where: { id: storyId } })).viewCount,
+  })
+  beforeEach(async () => {
+    storyId = (await prisma.article.create({
+      data: { title: 'View counting fixture', slug: randomUUID(), content: 'Body', authorId: userId, status: 'PUBLISHED', publishedAt: now },
+    })).id
+  })
+  afterEach(async () => { await prisma.article.delete({ where: { id: storyId } }) })
+
+  it('a visit that crosses a half-hour boundary is still one view', async () => {
+    const boundary = Math.ceil(now.getTime() / 1800000) * 1800000
+    const event = { articleId: storyId, sessionId: randomUUID(), visitId: randomUUID() }
+    await collectAnalytics({ ...event, activeSeconds: 0 }, new Date(boundary - 20000))
+    await collectAnalytics({ ...event, activeSeconds: 30 }, new Date(boundary + 10000))
+    await collectAnalytics({ ...event, activeSeconds: 60 }, new Date(boundary + 40000))
+    expect(await views()).toEqual({ rows: 1, counter: 1 })
+    expect((await prisma.articleEngagementSession.findUniqueOrThrow({ where: { id: event.visitId } })).activeSeconds).toBe(60)
+  })
+
+  it('a consented reader refreshing or opening a second tab is one view', async () => {
+    const reader = { articleId: storyId, readerId: randomUUID(), consent: true }
+    await collectAnalytics({ ...reader, sessionId: randomUUID(), visitId: randomUUID() }, now)
+    await collectAnalytics({ ...reader, sessionId: randomUUID(), visitId: randomUUID() }, new Date(now.getTime() + 5000))
+    expect(await views()).toEqual({ rows: 1, counter: 1 })
+  })
+
+  it('without consent nothing links two page loads, so each counts (privacy over precision)', async () => {
+    await collectAnalytics({ articleId: storyId, sessionId: randomUUID(), visitId: randomUUID(), consent: false }, now)
+    await collectAnalytics({ articleId: storyId, sessionId: randomUUID(), visitId: randomUUID(), consent: false }, now)
+    expect(await views()).toEqual({ rows: 2, counter: 2 })
+  })
+
+  it('granting consent mid-visit does not add a second view', async () => {
+    const event = { articleId: storyId, sessionId: randomUUID(), visitId: randomUUID() }
+    await collectAnalytics({ ...event, consent: false }, now)
+    await collectAnalytics({ ...event, consent: true, readerId: randomUUID(), activeSeconds: 30 }, new Date(now.getTime() + 30000))
+    expect(await views()).toEqual({ rows: 1, counter: 1 })
+  })
+
+  it('distinct readers are distinct views whatever network they share; the collector never sees an IP', async () => {
+    await Promise.all(Array.from({ length: 5 }, () =>
+      collectAnalytics({ articleId: storyId, sessionId: randomUUID(), visitId: randomUUID() }, now)))
+    expect(await views()).toEqual({ rows: 5, counter: 5 })
   })
 })
