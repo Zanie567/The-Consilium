@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireVerifiedSessionUser } from '@/lib/auth'
-import { GLOSSARY_MANAGE_ROLES } from '@/lib/rbac'
+import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 import { withTestingAudit } from '@/lib/testingAudit'
 import { publishedArticleWhere } from '@/lib/articleQueries'
 import { revalidateArticleLists } from '@/lib/revalidateArticles'
@@ -22,7 +22,7 @@ async function candidates() {
 }
 
 export async function GET() {
-  const auth = await requireVerifiedSessionUser(GLOSSARY_MANAGE_ROLES)
+  const auth = await requireVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
   if (!auth.ok) return auth.response
   try {
     const [articles, setting] = await Promise.all([
@@ -47,7 +47,7 @@ export async function GET() {
 }
 
 async function PATCHHandler(req: Request) {
-  const auth = await requireVerifiedSessionUser(GLOSSARY_MANAGE_ROLES)
+  const auth = await requireVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
   if (!auth.ok) return auth.response
   let ids: string[]
   try {
@@ -80,7 +80,7 @@ async function PATCHHandler(req: Request) {
 }
 
 async function DELETEHandler(_req: Request) {
-  const auth = await requireVerifiedSessionUser(GLOSSARY_MANAGE_ROLES)
+  const auth = await requireVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
   if (!auth.ok) return auth.response
   try {
     await prisma.siteSetting.upsert({
