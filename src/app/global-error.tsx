@@ -18,12 +18,12 @@ import { useEffect } from 'react'
  */
 export default function GlobalError({
   error,
-  unstable_retry,
+  retry,
 }: {
   error: Error & { digest?: string }
   // Re-fetches and re-renders rather than replaying the same failed tree; see
-  // the note in src/app/error.tsx. Added in Next 16.2.
-  unstable_retry: () => void
+  // the note in src/app/error.tsx (stable as `retry` since Next 16.3).
+  retry: () => void
 }) {
   useEffect(() => {
     // Surface for an error-reporting service. digest is the only safe id to show.
@@ -143,7 +143,7 @@ export default function GlobalError({
           }}
         >
           <button
-            onClick={() => unstable_retry()}
+            onClick={() => retry()}
             style={{
               display: 'inline-flex',
               alignItems: 'center',

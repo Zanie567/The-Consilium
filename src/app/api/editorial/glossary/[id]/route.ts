@@ -1,6 +1,6 @@
 import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
-import { revalidateTag } from 'next/cache'
+import { expireCacheTag } from '@/lib/cacheInvalidation'
 import { Prisma } from '@prisma/client'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -60,7 +60,7 @@ async function PATCHHandler(req: Request, context: RouteContext) {
     }
 
     await prisma.glossaryTerm.update({ where: { id }, data })
-    revalidateTag(GLOSSARY_CACHE_TAG, { expire: 0 })
+    await expireCacheTag(GLOSSARY_CACHE_TAG)
     return NextResponse.json({ ok: true })
   } catch (err) {
     // A concurrent write can slip past the clash check above; the unique index
@@ -97,7 +97,7 @@ async function DELETEHandler(_req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Term not found.' }, { status: 404 })
     }
     await prisma.glossaryTerm.delete({ where: { id } })
-    revalidateTag(GLOSSARY_CACHE_TAG, { expire: 0 })
+    await expireCacheTag(GLOSSARY_CACHE_TAG)
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('[glossary] DELETE error:', err instanceof Error ? err.message : String(err))

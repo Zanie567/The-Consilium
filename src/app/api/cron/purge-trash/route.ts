@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       console.warn(
         `[purge-trash] Permanently deleted ${result.count} article(s) from trash: ${result.articleIds.join(', ')}`,
       )
-      revalidateArticleLists()
+      await revalidateArticleLists()
     }
     const errors = result.errors.map((failure) => {
       const reference = randomUUID().slice(0, 8)

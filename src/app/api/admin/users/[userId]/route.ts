@@ -125,7 +125,7 @@ async function DELETEHandler(req: NextRequest, { params }: Ctx) {
       await tx.user.delete({ where: { id: userId } })
     })
     // Their articles are gone: expire the public lists, feed and sitemap (after the commit above).
-    revalidateArticleLists()
+    await revalidateArticleLists()
 
     // Audit log
     await prisma.auditLog.create({

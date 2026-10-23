@@ -58,7 +58,7 @@ async function PATCHHandler(_req: NextRequest, { params }: Props) {
       )
     }
     if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status })
-    if (result.restored?.status === 'PUBLISHED') revalidateArticleLists()
+    if (result.restored?.status === 'PUBLISHED') await revalidateArticleLists()
     return NextResponse.json(result.restored)
   } catch (error) {
     if (isHiddenDebateViolation(error)) return hiddenDebateResponse()

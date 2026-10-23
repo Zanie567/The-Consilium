@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { revalidateTag } from 'next/cache'
+import { expireCacheTag } from '@/lib/cacheInvalidation'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { ANALYTICS_ACCESS_ROLES } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
@@ -32,7 +32,7 @@ async function PATCHHandler(req: Request) {
       create: { key: LINKEDIN_SETTING_KEY, value: linkedinUrl, updatedBy: auth.user.id },
       update: { value: linkedinUrl, updatedBy: auth.user.id },
     })
-    revalidateTag(GROWTH_SETTINGS_TAG, { expire: 0 })
+    await expireCacheTag(GROWTH_SETTINGS_TAG)
     return NextResponse.json({ linkedinUrl })
   } catch {
     return NextResponse.json(
