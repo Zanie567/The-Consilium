@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
 import {
   coverFramingImageStyle, defaultCoverFraming,
@@ -35,6 +35,7 @@ function previewHeight(height: CoverBannerHeight, phone: boolean): number {
 export function CoverFramingEditor({
   articleId, coverImage, canEdit,
 }: { articleId?: string; coverImage: string; canEdit: boolean }) {
+  const zoomId = useId()
   const [framing, setFraming] = useState<CoverFraming>(() => defaultCoverFraming(coverImage))
   const [preview, setPreview] = useState<'desktop' | 'phone'>('desktop')
   const [loading, setLoading] = useState(false)
@@ -145,10 +146,10 @@ export function CoverFramingEditor({
       </div>
 
       <div>
-        <label htmlFor="cover-banner-zoom" className="flex justify-between text-[11px] text-[var(--fg-muted)]">
+        <label htmlFor={zoomId} className="flex justify-between text-[11px] text-[var(--fg-muted)]">
           <span>Zoom</span><span className="tabular-nums">{framing.zoom}%</span>
         </label>
-        <input id="cover-banner-zoom" aria-label="Banner image zoom"
+        <input id={zoomId} aria-label="Banner image zoom"
           type="range" min={100} max={200} step={5}
           value={framing.zoom} disabled={!editable}
           onChange={(event) => patch({ zoom: Number(event.target.value) })}
