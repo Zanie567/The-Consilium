@@ -5,9 +5,10 @@ secrets, schedules jobs or sends. Stop at any red result; each step lists its ro
 
 ## R0. Review (no production contact)
 
-- [ ] Merge order with the launch/security work: #158 (which supersedes #150/#151) and this PR touch no common
-      application code; the only textual conflict is the `DB_BACKED_SUITES` list in `vitest.config.ts` (keep both
-      entries). Apply #155/#156's production SQL in their own windows; this migration is independent of them.
+- [ ] Order with the security SQL: #155, #156 and #158 are merged (23 October). Apply #155's production SQL and
+      then #156's **before** this migration: their preflights expect exactly 25 and 26 registry rows and stop on
+      anything else, while this migration's preflight accepts any count. `scripts/db/data-api-harness.sh` rehearses
+      the three rollouts in that order on a copy of production's state.
 
 - [ ] PR reviewed; CI green (lint, typecheck, unit, build, both E2E jobs: the newsletter DB suites run inside them).
 - [ ] Owner confirms the copy: signup text, confirmation email, privacy policy section, email footer address.
