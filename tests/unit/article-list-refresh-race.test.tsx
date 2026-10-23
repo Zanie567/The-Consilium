@@ -6,25 +6,27 @@ import { ArticlesList } from '@/components/editorial/ArticlesList'
 import { apiRequest } from '@/lib/apiClient'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
-vi.mock('next/link', () => ({ default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a> }))
+vi.mock('next/link', () => ({ default: ({ children, href, ...props }: React.ComponentProps<'a'>) => <a href={href} {...props}>{children}</a> }))
 vi.mock('@/lib/apiClient', () => ({ apiRequest: vi.fn(), asApiError: (reason: unknown) => reason }))
 afterEach(() => { cleanup(); vi.clearAllMocks() })
 
-it('an earlier feature refresh cannot replace a newer pin revision before unpublishing', async () => {
+it('a stale article-list refresh cannot replace a newer pin revision before unpublishing', async () => {
   const initial = { id: 'article', title: 'Published fixture', status: 'PUBLISHED', isFeatured: false, isPinned: false,
     updatedAt: '2026-10-07T00:00:01.000Z', publishedAt: '2026-10-07T00:00:00.000Z', scheduledAt: null,
     slug: 'published-fixture', author: { id: 'writer', name: 'Writer' }, category: null }
-  const featured = { ...initial, isFeatured: true, updatedAt: '2026-10-07T00:00:02.000Z' }
-  const pinned = { ...featured, isPinned: true, updatedAt: '2026-10-07T00:00:03.000Z' }
+  const stale = { ...initial, updatedAt: '2026-10-07T00:00:02.000Z' }
+  const pinned = { ...initial, isPinned: true, updatedAt: '2026-10-07T00:00:03.000Z' }
   vi.mocked(apiRequest).mockImplementation(url => Promise.resolve(
-    String(url).endsWith('/feature') ? featured : String(url).endsWith('/pin') ? pinned : { ...pinned, status: 'DRAFT' }
+    String(url).endsWith('/pin') ? pinned : { ...pinned, status: 'DRAFT' }
   ))
   const props = { isEditor: true, isWriter: false }
   const { rerender } = render(<ArticlesList {...props} articles={[initial]} />)
-  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Set as featured' })) })
+  // Carousel order is now managed exclusively in the editor, not by a feature toggle.
+  expect(screen.getByRole('link', { name: 'Manage homepage carousel in article editor' })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Set as featured' })).toBeNull()
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Pin to category' })) })
-  // The feature RSC response arrives only after the later pin has succeeded.
-  await act(async () => { rerender(<ArticlesList {...props} articles={[featured]} />) })
+  // A stale RSC refresh arrives after the newer pin response.
+  await act(async () => { rerender(<ArticlesList {...props} articles={[stale]} />) })
   expect(screen.getByRole('button', { name: 'Unpin' })).toBeTruthy()
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Unpublish' })) })
   await act(async () => { fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Unpublish' })) })
