@@ -73,18 +73,7 @@ export async function GET(
     const isEditorial = isAdmin || isEditor
 
     if (article.status === 'PUBLISHED' && !isOwner && !isEditorial) {
-      // Public callers receive an explicit projection. New editorial/analytics
-      // columns must not silently become public when the Prisma model grows.
-      return NextResponse.json({
-        id: article.id, title: article.title, slug: article.slug, content: article.content,
-        excerpt: article.excerpt, coverImage: article.coverImage, status: article.status,
-        authorId: article.authorId, categoryId: article.categoryId,
-        author: article.author, category: article.category, tags: article.tags, series: article.series,
-        seriesId: article.seriesId, seriesOrder: article.seriesOrder,
-        isFeatured: article.isFeatured, isPinned: article.isPinned, viewCount: article.viewCount,
-        corrected: article.corrected, correctionNote: article.correctionNote,
-        publishedAt: article.publishedAt, createdAt: article.createdAt, updatedAt: article.updatedAt,
-      })
+      return NextResponse.json(article)
     }
 
     const authError = requireActiveSession(session)

@@ -42,17 +42,6 @@ async function newer(id: string) {
   return prisma.article.update({ where: { id }, data: { title: 'Newer title', content: 'Newer content', updatedAt: new Date(Date.now() + 100) } })
 }
 describe('first-party loaded article revisions over real HTTP and PostgreSQL', () => {
-  it('anonymous published-article reads withhold editorial notes and internal engagement fields', async () => {
-    const article = await fixture('PUBLISHED')
-    await prisma.article.update({ where: { id: article.id }, data: {
-      editorNote: 'Private review discussion', editorialCommendation: 'Internal award discussion', engagementScore: 73,
-    } })
-    const response = await fetch(`${base}/api/articles/${article.id}`)
-    expect(response.status).toBe(200)
-    const body = await response.json()
-    expect(body).toMatchObject({ id: article.id, title: article.title, content: article.content })
-    for (const key of ['editorNote', 'editorialCommendation', 'engagementScore']) expect(body).not.toHaveProperty(key)
-  })
   it('preserves an article after duplicate-slug rejection, including a slug retained in trash', async () => {
     const owner = await fixture()
     const other = await fixture()

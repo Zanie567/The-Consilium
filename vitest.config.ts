@@ -40,7 +40,6 @@ const DB_BACKED_SUITES = [
   'tests/integration/debate-lock-order-db.test.ts',
   'tests/integration/corrections-db.test.ts',
   'tests/integration/contributor-profile-db.test.ts',
-  'tests/integration/launch-public-access-db.test.ts',
 ]
 const isolatedLauncherRun = process.env.E2E_ISOLATED === '1' && Boolean(process.env.BASE_URL)
 

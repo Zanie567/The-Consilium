@@ -25,6 +25,11 @@ Nothing here changes production: it only reads. It costs nothing (every tool is 
 * **Current recovery point:** database 16 October; assets 15 October. Supabase Cron activation followed the
   database backup, so recovery must also recreate scheduler infrastructure, Vault configuration and jobs using
   the separate scheduler guide. Take and verify a fresh encrypted database and Storage copy before launch.
+* **22 October (read-only):** production has **59** Storage objects (up from 44 on 18 October) and 4 launch articles
+  scheduled. No database or Storage backup newer than 16 October / 15 October is evidenced, and the encrypted volume
+  was not mounted during the 22 October review, so nothing newer could be inspected. **A fresh verified database and
+  Storage backup is a launch gate**, and also a prerequisite for the policy rollouts (`docs/launch/POLICY-ROLLOUT.md`,
+  `docs/security/DATA-API-PERMISSIONS.md`).
 * **Hosted recovery remains unproven.** Issue [#132](https://github.com/Zanie567/The-Consilium/issues/132)
   records the owner's deferral. The file labelled `hosted-dry-run-143452/summary.txt` targets loopback
   `localdryrunxxxxxxxxx`; it is a local simulation, not evidence of hosted recovery. No hosted restoration,
