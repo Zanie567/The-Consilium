@@ -114,6 +114,13 @@ test('with cookie consent the form loads as the registration section approaches'
 
 test('non-student members are asked to email the committee, with a prefilled message and no form', async ({ page }) => {
   const requests = await stubGoogleForms(page.context())
+  // This test is about the two routes, not motion (the hero chart test below covers that). With
+  // motion on, the first click scrolls the parked registration panel into view, which replays its
+  // reveal animation, and in CI's WebKit the second click then landed while the cards were still
+  // moving and the page was smooth-scrolling (scrollTop 1969 → 1912 within 25 ms of the click), so
+  // the pointer left the card before mouseup and no click was delivered. Reduced motion removes
+  // the reveal replay, the panel animation and smooth scrolling.
+  await page.emulateMedia({ reducedMotion: 'reduce' })
   await open(page)
   const choice = page.getByRole('group', { name: 'Which describes you?' })
   // The radios are visually hidden inside their cards; people click the card (label).
