@@ -9,6 +9,8 @@ vi.mock('@/lib/auth', () => ({ requireVerifiedSessionUser: vi.fn(async () => ({ 
 import { POST } from '@/app/api/analytics/track/route'
 import { GET as topArticles } from '@/app/api/analytics/top-articles/route'
 import { GET as timeseries } from '@/app/api/analytics/timeseries/route'
+import { GET as byAuthor } from '@/app/api/analytics/by-author/route'
+import { GET as byCategory } from '@/app/api/analytics/by-category/route'
 let articleId: string, draftId: string, userId: string
 const sessionId = randomUUID(),
   visitId = randomUUID(),
@@ -57,6 +59,15 @@ describe('canonical analytics persistence', () => {
       expect(rows.reduce((sum, row) => sum + row.views, 0)).toBe(await prisma.articleView.count({
         where: { viewedAt: { gte: new Date(Date.now() - 30 * 86400000) } },
       }))
+      // The other two raw-SQL reports, against the same real schema.
+      const authors = await byAuthor()
+      expect(authors.status).toBe(200)
+      expect(await authors.json()).toContainEqual(expect.objectContaining({ author_id: userId, total_articles: expect.any(Number), total_views: expect.any(Number) }))
+      const categories = await byCategory()
+      expect(categories.status).toBe(200)
+      const byCat = await categories.json() as { category: string; views: number; percentage_of_total: number }[]
+      expect(byCat.reduce((sum, row) => sum + row.views, 0)).toBe(await prisma.articleView.count())
+      expect(byCat.find((row) => row.category === 'Uncategorised')).toMatchObject({ views: expect.any(Number) })
     } finally {
       await prisma.article.delete({ where: { id: fixture.id } })
     }
