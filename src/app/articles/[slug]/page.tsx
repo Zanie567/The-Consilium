@@ -302,11 +302,6 @@ export default async function ArticlePage({ params }: Props) {
             priority
             sizes="100vw"
           />
-          {/* Read time badge - top right of hero */}
-          <div className="absolute top-4 right-4 z-10 flex items-center gap-1.5 bg-navy/70 text-cream/90 text-xs font-semibold px-3 py-1.5 backdrop-blur-sm no-print">
-            <Clock size={11} className="shrink-0" />
-            {readTimeLabel(article.content)}
-          </div>
           </div>
           {coverMetadata && (
             <figcaption className="mx-auto max-w-[1100px] px-6 sm:px-8 py-2.5 flex flex-col sm:flex-row gap-1 sm:gap-4 justify-between text-[11px] leading-relaxed text-[var(--fg-muted)] border-b border-[var(--border)]">
@@ -322,6 +317,10 @@ export default async function ArticlePage({ params }: Props) {
               </span>
             </figcaption>
           )}
+          <div className="mx-auto max-w-[1100px] px-6 sm:px-8 pb-2 pt-1 flex items-center justify-end gap-1.5 text-[10px] text-[var(--fg-faint)]" aria-label="Estimated reading time">
+            <Clock size={11} className="shrink-0" />
+            {readTimeLabel(article.content)}
+          </div>
         </figure>
       )}
 
