@@ -7,6 +7,9 @@ import { ChevronDown, Clock, ImagePlus, Tag, X } from 'lucide-react'
 import { EDITORIAL_TIME_ZONE_LABEL, getEditorialScheduleMinInput } from '@/lib/editorialSchedule'
 import { readTimeLabel, wordCountFromContent } from '@/lib/readTime'
 import { STATUS_COLOURS, STATUS_LABELS } from './constants'
+import { CoverAttributionEditor } from './CoverAttributionEditor'
+import { CoverFramingEditor } from './CoverFramingEditor'
+import { HomeCarouselManager } from './HomeCarouselManager'
 import type { ArticleEditorController, ArticleEditorRefs } from './types'
 
 interface ArticleEditorMetadataPanelProps {
@@ -154,6 +157,14 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
           For best results: landscape orientation, minimum 1200 px wide, subject centred in frame.
         </p>
       </div>
+
+      <CoverFramingEditor articleId={editor.articleId} coverImage={editor.coverImage} canEdit={editor.canEdit && !Boolean(editor.recovery)} />
+
+      <CoverAttributionEditor articleId={editor.articleId} coverImage={editor.coverImage} canEdit={editor.canEdit} />
+
+      {editor.canPublish && !editor.isWriter && (
+        <HomeCarouselManager articleId={editor.articleId} />
+      )}
 
       <div>
         <FieldLabel>

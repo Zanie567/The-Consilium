@@ -1,11 +1,10 @@
 'use client'
 import { articleStatusLabel } from '@/lib/articleStatusLabel'
 
-import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import Link from 'next/link'
-import { Star, Pin, Trash2, ExternalLink } from 'lucide-react'
+import { Pin, Trash2, ExternalLink, ListOrdered } from 'lucide-react'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { formatEditorialScheduleDisplay } from '@/lib/editorialSchedule'
@@ -46,7 +45,6 @@ const STATUS_STYLE: Record<string, string> = {
 }
 
 export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter, emptyMessage }: Props) {
-  const router = useRouter()
   const [articles, setArticles] = useState(initial)
   const [filter, setFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
@@ -65,11 +63,8 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
     setFilter('all')
   }, [initial])
 
-  const toggle = (id: string, field: 'isFeatured' | 'isPinned', value: boolean) => {
-    setArticles((prev) => prev.map((a) => {
-      if (field === 'isFeatured') return { ...a, isFeatured: a.id === id ? value : false }
-      return a.id === id ? { ...a, [field]: value } : a
-    }))
+  const toggle = (id: string, field: 'isPinned', value: boolean) => {
+    setArticles((prev) => prev.map((a) => a.id === id ? { ...a, [field]: value } : a))
   }
 
   const reloadChangedArticle = async (id: string) => {
@@ -84,21 +79,6 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
         setArticles(prev => prev.filter(article => article.id !== id))
       }
       setError(message => `${message ?? 'The article changed.'} The latest version could not be loaded: ${error.message}`)
-    }
-  }
-
-  const featureArticle = async (article: ArticleItem) => {
-    const { id, isFeatured: current, updatedAt } = article
-    setError(null)
-    try {
-      const method = current ? 'DELETE' : 'POST'
-      const saved = await apiRequest<{ updatedAt: string }>(`/api/editorial/articles/${id}/feature`, { method, headers: { 'x-article-revision': updatedAt } })
-      setArticles(prev => prev.map(a => a.id === id ? { ...a, updatedAt: saved.updatedAt } : a))
-      router.refresh()
-      toggle(id, 'isFeatured', !current)
-    } catch (reason) {
-      setError(asApiError(reason).message)
-      if (asApiError(reason).status === 409) await reloadChangedArticle(id)
     }
   }
 
@@ -244,9 +224,6 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                 <tr key={article.id} className="hover:bg-[var(--bg-subtle)] transition-colors group">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">
-                      {article.isFeatured && (
-                        <Star size={12} className="shrink-0 fill-gold text-gold" />
-                      )}
                       {article.isPinned && (
                         <Pin size={12} className="shrink-0 fill-gold text-gold" />
                       )}
@@ -283,19 +260,11 @@ export function ArticlesList({ articles: initial, isEditor, isWriter: _isWriter,
                     <div className="flex items-center justify-end gap-0.5 sm:gap-1">
                       {isEditor && article.status === 'PUBLISHED' && (
                         <>
-                          <Tooltip
-                            content={article.isFeatured ? 'Remove from featured: it will no longer appear in the featured slot on the homepage' : 'Feature this article: it will appear prominently on the homepage'}
-                            variant="editorial" side="top" maxWidth={280}
-                          >
-                            <button
-                              onClick={() => featureArticle(article)}
-                              aria-label={article.isFeatured ? 'Remove featured' : 'Set as featured'}
-                              className={`p-2 sm:p-1.5 transition-colors ${
-                                article.isFeatured ? 'text-gold' : 'text-[var(--fg-faint)] hover:text-gold'
-                              }`}
-                            >
-                              <Star size={13} className={article.isFeatured ? 'fill-gold' : ''} />
-                            </button>
+                          <Tooltip content="Manage homepage carousel order and selection in the article editor" variant="editorial" side="top" maxWidth={280}>
+                            <Link href={`/editorial/articles/${article.id}/edit`} aria-label="Manage homepage carousel in article editor"
+                              className="p-2 sm:p-1.5 text-[var(--fg-faint)] hover:text-gold">
+                              <ListOrdered size={13} />
+                            </Link>
                           </Tooltip>
                           <Tooltip
                             content={article.isPinned ? 'Unpin from category page' : 'Pin to the top of this article\'s category page'}
