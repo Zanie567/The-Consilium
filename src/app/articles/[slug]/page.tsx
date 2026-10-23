@@ -33,7 +33,9 @@ import { BRAND_MARK } from '@/lib/brand'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/constants'
 import { loadPublicCorrections, correctionsStructuredData } from '@/lib/corrections/public'
 import { CorrectionNotice, CorrectionsSection } from '@/components/article/ArticleCorrections'
+import { ArticleOpeningPosition } from '@/components/article/ArticleOpeningPosition'
 import { coverMetadataKey, parseCoverMetadata } from '@/lib/coverImageMetadata'
+import { bannerHeightClass, coverFramingImageStyle, coverFramingKey, parseCoverFraming } from '@/lib/coverFraming'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -201,17 +203,21 @@ export default async function ArticlePage({ params }: Props) {
     : null
 
   // Read separately from the article so a corrections-table problem can never 404 the article.
-  const [related, corrections, coverSetting] = await Promise.all([
+  // One optional settings lookup serves both photo credit and framing.
+  // If settings storage is unavailable, the article still renders safely.
+  const [related, corrections, coverSettings] = await Promise.all([
     getRelatedArticles(article.id, article.categoryId, article.title, article.excerpt),
     loadPublicCorrections(prisma, article),
     article.coverImage
-      ? prisma.siteSetting.findUnique({
-          where: { key: coverMetadataKey(article.id) },
-          select: { value: true },
-        }).catch(() => null)
-      : Promise.resolve(null),
+      ? prisma.siteSetting.findMany({
+          where: { key: { in: [coverMetadataKey(article.id), coverFramingKey(article.id)] } },
+          select: { key: true, value: true },
+        }).catch(() => [])
+      : Promise.resolve([]),
   ])
-  const coverMetadata = parseCoverMetadata(coverSetting?.value, article.coverImage)
+  const getSetting = (key: string) => coverSettings.find((setting) => setting.key === key)?.value
+  const coverMetadata = parseCoverMetadata(getSetting(coverMetadataKey(article.id)), article.coverImage)
+  const coverFraming = parseCoverFraming(getSetting(coverFramingKey(article.id)), article.coverImage ?? '')
   const correctionComments = correctionsStructuredData(corrections)
   const { html: htmlContent, footnotes } = renderContent(article.content)
   // Glossary term linking runs on the sanitized HTML and returns it untouched
@@ -257,6 +263,7 @@ export default async function ArticlePage({ params }: Props) {
       />
       <ReadingProgress />
       <ReadingTracker articleId={article.id} />
+      {article.coverImage && <ArticleOpeningPosition articleId={article.id} />}
       <ViewCounter articleId={article.id} />
 
       {/* Print masthead - hidden on screen, shown when printing */}
@@ -268,18 +275,17 @@ export default async function ArticlePage({ params }: Props) {
       {/* The cover and its attribution are a single semantic figure. */}
       {article.coverImage && (
         <figure className="m-0 no-print">
-          <div className="relative h-[clamp(220px,42vw,680px)] w-full overflow-hidden bg-navy/10 dark:bg-navy/20">
-          {/* A source photograph may contain labels/maps at its edges. Unlike a
-              decorative card, the article cover must never crop that evidence.
-              A viewport-responsive frame keeps the full source visible. */}
-          <BlurImage
-            src={article.coverImage}
-            alt={article.title}
-            fill
-            className="object-contain"
-            priority
-            sizes="100vw"
-          />
+          <div className={`relative w-full overflow-hidden bg-navy/10 dark:bg-navy/20 ${bannerHeightClass[coverFraming.height]}`}>
+            {/* Fit remains the safe legacy default; authorised editors and writers
+                may deliberately choose crop, zoom, focal point and banner height. */}
+            <BlurImage
+              src={article.coverImage}
+              alt={article.title}
+              fill
+              style={coverFramingImageStyle(coverFraming)}
+              priority
+              sizes="100vw"
+            />
           </div>
           {coverMetadata && (
             <figcaption className="mx-auto max-w-[1100px] px-6 sm:px-8 py-2.5 flex flex-col sm:flex-row gap-1 sm:gap-4 justify-between text-[11px] leading-relaxed text-[var(--fg-muted)] border-b border-[var(--border)]">
@@ -336,6 +342,7 @@ export default async function ArticlePage({ params }: Props) {
         {/* Title */}
         <AnimateIn variant="fade-up" delay={0.05} duration={0.6}>
           <h1
+            data-article-opening-headline
             className="font-bold text-[var(--fg)] leading-tight mb-6 tracking-tight"
             style={{
               fontFamily: 'var(--font-serif)',
