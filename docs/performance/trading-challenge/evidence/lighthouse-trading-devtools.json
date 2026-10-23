@@ -1,0 +1,123 @@
+{
+  "label": "after: /trading-challenge (applied throttling)",
+  "base": "http://localhost:3311",
+  "generatedAt": "2026-10-20T05:08:27.585Z",
+  "runsPerRoute": 5,
+  "preset": "mobile (Lighthouse default)",
+  "throttlingMethod": "devtools",
+  "blockedUrlPatterns": [
+    "*/api/analytics/*",
+    "*/api/reading-progress*"
+  ],
+  "results": {
+    "/trading-challenge": {
+      "runs": 5,
+      "median": {
+        "score": 78,
+        "fcp": 2251.022,
+        "lcp": 3053.387,
+        "tbt": 513.6460000000002,
+        "cls": 0.0002648897001725237,
+        "si": 2630,
+        "ttfb": 232.21800000000002,
+        "mainThreadMs": 3091.581999999965,
+        "bootupMs": 669.353999999996,
+        "jsTransfer": 187143,
+        "fontTransfer": 88504,
+        "imageTransfer": 0,
+        "totalTransfer": 352730,
+        "requests": 24
+      },
+      "lcpElements": [
+        "<p class=\"mt-6 max-w-xl text-lg leading-relaxed text-cream/80\">"
+      ],
+      "samples": [
+        {
+          "score": 78,
+          "fcp": 2359.411,
+          "lcp": 3053.387,
+          "tbt": 516.4490000000001,
+          "cls": 0.0002648897001725237,
+          "si": 2718,
+          "ttfb": 239.52,
+          "mainThreadMs": 3469.4849999999687,
+          "bootupMs": 669.353999999996,
+          "jsTransfer": 187143,
+          "fontTransfer": 88504,
+          "imageTransfer": 0,
+          "totalTransfer": 352730,
+          "requests": 24,
+          "lcpElement": "<p class=\"mt-6 max-w-xl text-lg leading-relaxed text-cream/80\">"
+        },
+        {
+          "score": 90,
+          "fcp": 1894.622,
+          "lcp": 2100.247,
+          "tbt": 324.79200000000037,
+          "cls": 0.0002648897001725237,
+          "si": 2243,
+          "ttfb": 21.616,
+          "mainThreadMs": 3013.3429999999676,
+          "bootupMs": 607.417999999997,
+          "jsTransfer": 187143,
+          "fontTransfer": 88504,
+          "imageTransfer": 0,
+          "totalTransfer": 352728,
+          "requests": 24,
+          "lcpElement": "<p class=\"mt-6 max-w-xl text-lg leading-relaxed text-cream/80\">"
+        },
+        {
+          "score": 97,
+          "fcp": 1973.711,
+          "lcp": 2095.344,
+          "tbt": 52.93100000000004,
+          "cls": 0.0002648897001725237,
+          "si": 2300,
+          "ttfb": 31.917,
+          "mainThreadMs": 2140.999999999978,
+          "bootupMs": 227.68200000000084,
+          "jsTransfer": 187143,
+          "fontTransfer": 88504,
+          "imageTransfer": 0,
+          "totalTransfer": 352730,
+          "requests": 24,
+          "lcpElement": "<p class=\"mt-6 max-w-xl text-lg leading-relaxed text-cream/80\">"
+        },
+        {
+          "score": 76,
+          "fcp": 2289.173,
+          "lcp": 3143.654,
+          "tbt": 572.5749998779302,
+          "cls": 0.0002648897001725237,
+          "si": 2670,
+          "ttfb": 476.16900000000004,
+          "mainThreadMs": 3091.581999999965,
+          "bootupMs": 681.1489999999965,
+          "jsTransfer": 187143,
+          "fontTransfer": 88504,
+          "imageTransfer": 0,
+          "totalTransfer": 352730,
+          "requests": 24,
+          "lcpElement": "<p class=\"mt-6 max-w-xl text-lg leading-relaxed text-cream/80\">"
+        },
+        {
+          "score": 78,
+          "fcp": 2251.022,
+          "lcp": 3065.201,
+          "tbt": 513.6460000000002,
+          "cls": 0.0002648897001725237,
+          "si": 2630,
+          "ttfb": 232.21800000000002,
+          "mainThreadMs": 3373.70799999997,
+          "bootupMs": 714.6459999999958,
+          "jsTransfer": 187143,
+          "fontTransfer": 88504,
+          "imageTransfer": 0,
+          "totalTransfer": 352730,
+          "requests": 24,
+          "lcpElement": "<p class=\"mt-6 max-w-xl text-lg leading-relaxed text-cream/80\">"
+        }
+      ]
+    }
+  }
+}

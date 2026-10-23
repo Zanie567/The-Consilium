@@ -47,6 +47,7 @@ const sectionLinks = [
   { href: '/category/analysis', label: 'Analysis' },
   { href: '/category/interviews', label: 'Interviews' },
   { href: '/opinion-debate', label: 'Debate' },
+  { href: '/trading-challenge', label: 'Trading Challenge' },
   { href: '/archive', label: 'Archive' },
 ]
 

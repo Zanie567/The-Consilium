@@ -1,0 +1,72 @@
+[A] / run 1/5: score 80, LCP 4701ms
+[B] / run 1/5: score 74, LCP 3909ms
+[B] / run 2/5: score 73, LCP 3957ms
+[A] / run 2/5: score 58, LCP 5606ms
+[A] / run 3/5: score 80, LCP 4715ms
+[B] / run 3/5: score 89, LCP 3523ms
+[B] / run 4/5: score 85, LCP 3663ms
+[A] / run 4/5: score 67, LCP 5544ms
+[A] / run 5/5: score 60, LCP 5381ms
+[B] / run 5/5: score 70, LCP 4413ms
+[A] /about run 1/5: score 62, LCP 5052ms
+[B] /about run 1/5: score 97, LCP 2066ms
+[B] /about run 2/5: score 84, LCP 2822ms
+[A] /about run 2/5: score 71, LCP 4817ms
+[A] /about run 3/5: score 70, LCP 5234ms
+[B] /about run 3/5: score 98, LCP 2000ms
+[B] /about run 4/5: score 76, LCP 3156ms
+[A] /about run 4/5: score 63, LCP 5083ms
+[A] /about run 5/5: score 82, LCP 4445ms
+[B] /about run 5/5: score 80, LCP 3081ms
+[A] /category/news run 1/5: score 58, LCP 5724ms
+[B] /category/news run 1/5: score 93, LCP 2840ms
+[B] /category/news run 2/5: score 93, LCP 2892ms
+[A] /category/news run 2/5: score 66, LCP 4783ms
+[A] /category/news run 3/5: score 64, LCP 4957ms
+[B] /category/news run 3/5: score 81, LCP 2992ms
+[B] /category/news run 4/5: score 94, LCP 2853ms
+[A] /category/news run 4/5: score 63, LCP 6068ms
+[A] /category/news run 5/5: score 70, LCP 4837ms
+[B] /category/news run 5/5: score 75, LCP 3793ms
+[A] /category/analysis run 1/5: score 63, LCP 5093ms
+[B] /category/analysis run 1/5: score 86, LCP 3850ms
+[B] /category/analysis run 2/5: score 46, LCP 5665ms
+[A] /category/analysis run 2/5: score 76, LCP 5330ms
+[A] /category/analysis run 3/5: score 77, LCP 5252ms
+[B] /category/analysis run 3/5: score 80, LCP 3674ms
+[B] /category/analysis run 4/5: score 89, LCP 3638ms
+[A] /category/analysis run 4/5: score 76, LCP 5380ms
+[A] /category/analysis run 5/5: score 68, LCP 5607ms
+[B] /category/analysis run 5/5: score 77, LCP 3842ms
+[A] /opinion-debate run 1/5: score 82, LCP 4617ms
+[B] /opinion-debate run 1/5: score 79, LCP 3702ms
+[B] /opinion-debate run 2/5: score 87, LCP 2936ms
+[A] /opinion-debate run 2/5: score 67, LCP 5030ms
+[A] /opinion-debate run 3/5: score 81, LCP 4665ms
+[B] /opinion-debate run 3/5: score 74, LCP 3416ms
+[B] /opinion-debate run 4/5: score 93, LCP 2666ms
+[A] /opinion-debate run 4/5: score 81, LCP 4708ms
+[A] /opinion-debate run 5/5: score 64, LCP 5172ms
+[B] /opinion-debate run 5/5: score 78, LCP 3368ms
+[A] /articles/carbon-markets-fragmentation-climate-policy run 1/5: score 72, LCP 3418ms
+[B] /articles/carbon-markets-fragmentation-climate-policy run 1/5: score 90, LCP 3161ms
+[B] /articles/carbon-markets-fragmentation-climate-policy run 2/5: score 90, LCP 3180ms
+[A] /articles/carbon-markets-fragmentation-climate-policy run 2/5: score 67, LCP 4358ms
+[A] /articles/carbon-markets-fragmentation-climate-policy run 3/5: score 70, LCP 3531ms
+[B] /articles/carbon-markets-fragmentation-climate-policy run 3/5: score 70, LCP 3569ms
+[B] /articles/carbon-markets-fragmentation-climate-policy run 4/5: score 87, LCP 3186ms
+[A] /articles/carbon-markets-fragmentation-climate-policy run 4/5: score 86, LCP 3416ms
+[A] /articles/carbon-markets-fragmentation-climate-policy run 5/5: score 82, LCP 3513ms
+[B] /articles/carbon-markets-fragmentation-climate-policy run 5/5: score 79, LCP 3209ms
+/                                                score 67  FCP 2550  LCP 5381  TBT 289  CLS 0.000  JS 252KB
+/about                                           score 70  FCP 2092  LCP 5052  TBT 346  CLS 0.000  JS 225KB
+/category/news                                   score 64  FCP 2419  LCP 4957  TBT 477  CLS 0.000  JS 238KB
+/category/analysis                               score 76  FCP 1996  LCP 5330  TBT 122  CLS 0.000  JS 238KB
+/opinion-debate                                  score 81  FCP 2065  LCP 4708  TBT 81  CLS 0.000  JS 228KB
+/articles/carbon-markets-fragmentation-climate-policy score 72  FCP 2480  LCP 3513  TBT 330  CLS 0.000  JS 258KB
+/trading-challenge run 1/5: score 78, LCP 3053ms
+/trading-challenge run 2/5: score 90, LCP 2100ms
+/trading-challenge run 3/5: score 97, LCP 2095ms
+/trading-challenge run 4/5: score 76, LCP 3144ms
+/trading-challenge run 5/5: score 78, LCP 3065ms
+/trading-challenge                               score 78  FCP 2251  LCP 3053  TBT 514  CLS 0.000  JS 183KB

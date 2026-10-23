@@ -150,7 +150,9 @@ test('analytics heartbeat pauses hidden, consent controls persistence, failure l
   ).toBeVisible()
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
   await page.clock.runFor(30000)
-  expect(events.some((e) => e.activeSeconds >= 30 && !e.readerId)).toBe(true)
+  // The heartbeat request is sent during runFor, but the route handler records it
+  // asynchronously, so wait for it rather than reading the array at once.
+  await expect.poll(() => events.some((e) => e.activeSeconds >= 30 && !e.readerId)).toBe(true)
   await page.evaluate(() => {
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
     document.dispatchEvent(new Event('visibilitychange'))

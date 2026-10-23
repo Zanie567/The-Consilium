@@ -1,0 +1,78 @@
+import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { requireVerifiedSessionUser } from '@/lib/auth'
+import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
+import { editorCanAccessArticleCategory } from '@/lib/articleCategoryAccess'
+import { withTestingAudit } from '@/lib/testingAudit'
+import { coverMetadataKey, parseCoverMetadata, validateCoverMetadata } from '@/lib/coverImageMetadata'
+
+interface Context { params: Promise<{ id: string }> }
+
+async function authorisedCover(id: string) {
+  const auth = await requireVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
+  if (!auth.ok) return { ok: false as const, response: auth.response }
+  const article = await prisma.article.findUnique({
+    where: { id },
+    select: { id: true, coverImage: true, categoryId: true, deletedAt: true, authorId: true, status: true },
+  })
+  if (!article || article.deletedAt) {
+    return { ok: false as const, response: NextResponse.json({ error: 'Article not found.' }, { status: 404 }) } as const
+  }
+  if (auth.user.role === 'WRITER' && (article.authorId !== auth.user.id || article.status === 'PUBLISHED')) {
+    return { ok: false as const, response: NextResponse.json({ error: 'Writers can change attribution only on their own unpublished drafts.' }, { status: 403 }) } as const
+  }
+  if (auth.user.role === 'EDITOR' &&
+      !(await editorCanAccessArticleCategory(auth.user.id, article.categoryId))) {
+    return { ok: false as const, response: NextResponse.json({ error: 'This article is outside your assigned categories.' }, { status: 403 }) } as const
+  }
+  return { ok: true as const, article, user: auth.user }
+}
+
+export async function GET(_req: Request, { params }: Context) {
+  const { id } = await params
+  const auth = await authorisedCover(id)
+  if (!auth.ok) return auth.response
+  try {
+    const setting = await prisma.siteSetting.findUnique({
+      where: { key: coverMetadataKey(id) },
+      select: { value: true },
+    })
+    return NextResponse.json({
+      metadata: parseCoverMetadata(setting?.value, auth.article.coverImage),
+    }, { headers: { 'Cache-Control': 'no-store' } })
+  } catch {
+    return NextResponse.json({ error: 'Unable to load image details.' }, { status: 503 })
+  }
+}
+
+async function PATCHHandler(req: Request, { params }: Context) {
+  const { id } = await params
+  const auth = await authorisedCover(id)
+  if (!auth.ok) return auth.response
+  let metadata
+  try {
+    metadata = validateCoverMetadata(await req.json())
+  } catch {
+    metadata = null
+  }
+  if (!metadata || !metadata.source || !metadata.caption) {
+    return NextResponse.json({ error: 'A caption and a named image source are required. The source URL is optional.' }, { status: 400 })
+  }
+  if (!auth.article.coverImage || metadata.imageUrl !== auth.article.coverImage) {
+    return NextResponse.json({ error: 'The cover image changed. Refresh before saving its attribution.' }, { status: 409 })
+  }
+  try {
+    const key = coverMetadataKey(id)
+    const value = JSON.stringify(metadata)
+    await prisma.siteSetting.upsert({
+      where: { key },
+      create: { key, value, updatedBy: auth.user.id },
+      update: { value, updatedBy: auth.user.id },
+    })
+    return NextResponse.json({ ok: true, metadata })
+  } catch {
+    return NextResponse.json({ error: 'Unable to save attribution.' }, { status: 503 })
+  }
+}
+
+export const PATCH = withTestingAudit(PATCHHandler)

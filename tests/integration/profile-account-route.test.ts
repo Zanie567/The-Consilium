@@ -10,14 +10,21 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const { prismaMock, authMock, storageMock } = vi.hoisted(() => ({
-  prismaMock: {
-    user: { update: vi.fn(), findUnique: vi.fn() },
-    teamMember: { findFirst: vi.fn() },
-  },
+const { prismaMock, authMock, storageMock } = vi.hoisted(() => {
+  const prismaMock = {
+    // The save runs in one transaction (contributorProfile.ts); the mock runs it against itself.
+    $transaction: vi.fn(),
+    $queryRaw: vi.fn(),
+    user: { update: vi.fn(), findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), findFirst: vi.fn() },
+    teamMember: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+    auditLog: { create: vi.fn() },
+  }
+  return {
+  prismaMock,
   authMock: { requireVerifiedSessionUser: vi.fn() },
   storageMock: { removeTeamPhoto: vi.fn() },
-}))
+  }
+})
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }))
 vi.mock('@/lib/auth', () => authMock)
 vi.mock('@/lib/teamPhotoStorage', () => storageMock)
@@ -52,7 +59,12 @@ beforeEach(() => {
     displayTitles: [],
   })
   prismaMock.user.findUnique.mockResolvedValue({ image: null })
+  prismaMock.user.findUniqueOrThrow.mockResolvedValue({ displayTitles: [] })
+  prismaMock.user.findFirst.mockResolvedValue(null)
   prismaMock.teamMember.findFirst.mockResolvedValue(null)
+  prismaMock.teamMember.findUnique.mockResolvedValue(null)
+  prismaMock.$queryRaw.mockResolvedValue([])
+  prismaMock.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(prismaMock))
 })
 
 function asRole(role: string) {
@@ -202,7 +214,6 @@ describe('PATCH /api/profile/account', () => {
       const response = await patch({ name: 'New Name' })
       expect(response.status).toBe(200)
       expect(prismaMock.user.update.mock.calls[0][0].data).toEqual({ name: 'New Name' })
-      expect(prismaMock.user.findUnique).not.toHaveBeenCalled()
       expect(storageMock.removeTeamPhoto).not.toHaveBeenCalled()
     })
 
@@ -210,7 +221,8 @@ describe('PATCH /api/profile/account', () => {
       prismaMock.user.findUnique.mockResolvedValue({ image: GOOGLE })
       const same = await patch({ image: GOOGLE })
       expect(same.status).toBe(200)
-      expect(prismaMock.user.update.mock.calls[0][0].data).toEqual({})
+      // Nothing changed, so nothing is written.
+      expect(prismaMock.user.update).not.toHaveBeenCalled()
 
       prismaMock.user.update.mockClear()
       const different = await patch({ image: 'https://lh3.googleusercontent.com/a/another-one' })
@@ -281,6 +293,7 @@ describe('PATCH /api/profile/account', () => {
   })
 
   it('accepts an empty image as clearing the photo', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({ image: AVATAR })
     const response = await patch({ image: '' })
     expect(response.status).toBe(200)
     expect(prismaMock.user.update.mock.calls[0][0].data).toEqual({ image: null })

@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { ProfileTabs } from '@/components/profile/ProfileTabs'
 import { VerifyEmailNotice } from '@/components/profile/VerifyEmailNotice'
 import { readDisplayTitles, resolvePublicTitleLabel } from '@/lib/displayTitles'
-import { publicAppointmentLabel, publicTeamCardProfile } from '@/lib/teamProfiles'
+import { publicAppointmentLabel } from '@/lib/teamProfiles'
+import { profileEditorState } from '@/lib/profileFields'
 import { publicAuthorPath } from '@/lib/authorUtils'
 import type { Metadata } from 'next'
 
@@ -44,14 +45,17 @@ export default async function ProfilePage({ searchParams }: Props) {
 
   if (!user) redirect('/login')
 
+  // Name, bio and photo: for a contributor with a linked Team Profile this is that shared profile
+  // (the same values the editorial Team Profile shows), otherwise the account's own.
+  const editor = profileEditorState(user, user.teamProfile, { testingMode: process.env.TESTING_MODE_ENABLED === '1' })
+
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       {!user.emailVerified && <VerifyEmailNotice email={user.email} />}
       <ProfileTabs
-        initialName={user.name}
-        initialBio={user.bio}
+        initialName={editor.view.values.name}
         email={user.email ?? session.user.email ?? ''}
-        image={user.image}
+        image={editor.view.values.image}
         createdAt={user.createdAt.toISOString()}
         initialTab={initialTab}
         role={user.role}
@@ -60,7 +64,7 @@ export default async function ProfilePage({ searchParams }: Props) {
           cardTitle: user.teamProfile?.isActive ? publicAppointmentLabel(user.teamProfile) : null,
         })}
         authorPath={publicAuthorPath(user)}
-        publicTeamCard={publicTeamCardProfile(user)}
+        editor={editor}
       />
     </div>
   )

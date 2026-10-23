@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 
 interface Category {
   id: string
@@ -48,13 +47,8 @@ export function CategoryTabs({ categories, currentSlug }: CategoryTabsProps) {
               }`}
             >
               {tab.label}
-              {isActive && (
-                <motion.span
-                  layoutId="category-tab-indicator"
-                  className="absolute bottom-0 left-0 right-0 h-[2px] bg-gold"
-                  transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-                />
-              )}
+              {/* Grows in under the selected tab (globals.css .tab-indicator). */}
+              <span aria-hidden className="tab-indicator absolute bottom-0 left-0 right-0 h-[2px] bg-gold" data-active={isActive ? '' : undefined} />
             </Link>
           )
         })}
