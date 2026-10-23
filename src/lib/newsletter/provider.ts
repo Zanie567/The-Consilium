@@ -68,7 +68,11 @@ type ResendError = { message?: string; name?: string; statusCode?: number | null
 type ResendResult<T> = { data: T | null; error: ResendError }
 
 const MIN_INTERVAL_MS = 550 // Resend's default limit is 2 requests per second per team.
-const MAX_RATE_LIMIT_RETRIES = 3
+const MAX_RATE_LIMIT_RETRIES = 4
+const REQUEST_TIMEOUT_MS = 30_000
+const PAGE_SIZE = 100
+/** Hard stop for runaway pagination (10 million contacts); a real list ends long before. */
+const MAX_PAGES = 100_000
 
 function classify(error: NonNullable<ResendError>, uncertainOnServerError = false): ProviderError {
   const status = error.statusCode ?? undefined
@@ -85,34 +89,69 @@ function isAlreadyExists(error: ResendError): boolean {
   return Boolean(error && (error.statusCode === 409 || /already exist/i.test(error.message ?? '')))
 }
 
+/** The subset of the Resend SDK this module uses; tests inject a faithful fake (tests/helpers/fakeResend.ts). */
+export type ResendClient = Pick<import('resend').Resend, 'contacts' | 'broadcasts'>
+
+export interface ResendProviderOptions {
+  client?: ResendClient
+  /** Minimum gap between requests (rate limit). Tests use 0. */
+  minIntervalMs?: number
+  /** A request that has not answered by then is abandoned and reported as an UNCERTAIN outcome. */
+  requestTimeoutMs?: number
+  /** Backoff unit for 429 retries. */
+  retryBaseMs?: number
+}
+
 class ResendMarketingProvider implements MarketingProvider {
   readonly name = 'resend' as const
   private lastCall = 0
-  private clientPromise: Promise<import('resend').Resend> | null = null
+  private clientPromise: Promise<ResendClient> | null = null
+  private readonly minInterval: number
+  private readonly timeout: number
+  private readonly retryBase: number
 
-  constructor(private readonly config: ResendMarketingConfig) {}
+  constructor(
+    private readonly config: ResendMarketingConfig,
+    options: ResendProviderOptions = {},
+  ) {
+    if (options.client) this.clientPromise = Promise.resolve(options.client)
+    this.minInterval = options.minIntervalMs ?? MIN_INTERVAL_MS
+    this.timeout = options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS
+    this.retryBase = options.retryBaseMs ?? 1000
+  }
 
   private client() {
     this.clientPromise ??= import('resend').then(({ Resend }) => new Resend(this.config.apiKey))
     return this.clientPromise
   }
 
-  /** Serialises calls under the rate limit and retries 429s with backoff. */
-  private async call<T>(fn: (resend: import('resend').Resend) => Promise<ResendResult<T>>): Promise<ResendResult<T>> {
+  /**
+   * Serialises calls under the rate limit, retries 429s with backoff, and bounds every request: a request
+   * that throws or does not answer within the timeout may still have reached Resend, so it is reported as
+   * `uncertain` and callers that mutate state must reconcile before acting again.
+   */
+  private async call<T>(fn: (resend: ResendClient) => Promise<ResendResult<T>>): Promise<ResendResult<T>> {
     const resend = await this.client()
     for (let attempt = 0; ; attempt++) {
-      const wait = this.lastCall + MIN_INTERVAL_MS - Date.now()
+      const wait = this.lastCall + this.minInterval - Date.now()
       if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait))
       this.lastCall = Date.now()
       let result: ResendResult<T>
+      let timer: ReturnType<typeof setTimeout> | undefined
       try {
-        result = await fn(resend)
+        result = await Promise.race([
+          fn(resend),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error(`no answer within ${this.timeout} ms`)), this.timeout)
+          }),
+        ])
       } catch (error) {
-        // Network failure: the request may or may not have reached Resend.
         throw new ProviderError(`network: ${(error as Error).message}`.slice(0, 500), true, undefined, true)
+      } finally {
+        if (timer) clearTimeout(timer)
       }
       if (result.error?.statusCode === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
-        await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt))
+        await new Promise((resolve) => setTimeout(resolve, this.retryBase * 2 ** attempt))
         continue
       }
       return result
@@ -168,26 +207,37 @@ class ResendMarketingProvider implements MarketingProvider {
 
   async getContactTopics(ref: { contactId?: string | null; email: string }): Promise<Record<Topic, boolean | null>> {
     const query = ref.contactId ? { id: ref.contactId } : { email: ref.email }
-    const result = await this.call((r) => r.contacts.topics.list({ ...query, limit: 100 }))
-    if (result.error) throw classify(result.error)
-    const find = (id: string) => {
-      const topic = result.data?.data.find((t) => t.id === id)
-      return topic ? topic.subscription === 'opt_in' : null
+    const found = new Map<string, boolean>()
+    let after: string | undefined
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const result = await this.call((r) => r.contacts.topics.list({ ...query, limit: PAGE_SIZE, ...(after ? { after } : {}) }))
+      if (result.error) throw classify(result.error)
+      const data = result.data?.data ?? []
+      for (const topic of data) found.set(topic.id, topic.subscription === 'opt_in')
+      if (!result.data?.has_more || data.length === 0) break
+      after = data[data.length - 1].id
     }
-    return { weekly: find(this.config.weeklyTopicId), alerts: find(this.config.alertsTopicId) }
+    return { weekly: found.get(this.config.weeklyTopicId) ?? null, alerts: found.get(this.config.alertsTopicId) ?? null }
   }
 
+  /** Every contact in the segment, following Resend's cursor pagination to the end (never truncated). */
   async listSegmentContacts(): Promise<ProviderContact[]> {
     const contacts: ProviderContact[] = []
+    const seen = new Set<string>()
     let after: string | undefined
-    for (let page = 0; page < 500; page++) {
+    for (let page = 0; page < MAX_PAGES; page++) {
       const result = await this.call((r) =>
-        r.contacts.list({ segmentId: this.config.segmentId, limit: 100, ...(after ? { after } : {}) }),
+        r.contacts.list({ segmentId: this.config.segmentId, limit: PAGE_SIZE, ...(after ? { after } : {}) }),
       )
       if (result.error) throw classify(result.error)
       const data = result.data?.data ?? []
-      for (const c of data) contacts.push({ id: c.id, email: c.email, unsubscribed: Boolean(c.unsubscribed) })
-      if (!result.data?.has_more || data.length === 0) return contacts
+      for (const c of data) {
+        if (seen.has(c.id)) continue // defensive: a page boundary must never double-count
+        seen.add(c.id)
+        contacts.push({ id: c.id, email: c.email, unsubscribed: Boolean(c.unsubscribed) })
+      }
+      if (!result.data?.has_more) return contacts
+      if (data.length === 0) throw new ProviderError('segment listing reported more pages but returned none', true)
       after = data[data.length - 1].id
     }
     throw new ProviderError('segment listing did not finish', true)
@@ -195,8 +245,8 @@ class ResendMarketingProvider implements MarketingProvider {
 
   async findBroadcastByName(name: string): Promise<{ id: string; status: BroadcastStatus } | null> {
     let after: string | undefined
-    for (let page = 0; page < 10; page++) {
-      const result = await this.call((r) => r.broadcasts.list({ limit: 100, ...(after ? { after } : {}) }))
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const result = await this.call((r) => r.broadcasts.list({ limit: PAGE_SIZE, ...(after ? { after } : {}) }))
       if (result.error) throw classify(result.error)
       const data = result.data?.data ?? []
       const match = data.find((b) => b.name === name)
@@ -204,7 +254,7 @@ class ResendMarketingProvider implements MarketingProvider {
       if (!result.data?.has_more || data.length === 0) return null
       after = data[data.length - 1].id
     }
-    return null
+    throw new ProviderError('broadcast listing did not finish', true)
   }
 
   async createBroadcast(input: BroadcastInput): Promise<{ id: string }> {
@@ -340,6 +390,11 @@ export function createMemoryProvider(
 }
 
 // ── Resolution ──────────────────────────────────────────────────────────────
+
+/** Tests: the real Resend code path against an injected client. */
+export function createResendMarketingProvider(config: ResendMarketingConfig, options: ResendProviderOptions = {}): MarketingProvider {
+  return new ResendMarketingProvider(config, options)
+}
 
 let override: MarketingProvider | null = null
 let cached: { key: string; provider: MarketingProvider } | null = null

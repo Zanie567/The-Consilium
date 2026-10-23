@@ -45,7 +45,8 @@ ALTER TABLE "subscribers"
   DROP COLUMN IF EXISTS "resendSyncedAt",
   DROP COLUMN IF EXISTS "resendSyncAttempts",
   DROP COLUMN IF EXISTS "resendSyncError",
-  DROP COLUMN IF EXISTS "resendUpdatedAt";
+  DROP COLUMN IF EXISTS "resendUpdatedAt",
+  DROP COLUMN IF EXISTS "resendVerifiedAt";
 
 DROP TYPE IF EXISTS "NewsletterCampaignStatus";
 DROP TYPE IF EXISTS "NewsletterCampaignKind";

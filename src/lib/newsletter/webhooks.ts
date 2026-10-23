@@ -170,7 +170,10 @@ async function processContactEvent(eventId: string, type: string, data: Record<s
   const sub = await prisma.subscriber.findUniqueOrThrow({ where: { id: subscriberId } })
   const topics = await resolution.provider.getContactTopics({ contactId: sub.resendContactId, email: subscriberIdentity(sub) })
   if (topics.weekly === null || topics.alerts === null) return 'PROCESSED'
-  if (topics.weekly === sub.weeklyDigest && topics.alerts === sub.specialAlerts) return 'PROCESSED'
+  if (topics.weekly === sub.weeklyDigest && topics.alerts === sub.specialAlerts) {
+    await prisma.subscriber.updateMany({ where: { id: sub.id, resendSyncState: 'SYNCED' }, data: { resendVerifiedAt: new Date() } })
+    return 'PROCESSED'
+  }
   await prisma.$transaction(async (tx) => {
     const identity = subscriberIdentity(sub)
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`subscriber:${identity}`}))`
@@ -183,7 +186,7 @@ async function processContactEvent(eventId: string, type: string, data: Record<s
     await tx.subscriber.update({
       where: { id: current.id },
       // Resend already reflects this; mark synced so we do not echo it back.
-      data: { weeklyDigest: topics.weekly as boolean, specialAlerts: topics.alerts as boolean, preferencesUpdatedAt: new Date(), resendSyncState: 'SYNCED', resendSyncedAt: new Date() },
+      data: { weeklyDigest: topics.weekly as boolean, specialAlerts: topics.alerts as boolean, preferencesUpdatedAt: new Date(), resendSyncState: 'SYNCED', resendSyncedAt: new Date(), resendVerifiedAt: new Date() },
     })
     await recordConsentEvent(tx, {
       subscriberId: current.id,

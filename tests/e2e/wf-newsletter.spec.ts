@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { createHmac, randomUUID } from 'node:crypto'
 import { capturedEmails, closeDb, db, signedIn, withCookieConsentAnswered } from './helpers/workflow'
 
 /**
@@ -37,6 +38,7 @@ test.afterAll(async () => {
   const subs = await db().subscriber.findMany({ where: { email: { endsWith: '@newsletter-e2e.test' } }, select: { id: true } })
   await db().subscriberConsentEvent.deleteMany({ where: { subscriberId: { in: subs.map((s) => s.id) } } })
   await db().subscriber.deleteMany({ where: { id: { in: subs.map((s) => s.id) } } })
+  await db().newsletterWebhookEvent.deleteMany({ where: { id: { startsWith: 'msg_e2e_' } } })
   await db().auditLog.deleteMany({ where: { targetId: { in: campaignIds } } })
   await closeDb()
 })
@@ -82,6 +84,40 @@ test('a visitor subscribes, confirms from the email, chooses topics and unsubscr
   await context.close()
 })
 
+test('Resend one-click unsubscribe (delivered as a signed webhook) unsubscribes the reader in the app', async ({ browser, request }) => {
+  const reader = `oneclick-${RUN}@newsletter-e2e.test`
+  const context = await withCookieConsentAnswered(await browser.newContext())
+  const page = await context.newPage()
+  await page.goto('/')
+  const form = page.locator('section[aria-labelledby="newsletter-heading"]')
+  await form.getByLabel('Newsletter email address').fill(reader)
+  await form.getByRole('button', { name: 'Subscribe' }).click()
+  let mail: { html: string } | undefined
+  await expect.poll(() => (mail = capturedEmails().find((m) => m.to === reader))).toBeTruthy()
+  await page.goto(/href="([^"]+\/newsletter\/confirm\?token=[^"]+)"/.exec(mail!.html)![1].replace(/&amp;/g, '&'))
+  await page.getByRole('button', { name: 'Confirm my subscription' }).click()
+  await page.getByRole('link', { name: 'Choose topics' }).click()
+  const preferencesUrl = page.url()
+
+  // What Resend posts after the reader presses the mail client's one-click "Unsubscribe" (RFC 8058).
+  const body = JSON.stringify({ type: 'contact.updated', created_at: new Date().toISOString(), data: { id: `contact_${RUN}`, email: reader, unsubscribed: true, audience_id: '', segment_ids: [], created_at: new Date().toISOString(), updated_at: new Date().toISOString() } })
+  const id = `msg_e2e_${randomUUID()}`
+  const ts = Math.floor(Date.now() / 1000)
+  const key = Buffer.from(process.env.RESEND_WEBHOOK_SECRET!.replace(/^whsec_/, ''), 'base64')
+  const signature = `v1,${createHmac('sha256', key).update(`${id}.${ts}.${body}`).digest('base64')}`
+  const forged = await request.post('/api/webhooks/resend', { headers: { 'content-type': 'application/json', 'svix-id': `${id}-x`, 'svix-timestamp': String(ts), 'svix-signature': 'v1,AAAA' }, data: body })
+  expect(forged.status()).toBe(401)
+  const delivered = await request.post('/api/webhooks/resend', { headers: { 'content-type': 'application/json', 'svix-id': id, 'svix-timestamp': String(ts), 'svix-signature': signature }, data: body })
+  expect(delivered.status()).toBe(200)
+  const again = await request.post('/api/webhooks/resend', { headers: { 'content-type': 'application/json', 'svix-id': id, 'svix-timestamp': String(ts), 'svix-signature': signature }, data: body })
+  expect(await again.json()).toMatchObject({ duplicate: true })
+
+  await page.goto(preferencesUrl)
+  await expect(page.getByText('This address is unsubscribed and receives nothing from us.')).toBeVisible()
+  expect(await db().subscriber.findFirst({ where: { email: reader } })).toMatchObject({ status: 'UNSUBSCRIBED', unsubscribeSource: 'resend_webhook' })
+  await context.close()
+})
+
 test('the old unsubscribe address never changes anything on page load', async ({ browser }) => {
   const context = await browser.newContext()
   const page = await context.newPage()
@@ -119,7 +155,7 @@ test('an administrator previews, approves and cancels an edition, with every ste
   await context.close()
 })
 
-test('an editor can prepare but not approve, and cannot resume sending; growth can only look', async ({ browser }) => {
+test('editors and growth can prepare but not approve or resume sending', async ({ browser }) => {
   const id = await seededDraft('weekly:2041-01-11')
   const editor = await signedIn(browser, 'editor')
   const page = await editor.newPage()
@@ -133,11 +169,22 @@ test('an editor can prepare but not approve, and cannot resume sending; growth c
   await expect(page.getByRole('button', { name: 'Resume sending' })).toHaveCount(0)
   await editor.close()
 
+  // Growth prepares newsletters for approval: it can build and edit, but never approve or resume sending.
   const growth = await signedIn(browser, 'growth')
   const growthPage = await growth.newPage()
   await growthPage.goto('/editorial/newsletter')
   await expect(growthPage.getByRole('heading', { name: 'Newsletter', exact: true })).toBeVisible()
-  await expect(growthPage.getByRole('button', { name: /Build this week/ })).toHaveCount(0)
+  await expect(growthPage.getByRole('button', { name: /Build this week/ })).toBeVisible()
+  await expect(growthPage.getByRole('button', { name: 'Resume sending' })).toHaveCount(0)
+  await growthPage.goto(`/editorial/newsletter/${id}`)
+  await expect(growthPage.getByRole('button', { name: /Edit subject, introduction or articles/ })).toBeVisible()
+  await growthPage.getByRole('button', { name: /Edit subject, introduction or articles/ }).click()
+  await growthPage.getByLabel(/introduction/i).fill('Prepared by the growth team for approval.')
+  await growthPage.getByRole('button', { name: 'Save changes' }).click()
+  await expect(growthPage.getByText(/draft again and needs approval/)).toBeVisible()
+  await expect(growthPage.frameLocator('iframe[title="Email preview"]').getByText('Prepared by the growth team for approval.')).toBeVisible()
+  await expect(growthPage.getByRole('button', { name: 'Approve this exact version' })).toHaveCount(0)
+  expect((await growthPage.request.patch(`/api/editorial/newsletter/campaigns/${id}`, { data: { action: 'approve', expectedHash: 'x' } })).status()).toBe(403)
   await growth.close()
 })
 

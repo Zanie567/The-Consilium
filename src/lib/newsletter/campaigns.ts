@@ -45,7 +45,7 @@ import { ProviderError, getMarketingProvider, type MarketingProvider } from './p
 import { renderNewsletterHtml, renderNewsletterText } from './render'
 import { currentWeeklySlot, slotForEditionKey } from './schedule'
 import { isNewsletterPaused } from './settings'
-import { prepareAudience } from './sync'
+import { AudienceNotReady, prepareAudience } from './sync'
 
 export interface Actor {
   id: string
@@ -220,12 +220,18 @@ export async function rebuildCampaign(id: string, actor: Actor, now = new Date()
   })
 }
 
+/**
+ * What editors may change. Article titles, authors, summaries (the published excerpt), images and links are
+ * NOT editable here: they are the approved, published article and the send-time check compares against it.
+ * Articles can only be left out.
+ */
 export interface ContentPatch {
   subject?: string
   previewText?: string | null
   intro?: string | null
-  summaries?: Record<string, string | null>
   removeArticleIds?: string[]
+  /** Rejected: kept in the type so a stale client gets a clear error rather than a silent no-op. */
+  summaries?: unknown
 }
 
 function cleanText(value: unknown, max: number, label: string, required = false): string | null {
@@ -251,9 +257,11 @@ export async function updateCampaignContent(id: string, actor: Actor, patch: Con
   const intro = patch.intro === undefined ? campaign.intro : cleanText(patch.intro, 2000, 'Introduction')
   const remove = new Set(Array.isArray(patch.removeArticleIds) ? patch.removeArticleIds.filter((v) => typeof v === 'string') : [])
   if (campaign.kind === 'ALERT' && remove.size) throw new CampaignError('An alert has exactly one article.', 'INVALID', 422)
-  const items = content.items
-    .filter((item) => !remove.has(item.id))
-    .map((item) => (patch.summaries && item.id in patch.summaries ? { ...item, summary: cleanText(patch.summaries[item.id], 600, 'Summary') } : item))
+  if (patch.summaries !== undefined) {
+    throw new CampaignError('Article titles, summaries and links come from the published article and cannot be edited here. Edit the article (it is then re-checked) or add an introduction.', 'ARTICLE_CONTENT_LOCKED', 422)
+  }
+  // Items are carried over untouched from the snapshot taken from the published articles.
+  const items = content.items.filter((item) => !remove.has(item.id))
   if (items.length === 0) throw new CampaignError('An edition needs at least one article. Cancel it instead.', 'INVALID', 422)
   const excluded = [...content.excluded, ...content.items.filter((i) => remove.has(i.id)).map((i) => ({ id: i.id, title: i.title, reason: `removed by ${actor.name ?? 'an editor'}` }))]
   const hash = contentHash({ subject, previewText, intro, items })
@@ -277,7 +285,7 @@ export async function updateCampaignContent(id: string, actor: Actor, patch: Con
       },
     })
     if (updated.count !== 1) throw new CampaignError('The campaign changed meanwhile; reload and try again.', 'CONFLICT')
-    await audit(tx, 'edited', campaign, actor, { from: campaign.status, removed: [...remove], summariesEdited: Object.keys(patch.summaries ?? {}).length })
+    await audit(tx, 'edited', campaign, actor, { from: campaign.status, removed: [...remove], subjectChanged: subject !== campaign.subject, introChanged: intro !== campaign.intro })
     return tx.newsletterCampaign.findUniqueOrThrow({ where: { id } })
   })
 }
@@ -425,13 +433,32 @@ export async function cancelCampaign(id: string, actor: Actor, reason: unknown):
 }
 
 // ── Sending ─────────────────────────────────────────────────────────────────
+//
+// Exactly-once, without relying on the database alone:
+//   * the broadcast id is persisted the moment Resend returns it, and set ONCE (a second id can never be
+//     stored for a campaign), so every later attempt works on the same Resend broadcast;
+//   * `sendRequestedAt` is persisted BEFORE the send request; afterwards Resend's own broadcast status
+//     decides: anything but `draft` means it went out and is recorded as sent, never sent again;
+//   * a Resend broadcast can only be sent once (sending a non-draft is refused), so even a repeated send
+//     request for the same id cannot produce a second email;
+//   * a crash between "created" and "id saved" leaves at most an orphan DRAFT (never sent); the next attempt
+//     looks the broadcast up by its unique name `consilium:<campaignId>` before creating another;
+//   * every write after the claim is fenced on (status SENDING, sendAttempts = this attempt): a worker whose
+//     lease expired and was taken over can no longer save an id, request a send or record an outcome;
+//   * after a send request with an unknown outcome, a `draft` answer is not trusted until SEND_SETTLE_MS
+//     has passed, so a slow Resend cannot trick a retry into a second request while the first is in flight.
+
+const SEND_SETTLE_MS = 15 * 60 * 1000
+const AUDIENCE_BUDGET_MS = 150_000
 
 export interface SendReport {
   id: string
   editionKey: string
-  outcome: 'sent' | 'already_sent' | 'blocked' | 'failed' | 'retry_later' | 'uncertain' | 'paused' | 'skipped_no_recipients'
+  outcome: 'sent' | 'already_sent' | 'blocked' | 'failed' | 'retry_later' | 'uncertain' | 'waiting' | 'paused' | 'superseded' | 'skipped_no_recipients'
   detail?: string
 }
+
+class Superseded extends Error {}
 
 function dueWhere(now: Date): Prisma.NewsletterCampaignWhereInput {
   return {
@@ -442,6 +469,9 @@ function dueWhere(now: Date): Prisma.NewsletterCampaignWhereInput {
     ],
   }
 }
+
+/** This worker's exclusive hold on the campaign: status SENDING at exactly the attempt it claimed. */
+const fence = (c: NewsletterCampaign) => ({ id: c.id, status: 'SENDING' as const, sendAttempts: c.sendAttempts })
 
 async function claim(id: string, now: Date): Promise<NewsletterCampaign | null> {
   try {
@@ -456,46 +486,60 @@ async function claim(id: string, now: Date): Promise<NewsletterCampaign | null> 
   }
 }
 
+async function fenced(c: NewsletterCampaign, data: Prisma.NewsletterCampaignUpdateManyMutationInput): Promise<void> {
+  const updated = await prisma.newsletterCampaign.updateMany({ where: fence(c), data })
+  if (updated.count !== 1) throw new Superseded()
+}
+
 async function finish(c: NewsletterCampaign, data: Prisma.NewsletterCampaignUpdateManyMutationInput, action: string, metadata: Record<string, unknown> = {}) {
   await prisma.$transaction(async (tx) => {
-    await tx.newsletterCampaign.updateMany({ where: { id: c.id, status: 'SENDING' }, data: { leaseUntil: null, ...data } })
+    const updated = await tx.newsletterCampaign.updateMany({ where: fence(c), data: { leaseUntil: null, ...data } })
+    if (updated.count !== 1) throw new Superseded()
     await audit(tx, action, c, SYSTEM_ACTOR, metadata)
   })
 }
 
-async function markSent(c: NewsletterCampaign, broadcastId: string, now: Date, recipientCount: number | null): Promise<SendReport> {
-  await finish(c, { status: 'SENT', sentAt: now, resendBroadcastId: broadcastId, nextAttemptAt: null, lastError: null, ...(recipientCount === null ? {} : { recipientCount }) }, 'sent', { broadcastId, recipientCount, attempt: c.sendAttempts })
-  return { id: c.id, editionKey: c.editionKey, outcome: 'sent' }
+async function markSent(c: NewsletterCampaign, broadcastId: string, now: Date, recipientCount: number | null, outcome: 'sent' | 'already_sent' = 'sent'): Promise<SendReport> {
+  await finish(c, { status: 'SENT', sentAt: now, resendBroadcastId: broadcastId, nextAttemptAt: null, lastError: null, ...(recipientCount === null ? {} : { recipientCount }) }, 'sent', { broadcastId, recipientCount, attempt: c.sendAttempts, reconciled: outcome === 'already_sent' })
+  return { id: c.id, editionKey: c.editionKey, outcome }
 }
 
+/** Set-once: refuses to store a different broadcast id than the one already recorded. */
 async function saveBroadcastId(c: NewsletterCampaign, broadcastId: string) {
-  await prisma.newsletterCampaign.updateMany({ where: { id: c.id, status: 'SENDING' }, data: { resendBroadcastId: broadcastId } })
+  const saved = await prisma.newsletterCampaign.updateMany({ where: { ...fence(c), resendBroadcastId: null }, data: { resendBroadcastId: broadcastId } })
+  if (saved.count === 1) return
+  const row = await prisma.newsletterCampaign.findUnique({ where: { id: c.id }, select: { resendBroadcastId: true, status: true, sendAttempts: true } })
+  if (row?.resendBroadcastId === broadcastId && row.status === 'SENDING' && row.sendAttempts === c.sendAttempts) return
+  throw new Superseded()
 }
 
 async function sendClaimed(c: NewsletterCampaign, provider: MarketingProvider, now: Date, options: SendOptions): Promise<SendReport> {
   let broadcastId = c.resendBroadcastId
   let stage = 'start'
+  const report = (outcome: SendReport['outcome'], detail?: string): SendReport => ({ id: c.id, editionKey: c.editionKey, outcome, ...(detail ? { detail } : {}) })
   try {
     // The switch may have been flipped between the due-query and the claim.
     if (await isNewsletterPaused()) {
-      await prisma.newsletterCampaign.updateMany({ where: { id: c.id, status: 'SENDING' }, data: { status: 'SCHEDULED', scheduledFor: c.scheduledFor ?? now, leaseUntil: null, sendAttempts: { decrement: 1 } } })
-      return { id: c.id, editionKey: c.editionKey, outcome: 'paused' }
+      await fenced(c, { status: 'SCHEDULED', scheduledFor: c.scheduledFor ?? now, leaseUntil: null, sendAttempts: { decrement: 1 } })
+      return report('paused')
     }
 
-    // 1. Did an earlier attempt already create (or even send) the broadcast?
+    // 1. Reconcile with Resend before doing anything: did an earlier attempt create or even send it?
     stage = 'recover'
-    if (!broadcastId && c.sendAttempts > 1) {
+    if (!broadcastId && (c.sendAttempts > 1 || c.sendRequestedAt)) {
       const found = await provider.findBroadcastByName(broadcastName(c))
       if (found) {
-        broadcastId = found.id
         await saveBroadcastId(c, found.id)
+        broadcastId = found.id
       }
     }
     if (broadcastId) {
       const existing = await provider.getBroadcast(broadcastId)
-      if (existing.status !== 'draft') {
-        await markSent(c, broadcastId, now, c.recipientCount)
-        return { id: c.id, editionKey: c.editionKey, outcome: 'already_sent' }
+      if (existing.status !== 'draft') return await markSent(c, broadcastId, now, c.recipientCount, 'already_sent')
+      if (c.sendRequestedAt && now.getTime() - c.sendRequestedAt.getTime() < SEND_SETTLE_MS) {
+        // A send was requested and its outcome is unknown: give Resend time before trusting "draft".
+        await fenced(c, { leaseUntil: new Date(c.sendRequestedAt.getTime() + SEND_SETTLE_MS) })
+        return report('uncertain', 'waiting for Resend to settle the earlier send request')
       }
     }
 
@@ -510,19 +554,28 @@ async function sendClaimed(c: NewsletterCampaign, provider: MarketingProvider, n
         : await alertCapProblem(now, c.id)
     if (guard) {
       await finish(c, { status: 'BLOCKED', blockedReason: guard.slice(0, 4000) }, 'blocked', { problems: problems.length })
-      return { id: c.id, editionKey: c.editionKey, outcome: 'blocked', detail: guard }
+      return report('blocked', guard)
     }
 
-    // 3. Audience: every withdrawal synced, every stray contact switched off.
+    // 3. Audience: the whole segment provably matches the database, or the send waits.
     stage = 'audience'
-    const reconcile = await prepareAudience(provider)
+    let audience
+    try {
+      audience = await prepareAudience(provider, { deadline: Date.now() + (options.audienceBudgetMs ?? AUDIENCE_BUDGET_MS) })
+    } catch (error) {
+      if (!(error instanceof AudienceNotReady)) throw error
+      // Not a failure: no attempt is used up and the campaign stays scheduled for the next run.
+      await fenced(c, { status: 'SCHEDULED', scheduledFor: c.scheduledFor ?? now, leaseUntil: null, sendAttempts: { decrement: 1 }, lastError: `waiting: ${error.message}`.slice(0, 1000) })
+      return report('waiting', error.message)
+    }
+    await fenced(c, { leaseUntil: new Date(now.getTime() + SEND_LEASE_MS) }) // still ours; renew the lease
     const recipientCount = await prisma.subscriber.count({ where: { status: 'ACTIVE', ...(c.kind === 'WEEKLY' ? { weeklyDigest: true } : { specialAlerts: true }) } })
     if (recipientCount === 0) {
       await finish(c, { status: 'SKIPPED', blockedReason: 'No confirmed subscribers have opted in to this topic.' }, 'skipped_no_recipients')
-      return { id: c.id, editionKey: c.editionKey, outcome: 'skipped_no_recipients' }
+      return report('skipped_no_recipients')
     }
 
-    // 4. Create the broadcast once, then send it only while Resend still reports it as a draft.
+    // 4. Create the broadcast once (id persisted immediately, set-once).
     stage = 'create'
     if (!broadcastId) {
       const rendered = renderCampaign(c)
@@ -534,34 +587,56 @@ async function sendClaimed(c: NewsletterCampaign, provider: MarketingProvider, n
         text: rendered.text,
         topic: c.kind === 'WEEKLY' ? 'weekly' : 'alerts',
       })
+      await saveBroadcastId(c, created.id)
       broadcastId = created.id
-      await saveBroadcastId(c, broadcastId)
     }
+
+    // 5. Record the intent, then send only while Resend still reports a draft.
     stage = 'send'
+    await fenced(c, { sendRequestedAt: now }) // same clock as the lease and settle checks
     const state = await provider.getBroadcast(broadcastId)
-    if (state.status === 'draft') await provider.sendBroadcast(broadcastId)
-    const report = await markSent(c, broadcastId, now, recipientCount)
-    return { ...report, detail: `reconciled ${reconcile.segmentContacts} contacts, ${reconcile.strayContactsUnsubscribed} stray switched off` }
+    if (state.status === 'draft') {
+      try {
+        await provider.sendBroadcast(broadcastId)
+      } catch (error) {
+        // A definite refusal may mean it already went (e.g. a concurrent request won): ask Resend.
+        if (error instanceof ProviderError && !error.uncertain) {
+          const after = await provider.getBroadcast(broadcastId).catch(() => null)
+          if (after && after.status !== 'draft') return await markSent(c, broadcastId, now, recipientCount, 'already_sent')
+        }
+        throw error
+      }
+    }
+    const sent = await markSent(c, broadcastId, now, recipientCount)
+    return { ...sent, detail: `segment ${audience.segmentContacts} contacts, ${audience.strayContactsUnsubscribed} stray switched off, ${audience.audit.audited} topic checks` }
   } catch (error) {
+    if (error instanceof Superseded) return report('superseded', 'another worker took over this campaign')
     const message = `${stage}: ${(error as Error).message}`.slice(0, 1000)
     const providerError = error instanceof ProviderError ? error : null
-    if (providerError?.uncertain && (stage === 'create' || stage === 'send') && c.sendAttempts <= MAX_SEND_ATTEMPTS + 2) {
-      // The request may have taken effect. Keep the lease; once it expires the next run asks Resend
-      // (by stored id or by broadcast name) before doing anything else.
-      await prisma.newsletterCampaign.updateMany({ where: { id: c.id, status: 'SENDING' }, data: { lastError: message } })
-      return { id: c.id, editionKey: c.editionKey, outcome: 'uncertain', detail: message }
+    try {
+      if (providerError?.uncertain && (stage === 'create' || stage === 'send') && c.sendAttempts <= MAX_SEND_ATTEMPTS + 2) {
+        // The request may have taken effect. Keep the lease; once it expires the next run reconciles with
+        // Resend (stored id, or lookup by name) before doing anything else.
+        await fenced(c, { lastError: message })
+        return report('uncertain', message)
+      }
+      const retryable = providerError ? providerError.retryable : stage !== 'publication_check'
+      const attempt = c.sendAttempts
+      const next = retryable && attempt < MAX_SEND_ATTEMPTS ? new Date(now.getTime() + SEND_BACKOFF_MS[Math.min(attempt - 1, SEND_BACKOFF_MS.length - 1)]) : null
+      await finish(c, { status: 'FAILED', lastError: message, nextAttemptAt: next }, next ? 'attempt_failed' : 'failed', { stage, attempt, retryAt: next?.toISOString() ?? null })
+      return report(next ? 'retry_later' : 'failed', message)
+    } catch (inner) {
+      if (inner instanceof Superseded) return report('superseded', 'another worker took over this campaign')
+      throw inner
     }
-    const retryable = providerError ? providerError.retryable : stage !== 'publication_check'
-    const attempt = c.sendAttempts
-    const next = retryable && attempt < MAX_SEND_ATTEMPTS ? new Date(now.getTime() + SEND_BACKOFF_MS[Math.min(attempt - 1, SEND_BACKOFF_MS.length - 1)]) : null
-    await finish(c, { status: 'FAILED', lastError: message, nextAttemptAt: next }, next ? 'attempt_failed' : 'failed', { stage, attempt, retryAt: next?.toISOString() ?? null })
-    return { id: c.id, editionKey: c.editionKey, outcome: next ? 'retry_later' : 'failed', detail: message }
   }
 }
 
 export interface SendOptions {
   provider?: MarketingProvider
   fetchLinks?: boolean
+  /** Time allowed for syncing and verifying the audience before a send waits for the next run. */
+  audienceBudgetMs?: number
 }
 
 export interface RunReport {
@@ -584,3 +659,6 @@ export async function runDueCampaigns(now = new Date(), options: SendOptions = {
   }
   return { paused: false, results }
 }
+
+/** Tests only: drive one claimed campaign directly (used to replay a stale worker after a takeover). */
+export const sendClaimedForTests = sendClaimed

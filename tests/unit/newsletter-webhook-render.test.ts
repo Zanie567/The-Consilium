@@ -98,6 +98,26 @@ describe('newsletter markup', () => {
     expect(text).toContain('Read: https://www.theconsilium.co.uk/articles/two')
   })
 
+  it('shows the editors’ introduction (escaped, paragraphs kept) above an "In this edition" list', () => {
+    const html = renderNewsletterHtml(input)
+    expect(html).toContain('From the editors')
+    expect(html.indexOf('From the editors')).toBeLessThan(html.indexOf('In this edition'))
+    expect(html.indexOf('In this edition')).toBeLessThan(html.indexOf('Read the article'))
+    expect((html.match(/<p style="margin:0 0 14px">/g) ?? []).length).toBe(2)
+    expect(renderNewsletterText(input)).toMatch(/FROM THE EDITORS[\s\S]*IN THIS EDITION\n1\. Rates/)
+    const single = renderNewsletterHtml({ ...input, intro: null, items: [input.items[0]] })
+    expect(single).not.toContain('In this edition')
+    expect(single).not.toContain('From the editors')
+  })
+
+  it('is responsive: fluid 600px table plus phone rules for clients that support them', () => {
+    const html = renderNewsletterHtml(input)
+    expect(html).toContain('max-width:600px')
+    expect(html).toMatch(/@media only screen and \(max-width: 620px\)/)
+    expect(html).toContain('class="c-pad')
+    expect(html).toContain('name="viewport"')
+  })
+
   it('lets the editor preview substitute a dead unsubscribe link', () => {
     expect(renderNewsletterHtml(input, { unsubscribeUrl: '#preview' })).not.toContain(UNSUBSCRIBE_PLACEHOLDER)
   })

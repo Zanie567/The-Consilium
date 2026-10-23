@@ -449,6 +449,8 @@ model Subscriber {
   resendSyncError      String?
   // Provider-side time of the last contact change applied from a webhook (ignores out-of-order events).
   resendUpdatedAt      DateTime?           @db.Timestamptz(3)
+  // Last time Resend was confirmed to match this row (a successful push or a topic audit).
+  resendVerifiedAt     DateTime?           @db.Timestamptz(3)
 
   tokens        SubscriberToken[]
   consentEvents SubscriberConsentEvent[]
@@ -537,6 +539,8 @@ model NewsletterCampaign {
   cancelReason      String?
   blockedReason     String?                  @db.Text
   resendBroadcastId String?                  @unique
+  // Written BEFORE the send request: after a crash or an unanswered request, Resend's broadcast state decides.
+  sendRequestedAt   DateTime?                @db.Timestamptz(3)
   sendAttempts      Int                      @default(0)
   leaseUntil        DateTime?                @db.Timestamptz(3)
   nextAttemptAt     DateTime?                @db.Timestamptz(3)

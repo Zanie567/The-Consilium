@@ -19,7 +19,7 @@ export interface EditionItem {
   slug: string
   title: string
   author: string
-  /** The summary as approved for the email (defaults to the article's published excerpt). */
+  /** The article's published (editorially approved) excerpt; never edited in the newsletter. */
   summary: string | null
   /** The article's excerpt when the snapshot was taken, to detect a later change. */
   sourceExcerpt: string | null

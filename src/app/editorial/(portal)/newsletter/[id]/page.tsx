@@ -88,7 +88,7 @@ export default function CampaignPage({ params }: { params: Promise<{ id: string 
   const [cancelling, setCancelling] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState<{ subject: string; previewText: string; intro: string; summaries: Record<string, string>; remove: Set<string> } | null>(null)
+  const [draft, setDraft] = useState<{ subject: string; previewText: string; intro: string; remove: Set<string> } | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -133,7 +133,6 @@ export default function CampaignPage({ params }: { params: Promise<{ id: string 
       subject: detail.campaign.subject,
       previewText: detail.campaign.previewText ?? '',
       intro: detail.campaign.intro ?? '',
-      summaries: Object.fromEntries(detail.content.items.map((i) => [i.id, i.summary ?? ''])),
       remove: new Set(),
     })
     setEditing(true)
@@ -142,7 +141,7 @@ export default function CampaignPage({ params }: { params: Promise<{ id: string 
   async function saveEdits() {
     if (!draft) return
     const ok = await patch(
-      { action: 'edit', subject: draft.subject, previewText: draft.previewText || null, intro: draft.intro || null, summaries: draft.summaries, removeArticleIds: [...draft.remove] },
+      { action: 'edit', subject: draft.subject, previewText: draft.previewText || null, intro: draft.intro || null, removeArticleIds: [...draft.remove] },
       'Saved. The edition is a draft again and needs approval.',
     )
     if (ok) setEditing(false)
@@ -235,15 +234,21 @@ export default function CampaignPage({ params }: { params: Promise<{ id: string 
                     </label>
                     <label className="block">
                       <span className="block text-xs font-bold uppercase tracking-widest text-[var(--fg-muted)] mb-1">Editor&apos;s introduction (optional)</span>
-                      <textarea className={`${field} min-h-[96px]`} maxLength={2000} value={draft.intro} onChange={(e) => setDraft({ ...draft, intro: e.target.value })} />
+                      <textarea className={`${field} min-h-[120px]`} maxLength={2000} value={draft.intro} onChange={(e) => setDraft({ ...draft, intro: e.target.value })} aria-describedby="intro-help" />
+                      <span id="intro-help" className="block text-[11px] text-[var(--fg-faint)] mt-1">
+                        Plain text, shown above the articles. Leave a blank line between paragraphs. {2000 - draft.intro.length} characters left.
+                      </span>
                     </label>
+                    <p className="text-xs text-[var(--fg-muted)] border-l-2 border-gold/50 pl-3">
+                      Article titles, authors, summaries, images and links come from the published articles and cannot be changed here,
+                      so subscribers always get exactly what was published. To change one, edit the article; the edition will then need
+                      rebuilding and approval.
+                    </p>
                     {detail.content.items.map((item) => (
                       <fieldset key={item.id} className="border-t border-[var(--border)] pt-4">
                         <legend className="text-sm font-semibold text-[var(--fg)] pr-2">{item.title}</legend>
-                        <label className="block mt-2">
-                          <span className="block text-xs text-[var(--fg-muted)] mb-1">Approved summary (defaults to the published excerpt)</span>
-                          <textarea className={`${field} min-h-[72px]`} maxLength={600} value={draft.summaries[item.id] ?? ''} onChange={(e) => setDraft({ ...draft, summaries: { ...draft.summaries, [item.id]: e.target.value } })} />
-                        </label>
+                        <p className="text-xs text-[var(--fg-muted)] mt-1">{item.summary ?? 'No summary: only the title, author and link will appear.'}</p>
+                        <p className="text-[11px] text-[var(--fg-faint)] mt-1 break-all">{item.url}</p>
                         {c.kind === 'WEEKLY' && (
                           <label className="mt-2 flex items-center gap-2 text-xs text-[var(--fg-muted)] cursor-pointer">
                             <input
@@ -318,7 +323,7 @@ export default function CampaignPage({ params }: { params: Promise<{ id: string 
                 <div className="flex flex-col gap-2">
                   {editable && !editing && (
                     <button type="button" onClick={startEditing} disabled={busy} className={secondary}>
-                      Edit subject, intro or summaries
+                      Edit subject, introduction or articles
                     </button>
                   )}
                   {rebuildable && (

@@ -8,7 +8,7 @@ import { approveCampaign, ensureWeeklyEdition, runDueCampaigns, type RunReport }
 import { PENDING_RETENTION_DAYS } from './config'
 import { getMarketingProvider } from './provider'
 import { isNewsletterPaused, isWeeklyAutoSendEnabled } from './settings'
-import { syncPendingSubscribers } from './sync'
+import { auditTopics, syncPendingSubscribers } from './sync'
 import { pruneWebhookEvents, retryWebhookEvents } from './webhooks'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -20,6 +20,7 @@ export interface TickSummary {
   paused: boolean
   delivery: 'available' | 'disabled'
   sync?: { synced: number; failed: number } | { error: string }
+  audit?: { audited: number; resendCorrected: number; withdrawalsAdopted: number } | { error: string }
   webhooks?: { retried: number; failed: number } | { error: string }
   weekly: { editionKey: string; state: string; status?: string; autoApproved?: boolean; autoApproveError?: string }
   sends: Pick<RunReport, 'paused' | 'deliveryDisabled'> & { results: { id: string; outcome: string }[] }
@@ -58,11 +59,19 @@ export async function runNewsletterTick(now = new Date()): Promise<TickSummary> 
     retention: {},
   }
 
+  // Time budget for one invocation (the route allows 300 s): background sync and the rolling topic audit
+  // first, then whatever is left for sends (each send verifies its own audience within its budget).
+  const started = Date.now()
   if (resolution.provider) {
     try {
-      summary.sync = await syncPendingSubscribers(resolution.provider, 50)
+      summary.sync = await syncPendingSubscribers(resolution.provider, { deadline: started + 60_000 })
     } catch (error) {
       summary.sync = { error: (error as Error).message.slice(0, 200) }
+    }
+    try {
+      summary.audit = await auditTopics(resolution.provider, { deadline: started + 100_000 })
+    } catch (error) {
+      summary.audit = { error: (error as Error).message.slice(0, 200) }
     }
   }
   try {
@@ -83,7 +92,7 @@ export async function runNewsletterTick(now = new Date()): Promise<TickSummary> 
     }
   }
 
-  const run = await runDueCampaigns(now)
+  const run = await runDueCampaigns(now, { audienceBudgetMs: Math.max(30_000, started + 240_000 - Date.now()) })
   summary.sends = { paused: run.paused, deliveryDisabled: run.deliveryDisabled, results: run.results.map((r) => ({ id: r.id, outcome: r.outcome })) }
 
   try {

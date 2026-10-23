@@ -44,6 +44,7 @@ const DB_BACKED_SUITES = [
   'tests/integration/newsletter-campaigns-db.test.ts',
   'tests/integration/newsletter-webhooks-db.test.ts',
   'tests/integration/newsletter-migration-db.test.ts',
+  'tests/integration/newsletter-resend-db.test.ts',
 ]
 const isolatedLauncherRun = process.env.E2E_ISOLATED === '1' && Boolean(process.env.BASE_URL)
 

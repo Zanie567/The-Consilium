@@ -84,7 +84,7 @@ const LATER_MIGRATIONS: { file: string; adds: string[] }[] = [
     adds: [
       ...['status', 'weeklyDigest', 'specialAlerts', 'confirmedAt', 'consentSource', 'consentVersion', 'consentIpHash', 'preferencesUpdatedAt',
         'unsubscribedAt', 'unsubscribeSource', 'suppressedAt', 'suppressionReason', 'resendContactId', 'resendSyncState', 'resendSyncedAt',
-        'resendSyncAttempts', 'resendSyncError', 'resendUpdatedAt'].map((c) => `subscribers.${c}`),
+        'resendSyncAttempts', 'resendSyncError', 'resendUpdatedAt', 'resendVerifiedAt'].map((c) => `subscribers.${c}`),
       // Whole new tables: every column of their models.
       ...Prisma.dmmf.datamodel.models
         .filter((m) => ['subscriber_tokens', 'subscriber_consent_events', 'newsletter_suppressions', 'newsletter_campaigns', 'newsletter_webhook_events'].includes(m.dbName ?? ''))

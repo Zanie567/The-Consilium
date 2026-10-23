@@ -178,6 +178,9 @@ describe('approval, pause and exactly-once sending', () => {
     }
     session.role = 'GROWTH'
     expect((await campaignGet(new Request('http://localhost'), { params: Promise.resolve({ id: campaign.id }) })).status).toBe(200)
+    // Growth prepares newsletters (build/edit/cancel) for an admin to approve.
+    expect((await campaignsPost(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ action: 'build_weekly' }) }))).status).toBeLessThan(300)
+    session.role = 'WRITER'
     expect((await campaignsPost(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ action: 'build_weekly' }) }))).status).toBe(403)
 
     session.role = 'ADMIN'
@@ -373,10 +376,12 @@ describe('send failures, retries and reconciliation', () => {
     const leaving = await subscriber('leaving', { status: 'UNSUBSCRIBED' })
     provider.failWith((op, detail) => ((op === 'syncContact' && (detail as { email: string }).email === leaving.email) ? new ProviderError('service unavailable', true, 503) : undefined))
     const report = await runDueCampaigns(at)
-    expect(report.results).toEqual([expect.objectContaining({ outcome: 'retry_later', detail: expect.stringMatching(/not yet synced/) })])
+    // Not a failure: the send waits (no attempt used) until the withdrawal has reached Resend.
+    expect(report.results).toEqual([expect.objectContaining({ outcome: 'waiting', detail: expect.stringMatching(/not yet synced/) })])
+    expect(await prisma.newsletterCampaign.findUniqueOrThrow({ where: { id: campaign.id } })).toMatchObject({ status: 'SCHEDULED', sendAttempts: 0 })
     expect(provider.state.calls).not.toContain('createBroadcast')
     provider.failWith(null)
-    expect((await runDueCampaigns(new Date(at.getTime() + 11 * MIN))).results.map((r) => r.outcome)).toEqual(['sent'])
+    expect((await runDueCampaigns(new Date(at.getTime() + MIN))).results.map((r) => r.outcome)).toEqual(['sent'])
     expect([...provider.state.broadcasts.values()][0].recipients).not.toContain(leaving.email)
     expect(campaign.id).toBeTruthy()
   })
@@ -387,6 +392,31 @@ describe('send failures, retries and reconciliation', () => {
     const built = await ensureWeeklyEdition(new Date(slot.cutoff.getTime() + MIN))
     if (built.state === 'not_due') throw new Error('unreachable')
     await expect(approveCampaign(built.campaign.id, ADMIN, { expectedHash: built.campaign.contentHash }, new Date(slot.sendAt.getTime() + 2 * DAY))).rejects.toMatchObject({ code: 'TOO_LATE' })
+  })
+
+  it('article content is locked to the published article; growth can prepare but never approve', async () => {
+    const slot = week(15)
+    await article('Week 15 piece', { publishedAt: new Date(slot.cutoff.getTime() - DAY) })
+    const built = await ensureWeeklyEdition(new Date(slot.cutoff.getTime() + MIN))
+    if (built.state === 'not_due') throw new Error('unreachable')
+    const itemId = readContent(built.campaign.articles).items[0].id
+    await expect(updateCampaignContent(built.campaign.id, ADMIN, { summaries: { [itemId]: 'A rewritten summary' } })).rejects.toMatchObject({ code: 'ARTICLE_CONTENT_LOCKED' })
+    session.role = 'GROWTH'
+    const call = (body: unknown) => campaignPatch(new Request('http://localhost', { method: 'PATCH', body: JSON.stringify(body) }), { params: Promise.resolve({ id: built.campaign.id }) })
+    const edited = await call({ action: 'edit', intro: 'A note from the growth team.\n\nSecond paragraph.' })
+    expect(edited.status).toBe(200)
+    const after = await prisma.newsletterCampaign.findUniqueOrThrow({ where: { id: built.campaign.id } })
+    expect(after.intro).toBe('A note from the growth team.\n\nSecond paragraph.')
+    expect(readContent(after.articles).items).toEqual(readContent(built.campaign.articles).items) // untouched
+    expect((await call({ action: 'edit', summaries: { [itemId]: 'x' } })).status).toBe(422)
+    expect((await call({ action: 'approve', expectedHash: after.contentHash })).status).toBe(403)
+    expect((await settingsPut(new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ paused: true }) }))).status).toBe(200)
+    expect((await settingsPut(new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ paused: false }) }))).status).toBe(403)
+    expect((await settingsPut(new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ autoSend: true }) }))).status).toBe(403)
+    session.role = 'ADMIN'
+    expect((await settingsPut(new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ paused: false }) }))).status).toBe(200)
+    expect((await call({ action: 'approve', expectedHash: after.contentHash })).status).toBe(200)
+    await cancelCampaign(built.campaign.id, ADMIN, 'test cleanup: only one weekly may be scheduled')
   })
 
   it('editing an approved edition returns it to draft; cancelling stops it', async () => {

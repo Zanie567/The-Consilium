@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { Client } from 'pg'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { assertSafeTestDatabaseHost } from '../../scripts/lib/assertSafeTestDatabaseHost'
@@ -134,6 +134,134 @@ describe('newsletter migration on a production-shaped database', () => {
       await client.query(`INSERT INTO newsletter_campaigns (id, kind, "editionKey", status, subject, articles, "contentHash", "approvedHash", "approvedAt", "scheduledFor", "sentAt", "resendBroadcastId", "updatedAt")
         VALUES ('c1', 'WEEKLY', 'weekly:2026-10-30', 'SENT', 's', '{}', 'h', 'h', now(), now(), now(), 'b1', now())`)
       await expect(client.query(ROLLBACK)).rejects.toThrow(/refusing to roll back/)
+    })
+  })
+})
+
+/**
+ * Splits the migration into top-level statements: respects -- comments, '...' strings and $$ bodies.
+ * (Enough for this file, which uses no other quoting.)
+ */
+function statements(sql: string): string[] {
+  const out: string[] = []
+  let current = ''
+  let inDollar = false
+  let inString = false
+  for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i]
+    const two = sql.slice(i, i + 2)
+    if (!inDollar && !inString && two === '--') {
+      const end = sql.indexOf('\n', i)
+      i = end === -1 ? sql.length : end
+      current += '\n'
+      continue
+    }
+    if (!inString && two === '$$') {
+      inDollar = !inDollar
+      current += two
+      i++
+      continue
+    }
+    if (!inDollar && ch === "'") inString = !inString
+    current += ch
+    if (ch === ';' && !inDollar && !inString) {
+      if (current.trim() !== ';') out.push(current.trim())
+      current = ''
+    }
+  }
+  if (current.trim()) out.push(current.trim())
+  return out
+}
+
+async function finalState(client: Client) {
+  const rows = await client.query(`SELECT id, status, "specialAlerts", "confirmedAt" IS NULL AS unconfirmed FROM subscribers ORDER BY id`)
+  const events = await client.query(`SELECT "subscriberId" FROM subscriber_consent_events WHERE action = 'LEGACY_IMPORTED' ORDER BY 1`)
+  const rls = await client.query(`SELECT bool_and(relrowsecurity) AS on FROM pg_class WHERE relnamespace = 'public'::regnamespace AND relname = ANY($1)`, [TABLES])
+  const trigger = await client.query(`SELECT count(*)::int AS n FROM pg_trigger WHERE tgname = 'newsletter_campaigns_protect'`)
+  return { columns: await columns(client), rows: rows.rows, events: events.rows.map((r) => r.subscriberId), rls: rls.rows[0].on, trigger: trigger.rows[0].n }
+}
+
+const psqlAvailable = spawnSync('psql', ['--version']).status === 0
+function runApply(databaseUrl: string, resume: boolean) {
+  return spawnSync('psql', ['-X', '-q', '-v', 'ON_ERROR_STOP=1', ...(resume ? ['-v', 'resume=1'] : []), '-f', 'docs/newsletter/production/apply.sql', databaseUrl], { encoding: 'utf8' })
+}
+
+describe('interrupted migration attempts', () => {
+  const parts = statements(MIGRATION)
+
+  it('the splitter sees every statement of the file', () => {
+    expect(parts.length).toBeGreaterThan(20)
+    expect(parts.join('\n')).toContain('protect_newsletter_campaign')
+    expect(parts.filter((p) => p.startsWith('DO $$')).length).toBeGreaterThanOrEqual(4)
+  })
+
+  it('stopped after ANY statement (no transaction), a re-run reaches exactly the clean end state', async () => {
+    let clean: Awaited<ReturnType<typeof finalState>> | undefined
+    await withDatabase(async (client) => {
+      await productionShaped(client)
+      await client.query(MIGRATION)
+      clean = await finalState(client)
+    })
+    for (let k = 1; k < parts.length; k++) {
+      await withDatabase(async (client) => {
+        await productionShaped(client)
+        for (const statement of parts.slice(0, k)) await client.query(statement) // autocommit, then "crash"
+        await client.query(MIGRATION) // operator re-runs the whole file
+        await client.query(MIGRATION) // and again: still nothing changes
+        expect(await finalState(client), `interrupted after statement ${k}: ${parts[k - 1].slice(0, 80)}`).toEqual(clean)
+      })
+    }
+  }, 300_000)
+
+  it('a sign-up made by the old code between a partial run and the re-run is never classified LEGACY', async () => {
+    await withDatabase(async (client) => {
+      await productionShaped(client)
+      // Interrupted right after the status column (and classification) statement.
+      const k = parts.findIndex((p) => p.includes('first_run boolean')) + 1
+      for (const statement of parts.slice(0, k)) await client.query(statement)
+      await client.query(`INSERT INTO subscribers (id, email) VALUES ('between', 'between@example.test')`)
+      await client.query(MIGRATION)
+      const { rows } = await client.query(`SELECT id, status FROM subscribers ORDER BY id`)
+      expect(rows).toEqual([{ id: 'between', status: 'PENDING' }, { id: 's1', status: 'LEGACY' }, { id: 's2', status: 'LEGACY' }, { id: 's3', status: 'LEGACY' }])
+    })
+  })
+
+  it('killed mid-transaction, nothing is left behind', async () => {
+    await withDatabase(async (client) => {
+      await productionShaped(client)
+      const before = await columns(client)
+      await client.query('BEGIN')
+      for (const statement of parts.slice(0, Math.floor(parts.length / 2))) await client.query(statement)
+      await client.query('ROLLBACK') // what PostgreSQL does when the session dies
+      expect(await columns(client)).toEqual(before)
+      expect((await client.query(`SELECT to_regclass('public.newsletter_campaigns') AS t`)).rows[0].t).toBeNull()
+    })
+  })
+
+  it.skipIf(!psqlAvailable)('apply.sql: guarded first apply; refuses a partial schema unless resume=1, which then verifies the end state', async () => {
+    await withDatabase(async (client) => {
+      await productionShaped(client)
+      await client.query(`CREATE SCHEMA supabase_migrations; CREATE TABLE supabase_migrations.schema_migrations (version text PRIMARY KEY, name text, statements text[])`)
+      const url = new URL(base)
+      url.pathname = `/${client.database}`
+      // A partial, non-transactional run stopped half-way.
+      for (const statement of parts.slice(0, Math.floor(parts.length / 2))) await client.query(statement)
+      const refused = runApply(url.href, false)
+      expect(refused.status).not.toBe(0)
+      expect(refused.stderr).toMatch(/re-run with -v resume=1/)
+      const resumed = runApply(url.href, true)
+      expect(resumed.stderr).toMatch(/newsletter migration verified \(resume\): 3 subscriber\(s\) LEGACY/)
+      expect(resumed.status).toBe(0)
+      expect((await client.query(`SELECT count(*)::int AS n FROM subscriber_consent_events WHERE action = 'LEGACY_IMPORTED'`)).rows[0].n).toBe(3)
+    })
+    await withDatabase(async (client) => {
+      await productionShaped(client)
+      await client.query(`CREATE SCHEMA supabase_migrations; CREATE TABLE supabase_migrations.schema_migrations (version text PRIMARY KEY, name text, statements text[])`)
+      const url = new URL(base)
+      url.pathname = `/${client.database}`
+      const first = runApply(url.href, false)
+      expect(first.stderr).toMatch(/newsletter migration verified \(first\): 3 subscriber\(s\) LEGACY/)
+      expect(first.status).toBe(0)
     })
   })
 })

@@ -1,9 +1,10 @@
 /**
  * GET   /api/editorial/newsletter/campaigns/:id  detail, rendered preview and audit trail
  * PATCH /api/editorial/newsletter/campaigns/:id  { action, ... }
- *   edit     { subject?, previewText?, intro?, summaries?, removeArticleIds? }   admins, editors
- *   rebuild                                                                      admins, editors
- *   cancel   { reason? }                                                         admins, editors
+ *   edit     { subject?, previewText?, intro?, removeArticleIds? }   admins, editors, growth
+ *            (article titles/summaries/links are the published article: refused if sent)
+ *   rebuild                                                          admins, editors, growth
+ *   cancel   { reason? }                                             admins, editors, growth
  *   approve  { expectedHash, scheduledFor? }  (approve = schedule the send)       admins only
  */
 import { NextResponse } from 'next/server'
@@ -40,7 +41,7 @@ export async function PATCH(request: Request, { params }: Params) {
         ...(body?.subject !== undefined ? { subject: body.subject as string } : {}),
         ...(body?.previewText !== undefined ? { previewText: body.previewText as string | null } : {}),
         ...(body?.intro !== undefined ? { intro: body.intro as string | null } : {}),
-        ...(body?.summaries && typeof body.summaries === 'object' ? { summaries: body.summaries as Record<string, string | null> } : {}),
+        ...(body?.summaries !== undefined ? { summaries: body.summaries } : {}),
         ...(Array.isArray(body?.removeArticleIds) ? { removeArticleIds: body.removeArticleIds as string[] } : {}),
       }
       await updateCampaignContent(id, actor, patch)

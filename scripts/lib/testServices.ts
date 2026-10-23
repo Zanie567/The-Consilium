@@ -12,6 +12,9 @@
 
 type Env = Record<string, string | undefined>
 
+/** Fixed, public, test-only webhook secret (base64 of "consilium-e2e-webhook-secret!"). Never a real one. */
+export const E2E_WEBHOOK_SECRET = 'whsec_Y29uc2lsaXVtLWUyZS13ZWJob29rLXNlY3JldCE='
+
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
 
 interface IsolatedServiceOptions {
@@ -53,6 +56,8 @@ export function isolatedServiceEnv(opts: IsolatedServiceOptions): Record<string,
     // any test environment; this keeps .env.local from ever filling these in for next build/start.
     NEWSLETTER_DELIVERY: 'disabled',
     RESEND_MARKETING_API_KEY: '',
+    // A throwaway signing secret so specs can deliver signed (Svix-format) Resend webhooks to the local app.
+    RESEND_WEBHOOK_SECRET: E2E_WEBHOOK_SECRET,
     // Auth + site URLs point at the test server; Google sign-in is switched off.
     NEXTAUTH_SECRET: 'local_e2e_secret',
     NEXTAUTH_URL: appUrl,
@@ -110,6 +115,7 @@ export function assertIsolatedServiceEnv(env: Env = process.env): void {
     SUPABASE_SERVICE_ROLE_KEY: 'local-service-key',
     NEXTAUTH_SECRET: 'local_e2e_secret',
     CRON_SECRET: 'local_e2e_cron_secret',
+    RESEND_WEBHOOK_SECRET: E2E_WEBHOOK_SECRET,
   })) {
     if (env[key] !== value) problems.push(`${key} must use the isolated test value`)
   }

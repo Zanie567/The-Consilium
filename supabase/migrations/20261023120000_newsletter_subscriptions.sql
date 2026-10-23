@@ -33,6 +33,15 @@
 --     they are NOT mailed until they confirm through the new double opt-in. Each gets a LEGACY_IMPORTED
 --     consent event. Re-running the file never reclassifies rows created later.
 --
+-- Idempotency and interruption (tested in tests/integration/newsletter-migration-db.test.ts)
+--   * Every statement can run again without effect: IF NOT EXISTS / guarded DO blocks / deterministic ids.
+--   * The one non-repeatable step, classifying the rows that exist BEFORE the status column, is in the same
+--     single statement (DO block) as the ADD COLUMN it keys on: a run interrupted anywhere either did both or
+--     neither, and a later re-run never reclassifies rows created afterwards.
+--   * Normal path: docs/newsletter/production/apply.sql runs the whole file in ONE transaction (all or nothing).
+--     A partly applied schema (file run statement by statement, then stopped) is completed by re-running the
+--     file, or apply.sql with -v resume=1, which also verifies the end state.
+--
 -- Rollback (only before any campaign is sent or anyone confirms; it discards consent records):
 --   supabase/manual/20261023120000_newsletter_subscriptions_rollback.sql
 -- =============================================================================
@@ -85,7 +94,8 @@ BEGIN
     ADD COLUMN IF NOT EXISTS "resendSyncedAt" TIMESTAMPTZ(3),
     ADD COLUMN IF NOT EXISTS "resendSyncAttempts" INTEGER NOT NULL DEFAULT 0,
     ADD COLUMN IF NOT EXISTS "resendSyncError" TEXT,
-    ADD COLUMN IF NOT EXISTS "resendUpdatedAt" TIMESTAMPTZ(3);
+    ADD COLUMN IF NOT EXISTS "resendUpdatedAt" TIMESTAMPTZ(3),
+    ADD COLUMN IF NOT EXISTS "resendVerifiedAt" TIMESTAMPTZ(3);
 
   IF first_run THEN
     -- Historical sign-ups: no double opt-in, no consent proof. Keep them, never mail them, never opt them in to
@@ -172,6 +182,7 @@ CREATE TABLE IF NOT EXISTS "newsletter_campaigns" (
     "cancelReason" TEXT,
     "blockedReason" TEXT,
     "resendBroadcastId" TEXT,
+    "sendRequestedAt" TIMESTAMPTZ(3),
     "sendAttempts" INTEGER NOT NULL DEFAULT 0,
     "leaseUntil" TIMESTAMPTZ(3),
     "nextAttemptAt" TIMESTAMPTZ(3),
