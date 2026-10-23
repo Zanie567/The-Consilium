@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
-# CI only: make apt fail over quickly when GitHub's Ubuntu package mirror stalls.
+# CI only: make apt give up on a stalled download quickly and try another mirror.
 #
-# `npx playwright install --with-deps` installs ~190 system packages with apt from
-# azure.archive.ubuntu.com, the runners' only mirror. When that mirror stalls, apt waits out its
-# long default timeout on each file before retrying. On 23 October 2026 the install step took 57
-# and 55 minutes, which used up the 60-minute E2E jobs before any test ran (main at c2ff59f,
-# PR #169). Short timeouts plus archive.ubuntu.com as a second mirror (apt's mirror+file method
-# tries the next mirror when one fails) bound a stall to seconds. Safe to run more than once.
+# `npx playwright install --with-deps` installs ~190 system packages with apt. On 23 October 2026
+# GitHub's Ubuntu mirror (azure.archive.ubuntu.com) stalled for one to five minutes per file and
+# the install step took 57, 55 and 46 minutes, using up the E2E jobs' time limits before any test
+# ran (main at c2ff59f, #169, #173). What this changes, in order of effect:
+#
+#   1. 20 s network timeouts and 4 retries (apt's defaults wait far longer on a stalled transfer).
+#   2. archive.ubuntu.com as another mirror: added to the mirror list when apt already uses one
+#      (mirror+file), or, when apt points straight at the azure mirror, by switching it to a list
+#      of both. apt's mirror method moves to the next mirror when one fails.
+#
+# It prints the sources it found, so the job log shows the runner's configuration. Only the
+# runner's apt configuration changes. Safe to run more than once.
 set -euo pipefail
 
 sudo tee /etc/apt/apt.conf.d/99-ci-network >/dev/null <<'CONF'
@@ -14,15 +20,34 @@ Acquire::http::Timeout "20";
 Acquire::https::Timeout "20";
 Acquire::Retries "4";
 CONF
+echo "apt: 20 s network timeouts, 4 retries"
 
-SOURCES=/etc/apt/sources.list.d/ubuntu.sources
+FALLBACK=http://archive.ubuntu.com/ubuntu/
+SOURCE_FILES=$(ls /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null || true)
+
+# Mirror lists apt already uses: make sure each also names archive.ubuntu.com.
+LISTS=$(grep -ho 'mirror+file:[^ ]*' $SOURCE_FILES 2>/dev/null | sed 's|^mirror+file:||' | sort -u || true)
+for list in $LISTS; do
+  if grep -q '://archive\.ubuntu\.com/' "$list" 2>/dev/null; then
+    echo "apt: mirror list $list already names archive.ubuntu.com"
+  else
+    echo "$FALLBACK" | sudo tee -a "$list" >/dev/null
+    echo "apt: added $FALLBACK to mirror list $list"
+  fi
+done
+
+# Sources that name the azure mirror directly: switch them to a list of both mirrors.
 PRIMARY=http://azure.archive.ubuntu.com/ubuntu/
-if [ -f "$SOURCES" ] && grep -q "$PRIMARY" "$SOURCES"; then
-  printf '%s\n%s\n' "$PRIMARY" http://archive.ubuntu.com/ubuntu/ | sudo tee /etc/apt/ubuntu-mirrors.txt >/dev/null
-  sudo sed -i "s|$PRIMARY|mirror+file:/etc/apt/ubuntu-mirrors.txt|" "$SOURCES"
-  echo "apt: $PRIMARY with archive.ubuntu.com as fallback; 20 s network timeouts, 4 retries"
-elif [ -f "$SOURCES" ] && grep -q 'mirror+file:/etc/apt/ubuntu-mirrors.txt' "$SOURCES"; then
-  echo "apt: mirror fallback already configured"
-else
-  echo "apt: $SOURCES does not list $PRIMARY; network timeouts and retries only"
-fi
+for file in $SOURCE_FILES; do
+  if grep -q "$PRIMARY" "$file"; then
+    printf '%s\n%s\n' "$PRIMARY" "$FALLBACK" | sudo tee /etc/apt/ubuntu-mirrors.txt >/dev/null
+    sudo sed -i "s|$PRIMARY|mirror+file:/etc/apt/ubuntu-mirrors.txt|" "$file"
+    echo "apt: $file now uses $PRIMARY with $FALLBACK as fallback"
+  fi
+done
+
+echo "apt sources in use:"
+grep -hE '^(URIs:|deb )' $SOURCE_FILES 2>/dev/null | sed 's/^/  /' || true
+for list in $(grep -ho 'mirror+file:[^ ]*' $SOURCE_FILES 2>/dev/null | sed 's|^mirror+file:||' | sort -u || true); do
+  echo "  $list:"; sed 's/^/    /' "$list"
+done
