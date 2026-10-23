@@ -186,7 +186,7 @@ async function PATCHHandler(req: Request, { params }: Props) {
 
     // Approving publishes the article (and the other review actions move it
     // between draft/scheduled states) — refresh the public list cache.
-    revalidateArticleLists()
+    await revalidateArticleLists()
 
     if (sendPostCommitEmail) {
       try {

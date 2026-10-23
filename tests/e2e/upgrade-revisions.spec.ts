@@ -38,15 +38,16 @@ test('list publish/unpublish sends loaded revisions, propagates successful revis
   expect(published.status()).toBe(200)
   expect(published.request().postDataJSON().expectedUpdatedAt).toBe(loaded.updatedAt.toISOString())
   let revision = (await published.json()).updatedAt
-  for (const [name, endpoint] of [['Set as featured', 'feature'], ['Pin to category', 'pin']]) {
-    const response = page.waitForResponse(res => res.url().endsWith(`/${loaded.id}/${endpoint}`) && res.request().method() === 'POST')
-    await row.getByRole('button', { name, exact: true }).click()
-    const result = await response
-    expect(result.status()).toBe(200)
-    expect(result.request().headers()['x-article-revision']).toBe(revision)
-    revision = (await result.json()).updatedAt
-    await expect(row.getByRole('button', { name: endpoint === 'feature' ? 'Remove featured' : 'Unpin', exact: true })).toBeVisible()
-  }
+  // The list's single "featured" toggle is retired (#163): the carousel is curated in the editor.
+  await expect(row.getByRole('button', { name: 'Set as featured', exact: true })).toHaveCount(0)
+  await expect(row.getByRole('link', { name: 'Manage homepage carousel in article editor' })).toHaveAttribute('href', `/editorial/articles/${loaded.id}/edit`)
+  const pinResponse = page.waitForResponse(res => res.url().endsWith(`/${loaded.id}/pin`) && res.request().method() === 'POST')
+  await row.getByRole('button', { name: 'Pin to category', exact: true }).click()
+  const pinned = await pinResponse
+  expect(pinned.status()).toBe(200)
+  expect(pinned.request().headers()['x-article-revision']).toBe(revision)
+  revision = (await pinned.json()).updatedAt
+  await expect(row.getByRole('button', { name: 'Unpin', exact: true })).toBeVisible()
   const unpublishResponse = page.waitForResponse(res => res.url().endsWith(`/api/articles/${loaded.id}`) && res.request().method() === 'PUT')
   await row.getByRole('button', { name: 'Unpublish', exact: true }).click()
   await confirmPublicChange(page, 'Unpublish')

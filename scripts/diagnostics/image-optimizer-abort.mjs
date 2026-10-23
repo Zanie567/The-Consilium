@@ -6,6 +6,8 @@ import {spawn} from 'node:child_process'
 // A disposable minimal Next app: no database, credentials or application code.
 // --original restores the original function only in this diagnostic child process.
 const originalMode = process.argv.includes('--original')
+// --original rebuilds the code Next shipped before upstream PR #98168 (the response shared the client's socket).
+const NEXT_VERSION = JSON.parse(await fs.readFile(path.join(process.cwd(), 'node_modules/next/package.json'), 'utf8')).version
 const output = process.argv.find(a => a.startsWith('--output='))?.slice(9) ?? `test-results/image-abort-${originalMode ? 'before' : 'after'}.json`
 const cwd=process.cwd()
 await fs.mkdir(path.join(cwd, 'test-results'), {recursive:true})
@@ -18,11 +20,11 @@ try {
  await fs.mkdir(path.join(root,'app'));await fs.mkdir(path.join(root,'public'))
  await fs.copyFile(path.join(cwd,'public/team/sam-hunt.png'),path.join(root,'public/photo.png'))
  for(let i=0;i<3;i++)await fs.copyFile(path.join(cwd,'public/team/sam-hunt.png'),path.join(root,'public/photo'+i+'.png'))
- await fs.writeFile(path.join(root,'package.json'),JSON.stringify({private:true,dependencies:{next:'16.2.2',react:'19.2.4','react-dom':'19.2.4'}}))
+ await fs.writeFile(path.join(root,'package.json'),JSON.stringify({private:true,dependencies:{next:NEXT_VERSION,react:'19.2.4','react-dom':'19.2.4'}}))
  await fs.writeFile(path.join(root,'app/layout.js'),`export default function Layout({children}){return <html><body>{children}</body></html>}`)
  await fs.writeFile(path.join(root,'app/page.js'),`import Image from 'next/image';export default function Page(){return <Image src='/photo.png' width={640} height={750} alt='Diagnostic'/>}`)
  await fs.writeFile(path.join(root,'next.config.mjs'),`export default {turbopack:{root:${JSON.stringify(cwd)}}}`)
- await fs.writeFile(path.join(root,'probe.cjs'),`const Module=require('node:module'),fs=require('node:fs');const original=Module._extensions['.js'];Module._extensions['.js']=function(m,f){if(f.endsWith('/server/image-optimizer.js')){let s=fs.readFileSync(f,'utf8');if(${originalMode})s=s.replace(/const mocked = \\{\\s+req: new _mockrequest\\.MockedRequest\\(\\{ url: href, method, headers: \\{\\}, socket: _req\\.socket \\}\\),\\s+res: new _mockrequest\\.MockedResponse\\(\\)\\s+\\}; \\/\\/ Consilium: upstream Next\\.js #98168 response-socket backport/, 'const mocked = (0, _mockrequest.createRequestResponseMocks)({ url: href, method, socket: _req.socket });');s=s.replace('async function fetchInternalImage(href, _req, _res, handleRequest) {',"async function fetchInternalImage(href, _req, _res, handleRequest) {console.log('PROBE internal start',href,_req.socket.destroyed);_req.socket.once('close',()=>console.log('PROBE original socket close',href));");s=s.replace('await mocked.res.hasStreamed;',"console.log('PROBE awaiting stream',href,mocked.res.finished);await mocked.res.hasStreamed;console.log('PROBE streamed',href);");m._compile(s,f)}else original(m,f)};`)
+ await fs.writeFile(path.join(root,'probe.cjs'),`const Module=require('node:module'),fs=require('node:fs');const original=Module._extensions['.js'];Module._extensions['.js']=function(m,f){if(f.endsWith('/server/image-optimizer.js')){let s=fs.readFileSync(f,'utf8');if(${originalMode}){const before=s;s=s.replace(/const mocked = \\{\\s+req: new _mockrequest\\.MockedRequest\\(\\{[\\s\\S]*?\\}\\),\\s+res: new _mockrequest\\.MockedResponse\\(\\{[\\s\\S]*?\\}\\)\\s+\\};/, 'const mocked = (0, _mockrequest.createRequestResponseMocks)({ url: href, method, socket: _req.socket, maximumResponseBody });');if(s===before)throw Error('PROBE could not restore the pre-#98168 code')}s=s.replace('async function fetchInternalImage(href, _req, _res, handleRequest) {',"async function fetchInternalImage(href, _req, _res, handleRequest) {console.log('PROBE internal start',href,_req.socket.destroyed);_req.socket.once('close',()=>console.log('PROBE original socket close',href));");s=s.replace('await mocked.res.hasStreamed;',"console.log('PROBE awaiting stream',href,mocked.res.finished);await mocked.res.hasStreamed;console.log('PROBE streamed',href);");m._compile(s,f)}else original(m,f)};`)
  const env={PATH:process.env.PATH,HOME:process.env.HOME,NODE_ENV:'production',NEXT_TELEMETRY_DISABLED:'1'}
  const next=path.join(cwd,'node_modules/next/dist/bin/next')
  const build=spawn(process.execPath,[next,'build',root],{cwd:root,env,stdio:['ignore','pipe','pipe']})
@@ -45,6 +47,6 @@ try {
  if(child){child.kill('SIGTERM');await new Promise(r=>child.on('close',r))}
  await fs.rm(root,{recursive:true,force:true})
  await fs.mkdir(path.dirname(output), {recursive:true})
- await fs.writeFile(output,JSON.stringify({mode:originalMode?'original':'backported',next:'16.2.2',results,log},null,2))
+ await fs.writeFile(output,JSON.stringify({mode:originalMode?'original (pre-#98168)':'as installed',next:NEXT_VERSION,results,log},null,2))
  console.log(results)
 }

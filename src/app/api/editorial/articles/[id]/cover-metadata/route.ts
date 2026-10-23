@@ -5,10 +5,11 @@ import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 import { editorCanAccessArticleCategory } from '@/lib/articleCategoryAccess'
 import { withTestingAudit } from '@/lib/testingAudit'
 import { coverMetadataKey, parseCoverMetadata, validateCoverMetadata } from '@/lib/coverImageMetadata'
+import { writerMayFrameCover } from '@/lib/coverFraming'
 
 interface Context { params: Promise<{ id: string }> }
 
-async function authorisedCover(id: string) {
+async function authorisedCover(id: string, mode: 'read' | 'write') {
   const auth = await requireVerifiedSessionUser(ARTICLE_MUTATION_ROLES)
   if (!auth.ok) return { ok: false as const, response: auth.response }
   const article = await prisma.article.findUnique({
@@ -21,6 +22,12 @@ async function authorisedCover(id: string) {
   if (auth.user.role === 'WRITER' && (article.authorId !== auth.user.id || article.status === 'PUBLISHED')) {
     return { ok: false as const, response: NextResponse.json({ error: 'Writers can change attribution only on their own unpublished drafts.' }, { status: 403 }) } as const
   }
+  // Changing it follows the same rule as the article body and its framing: once submitted or
+  // scheduled, the credit and caption (both public) change only through an editor. Reading stays
+  // allowed so the read-only panel still shows them.
+  if (mode === 'write' && auth.user.role === 'WRITER' && !writerMayFrameCover(article.authorId, article.status, auth.user.id)) {
+    return { ok: false as const, response: NextResponse.json({ error: 'This article has been submitted, so only an editor can change its photo credit.' }, { status: 403 }) } as const
+  }
   if (auth.user.role === 'EDITOR' &&
       !(await editorCanAccessArticleCategory(auth.user.id, article.categoryId))) {
     return { ok: false as const, response: NextResponse.json({ error: 'This article is outside your assigned categories.' }, { status: 403 }) } as const
@@ -30,7 +37,7 @@ async function authorisedCover(id: string) {
 
 export async function GET(_req: Request, { params }: Context) {
   const { id } = await params
-  const auth = await authorisedCover(id)
+  const auth = await authorisedCover(id, 'read')
   if (!auth.ok) return auth.response
   try {
     const setting = await prisma.siteSetting.findUnique({
@@ -47,7 +54,7 @@ export async function GET(_req: Request, { params }: Context) {
 
 async function PATCHHandler(req: Request, { params }: Context) {
   const { id } = await params
-  const auth = await authorisedCover(id)
+  const auth = await authorisedCover(id, 'write')
   if (!auth.ok) return auth.response
   let metadata
   try {

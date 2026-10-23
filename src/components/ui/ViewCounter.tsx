@@ -11,10 +11,17 @@ export function ViewCounter({ articleId }: { articleId: string }) {
       document.hasFocus()
     )
     let lastSent = -1
+    let inFlight = false
+    let pendingConsent = false
+    let disposed = false
+    // After a 429/503 the server says when to come back. Heartbeats wait until then; the
+    // cumulative reading time is resent afterwards, so nothing is lost by waiting.
+    let retryAt = 0
     const send = (beacon = false) => {
       const seconds = clock.tick(performance.now())
       if (seconds === lastSent && !beacon) return
-      lastSent = seconds
+      if (inFlight && !beacon) return
+      if (!beacon && performance.now() < retryAt) return
       const body = JSON.stringify({
         articleId,
         visitId,
@@ -30,12 +37,26 @@ export function ViewCounter({ articleId }: { articleId: string }) {
         )
       )
         return
+      inFlight = true
       void fetch('/api/analytics/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body,
         keepalive: beacon,
-      }).catch(() => {})
+      }).then(response => {
+        if (response.ok) lastSent = seconds
+        else if (response.status === 429 || response.status === 503) {
+          const after = Number(response.headers?.get('Retry-After'))
+          retryAt = performance.now() + Math.min(Math.max(Number.isFinite(after) && after > 0 ? after : 30, 1), 300) * 1000
+        }
+      }).catch(() => {}).finally(() => {
+        inFlight = false
+        if (pendingConsent && !disposed) {
+          pendingConsent = false
+          lastSent = -1
+          send()
+        }
+      })
     }
     const activity = () => clock.interact(performance.now())
     const visibility = () => {
@@ -50,6 +71,7 @@ export function ViewCounter({ articleId }: { articleId: string }) {
     const unload = () => send(true)
     const consent = () => {
       analyticsIdentity()
+      if (inFlight) { pendingConsent = true; return }
       lastSent = -1
       send()
     }
@@ -67,6 +89,7 @@ export function ViewCounter({ articleId }: { articleId: string }) {
     window.addEventListener('consilium-consent-change', consent)
     window.addEventListener('storage', storage)
     return () => {
+      disposed = true
       send(true)
       clearInterval(interval)
       for (const type of ['pointerdown', 'keydown', 'scroll', 'touchstart'])

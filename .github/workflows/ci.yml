@@ -321,3 +321,35 @@ jobs:
         uses: ./.github/actions/upload-e2e-diagnostics
         with:
           name: upgrade-journeys-playwright-report
+
+  # Data API (PostgREST) and Storage permissions, proven over HTTP against a disposable
+  # local Supabase stack (Postgres 17, PostgREST, Storage, Auth) started by the Supabase
+  # CLI on this runner. It is never linked to a hosted project and holds no secrets: the
+  # keys are the CLI's fixed local demo keys. See scripts/db/data-api-harness.sh.
+  data-api-permissions:
+    name: Data API permissions
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Set up the Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Data API and Storage access, then the documented rollout rehearsal
+        run: DATA_API_STOP=1 bash scripts/db/data-api-harness.sh

@@ -66,7 +66,7 @@ async function POSTHandler(_req: Request, { params }: Props) {
       await tx.article.updateMany({ where: { id: { not: id }, isFeatured: true }, data: { isFeatured: false } })
       return saved
     }))
-    revalidateArticleLists()
+    await revalidateArticleLists()
     return NextResponse.json({ ok: true, updatedAt: updated.updatedAt })
   } catch (error) {
     return articleMutationErrorResponse(error, 'update', crypto.randomUUID())
@@ -85,7 +85,7 @@ async function DELETEHandler(_req: Request, { params }: Props) {
   if (revisionError) return revisionError
   try {
     const updated = await prisma.article.update({ where: { id, updatedAt: access.article.updatedAt, deletedAt: null, categoryId: access.article.categoryId }, data: { isFeatured: false } })
-    revalidateArticleLists()
+    await revalidateArticleLists()
     return NextResponse.json({ ok: true, updatedAt: updated.updatedAt })
   } catch (error) {
     return articleMutationErrorResponse(error, 'update', crypto.randomUUID())

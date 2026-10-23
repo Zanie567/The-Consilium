@@ -1,4 +1,5 @@
 import { articleStatusLabel } from '@/lib/articleStatusLabel'
+import { wordCountFromContent } from '@/lib/readTime'
 import { requirePortalRole } from '@/lib/portalAccess'
 import { AdminOverview } from '@/components/admin/AdminOverview'
 import { loadAdminOverview } from '@/lib/adminOverview'
@@ -139,15 +140,7 @@ export default async function EditorialDashboard() {
     ARCHIVED: 'bg-[var(--bg-subtle)] text-[var(--fg-faint)]',
   }
 
-  const wordCount = (content: string) => {
-    try {
-      const parsed = JSON.parse(content)
-      const text = JSON.stringify(parsed).replace(/<[^>]+>/g, '')
-      return Math.round(text.split(/\s+/).filter(Boolean).length * 0.75)
-    } catch {
-      return content.split(/\s+/).filter(Boolean).length
-    }
-  }
+  const wordCount = wordCountFromContent
 
   const rawTrophies = !isGrowth
     ? await prisma.articleTrophy

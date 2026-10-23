@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation'
 import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
+import { getPublicCategory } from '@/lib/publicPageData'
+import { ARTICLE_CARD_SELECT, toArticleCard } from '@/lib/publicArticleCards'
 import { publishedArticleWhere, ARTICLES_CACHE_TAG, ARTICLES_REVALIDATE_SECONDS } from '@/lib/articleQueries'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { ArticleCard } from '@/components/ui/ArticleCard'
@@ -15,7 +17,7 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const category = await prisma.category.findUnique({ where: { slug } }).catch(() => null)
+  const category = await getPublicCategory(slug)
   if (!category) return {}
   return {
     title: category.name,
@@ -28,14 +30,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 // category is served from the Next data cache instead of re-querying Postgres
 // on every request (Priority 2). Busted immediately by revalidateTag on publish.
 const getCachedCategoryArticles = unstable_cache(
-  (categoryId: string) =>
-    prisma.article.findMany({
+  async (categoryId: string) => {
+    const rows = await prisma.article.findMany({
       // Every published article in this category, INCLUDING debate articles.
       // The old `isDebate: false` filter hid 6 of 7 published Opinion pieces.
       where: publishedArticleWhere({ categoryId }),
       orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
-      include: { author: true, category: true },
-    }),
+      // Card columns only, never bodies or author accounts: this list lives in the
+      // shared data cache, and every entry has to stay under its 2 MB item limit.
+      select: ARTICLE_CARD_SELECT,
+    })
+    return rows.map(toArticleCard)
+  },
   ['category-articles'],
   { revalidate: ARTICLES_REVALIDATE_SECONDS, tags: [ARTICLES_CACHE_TAG] },
 )
@@ -43,25 +49,11 @@ const getCachedCategoryArticles = unstable_cache(
 export default async function CategoryPage({ params }: Props) {
   const { slug } = await params
 
-  let category = null
-  try {
-    category = await prisma.category.findUnique({ where: { slug } })
-  } catch {
-    // DB not available - fall through to notFound
-  }
+  const category = await getPublicCategory(slug)
 
   if (!category) notFound()
 
-  type ArticleRow = Awaited<ReturnType<typeof prisma.article.findMany<{
-    include: { author: true; category: true }
-  }>>>[number]
-
-  let articles: ArticleRow[] = []
-  try {
-    articles = await getCachedCategoryArticles(category.id)
-  } catch {
-    articles = []
-  }
+  const articles = await getCachedCategoryArticles(category.id)
 
   const emptyState = getSectionEmptyState(slug, category.name)
 

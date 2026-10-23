@@ -52,6 +52,7 @@ export async function POST(req: Request) {
         published: 0,
         articles: [],
         skipped: [],
+        failed: [],
         warnings: [],
       })
     }
@@ -66,12 +67,16 @@ export async function POST(req: Request) {
       )
     }
 
+    // A due article whose write failed is a `publish` warning and stays SCHEDULED for the next run.
+    // The run itself completed, so it answers 200: the Supabase reconciler keeps its due/published/
+    // warning counts, and scheduler-health alerts on repeated warnings and on overdue articles.
     return NextResponse.json({
       ranAt: result.ranAt,
       due: result.dueCount,
       published: result.published.length,
       articles: result.published,
       skipped: result.skipped,
+      failed: result.failed,
       warnings: result.warnings,
     })
   } catch (err) {

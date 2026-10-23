@@ -1,0 +1,10 @@
+{
+  "observedAt": "2026-10-18T00:19Z",
+  "sourceCommit": "c3785a2e64899945ef87c601481aca1300655110",
+  "deployment": "dpl_Hq1REC3rjtBpo3W4777zeC8Ya6UT",
+  "readOnly": true,
+  "vercel": {"plan":"hobby","node":"24.x","fluid":true,"configuredRegion":"iad1","recentLogRegion":"lhr1","productionPoolOverrides":false},
+  "supabase": {"plan":"free","region":"eu-west-1","postgres":"17.6.1.104","transactionPoolerPort":6543,"maxConnections":60,"statementTimeoutMs":120000,"lockTimeoutMs":0,"idleTransactionTimeoutMs":0,"idleClientConnections":6,"activeConnections":1,"estimatedArticleRows":29,"estimatedViewRows":135,"estimatedEngagementRows":5},
+  "logLimits": "Vercel 24h query rejected on Hobby; 30m query one deprecation warning, no pool failure. Supabase 24h timeout/max-client search no matches. Historic incident not established.",
+  "mutations": []
+}

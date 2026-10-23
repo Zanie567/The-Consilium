@@ -1,0 +1,24 @@
+[
+  {
+    "path": "/",
+    "status": 200,
+    "headers": {
+      "Age": "0",
+      "Cache-Control": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "Vary": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+      "X-Vercel-Cache": "MISS",
+      "X-Vercel-Id": "lhr1::iad1::vwzjc-1792283245741-f8888096c625"
+    }
+  },
+  {
+    "path": "/category/opinion",
+    "status": 200,
+    "headers": {
+      "Age": "0",
+      "Cache-Control": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "Vary": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+      "X-Vercel-Cache": "MISS",
+      "X-Vercel-Id": "lhr1::iad1::ghqzs-1792283246243-f259b77ec6f5"
+    }
+  }
+]

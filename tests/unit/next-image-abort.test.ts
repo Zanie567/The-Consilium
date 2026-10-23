@@ -17,7 +17,8 @@ it('a disconnected image requester cannot strand the shared local-file response'
     const socket = Object.assign(new EventEmitter(), { writable: false, destroyed: true }) as unknown as Socket
     const request = { method: 'GET', socket } as IncomingMessage
     const result = await Promise.race([
-      fetchInternalImage('/photo.png', request, {} as ServerResponse, (req, res) => serveStatic(req, res, 'photo.png', { root: directory })),
+      // Next 16.4 added the response-size cap argument; 2 MB comfortably fits the 1 MB fixture.
+      fetchInternalImage('/photo.png', request, {} as ServerResponse, 2 * 1024 * 1024, (req, res) => serveStatic(req, res, 'photo.png', { root: directory })),
       new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Disconnected requester stranded the shared image response')), 1500) }),
     ])
     expect(result.buffer.length).toBe(expected.length)

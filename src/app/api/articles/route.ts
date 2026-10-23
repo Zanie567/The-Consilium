@@ -1,3 +1,4 @@
+import { wordCountFromContent } from '@/lib/readTime'
 import { figureAltError } from '@/lib/figureValidation'
 import { ArticleImageUnavailableError, lockArticleImages } from '@/lib/articleImageStorage'
 import { resolveArticleTag } from '@/lib/resolveArticleTag'
@@ -12,6 +13,8 @@ import { ARTICLE_SAVE_TIMEOUT_MS, normalizeArticleTags } from '@/lib/articleTags
 import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
 import { ARTICLE_MUTATION_ROLES, EDITORIAL_MANAGEMENT_ROLES, isAllowedRole } from '@/lib/rbac'
 import { PUBLIC_AUTHOR_SELECT } from '@/lib/publicUser'
+import { PUBLIC_ARTICLE_SELECT } from '@/lib/publicArticle'
+import { publishedArticleWhere } from '@/lib/articleQueries'
 import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 import { apiError, articleMutationErrorResponse } from '@/lib/apiResponse'
@@ -30,25 +33,6 @@ const WRITER_CREATE_STATUSES = [
   'DRAFT',
   'PENDING_REVIEW',
 ] as const satisfies readonly ArticleStatus[]
-
-function computeWordCount(content: string): number {
-  try {
-    const parsed = JSON.parse(content)
-    const extractText = (node: { type?: string; text?: string; content?: unknown[] }): string => {
-      if (node.text) return node.text
-      if (node.content) return (node.content as (typeof node)[]).map(extractText).join(' ')
-      return ''
-    }
-    const text = extractText(parsed)
-    return text.trim().split(/\s+/).filter(Boolean).length
-  } catch {
-    return content
-      .replace(/<[^>]+>/g, ' ')
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean).length
-  }
-}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
@@ -96,7 +80,7 @@ export async function GET(request: NextRequest) {
         excerpt: d.excerpt,
         updatedAt: d.updatedAt,
         category: d.category,
-        wordCount: computeWordCount(d.content),
+        wordCount: wordCountFromContent(d.content),
       }))
 
       return NextResponse.json(result)
@@ -117,19 +101,27 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const articles = await prisma.article.findMany({
-      where: {
-        status: requestedStatus as never,
-        deletedAt: null,
-        ...(category ? { category: { slug: category } } : {}),
-        ...(session?.user.role === 'WRITER' && requestedStatus !== 'PUBLISHED'
-          ? { authorId: session.user.id }
-          : {}),
-      },
-      orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
-      take,
-      include: { author: { select: PUBLIC_AUTHOR_SELECT }, category: true },
-    })
+    const categoryFilter = category ? { category: { slug: category } } : {}
+    // The published list is public: the site's visibility rule (trash and hidden debates
+    // excluded) and an explicit column allowlist, never whole rows.
+    const articles = requestedStatus === 'PUBLISHED'
+      ? await prisma.article.findMany({
+          where: publishedArticleWhere(categoryFilter),
+          orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
+          take,
+          select: { ...PUBLIC_ARTICLE_SELECT, author: { select: PUBLIC_AUTHOR_SELECT }, category: true },
+        })
+      : await prisma.article.findMany({
+          where: {
+            status: requestedStatus as never,
+            deletedAt: null,
+            ...categoryFilter,
+            ...(session?.user.role === 'WRITER' ? { authorId: session.user.id } : {}),
+          },
+          orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
+          take,
+          include: { author: { select: PUBLIC_AUTHOR_SELECT }, category: true },
+        })
     return NextResponse.json(articles)
   } catch {
     // Public route: degrade to an empty list at 200 rather than a 500, matching
@@ -259,7 +251,7 @@ async function POSTHandler(request: NextRequest) {
       return { article: created, savedTagNames: tagRecords.map(tag => tag.name) }
     }, { timeout: ARTICLE_SAVE_TIMEOUT_MS })
 
-    if (article.status === 'PUBLISHED') revalidateArticleLists()
+    if (article.status === 'PUBLISHED') await revalidateArticleLists()
 
     return NextResponse.json({ ...article, version: articleVersion(article, savedTagNames) }, {
       status: 201,

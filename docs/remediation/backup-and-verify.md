@@ -6,18 +6,34 @@ Nothing here changes production: it only reads. It costs nothing (every tool is 
 > **The backup is full of personal data** (subscriber and user emails, password hashes, admin notes, contact messages, login IP addresses). It must be encrypted at rest, never uploaded anywhere unencrypted, never committed, and deleted when it is no longer needed (step 11).
 > **The connection string is the keys to the database.** Treat it like the password it contains. Never paste it into chat, a ticket, a document or a screenshot, and never type it on a command line.
 
-## Status (2026-10-14)
+## Status (evidence inspected 2026-10-18)
 
-* **Verified production backups** on the encrypted volume: `consilium-prod-20261009T113622Z` and
-  `consilium-prod-20261013T181641Z` (verifier `RESULT: VERIFIED`; public-schema restore test passed). Both **pre-date**
-  the admin-overhaul migrations of 13 October and the removal of 810 seeded debate votes. The 13 October backup is the
-  only copy of those 818 votes: keep it, and **never restore it into production** to "fix" anything.
-* **A fresh post-release backup has not been taken yet** (issue #129). Expected baseline, confirmed read-only on
-  2026-10-14: 23 articles (22 plus one draft an administrator created and trashed at 22:21 UTC on 13 October), 26 users,
-  3 debates (none public), 8 votes, 0 seeded votes, 41 tables.
-* **What has been proven, and what has not.** Taking, verifying and restoring a backup into a *disposable local
-  container* is proven (step 8, rehearsed on 2026-10-14 against the real 13 October backup). Recovering production into
-  a **hosted** Supabase project has **never been tested**; see "Disaster recovery" below for what that would involve.
+* **Most recent evidenced verified backup:** `consilium-prod-20261016T135715Z`. On the encrypted volume,
+  `counts/20261016T135434Z/verify-output.txt` records `RESULT: VERIFIED` (19 checks, zero failures), and
+  `counts/20261016T135434Z/restore/summary.txt` records `RESULT: RESTORE VERIFIED`: 41 public tables, matching
+  row contents, zero orphan rows across 43 foreign keys, matching security and critical fingerprints. This is
+  historical verification evidence inspected read-only; the launch audit did not open dumps or perform a restore.
+* The mounted outer image reports `image-encrypted=true`, and backup/asset directories are owner-only (0700).
+  The example `~/ConsiliumBackup.sparsebundle` path below does not exist on this machine; locate the existing
+  mounted image through Disk Utility before attaching anything. **Never create a replacement merely because
+  the example path differs.** Independent passphrase access and an off-device second copy were not verified.
+* The 9, 13 and 14 October backups also remain. Keep historical backups according to the retention procedure;
+  the 13 October copy predates the seed-vote cleanup and must never be restored casually to production.
+* **Storage copy:** `storage-20261015T145909Z` contains 41 objects (9,860,402 bytes). On 18 October every
+  local file's path, byte length and MD5 matched its inventory. Production now has 44 objects, so this older
+  copy does not establish complete recovery of today's assets. Nothing was downloaded or uploaded by this audit.
+* **Current recovery point:** database 16 October; assets 15 October. Supabase Cron activation followed the
+  database backup, so recovery must also recreate scheduler infrastructure, Vault configuration and jobs using
+  the separate scheduler guide. Take and verify a fresh encrypted database and Storage copy before launch.
+* **22 October (read-only):** production has **59** Storage objects (up from 44 on 18 October) and 4 launch articles
+  scheduled. No database or Storage backup newer than 16 October / 15 October is evidenced, and the encrypted volume
+  was not mounted during the 22 October review, so nothing newer could be inspected. **A fresh verified database and
+  Storage backup is a launch gate**, and also a prerequisite for the policy rollouts (`docs/launch/POLICY-ROLLOUT.md`,
+  `docs/security/DATA-API-PERMISSIONS.md`).
+* **Hosted recovery remains unproven.** Issue [#132](https://github.com/Zanie567/The-Consilium/issues/132)
+  records the owner's deferral. The file labelled `hosted-dry-run-143452/summary.txt` targets loopback
+  `localdryrunxxxxxxxxx`; it is a local simulation, not evidence of hosted recovery. No hosted restoration,
+  credential change or production change was performed for this audit.
 
 ## How the scripts were tested
 
@@ -245,8 +261,8 @@ the cluster role *names* (`roles.sql`, no passwords).
 
 Not covered, and needed for a full recovery:
 
-* **Storage files.** Article images and avatars are objects in Supabase Storage (36 objects in `article-images` and
-  `avatars` on 13 October). The dump holds only their metadata rows; the files must be copied separately.
+* **Storage files.** Article images and avatars are objects in Supabase Storage (35 objects in `article-images` and
+  9 in `avatars`, read-only snapshot on 18 October). The dump holds only their metadata rows; the files must be copied separately.
 * **Supabase platform schemas** (`auth`, `storage`, `realtime`, `vault`, …): they belong to Supabase's services and are
   recreated by a new project, not restored from this dump. Production does not use Supabase Auth (its `auth` tables are
   empty), so nothing of the application is lost there.
@@ -266,9 +282,12 @@ almost never the answer to a bad deployment.
 Signs: errors began right after a deploy; the data is intact (row counts and the critical fingerprint match the
 previous known state).
 
-1. In Vercel, **promote the previous production deployment** (Deployments, the last good one, *Promote*; or instant
-   rollback). Schema changes are not undone by this: every migration here is additive, and the previous code tolerates
-   the newer schema, so a code rollback is normally enough.
+1. In Vercel, select **Instant Rollback** to the immediately previous eligible production deployment. The current
+   Hobby plan restricts Instant Rollback to that deployment; an arbitrary older build or a preview is not an
+   interchangeable target. Confirm compatibility with the current schema and settings before acting. Rollback
+   does not restore the database or Storage and reuses the old build's configuration/environment. Vercel cron
+   configuration also reverts; Supabase Cron does not. After rollback, automatic production domain assignment is
+   disabled until rollback is undone. See [Vercel's current restrictions](https://vercel.com/docs/instant-rollback).
 2. Confirm the site works, then fix forward in a PR. **Do not restore a backup**: it would discard every write since
    it was taken.
 3. If a migration itself is at fault, use that migration's own documented rollback from `supabase/manual/` (or its

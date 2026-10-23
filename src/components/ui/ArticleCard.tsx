@@ -3,7 +3,6 @@ import { format } from 'date-fns'
 import { Clock } from 'lucide-react'
 import { BlurImage } from '@/components/ui/BlurImage'
 import { BookmarkButton } from '@/components/ui/BookmarkButton'
-import { readTimeLabel } from '@/lib/readTime'
 import { displayAuthorName } from '@/lib/authorUtils'
 
 interface Article {
@@ -12,7 +11,8 @@ interface Article {
   title: string
   excerpt: string | null
   coverImage: string | null
-  content: string
+  /** Precomputed by toArticleCard so the article body never reaches a cached list. */
+  readTime: string
   publishedAt: Date | string | null
   author: { name: string | null }
   category: { name: string; slug: string } | null
@@ -26,7 +26,7 @@ interface ArticleCardProps {
 
 export function ArticleCard({ article, badgeLabel }: ArticleCardProps) {
   const badge = badgeLabel ?? article.category?.name
-  const readTime = readTimeLabel(article.content)
+  const readTime = article.readTime
   const articleHref = `/articles/${article.slug}`
 
   return (
