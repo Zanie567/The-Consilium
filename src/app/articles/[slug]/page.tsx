@@ -224,24 +224,21 @@ export default async function ArticlePage({ params }: Props) {
     : null
 
   // Read separately from the article so a corrections-table problem can never 404 the article.
-  const [related, corrections, coverSetting, framingSetting] = await Promise.all([
+  // One optional settings lookup serves both photo credit and framing.
+  // If settings storage is unavailable, the article still renders safely.
+  const [related, corrections, coverSettings] = await Promise.all([
     getRelatedArticles(article.id, article.categoryId, article.title, article.excerpt),
     loadPublicCorrections(prisma, article),
     article.coverImage
-      ? prisma.siteSetting.findUnique({
-          where: { key: coverMetadataKey(article.id) },
-          select: { value: true },
-        }).catch(() => null)
-      : Promise.resolve(null),
-    article.coverImage
-      ? prisma.siteSetting.findUnique({
-          where: { key: coverFramingKey(article.id) },
-          select: { value: true },
-        }).catch(() => null)
-      : Promise.resolve(null),
+      ? prisma.siteSetting.findMany({
+          where: { key: { in: [coverMetadataKey(article.id), coverFramingKey(article.id)] } },
+          select: { key: true, value: true },
+        }).catch(() => [])
+      : Promise.resolve([]),
   ])
-  const coverMetadata = parseCoverMetadata(coverSetting?.value, article.coverImage)
-  const coverFraming = parseCoverFraming(framingSetting?.value, article.coverImage ?? '')
+  const getSetting = (key: string) => coverSettings.find((setting) => setting.key === key)?.value
+  const coverMetadata = parseCoverMetadata(getSetting(coverMetadataKey(article.id)), article.coverImage)
+  const coverFraming = parseCoverFraming(getSetting(coverFramingKey(article.id)), article.coverImage ?? '')
   const correctionComments = correctionsStructuredData(corrections)
   const { html: htmlContent, footnotes } = renderContent(article.content)
   // Glossary term linking runs on the sanitized HTML and returns it untouched
