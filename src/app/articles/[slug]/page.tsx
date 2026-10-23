@@ -34,6 +34,7 @@ import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/constants'
 import { loadPublicCorrections, correctionsStructuredData } from '@/lib/corrections/public'
 import { CorrectionNotice, CorrectionsSection } from '@/components/article/ArticleCorrections'
 import { coverMetadataKey, parseCoverMetadata } from '@/lib/coverImageMetadata'
+import { bannerHeightClass, coverFramingImageStyle, coverFramingKey, parseCoverFraming } from '@/lib/coverFraming'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -223,7 +224,7 @@ export default async function ArticlePage({ params }: Props) {
     : null
 
   // Read separately from the article so a corrections-table problem can never 404 the article.
-  const [related, corrections, coverSetting] = await Promise.all([
+  const [related, corrections, coverSetting, framingSetting] = await Promise.all([
     getRelatedArticles(article.id, article.categoryId, article.title, article.excerpt),
     loadPublicCorrections(prisma, article),
     article.coverImage
@@ -232,8 +233,15 @@ export default async function ArticlePage({ params }: Props) {
           select: { value: true },
         }).catch(() => null)
       : Promise.resolve(null),
+    article.coverImage
+      ? prisma.siteSetting.findUnique({
+          where: { key: coverFramingKey(article.id) },
+          select: { value: true },
+        }).catch(() => null)
+      : Promise.resolve(null),
   ])
   const coverMetadata = parseCoverMetadata(coverSetting?.value, article.coverImage)
+  const coverFraming = parseCoverFraming(framingSetting?.value, article.coverImage ?? '')
   const correctionComments = correctionsStructuredData(corrections)
   const { html: htmlContent, footnotes } = renderContent(article.content)
   // Glossary term linking runs on the sanitized HTML and returns it untouched
@@ -290,18 +298,17 @@ export default async function ArticlePage({ params }: Props) {
       {/* The cover and its attribution are a single semantic figure. */}
       {article.coverImage && (
         <figure className="m-0 no-print">
-          <div className="relative h-[clamp(220px,42vw,680px)] w-full overflow-hidden bg-navy/10 dark:bg-navy/20">
-          {/* A source photograph may contain labels/maps at its edges. Unlike a
-              decorative card, the article cover must never crop that evidence.
-              A viewport-responsive frame keeps the full source visible. */}
-          <BlurImage
-            src={article.coverImage}
-            alt={article.title}
-            fill
-            className="object-contain"
-            priority
-            sizes="100vw"
-          />
+          <div className={`relative w-full overflow-hidden bg-navy/10 dark:bg-navy/20 ${bannerHeightClass[coverFraming.height]}`}>
+            {/* Fit remains the safe legacy default; authorised editors and writers
+                may deliberately choose crop, zoom, focal point and banner height. */}
+            <BlurImage
+              src={article.coverImage}
+              alt={article.title}
+              fill
+              style={coverFramingImageStyle(coverFraming)}
+              priority
+              sizes="100vw"
+            />
           </div>
           {coverMetadata && (
             <figcaption className="mx-auto max-w-[1100px] px-6 sm:px-8 py-2.5 flex flex-col sm:flex-row gap-1 sm:gap-4 justify-between text-[11px] leading-relaxed text-[var(--fg-muted)] border-b border-[var(--border)]">
