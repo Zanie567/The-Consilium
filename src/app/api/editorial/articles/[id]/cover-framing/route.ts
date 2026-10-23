@@ -77,9 +77,16 @@ async function PATCHHandler(request: Request, { params }: Context) {
       create: { key: coverFramingKey(id), value: JSON.stringify(submitted), updatedBy: access.user.id },
       update: { value: JSON.stringify(submitted), updatedBy: access.user.id },
     })
-    // For published articles, invalidate the server-rendered public banner.
-    revalidatePath(`/articles/${access.article.slug}`)
-    return NextResponse.json({ ok: true, framing: submitted })
+    // An invalidation failure must not turn an already committed setting into a
+    // false save failure. Warn explicitly if a published page could stay stale.
+    let cacheRefreshed = true
+    try {
+      revalidatePath(`/articles/${access.article.slug}`)
+    } catch (error) {
+      cacheRefreshed = false
+      console.error('[cover-framing] saved but public cache invalidation failed:', error)
+    }
+    return NextResponse.json({ ok: true, framing: submitted, cacheRefreshed })
   } catch {
     return NextResponse.json({ error: 'Unable to save framing. Your settings were not confirmed.' }, { status: 503 })
   }
