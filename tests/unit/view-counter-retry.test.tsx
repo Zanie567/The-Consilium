@@ -36,3 +36,19 @@ it('flushes a consent change after an in-flight event without waiting for a hear
   expect(JSON.parse(fetcher.mock.calls[1][1].body)).toMatchObject({consent:false})
   expect(JSON.parse(fetcher.mock.calls[1][1].body).readerId).toBeUndefined()
 })
+it('honours Retry-After after a rate limit or outage instead of retrying on every heartbeat', async () => {
+  vi.useFakeTimers()
+  identity.mockReturnValue({sessionId:'retry-fixture',consent:false,readerId:undefined})
+  const limited = {ok:false,status:429,headers:new Headers({'Retry-After':'90'})}
+  const fetcher = vi.fn().mockResolvedValueOnce(limited).mockResolvedValue({ok:true,status:200,headers:new Headers()})
+  vi.stubGlobal('fetch',fetcher)
+  render(<ViewCounter articleId="a" />)
+  await act(async () => {})
+  // Heartbeats at 30s and 60s fall inside the 90s window and are held back.
+  await act(async () => {await vi.advanceTimersByTimeAsync(60000)})
+  expect(fetcher).toHaveBeenCalledTimes(1)
+  // The 90s heartbeat is the first one allowed; it carries the unacknowledged view again.
+  await act(async () => {await vi.advanceTimersByTimeAsync(30000)})
+  expect(fetcher).toHaveBeenCalledTimes(2)
+  expect(JSON.parse(fetcher.mock.calls[1][1].body).visitId).toBe(JSON.parse(fetcher.mock.calls[0][1].body).visitId)
+})
