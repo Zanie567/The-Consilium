@@ -57,3 +57,6 @@ next-env.d.ts
 /docs/testing/evidence/
 
 /supabase/.temp/
+
+# performance measurement builds (scripts/perf/serve-local.sh)
+/.next-perf*/

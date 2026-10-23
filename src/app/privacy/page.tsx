@@ -27,7 +27,7 @@ export default function PrivacyPage() {
             This policy sets out what data we collect, why we collect it, how long we keep it, and
             what rights you have over it.
           </p>
-          <p className="text-[var(--fg-faint)] text-sm mt-4">Last updated: 6 October 2026</p>
+          <p className="text-[var(--fg-faint)] text-sm mt-4">Last updated: 19 October 2026</p>
         </div>
 
         <div className="prose-consilium space-y-10">
@@ -140,33 +140,40 @@ export default function PrivacyPage() {
           <section>
             <h2>Where your data is stored</h2>
             <p>
-              Your data is stored on a PostgreSQL database hosted by Supabase. Supabase servers are
-              located in the European Union. All data is encrypted in transit and at rest.
+              We use third-party hosting and data storage services to operate The Consilium and
+              process personal information. Our primary database is hosted in the European Union,
+              but other service providers may process some information in other locations.
+            </p>
+            <p>
+              We take appropriate technical and organisational measures to protect personal
+              information against unauthorised access, loss, and misuse.
             </p>
           </section>
 
           <section>
             <h2>Who we share your data with</h2>
             <p>
-              We do not sell your data to anyone, ever. We share it only with the third-party
-              services required to operate the website:
+              We do not sell your personal information. We share it with third-party service
+              providers where necessary to operate and maintain The Consilium, including:
             </p>
             <ul>
               <li>
-                <strong>Vercel</strong>: hosts the website and serves pages to your browser. Vercel
-                processes request data including IP addresses as part of normal web serving.
+                <strong>Website hosting and delivery services:</strong> process technical request
+                information, including IP addresses, to serve pages to your browser.
               </li>
               <li>
-                <strong>Supabase</strong>: stores the database containing your account and
-                subscription data.
+                <strong>Database and storage services:</strong> store account information, newsletter
+                subscriptions, and other data needed to run the website.
               </li>
               <li>
-                <strong>Resend</strong>: sends transactional emails such as password resets and
-                account notifications. Your email address is passed to Resend only when sending you
-                a message.
+                <strong>Email delivery services:</strong> process email addresses and relevant message
+                information to deliver newsletters, account notifications, and other communications.
               </li>
             </ul>
-            <p>Each operates under its own privacy policy and, where applicable, UK GDPR.</p>
+            <p>
+              We use these providers to deliver and maintain the website and require them to handle
+              personal information in accordance with applicable data protection requirements.
+            </p>
           </section>
 
           <section>

@@ -14,7 +14,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion'
+import { usePresence } from '@/hooks/usePresence'
 import { X } from 'lucide-react'
 import { getCookieConsent } from '@/components/ui/CookieConsent'
 
@@ -38,6 +38,7 @@ export function SignupPrompt() {
   const { data: session, status } = useSession()
   const pathname = usePathname()
   const [visible, setVisible] = useState(false)
+  const presence = usePresence(visible, 350)
   const lastVisitedPath = useRef<string | null>(null)
 
   // Redundant + obstructive on the auth pages (the card would cover the form's
@@ -88,14 +89,12 @@ export function SignupPrompt() {
   }
 
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          initial={{ opacity: 0, y: 32, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 24, scale: 0.96 }}
-          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-          className="fixed bottom-6 right-4 sm:right-6 z-[90] w-[300px] bg-navy border border-gold/30 shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
+    <>
+      {presence.mounted && (
+        <div
+          data-shown={presence.shown ? '' : undefined}
+          className="presence-rise fixed bottom-6 right-4 sm:right-6 z-[90] w-[300px] bg-navy border border-gold/30 shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
+          style={{ '--presence-y': '32px', '--presence-scale': 0.96, '--presence-ms': '350ms' } as React.CSSProperties}
           role="dialog"
           aria-label="Create an account"
         >
@@ -147,8 +146,8 @@ export function SignupPrompt() {
               Free forever. No spam.
             </p>
           </div>
-        </motion.div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   )
 }

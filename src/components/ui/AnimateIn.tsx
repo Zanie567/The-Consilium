@@ -1,54 +1,55 @@
-'use client'
+import type { CSSProperties, ReactNode } from 'react'
 
-import { motion, useReducedMotion, Variants } from 'framer-motion'
-import { ReactNode } from 'react'
+/**
+ * Entrance animations, driven by CSS rather than JavaScript.
+ *
+ * These used to be framer-motion components whose server HTML carried
+ * `opacity: 0` until the client bundle downloaded, hydrated and started the
+ * animation. Page headings, article headlines and the homepage hero therefore
+ * stayed invisible on a slow phone until JavaScript ran, which is what delayed
+ * Largest Contentful Paint across the site.
+ *
+ * Now the markup renders on the server with a CSS keyframe animation that
+ * starts at first paint, so content appears without waiting for any script and
+ * still appears if scripts never load. The look is unchanged: the same
+ * variants, durations, delays and easing.
+ *
+ * Reveal-on-scroll for content below the fold is kept by <RevealOnScroll />
+ * (mounted once in the root layout): after hydration it parks off-screen
+ * reveals and replays their animation when they scroll into view, the way
+ * framer's `whileInView` + `once` did. Reduced motion shows everything at once
+ * (globals.css).
+ */
 
 type AnimVariant = 'fade-up' | 'fade-in' | 'fade-left' | 'fade-right' | 'scale-in'
-
-const variantMap: Record<AnimVariant, Variants> = {
-  'fade-up':    { hidden: { opacity: 0, y: 20 },    visible: { opacity: 1, y: 0 } },
-  'fade-in':    { hidden: { opacity: 0 },            visible: { opacity: 1 } },
-  'fade-left':  { hidden: { opacity: 0, x: -20 },   visible: { opacity: 1, x: 0 } },
-  'fade-right': { hidden: { opacity: 0, x: 20 },    visible: { opacity: 1, x: 0 } },
-  'scale-in':   { hidden: { opacity: 0, scale: 0.96 }, visible: { opacity: 1, scale: 1 } },
-}
-
-const ease = [0.22, 1, 0.36, 1] as const
 
 interface AnimateInProps {
   children: ReactNode
   variant?: AnimVariant
+  /** Seconds before the entrance starts. */
   delay?: number
+  /** Seconds the entrance takes. */
   duration?: number
   className?: string
+  /** Kept for API compatibility; reveals always play once. */
   once?: boolean
 }
 
-export function AnimateIn({
-  children,
-  variant = 'fade-up',
-  delay = 0,
-  duration = 0.5,
-  className,
-  once = true,
-}: AnimateInProps) {
-  const prefersReducedMotion = useReducedMotion()
+const cx = (...parts: (string | undefined | false)[]) => parts.filter(Boolean).join(' ')
 
+export function AnimateIn({ children, variant = 'fade-up', delay = 0, duration = 0.5, className }: AnimateInProps) {
+  const style = { '--reveal-delay': `${delay}s`, '--reveal-duration': `${duration}s` } as CSSProperties
   return (
-    <motion.div
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once, margin: '-40px' }}
-      variants={variantMap[variant]}
-      transition={{ duration: prefersReducedMotion ? 0 : duration, delay: prefersReducedMotion ? 0 : delay, ease }}
-      className={`consilium-reveal ${className ?? ''}`}
-    >
+    <div className={cx('consilium-reveal', className)} data-reveal={variant} style={style}>
       {children}
-    </motion.div>
+    </div>
   )
 }
 
-// Staggered container - children should be <StaggerItem>
+/**
+ * A group whose <StaggerItem> children enter one after another. The group
+ * itself does not animate; it decides when its items start.
+ */
 export function StaggerContainer({
   children,
   className,
@@ -57,30 +58,20 @@ export function StaggerContainer({
 }: {
   children: ReactNode
   className?: string
+  /** Seconds between consecutive items. */
   staggerDelay?: number
+  /** Seconds before the first item. */
   delayChildren?: number
 }) {
-  const prefersReducedMotion = useReducedMotion()
-
+  const style = { '--stagger-step': `${staggerDelay}s`, '--stagger-base': `${delayChildren}s` } as CSSProperties
   return (
-    <motion.div
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, margin: '-40px' }}
-      variants={{
-        hidden: {},
-        visible: {
-          transition: { staggerChildren: prefersReducedMotion ? 0 : staggerDelay, delayChildren: prefersReducedMotion ? 0 : delayChildren },
-        },
-      }}
-      className={`consilium-reveal ${className ?? ''}`}
-    >
+    <div className={cx('consilium-stagger', className)} data-reveal-group="" style={style}>
       {children}
-    </motion.div>
+    </div>
   )
 }
 
-// Direct child of StaggerContainer
+/** Direct child of StaggerContainer. */
 export function StaggerItem({
   children,
   className,
@@ -90,15 +81,9 @@ export function StaggerItem({
   className?: string
   variant?: AnimVariant
 }) {
-  const prefersReducedMotion = useReducedMotion()
-
   return (
-    <motion.div
-      variants={variantMap[variant]}
-      transition={{ duration: prefersReducedMotion ? 0 : 0.5, ease }}
-      className={`consilium-reveal ${className ?? ''}`}
-    >
+    <div className={cx('consilium-reveal', className)} data-reveal={variant} data-reveal-item="">
       {children}
-    </motion.div>
+    </div>
   )
 }

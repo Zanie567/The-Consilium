@@ -28,15 +28,16 @@ import { CommentSection } from '@/components/ui/CommentSection'
 import { readTimeLabel } from '@/lib/readTime'
 import { getInitials, displayAuthorName } from '@/lib/authorUtils'
 import type { Metadata } from 'next'
-import { canonicalAlternates } from '@/lib/seo'
+import { articleShareImages, canonicalAlternates, pageTwitter } from '@/lib/seo'
+import { BRAND_MARK } from '@/lib/brand'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/constants'
 import { loadPublicCorrections, correctionsStructuredData } from '@/lib/corrections/public'
 import { CorrectionNotice, CorrectionsSection } from '@/components/article/ArticleCorrections'
+import { coverMetadataKey, parseCoverMetadata } from '@/lib/coverImageMetadata'
 
 interface Props {
   params: Promise<{ slug: string }>
 }
-
 
 function getArticleUrl(slug: string): string {
   return `${SITE_URL.replace(/\/$/, '')}/articles/${slug}`
@@ -148,6 +149,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const article = await getArticle(slug)
   if (!article) return {}
   const articleUrl = getArticleUrl(article.slug)
+  const shareImages = articleShareImages(article.coverImage, article.title)
 
   return {
     title: {
@@ -169,15 +171,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       publishedTime: article.publishedAt?.toISOString(),
       modifiedTime: article.updatedAt.toISOString(),
       authors: article.author.name ? [article.author.name] : undefined,
-      images: article.coverImage
-        ? [{ url: article.coverImage }]
-        : [{ url: '/logo.png', width: 512, height: 512, alt: `${SITE_NAME} logo` }],
+      images: shareImages,
     },
-    twitter: {
-      card: 'summary_large_image',
+    twitter: pageTwitter({
       title: article.title,
-      description: article.excerpt ?? undefined,
-    },
+      description: article.excerpt ?? SITE_DESCRIPTION,
+      images: shareImages,
+    }),
   }
 }
 
@@ -201,10 +201,17 @@ export default async function ArticlePage({ params }: Props) {
     : null
 
   // Read separately from the article so a corrections-table problem can never 404 the article.
-  const [related, corrections] = await Promise.all([
+  const [related, corrections, coverSetting] = await Promise.all([
     getRelatedArticles(article.id, article.categoryId, article.title, article.excerpt),
     loadPublicCorrections(prisma, article),
+    article.coverImage
+      ? prisma.siteSetting.findUnique({
+          where: { key: coverMetadataKey(article.id) },
+          select: { value: true },
+        }).catch(() => null)
+      : Promise.resolve(null),
   ])
+  const coverMetadata = parseCoverMetadata(coverSetting?.value, article.coverImage)
   const correctionComments = correctionsStructuredData(corrections)
   const { html: htmlContent, footnotes } = renderContent(article.content)
   // Glossary term linking runs on the sanitized HTML and returns it untouched
@@ -233,6 +240,7 @@ export default async function ArticlePage({ params }: Props) {
       '@type': 'Organization',
       name: SITE_NAME,
       url: SITE_URL,
+      logo: { '@type': 'ImageObject', url: `${SITE_URL}${BRAND_MARK.url}`, width: BRAND_MARK.width, height: BRAND_MARK.height },
     },
     datePublished: article.publishedAt?.toISOString() ?? '',
     dateModified: article.updatedAt.toISOString(),
@@ -257,23 +265,41 @@ export default async function ArticlePage({ params }: Props) {
         <div className="print-masthead-sub">University of Edinburgh Economics Society</div>
       </div>
 
-      {/* Cover Image */}
+      {/* The cover and its attribution are a single semantic figure. */}
       {article.coverImage && (
-        <div className="relative h-[260px] md:h-[480px] w-full overflow-hidden bg-navy/10 dark:bg-navy/20 no-print">
+        <figure className="m-0 no-print">
+          <div className="relative h-[clamp(220px,42vw,680px)] w-full overflow-hidden bg-navy/10 dark:bg-navy/20">
+          {/* A source photograph may contain labels/maps at its edges. Unlike a
+              decorative card, the article cover must never crop that evidence.
+              A viewport-responsive frame keeps the full source visible. */}
           <BlurImage
             src={article.coverImage}
             alt={article.title}
             fill
-            className="object-cover"
+            className="object-contain"
             priority
             sizes="100vw"
           />
-          {/* Read time badge - top right of hero */}
-          <div className="absolute top-4 right-4 z-10 flex items-center gap-1.5 bg-navy/70 text-cream/90 text-xs font-semibold px-3 py-1.5 backdrop-blur-sm no-print">
+          </div>
+          {coverMetadata && (
+            <figcaption className="mx-auto max-w-[1100px] px-6 sm:px-8 py-2.5 flex flex-col sm:flex-row gap-1 sm:gap-4 justify-between text-[11px] leading-relaxed text-[var(--fg-muted)] border-b border-[var(--border)]">
+              <span>{coverMetadata.caption}</span>
+              <span className="shrink-0">
+                Source:{' '}
+                {coverMetadata.sourceUrl ? (
+                  <a href={coverMetadata.sourceUrl} target="_blank" rel="noopener noreferrer"
+                     className="underline underline-offset-2 hover:text-gold">
+                    {coverMetadata.source}
+                  </a>
+                ) : coverMetadata.source}
+              </span>
+            </figcaption>
+          )}
+          <div className="mx-auto max-w-[1100px] px-6 sm:px-8 pb-2 pt-1 flex items-center justify-end gap-1.5 text-[10px] text-[var(--fg-faint)]" aria-label="Estimated reading time">
             <Clock size={11} className="shrink-0" />
             {readTimeLabel(article.content)}
           </div>
-        </div>
+        </figure>
       )}
 
       <div className="max-w-[680px] mx-auto px-6 sm:px-8 lg:px-12 py-12 print-article-wrapper">

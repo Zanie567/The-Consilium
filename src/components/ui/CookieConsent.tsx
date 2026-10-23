@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion'
+import { usePresence } from '@/hooks/usePresence'
 
 const CONSENT_KEY = 'consilium_cookie_consent'
 
@@ -22,6 +22,7 @@ export function getCookieConsent(): CookieConsent {
 
 export function CookieConsentBanner() {
   const [visible, setVisible] = useState(false)
+  const presence = usePresence(visible, 300)
 
   useEffect(() => {
     const existing = getCookieConsent()
@@ -45,14 +46,11 @@ export function CookieConsentBanner() {
   }
 
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 16 }}
-          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="fixed bottom-0 left-0 right-0 z-[100] bg-navy border-t border-gold/20 shadow-[0_-8px_32px_rgba(0,0,0,0.4)]"
+    <>
+      {presence.mounted && (
+        <div
+          data-shown={presence.shown ? '' : undefined}
+          className="presence-rise fixed bottom-0 left-0 right-0 z-[100] bg-navy border-t border-gold/20 shadow-[0_-8px_32px_rgba(0,0,0,0.4)]"
           role="dialog"
           aria-label="Cookie consent"
         >
@@ -78,8 +76,8 @@ export function CookieConsentBanner() {
               </button>
             </div>
           </div>
-        </motion.div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   )
 }

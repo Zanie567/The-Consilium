@@ -3,8 +3,14 @@ import { SessionProvider } from 'next-auth/react'
 import { useLayoutEffect } from 'react'
 import type { Session } from 'next-auth'
 import { getTestingTabId, identityPinnedFetch, isTestingTransition, setTestingTransition } from '@/lib/testingClient'
-import { TestingControls } from './TestingControls'
+import dynamic from 'next/dynamic'
 import { SessionKeepAlive } from './SessionKeepAlive'
+
+// Only the testing workspace renders these controls. Splitting them out keeps
+// their code (and the admin navigation map they import) out of the JavaScript
+// every public visitor downloads; in the testing workspace they still render on
+// the server as before.
+const TestingControls = dynamic(() => import('./TestingControls').then((m) => m.TestingControls))
 
 export function AuthProvider({ children, session, testWorkspace = false }: { children: React.ReactNode; session?: Session | null; testWorkspace?: boolean }) {
   // Install the identity transport before child passive effects send writes

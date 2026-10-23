@@ -161,7 +161,8 @@ test.describe('writer: create then edit', () => {
     await page.setInputFiles('#tp-photo', { name: 'evil.png', mimeType: 'image/png', buffer: Buffer.from('<svg onload=alert(1)>') })
     await page.getByLabel('Description').fill('should not be saved')
     await page.getByRole('button', { name: 'Create profile' }).click()
-    await expect(page.getByRole('status')).toContainText('JPEG, PNG, GIF, WebP or AVIF')
+    // The team photo is also the account photo, so it follows the account photo types.
+    await expect(page.getByRole('status')).toContainText('JPEG, PNG or WebP')
     expect(await cardCount(ids.writer)).toBe(0)
     expect((await storageObjects()).filter((o) => o.key.startsWith(`avatars/${ids.writer}/`))).toHaveLength(0)
   })
@@ -306,10 +307,20 @@ test.describe('other teams', () => {
       page.getByRole('button', { name: 'Create profile' }).click(),
       second.getByRole('button', { name: 'Create profile' }).click(),
     ])
-    await expect(page.getByRole('status')).toContainText('has been saved')
-    await expect(second.getByRole('status')).toContainText('has been saved')
+    // One card, whichever tab wins. The other tab started from the same (empty) description, so its
+    // save is refused as stale instead of silently replacing what the first tab just saved.
+    const outcome = async (tab: typeof page) => {
+      await expect(tab.getByRole('status')).toContainText(/has been saved|changed since this page was opened/)
+      return (await tab.getByRole('status').textContent()) ?? ''
+    }
+    const results = await Promise.all([outcome(page), outcome(second)])
+    expect(results.filter((text) => text.includes('has been saved'))).toHaveLength(1)
+    expect(results.filter((text) => text.includes('changed since this page was opened'))).toHaveLength(1)
     expect(await cardCount(ids.editor)).toBe(1)
     expect(await db().teamMember.count({ where: { name: 'Edgar Editor' } })).toBe(1)
+    const winner = results[0].includes('has been saved') ? 'Tab one' : 'Tab two'
+    expect((await db().teamMember.findUniqueOrThrow({ where: { userId: ids.editor } })).bio).toBe(winner)
+    expect((await db().user.findUniqueOrThrow({ where: { id: ids.editor } })).bio).toBe(winner)
     await publish(ids.editor)
     await context.close()
   })

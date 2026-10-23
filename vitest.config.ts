@@ -12,7 +12,6 @@ const baseUrl = resolveTestBaseUrl(process.env.BASE_URL)
 // the isolated launcher (scripts/run-e2e.sh sets E2E_ISOLATED=1 and BASE_URL), which owns a disposable
 // per-run database. A plain `vitest run` / `npm test` never collects them, so it can never touch one.
 const DB_BACKED_SUITES = [
-  'tests/integration/launch-public-access-db.test.ts',
   'tests/integration/read-through-db.test.ts',
   'tests/integration/api.test.ts',
   'tests/integration/data-layer.test.ts',
@@ -40,6 +39,8 @@ const DB_BACKED_SUITES = [
   'tests/integration/admin-overhaul-migrations.test.ts',
   'tests/integration/debate-lock-order-db.test.ts',
   'tests/integration/corrections-db.test.ts',
+  'tests/integration/contributor-profile-db.test.ts',
+  'tests/integration/launch-public-access-db.test.ts',
 ]
 const isolatedLauncherRun = process.env.E2E_ISOLATED === '1' && Boolean(process.env.BASE_URL)
 

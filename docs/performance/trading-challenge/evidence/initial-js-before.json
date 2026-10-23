@@ -1,0 +1,36 @@
+{
+  "base": "http://localhost:3310",
+  "generatedAt": "2026-10-19T23:27:35.128Z",
+  "results": {
+    "/": {
+      "scripts": 14,
+      "rawBytes": 935768,
+      "gzipBytes": 285034
+    },
+    "/about": {
+      "scripts": 13,
+      "rawBytes": 856233,
+      "gzipBytes": 259162
+    },
+    "/category/news": {
+      "scripts": 14,
+      "rawBytes": 885993,
+      "gzipBytes": 270778
+    },
+    "/category/analysis": {
+      "scripts": 14,
+      "rawBytes": 885993,
+      "gzipBytes": 270778
+    },
+    "/opinion-debate": {
+      "scripts": 13,
+      "rawBytes": 865709,
+      "gzipBytes": 261950
+    },
+    "/articles/carbon-markets-fragmentation-climate-policy": {
+      "scripts": 15,
+      "rawBytes": 949180,
+      "gzipBytes": 290512
+    }
+  }
+}

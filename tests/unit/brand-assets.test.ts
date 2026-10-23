@@ -1,0 +1,154 @@
+import { describe, it, expect } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import sharp from 'sharp'
+import { BRAND_MARK, LEGACY_LOGO_PATH, SHARE_IMAGE, type BrandImage } from '@/lib/brand'
+import { DEFAULT_SHARE_IMAGE, articleShareImages, pageOpenGraph, pageTwitter } from '@/lib/seo'
+import { legacyMatch, sha256 } from '../helpers/legacyBrand'
+
+/**
+ * Until October 2026 every link shared from the site showed the obsolete cream
+ * seal: the root layout, the seo helpers and the article fallback all pointed
+ * og:image and twitter:image at /logo.png, which still held the old artwork.
+ * These checks keep the declared assets honest and the old design out of the
+ * deployable tree.
+ */
+
+const ROOT = path.resolve(__dirname, '../..')
+const publicFile = (url: string) => path.join(ROOT, 'public', url)
+const read = (url: string) => fs.readFileSync(publicFile(url))
+
+/** Every raster the deployment can serve: public/ plus the app-directory icon files. */
+function servedImages(): string[] {
+  const out: string[] = []
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) walk(full)
+      else if (/\.(png|jpe?g|webp|gif|ico|avif)$/i.test(entry.name)) out.push(full)
+    }
+  }
+  walk(path.join(ROOT, 'public'))
+  walk(path.join(ROOT, 'src/app'))
+  return out
+}
+
+describe.each<[string, BrandImage]>([
+  ['SHARE_IMAGE', SHARE_IMAGE],
+  ['BRAND_MARK', BRAND_MARK],
+])('%s', (_name, image) => {
+  it('exists and matches its declared dimensions and type', async () => {
+    const meta = await sharp(read(image.url)).metadata()
+    expect(meta.format).toBe('png')
+    expect(image.type).toBe('image/png')
+    expect([meta.width, meta.height]).toEqual([image.width, image.height])
+  })
+
+  it('sits at a versioned path so platform caches see a new URL', () => {
+    expect(image.url).toMatch(/-v\d+\.png$/)
+  })
+
+  it('has alternative text', () => {
+    expect(image.alt.length).toBeGreaterThan(10)
+  })
+})
+
+describe('share image', () => {
+  it('is the 1200×630 (1.91:1) card the major platforms ask for', () => {
+    expect([SHARE_IMAGE.width, SHARE_IMAGE.height]).toEqual([1200, 630])
+  })
+
+  it('is opaque, so no platform composites it onto its own background', async () => {
+    expect((await sharp(read(SHARE_IMAGE.url)).metadata()).hasAlpha).toBe(false)
+  })
+
+  it('stays well under the 5 MB limit X applies to card images', () => {
+    expect(fs.statSync(publicFile(SHARE_IMAGE.url)).size).toBeLessThan(1024 * 1024)
+  })
+})
+
+describe('brand mark', () => {
+  it('is square and at least the 112px Google requires of a publisher logo', () => {
+    expect(BRAND_MARK.width).toBe(BRAND_MARK.height)
+    expect(BRAND_MARK.width).toBeGreaterThanOrEqual(112)
+  })
+
+  it('is the approved emblem (src/app/icon.png) byte for byte', () => {
+    expect(sha256(read(BRAND_MARK.url))).toBe(sha256(fs.readFileSync(path.join(ROOT, 'src/app/icon.png'))))
+  })
+})
+
+describe('legacy /logo.png', () => {
+  it('now serves the current brand mark, for old links and caches that still request it', () => {
+    expect(sha256(read(LEGACY_LOGO_PATH))).toBe(sha256(read(BRAND_MARK.url)))
+  })
+})
+
+describe('obsolete branding', () => {
+  it('is not present — renamed, resized or recompressed — in any served image', async () => {
+    const found: string[] = []
+    for (const file of servedImages()) {
+      // Multi-image .ico containers are not decodable by sharp; their PNG frames are
+      // covered by the favicon PNGs beside them.
+      if (file.endsWith('.ico')) continue
+      const match = await legacyMatch(fs.readFileSync(file))
+      if (match) found.push(`${path.relative(ROOT, file)} is a copy of the ${match}`)
+    }
+    expect(found).toEqual([])
+  })
+
+  it('is not referenced by path from application code', () => {
+    // brand.ts is the one file allowed to name the legacy path, to document it.
+    const offenders: string[] = []
+    const walk = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name)
+        if (entry.isDirectory()) walk(full)
+        else if (/\.(tsx?|jsx?|mjs|css|json)$/.test(entry.name) && !full.endsWith(path.join('lib', 'brand.ts'))) {
+          if (fs.readFileSync(full, 'utf8').includes(LEGACY_LOGO_PATH)) offenders.push(path.relative(ROOT, full))
+        }
+      }
+    }
+    walk(path.join(ROOT, 'src'))
+    expect(offenders).toEqual([])
+  })
+})
+
+describe('share metadata helpers', () => {
+  it('default to the approved share image with dimensions, type and alt text', () => {
+    expect(DEFAULT_SHARE_IMAGE).toEqual(SHARE_IMAGE)
+    expect(pageOpenGraph('/about')?.images).toEqual([SHARE_IMAGE])
+  })
+
+  it('build a large-image X card with the approved image by default', () => {
+    expect(pageTwitter()).toMatchObject({
+      card: 'summary_large_image',
+      images: [{ url: SHARE_IMAGE.url, alt: SHARE_IMAGE.alt }],
+    })
+  })
+
+  it('carry a page-specific promotional image through both objects', () => {
+    const promo = { url: '/og/trading-challenge.png', width: 1200, height: 630, type: 'image/png', alt: 'Promo' }
+    expect(pageOpenGraph('/trading-challenge', { image: promo })?.images).toEqual([promo])
+    expect(pageTwitter({ images: [promo] })?.images).toEqual([{ url: promo.url, alt: promo.alt }])
+  })
+
+  it('prefer an article cover image', () => {
+    const cover = 'https://example.supabase.co/storage/v1/object/public/article-images/cover.jpg'
+    expect(articleShareImages(cover, 'Rates on hold')).toEqual([{ url: cover, alt: 'Rates on hold' }])
+  })
+
+  it('fall back to the approved share image for an article without a cover', () => {
+    expect(articleShareImages(null, 'Rates on hold')).toEqual([SHARE_IMAGE])
+    expect(articleShareImages('', 'Rates on hold')).toEqual([SHARE_IMAGE])
+  })
+
+  it('never point at the obsolete logo', () => {
+    const urls = [
+      ...(pageOpenGraph('/')?.images as { url: string }[]),
+      ...(pageTwitter()?.images as { url: string }[]),
+      ...articleShareImages(undefined, 'x'),
+    ].map((i) => i.url)
+    expect(urls).not.toContain(LEGACY_LOGO_PATH)
+  })
+})

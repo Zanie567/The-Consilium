@@ -225,7 +225,8 @@ suite('PUT /api/team-profile (real database)', () => {
       expect((await put({ bio: 'hello', name: '  Preferred Name  ' })).status).toBe(201)
       const [mine] = await rowsFor(writer.id)
       expect(mine).toMatchObject({ name: 'Preferred Name', role: 'Writer', publicTier: 'writer', isActive: false, order: 1000 })
-      expect((await db.user.findUniqueOrThrow({ where: { id: writer.id } })).name).toBe(writer.name)
+      // The name is shared: the account (bylines, the account page) now shows it too. Role is untouched.
+      expect(await db.user.findUniqueOrThrow({ where: { id: writer.id } })).toMatchObject({ name: 'Preferred Name', role: 'WRITER' })
       expect((await put({ bio: 'hello', name: 'x' })).status).toBe(400)
     })
   })
@@ -839,7 +840,7 @@ suite('PUT /api/team-profile (real database)', () => {
       const [before] = await rowsFor(user.id)
       const uploadedBefore = [...storage.uploads]
 
-      const spy = vi.spyOn(db.teamMember, 'upsert').mockRejectedValueOnce(new Error('db down'))
+      const spy = vi.spyOn(db, '$transaction').mockRejectedValueOnce(new Error('db down')) // the save runs in one transaction
       const res = await put({ bio: 'new', image: photo(PNG, 'b.png') })
       spy.mockRestore()
 
