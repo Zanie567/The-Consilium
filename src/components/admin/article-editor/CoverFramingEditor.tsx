@@ -82,10 +82,12 @@ export function CoverFramingEditor({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(framing),
       })
-      const data = (await response.json()) as { error?: string; framing?: CoverFraming }
+      const data = (await response.json()) as { error?: string; framing?: CoverFraming; cacheRefreshed?: boolean }
       if (!response.ok) throw new Error(data.error || 'Unable to save.')
       if (data.framing) setFraming(data.framing)
-      setNotice('Banner framing saved. Published articles will use this view.')
+      setNotice(data.cacheRefreshed === false
+        ? 'Banner framing saved, but public cache refresh failed. The previous crop may briefly remain visible.'
+        : 'Banner framing saved. Published articles will use this view.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to save.')
     } finally {
