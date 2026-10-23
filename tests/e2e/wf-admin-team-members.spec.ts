@@ -155,11 +155,23 @@ test('assigning an existing profile to a new account: nothing is lost, the owner
   const own = await withCookieConsentAnswered(await signInAs(browser, account))
   const ownPage = await steadyPage(own)
   await ownPage.goto('/editorial/team-profile')
-  await ownPage.getByLabel('Description').fill('Now in my own words.')
+  const description = ownPage.getByLabel('Description')
+  // Server-rendered controls can be filled before React hydrates them, particularly in WebKit.
+  // That loses the edit; the form then reports a successful no-op save.
+  await hydrated(description, 'onChange')
+  await description.fill('Now in my own words.')
+  await expect(ownPage.getByText('Unsaved changes')).toBeVisible()
+  const saved = ownPage.waitForResponse(
+    response => response.url().endsWith('/api/team-profile') && response.request().method() === 'PUT',
+  )
   await ownPage.getByRole('button', { name: 'Save changes' }).click()
+  const saveResponse = await saved
+  expect(saveResponse.status()).toBe(200)
+  expect((await saveResponse.json()).bio).toBe('Now in my own words.')
   await expect(ownPage.getByRole('status').filter({ hasText: 'has been saved' })).toBeVisible()
   const edited = await db().teamMember.findUniqueOrThrow({ where: { id: card.id } })
   expect(edited).toMatchObject({ bio: 'Now in my own words.', role: 'Staff Writer', order: 4000, userId: account.id })
+  expect((await db().user.findUniqueOrThrow({ where: { id: account.id } })).bio).toBe('Now in my own words.')
   expect((await ownPage.request.get('/api/admin/team-members')).status()).toBe(403)
   await own.close()
 
