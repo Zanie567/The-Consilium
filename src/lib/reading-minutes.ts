@@ -1,27 +1,8 @@
-type TiptapNode = {
-  type?: string
-  text?: string
-  content?: TiptapNode[]
-}
+import { wordCountFromContent } from '@/lib/readTime'
 
-function countWordsInNode(node: TiptapNode): number {
-  if (node.type === 'text' && typeof node.text === 'string') {
-    return node.text.trim().split(/\s+/).filter(Boolean).length
-  }
-  if (Array.isArray(node.content)) {
-    return node.content.reduce((sum, child) => sum + countWordsInNode(child), 0)
-  }
-  return 0
-}
-
+/** Same count as every reading-time label (see readTime.ts). */
 export function countWordsInTiptapContent(content: string): number {
-  try {
-    const json = JSON.parse(content) as TiptapNode
-    return countWordsInNode(json)
-  } catch {
-    // Plain-text fallback (shouldn't happen in practice)
-    return content.split(/\s+/).filter(Boolean).length
-  }
+  return wordCountFromContent(content)
 }
 
 /**

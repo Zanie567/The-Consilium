@@ -95,7 +95,7 @@ async function POSTHandler(req: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: result.status })
     }
     // Their articles are gone: expire the public lists, feed and sitemap (after the commit above).
-    revalidateArticleLists()
+    await revalidateArticleLists()
 
     // Send confirmation to the deleted address
     await sendEmail({

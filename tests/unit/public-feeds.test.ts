@@ -80,7 +80,7 @@ describe('caching contract', () => {
     findMany.mockResolvedValueOnce([]) // the article has since been removed
     expect((await getCachedFeedItems()).map((i) => i.slug)).toEqual(['old']) // warmed: still the cached copy
     expect(findMany).toHaveBeenCalledTimes(1)
-    expect(revalidateArticleLists()).toBe(true)
+    expect(await revalidateArticleLists()).toBe(true)
     expect(await getCachedFeedItems()).toEqual([]) // expired -> re-read
     expect(cache.stats.invalidations).toEqual(['articles'])
   })
@@ -104,10 +104,10 @@ describe('caching contract', () => {
 
 describe('invalidation failure is reported, never silent', () => {
   beforeEach(() => cache.reset())
-  it('returns false and logs when the tag cannot be expired', () => {
+  it('returns false and logs when the tag cannot be expired', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     cache.failInvalidations(true)
-    expect(revalidateArticleLists()).toBe(false)
+    expect(await revalidateArticleLists()).toBe(false)
     expect(log).toHaveBeenCalledWith(expect.stringContaining('FAILED'), expect.anything())
     log.mockRestore()
   })

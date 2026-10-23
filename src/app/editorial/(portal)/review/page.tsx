@@ -1,4 +1,5 @@
 import { getServerSession } from 'next-auth'
+import { wordCountFromContent } from '@/lib/readTime'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
@@ -36,14 +37,7 @@ export default async function ReviewQueuePage() {
     include: { author: true, category: true },
   }).catch(() => [])
 
-  const wordCount = (content: string) => {
-    try {
-      const text = JSON.stringify(JSON.parse(content)).replace(/<[^>]+>/g, '')
-      return Math.round(text.split(/\s+/).filter(Boolean).length * 0.75)
-    } catch {
-      return content.split(/\s+/).filter(Boolean).length
-    }
-  }
+  const wordCount = wordCountFromContent
 
   return (
     <PortalPage className="p-4 sm:p-6 lg:p-8 max-w-4xl">

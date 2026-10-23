@@ -1,3 +1,4 @@
+import { readTimeLabel as estimateReadTime } from '@/lib/readTime'
 import { cookies } from 'next/headers'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
@@ -20,14 +21,6 @@ export const metadata: Metadata = {
   alternates: canonicalAlternates('/opinion-debate'),
 }
 
-function estimateReadTime(content: string): string {
-  try {
-    const words = JSON.stringify(JSON.parse(content)).split(/\s+/).length
-    return `${Math.max(1, Math.round(words / 200))} min read`
-  } catch {
-    return `${Math.max(1, Math.round(content.split(/\s+/).length / 200))} min read`
-  }
-}
 
 async function getDebates(userId?: string, anonymousId?: string): Promise<DebateData[]> {
   try {

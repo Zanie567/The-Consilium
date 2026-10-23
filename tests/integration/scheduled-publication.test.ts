@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { prisma } from '@/lib/prisma'
 import { publishScheduledArticles } from '@/lib/scheduledPublishing'
 import { purgeExpiredTrash } from '@/lib/trashPurge'
@@ -31,6 +32,31 @@ async function article() {
 // Publishing and permanent trash removal are separate jobs (src/lib/trashPurge.ts,
 // POST /api/cron/purge-trash): publishing never deletes, and each purge is audited.
 describe('scheduled publication uses current state; trash expiry preserves managed cleanup', () => {
+  it('publishes a genuinely due article over HTTP once, with captured email and a public page', async () => {
+    const row = await article()
+    const invoke = () => fetch(`${process.env.BASE_URL}/api/publish-scheduled`, {
+      method: 'POST', headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+    })
+    const first = await invoke()
+    expect(first.status).toBe(200)
+    const body = await first.json()
+    expect(body.articles).toContainEqual(expect.objectContaining({ id: row.id }))
+    expect(body.warnings).toEqual([])
+    const second = await invoke()
+    expect(second.status).toBe(200)
+    expect((await second.json()).articles).not.toContainEqual(expect.objectContaining({ id: row.id }))
+    const stored = await prisma.article.findUniqueOrThrow({ where: { id: row.id } })
+    expect(stored.status).toBe('PUBLISHED')
+    expect(stored.scheduledAt).toBeNull()
+    expect(stored.publishedAt).not.toBeNull()
+    expect(await prisma.notification.count({ where: { articleId: row.id, type: 'published' } })).toBe(1)
+    const messages = readFileSync(process.env.EMAIL_CAPTURE_FILE!, 'utf8').trim().split('\n')
+      .filter(Boolean).map(line => JSON.parse(line) as { html: string })
+    expect(messages.filter(message => message.html.includes(`/articles/${row.slug}`))).toHaveLength(1)
+    const page = await fetch(`${process.env.BASE_URL}/articles/${row.slug}`)
+    expect(page.status).toBe(200)
+    expect(await page.text()).toContain(row.title)
+  })
   it('publishes a due article once with one in-app notification', async () => {
     const row = await article()
     await publishScheduledArticles()

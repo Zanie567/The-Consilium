@@ -27,6 +27,14 @@ function nWords(n: number) {
 // ── readTimeMinutes ───────────────────────────────────────────────────────────
 
 describe('readTimeMinutes', () => {
+  it('counts many one-word paragraphs rather than JSON whitespace or image attributes', () => {
+    const document = JSON.stringify({ type: 'doc', content: [
+      ...Array.from({ length: 500 }, () => ({ type: 'paragraph', content: [{ type: 'text', text: 'word' }] })),
+      { type: 'image', attrs: { src: '/image.png', alt: 'not article body '.repeat(500) } },
+    ] })
+    expect(wordCountFromContent(document)).toBe(500)
+    expect(readTimeLabel(document)).toBe('3 min read')
+  })
   it('returns at least 1 for empty string', () => {
     expect(readTimeMinutes('')).toBe(1)
   })
@@ -190,5 +198,39 @@ describe('estimateReadingMinutes', () => {
 
   it('handles empty content gracefully', () => {
     expect(estimateReadingMinutes('', 100)).toBe(0)
+  })
+})
+
+describe('one shared word count', () => {
+  const doc = (...content: unknown[]) => JSON.stringify({ type: 'doc', content })
+  const p = (...content: unknown[]) => ({ type: 'paragraph', content })
+  const t = (text: string, marks?: unknown[]) => ({ type: 'text', text, ...(marks ? { marks } : {}) })
+
+  it('does not split a word that formatting or a link starts mid-word', () => {
+    const body = doc(p(t('Macro'), t('economic', [{ type: 'bold' }]), t(' policy '), t('re', [{ type: 'link', attrs: { href: 'https://example.test/a b c' } }]), t('defined')))
+    expect(wordCountFromContent(body)).toBe(3)
+  })
+
+  it('treats blocks, breaks and images as boundaries and ignores their attributes', () => {
+    const body = doc(
+      { type: 'heading', attrs: { level: 2 }, content: [t('Heading')] },
+      p(t('one'), { type: 'hardBreak' }, t('two')),
+      { type: 'bulletList', content: [{ type: 'listItem', content: [p(t('three'))] }] },
+      { type: 'image', attrs: { src: '/x.png', alt: 'many words of alt text', title: 'caption words' } },
+      p(t('four')),
+    )
+    expect(wordCountFromContent(body)).toBe(5)
+  })
+
+  it('strips tags from legacy HTML bodies and counts plain text', () => {
+    expect(wordCountFromContent('<p>Legacy <strong>HTML</strong> body</p><p>here</p>')).toBe(4)
+    expect(wordCountFromContent('  plain   text body ')).toBe(3)
+    expect(wordCountFromContent('')).toBe(0)
+  })
+
+  it('the reading-minutes estimate and the read-time label use the same count', () => {
+    const body = doc(p(t(Array.from({ length: 600 }, (_, i) => `w${i}`).join(' '))))
+    expect(countWordsInTiptapContent(body)).toBe(wordCountFromContent(body))
+    expect(readTimeLabel(body)).toBe('3 min read')
   })
 })

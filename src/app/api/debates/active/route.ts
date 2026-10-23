@@ -1,3 +1,4 @@
+import { readTimeLabel as readTime } from '@/lib/readTime'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { getServerSession } from 'next-auth'
@@ -90,16 +91,6 @@ async function activeDebate() {
   }
 
   // Estimate read time from content length
-  function readTime(content: string): string {
-    try {
-      const text = JSON.stringify(JSON.parse(content))
-      const words = text.split(/\s+/).length
-      return `${Math.max(1, Math.round(words / 200))} min read`
-    } catch {
-      const words = content.split(/\s+/).length
-      return `${Math.max(1, Math.round(words / 200))} min read`
-    }
-  }
 
   return NextResponse.json({
     id: debate.id,

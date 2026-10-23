@@ -1,6 +1,6 @@
 import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse } from 'next/server'
-import { revalidateTag } from 'next/cache'
+import { expireCacheTag } from '@/lib/cacheInvalidation'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { GLOSSARY_MANAGE_ROLES } from '@/lib/rbac'
@@ -40,7 +40,7 @@ async function PATCHHandler(req: Request) {
       create: { key: GLOSSARY_ENABLED_KEY, value, updatedBy: caller.id },
       update: { value, updatedBy: caller.id },
     })
-    revalidateTag(GLOSSARY_CACHE_TAG, { expire: 0 })
+    await expireCacheTag(GLOSSARY_CACHE_TAG)
     return NextResponse.json({ ok: true, enabled })
   } catch (err) {
     console.error(

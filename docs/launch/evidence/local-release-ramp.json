@@ -1,0 +1,243 @@
+{
+  "run": "next-e2e-3299-85843",
+  "node": "v20.20.2",
+  "stages": [
+    {
+      "name": "first-touch-mix",
+      "concurrency": 5,
+      "requests": 15,
+      "elapsedMs": 189.23262499999998,
+      "requestsPerSecond": 79.26751531349312,
+      "p50": 56.365791,
+      "p95": 77.55666599999998,
+      "p99": 77.55666599999998,
+      "max": 77.55666599999998,
+      "errors": 0,
+      "statuses": {
+        "200": 15
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 1,
+      "requests": 30,
+      "elapsedMs": 252.87987500000003,
+      "requestsPerSecond": 118.63340251967459,
+      "p50": 9.468541000000073,
+      "p95": 17.804332999999986,
+      "p99": 27.02770800000002,
+      "max": 27.02770800000002,
+      "errors": 0,
+      "statuses": {
+        "200": 30
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 5,
+      "requests": 30,
+      "elapsedMs": 186.69441699999993,
+      "requestsPerSecond": 160.69039707813016,
+      "p50": 20.931666999999948,
+      "p95": 59.40487499999995,
+      "p99": 66.91087499999992,
+      "max": 66.91087499999992,
+      "errors": 0,
+      "statuses": {
+        "200": 30
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 10,
+      "requests": 30,
+      "elapsedMs": 195.57520799999998,
+      "requestsPerSecond": 153.39367554194294,
+      "p50": 52.438541999999984,
+      "p95": 141.137334,
+      "p99": 141.27474999999993,
+      "max": 141.27474999999993,
+      "errors": 0,
+      "statuses": {
+        "200": 30
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 20,
+      "requests": 60,
+      "elapsedMs": 397.7624169999999,
+      "requestsPerSecond": 150.84381388400507,
+      "p50": 84.1139169999999,
+      "p95": 287.58958400000006,
+      "p99": 304.6352089999999,
+      "max": 304.6352089999999,
+      "errors": 0,
+      "statuses": {
+        "200": 60
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 40,
+      "requests": 120,
+      "elapsedMs": 771.61025,
+      "requestsPerSecond": 155.51892940768997,
+      "p50": 172.62533299999996,
+      "p95": 594.3163750000001,
+      "p99": 724.845875,
+      "max": 749.7926660000003,
+      "errors": 0,
+      "statuses": {
+        "200": 120
+      },
+      "failures": []
+    },
+    {
+      "name": "warm-html-rsc",
+      "concurrency": 100,
+      "requests": 300,
+      "elapsedMs": 1670.4466670000002,
+      "requestsPerSecond": 179.59268375731983,
+      "p50": 366.4965000000002,
+      "p95": 1541.2332500000002,
+      "p99": 1644.1483750000002,
+      "max": 1654.53975,
+      "errors": 0,
+      "statuses": {
+        "200": 300
+      },
+      "failures": []
+    },
+    {
+      "name": "paced-reads-across-cache-expiry",
+      "concurrency": 10,
+      "requests": 1960,
+      "elapsedMs": 35053.735416999996,
+      "requestsPerSecond": 55.914155130225,
+      "p50": 71.46258300000045,
+      "p95": 113.40570799999841,
+      "p99": 172.34237500000017,
+      "max": 324.7565000000004,
+      "errors": 0,
+      "statuses": {
+        "200": 1960
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 1,
+      "requests": 3,
+      "elapsedMs": 24.413750000006985,
+      "requestsPerSecond": 122.88157288409776,
+      "p50": 3.869417000001704,
+      "p95": 17.513582999999926,
+      "p99": 17.513582999999926,
+      "max": 17.513582999999926,
+      "errors": 0,
+      "statuses": {
+        "200": 3
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 5,
+      "requests": 15,
+      "elapsedMs": 36.03116600000067,
+      "requestsPerSecond": 416.30626108518726,
+      "p50": 9.079624999998487,
+      "p95": 23.24866699999984,
+      "p99": 23.24866699999984,
+      "max": 23.24866699999984,
+      "errors": 0,
+      "statuses": {
+        "200": 15
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 10,
+      "requests": 30,
+      "elapsedMs": 73.15791700000409,
+      "requestsPerSecond": 410.07181765438077,
+      "p50": 21.703292000005604,
+      "p95": 40.53650000000198,
+      "p99": 42.41812500000378,
+      "max": 42.41812500000378,
+      "errors": 0,
+      "statuses": {
+        "200": 30
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 20,
+      "requests": 60,
+      "elapsedMs": 137.84266599999683,
+      "requestsPerSecond": 435.27887076706264,
+      "p50": 42.18754199999967,
+      "p95": 64.34250000000611,
+      "p99": 77.15654200000426,
+      "max": 77.15654200000426,
+      "errors": 0,
+      "statuses": {
+        "200": 60
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 40,
+      "requests": 120,
+      "elapsedMs": 199.88991700000042,
+      "requestsPerSecond": 600.3304308741083,
+      "p50": 61.68912499999715,
+      "p95": 100.41866700000537,
+      "p99": 115.14191600000049,
+      "max": 118.85966700000426,
+      "errors": 0,
+      "statuses": {
+        "200": 120
+      },
+      "failures": []
+    },
+    {
+      "name": "same-article-analytics",
+      "concurrency": 100,
+      "requests": 300,
+      "elapsedMs": 592.250165999998,
+      "requestsPerSecond": 506.54270310495957,
+      "p50": 164.09312499999942,
+      "p95": 380.46712500000285,
+      "p99": 417.3637910000034,
+      "max": 425.6543339999989,
+      "errors": 0,
+      "statuses": {
+        "200": 300
+      },
+      "failures": []
+    }
+  ],
+  "limits": "Local production build; testing mode on; rate limiter off; no CDN/Supavisor/WAN; synthetic fixtures; no browser assets or signed-in load.",
+  "analytics": {
+    "expectedUnique": 176,
+    "actualViews": 176,
+    "actualRows": 176,
+    "sessions": 176
+  },
+  "database": {
+    "peakConnections": 32,
+    "peakActive": 4,
+    "peakLockWaits": 2,
+    "samplingMs": 200
+  }
+}

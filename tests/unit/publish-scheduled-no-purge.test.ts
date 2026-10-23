@@ -29,12 +29,14 @@ vi.mock('@/lib/gamification/achievements', () => ({ awardPublishAchievements: vi
 
 import { publishScheduledArticles } from '@/lib/scheduledPublishing'
 import { POST } from '@/app/api/publish-scheduled/route'
+import { sendEmail } from '@/lib/email'
 
 const SECRET = 'test-secret-value-that-is-long-enough-0123456789'
 let originalSecret: string | undefined
 
 beforeEach(() => {
   vi.resetAllMocks()
+  vi.mocked(sendEmail).mockResolvedValue(true)
   originalSecret = process.env.CRON_SECRET
   process.env.CRON_SECRET = SECRET
   vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -126,6 +128,18 @@ describe('POST /api/publish-scheduled response contract (read by the Supabase re
     expect(body.warnings).toEqual([expect.objectContaining({ articleId: 'a1', stage: 'notification' })])
   })
 
+  it('reports a rejected email transport without republishing or duplicating notifications', async () => {
+    prismaMock.article.findMany.mockResolvedValue([due])
+    prismaMock.article.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 })
+    prismaMock.notification.create.mockResolvedValue({})
+    vi.mocked(sendEmail).mockResolvedValue(false)
+    const body = await (await POST(authed())).json()
+    expect(body).toMatchObject({ due: 1, published: 1, warnings: [{ stage: 'email', articleId: 'a1' }] })
+    await POST(authed())
+    expect(sendEmail).toHaveBeenCalledTimes(1)
+    expect(prismaMock.notification.create).toHaveBeenCalledTimes(1)
+  })
+
   it('answers 500 with a JSON error (never a 2xx) when the database is unavailable', async () => {
     prismaMock.article.findMany.mockRejectedValue(new Error('connection refused'))
     const res = await POST(authed())
@@ -143,5 +157,38 @@ describe('POST /api/publish-scheduled', () => {
     expect(body).toMatchObject({ due: 0, published: 0, articles: [], skipped: [], warnings: [] })
     expect(body).not.toHaveProperty('purged')
     expect(prismaMock.article.deleteMany).not.toHaveBeenCalled()
+  })
+})
+
+describe('one article failing does not abandon the rest of the run', () => {
+  const article = (id: string) => ({ id, title: `T ${id}`, slug: id, authorId: 'u1', seriesId: null, updatedAt: new Date(0), author: { id: 'u1', email: 'w@example.com', name: 'W' } })
+
+  it('publishes the others, still invalidates caches, and reports the failure without leaking its cause', async () => {
+    prismaMock.article.findMany.mockResolvedValue([article('a1'), article('a2'), article('a3')])
+    prismaMock.article.updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockRejectedValueOnce(new Error('Connection terminated: db.internal.example:6543'))
+      .mockResolvedValueOnce({ count: 1 })
+    prismaMock.notification.create.mockResolvedValue({})
+    const res = await POST(authed())
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body).toMatchObject({ due: 3, published: 2, failed: [{ id: 'a2' }] })
+    expect(body.articles.map((a: { id: string }) => a.id)).toEqual(['a1', 'a3'])
+    expect(body.warnings).toEqual([expect.objectContaining({ articleId: 'a2', stage: 'publish' })])
+    expect(JSON.stringify(body)).not.toContain('db.internal')
+    expect(revalidateMock).toHaveBeenCalledTimes(1)
+    // Side effects only for what actually went live.
+    expect(sendEmail).toHaveBeenCalledTimes(2)
+    expect(prismaMock.notification.create).toHaveBeenCalledTimes(2)
+  })
+
+  it('a run where every write fails invalidates nothing and publishes nothing', async () => {
+    prismaMock.article.findMany.mockResolvedValue([article('a1')])
+    prismaMock.article.updateMany.mockRejectedValue(new Error('timeout'))
+    const result = await publishScheduledArticles(new Date('2026-10-23T08:00:00Z'))
+    expect(result).toMatchObject({ dueCount: 1, published: [], failed: [{ id: 'a1' }] })
+    expect(revalidateMock).not.toHaveBeenCalled()
+    expect(sendEmail).not.toHaveBeenCalled()
   })
 })

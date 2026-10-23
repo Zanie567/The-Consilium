@@ -1,3 +1,4 @@
+import { wordCountFromContent } from '@/lib/readTime'
 import { figureAltError } from '@/lib/figureValidation'
 import { ArticleImageUnavailableError, lockArticleImages } from '@/lib/articleImageStorage'
 import { resolveArticleTag } from '@/lib/resolveArticleTag'
@@ -32,25 +33,6 @@ const WRITER_CREATE_STATUSES = [
   'DRAFT',
   'PENDING_REVIEW',
 ] as const satisfies readonly ArticleStatus[]
-
-function computeWordCount(content: string): number {
-  try {
-    const parsed = JSON.parse(content)
-    const extractText = (node: { type?: string; text?: string; content?: unknown[] }): string => {
-      if (node.text) return node.text
-      if (node.content) return (node.content as (typeof node)[]).map(extractText).join(' ')
-      return ''
-    }
-    const text = extractText(parsed)
-    return text.trim().split(/\s+/).filter(Boolean).length
-  } catch {
-    return content
-      .replace(/<[^>]+>/g, ' ')
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean).length
-  }
-}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
@@ -98,7 +80,7 @@ export async function GET(request: NextRequest) {
         excerpt: d.excerpt,
         updatedAt: d.updatedAt,
         category: d.category,
-        wordCount: computeWordCount(d.content),
+        wordCount: wordCountFromContent(d.content),
       }))
 
       return NextResponse.json(result)
@@ -269,7 +251,7 @@ async function POSTHandler(request: NextRequest) {
       return { article: created, savedTagNames: tagRecords.map(tag => tag.name) }
     }, { timeout: ARTICLE_SAVE_TIMEOUT_MS })
 
-    if (article.status === 'PUBLISHED') revalidateArticleLists()
+    if (article.status === 'PUBLISHED') await revalidateArticleLists()
 
     return NextResponse.json({ ...article, version: articleVersion(article, savedTagNames) }, {
       status: 201,
