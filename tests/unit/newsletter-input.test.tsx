@@ -16,7 +16,7 @@ it('submits the visible email even when autofill does not dispatch a React chang
   input.value = 'controlled-reader@consilium.test'
   await act(async () => fireEvent.submit(input.closest('form')!))
   expect(apiRequest).toHaveBeenCalledWith('/api/subscribe', expect.objectContaining({
-    method: 'POST', body: JSON.stringify({ email: 'controlled-reader@consilium.test' }),
+    method: 'POST', body: JSON.stringify({ email: 'controlled-reader@consilium.test', alerts: false }),
   }))
 })
 
@@ -47,7 +47,7 @@ it('trims surrounding whitespace before calling the API', async () => {
   emailInput().value = '  reader@consilium.test \n'
   await submit()
   expect(apiRequest).toHaveBeenCalledWith('/api/subscribe', expect.objectContaining({
-    body: JSON.stringify({ email: 'reader@consilium.test' }),
+    body: JSON.stringify({ email: 'reader@consilium.test', alerts: false }),
   }))
 })
 
@@ -70,4 +70,26 @@ it('ignores a second submit while the first is still in flight', async () => {
   await act(async () => { fireEvent.submit(form); fireEvent.submit(form) })
   expect(apiRequest).toHaveBeenCalledTimes(1)
   await act(async () => finish({}))
+})
+
+it('sends the optional alerts choice only when the box is ticked, and never pre-ticks it', async () => {
+  vi.mocked(apiRequest).mockResolvedValue({})
+  render(<NewsletterSignup />)
+  const alerts = screen.getByLabelText(/special-article alerts/i) as HTMLInputElement
+  expect(alerts.checked).toBe(false)
+  fireEvent.click(alerts)
+  emailInput().value = 'reader@consilium.test'
+  await submit()
+  expect(apiRequest).toHaveBeenCalledWith('/api/subscribe', expect.objectContaining({
+    body: JSON.stringify({ email: 'reader@consilium.test', alerts: true }),
+  }))
+})
+
+it('tells the visitor to check their inbox instead of claiming they are subscribed', async () => {
+  vi.mocked(apiRequest).mockResolvedValue({})
+  render(<NewsletterSignup />)
+  emailInput().value = 'reader@consilium.test'
+  await submit()
+  expect(screen.getByRole('status').textContent).toMatch(/check your inbox/i)
+  expect(screen.getByRole('status').textContent).not.toMatch(/thank you for subscribing/i)
 })

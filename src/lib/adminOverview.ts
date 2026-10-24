@@ -71,8 +71,8 @@ export async function loadAdminOverview(db: typeof prisma = prisma, now: Date = 
     safe(db.teamMembership.count({ where: { status: 'PENDING' } })),
   ])
   const [subscribers, newSubscribers, failedSignIns] = await Promise.all([
-    safe(db.subscriber.count()),
-    safe(db.subscriber.count({ where: { subscribedAt: { gte: month } } })),
+    safe(db.subscriber.count({ where: { status: 'ACTIVE' } })),
+    safe(db.subscriber.count({ where: { status: 'ACTIVE', confirmedAt: { gte: month } } })),
     safe(db.loginAttempt.count({ where: { success: false, createdAt: { gte: day } } })),
   ])
 

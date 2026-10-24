@@ -643,8 +643,8 @@ function StatCard({
 async function loadGrowthMetrics() {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   const [subscriberCount, newSubscribers, viewsLast30, recentViews] = await Promise.all([
-    prisma.subscriber.count().catch(() => 0),
-    prisma.subscriber.count({ where: { subscribedAt: { gte: since } } }).catch(() => 0),
+    prisma.subscriber.count({ where: { status: 'ACTIVE' } }).catch(() => 0),
+    prisma.subscriber.count({ where: { status: 'ACTIVE', confirmedAt: { gte: since } } }).catch(() => 0),
     prisma.articleView.count({ where: { viewedAt: { gte: since } } }).catch(() => 0),
     prisma.articleView
       .findMany({

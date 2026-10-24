@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { getVerifiedSessionUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
@@ -14,7 +15,7 @@ export default async function AdminSubscribersPage() {
   }
 
   const subscribers = await prisma.subscriber
-    .findMany({ orderBy: { subscribedAt: 'desc' } })
+    .findMany({ orderBy: { subscribedAt: 'desc' }, select: { id: true, email: true, subscribedAt: true, status: true, weeklyDigest: true, specialAlerts: true } })
     .catch(() => [])
 
   return (
@@ -27,7 +28,8 @@ export default async function AdminSubscribersPage() {
           Subscribers
         </h1>
         <p className="text-[var(--fg-muted)] text-sm mt-1">
-          {subscribers.length} newsletter subscriber{subscribers.length !== 1 ? 's' : ''}
+          {subscribers.filter((s) => s.status === 'ACTIVE').length} confirmed of {subscribers.length} sign-up{subscribers.length !== 1 ? 's' : ''}. Only confirmed subscribers are mailed; see{' '}
+          <Link href="/editorial/newsletter" className="text-gold underline">Newsletter</Link>.
         </p>
       </div>
 
@@ -40,7 +42,10 @@ export default async function AdminSubscribersPage() {
                   Email
                 </th>
                 <th className="text-left px-4 py-3 text-[var(--fg-muted)] text-xs font-bold uppercase tracking-widest">
-                  Subscribed
+                  Signed up
+                </th>
+                <th className="text-left px-4 py-3 text-[var(--fg-muted)] text-xs font-bold uppercase tracking-widest">
+                  Status
                 </th>
               </tr>
             </thead>
@@ -50,6 +55,17 @@ export default async function AdminSubscribersPage() {
                   <td className="px-6 py-3 text-[var(--fg)] font-medium">{sub.email}</td>
                   <td className="px-4 py-3 text-[var(--fg-muted)] text-xs">
                     {format(new Date(sub.subscribedAt), 'd MMMM yyyy')}
+                  </td>
+                  <td className="px-4 py-3 text-[var(--fg-muted)] text-xs whitespace-nowrap">
+                    {sub.status === 'ACTIVE'
+                      ? `Confirmed${sub.weeklyDigest ? ' · weekly' : ''}${sub.specialAlerts ? ' · alerts' : ''}`
+                      : sub.status === 'PENDING'
+                        ? 'Awaiting confirmation'
+                        : sub.status === 'LEGACY'
+                          ? 'Legacy (not mailed)'
+                          : sub.status === 'UNSUBSCRIBED'
+                            ? 'Unsubscribed'
+                            : 'Suppressed'}
                   </td>
                 </tr>
               ))}

@@ -35,6 +35,16 @@ export const CORRECTION_APPROVAL_ROLES = ['ADMIN'] as const satisfies readonly R
 // Who can prepare a correction and submit it for approval (category scope still applies to EDITOR).
 export const CORRECTION_PREPARE_ROLES = EDITORIAL_MANAGEMENT_ROLES
 export const READ_THROUGH_ACCESS_ROLES = ['ADMIN', 'EDITOR', 'WRITER'] as const satisfies readonly Role[]
+// Newsletter campaigns (/editorial/newsletter and /api/editorial/newsletter/*). Every route re-checks.
+//   view, preview, audit trail, delivery status                         admins, editors, growth
+//   build, rebuild, edit (intro/subject/preview, leave articles out),   admins, editors, growth
+//   cancel, prepare special alerts for approval
+//   pause all sending (a safety brake anyone preparing mail can pull)   admins, editors, growth
+//   approve = schedule a send; resume sending; weekly auto-send          admins ONLY
+export const NEWSLETTER_VIEW_ROLES = ['ADMIN', 'EDITOR', 'GROWTH'] as const satisfies readonly Role[]
+export const NEWSLETTER_EDIT_ROLES = NEWSLETTER_VIEW_ROLES
+export const NEWSLETTER_APPROVE_ROLES = ['ADMIN'] as const satisfies readonly Role[]
+export const NEWSLETTER_PAUSE_ROLES = NEWSLETTER_VIEW_ROLES
 
 export function isRole(value: unknown): value is Role {
   return typeof value === 'string' && (ALL_ROLES as readonly string[]).includes(value)

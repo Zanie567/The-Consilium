@@ -57,6 +57,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
     { label: 'Review Queue', href: '/editorial/review' },
     { label: 'Comments', href: '/editorial/comments' },
     { label: 'Subscribers', href: '/admin/subscribers' },
+    { label: 'Newsletter', href: '/editorial/newsletter' },
     { label: 'Your Readers', href: '/editorial/readers' },
   ],
   admin: [
@@ -76,6 +77,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
     { label: 'Team Members', href: '/editorial/members' },
     { label: 'Users', href: '/editorial/users' },
     { label: 'Subscribers', href: '/admin/subscribers' },
+    { label: 'Newsletter', href: '/editorial/newsletter' },
     { label: 'Analytics', href: '/editorial/analytics' },
     { label: 'Your Readers', href: '/editorial/readers' },
     { label: 'Predictions', href: '/editorial/predictions' },
@@ -88,6 +90,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
     { label: 'Dashboard', href: '/editorial' },
     { label: 'Analytics', href: '/editorial/analytics' },
     { label: 'Subscribers', href: '/editorial/growth/subscribers' },
+    { label: 'Newsletter', href: '/editorial/newsletter' },
     { label: 'Engagement', href: '/editorial/growth/engagement' },
     { label: 'Team Profile', href: '/editorial/team-profile' },
   ],
@@ -96,7 +99,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
 /** Every top-level editorial page, for the "not in my menu means refused" check. */
 const ALL_PAGES = [
   '/editorial/recovery', '/editorial/articles', '/editorial/articles/new', '/editorial/series', '/editorial/scheduled',
-  '/editorial/calendar', '/editorial/trash', '/editorial/review', '/editorial/debates',
+  '/editorial/calendar', '/editorial/trash', '/editorial/review', '/editorial/debates', '/editorial/newsletter',
   '/editorial/debates/new', '/editorial/comments', '/editorial/users', '/editorial/analytics',
   '/editorial/predictions', '/editorial/predictions/new', '/editorial/glossary', '/editorial/readers',
   '/editorial/leaderboard', '/editorial/growth/subscribers', '/editorial/growth/engagement',

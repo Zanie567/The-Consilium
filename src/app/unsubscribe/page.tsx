@@ -1,102 +1,38 @@
-import { createHmac } from 'crypto'
-import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
 import type { Metadata } from 'next'
 import { NOINDEX_NOFOLLOW_ROBOTS } from '@/lib/seo'
 import { normaliseSearchText, type SearchParamValue } from '@/lib/searchText'
-import { CONTACT_EMAIL } from '@/lib/constants'
+import { NewsletterShell } from '@/components/newsletter/NewsletterShell'
+import { LegacyUnsubscribe } from '@/components/newsletter/LegacyUnsubscribe'
+import { ManageLinkForm } from '@/components/newsletter/ManageLinkForm'
+import { verifyLegacyUnsubscribeToken } from '@/lib/newsletter/subscriptions'
 
-// Never indexable: this page is reached through a tokenised email link and
-// renders the subscriber's own address, so it must not become a search result.
+// Never indexable, and the tokenised address must not leak through Referer.
 export const metadata: Metadata = {
   title: 'Unsubscribe',
   robots: NOINDEX_NOFOLLOW_ROBOTS,
+  referrer: 'no-referrer',
 }
 
-function verifyToken(email: string, token: string): boolean {
-  const secret = process.env.NEXTAUTH_SECRET ?? 'consilium-unsubscribe'
-  const expected = createHmac('sha256', secret).update(email.toLowerCase()).digest('hex')
-  return expected === token
-}
-
+/**
+ * Opening this page NEVER changes anything. It used to delete the subscriber on GET, so any mail scanner or
+ * link preview that fetched the link unsubscribed people (and kept no record). Now a valid old-style link
+ * shows a button that POSTs the withdrawal, which is recorded and suppresses re-subscription without a fresh
+ * confirmation. Anything else offers a preferences link by email.
+ */
 export default async function UnsubscribePage({
   searchParams,
 }: {
-  // Repeated query parameters arrive as arrays, so these cannot be typed as
-  // plain strings: `?email=a&email=b` used to reach `email.toLowerCase()` and
-  // throw a TypeError before the try block below, turning a crafted link into
-  // an unauthenticated 500.
+  // Repeated query parameters arrive as arrays; normaliseSearchText reduces them safely.
   searchParams: Promise<{ email?: SearchParamValue; token?: SearchParamValue }>
 }) {
   const params = await searchParams
   const email = normaliseSearchText(params.email, 320)
   const token = normaliseSearchText(params.token, 128)
+  const valid = Boolean(email && token && verifyLegacyUnsubscribeToken(email, token))
 
-  if (!email || !token) {
-    return <Result success={false} message="Invalid unsubscribe link." />
-  }
-
-  if (!verifyToken(email, token)) {
-    return <Result success={false} message="This unsubscribe link is not valid or has expired." />
-  }
-
-  try {
-    await prisma.subscriber.deleteMany({ where: { email: email.toLowerCase() } })
-    return <Result success={true} message={`${email} has been removed from our mailing list.`} />
-  } catch {
-    return (
-      <Result success={false} message="Something went wrong. Please try again or contact us." />
-    )
-  }
-}
-
-function Result({ success, message }: { success: boolean; message: string }) {
   return (
-    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center px-4">
-      <div className="max-w-md w-full text-center">
-        <div className="h-[2px] bg-gradient-to-r from-transparent via-gold to-transparent opacity-60 mb-12" />
-        <p
-          className="text-gold text-[0.65rem] font-bold uppercase tracking-[0.3em] mb-4"
-          style={{ fontFamily: 'var(--font-serif)' }}
-        >
-          The Consilium
-        </p>
-        <h1
-          className="text-3xl font-bold text-[var(--fg)] mb-4"
-          style={{ fontFamily: 'var(--font-serif)' }}
-        >
-          {success ? 'Unsubscribed' : 'Something went wrong'}
-        </h1>
-        <p className="text-[var(--fg-muted)] text-sm mb-8">{message}</p>
-        {success && (
-          <p className="text-[var(--fg-faint)] text-xs mb-8">
-            You will no longer receive newsletter emails from us. If you change your mind, you can
-            subscribe again from the{' '}
-            <Link href="/" className="text-gold hover:underline">
-              homepage
-            </Link>
-            .
-          </p>
-        )}
-        {!success && (
-          <p className="text-[var(--fg-faint)] text-xs mb-8">
-            Please contact us at{' '}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-gold hover:underline">
-              {CONTACT_EMAIL}
-            </a>{' '}
-            and we will remove you manually.
-          </p>
-        )}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-gold text-xs font-bold uppercase tracking-widest hover:gap-3 transition-all duration-200 group"
-        >
-          <span className="transition-transform duration-200 group-hover:-translate-x-1">
-            &larr;
-          </span>
-          Back to Homepage
-        </Link>
-      </div>
-    </div>
+    <NewsletterShell title="Unsubscribe" intro={valid ? undefined : 'Newsletter emails carry a one-step unsubscribe link. You can also manage your subscription with a link we email to you.'}>
+      {valid && email && token ? <LegacyUnsubscribe email={email} legacyToken={token} /> : <ManageLinkForm compact />}
+    </NewsletterShell>
   )
 }

@@ -119,7 +119,8 @@ test('newsletter signup, duplicate, subscriber search/export and signed unsubscr
   const address = email('subscribe')
   const ctx = await signedIn(browser, null)
   const page = await ctx.newPage()
-  for (const status of [201, 200]) {
+  // Double opt-in: both submissions get the same 202 (no enumeration); one PENDING row, nothing subscribed yet.
+  for (const status of [202, 202]) {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     await new ArticleEditorPage(page).dismissCookieBanner()
     const form=page.locator('form').filter({has:page.getByPlaceholder('Your email address')}).first()
@@ -129,9 +130,10 @@ test('newsletter signup, duplicate, subscriber search/export and signed unsubscr
     )
     await form.getByRole('button', { name: 'Subscribe', exact: true }).click()
     expect((await response).status()).toBe(status)
-    await expect(page.getByText('Thank you for subscribing to The Consilium.')).toBeVisible()
+    await expect(page.getByRole('status')).toContainText('Check your inbox')
   }
   expect(await db().subscriber.count({ where: { email: address } })).toBe(1)
+  expect((await db().subscriber.findFirst({ where: { email: address } }))?.status).toBe('PENDING')
   const growth = await signedIn(browser, 'growth')
   const portal = await growth.newPage()
   await portal.goto('/editorial/growth/subscribers', { waitUntil: 'networkidle' })
@@ -149,17 +151,23 @@ test('newsletter signup, duplicate, subscriber search/export and signed unsubscr
   await page.goto(`/unsubscribe?email=${encodeURIComponent(address)}&token=bad`, {
     waitUntil: 'networkidle',
   })
-  await expect(page.getByText('This unsubscribe link is not valid or has expired.')).toBeVisible()
+  // An invalid link offers a preferences link by email instead; nothing changes.
+  await expect(page.getByRole('button', { name: 'Email me a link' })).toBeVisible()
   expect(await db().subscriber.count({ where: { email: address } })).toBe(1)
+  // A valid signed link: opening it changes NOTHING (mail scanners); the button press unsubscribes.
   expect(
     (await page.goto(`/unsubscribe?email=${encodeURIComponent(address)}&token=${token}`, {
       waitUntil: 'networkidle',
     }))!.status()
   ).toBe(200)
-  await expect(page.getByRole('heading', { name: 'Unsubscribed' })).toBeVisible()
-  expect(await db().subscriber.count({ where: { email: address } })).toBe(0)
+  await expect(page.getByRole('heading', { name: 'Unsubscribe' })).toBeVisible()
+  expect((await db().subscriber.findFirst({ where: { email: address } }))?.status).toBe('PENDING')
+  await page.getByRole('button', { name: 'Unsubscribe', exact: true }).click()
+  await expect(page.getByRole('status')).toContainText('You are unsubscribed')
+  // The withdrawal is recorded (row kept as UNSUBSCRIBED), not erased as before.
+  expect((await db().subscriber.findFirst({ where: { email: address } }))?.status).toBe('UNSUBSCRIBED')
   await page.reload({ waitUntil: 'networkidle' })
-  await expect(page.getByRole('heading', { name: 'Unsubscribed' })).toBeVisible()
+  expect((await db().subscriber.findFirst({ where: { email: address } }))?.status).toBe('UNSUBSCRIBED')
   await growth.close()
   await ctx.close()
 })
