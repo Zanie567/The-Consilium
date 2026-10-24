@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-const db = vi.hoisted(() => ({article:{findFirst:vi.fn(),findUnique:vi.fn()}, category:{findUnique:vi.fn()}}))
+const db = vi.hoisted(() => ({article:{findFirst:vi.fn(),findUnique:vi.fn()}, articleSlugRedirect:{findFirst:vi.fn()}, category:{findUnique:vi.fn()}}))
 const notFound = vi.hoisted(() => vi.fn(() => { throw Error('NOT_FOUND') }))
 vi.mock('@/lib/prisma', () => ({prisma:db}))
 vi.mock('next/navigation', () => ({notFound,permanentRedirect:vi.fn()}))
@@ -8,7 +8,7 @@ vi.mock('@/lib/auth', () => ({authOptions:{}}))
 vi.mock('next/cache', () => ({unstable_cache:(fn:unknown)=>fn}))
 import ArticlePage, {generateMetadata as articleMetadata} from '@/app/articles/[slug]/page'
 import CategoryPage, {generateMetadata as categoryMetadata} from '@/app/category/[slug]/page'
-beforeEach(() => {vi.clearAllMocks();db.article.findFirst.mockResolvedValue(null);db.article.findUnique.mockResolvedValue(null);db.category.findUnique.mockResolvedValue(null)})
+beforeEach(() => {vi.clearAllMocks();db.articleSlugRedirect.findFirst.mockResolvedValue(null);db.article.findFirst.mockResolvedValue(null);db.article.findUnique.mockResolvedValue(null);db.category.findUnique.mockResolvedValue(null)})
 const props = {params:Promise.resolve({slug:'public-fixture'})}
 it('article database outages propagate to recovery, never notFound (including metadata)', async () => {
   const outage = new Error('database unavailable')

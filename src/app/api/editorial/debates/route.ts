@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { EDITORIAL_MANAGEMENT_ROLES } from '@/lib/rbac'
 import { FEATURED_DEBATE_LOCK, revalidateDebateSurfaces } from '@/lib/debateLifecycle'
 import { loadDebateAdminRows } from '@/lib/debateAdminQueries'
+import { slugFromTitle, uniqueSlug } from '@/lib/articleSlug'
 
 export async function GET() {
   const user = await getVerifiedSessionUser(EDITORIAL_MANAGEMENT_ROLES)
@@ -42,31 +43,18 @@ async function POSTHandler(req: Request) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  // Slugify helper
-  function toSlug(text: string) {
-    return text
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 80)
-  }
 
   // Both articles, the debate and the "only one featured debate" switch commit together:
   // a failure part-way must not leave a deactivated featured debate or an orphan article.
   let created: { debate: Awaited<ReturnType<typeof prisma.debate.create>>; forArticle: { id: string }; againstArticle: { id: string } }
   try {
     created = await prisma.$transaction(async (tx) => {
-      async function uniqueSlug(base: string, taken: string[] = []) {
-        let slug = base
-        let i = 0
-        while (taken.includes(slug) || await tx.article.findUnique({ where: { slug } })) {
-          i++
-          slug = `${base}-${i}`
-        }
-        return slug
-      }
-      const forSlug = await uniqueSlug(toSlug(forTitle))
-      const againstSlug = await uniqueSlug(toSlug(againstTitle), [forSlug])
+      // Both articles are published immediately, so they get their permanent, title-based addresses now
+      // (src/lib/articleSlug.ts: unique across articles, trashed articles and retired addresses).
+      const base = (title: string, fallback: string) => slugFromTitle(title).length >= 3 ? slugFromTitle(title) : fallback
+      const forSlug = await uniqueSlug(tx, base(forTitle, 'debate-for'))
+      let againstSlug = await uniqueSlug(tx, base(againstTitle, 'debate-against'))
+      if (againstSlug === forSlug) againstSlug = await uniqueSlug(tx, `${forSlug}-against`)
 
       if (isActive) {
         // Serialized with the edit route's featuring (see FEATURED_DEBATE_LOCK); only the featured row changes.

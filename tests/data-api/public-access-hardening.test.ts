@@ -28,7 +28,7 @@ const SERVER_ONLY_TABLES = [
   'article_notes', 'article_corrections', 'article_views', 'article_engagement_sessions',
   'article_image_assets', 'comments', 'comment_upvotes', 'article_comments', 'debates', 'debate_votes',
   'admin_notes', 'audit_logs', 'user_warnings', 'team_memberships', 'testing_sessions',
-  'scheduler_invocations', 'site_settings', 'site_views', 'category_editors',
+  'scheduler_invocations', 'site_settings', 'site_views', 'category_editors', 'article_slug_redirects',
 ]
 
 let db: Client

@@ -13,6 +13,7 @@ import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { editorCanAccessCategory } from '@/lib/articleCategoryScope'
 import { apiError, apiServerErrorResponse } from '@/lib/apiResponse'
 import { withTransactionRetry } from '@/lib/transactionRetry'
+import { finalSlugForTransition, slugLockFor } from '@/lib/articleSlug'
 import { Prisma, type ArticleStatus } from '@prisma/client'
 
 interface Props {
@@ -109,17 +110,18 @@ async function PATCHHandler(req: Request, { params }: Props) {
     // its failure must never turn a successful review action into an error
     // response — so it's captured here and sent as a best-effort side
     // effect, not inline with the transaction.
-    let sendPostCommitEmail: (() => Promise<void>) | null = null
+    let sendPostCommitEmail: ((saved: { slug: string }) => Promise<void>) | null = null
 
     switch (action) {
       case 'approve': {
-        updates = { status: 'PUBLISHED', publishedAt: new Date(), scheduledAt: null, isFeatured: false }
+        const now = new Date()
+        updates = { status: 'PUBLISHED', publishedAt: now, scheduledAt: null, isFeatured: false, slugLockedAt: slugLockFor(article, 'PUBLISHED', now) }
         notifTitle = 'Article published'
         notifMessage = `Your article "${article.title}" has been published.`
         const authorEmail = article.author.email
         if (authorEmail) {
-          sendPostCommitEmail = async () => {
-            const { subject, html } = articlePublishedEmail(article.title, article.slug)
+          sendPostCommitEmail = async (saved) => {
+            const { subject, html } = articlePublishedEmail(article.title, saved.slug)
             await sendEmail({ to: authorEmail, subject, html })
           }
         }
@@ -159,6 +161,13 @@ async function PATCHHandler(req: Request, { params }: Props) {
       }
     }
 
+    // An article submitted before descriptive addresses existed still holds its draft placeholder: it gets
+    // one built from its title now, before anyone outside the newsroom can see it (src/lib/articleSlug.ts).
+    if (action === 'approve' || action === 'schedule') {
+      const finalSlug = await finalSlugForTransition(prisma, article, action === 'approve' ? 'PUBLISHED' : 'SCHEDULED')
+      if (finalSlug) updates.slug = finalSlug
+    }
+
     // The status mutation and the writer's in-app notification commit
     // together: a notification-insert failure rolls the whole transaction
     // back rather than leaving a published/scheduled/returned article with
@@ -181,6 +190,14 @@ async function PATCHHandler(req: Request, { params }: Props) {
           articleId: article.id,
         },
       })
+      if (typeof updates.slug === 'string') {
+        await tx.auditLog.create({
+          data: {
+            action: 'article.slug_changed', targetType: 'article', targetId: id, performedBy: user.id,
+            metadata: { requestId, before: article.slug, after: savedArticle.slug, status: article.status, nextStatus: savedArticle.status, reason: 'publication', wasProvisional: true },
+          },
+        })
+      }
       return savedArticle
     }))
 
@@ -190,7 +207,7 @@ async function PATCHHandler(req: Request, { params }: Props) {
 
     if (sendPostCommitEmail) {
       try {
-        await sendPostCommitEmail()
+        await sendPostCommitEmail(updated)
       } catch (emailError) {
         console.error('[api/editorial/review:email]', { requestId, action, emailError })
       }
@@ -205,6 +222,10 @@ async function PATCHHandler(req: Request, { params }: Props) {
         'INVALID_STATUS_TRANSITION',
         requestId
       )
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      // Another article took the address built from this title in the same moment. Nothing was saved.
+      return apiError('Another article took this web address a moment ago. Try again.', 409, 'SLUG_CONFLICT', requestId)
     }
     if (isHiddenDebateViolation(error)) return hiddenDebateResponse()
     return apiServerErrorResponse(error, {

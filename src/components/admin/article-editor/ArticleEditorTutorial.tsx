@@ -104,7 +104,7 @@ export function ArticleEditorTutorial({ editor }: ArticleEditorTutorialProps) {
                 <TutorialItem label="Category">Assign to News, Opinion, Analysis etc.</TutorialItem>
                 <TutorialItem label="Cover image">Paste a URL or upload a file</TutorialItem>
                 <TutorialItem label="Tags">Up to 10 tags. Press Enter or comma after each.</TutorialItem>
-                <TutorialItem label="URL slug">Auto-generated from the headline, editable</TutorialItem>
+                <TutorialItem label="URL slug">Set from the headline when the article is submitted, scheduled or published; editors can change it until it goes live</TutorialItem>
               </TutorialList>
             </TutorialSection>
 

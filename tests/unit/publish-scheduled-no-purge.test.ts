@@ -86,7 +86,8 @@ describe('publishScheduledArticles', () => {
     const result = await publishScheduledArticles(now)
     expect(result.published).toEqual([{ id: 'art1', title: 'Due article', slug: 'due-article' }])
     expect(prismaMock.article.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { status: 'PUBLISHED', publishedAt: now, scheduledAt: null } }),
+      // Publication also locks the address (src/lib/articleSlug.ts); a chosen slug is never rewritten.
+      expect.objectContaining({ data: { status: 'PUBLISHED', publishedAt: now, scheduledAt: null, slugLockedAt: now } }),
     )
     expect(prismaMock.article.deleteMany).not.toHaveBeenCalled()
     expect(revalidateMock).toHaveBeenCalledTimes(1)
