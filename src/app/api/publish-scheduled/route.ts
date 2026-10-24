@@ -19,8 +19,8 @@
  * either field would make every run look like a failure.
  *
  * Secrets (each pair must hold the same value):
- *   GitHub Actions    CRON_SECRET (= Vercel CRON_SECRET), and SITE_URL = the canonical host
- *                     https://www.theconsilium.co.uk (no trailing slash)
+ *   GitHub Actions    CRON_SECRET (= Vercel CRON_SECRET), and SITE_URL = the primary host
+ *                     https://theconsilium.co.uk (no trailing slash)
  *   Supabase Cron     Vault `publish_cron_secret` (= Vercel PUBLISH_CRON_SECRET), only once
  *                     Supabase Cron is activated
  */

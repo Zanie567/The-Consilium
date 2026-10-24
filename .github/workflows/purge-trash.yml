@@ -48,11 +48,12 @@ jobs:
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          URL="https://www.theconsilium.co.uk/api/cron/purge-trash"
+          URL="https://theconsilium.co.uk/api/cron/purge-trash"
           if [ "$DRY_RUN" = "true" ]; then URL="$URL?dryRun=1"; fi
           echo "Mode: $([ "$DRY_RUN" = "true" ] && echo DRY RUN || echo REAL PURGE)"
 
-          # Canonical host (www): the apex 307-redirects to www and curl does not follow it.
+          # Primary host (apex). It must answer directly: curl does not follow redirects (no -L), and with -L the
+          # secret header is dropped on a cross-host redirect. See docs/seo/primary-domain-switch.md.
           HTTP_STATUS=$(curl --silent --output /tmp/response_body.txt --write-out "%{http_code}" \
             --max-time 60 \
             --request POST \
