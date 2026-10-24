@@ -35,6 +35,10 @@ FIRST_UNAPPLIED=20261018002859
 # refuses to run without a Vault secret and a recorded successful invocation. It is still
 # recorded in the registry below, as on production.
 SKIP_MIGRATIONS=" 20261007120100_scheduler_cron_enable_publish.sql "
+# `prisma db push` builds the CURRENT schema, which can include objects production only gets from a migration
+# that is applied after the documented rollouts below. "production" must not have them yet (prisma creates them
+# without the migration's RLS and triggers). Each one is removed again here and rehearsed after the rollouts.
+PRODUCTION_PENDING_SCHEMA='DROP TABLE IF EXISTS article_slug_redirects; ALTER TABLE articles DROP COLUMN IF EXISTS "slugLockedAt";'
 
 if ! supabase status --workdir "$WORKDIR" >/dev/null 2>&1; then
   echo "→ starting the disposable local Supabase stack"
@@ -77,6 +81,7 @@ prepare() {
       "INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES ('$version', '${name#*_}')" >/dev/null
   done
   if [ "$1" = production ]; then
+    psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$PRODUCTION_PENDING_SCHEMA" >/dev/null
     echo "→ [$1] recreating production's dashboard-created Storage policies"
     psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f tests/data-api/fixtures/production-dashboard-drift.sql >/dev/null
   fi
@@ -123,6 +128,25 @@ prepare production
 psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f tests/data-api/fixtures/rehearsal-content.sql >/dev/null
 rehearse docs/launch/production 20261018002859 'public-access hardening verified' || STATUS=1
 rehearse docs/security/production '20261022120000 20261022120100' 'data api privileges verified' || STATUS=1
+
+# Next in line: permanent article addresses (docs/seo/article-url-migration.md). Applied in one transaction, twice
+# (repeatable), then nothing new may be reachable through the Data API.
+echo "→ rehearsing 20261024120000 (article slug redirects) after the rollouts above"
+slug_ok=1
+for attempt in 1 2; do
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -q -1 -f supabase/migrations/20261024120000_article_slug_redirects.sql >/dev/null 2>&1 || slug_ok=0
+done
+out="$(psql "$DB_URL" -X -A -t -v ON_ERROR_STOP=1 -c "
+  SELECT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.article_slug_redirects'::regclass)
+     AND NOT EXISTS (SELECT 1 FROM pg_class c, aclexplode(c.relacl) a WHERE c.oid = 'public.article_slug_redirects'::regclass
+                     AND a.grantee IN ('anon'::regrole, 'authenticated'::regrole, 0::oid))
+     AND NOT has_function_privilege('anon', 'public.guard_article_slug()', 'EXECUTE')
+     AND NOT has_function_privilege('anon', 'public.protect_article_slug_redirect()', 'EXECUTE')
+     AND NOT has_function_privilege('authenticated', 'public.guard_article_slug()', 'EXECUTE')
+     AND (SELECT count(*) FROM pg_class WHERE relnamespace = 'public'::regnamespace AND relkind IN ('r','p') AND NOT relrowsecurity) = 0
+     AND (SELECT count(*) FROM pg_trigger WHERE tgname IN ('articles_slug_guard','article_slug_redirects_guard')) = 2" 2>&1)" || slug_ok=0
+[ "$slug_ok" = 1 ] && [ "$out" = t ] && echo "  ✓ 20261024120000: applies twice, RLS on, no API grants, trigger functions not callable" \
+  || { echo "✗ 20261024120000 rehearsal failed: $out" >&2; STATUS=1; }
 
 if [ "${DATA_API_STOP:-0}" = 1 ]; then
   supabase stop --workdir "$WORKDIR" --no-backup >/dev/null || true

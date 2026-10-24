@@ -23,6 +23,11 @@ const CRON_SECRET = 'local_e2e_cron_secret'
 let articleId = ''
 let slug = ''
 
+/** The article's current address: a draft's placeholder becomes its title address when it is submitted. */
+const currentSlug = async () => (await articleByTitle(TITLE))!.slug
+/** What the title produces (src/lib/articleSlug.ts) for these plain WF titles. */
+const titleSlug = () => TITLE.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
 test.afterAll(async () => {
   await removeMyArticles()
   await closeDb()
@@ -31,7 +36,7 @@ test.afterAll(async () => {
 async function publicStatus(browser: import('@playwright/test').Browser) {
   const anon = await signedIn(browser, null)
   try {
-    const res = await anon.request.get(`/articles/${slug}`)
+    const res = await anon.request.get(`/articles/${await currentSlug()}`)
     const list = await anon.request.get('/api/articles')
     expect(list.status(), 'public listing must succeed before checking absence').toBe(200)
     const listed = (await list.text()).includes(TITLE)
@@ -59,6 +64,8 @@ test('writer creates and saves a draft; it is private and listed under My Drafts
 
   const row = await articleByTitle(TITLE)
   slug = row!.slug
+  // Autosave never fixes the address: a draft holds a placeholder until it is submitted (src/lib/articleSlug.ts).
+  expect(slug).toMatch(/^draft-\d+$/)
   expect(row!.status).toBe('DRAFT')
   expect(row!.content).toContain(BODY)
   await page.screenshot({ path: testInfo.outputPath('writer-saved-draft.png'), fullPage: true })
@@ -266,10 +273,11 @@ test('editor unpublishes from the review screen; the public URL disappears; repu
   expect((await pub).status()).toBe(200)
   await e2.close()
   expect(await publicStatus(browser)).toEqual({ page: 200, listed: true })
+  expect(await currentSlug()).toBe(titleSlug())
 
   const anon = await signedIn(browser, null)
   const page2 = await anon.newPage()
-  await page2.goto(`/articles/${slug}`)
+  await page2.goto(`/articles/${await currentSlug()}`)
   await expect(page2.locator('h1')).toContainText(TITLE)
   await expect(page2.locator('.prose-consilium')).toContainText('Revised with a cited source.')
   await page2.screenshot({ path: testInfo.outputPath('public-revised-article.png'), fullPage: true })

@@ -24,6 +24,9 @@ const LINK_URL = 'https://example.org/source'
 let articleId = ''
 let slug = ''
 
+/** The article's current address: a draft's placeholder becomes its title address when it is submitted. */
+const currentSlug = async () => (await articleByTitle(TITLE))!.slug
+
 test.afterAll(async () => {
   await removeMyArticles()
   await closeDb()
@@ -298,6 +301,8 @@ test('build the article using every control', async ({ browser }) => {
   const row = await articleByTitle(TITLE)
   expect(row, 'the article must be in the database').not.toBeNull()
   slug = row!.slug
+  // Autosave never fixes the address: a draft holds a placeholder until it is submitted (src/lib/articleSlug.ts).
+  expect(slug).toMatch(/^draft-\d+$/)
   expect(row!.excerpt).toBe(EXCERPT)
   expect(row!.tags.map((t) => t.tag.name).sort()).toEqual(['economics', 'monetary policy'])
   expect(row!.categoryId).not.toBeNull()
@@ -418,7 +423,7 @@ test('the editor sees every feature in the review preview, then publishes from i
 
   // Nothing public yet.
   const anon = await signedIn(browser, null)
-  const before = await anon.request.get(`/articles/${slug}`)
+  const before = await anon.request.get(`/articles/${await currentSlug()}`)
   expect(before.status(), 'pending-review article must not be public').toBe(404)
 
   const publish = page.waitForResponse((r) => r.url().includes(`/api/editorial/articles/${articleId}/review`) && r.request().method() === 'PATCH')
@@ -436,7 +441,7 @@ test('the published article shows the content, semantic formatting kept, house s
   const ctx = await signedIn(browser, null)
   const page = await ctx.newPage()
   const errors = collectConsoleErrors(page)
-  const res = await page.goto(`/articles/${slug}`, { waitUntil: 'networkidle' })
+  const res = await page.goto(`/articles/${await currentSlug()}`, { waitUntil: 'networkidle' })
   expect(res?.status()).toBe(200)
 
   await expect(page.locator('h1')).toContainText(TITLE)
@@ -487,7 +492,7 @@ test('the published article shows the content, semantic formatting kept, house s
   try {
     const phone = await mobile.newPage()
     const phoneErrors = collectConsoleErrors(phone)
-    expect((await phone.goto(`/articles/${slug}`, { waitUntil: 'networkidle' }))?.status()).toBe(200)
+    expect((await phone.goto(`/articles/${await currentSlug()}`, { waitUntil: 'networkidle' }))?.status()).toBe(200)
     await new ArticleEditorPage(phone).dismissCookieBanner()
     await expect(phone.locator('#article-body table')).toHaveCount(1)
     const houseAlignment = await phone.locator('#article-body').evaluate(el => getComputedStyle(el).textAlign)

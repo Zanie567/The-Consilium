@@ -80,8 +80,13 @@ describe('feeds and sharing', () => {
   })
 
   it('share links and the canonical origin agree on the host, with and without NEXT_PUBLIC_SITE_URL', async () => {
-    // Without the variable both fall back to the same production host.
-    expect(new URL(articleShareUrl(NEW)).host).toBe(new URL(SITE_URL).host)
+    // Without the variables (whatever the test runner sets), both fall back to the same production host.
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', undefined)
+    vi.stubEnv('VERCEL_URL', undefined)
+    vi.resetModules()
+    const fresh = { constants: await import('@/lib/constants'), share: await import('@/lib/shareUrl') }
+    expect(fresh.constants.SITE_URL).toBe('https://theconsilium.co.uk')
+    expect(new URL(fresh.share.articleShareUrl(NEW)).host).toBe(new URL(fresh.constants.SITE_URL).host)
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://theconsilium.co.uk')
     expect(articleShareUrl(NEW)).toBe(`https://theconsilium.co.uk/articles/${NEW}`)
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://www.theconsilium.co.uk')

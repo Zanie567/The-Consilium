@@ -11,10 +11,11 @@ Production, read-only, 2026-10-24:
 |---|---|---|
 | Will SI stocks make you rich in 2026? (`cmuvcf4eb000204jp254gpqci`) | `/articles/draft-1791210392433` | `/articles/will-si-stocks-make-you-rich-in-2026` |
 | Tulip Mania: Lessons from the 17th century (`cms3hol1f000004l1n2twq7jn`) | `/articles/draft-1785172614450` | `/articles/tulip-mania-lessons-from-the-17th-century` |
-| The Unintended Consequences of Sanctions (`cmvftuhn4000208l352xiwcxf`) | `/articles/sanctions-sundaresan` | optional: `/articles/the-unintended-consequences-of-sanctions` (not in the plan) |
+| The Unintended Consequences of Sanctions (`cmvftuhn4000208l352xiwcxf`) | `/articles/sanctions-sundaresan` | **keep** (owner decision 2026-10-25: readable; no redirect) |
 | When Development Goals Collide - Who Decides What Counts as Progress? (`cmvfrlpha000408js4zi8hla4`) | `/articles/when-development-goals-collide-who-decides-what-counts-as-progress` | keep (already built from its title) |
 
-The reviewed mapping is `docs/seo/article-slug-migration-2026-10-24.json` (the two `draft-` addresses only).
+The reviewed mapping is `docs/seo/article-slug-migration-2026-10-24.json`: the two `draft-` addresses only. Headlines and
+content are not changed. "SI" (Super Intelligence) is intentional and stays in the address.
 Checked on production: no article text, setting or notification links to an old address; no proposed address
 is taken; no correction is pending; analytics, comments and corrections are keyed by article id, so they move
 with the article.
@@ -106,19 +107,10 @@ re-applied cleanly.
 * **Remove the schema** (only after the code is rolled back and the migration is reverted):
   `supabase/manual/20261024120000_article_slug_redirects_rollback.sql`.
 
-## Canonical host: needs a decision (not changed by this PR)
+## Canonical host
 
-Every canonical tag, the sitemap, robots.txt, RSS and share links use **`https://theconsilium.co.uk`**, from
-production's `NEXT_PUBLIC_SITE_URL` (same value as the code's fallback). But Vercel serves the site on
-**`www.theconsilium.co.uk`** and answers the apex with a **307 (temporary)** redirect to `www`. Google therefore
-sees "canonical = apex" and "apex temporarily redirects to www", which are contradictory signals.
-
-Recommended (no code change, keeps every URL Google has already indexed): in Vercel → Project → Domains, make
-`theconsilium.co.uk` the primary domain and set `www.theconsilium.co.uk` to redirect to it with **308**. Check first
-that `NEXTAUTH_URL` and the Google OAuth redirect URIs use the apex, or add the apex callback in Google Cloud.
-
-Alternative: keep `www` as primary, change its apex redirect to 308, and set `NEXT_PUBLIC_SITE_URL` and `SITE_URL` to
-`https://www.theconsilium.co.uk`. That moves every canonical to a new host, so more churn.
-
-Either way, do NOT redirect between the hosts in application code: Vercel's domain redirect runs first, so the two
-would loop.
+Decided 2026-10-25: `https://theconsilium.co.uk` (apex) becomes the primary domain, with `www` → apex **308**. Every
+canonical tag, `og:url`, JSON-LD, sitemap entry, RSS link and share link in this PR already uses the apex. The switch
+itself (findings on `NEXTAUTH_URL`, Google OAuth, cookies, Supabase Cron and the GitHub cron workflows, plus the
+no-outage order) is a separate draft PR: `chore/apex-primary-domain`, runbook `docs/seo/primary-domain-switch.md`.
+It is independent of this migration; either can go first.
