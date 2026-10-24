@@ -106,7 +106,7 @@ rehearse() {
   if printf '%s\n' "$out" | grep -E '\|f$' >&2; then echo "✗ $dir/preflight.sql has failing rows (above)" >&2; return 1; fi
   before="$(printf '%s\n' "$out" | grep '^content fingerprint|' | cut -d'|' -f2)"
   out="$(PGOPTIONS='-c client_min_messages=notice' psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$dir/apply.sql" 2>&1)"
-  printf '%s\n' "$out" | grep -q "$notice" || { printf '%s\n' "$out" >&2; echo "✗ $dir/apply.sql did not verify" >&2; return 1; }
+  grep -q "$notice" <<<"$out" || { printf '%s\n' "$out" >&2; echo "✗ $dir/apply.sql did not verify" >&2; return 1; }
   # Same command the operator runs from the repository root (there with --linked).
   supabase migration repair --status applied $version --db-url "$DB_URL" >/dev/null 2>&1 \
     || { echo "✗ registry repair failed for $version" >&2; return 1; }
@@ -138,7 +138,7 @@ rehearse_newsletter() {
   [ -z "$bad" ] || { printf '%s\n' "$bad" >&2; echo "✗ $dir/preflight.sql has failing rows (above)" >&2; return 1; }
   before="$(printf '%s\n' "$out" | grep '^subscribers fingerprint|' | cut -d'|' -f2)"
   out="$(PGOPTIONS='-c client_min_messages=notice' psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$dir/apply.sql" 2>&1)"
-  printf '%s\n' "$out" | grep -q 'newsletter migration verified (first): 2 subscriber(s) LEGACY' \
+  grep -q 'newsletter migration verified (first): 2 subscriber(s) LEGACY' <<<"$out" \
     || { printf '%s\n' "$out" >&2; echo "✗ $dir/apply.sql did not verify" >&2; return 1; }
   supabase migration repair --status applied $version --db-url "$DB_URL" >/dev/null 2>&1 \
     || { echo "✗ registry repair failed for $version" >&2; return 1; }
