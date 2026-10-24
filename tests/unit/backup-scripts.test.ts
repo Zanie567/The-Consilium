@@ -379,6 +379,27 @@ describe('verify-supabase-backup.sh', () => {
     expect(r.stdout).toContain('does not compare row contents')
   })
 
+  // `echo "$list" | grep -q x` under `set -o pipefail` fails when grep exits before echo has written
+  // everything (echo is killed by SIGPIPE, status 141), so a table that IS present was reported missing:
+  // main's CI on 23 October, "schema.sql is missing: audit_logs". A schema far larger than a pipe's
+  // buffer makes that race certain rather than occasional.
+  it('a present table is never reported missing, however large the schema', () => {
+    // 4000 tables (~88 KB of names, beyond a 64 KB pipe buffer) the live counts do not list: reported as
+    // "not checked", never as missing or failing.
+    const withTables = Object.fromEntries(Array.from({ length: 4000 }, (_, i) => [`zz_unrelated_table_${i}`, 0]))
+    const r = verify(makeBackup({ withTables }), '--counts-before', csv(baseCounts()))
+    expect(r.stdout).not.toContain('schema.sql is missing')
+    expect(r.stdout).toContain('schema.sql defines all 37 expected tables')
+    expect(r.status).toBe(0)
+  }, 30_000)
+
+  it('no backup script pipes into grep -q (a false result under pipefail)', () => {
+    for (const name of ['take-supabase-backup.sh', 'verify-supabase-backup.sh', 'restore-rehearsal.sh']) {
+      const source = readFileSync(join(ROOT, 'scripts/backup', name), 'utf8')
+      expect(source.match(/\|\s*grep\s+-[A-Za-z]*q/g) ?? [], name).toEqual([])
+    }
+  })
+
   it('FAILS if a file was changed after it was written (checksum)', () => {
     const dir = makeBackup()
     writeFileSync(join(dir, 'data.sql'), readFileSync(join(dir, 'data.sql'), 'utf8') + '-- tampered\n')

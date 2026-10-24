@@ -85,7 +85,7 @@ docker run -d --name "$NAME" -e POSTGRES_PASSWORD="local-$RANDOM$RANDOM" "$IMAGE
 # unreliable (roles and Supabase's parameter permissions are not final yet), so wait for the restart to finish.
 ready=0
 for _ in $(seq 1 120); do
-  if docker logs "$NAME" 2>&1 | grep -q 'init process complete' \
+  if grep -q 'init process complete' <<<"$(docker logs "$NAME" 2>&1)" \
      && docker exec "$NAME" psql -U postgres -d postgres -Atc 'set session_replication_role = replica' >/dev/null 2>&1; then
     ready=1; break
   fi
