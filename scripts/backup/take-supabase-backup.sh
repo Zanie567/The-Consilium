@@ -100,7 +100,7 @@ if [ "$ALLOW_SYNCED" != 1 ]; then
   esac
 fi
 if command -v fdesetup >/dev/null 2>&1; then
-  fdesetup status 2>/dev/null | grep -q "FileVault is On" || warn "FileVault is not on. Turn it on (System Settings > Privacy & Security) before keeping personal data on this Mac."
+  grep -q "FileVault is On" <<<"$(fdesetup status 2>/dev/null)" || warn "FileVault is not on. Turn it on (System Settings > Privacy & Security) before keeping personal data on this Mac."
 fi
 
 # ── 3. the connection string (never printed) ────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ case "$userinfo" in *@*) die "the password contains an unencoded @. Percent-enco
 user=${userinfo%%:*}
 pw=${userinfo#*:}
 [ -n "$user" ] && [ -n "$pw" ] || die "the connection string is missing the user or the password"
-if printf '%s' "$pw" | grep -q '[^A-Za-z0-9._~%!$&()*+,;=:-]'; then
+if grep -q '[^A-Za-z0-9._~%!$&()*+,;=:-]' <<<"$pw"; then
   die "the password contains characters that must be percent-encoded in a URL (for example / ? # [ ] @ space). Encode them, then retry."
 fi
 hostport=${hostpath%%/*}
