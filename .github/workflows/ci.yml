@@ -154,7 +154,7 @@ jobs:
       # Chromium and WebKit: the browser workflow suites run on both (plus phone
       # emulations of each). WebKit needs its system libraries, hence --with-deps.
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium webkit
+        run: bash scripts/ci/apt-mirror-failover.sh && npx playwright install --with-deps chromium webkit
 
       # scripts/run-e2e.sh is the only supported entry point. It builds the app itself
       # into .next-e2e with storage, email and OAuth pinned to local stand-ins (a local
@@ -236,7 +236,7 @@ jobs:
       # Chromium and WebKit: the browser workflow suites run on both (plus phone
       # emulations of each). WebKit needs its system libraries, hence --with-deps.
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium webkit
+        run: bash scripts/ci/apt-mirror-failover.sh && npx playwright install --with-deps chromium webkit
 
       # scripts/run-e2e.sh is the only supported entry point. It builds the app itself
       # into .next-e2e with storage, email and OAuth pinned to local stand-ins (a local
@@ -311,7 +311,7 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: bash scripts/ci/apt-mirror-failover.sh && npx playwright install --with-deps chromium
 
       - name: Discovery, rich content, revisions, growth analytics and final integration
         run: npm run test:e2e -- --project=upgrade --workers=1
