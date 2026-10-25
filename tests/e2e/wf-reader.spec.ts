@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { test, expect } from '@playwright/test'
-import { ArticleEditorPage, closeDb, db, signedIn } from './helpers/workflow'
+import { ArticleEditorPage, closeDb, db, hydrated, signedIn } from './helpers/workflow'
 import { collectConsoleErrors } from './helpers/console'
 
 /**
@@ -138,6 +138,8 @@ test('the reader signs out, then signs back in with the same password', async ({
   await page.goto('/profile')
   await expect(page).toHaveURL(/\/login/)
 
+  // A field filled before React hydrates is reset to empty, and the browser then refuses to submit the form.
+  await hydrated(page.locator('form'), 'onSubmit')
   await page.locator('input[type="email"]').fill(EMAIL)
   await page.locator('input[type="password"]').fill(PASSWORD)
   await page.locator('button[type="submit"]').click()
@@ -163,6 +165,7 @@ test('the reader deletes their account; they can no longer sign in', async ({ br
   const anon = await signedIn(browser, null)
   const p = await anon.newPage()
   await p.goto('/login')
+  await hydrated(p.locator('form'), 'onSubmit')
   await p.locator('input[type="email"]').fill(EMAIL)
   await p.locator('input[type="password"]').fill(PASSWORD)
   await p.locator('button[type="submit"]').click()
