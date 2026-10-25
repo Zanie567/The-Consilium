@@ -84,6 +84,12 @@ jobs:
       - name: Verify sharp native library is traced into /api/upload
         run: node scripts/verify-sharp-trace.mjs
 
+      # A short cache anywhere in a route (the footer, a layout) makes every page using it
+      # rebuild on that timer, each rebuild a billed Vercel function call. Fails when a
+      # prerendered route would rebuild more often than hourly.
+      - name: Verify no prerendered page rebuilds on a short timer
+        run: node scripts/verify-build-budget.mjs
+
       # Loads sharp from ONLY the files traced for /api/upload, copied into an empty
       # directory outside the repo, and decodes a real JPEG. A control run without
       # libvips must fail. Refuses to run unless this is linux/x64 (Vercel's target).

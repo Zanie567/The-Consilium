@@ -23,6 +23,16 @@ export function validLinkedInUrl(value: unknown): string | null {
     throw new Error('Enter the https LinkedIn company or school page URL.')
   }
 }
+/**
+ * Seconds before the cached LinkedIn URL is re-read on a timer. The footer renders this on every
+ * page, and a route revalidates as often as the shortest cache inside it, so this value sets how
+ * often EVERY otherwise-static page (/about, /privacy, /terms, ...) is rebuilt. At 60 seconds each
+ * visited page was rebuilt about once a minute. Saving the setting already expires
+ * GROWTH_SETTINGS_TAG at once, and that tag is attached to every page that shows the link, so the
+ * timer is only a fallback in case that expiry fails.
+ */
+export const PUBLICATION_LINKEDIN_REVALIDATE_SECONDS = 3600
+
 export const getPublicationLinkedIn = unstable_cache(
   async () => {
     try {
@@ -39,5 +49,5 @@ export const getPublicationLinkedIn = unstable_cache(
     }
   },
   ['publication-linkedin'],
-  { tags: [GROWTH_SETTINGS_TAG], revalidate: 60 }
+  { tags: [GROWTH_SETTINGS_TAG], revalidate: PUBLICATION_LINKEDIN_REVALIDATE_SECONDS }
 )
