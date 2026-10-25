@@ -47,6 +47,12 @@ article doing the same would fail to save (unique slug). The new code repairs th
 ## Deployment order
 
 1. **Back up**, as for every production change (docs/remediation/backup-and-verify.md).
+   **Then finish the security rollouts first:** #155 (`docs/launch/POLICY-ROLLOUT.md`, registry 25 → 26), then #156
+   (`docs/security/DATA-API-PERMISSIONS.md`, 26 → 28). Their preflights expect exactly those registry counts, so
+   applying this migration before them would make their preflights stop. This migration does not depend on them, and
+   they do not touch `slug`, `status` or `slugLockedAt`. (Re-checked read-only on 2026-10-25: every #155 preflight check
+   and every #156 check not waiting on #155 still matched.) Until this PR is deployed, don't approve the pending-review
+   article that still has a `draft-` address: approved under the old code, it would go live at that placeholder.
 2. **Apply the schema migration** (additive; the deployed code ignores it):
    `psql "$DIRECT_URL" -v ON_ERROR_STOP=1 -1 -f supabase/migrations/20261024120000_article_slug_redirects.sql`
    then record it: `supabase migration repair --status applied 20261024120000 --linked`.
@@ -57,9 +63,10 @@ article doing the same would fail to save (unique slug). The new code repairs th
    ```
    The migration must be in place BEFORE the code deploys: the new code reads `slugLockedAt` and the redirect table
    (Admin → deployment health reports either one missing).
-3. **Merge and deploy the PR.** Smoke test: existing article pages 200, sitemap.xml and feed.xml load, create
-   a throwaway draft with an empty title and check its slug is `draft-…`, submit it and check it becomes the title
-   address, then trash and purge it.
+3. **Merge and deploy the PR.** Smoke test, **read-only** (no test articles, submissions or notifications on
+   production; the write paths are covered by CI and the local rehearsal): the four article pages answer 200 at
+   their current addresses, `sitemap.xml` and `feed.xml` load, Admin → deployment health shows no missing column,
+   table or trigger, and the editorial dashboard lists articles (leave drafts alone: any editor save is a production write).
 4. **Dry run the address migration** (read-only):
    ```sh
    DIRECT_URL='<production direct URL>' npm run slugs:migrate -- --plan docs/seo/article-slug-migration-2026-10-24.json
