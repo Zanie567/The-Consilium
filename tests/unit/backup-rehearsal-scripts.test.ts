@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -39,6 +39,19 @@ describe('restore-rehearsal.sh', () => {
     const r = run(REHEARSE_RESTORE, [backup, '--evidence', evidence])
     expect(r.status).toBe(2)
     expect(r.stderr).toContain('refusing to overwrite')
+  })
+
+  // 2026-10-25: production keeps the scheduler's table and SECURITY DEFINER functions owner-only (no service_role).
+  // pg_dump writes no REVOKE for that, so the image's own default privileges re-granted service_role on restore and
+  // the security fingerprint differed (table_grants 688 vs 680, function_execute_grants 25 vs 23).
+  it('revokes the image default privileges for every API role before loading the schema', () => {
+    const script = readFileSync(REHEARSE_RESTORE, 'utf8')
+    const schemaLoad = script.indexOf('cat "$BACKUP/schema.sql"')
+    for (const kind of ['TABLES', 'FUNCTIONS']) {
+      const revoke = script.indexOf(`IN SCHEMA public REVOKE ALL ON ${kind} FROM anon, authenticated, service_role;`)
+      expect(revoke, `${kind} defaults revoked for anon, authenticated and service_role`).toBeGreaterThan(-1)
+      expect(revoke).toBeLessThan(schemaLoad)
+    }
   })
 })
 
