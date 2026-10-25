@@ -55,7 +55,9 @@ was traced into the upload function next to the native libvips it actually uses.
 - Every push to every branch built a preview. Agents and people pushed iterative CI and test
   fixes to open PRs, often many times an hour.
 - 91 of 294 preview deployments (31%) changed only tests, docs, CI workflows or Supabase SQL,
-  none of which Vercel serves. Replaying all 294 through the new Ignored Build Step skips 95.
+  none of which Vercel serves. Replaying all 294 through the new Ignored Build Step skips 79
+  (27%) when only the branch's previous deployment is compared, and 95 (32%) if the
+  first-deployment comparison with `main` also works (see §5: it did not on Vercel's builder).
 - Retention was the Hobby default, 30 days for everything, so a busy fortnight stayed stored for a
   month.
 
@@ -109,7 +111,7 @@ module statically.
 | Proxy matcher skips single public asset files at the root and in `brand/`, `og/`, `team/` | one fewer billed invocation per such request (≈1% of proxy runs in the sample hour) |
 | Footer LinkedIn cache 60 s → 1 h (saving the setting still expires its tag at once) | static pages rebuild at most hourly instead of each minute |
 | `scripts/verify-build-budget.mjs` in CI | fails a build whose prerendered pages would rebuild more often than hourly |
-| `vercel.json` `ignoreCommand` → `scripts/vercel-ignore-build.mjs` | about a third fewer preview builds; production always builds |
+| `vercel.json` `ignoreCommand` → `scripts/vercel-ignore-build.mjs` | 27–32% fewer preview builds (October replay); production always builds |
 | `scripts/ops/vercel-deployment-inventory.mjs` | read-only cleanup inventory (never deletes) |
 
 The proxy matcher, lazy loading and the security behaviour they must not change are pinned in
@@ -127,6 +129,11 @@ a skipped commit: push a commit with `[preview]` in its message, or use Redeploy
 and untick "Use project's Ignore Build Step". Skipped deployments appear as CANCELED (no
 functions, no build output stored).
 
+Verified on Vercel (PR #180): the script runs on the builder; a tip commit carrying the skip
+token was CANCELED before building; a branch's first deployment built, but the comparison with
+`main` failed there ("cannot tell what changed"), so first deployments currently always build.
+The likely cause is that Vercel's clone has no fetchable `origin`; not confirmed.
+
 ## 6. Dashboard settings for the owner (not changed by this branch)
 
 Settings > Deployment Retention, both projects (choose the nearest option the dashboard offers):
@@ -138,8 +145,8 @@ Settings > Deployment Retention, both projects (choose the nearest option the da
 | Errored | 30 days | 7 days | no functions stored; logs useful for a week |
 | Canceled | 30 days | 1 day | skipped builds land here |
 
-Estimated steady state at October's pace (≈200 previews and 65 production deployments per 30
-days after the ignore step): about 47 previews + 30 production retained × 29.7 MB ≈ **2.3 GB**.
+Estimated steady state at October's pace (≈200–215 previews and 65 production deployments per
+30 days after the ignore step): about 47 previews + 30 production retained × 29.7 MB ≈ **2.3 GB**.
 Without the retention change, the same pace keeps ≈ 7.9 GB, so the retention change is required.
 
 Also worth considering: a Vercel Firewall rule or the managed AI-bot ruleset if crawlers turn out
