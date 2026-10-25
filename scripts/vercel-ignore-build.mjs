@@ -14,7 +14,9 @@
 // clone that cannot be deepened, a branch too old to find where it left main, any git error)
 // builds.
 //
-// Replaying October 2026's 294 preview deployments through these rules skips about a third.
+// Replaying October 2026's 294 preview deployments through these rules skips 79 (27%), or 95 if
+// the first-deployment comparison with main works; on Vercel's builder it did not (October 2026),
+// so a branch's first deployment currently always builds. See docs/operations/vercel-hobby-resources.md.
 // Get a preview for a skipped commit by pushing a commit whose message contains "[preview]", or
 // with Redeploy in the Vercel dashboard (untick "Use project's Ignore Build Step").
 import { execFileSync } from 'node:child_process'
