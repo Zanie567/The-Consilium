@@ -23,13 +23,16 @@ async function newDraft(browser: Browser, label: string, who: 'editor' | 'admin'
   await ed.typeBody('Draft text.')
   const { id } = await ed.saveNow()
   await page.waitForLoadState('networkidle')
-  const slug = (await articleByTitle(title))!.slug
-  return { ctx, page, ed, title, id, slug }
+  // Autosave never fixes the address: a draft holds a placeholder until it is submitted or published.
+  expect((await articleByTitle(title))!.slug).toMatch(/^draft-\d+$/)
+  return { ctx, page, ed, title, id }
 }
 
-async function publicStatus(browser: Browser, slug: string) {
+/** Whether the article is public at its CURRENT address (publication replaces the draft placeholder). */
+async function publicStatus(browser: Browser, title: string) {
   const anon = await signedIn(browser, null)
   try {
+    const { slug } = (await articleByTitle(title))!
     return (await anon.request.get(`/articles/${slug}`)).status()
   } finally {
     await anon.close()
@@ -46,7 +49,7 @@ test.afterAll(async () => {
 
 test.describe('ordinary saves never change visibility', () => {
   test('choosing Published in the status dropdown saves nothing and publishes nothing, even while autosave runs', async ({ browser }) => {
-    const { ctx, page, ed, title, slug } = await newDraft(browser, 'dropdown')
+    const { ctx, page, ed, title } = await newDraft(browser, 'dropdown')
     const bodies: string[] = []
     page.on('request', (r) => { if (isWrite(r.url(), r.method())) bodies.push(r.postData() ?? '') })
 
@@ -67,16 +70,16 @@ test.describe('ordinary saves never change visibility', () => {
     // Save draft is also an ordinary save.
     await ed.saveNow()
     expect((await articleByTitle(title))!.status).toBe('DRAFT')
-    expect(await publicStatus(browser, slug)).toBe(404)
+    expect(await publicStatus(browser, title)).toBe(404)
     await ctx.close()
   })
 
   test('moving a published article to Draft in the dropdown does not unpublish it until the button is confirmed', async ({ browser }) => {
-    const { ctx, page, ed, title, id, slug } = await newDraft(browser, 'unpub')
+    const { ctx, page, ed, title, id } = await newDraft(browser, 'unpub')
     await page.getByRole('button', { name: 'Publish', exact: true }).click()
     await confirmPublicChange(page, 'Publish now')
     await expect.poll(async () => (await articleByTitle(title))!.status).toBe('PUBLISHED')
-    expect(await publicStatus(browser, slug)).toBe(200)
+    expect(await publicStatus(browser, title)).toBe(200)
 
     await statusSelect(page).selectOption('DRAFT')
     // A live article is never autosaved: typing sends nothing (corrections policy: no silent changes).
@@ -97,7 +100,7 @@ test.describe('ordinary saves never change visibility', () => {
     const saved = (await articleByTitle(title))!
     expect(saved.status, 'still published after the copy edit').toBe('PUBLISHED')
     expect(saved.content).toContain('Edit on a live article.')
-    expect(await publicStatus(browser, slug)).toBe(200)
+    expect(await publicStatus(browser, title)).toBe(200)
 
     // The explicit button is "Set to Draft" and asks first.
     await page.getByRole('button', { name: 'Set to Draft' }).click()
@@ -108,7 +111,7 @@ test.describe('ordinary saves never change visibility', () => {
     await page.getByRole('button', { name: 'Set to Draft' }).click()
     await confirmPublicChange(page, 'Unpublish')
     await expect.poll(async () => (await articleByTitle(title))!.status).toBe('DRAFT')
-    expect(await publicStatus(browser, slug)).toBe(404)
+    expect(await publicStatus(browser, title)).toBe(404)
     void id
     await ctx.close()
   })
@@ -116,7 +119,7 @@ test.describe('ordinary saves never change visibility', () => {
 
 test.describe('publishing is explicit and confirmed', () => {
   test('Cancel and Escape change nothing; Confirm publishes once; the double click is one request', async ({ browser }) => {
-    const { ctx, page, title, slug } = await newDraft(browser, 'confirm')
+    const { ctx, page, title } = await newDraft(browser, 'confirm')
     const publishes: string[] = []
     page.on('request', (r) => { if (isWrite(r.url(), r.method()) && (r.postData() ?? '').includes('"PUBLISHED"')) publishes.push(r.postData()!) })
 
@@ -131,7 +134,7 @@ test.describe('publishing is explicit and confirmed', () => {
     await expect(confirmDialog(page)).toHaveCount(0)
     expect(publishes).toHaveLength(0)
     expect((await articleByTitle(title))!.status).toBe('DRAFT')
-    expect(await publicStatus(browser, slug)).toBe(404)
+    expect(await publicStatus(browser, title)).toBe(404)
 
     // Focus starts on Cancel, so a stray Enter cannot publish.
     await publish.click()
@@ -146,12 +149,12 @@ test.describe('publishing is explicit and confirmed', () => {
     await page.waitForTimeout(1_000)
     expect(publishes, 'one publish request however many clicks').toHaveLength(1)
     expect(JSON.parse(publishes[0]).publicationIntent).toBe(true)
-    expect(await publicStatus(browser, slug)).toBe(200)
+    expect(await publicStatus(browser, title)).toBe(200)
     await ctx.close()
   })
 
   test('a failed publication reports the failure, leaves the article private, and later edits do not retry it', async ({ browser }) => {
-    const { ctx, page, ed, title, slug } = await newDraft(browser, 'failpub')
+    const { ctx, page, ed, title } = await newDraft(browser, 'failpub')
     let fail = true
     await page.route('**/api/articles/*', (route) =>
       fail && isWrite(route.request().url(), route.request().method())
@@ -168,14 +171,14 @@ test.describe('publishing is explicit and confirmed', () => {
     const res = await ed.saving(() => page.keyboard.type(' Typed after the failure.'), { timeout: 15_000 })
     expect(res.status()).toBe(200)
     expect((await articleByTitle(title))!.status, 'the failed publish was not retried by autosave').toBe('DRAFT')
-    expect(await publicStatus(browser, slug)).toBe(404)
+    expect(await publicStatus(browser, title)).toBe(404)
     // The button still offers Publish, because the article is still a draft.
     await expect(page.getByRole('button', { name: 'Publish', exact: true })).toBeVisible()
     await ctx.close()
   })
 
   test('text typed while a publish is in flight is kept for an explicit save, and does not undo or repeat the publication', async ({ browser }) => {
-    const { ctx, page, ed, title, slug } = await newDraft(browser, 'inflight')
+    const { ctx, page, ed, title } = await newDraft(browser, 'inflight')
     const writes: { status: string; intent: unknown; editKind: unknown }[] = []
     page.on('request', (r) => {
       if (isWrite(r.url(), r.method())) { const b = JSON.parse(r.postData() ?? '{}'); writes.push({ status: b.status, intent: b.publicationIntent, editKind: b.editKind }) }
@@ -201,7 +204,7 @@ test.describe('publishing is explicit and confirmed', () => {
     await confirmPublicChange(page, 'Save copy edit')
     await expect.poll(async () => (await articleByTitle(title))!.content, { timeout: 20_000 }).toContain('Typed during the publish.')
     expect((await articleByTitle(title))!.status).toBe('PUBLISHED')
-    expect(await publicStatus(browser, slug)).toBe(200)
+    expect(await publicStatus(browser, title)).toBe(200)
     // Exactly one request asked for publication; nothing ever asked to change it back.
     expect(writes.filter((w) => w.intent === true)).toHaveLength(1)
     expect(writes.filter((w) => w.status !== 'PUBLISHED')).toHaveLength(0)
@@ -210,7 +213,7 @@ test.describe('publishing is explicit and confirmed', () => {
   })
 
   test('a stale second tab cannot republish or unpublish: "Keep my version" is an ordinary save', async ({ browser }) => {
-    const { ctx, page, title, id, slug } = await newDraft(browser, 'stale')
+    const { ctx, page, title, id } = await newDraft(browser, 'stale')
     const second = await ctx.newPage()
     const ed2 = new ArticleEditorPage(second)
     await ed2.openExisting(id)
@@ -241,14 +244,14 @@ test.describe('publishing is explicit and confirmed', () => {
     const kept = (await articleByTitle(title))!
     expect(kept.status).toBe('PUBLISHED')
     expect(kept.content).toContain('Stale tab text.')
-    expect(await publicStatus(browser, slug)).toBe(200)
+    expect(await publicStatus(browser, title)).toBe(200)
     await ctx.close()
   })
 })
 
 test.describe('the article list asks before it publishes', () => {
   test('Cancel changes nothing; Confirm publishes once even when double-clicked; Unpublish asks too', async ({ browser }) => {
-    const { ctx, page, title, id, slug } = await newDraft(browser, 'listpub')
+    const { ctx, page, title, id } = await newDraft(browser, 'listpub')
     const writes: string[] = []
     await page.goto('/editorial/articles', { waitUntil: 'networkidle' })
     await new ArticleEditorPage(page).dismissCookieBanner()
@@ -267,7 +270,7 @@ test.describe('the article list asks before it publishes', () => {
     await page.waitForTimeout(800)
     expect(writes).toHaveLength(1)
     expect(JSON.parse(writes[0])).toMatchObject({ status: 'PUBLISHED', publicationIntent: true })
-    expect(await publicStatus(browser, slug)).toBe(200)
+    expect(await publicStatus(browser, title)).toBe(200)
 
     await row.getByRole('button', { name: 'Unpublish', exact: true }).click()
     await confirmDialog(page).getByRole('button', { name: 'Cancel' }).click()
@@ -275,7 +278,7 @@ test.describe('the article list asks before it publishes', () => {
     await row.getByRole('button', { name: 'Unpublish', exact: true }).click()
     await confirmPublicChange(page, 'Unpublish')
     await expect.poll(async () => (await db().article.findUnique({ where: { id } }))!.status).toBe('DRAFT')
-    expect(await publicStatus(browser, slug)).toBe(404)
+    expect(await publicStatus(browser, title)).toBe(404)
     await ctx.close()
   })
 })
