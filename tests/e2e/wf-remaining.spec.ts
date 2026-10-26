@@ -152,7 +152,13 @@ test('debate editing and cancelling preserve metadata after reopening',async({br
 
 test('public copy, share popups, article PDF and reader replies use their controls',async({browser,browserName})=>{
  test.setTimeout(90_000)
- const ctx=await signedIn(browser,'reader');const page=await ctx.newPage();const row=await db().article.findFirstOrThrow({where:{status:'PUBLISHED',deletedAt:null,isDebate:false}});await page.goto(`/articles/${row.slug}`,{waitUntil:'networkidle'});await new ArticleEditorPage(page).dismissCookieBanner()
+ const ctx=await signedIn(browser,'reader');const page=await ctx.newPage()
+ // Steady page (as steadyPage in wf-admin-team-members, issue #135): the site scrolls smoothly, and on a loaded CI
+ // WebKit the share button moved between mousedown and mouseup while Playwright scrolled it out from under the fixed
+ // header, so no click reached it and no popup opened (main at dfafe94: "Share on LinkedIn", not stable, then
+ // intercepted by the header). Reduced motion makes the scroll instant; motion is not what this test checks.
+ await page.emulateMedia({reducedMotion:'reduce'})
+ const row=await db().article.findFirstOrThrow({where:{status:'PUBLISHED',deletedAt:null,isDebate:false}});await page.goto(`/articles/${row.slug}`,{waitUntil:'networkidle'});await new ArticleEditorPage(page).dismissCookieBanner()
  // Capture the browser print boundary; OS print dialogs are outside headless automation.
  await page.evaluate(()=>{window.print=()=>{document.documentElement.dataset.printed='yes'}})
  await page.getByLabel('Save article as PDF').click();await expect(page.locator('html')).toHaveAttribute('data-printed','yes')

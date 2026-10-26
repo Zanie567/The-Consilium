@@ -71,7 +71,7 @@ echo
 echo "2. Completeness and secrecy"
 for f in schema.sql data.sql; do
   if [ -s "$DIR/$f" ]; then
-    if tail -n 15 "$DIR/$f" | grep -q 'PostgreSQL database dump complete'; then pass "$f ends with pg_dump's completion marker"; else fail "$f does NOT end with the completion marker: it was cut short"; fi
+    if grep -q 'PostgreSQL database dump complete' <<<"$(tail -n 15 "$DIR/$f")"; then pass "$f ends with pg_dump's completion marker"; else fail "$f does NOT end with the completion marker: it was cut short"; fi
   fi
 done
 for f in schema.sql data.sql roles.sql; do
@@ -112,8 +112,10 @@ tr -d '"' < "$DIR/data.sql" 2>/dev/null | awk '
 
 missing_schema=""
 missing_data=""
+# Never pipe a list into `grep -q`: under pipefail, grep exiting at the first match kills the writer with SIGPIPE
+# and a table that IS present reads as missing. A whole-line match in the shell has no pipe.
 for t in $CHECK_TABLES; do
-  echo "$SCHEMA_TABLES" | grep -qx "$t" || missing_schema="$missing_schema $t"
+  case $'\n'"$SCHEMA_TABLES"$'\n' in *$'\n'"$t"$'\n'*) ;; *) missing_schema="$missing_schema $t" ;; esac
   awk -F'\t' -v t="$t" '$1 == t { found = 1 } END { exit found ? 0 : 1 }' "$COUNTS_TSV" || missing_data="$missing_data $t"
 done
 n_expected=$(echo "$CHECK_TABLES" | wc -w | tr -d ' ')

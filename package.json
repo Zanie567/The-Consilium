@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/next-build.mjs",
     "postinstall": "node scripts/backport-next-image-abort.mjs && node scripts/patch-next-tag-expiry-clock.mjs && prisma generate",
     "start": "next start",
     "lint": "eslint .",

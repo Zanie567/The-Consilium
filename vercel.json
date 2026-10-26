@@ -1,5 +1,6 @@
 {
   "regions": ["dub1"],
+  "ignoreCommand": "node scripts/vercel-ignore-build.mjs",
   "crons": [
     { "path": "/api/cron/cleanup-article-images", "schedule": "0 3 * * *" },
     { "path": "/api/cron/cleanup-reading-analytics", "schedule": "0 4 * * *" }

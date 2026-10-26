@@ -84,6 +84,12 @@ jobs:
       - name: Verify sharp native library is traced into /api/upload
         run: node scripts/verify-sharp-trace.mjs
 
+      # A short cache anywhere in a route (the footer, a layout) makes every page using it
+      # rebuild on that timer, each rebuild a billed Vercel function call. Fails when a
+      # prerendered route would rebuild more often than hourly.
+      - name: Verify no prerendered page rebuilds on a short timer
+        run: node scripts/verify-build-budget.mjs
+
       # Loads sharp from ONLY the files traced for /api/upload, copied into an empty
       # directory outside the repo, and decodes a real JPEG. A control run without
       # libvips must fail. Refuses to run unless this is linux/x64 (Vercel's target).
@@ -154,7 +160,7 @@ jobs:
       # Chromium and WebKit: the browser workflow suites run on both (plus phone
       # emulations of each). WebKit needs its system libraries, hence --with-deps.
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium webkit
+        run: bash scripts/ci/apt-mirror-failover.sh && npx playwright install --with-deps chromium webkit
 
       # scripts/run-e2e.sh is the only supported entry point. It builds the app itself
       # into .next-e2e with storage, email and OAuth pinned to local stand-ins (a local
@@ -236,7 +242,7 @@ jobs:
       # Chromium and WebKit: the browser workflow suites run on both (plus phone
       # emulations of each). WebKit needs its system libraries, hence --with-deps.
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium webkit
+        run: bash scripts/ci/apt-mirror-failover.sh && npx playwright install --with-deps chromium webkit
 
       # scripts/run-e2e.sh is the only supported entry point. It builds the app itself
       # into .next-e2e with storage, email and OAuth pinned to local stand-ins (a local
@@ -311,7 +317,7 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: bash scripts/ci/apt-mirror-failover.sh && npx playwright install --with-deps chromium
 
       - name: Discovery, rich content, revisions, growth analytics and final integration
         run: npm run test:e2e -- --project=upgrade --workers=1
