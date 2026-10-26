@@ -107,6 +107,18 @@ describe('favicons and app icons', () => {
     expect(fs.existsSync(path.join(ROOT, 'src/app/favicon.ico'))).toBe(true)
     expect(fs.existsSync(path.join(ROOT, 'public/favicon.ico'))).toBe(false)
   })
+
+  it('stores favicon.ico frames as RGBA PNGs (Next\'s build rejects RGB frames)', () => {
+    const ico = fs.readFileSync(path.join(ROOT, 'src/app/favicon.ico'))
+    const count = ico.readUInt16LE(4)
+    const frames: [number, number][] = []
+    for (let i = 0; i < count; i++) {
+      const offset = ico.readUInt32LE(6 + i * 16 + 12)
+      // PNG signature (8) + IHDR length/type (8) + width/height (8) + bit depth (1) → colour type
+      frames.push([ico[6 + i * 16] || 256, ico[offset + 25]])
+    }
+    expect(frames).toEqual([[16, 6], [32, 6], [48, 6]])
+  })
 })
 
 describe('legacy /logo.png', () => {

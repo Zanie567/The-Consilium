@@ -114,7 +114,11 @@ const write = async (p, data) => {
 }
 
 const icoFrames = []
-for (const size of [16, 32, 48]) icoFrames.push({ size, data: await render(size, SCALE_SMALL) })
+// .ico frames must be RGBA PNGs (Next's build rejects RGB ones); the alpha stays fully opaque.
+for (const size of [16, 32, 48]) {
+  const data = await sharp(await render(size, SCALE_SMALL)).ensureAlpha(1).png({ compressionLevel: 9 }).toBuffer()
+  icoFrames.push({ size, data })
+}
 await write('src/app/favicon.ico', ico(icoFrames))
 await write('src/app/icon1.png', await render(32, SCALE_SMALL))
 await write('src/app/icon2.png', await render(192, SCALE_LARGE))
