@@ -113,8 +113,10 @@ test('brand images are served as PNGs of the declared size, and none is the obso
     // Old links and external caches still request this; it must now be the current mark.
     [LEGACY_LOGO_PATH, BRAND_MARK.width, BRAND_MARK.height],
     ['/apple-touch-icon.png', 180, 180],
-    ['/favicon-navy-32.png', 32, 32],
-    ['/favicon-cream-32.png', 32, 32],
+    ['/icon1.png', 32, 32],
+    ['/icon2.png', 192, 192],
+    ['/brand/app-icon-512-v1.png', 512, 512],
+    ['/brand/app-icon-maskable-512-v1.png', 512, 512],
   ] as const) {
     const res = await request.get(path)
     expect(res.status(), path).toBe(200)
