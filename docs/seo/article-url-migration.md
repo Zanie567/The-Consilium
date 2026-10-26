@@ -53,14 +53,20 @@ article doing the same would fail to save (unique slug). The new code repairs th
    they do not touch `slug`, `status` or `slugLockedAt`. (Re-checked read-only on 2026-10-25: every #155 preflight check
    and every #156 check not waiting on #155 still matched.) Until this PR is deployed, don't approve the pending-review
    article that still has a `draft-` address: approved under the old code, it would go live at that placeholder.
-2. **Apply the schema migration** (additive; the deployed code ignores it):
-   `psql "$DIRECT_URL" -v ON_ERROR_STOP=1 -1 -f supabase/migrations/20261024120000_article_slug_redirects.sql`
-   then record it: `supabase migration repair --status applied 20261024120000 --linked`.
-   Verify:
-   ```sql
-   SELECT slug, status, "slugLockedAt" FROM articles WHERE "slugLockedAt" IS NOT NULL;  -- expect the 4 published + 5 trashed, viewed drafts
-   SELECT tgname FROM pg_trigger WHERE tgname IN ('articles_slug_guard','article_slug_redirects_guard');  -- 2 rows
+2. **Apply the schema migration** (additive; the deployed code ignores it), with the guarded files in
+   `docs/seo/production/` (same pattern as #155/#156: one transaction that locks `articles` against writes,
+   preconditions, the migration file verbatim, postconditions; any failure rolls everything back):
+   ```bash
+   psql -X -v ON_ERROR_STOP=1 -f docs/seo/production/preflight.sql   # every row ok = t (16 checks); note the fingerprint
+   psql -X -v ON_ERROR_STOP=1 -f docs/seo/production/apply.sql       # ends "article slug schema verified: 9 article(s) locked ..." and COMMIT
+   supabase migration repair --status applied 20261024120000          # registry row only; 28 -> 29
+   psql -X -v ON_ERROR_STOP=1 -f docs/seo/production/verify.sql      # every row ok = t (13 checks); fingerprint identical to preflight
    ```
+   Connection: the session set-up of `docs/corrections/PRODUCTION-RUNBOOK.md` (password in a private PGPASSFILE, never
+   on a command line). The postconditions prove: no article column other than `slugLockedAt` changed (slugs, dates,
+   `updatedAt`, counters, content); exactly the published/ever-public/viewed articles are locked; both triggers are
+   enabled; `article_slug_redirects` has RLS on, no rows and no API-role privilege; nothing in `public` is usable by
+   `anon`/`authenticated` (#156) and no policy changed (#155).
    The migration must be in place BEFORE the code deploys: the new code reads `slugLockedAt` and the redirect table
    (Admin → deployment health reports either one missing).
 3. **Merge and deploy the PR.** Smoke test, **read-only** (no test articles, submissions or notifications on
@@ -71,6 +77,10 @@ article doing the same would fail to save (unique slug). The new code repairs th
    ```sh
    DIRECT_URL='<production direct URL>' npm run slugs:migrate -- --plan docs/seo/article-slug-migration-2026-10-24.json
    ```
+   `DIRECT_URL` goes to node-postgres, which treats a plain `sslmode=require` as full certificate verification and
+   refuses Supabase's private CA ("self-signed certificate"). Use the Session pooler URL (port 5432) ending in
+   `?sslmode=require&uselibpqcompat=true` (encrypted, like psql's `require`). Never type it inline: a command line
+   lands in the shell history and the process list; read it at a hidden prompt into the environment instead.
    It prints the database host, every check, and an approval code tied to this plan AND the current state of both
    articles. Any edit to either article after the dry run invalidates the code.
 5. **Apply** (owner approval required), with the code from step 4 and an administrator's email:
