@@ -1,8 +1,13 @@
-import { resolveTestingIdentity, requireTestingWorkspace, TESTING_COOKIE, auditTesting } from '@/lib/testingMode'
+import { TESTING_COOKIE } from '@/lib/testingSessionConstants'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { articleSlugFromPath, resolveArticleRedirect } from '@/lib/articleRedirects'
+
+// The testing-workspace checks need the database (src/lib/testingMode.ts imports Prisma, which
+// builds a client as soon as it loads). Load them only when testing mode is on, so a production
+// proxy instance never pays to start a database client it cannot use.
+const loadTestingMode = () => import('@/lib/testingMode')
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 const PUBLIC_API_PREFIXES = [
@@ -54,7 +59,7 @@ export async function proxy(request: NextRequest) {
   const forwardedHeaders = new Headers(request.headers)
   forwardedHeaders.delete('x-consilium-verified-identity')
   if (process.env.TESTING_MODE_ENABLED === '1') {
-    try { await requireTestingWorkspace() } catch {
+    try { await (await loadTestingMode()).requireTestingWorkspace() } catch {
       return NextResponse.json({ error: 'Testing workspace is not safely configured.', code: 'TESTING_UNAVAILABLE' }, { status: 503 })
     }
   }
@@ -126,6 +131,7 @@ export async function proxy(request: NextRequest) {
 
   if (process.env.TESTING_MODE_ENABLED === '1' && token?.id && !pathname.startsWith('/api/testing-session')) {
     try {
+      const { resolveTestingIdentity, auditTesting } = await loadTestingMode()
       const opaque = request.cookies.get(TESTING_COOKIE)?.value
       const identity = await resolveTestingIdentity(token.id, opaque) ?? await resolveTestingIdentity(token.id)
       const mutating = !SAFE_METHODS.has(request.method)
@@ -161,8 +167,17 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all paths except Next.js internals and static files.
+     * Every path except Next.js internals and public asset files. The proxy does nothing for an
+     * asset (it needs no session, and banned readers were never redirected away from one), but
+     * each invocation still costs Vercel CPU.
+     *
+     * An "asset" is ONE file name with an image/text extension at the site root (logo.png,
+     * robots.txt, sitemap.xml, feed.xml, the icons) or directly inside public/brand, public/og or
+     * public/team. Nothing under /api, /editorial, /admin or any other path is ever skipped, even
+     * with an extension, and the name allows only [A-Za-z0-9._-], so an encoded "/" (%2F) still
+     * goes through the proxy. Server Actions post to page paths, which always match.
+     * Pinned by tests/unit/proxy-security-contract.test.ts.
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|(?:brand/|og/|team/)?[A-Za-z0-9._-]+\\.(?:png|jpe?g|gif|svg|ico|webp|avif|txt|xml|webmanifest)$).*)',
   ],
 }

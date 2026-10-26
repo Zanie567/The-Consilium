@@ -93,6 +93,15 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/api/upload': ['./node_modules/@img/sharp-libvips-*/lib/**/*'],
   },
+  // npm installs sharp's WebAssembly build (@img/sharp-wasm32, ~9 MB, no CPU restriction in the
+  // lockfile) on every platform, and the tracer copies it next to the native build. It only
+  // loads if the native binding fails, which scripts/verify-sharp-runtime.mjs already treats as a
+  // broken package, so it is dead weight in every deployment. Vercel stores each deployment's
+  // function bundles (Functions Storage), so it was paid for once per retained deployment.
+  // scripts/verify-sharp-trace.mjs fails the build if it is traced again.
+  outputFileTracingExcludes: {
+    '/api/upload': ['./node_modules/@img/sharp-wasm32/**/*'],
+  },
   experimental: {
     // Every isolated run starts fresh. Avoid cache flush/compaction stalls in
     // this workspace's dev server; ordinary development keeps Next's default.
