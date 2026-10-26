@@ -217,9 +217,14 @@ model Article {
   // (trigger articles_clear_hidden_by_debate) on any other status or trash change. Debate "publish" restores
   // only articles that still carry it. See migration 20261012100000.
   hiddenByDebateAt DateTime?
+  // When the web address became permanent: set the first time the article is published, never cleared
+  // (also by trigger articles_slug_guard, which refuses later slug changes outside the approved migration).
+  // See migration 20261024120000 and src/lib/articleSlug.ts.
+  slugLockedAt   DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
+  slugRedirects   ArticleSlugRedirect[]
   bookmarks       Bookmark[]
   notes           ArticleNote[]
   views           ArticleView[]
@@ -969,6 +974,22 @@ enum CorrectionStatus {
 // (trigger article_corrections_protect); a mistake in one is fixed by a new row that
 // `supersedes` it. User ids are plain strings with a name snapshot (like AuditLog), so the
 // record survives a staff account being deleted.
+// A retired web address of an article. /articles/<oldSlug> answers 301 with the article's current
+// address. Written only by the approved slug migration (scripts/migrate-article-slugs.ts); rows are
+// permanent (trigger article_slug_redirects_guard). See migration 20261024120000.
+model ArticleSlugRedirect {
+  id          String   @id @default(cuid())
+  oldSlug     String   @unique
+  articleId   String
+  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  migrationId String
+  createdById String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([articleId])
+  @@map("article_slug_redirects")
+}
+
 model ArticleCorrection {
   id             String           @id @default(cuid())
   articleId      String

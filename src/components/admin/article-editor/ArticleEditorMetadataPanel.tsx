@@ -213,14 +213,19 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
             type="text"
             value={editor.slug}
             onChange={(event) => actions.setSlug(event.target.value)}
-            placeholder="url-slug"
-            disabled={editor.isLive}
-            aria-describedby={editor.isLive ? 'slug-locked-hint' : undefined}
+            placeholder={editor.suggestedSlug || 'set-from-the-headline'}
+            disabled={editor.slugLocked}
+            aria-label="Web address (slug)"
+            aria-describedby="slug-hint"
             className="w-full h-8 text-[16px] sm:text-[11px] font-mono border border-[var(--border)] rounded px-2 bg-[var(--bg-elevated)] focus:outline-none focus:border-gold disabled:opacity-60"
           />
-          {editor.isLive && (
-            <p id="slug-locked-hint" className="text-[10px] text-[var(--fg-faint)] mt-1">The address of a published article is fixed so that existing links keep working.</p>
-          )}
+          <p id="slug-hint" className="text-[10px] text-[var(--fg-faint)] mt-1">
+            {editor.slugLocked
+              ? 'The address of a published article is fixed so that existing links keep working.'
+              : editor.slug
+                ? 'Lowercase words and hyphens. Fixed once the article is published.'
+                : 'Left blank, it is set from the headline when the article is submitted, scheduled or published.'}
+          </p>
         </div>
       )}
     </fieldset>

@@ -5,7 +5,7 @@ import { topicDisplayName, canonicalTagSlug } from '@/lib/tagIdentity'
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import slugify from 'slugify'
+import { isProvisionalSlug, slugFromTitle } from '@/lib/articleSlug'
 import { mutate as globalMutate } from 'swr'
 import { DRAFTS_SWR_KEY } from '@/components/editorial/DraftsSection'
 import { ApiError, apiRequest, asApiError } from '@/lib/apiClient'
@@ -25,8 +25,15 @@ interface SavedArticleResponse {
   id?: string
   updatedAt?: string
   status?: string
+  slug?: string
+  slugLockedAt?: string | null
   /** Server-computed fingerprint of the saved fields (see src/lib/articleVersion.ts). */
   version?: string
+}
+
+/** What the address field shows: nothing for a provisional draft-<number> placeholder (src/lib/articleSlug.ts). */
+function displayedSlug(slug: string | undefined | null): string {
+  return slug && !isProvisionalSlug(slug) ? slug : ''
 }
 
 function localEditorError(message: string): ArticleEditorError {
@@ -145,7 +152,11 @@ export function useArticleEditorController({
   const [themeMounted, setThemeMounted] = useState(false)
 
   const [title, setTitle] = useState(initialData?.title ?? '')
-  const [slug, setSlugState] = useState(initialData?.slug ?? '')
+  // The address field shows only a chosen address; the server's own value (which may still be the draft
+  // placeholder) is kept separately for the "View live" link.
+  const [slug, setSlugState] = useState(displayedSlug(initialData?.slug))
+  const [savedSlug, setSavedSlug] = useState(initialData?.slug ?? '')
+  const [slugLocked, setSlugLocked] = useState(Boolean(initialData?.slugLockedAt) || initialData?.status === 'PUBLISHED')
   const [content, setContent] = useState(initialData?.content ?? '')
   const [excerpt, setExcerptState] = useState(initialData?.excerpt ?? '')
   const [coverImage, setCoverImageState] = useState(initialData?.coverImage ?? '')
@@ -188,6 +199,9 @@ export function useArticleEditorController({
 
   const titleRef = useRef(title)
   const slugRef = useRef(slug)
+  // True only after an editor typed in the address field. Autosave never sends an address otherwise,
+  // so a half-typed headline can no longer become the article's permanent URL.
+  const slugEditedRef = useRef(false)
   const contentRef = useRef(content)
   const excerptRef = useRef(excerpt)
   const coverImageRef = useRef(coverImage)
@@ -271,7 +285,9 @@ export function useArticleEditorController({
     if (!draft || !canEdit) return
     const f = draft.fields
     setTitle(f.title); titleRef.current = f.title
-    setSlugState(f.slug); slugRef.current = f.slug
+    const restoredSlug = displayedSlug(f.slug)
+    setSlugState(restoredSlug); slugRef.current = restoredSlug
+    slugEditedRef.current = restoredSlug !== displayedSlug(initialData?.slug)
     setContent(f.content); contentRef.current = f.content
     setExcerptState(f.excerpt); excerptRef.current = f.excerpt
     setCoverImageState(f.coverImage); coverImageRef.current = f.coverImage
@@ -372,9 +388,10 @@ export function useArticleEditorController({
           )
         }
         const editVersion = editVersionRef.current
+        const sentSlug = slugRef.current
         const body = {
           title: titleRef.current,
-          slug: slugRef.current,
+          ...(slugEditedRef.current && sentSlug.trim() ? { slug: sentSlug } : {}),
           content: contentRef.current,
           excerpt: excerptRef.current,
           coverImage: coverImageRef.current || null,
@@ -438,6 +455,18 @@ export function useArticleEditorController({
           }
         }
         if (saved.version) versionRef.current = saved.version
+        if (saved.slug) {
+          setSavedSlug(saved.slug)
+          // Show the address the server settled on (normalised, or built from the title on submission),
+          // unless the editor has typed a different one since this save was sent.
+          if (slugRef.current === sentSlug) {
+            const shown = displayedSlug(saved.slug)
+            setSlugState(shown)
+            slugRef.current = shown
+            slugEditedRef.current = false
+          }
+        }
+        if (saved.slugLockedAt || saved.status === 'PUBLISHED') setSlugLocked(true)
         if (saved.status) {
           currentStatusRef.current = saved.status
           setCurrentStatus(saved.status)
@@ -552,11 +581,6 @@ export function useArticleEditorController({
   const updateTitle = (value: string) => {
     setTitle(value)
     titleRef.current = value
-    if (!articleIdRef.current) {
-      const nextSlug = slugify(value, { lower: true, strict: true, trim: true })
-      setSlugState(nextSlug)
-      slugRef.current = nextSlug
-    }
     scheduleAutosave()
   }
 
@@ -790,6 +814,7 @@ export function useArticleEditorController({
   const setSlug = (value: string) => {
     setSlugState(value)
     slugRef.current = value
+    slugEditedRef.current = true
     scheduleAutosave()
   }
 
@@ -844,6 +869,9 @@ export function useArticleEditorController({
     selectedAuthorId,
     settingsOpen,
     slug,
+    savedSlug,
+    slugLocked,
+    suggestedSlug: slugFromTitle(title),
     status,
     tagInput,
     tags,

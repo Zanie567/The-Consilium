@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import { Playfair_Display, Inter } from 'next/font/google'
 import './globals.css'
@@ -13,10 +13,10 @@ import { SiteChrome } from '@/components/layout/SiteChrome'
 import { SignupPrompt } from '@/components/ui/SignupPrompt'
 import { CookieConsentBanner } from '@/components/ui/CookieConsent'
 import { InstallBanner } from '@/components/ui/InstallBanner'
-import { FaviconSwitcher } from '@/components/ui/FaviconSwitcher'
 import { RevealOnScroll } from '@/components/ui/RevealOnScroll'
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
 import { DEFAULT_SHARE_IMAGE, pageTwitter } from '@/lib/seo'
+import { BRAND_NAVY } from '@/lib/brand'
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -33,6 +33,10 @@ const inter = Inter({
 
 // EB Garamond (the editor's document face) is loaded by src/lib/editorFont.ts,
 // only where the editor renders.
+
+export const viewport: Viewport = {
+  themeColor: BRAND_NAVY,
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -62,20 +66,13 @@ export const metadata: Metadata = {
     images: [DEFAULT_SHARE_IMAGE],
   },
   twitter: pageTwitter({ title: 'The Consilium' }),
-  icons: {
-    icon: [
-      // Light browser theme: dark navy emblem (high contrast on light tab bar)
-      { url: '/favicon-navy-32.png', sizes: '32x32', type: 'image/png', media: '(prefers-color-scheme: light)' },
-      { url: '/favicon-navy-16.png', sizes: '16x16', type: 'image/png', media: '(prefers-color-scheme: light)' },
-      // Dark browser theme: cream emblem (high contrast on dark tab bar)
-      { url: '/favicon-cream-32.png', sizes: '32x32', type: 'image/png', media: '(prefers-color-scheme: dark)' },
-      { url: '/favicon-cream-16.png', sizes: '16x16', type: 'image/png', media: '(prefers-color-scheme: dark)' },
-      // Universal fallback for browsers that ignore media on <link rel="icon">
-      { url: '/favicon.ico', sizes: 'any' },
-    ],
-    // src/app/icon.png (512px navy) also generates an unconditional fallback link automatically
-    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
-  },
+  // Icons come from the file conventions in src/app — favicon.ico, icon1.png, icon2.png,
+  // apple-icon.png — which Next links with a content hash, so a new design reaches browsers
+  // without a cache purge. All are opaque navy squares (scripts/brand/generate-app-icons.mjs).
+
+  // Home-screen label. `capable: false` is explicit because Next defaults it to true, which would
+  // make iOS launch the site as a full-screen app with no browser controls.
+  appleWebApp: { title: SITE_NAME, capable: false },
   alternates: {
     // Deliberately no `canonical` here. Metadata merges shallowly, so a
     // canonical set at the root is inherited by every page that does not
@@ -129,7 +126,6 @@ export default async function RootLayout({
             <SignupPrompt />
             <CookieConsentBanner />
             <InstallBanner />
-            <FaviconSwitcher />
             <RevealOnScroll />
           </AuthProvider>
         </ThemeProvider>

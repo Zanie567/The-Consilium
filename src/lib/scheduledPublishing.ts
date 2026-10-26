@@ -3,6 +3,7 @@ import { isHiddenDebateViolation } from '@/lib/hiddenDebateGuard'
 import { prisma } from '@/lib/prisma'
 import { awardPublishAchievements } from '@/lib/gamification/achievements'
 import { revalidateArticleLists } from '@/lib/revalidateArticles'
+import { finalSlugForTransition, slugLockFor } from '@/lib/articleSlug'
 
 interface ScheduledPublishArticleResult {
   id: string
@@ -13,7 +14,7 @@ interface ScheduledPublishArticleResult {
 interface ScheduledPublishWarning {
   articleId: string
   title: string
-  stage: 'publish' | 'email' | 'notification' | 'achievement' | 'hidden-debate'
+  stage: 'publish' | 'email' | 'notification' | 'achievement' | 'hidden-debate' | 'audit'
   message: string
 }
 
@@ -51,7 +52,11 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
     // double-publish or send duplicate side effects for the same article.
     const summary = { id: article.id, title: article.title, slug: article.slug }
     let updated: { count: number }
+    let finalSlug: string | null = null
     try {
+      // An article scheduled while it still held its draft placeholder is published under an address
+      // built from its title (src/lib/articleSlug.ts), never under draft-<number>.
+      finalSlug = await finalSlugForTransition(prisma, article, 'PUBLISHED')
       updated = await prisma.article.updateMany({
         where: {
           id: article.id,
@@ -64,6 +69,8 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
           status: 'PUBLISHED',
           publishedAt: now,
           scheduledAt: null,
+          slugLockedAt: slugLockFor(article, 'PUBLISHED', now),
+          ...(finalSlug && { slug: finalSlug }),
         },
       })
     } catch (error) {
@@ -88,10 +95,23 @@ export async function publishScheduledArticles(now = new Date()): Promise<Schedu
       skipped.push(summary)
       continue
     }
+    if (finalSlug) {
+      summary.slug = finalSlug
+      try {
+        await prisma.auditLog.create({
+          data: {
+            action: 'article.slug_changed', targetType: 'article', targetId: article.id, performedBy: 'system:scheduler',
+            metadata: { before: article.slug, after: finalSlug, status: 'SCHEDULED', nextStatus: 'PUBLISHED', reason: 'publication', wasProvisional: true },
+          },
+        })
+      } catch (error) {
+        warnings.push({ articleId: article.id, title: article.title, stage: 'audit', message: error instanceof Error ? error.message : String(error) })
+      }
+    }
 
     if (article.author.email) {
       try {
-        const { subject, html } = articlePublishedEmail(article.title, article.slug)
+        const { subject, html } = articlePublishedEmail(article.title, summary.slug)
         const accepted = await sendEmail({ to: article.author.email, subject, html })
         if (!accepted) {
           warnings.push({

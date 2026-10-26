@@ -8,16 +8,17 @@
 | `/brand/consilium-mark-v2.png` | 512×512 PNG | Square logo: structured-data `publisher.logo`, anywhere a mark is needed |
 | `/logo.png` | 512×512 PNG | **Legacy address only.** Same bytes as the mark, kept for old links and caches. Never reference it. |
 | `/og/trading-challenge.png` | 1200×630 PNG | Campaign card, `/trading-challenge` only |
-| `src/app/icon.png`, `src/app/apple-icon.png`, `public/favicon-*`, `public/apple-touch-icon.png`, `public/favicon.ico` | — | Favicons and touch icons (unchanged; already the current emblem) |
+| `src/app/favicon.ico`, `src/app/icon1.png`, `src/app/icon2.png`, `src/app/apple-icon.png`, `public/apple-touch-icon.png`, `public/brand/app-icon-*-v1.png` | 16–512 px PNG/ICO | Favicons, iOS home-screen icon and manifest icons: opaque navy squares (`#14213e`) with the emblem centred, no transparency |
 
 `src/lib/brand.ts` is the only place that names these paths. Metadata comes from the helpers in
 `src/lib/seo.ts` (`pageOpenGraph`, `pageTwitter`, `articleShareImages`), never from hand-written objects:
 Next merges metadata shallowly, so a partial `openGraph` or `twitter` object silently drops the image.
 
-The source of truth for the artwork is the navy-and-gold emblem, `src/app/icon.png`. To regenerate:
+The source of truth for the artwork is the navy-and-gold emblem, `public/brand/consilium-mark-v2.png`. To regenerate:
 
 ```sh
-node scripts/brand/generate-brand-assets.mjs   # needs network once, for Google Fonts
+node scripts/brand/generate-brand-assets.mjs   # share card + /logo.png; needs network once, for Google Fonts
+node scripts/brand/generate-app-icons.mjs      # favicons, apple-icon, manifest icons
 ```
 
 A new design goes to a new path (`consilium-share-v3.png`) and `brand.ts` is updated. Do not overwrite a

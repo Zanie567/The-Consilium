@@ -2,11 +2,14 @@ import { TESTING_COOKIE } from '@/lib/testingSessionConstants'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+import { articleSlugFromPath } from '@/lib/articleRedirectPath'
 
 // The testing-workspace checks need the database (src/lib/testingMode.ts imports Prisma, which
 // builds a client as soon as it loads). Load them only when testing mode is on, so a production
 // proxy instance never pays to start a database client it cannot use.
 const loadTestingMode = () => import('@/lib/testingMode')
+// Same for the retired-article-address lookup (Prisma): loaded only for `/articles/<slug>` requests.
+const loadArticleRedirects = () => import('@/lib/articleRedirects')
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 const PUBLIC_API_PREFIXES = [
@@ -67,6 +70,19 @@ export async function proxy(request: NextRequest) {
       return NextResponse.json({ error: 'Testing workspace is not safely configured.', code: 'TESTING_UNAVAILABLE' }, { status: 503 })
     }
   }
+
+  // A retired article address (approved slug migration) answers with a permanent, server-side 301 to the
+  // article's current address, keeping any query string. See src/lib/articleRedirects.ts.
+  if (request.method === 'GET' || request.method === 'HEAD') {
+    const oldSlug = articleSlugFromPath(pathname)
+    const current = oldSlug ? await (await loadArticleRedirects()).resolveArticleRedirect(oldSlug) : null
+    if (current) {
+      // A fresh URL (not a clone of nextUrl, which would keep a trailing slash and cost a second redirect).
+      const target = new URL(`/articles/${encodeURIComponent(current)}${request.nextUrl.search}`, request.url)
+      return NextResponse.redirect(target, 301)
+    }
+  }
+
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET }).catch(() => null)
 
   // Ban enforcement

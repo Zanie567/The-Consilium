@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 const { db, verifyUser, invalidate } = vi.hoisted(() => ({
   db: {
     article: { findUnique: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
+    articleSlugRedirect: { findUnique: vi.fn(async () => null) },
     $transaction: vi.fn(),
   },
   verifyUser: vi.fn(),

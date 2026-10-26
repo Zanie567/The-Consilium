@@ -35,10 +35,12 @@ FIRST_UNAPPLIED=20261018002859
 # refuses to run without a Vault secret and a recorded successful invocation. It is still
 # recorded in the registry below, as on production.
 SKIP_MIGRATIONS=" 20261007120100_scheduler_cron_enable_publish.sql "
-# Pending migrations that create tables, columns or types for Prisma models: `prisma db push`
-# already creates those objects, which production does not have yet. Their documented rollback
-# removes exactly them, so the production copy matches production. Drop an entry once its
-# migration is applied on production (and raise FIRST_UNAPPLIED past it).
+# `prisma db push` builds the CURRENT schema, which can include objects production only gets from a migration
+# that is applied after the documented rollouts below. "production" must not have them yet (prisma creates them
+# without the migration's RLS and triggers). Each one is removed again here and rehearsed after the rollouts.
+PRODUCTION_PENDING_SCHEMA='DROP TABLE IF EXISTS article_slug_redirects; ALTER TABLE articles DROP COLUMN IF EXISTS "slugLockedAt";'
+# Same for pending migrations whose documented rollback removes exactly what they add (the newsletter's).
+# Drop an entry once its migration is applied on production (and raise FIRST_UNAPPLIED past it).
 AHEAD_OF_PRODUCTION_ROLLBACKS="supabase/manual/20261026120000_newsletter_subscriptions_rollback.sql"
 
 if ! supabase status --workdir "$WORKDIR" >/dev/null 2>&1; then
@@ -82,6 +84,7 @@ prepare() {
       "INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES ('$version', '${name#*_}')" >/dev/null
   done
   if [ "$1" = production ]; then
+    psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$PRODUCTION_PENDING_SCHEMA" >/dev/null
     for rollback in $AHEAD_OF_PRODUCTION_ROLLBACKS; do
       echo "→ [$1] removing what prisma db push created ahead of production ($(basename "$rollback"))"
       psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f "$rollback" >/dev/null
@@ -163,8 +166,28 @@ prepare production
 psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f tests/data-api/fixtures/rehearsal-content.sql >/dev/null
 rehearse docs/launch/production 20261018002859 'public-access hardening verified' || STATUS=1
 rehearse docs/security/production '20261022120000 20261022120100' 'data api privileges verified' || STATUS=1
-# Production order: #155's and #156's preflights expect exactly 25 and 26 registry rows, so the
-# newsletter migration goes last (its own preflight accepts any count).
+
+# Next in line: permanent article addresses (docs/seo/article-url-migration.md). Applied in one transaction, twice
+# (repeatable), then nothing new may be reachable through the Data API.
+echo "→ rehearsing 20261024120000 (article slug redirects) after the rollouts above"
+slug_ok=1
+for attempt in 1 2; do
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -q -1 -f supabase/migrations/20261024120000_article_slug_redirects.sql >/dev/null 2>&1 || slug_ok=0
+done
+out="$(psql "$DB_URL" -X -A -t -v ON_ERROR_STOP=1 -c "
+  SELECT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.article_slug_redirects'::regclass)
+     AND NOT EXISTS (SELECT 1 FROM pg_class c, aclexplode(c.relacl) a WHERE c.oid = 'public.article_slug_redirects'::regclass
+                     AND a.grantee IN ('anon'::regrole, 'authenticated'::regrole, 0::oid))
+     AND NOT has_function_privilege('anon', 'public.guard_article_slug()', 'EXECUTE')
+     AND NOT has_function_privilege('anon', 'public.protect_article_slug_redirect()', 'EXECUTE')
+     AND NOT has_function_privilege('authenticated', 'public.guard_article_slug()', 'EXECUTE')
+     AND (SELECT count(*) FROM pg_class WHERE relnamespace = 'public'::regnamespace AND relkind IN ('r','p') AND NOT relrowsecurity) = 0
+     AND (SELECT count(*) FROM pg_trigger WHERE tgname IN ('articles_slug_guard','article_slug_redirects_guard')) = 2" 2>&1)" || slug_ok=0
+[ "$slug_ok" = 1 ] && [ "$out" = t ] && echo "  ✓ 20261024120000: applies twice, RLS on, no API grants, trigger functions not callable" \
+  || { echo "✗ 20261024120000 rehearsal failed: $out" >&2; STATUS=1; }
+
+# Production order: #155, #156, #177's slug migration (above), #178's publisher repoint (no table change), then the
+# newsletter migration last: its preflight requires #155/#156 and no newer recorded version.
 rehearse_newsletter || STATUS=1
 
 if [ "${DATA_API_STOP:-0}" = 1 ]; then
