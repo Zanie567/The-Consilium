@@ -35,9 +35,17 @@ Never redirect between the hosts in application code: Vercel's domain redirect r
 
 1. **Vercel → Domains:** edit `theconsilium.co.uk` and remove its redirect, so **both hosts serve** the site.
    Check: `curl -sI https://theconsilium.co.uk/ | head -1` → 200, and the same for `www`.
-2. **Supabase (SQL):** apply `supabase/migrations/20261025120000_publish_cron_apex_host.sql` in one transaction,
-   then record it: `supabase migration repair --status applied 20261025120000 --linked`. Then wait for the next
-   5-minute run and check:
+2. **Supabase (SQL):** after #177's schema step (registry 29) and only once step 1 is done, with the guarded files in
+   `docs/seo/production-domain/` (same pattern as #155/#156/#177; session set-up of
+   `docs/corrections/PRODUCTION-RUNBOOK.md`, password never on a command line):
+   ```bash
+   psql -X -v ON_ERROR_STOP=1 -f docs/seo/production-domain/preflight.sql   # 13 checks ok = t; note the expected publisher fingerprint
+   psql -X -v ON_ERROR_STOP=1 -f docs/seo/production-domain/apply.sql       # "publisher host verified ..." and COMMIT
+   supabase migration repair --status applied 20261025120000                 # registry 29 -> 30
+   psql -X -v ON_ERROR_STOP=1 -f docs/seo/production-domain/verify.sql      # 8 checks ok = t; fingerprint = the preflight's prediction
+   ```
+   `apply.sql` proves that only the URL inside `public.invoke_publish_scheduled()` changed (owner, SECURITY DEFINER,
+   `search_path`, grants and every cron job identical). Then wait for the next 5-minute run and check:
    `SELECT status_code, outcome FROM public.scheduler_invocations ORDER BY invoked_at DESC LIMIT 3;` → `200 / success`.
 3. **Vercel → Environment variables (Production):** set `NEXTAUTH_URL` = `https://theconsilium.co.uk`.
 4. **Merge this PR.** That deploys with the new `NEXTAUTH_URL` and points the GitHub workflows at the apex.
@@ -59,7 +67,8 @@ Never redirect between the hosts in application code: Vercel's domain redirect r
 
 * Steps 6/1: in Vercel, remove the `www` redirect and restore apex → `www`.
 * Step 3: set `NEXTAUTH_URL` back to `https://www.theconsilium.co.uk` and redeploy.
-* Step 2: `supabase/manual/20261025120000_publish_cron_apex_host_rollback.sql`.
+* Step 2: `supabase/manual/20261025120000_publish_cron_apex_host_rollback.sql` (restores the exact previous definition),
+  then remove the registry row: `DELETE FROM supabase_migrations.schema_migrations WHERE version = '20261025120000';`.
 * Step 4: revert this PR (the workflows return to `www`).
 
 Undo them in the reverse order (6 → 1). The site keeps working at every point as long as each host a machine
