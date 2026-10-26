@@ -18,6 +18,8 @@ assertSafeTestDatabaseHost(base, 'TEST_DATABASE_URL')
 const read = (path: string) => readFileSync(path, 'utf8')
 const BEFORE = read('tests/fixtures/schema-before-newsletter.sql')
 const IDENTITY = read('supabase/migrations/20261006161413_normalized_subscriber_email.sql')
+// apply.sql requires #155 and #156 to be recorded first, as on production since 2026-10-26.
+const PREREQUISITE_ROWS = "('20261018002859', 'launch_public_access_hardening'), ('20261022120000', 'data_api_function_sequence_privileges'), ('20261022120100', 'article_images_bucket')"
 const MIGRATION = read('supabase/migrations/20261026120000_newsletter_subscriptions.sql')
 const ROLLBACK = read('supabase/manual/20261026120000_newsletter_subscriptions_rollback.sql')
 const TABLES = ['subscribers', 'subscriber_tokens', 'subscriber_consent_events', 'newsletter_suppressions', 'newsletter_campaigns', 'newsletter_webhook_events']
@@ -241,7 +243,8 @@ describe('interrupted migration attempts', () => {
   it.skipIf(!psqlAvailable)('apply.sql: guarded first apply; refuses a partial schema unless resume=1, which then verifies the end state', async () => {
     await withDatabase(async (client) => {
       await productionShaped(client)
-      await client.query(`CREATE SCHEMA supabase_migrations; CREATE TABLE supabase_migrations.schema_migrations (version text PRIMARY KEY, name text, statements text[])`)
+      await client.query(`CREATE SCHEMA supabase_migrations; CREATE TABLE supabase_migrations.schema_migrations (version text PRIMARY KEY, name text, statements text[]);
+        INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES ${PREREQUISITE_ROWS}`)
       const url = new URL(base)
       url.pathname = `/${client.database}`
       // A partial, non-transactional run stopped half-way.
@@ -256,7 +259,8 @@ describe('interrupted migration attempts', () => {
     })
     await withDatabase(async (client) => {
       await productionShaped(client)
-      await client.query(`CREATE SCHEMA supabase_migrations; CREATE TABLE supabase_migrations.schema_migrations (version text PRIMARY KEY, name text, statements text[])`)
+      await client.query(`CREATE SCHEMA supabase_migrations; CREATE TABLE supabase_migrations.schema_migrations (version text PRIMARY KEY, name text, statements text[]);
+        INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES ${PREREQUISITE_ROWS}`)
       const url = new URL(base)
       url.pathname = `/${client.database}`
       const first = runApply(url.href, false)
