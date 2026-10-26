@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Regenerates The Consilium's static brand assets from the one approved source:
- * the navy-and-gold emblem at src/app/icon.png.
+ * the navy-and-gold emblem at public/brand/consilium-mark-v2.png.
  *
  *   public/og/consilium-share-v2.png   1200×630 default social-sharing image
  *   public/brand/consilium-mark-v2.png  512×512 square brand mark (the emblem, unchanged)
@@ -25,7 +25,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const EMBLEM = path.join(ROOT, 'src/app/icon.png')
+const EMBLEM = path.join(ROOT, 'public/brand/consilium-mark-v2.png')
 const SHARE_OUT = path.join(ROOT, 'public/og/consilium-share-v2.png')
 const MARK_OUT = path.join(ROOT, 'public/brand/consilium-mark-v2.png')
 const LOGO_OUT = path.join(ROOT, 'public/logo.png')
@@ -135,7 +135,6 @@ await sharp(raw)
 
 // The square mark is the approved emblem byte for byte; re-encoding it would only risk drift.
 await fs.mkdir(path.dirname(MARK_OUT), { recursive: true })
-await fs.copyFile(EMBLEM, MARK_OUT)
 await fs.copyFile(EMBLEM, LOGO_OUT)
 
 for (const file of [SHARE_OUT, MARK_OUT, LOGO_OUT]) {
