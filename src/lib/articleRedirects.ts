@@ -17,16 +17,7 @@ type RedirectDb = Pick<typeof prisma, 'articleSlugRedirect'>
 /** How long one server instance reuses the redirect table it read. */
 export const REDIRECT_MAP_TTL_MS = 60_000
 
-/** The slug in `/articles/<slug>` (with or without a trailing slash), or null for any other path. */
-export function articleSlugFromPath(pathname: string): string | null {
-  const match = /^\/articles\/([^/]+)\/?$/.exec(pathname)
-  if (!match) return null
-  try {
-    return decodeURIComponent(match[1])
-  } catch {
-    return null
-  }
-}
+export { articleSlugFromPath } from '@/lib/articleRedirectPath'
 
 /** Every retired address whose article is public, mapped to that article's current address. */
 export async function loadArticleRedirectMap(db: RedirectDb = prisma): Promise<Map<string, string>> {
