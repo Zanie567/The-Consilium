@@ -425,7 +425,7 @@ test.describe('scheduling from the editor', () => {
     await ed.typeBody('To be scheduled.')
     const { id } = await ed.saveNow()
     await page.waitForLoadState('networkidle')
-    const slug = (await articleByTitle(title))!.slug
+    expect((await articleByTitle(title))!.slug, 'a draft holds a placeholder address').toMatch(/^draft-\d+$/)
     const writes: string[] = []
     page.on('request', (r) => { if (/\/api\/articles\/[^/?]+$/.test(r.url()) && ['PUT', 'PATCH'].includes(r.method())) writes.push(r.postData() ?? '') })
     const panel = page.locator('aside', { has: page.getByPlaceholder('Add a tag, press Enter...') })
@@ -459,9 +459,12 @@ test.describe('scheduling from the editor', () => {
     await page.getByRole('button', { name: 'Schedule', exact: true }).click()
     await confirmPublicChange(page, 'Schedule')
     await expect.poll(async () => (await articleByTitle(title))!.status).toBe('SCHEDULED')
-    const first = (await articleByTitle(title))!.scheduledAt!
+    const scheduled = (await articleByTitle(title))!
+    const first = scheduled.scheduledAt!
+    // Scheduling gives it its permanent, title-based address ahead of publication; it is still not public.
+    expect(scheduled.slug).toBe(title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''))
     const anon = await signedIn(browser, null)
-    expect((await anon.request.get(`/articles/${slug}`)).status(), 'scheduled is not public').toBe(404)
+    expect((await anon.request.get(`/articles/${scheduled.slug}`)).status(), 'scheduled is not public').toBe(404)
 
     // Ordinary edits keep it scheduled for the same time.
     await ed.moveToEnd()

@@ -34,7 +34,8 @@
     "testing:workspace": "INTERACTIVE_TEST_WORKSPACE=1 bash scripts/run-e2e.sh",
     "testing:seed": "ts-node -P tsconfig.seed.json scripts/seed-testing-workspace.ts",
     "appointments:backfill": "ts-node -P tsconfig.seed.json scripts/backfill-public-appointments.ts",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "slugs:migrate": "ts-node -P tsconfig.seed.json scripts/migrate-article-slugs.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

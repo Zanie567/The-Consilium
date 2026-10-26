@@ -221,7 +221,7 @@ test('the live-article editor offers Manage corrections and never autosaves the 
   await expect(page.getByRole('link', { name: 'Manage corrections' }).first()).toHaveAttribute('href', `/editorial/articles/${article.id}/corrections`)
   // The address and byline of a live article are locked here (byline corrections go through Manage corrections).
   const settings = page.locator('aside').filter({ has: page.getByText('URL Slug') })
-  await expect(settings.locator('input[placeholder="url-slug"]')).toBeDisabled()
+  await expect(settings.getByRole('textbox', { name: 'Web address (slug)' })).toBeDisabled()
   await expect(settings.getByText('The address of a published article is fixed')).toBeVisible()
   const byline = settings.getByRole('combobox', { name: 'Author', exact: true })
   if (await byline.count()) await expect(byline).toBeDisabled()

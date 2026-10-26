@@ -14,6 +14,11 @@ const TITLE = uniqueTitle('mobile')
 let articleId = ''
 let slug = ''
 
+/** The article's current address: a draft's placeholder becomes its title address when it is submitted. */
+const currentSlug = async () => (await articleByTitle(TITLE))!.slug
+/** What the title produces (src/lib/articleSlug.ts) for these plain WF titles. */
+const titleSlug = () => TITLE.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
 test.afterAll(async () => {
   await removeMyArticles()
   await closeDb()
@@ -54,6 +59,8 @@ test('a writer writes, sets the document options in the settings sheet, and subm
   expect(saved.status()).toBe(200)
   const row = await articleByTitle(TITLE)
   slug = row!.slug
+  // Autosave never fixes the address: a draft holds a placeholder until it is submitted (src/lib/articleSlug.ts).
+  expect(slug).toMatch(/^draft-\d+$/)
   expect(row!.categoryId).not.toBeNull()
   expect(row!.tags.map((t) => t.tag.name)).toEqual(['mobile'])
 
@@ -96,7 +103,10 @@ test('the published article reads properly on a phone', async ({ browser }) => {
   const ctx = await signedIn(browser, null)
   const page = await ctx.newPage()
   const errors = collectConsoleErrors(page)
-  await page.goto(`/articles/${slug}`, { waitUntil: 'networkidle' })
+  // Published under the address built from its title, not the draft placeholder (which was never public).
+  expect(await currentSlug()).toBe(titleSlug())
+  expect((await ctx.request.get(`/articles/${slug}`)).status()).toBe(404)
+  await page.goto(`/articles/${await currentSlug()}`, { waitUntil: 'networkidle' })
   await expect(page.locator('h1')).toContainText(TITLE)
   await expect(page.locator('.prose-consilium')).toContainText('Written on a phone.')
   await noSidewaysScroll(page, 'the published article')

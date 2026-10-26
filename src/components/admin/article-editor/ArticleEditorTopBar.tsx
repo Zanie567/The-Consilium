@@ -65,7 +65,7 @@ export function ArticleEditorTopBar({ editor }: ArticleEditorTopBarProps) {
 
       {editor.articleId && editor.status === 'PUBLISHED' && (
         <a
-          href={`/articles/${editor.slug}`}
+          href={`/articles/${editor.savedSlug}`}
           target="_blank"
           rel="noopener noreferrer"
           className="hidden md:inline-flex shrink-0 items-center gap-1 text-[var(--fg-muted)] text-[12px] px-2.5 h-8 rounded border border-[var(--border)] hover:border-gold hover:text-gold transition-colors"

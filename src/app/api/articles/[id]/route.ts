@@ -21,10 +21,12 @@ import { apiError, articleMutationErrorResponse } from '@/lib/apiResponse'
 import { ARTICLE_SAVE_TIMEOUT_MS, normalizeArticleTags } from '@/lib/articleTags'
 import { articleVersion } from '@/lib/articleVersion'
 import { withTransactionRetry } from '@/lib/transactionRetry'
+import { finalSlugForTransition, isProvisionalSlug, isSlugAvailable, isSlugLocked, slugLockFor, uniqueProvisionalSlug, validateCustomSlug } from '@/lib/articleSlug'
 import type { ArticleStatus } from '@prisma/client'
 
 // Reader-facing fields of a live article that change only through a declared copy edit (audited) or a
-// correction. Slug and byline are stricter: locked while the article is published (see the PUT handler).
+// correction. Slug and byline are stricter: the slug is locked once the article has ever been published, the
+// byline while it is published (see the PUT handler).
 const PUBLISHED_TEXT_FIELDS = ['title', 'excerpt', 'content', 'coverImage'] as const
 type PublishedTextField = (typeof PUBLISHED_TEXT_FIELDS)[number]
 
@@ -287,16 +289,48 @@ async function PUTHandler(
     //     is recorded with before/after text in the audit log in the same transaction.
     // An unclassified change is refused, so autosave or a script cannot silently rewrite a live article.
     const liveBefore = existing.status === 'PUBLISHED'
-    // A published article's address is fixed: links, shares, bookmarks and search results point at it, and there is
-    // no redirect from an old slug. Unpublish first to change it deliberately (audited below).
-    if (liveBefore && typeof slug === 'string' && slug !== existing.slug) {
-      return apiError(
-        'The web address of a published article cannot be changed: existing links would break.',
-        409,
-        'PUBLISHED_SLUG_LOCKED',
-        requestId
-      )
+    // The web address (src/lib/articleSlug.ts). An absent or empty slug means "leave it": autosave never
+    // derives one from a half-typed headline. A typed one is normalised and validated. Once the article has
+    // been published its address is permanent: links, shares, bookmarks and search results point at it, and
+    // only the approved migration (scripts/migrate-article-slugs.ts, which records a 301) may change it.
+    let nextSlug = existing.slug
+    let slugReason: 'editor' | 'publication' | 'placeholder' | null = null
+    // Only editors and administrators choose addresses (writers' clients still send one; it is ignored).
+    // Resending the stored address (older clients send it on every save) is never a change.
+    if (isAdminOrEditor && typeof slug === 'string' && slug.trim() && slug.trim() !== existing.slug) {
+      const chosen = validateCustomSlug(slug)
+      if (!chosen.ok || chosen.slug !== existing.slug) {
+        if (isSlugLocked(existing)) {
+          return apiError(
+            'The web address of a published article cannot be changed: existing links would break.',
+            409,
+            'PUBLISHED_SLUG_LOCKED',
+            requestId
+          )
+        }
+        if (!chosen.ok) return apiError(chosen.error, 400, 'INVALID_SLUG', requestId)
+        if (!(await isSlugAvailable(prisma, chosen.slug, id))) {
+          return apiError('Another article already uses this web address. Choose a different one.', 409, 'SLUG_CONFLICT', requestId)
+        }
+        nextSlug = chosen.slug
+        slugReason = 'editor'
+      }
     }
+    if (!slugReason && !existing.slug && !isSlugLocked(existing)) {
+      // Repairs a draft that an earlier build saved with an empty address.
+      nextSlug = await uniqueProvisionalSlug(prisma)
+      slugReason = 'placeholder'
+    }
+    const finalisedSlug = await finalSlugForTransition(
+      prisma,
+      { id, slug: nextSlug, title: typeof title === 'string' ? title : existing.title, slugLockedAt: existing.slugLockedAt, status: existing.status },
+      finalStatus
+    )
+    if (finalisedSlug && finalisedSlug !== nextSlug) {
+      nextSlug = finalisedSlug
+      slugReason = 'publication'
+    }
+    const now = new Date()
     // A byline on a live article is a matter of record: changing it is a correction, made in Manage corrections
     // together with a public note, never a silent save.
     if (liveBefore && isAdminOrEditor && typeof bodyAuthorId === 'string' && bodyAuthorId && bodyAuthorId !== existing.authorId) {
@@ -350,7 +384,8 @@ async function PUTHandler(
         },
         data: {
           ...(title !== undefined && { title }),
-          ...(slug !== undefined && { slug }),
+          ...(nextSlug !== existing.slug && { slug: nextSlug }),
+          slugLockedAt: slugLockFor(existing, finalStatus, now),
           ...(content !== undefined && { content }),
           ...(excerpt !== undefined && { excerpt }),
           ...(coverImage !== undefined && { coverImage: coverImage || null }),
@@ -366,18 +401,21 @@ async function PUTHandler(
             ? null
             : existing.scheduledAt,
           publishedAt: wasPublished
-            ? new Date()
+            ? now
             : wasUnpublished
             ? null
             : existing.publishedAt,
         },
       })
 
-      if (typeof slug === 'string' && slug !== existing.slug) {
+      if (savedArticle.slug !== existing.slug) {
         await tx.auditLog.create({
           data: {
             action: 'article.slug_changed', targetType: 'article', targetId: id, performedBy: user.id,
-            metadata: { requestId, before: existing.slug, after: savedArticle.slug, status: existing.status, everPublished: existing.viewCount > 0 },
+            metadata: {
+              requestId, before: existing.slug, after: savedArticle.slug, status: existing.status, nextStatus: finalStatus,
+              reason: slugReason, wasProvisional: isProvisionalSlug(existing.slug),
+            },
           },
         })
       }

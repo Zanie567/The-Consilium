@@ -1,5 +1,6 @@
 import { articleShareUrl } from '@/lib/shareUrl'
 import { publishedArticleWhere } from '@/lib/articleQueries'
+import { findArticleRedirect } from '@/lib/articleRedirects'
 import { getPublicArticle as getArticle } from '@/lib/publicPageData'
 import { notFound, permanentRedirect } from 'next/navigation'
 import Link from 'next/link'
@@ -193,6 +194,10 @@ export default async function ArticlePage({ params }: Props) {
   ])
 
   if (!article) {
+    // A retired address (approved slug migration). The proxy normally answers it with a 301 first;
+    // this covers its short per-instance cache window.
+    const current = await findArticleRedirect(slug)
+    if (current) permanentRedirect(`/articles/${encodeURIComponent(current)}`)
     const target = await findDuplicateRedirectTarget(slug)
     if (target) permanentRedirect(`/articles/${target}`)
     notFound()

@@ -13,6 +13,7 @@ import { NextRequest } from 'next/server'
 import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server'
 
 const testingModule = vi.hoisted(() => ({ loads: 0 }))
+const redirectsModule = vi.hoisted(() => ({ loads: 0 }))
 vi.mock('next-auth/jwt', () => ({ getToken: vi.fn() }))
 vi.mock('@/lib/testingMode', () => {
   testingModule.loads += 1
@@ -24,6 +25,11 @@ vi.mock('@/lib/testingMode', () => {
   }
 })
 
+// The retired-article-address lookup (#177) imports Prisma; the proxy loads it only for /articles/<slug>.
+vi.mock('@/lib/articleRedirects', () => {
+  redirectsModule.loads += 1
+  return { resolveArticleRedirect: vi.fn(async () => null) }
+})
 import { getToken } from 'next-auth/jwt'
 import { config, proxy } from '@/proxy'
 
@@ -52,10 +58,17 @@ afterEach(() => vi.unstubAllEnvs())
 describe('module loading', () => {
   it('does not load the testing-mode module (and its database client) when testing mode is off', async () => {
     for (const path of ['/', '/editorial', '/api/admin/stats', '/api/comments']) await call(path)
+    expect(redirectsModule.loads).toBe(0)
     vi.mocked(getToken).mockResolvedValue(signedIn({ isBanned: true }))
     await call('/articles/x')
     expect(testingModule.loads).toBe(0)
   })
+
+  it('loads the article-redirect lookup (and its database client) only for /articles/<slug> paths', async () => {
+    // The test above requested /articles/x, so the lookup is loaded exactly once by now, and never before it.
+    expect(redirectsModule.loads).toBe(1)
+  })
+
 })
 
 describe('signed-out visitors', () => {
