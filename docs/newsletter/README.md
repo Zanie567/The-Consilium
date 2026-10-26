@@ -18,7 +18,7 @@ double opt-in, fail-closed and audited. Plan: [IMPLEMENTATION-PLAN.md](IMPLEMENT
 | Scheduler tick (hourly once activated) | `POST /api/cron/newsletter` |
 | Editorial UI | `/editorial/newsletter`, `/editorial/newsletter/[id]` |
 | Library | `src/lib/newsletter/*` (one module per concern; `campaigns.ts` documents the state machine) |
-| Schema | `supabase/migrations/20261023120000_newsletter_subscriptions.sql` (+ Prisma models) |
+| Schema | `supabase/migrations/20261026120000_newsletter_subscriptions.sql` (+ Prisma models) |
 
 Transactional mail (password resets, publishing notices, member invites, the confirmation and preference-link
 mails) still goes through `src/lib/email.ts` with `RESEND_API_KEY`, unchanged. Newsletter broadcasts go only
@@ -59,7 +59,7 @@ off, never "whatever another environment has".
 | `NEWSLETTER_REPLY_TO` | optional | e.g. the editors' address |
 | `NEWSLETTER_CRON_SECRET` | Production only, sensitive | ≥ 32 chars, `openssl rand -hex 32 \| tr -d '\n'`; same value as Vault `newsletter_cron_secret`. `CRON_SECRET` is also accepted. |
 | `NEWSLETTER_IP_HASH_SECRET` | optional, sensitive | Key for the consent-proof IP hash (falls back to `NEXTAUTH_SECRET`; with neither, no IP hash is stored) |
-| `NEXT_PUBLIC_SITE_URL` | Production | Must be `https://www.theconsilium.co.uk` for production sends (enforced) |
+| `NEXT_PUBLIC_SITE_URL` | Production | Must be `https://theconsilium.co.uk` (the canonical host) for production sends (enforced) |
 | `NEWSLETTER_ALLOW_NON_PRODUCTION_SEND` | never in Production/Preview of this project | `1` only for a dedicated staging deployment with its **own** Resend account |
 | `NEWSLETTER_VERIFY_LINKS` | optional | `1` forces the send-time HTTP 200 check of every article link outside production (always on in production) |
 
@@ -77,7 +77,7 @@ Preview deployments therefore can never broadcast, whatever variables they inher
 3. Create segment "Newsletter: confirmed" → `RESEND_NEWSLETTER_SEGMENT_ID`.
 4. Create topics "The Weekly Edition" and "Special-article alerts", both **default subscription opt-out** → topic ids.
 5. Create an API key with full access → `RESEND_MARKETING_API_KEY`. Keep `RESEND_API_KEY` a sending-only key.
-6. Webhook endpoint `https://www.theconsilium.co.uk/api/webhooks/resend` with events: `contact.updated`,
+6. Webhook endpoint `https://theconsilium.co.uk/api/webhooks/resend` (after #178's switch; www redirects) with events: `contact.updated`,
    `contact.deleted`, `email.delivered`, `email.bounced`, `email.complained`, `email.suppressed`
    (optionally `email.failed`) → signing secret into `RESEND_WEBHOOK_SECRET`.
 

@@ -57,7 +57,7 @@ or sent. Production activation is a separate, owner-approved checklist (see ROLL
    the site's own `publishedArticleWhere` + `publishedAt` in window + `publishedAt <= now − delay` + a
    buildable canonical link + not already in a sent weekly edition. Content = title, author, approved summary
    (the article's published excerpt, locked: editors add an introduction instead), https cover
-   image, canonical `https://www.theconsilium.co.uk/articles/<slug>` link. The tick auto-builds a DRAFT at
+   image, canonical `https://theconsilium.co.uk/articles/<slug>` link. The tick auto-builds a DRAFT at
    cut-off; it is sent only once approved (or if an admin enabled auto-send). Re-check at send: every article
    must still be public with the same slug/title/summary, else BLOCKED for re-approval.
 10. **Special alerts**: separate opt-in topic; one alert per article ever (unique key); caps: ≤1 per 7 days,
@@ -78,7 +78,7 @@ or sent. Production activation is a separate, owner-approved checklist (see ROLL
 
 ## Work items
 
-1. Migration `20261023120000_newsletter_subscriptions.sql` + Prisma models + migration test.
+1. Migration `20261026120000_newsletter_subscriptions.sql` + Prisma models + migration test.
 2. `src/lib/newsletter/*`: identity, tokens, config/guards, provider (Resend, capture, memory), subscriptions,
    sync/reconcile, edition (window, eligibility, render), campaigns (state machine, caps, send), webhooks, settings.
 3. Routes: subscribe (rewrite), confirm, preferences, unsubscribe, manage-link, webhook, cron tick,

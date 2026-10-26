@@ -1,11 +1,12 @@
 -- =============================================================================
 -- MANUAL, OWNER-APPROVED ACTIVATION: hourly newsletter tick from Supabase Cron.
 -- NOT a migration. Merging does not run it. Apply only at step R5 of docs/newsletter/ROLLOUT.md, after
--- 20261023120000 is applied, the code is deployed, and the Vault secret exists.
+-- 20261026120000 is applied, the code is deployed, the Vault secret exists, and #178's switch to the apex is done
+-- (20261025120000: the publisher already calls https://theconsilium.co.uk; www then redirects, which pg_net does not follow).
 -- =============================================================================
 --
 -- What it does: one pg_cron job, `newsletter-tick`, at minute 7 of every hour (UTC), calling
--- POST https://www.theconsilium.co.uk/api/cron/newsletter with `Authorization: Bearer <Vault newsletter_cron_secret>`
+-- POST https://theconsilium.co.uk/api/cron/newsletter with `Authorization: Bearer <Vault newsletter_cron_secret>`
 -- (= Vercel NEWSLETTER_CRON_SECRET, at least 32 characters, generated with `openssl rand -hex 32 | tr -d '\n'`).
 -- The secret never appears in cron.job or its logs: the job runs `select public.invoke_newsletter_tick()`.
 -- The tick is idempotent and fail-closed (paused by default, sends only approved campaigns), so an extra or
@@ -22,7 +23,13 @@ BEGIN
     RAISE EXCEPTION 'pg_cron and pg_net must be installed (20261007120000_scheduler_cron_infrastructure.sql)';
   END IF;
   IF to_regclass('public.newsletter_campaigns') IS NULL THEN
-    RAISE EXCEPTION 'apply 20261023120000_newsletter_subscriptions.sql first';
+    RAISE EXCEPTION 'apply 20261026120000_newsletter_subscriptions.sql first';
+  END IF;
+  -- Same host as the article publisher, which #178 (20261025120000) moved to the apex. Refuse until then:
+  -- before the switch the apex redirects to www, and pg_net does not follow redirects.
+  IF to_regprocedure('public.invoke_publish_scheduled()') IS NULL
+     OR position('https://theconsilium.co.uk/api/publish-scheduled' IN pg_get_functiondef('public.invoke_publish_scheduled()'::regprocedure)) = 0 THEN
+    RAISE EXCEPTION 'the article publisher does not call https://theconsilium.co.uk yet: finish #178 (docs/seo/primary-domain-switch.md) first';
   END IF;
   IF to_regclass('vault.secrets') IS NULL OR NOT EXISTS (SELECT 1 FROM vault.secrets WHERE name = 'newsletter_cron_secret') THEN
     RAISE EXCEPTION 'create the Vault secret "newsletter_cron_secret" first (same value as Vercel NEWSLETTER_CRON_SECRET)';
@@ -46,7 +53,7 @@ BEGIN
     RETURN NULL;
   END IF;
   SELECT net.http_post(
-    url                  := 'https://www.theconsilium.co.uk/api/cron/newsletter',
+    url                  := 'https://theconsilium.co.uk/api/cron/newsletter',
     body                 := '{}'::jsonb,
     headers              := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer ' || v_secret),
     timeout_milliseconds := 120000

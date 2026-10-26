@@ -1,5 +1,5 @@
 /**
- * Migration 20261023120000 on a database shaped like production before this work (Prisma DDL of
+ * Migration 20261026120000 on a database shaped like production before this work (Prisma DDL of
  * origin/main plus the earlier identity migration), with historical subscribers and Supabase-style API
  * grants. Proves: additive, idempotent, no re-consent of historical rows, old code keeps working, RLS/grants
  * locked down, identical shape to a `prisma db push` database, and the rollback restores the old shape
@@ -18,8 +18,8 @@ assertSafeTestDatabaseHost(base, 'TEST_DATABASE_URL')
 const read = (path: string) => readFileSync(path, 'utf8')
 const BEFORE = read('tests/fixtures/schema-before-newsletter.sql')
 const IDENTITY = read('supabase/migrations/20261006161413_normalized_subscriber_email.sql')
-const MIGRATION = read('supabase/migrations/20261023120000_newsletter_subscriptions.sql')
-const ROLLBACK = read('supabase/manual/20261023120000_newsletter_subscriptions_rollback.sql')
+const MIGRATION = read('supabase/migrations/20261026120000_newsletter_subscriptions.sql')
+const ROLLBACK = read('supabase/manual/20261026120000_newsletter_subscriptions_rollback.sql')
 const TABLES = ['subscribers', 'subscriber_tokens', 'subscriber_consent_events', 'newsletter_suppressions', 'newsletter_campaigns', 'newsletter_webhook_events']
 
 async function withDatabase(run: (client: Client) => Promise<void>) {

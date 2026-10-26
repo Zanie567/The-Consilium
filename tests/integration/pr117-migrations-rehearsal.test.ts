@@ -80,7 +80,7 @@ const LATER_MIGRATIONS: { file: string; adds: string[] }[] = [
       .flatMap((m) => m.fields.filter((f) => f.kind !== 'object').map((f) => `${m.dbName}.${f.dbName ?? f.name}`)),
   },
   {
-    file: '20261023120000_newsletter_subscriptions',
+    file: '20261026120000_newsletter_subscriptions',
     adds: [
       ...['status', 'weeklyDigest', 'specialAlerts', 'confirmedAt', 'consentSource', 'consentVersion', 'consentIpHash', 'preferencesUpdatedAt',
         'unsubscribedAt', 'unsubscribeSource', 'suppressedAt', 'suppressionReason', 'resendContactId', 'resendSyncState', 'resendSyncedAt',
@@ -315,7 +315,7 @@ suite('PR #117 migrations on a production-shaped database', () => {
     await withDatabase(async ({ client, url }) => {
       await applyAll(client)
       // Today's sign-up code also needs the newsletter consent schema (a later, separately applied migration).
-      await client.query(migration('20261023120000_newsletter_subscriptions'))
+      await client.query(migration('20261026120000_newsletter_subscriptions'))
       const { db, subscribe, resolveArticleTag } = await loadApp(url)
       try {
         // sign-up: a double opt-in request (202); the same address in another case/spacing gets the same answer

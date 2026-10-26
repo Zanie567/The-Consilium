@@ -39,7 +39,7 @@ SKIP_MIGRATIONS=" 20261007120100_scheduler_cron_enable_publish.sql "
 # already creates those objects, which production does not have yet. Their documented rollback
 # removes exactly them, so the production copy matches production. Drop an entry once its
 # migration is applied on production (and raise FIRST_UNAPPLIED past it).
-AHEAD_OF_PRODUCTION_ROLLBACKS="supabase/manual/20261023120000_newsletter_subscriptions_rollback.sql"
+AHEAD_OF_PRODUCTION_ROLLBACKS="supabase/manual/20261026120000_newsletter_subscriptions_rollback.sql"
 
 if ! supabase status --workdir "$WORKDIR" >/dev/null 2>&1; then
   echo "→ starting the disposable local Supabase stack"
@@ -120,17 +120,15 @@ rehearse() {
   echo "  ✓ $version: preflight ok, apply verified, registry recorded, verify ok, content unchanged, re-apply refused"
 }
 
-# Rows of a newsletter preflight/verify (check|value|expect) whose expectation is a definite value
-# (true, false or a number, optionally followed by a comment) and do not match. Rows marked
-# "informational", and other free-text expectations, are read by the operator.
+# Failing rows of a newsletter preflight/verify: rows are check | value | expect | ok, as in the #155/#156 files.
 newsletter_mismatches() {
-  awk -F'|' 'NF >= 3 && $3 !~ /informational/ && $3 ~ /^(true|false|[0-9]+)( |$)/ { split($3, e, " "); if ($2 != e[1]) print }'
+  awk -F'|' 'NF == 4 && $4 != "t"'   # check | value | expect | ok, like the #155/#156 files
 }
 
 # The newsletter rollout (docs/newsletter/ROLLOUT.md R1-R2) on the state the security rollouts left:
 # preflight, verified apply, registry repair, verify, unchanged subscriber fingerprint, refused re-apply.
 rehearse_newsletter() {
-  local dir=docs/newsletter/production version=20261023120000 out before after bad
+  local dir=docs/newsletter/production version=20261026120000 out before after bad
   psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "INSERT INTO subscribers (id, email) VALUES
     ('rehearsal-subscriber-1', 'reader.one@example.com'), ('rehearsal-subscriber-2', 'reader.two@example.com')" >/dev/null
   out="$(psql "$DB_URL" -X -A -t -F '|' -v ON_ERROR_STOP=1 -f "$dir/preflight.sql")"

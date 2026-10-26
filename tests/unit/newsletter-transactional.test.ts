@@ -71,7 +71,7 @@ describe('confirmation mail is transactional', () => {
       RESEND_NEWSLETTER_SEGMENT_ID: 'seg',
       RESEND_TOPIC_WEEKLY_ID: 'tw',
       RESEND_TOPIC_ALERTS_ID: 'ta',
-      NEXT_PUBLIC_SITE_URL: 'https://www.theconsilium.co.uk',
+      NEXT_PUBLIC_SITE_URL: 'https://theconsilium.co.uk',
     })
     expect(resolveDelivery().mode).toBe('resend')
     await subscribe(request('reader2@example.com'))

@@ -20,7 +20,7 @@ export function normaliseEmail(value: unknown): string | null {
 
 /**
  * Stable, non-reversible key for consent and suppression records that must outlive the subscriber row.
- * Matches the SQL in migration 20261023120000:
+ * Matches the SQL in migration 20261026120000:
  *   encode(sha256(convert_to('consilium-newsletter:v1:' || identity, 'UTF8')), 'hex')
  */
 export function emailHash(identity: string): string {

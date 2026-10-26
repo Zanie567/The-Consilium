@@ -34,7 +34,7 @@ describe('address identity', () => {
   it('hashes with the same recipe as the migration SQL', () => {
     const expected = createHash('sha256').update('consilium-newsletter:v1:reader@example.com').digest('hex')
     expect(emailHash('reader@example.com')).toBe(expected)
-    const sql = readFileSync('supabase/migrations/20261023120000_newsletter_subscriptions.sql', 'utf8')
+    const sql = readFileSync('supabase/migrations/20261026120000_newsletter_subscriptions.sql', 'utf8')
     expect(sql).toContain("sha256(convert_to('consilium-newsletter:v1:' || public.consilium_subscriber_identity(s.\"email\"), 'UTF8'))")
   })
 
@@ -109,6 +109,8 @@ describe('delivery guard (staging isolation and separate credentials)', () => {
     ['a foreign sender', { NEWSLETTER_FROM: 'News <news@example.com>' }, /theconsilium\.co\.uk/],
     ['links to a preview host', { NEXT_PUBLIC_SITE_URL: 'https://the-consilium-git-x.vercel.app' }, /must link to/],
     ['plain http links', { NEXT_PUBLIC_SITE_URL: 'http://www.theconsilium.co.uk' }, /https/],
+    // The canonical host is the apex (production NEXT_PUBLIC_SITE_URL, canonical tags, sitemap): www only redirects.
+    ['links to the www host', { NEXT_PUBLIC_SITE_URL: 'https://www.theconsilium.co.uk' }, /must link to https:\/\/theconsilium\.co\.uk/],
   ])('refuses %s', (_label, override, reason) => {
     const result = resolveDelivery({ ...production, ...override } as Record<string, string | undefined>)
     expect(result.mode).toBe('disabled')

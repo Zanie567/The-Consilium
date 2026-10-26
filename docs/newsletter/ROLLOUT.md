@@ -5,10 +5,12 @@ secrets, schedules jobs or sends. Stop at any red result; each step lists its ro
 
 ## R0. Review (no production contact)
 
-- [ ] Order with the security SQL: #155, #156 and #158 are merged (23 October). Apply #155's production SQL and
-      then #156's **before** this migration: their preflights expect exactly 25 and 26 registry rows and stop on
-      anything else, while this migration's preflight accepts any count. `scripts/db/data-api-harness.sh` rehearses
-      the three rollouts in that order on a copy of production's state.
+- [ ] Order: #155 and #156 (applied 2026-10-26), then #177's schema step and #178's publisher step, then this
+      migration (renumbered to 20261026120000 so the registry stays in version order). #177's and #178's preflights
+      expect exact registry counts, so this one goes last; its own preflight requires #155/#156 and no newer version.
+      The schema and the code (R1-R3) do not depend on the domain switch; the R5 cron activation does
+      (`newsletter_cron_enable.sql` refuses until the publisher calls https://theconsilium.co.uk).
+      `scripts/db/data-api-harness.sh` rehearses #155, #156 and this rollout in order on a copy of production's state.
 
 - [ ] PR reviewed; CI green (lint, typecheck, unit, build, both E2E jobs: the newsletter DB suites run inside them).
 - [ ] Owner confirms the copy: signup text, confirmation email, privacy policy section, email footer address.
@@ -30,12 +32,12 @@ secrets, schedules jobs or sends. Stop at any red result; each step lists its ro
 - If the file was ever run statement-by-statement (e.g. an editor) and stopped part-way: re-run with
   `psql -X -v ON_ERROR_STOP=1 -v resume=1 -f docs/newsletter/production/apply.sql` (verifies the end state; refuses if
   the new code has already been running). Never edit rows by hand to "finish" it.
-- [ ] `supabase migration repair --status applied 20261023120000 --linked`
+- [ ] `supabase migration repair --status applied 20261026120000 --linked`
 - [ ] `psql -X -v ON_ERROR_STOP=1 -f docs/newsletter/production/verify.sql` — fingerprint identical to R1.
 - The currently deployed code keeps working (inserts become PENDING, never mailed; old unsubscribe still deletes).
 - Rollback (only before anyone confirms or anything is sent): deploy the previous build first, then
-  `supabase/manual/20261023120000_newsletter_subscriptions_rollback.sql`, then
-  `supabase migration repair --status reverted 20261023120000 --linked`.
+  `supabase/manual/20261026120000_newsletter_subscriptions_rollback.sql`, then
+  `supabase migration repair --status reverted 20261026120000 --linked`.
 
 ## R3. Deploy the code, delivery still OFF
 
@@ -81,7 +83,7 @@ secrets, schedules jobs or sends. Stop at any red result; each step lists its ro
 - [ ] Admin presses "Resume sending" (unpause) before 18:00. After the send: status Sent, broadcast id recorded,
       Resend shows one broadcast to the segment/topic, delivery counters rise via webhooks.
 - [ ] A team member subscribed through the public form checks the received edition: one email only, links go to
-      www.theconsilium.co.uk, the message has `List-Unsubscribe` / `List-Unsubscribe-Post` headers (added by Resend for
+      theconsilium.co.uk, the message has `List-Unsubscribe` / `List-Unsubscribe-Post` headers (added by Resend for
       broadcasts), and Resend's unsubscribe page works and comes back as `UNSUBSCRIBED` on the Subscribers page.
 - [ ] Pause again if you want manual control between editions.
 - Abort at any time: "Pause all sending" (takes effect before claim and again after claim), or cancel the edition.

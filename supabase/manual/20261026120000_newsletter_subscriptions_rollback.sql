@@ -1,5 +1,5 @@
 -- =============================================================================
--- ROLLBACK for supabase/migrations/20261023120000_newsletter_subscriptions.sql
+-- ROLLBACK for supabase/migrations/20261026120000_newsletter_subscriptions.sql
 -- =============================================================================
 -- Only while the newsletter has never been used for real: it DISCARDS consent records, suppressions,
 -- campaigns and webhook history, and every subscriber's status/preferences (the subscriber rows and their

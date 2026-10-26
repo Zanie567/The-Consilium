@@ -384,7 +384,7 @@ model Bookmark {
 }
 
 // ── Newsletter ───────────────────────────────────────────────────────────────
-// See docs/newsletter/ and supabase/migrations/20261023120000_newsletter_subscriptions.sql.
+// See docs/newsletter/ and supabase/migrations/20261026120000_newsletter_subscriptions.sql.
 // The database is the source of truth for consent; Resend holds a synced copy.
 
 enum SubscriberStatus {

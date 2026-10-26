@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Migration: newsletter consent, preferences, suppression and campaigns
--- Version:   20261023120000 (unique 14-digit prefix: safe for the Supabase CLI and for manual use)
+-- Version:   20261026120000 (unique 14-digit prefix: safe for the Supabase CLI and for manual use)
 -- Requires:  subscribers + public.consilium_subscriber_identity (20261006161413), audit_logs, site_settings
 -- =============================================================================
 --
@@ -43,7 +43,7 @@
 --     file, or apply.sql with -v resume=1, which also verifies the end state.
 --
 -- Rollback (only before any campaign is sent or anyone confirms; it discards consent records):
---   supabase/manual/20261023120000_newsletter_subscriptions_rollback.sql
+--   supabase/manual/20261026120000_newsletter_subscriptions_rollback.sql
 -- =============================================================================
 
 DO $$
@@ -280,7 +280,7 @@ CREATE TRIGGER newsletter_campaigns_protect
 INSERT INTO "subscriber_consent_events" ("id", "subscriberId", "emailHash", "action", "source", "weeklyDigest", "specialAlerts", "actor", "createdAt")
 SELECT 'legacy_' || s."id", s."id",
        encode(sha256(convert_to('consilium-newsletter:v1:' || public.consilium_subscriber_identity(s."email"), 'UTF8')), 'hex'),
-       'LEGACY_IMPORTED', 'migration_20261023120000', true, false, 'system', CURRENT_TIMESTAMP
+       'LEGACY_IMPORTED', 'migration_20261026120000', true, false, 'system', CURRENT_TIMESTAMP
   FROM "subscribers" s
  WHERE s."status" = 'LEGACY'
    AND NOT EXISTS (SELECT 1 FROM "subscriber_consent_events" e WHERE e."id" = 'legacy_' || s."id");

@@ -50,7 +50,9 @@ export const SEND_LEASE_MS = 10 * 60 * 1000
 export const MAX_SEND_ATTEMPTS = 4
 export const SEND_BACKOFF_MS = [10 * 60 * 1000, 30 * 60 * 1000, 2 * 60 * 60 * 1000]
 
-export const CANONICAL_SITE_URL = 'https://www.theconsilium.co.uk'
+// The site's canonical origin (production NEXT_PUBLIC_SITE_URL, every canonical tag and the sitemap; see
+// docs/seo/primary-domain-switch.md). Newsletter links must use it so subscribers never land on a redirect.
+export const CANONICAL_SITE_URL = 'https://theconsilium.co.uk'
 const DEFAULT_FROM = 'The Consilium <newsletter@theconsilium.co.uk>'
 const ALLOWED_SENDER_DOMAINS = ['theconsilium.co.uk']
 

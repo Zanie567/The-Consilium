@@ -1,9 +1,9 @@
--- Newsletter migration 20261023120000: GUARDED APPLY. One transaction: preconditions, the migration file verbatim,
+-- Newsletter migration 20261026120000: GUARDED APPLY. One transaction: preconditions, the migration file verbatim,
 -- postconditions. Any failed check raises and rolls everything back. Run with psql from the repository root:
 --
 --   psql -X -v ON_ERROR_STOP=1 -f docs/newsletter/production/apply.sql   (session set-up: docs/corrections/PRODUCTION-RUNBOOK.md §0)
 --
--- then, only if this exited 0, record the version (registry only):  supabase migration repair --status applied 20261023120000 --linked
+-- then, only if this exited 0, record the version (registry only):  supabase migration repair --status applied 20261026120000 --linked
 --
 -- INTERRUPTIONS
 --   * This script is ONE transaction. If psql, the network or the server stops part-way, PostgreSQL rolls the
@@ -38,8 +38,15 @@ BEGIN
       RAISE EXCEPTION 'precondition (resume): subscribers already have non-legacy statuses; the new code has been running. Stop and investigate';
     END IF;
   END IF;
-  IF EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE version = '20261023120000') THEN
-    RAISE EXCEPTION 'precondition: 20261023120000 is already recorded';
+  IF EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE version = '20261026120000') THEN
+    RAISE EXCEPTION 'precondition: 20261026120000 is already recorded';
+  END IF;
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations
+       WHERE version IN ('20261018002859', '20261022120000', '20261022120100')) <> 3 THEN
+    RAISE EXCEPTION 'precondition: apply #155 (20261018002859) and #156 (20261022120000, 20261022120100) first';
+  END IF;
+  IF (SELECT max(version) FROM supabase_migrations.schema_migrations) >= '20261026120000' THEN
+    RAISE EXCEPTION 'precondition: a newer migration is already recorded; this one must be applied in order';
   END IF;
   IF to_regprocedure('public.consilium_subscriber_identity(text)') IS NULL THEN
     RAISE EXCEPTION 'precondition: consilium_subscriber_identity is missing (20261006161413 not applied)';
@@ -54,7 +61,7 @@ CREATE TEMP TABLE newsletter_preflight ON COMMIT DROP AS
 SELECT (SELECT count(*) FROM subscribers) AS subscribers,
        (SELECT md5(coalesce(string_agg(id || ':' || email || ':' || "subscribedAt"::text, ',' ORDER BY id), '')) FROM subscribers) AS fingerprint;
 
-\i supabase/migrations/20261023120000_newsletter_subscriptions.sql
+\i supabase/migrations/20261026120000_newsletter_subscriptions.sql
 
 DO $$
 DECLARE
