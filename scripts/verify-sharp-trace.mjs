@@ -40,4 +40,11 @@ if (missing.length > 0) {
   for (const lib of missing) console.error(`  - @img/${lib}`)
   process.exit(1)
 }
-console.log(`verify-sharp-trace: ok (${libs.join(', ')})`)
+// The WebAssembly fallback is excluded in next.config.ts (it only loads when the native binding
+// is broken, and it added ~9 MB to every deployment's stored functions).
+const wasm = traced.filter((f) => f.includes('/@img/sharp-wasm32/'))
+if (wasm.length > 0) {
+  console.error(`verify-sharp-trace: /api/upload trace includes ${wasm.length} @img/sharp-wasm32 file(s); keep it excluded (next.config.ts outputFileTracingExcludes).`)
+  process.exit(1)
+}
+console.log(`verify-sharp-trace: ok (${libs.join(', ')}; no wasm32 fallback)`)
