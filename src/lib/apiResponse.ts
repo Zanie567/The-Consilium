@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { transactionFailure } from '@/lib/transactionRetry'
+import { slugGuardViolation } from '@/lib/articleSlug'
 
 export interface ApiErrorBody {
   error: string
@@ -135,6 +136,25 @@ export function articleMutationErrorResponse(
 
   const concurrency = transactionFailureResponse(error, requestId)
   if (concurrency) return concurrency
+
+  // Refusals from the database trigger articles_slug_guard (migration 20261024120000).
+  const slugViolation = slugGuardViolation(error)
+  if (slugViolation === 'locked') {
+    return apiError(
+      'The web address of a published article cannot be changed: existing links would break.',
+      409,
+      'PUBLISHED_SLUG_LOCKED',
+      requestId
+    )
+  }
+  if (slugViolation === 'retired') {
+    return apiError(
+      'That web address used to belong to another article and now redirects to it. Choose a different one.',
+      409,
+      'SLUG_CONFLICT',
+      requestId
+    )
+  }
 
   // Matches apiServerErrorResponse: a connection failure is retryable and must
   // not be reported as a generic article-save error.

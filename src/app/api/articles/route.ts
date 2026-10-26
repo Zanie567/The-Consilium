@@ -8,7 +8,7 @@ import { articleVersion } from '@/lib/articleVersion'
 import { getServerSession } from 'next-auth'
 import { authOptions, requireActiveSession, requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import slugify from 'slugify'
+import { finalSlugForTransition, isSlugAvailable, slugLockFor, uniqueProvisionalSlug, validateCustomSlug } from '@/lib/articleSlug'
 import { ARTICLE_SAVE_TIMEOUT_MS, normalizeArticleTags } from '@/lib/articleTags'
 import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
 import { ARTICLE_MUTATION_ROLES, EDITORIAL_MANAGEMENT_ROLES, isAllowedRole } from '@/lib/rbac'
@@ -195,20 +195,25 @@ async function POSTHandler(request: NextRequest) {
     // Title is optional for autosave - untitled drafts are valid
     const effectiveTitle = title ?? ''
 
-    // Generate a unique slug from title, or a timestamp-based one if title is empty
-    let slug = rawSlug
-    if (!slug) {
-      const base = effectiveTitle
-        ? slugify(effectiveTitle, { lower: true, strict: true, trim: true })
-        : `draft-${Date.now()}`
-      slug = base || `draft-${Date.now()}`
+    // The address (src/lib/articleSlug.ts): an explicit, valid one the editor chose, or a provisional
+    // placeholder until the article is first submitted, scheduled or published, when it is built from the
+    // title. The client no longer derives one from a half-typed headline at the first autosave.
+    let slug: string
+    // Only editors and administrators choose addresses; a writer's client value is ignored.
+    if (isAdminOrEditorCreating && typeof rawSlug === 'string' && rawSlug.trim()) {
+      const chosen = validateCustomSlug(rawSlug)
+      if (!chosen.ok) return apiError(chosen.error, 400, 'INVALID_SLUG', requestId)
+      if (!(await isSlugAvailable(prisma, chosen.slug))) {
+        return apiError('Another article already uses this web address. Choose a different one.', 409, 'SLUG_CONFLICT', requestId)
+      }
+      slug = chosen.slug
+    } else if (rawSlug !== undefined && rawSlug !== null && typeof rawSlug !== 'string') {
+      return apiError('The web address must be text.', 400, 'VALIDATION_ERROR', requestId)
+    } else {
+      slug = await uniqueProvisionalSlug(prisma)
     }
-
-    // Ensure slug uniqueness
-    const existing = await prisma.article.findUnique({ where: { slug } })
-    if (existing) {
-      slug = `${slug}-${Date.now()}`
-    }
+    slug = (await finalSlugForTransition(prisma, { slug, title: effectiveTitle, slugLockedAt: null }, finalStatus)) ?? slug
+    const now = new Date()
 
     if (['PENDING_REVIEW', 'SCHEDULED', 'PUBLISHED'].includes(finalStatus)) {
       const altError = figureAltError(content)
@@ -231,7 +236,8 @@ async function POSTHandler(request: NextRequest) {
           categoryId: effectiveCategoryId,
           authorId: effectiveAuthorId,
           status: finalStatus,
-          publishedAt: finalStatus === 'PUBLISHED' ? new Date() : null,
+          publishedAt: finalStatus === 'PUBLISHED' ? now : null,
+          slugLockedAt: slugLockFor({ slugLockedAt: null }, finalStatus, now),
           scheduledAt: effectiveScheduledAt,
         },
       })

@@ -12,7 +12,6 @@ test.describe.configure({ mode: 'serial' })
 const TITLE = uniqueTitle('articles')
 const BODY = 'Body that must survive the trip through the trash.'
 let articleId = ''
-let slug = ''
 
 test.afterAll(async () => {
   await removeMyArticles()
@@ -24,6 +23,8 @@ const row = (page: Page) => page.locator('tr', { hasText: TITLE })
 async function publicStatus(browser: import('@playwright/test').Browser) {
   const anon = await signedIn(browser, null)
   try {
+    // The CURRENT address: publishing replaces the draft placeholder with one built from the title.
+    const { slug } = (await articleByTitle(TITLE))!
     return (await anon.request.get(`/articles/${slug}`)).status()
   } finally {
     await anon.close()
@@ -38,7 +39,7 @@ test('an editor creates a draft that appears in the All Articles list with its f
   await ed.title().fill(TITLE)
   await ed.typeBody(BODY)
   articleId = (await ed.saveNow()).id
-  slug = (await articleByTitle(TITLE))!.slug
+  expect((await articleByTitle(TITLE))!.slug).toMatch(/^draft-\d+$/)
 
   await page.goto('/editorial/articles', { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: /^DRAFT\d*$/ }).click()

@@ -25,6 +25,8 @@ export interface ArticleEditorProps {
     coverImage: string
     categoryId: string
     status: string
+    /** Set once the article has been published: its address is then permanent. */
+    slugLockedAt?: string | null
     updatedAt?: string
     scheduledAt?: string | null
     editorNote?: string | null
@@ -106,6 +108,12 @@ export interface ArticleEditorController {
   selectedAuthorId: string
   settingsOpen: boolean
   slug: string
+  /** The address the server holds (may still be a draft-<number> placeholder). */
+  savedSlug: string
+  /** The address can no longer be changed in the editor (the article has been published). */
+  slugLocked: boolean
+  /** The address the headline would produce, shown while none has been chosen. */
+  suggestedSlug: string
   status: string
   tagInput: string
   tags: string[]

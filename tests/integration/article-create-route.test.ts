@@ -14,6 +14,7 @@ const { prismaMock, authMock } = vi.hoisted(() => ({
       findUnique: vi.fn(),
       create: vi.fn(),
     },
+    articleSlugRedirect: { findUnique: vi.fn() },
     articleTag: { createMany: vi.fn() },
     tag: { upsert: vi.fn() },
     $transaction: vi.fn(),
@@ -48,6 +49,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   authMock.requireVerifiedSessionUser.mockResolvedValue({ ok: true, user: ADMIN })
   prismaMock.article.findUnique.mockResolvedValue(null)
+  prismaMock.articleSlugRedirect.findUnique.mockResolvedValue(null)
   prismaMock.$transaction.mockImplementation(
     async (callback: (tx: typeof prismaMock) => Promise<unknown>) => callback(prismaMock)
   )
