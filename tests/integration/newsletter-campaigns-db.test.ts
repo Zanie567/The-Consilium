@@ -262,7 +262,12 @@ describe('fail-closed publication check', () => {
     await prisma.article.update({ where: { id: cases.trashed.id }, data: { deletedAt: new Date() } })
     await prisma.article.update({ where: { id: cases.rescheduled.id }, data: { status: 'SCHEDULED', scheduledAt: new Date(at.getTime() + DAY) } })
     await prisma.article.update({ where: { id: cases.withdrawn.id }, data: { status: 'ARCHIVED' } })
-    await prisma.article.update({ where: { id: cases.slug.id }, data: { slug: `${cases.slug.slug}-moved` } })
+    // A published article's address is locked (#177's articles_slug_guard); only the approved slug migration may
+    // move it, inside a transaction that declares itself. Do exactly that, as scripts/migrate-article-slugs.ts does.
+    await prisma.$transaction([
+      prisma.$executeRaw`SELECT set_config('consilium.article_slug_migration', 'on', true)`,
+      prisma.article.update({ where: { id: cases.slug.id }, data: { slug: `${cases.slug.slug}-moved` } }),
+    ])
     await prisma.article.update({ where: { id: cases.title.id }, data: { title: `${cases.title.title} (edited)` } })
     await prisma.article.update({ where: { id: cases.excerpt.id }, data: { excerpt: 'A different summary' } })
     await prisma.article.update({ where: { id: cases.recent.id }, data: { publishedAt: new Date(at.getTime() - 10 * MIN) } })
