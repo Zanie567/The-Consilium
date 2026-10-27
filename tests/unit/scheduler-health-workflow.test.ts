@@ -98,11 +98,11 @@ describe.skipIf(!hasJq)('scheduler-health workflow: when does GitHub send an ema
 })
 
 describe('scheduler-health workflow: static properties', () => {
-  it('uses only the shared CRON_SECRET (never the publish-only secret), via env, against the canonical www host', () => {
+  it('uses only the shared CRON_SECRET (never the publish-only secret), via env, against the primary (apex) host', () => {
     expect(WORKFLOW).toContain('CRON_SECRET: ${{ secrets.CRON_SECRET }}')
     expect(WORKFLOW).not.toContain('PUBLISH_CRON_SECRET')
-    expect(WORKFLOW).toContain('https://www.theconsilium.co.uk/api/cron/scheduler-health')
-    expect(WORKFLOW).not.toMatch(/https:\/\/theconsilium\.co\.uk/)
+    expect(WORKFLOW).toContain('https://theconsilium.co.uk/api/cron/scheduler-health')
+    expect(WORKFLOW).not.toMatch(/https:\/\/www\.theconsilium\.co\.uk/)
   })
 
   it('does not call the publisher or the purge, and never edits other workflows', () => {

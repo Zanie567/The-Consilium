@@ -56,13 +56,14 @@ jobs:
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          # Canonical host (www): the apex 307-redirects to www and curl does not follow it.
+          # Primary host (apex). It must answer directly: curl does not follow redirects (no -L), and with -L the
+          # secret header is dropped on a cross-host redirect. See docs/seo/primary-domain-switch.md.
           HTTP_STATUS=$(curl --silent --output /tmp/health.json --write-out "%{http_code}" \
             --max-time 30 \
             --request POST \
             --header "Authorization: Bearer $CRON_SECRET" \
             --header "Content-Type: application/json" \
-            "https://www.theconsilium.co.uk/api/cron/scheduler-health")
+            "https://theconsilium.co.uk/api/cron/scheduler-health")
 
           echo "HTTP status: $HTTP_STATUS"
           echo "Response body: $(cat /tmp/health.json)"
