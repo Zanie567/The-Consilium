@@ -27,7 +27,7 @@ export default function PrivacyPage() {
             This policy sets out what data we collect, why we collect it, how long we keep it, and
             what rights you have over it.
           </p>
-          <p className="text-[var(--fg-faint)] text-sm mt-4">Last updated: 23 October 2026</p>
+          <p className="text-[var(--fg-faint)] text-sm mt-4">Last updated: 27 October 2026</p>
         </div>
 
         <div className="prose-consilium space-y-10">
@@ -125,10 +125,12 @@ export default function PrivacyPage() {
 
             <h3>Reader analytics</h3>
             <p>
-              We count article visits and approximate active reading time while a page is visible,
-              focused and used within the previous minute. We pause measurement when the page is
-              hidden or inactive. Without consent, analytics uses a temporary identifier held only
-              in page memory; it does not recognise you across visits.
+              We count article visits, views of other public pages (such as the homepage), and
+              approximate active reading time while an article is visible, focused and used within
+              the previous minute. We pause active-reading measurement when the article is hidden
+              or inactive. Page views are not counts of distinct people. Without consent, analytics
+              uses a temporary identifier held only in page memory; it does not recognise you
+              across visits.
             </p>
             <p>
               If you accept non-essential storage, a random reader identifier is stored in your
