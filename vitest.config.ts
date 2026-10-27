@@ -40,6 +40,11 @@ const DB_BACKED_SUITES = [
   'tests/integration/debate-lock-order-db.test.ts',
   'tests/integration/corrections-db.test.ts',
   'tests/integration/contributor-profile-db.test.ts',
+  'tests/integration/newsletter-subscription-db.test.ts',
+  'tests/integration/newsletter-campaigns-db.test.ts',
+  'tests/integration/newsletter-webhooks-db.test.ts',
+  'tests/integration/newsletter-migration-db.test.ts',
+  'tests/integration/newsletter-resend-db.test.ts',
   'tests/integration/public-article-api-db.test.ts',
   'tests/integration/article-slug-db.test.ts',
 ]

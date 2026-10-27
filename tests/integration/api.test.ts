@@ -364,20 +364,19 @@ describe('GET /api/search', () => {
 describe('POST /api/subscribe', () => {
   const email = () => `sub-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`
 
-  it('valid email → 201', async () => {
+  it('valid email → 202 (double opt-in: a confirmation is requested, nothing subscribed yet)', async () => {
 
     const res = await post('/api/subscribe', { email: email() })
-    expect(res.status).toBe(201)
+    expect(res.status).toBe(202)
   })
 
-  it('same email again → 200 "Already subscribed"', async () => {
+  it('same email again → the same 202 answer (no enumeration of who is on the list)', async () => {
 
     const e = email()
-    await post('/api/subscribe', { email: e })
+    const first = await post('/api/subscribe', { email: e })
     const res = await post('/api/subscribe', { email: e })
-    expect(res.status).toBe(200)
-    const body = await res.json()
-    expect(body.message).toMatch(/already subscribed/i)
+    expect(res.status).toBe(202)
+    expect(await res.json()).toEqual(await first.json())
   })
 
   it('invalid email → 400', async () => {

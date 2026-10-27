@@ -39,6 +39,9 @@ SKIP_MIGRATIONS=" 20261007120100_scheduler_cron_enable_publish.sql "
 # that is applied after the documented rollouts below. "production" must not have them yet (prisma creates them
 # without the migration's RLS and triggers). Each one is removed again here and rehearsed after the rollouts.
 PRODUCTION_PENDING_SCHEMA='DROP TABLE IF EXISTS article_slug_redirects; ALTER TABLE articles DROP COLUMN IF EXISTS "slugLockedAt";'
+# Same for pending migrations whose documented rollback removes exactly what they add (the newsletter's).
+# Drop an entry once its migration is applied on production (and raise FIRST_UNAPPLIED past it).
+AHEAD_OF_PRODUCTION_ROLLBACKS="supabase/manual/20261026120000_newsletter_subscriptions_rollback.sql"
 
 if ! supabase status --workdir "$WORKDIR" >/dev/null 2>&1; then
   echo "→ starting the disposable local Supabase stack"
@@ -82,6 +85,10 @@ prepare() {
   done
   if [ "$1" = production ]; then
     psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$PRODUCTION_PENDING_SCHEMA" >/dev/null
+    for rollback in $AHEAD_OF_PRODUCTION_ROLLBACKS; do
+      echo "→ [$1] removing what prisma db push created ahead of production ($(basename "$rollback"))"
+      psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f "$rollback" >/dev/null
+    done
     echo "→ [$1] recreating production's dashboard-created Storage policies"
     psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f tests/data-api/fixtures/production-dashboard-drift.sql >/dev/null
   fi
@@ -102,7 +109,7 @@ rehearse() {
   if printf '%s\n' "$out" | grep -E '\|f$' >&2; then echo "✗ $dir/preflight.sql has failing rows (above)" >&2; return 1; fi
   before="$(printf '%s\n' "$out" | grep '^content fingerprint|' | cut -d'|' -f2)"
   out="$(PGOPTIONS='-c client_min_messages=notice' psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$dir/apply.sql" 2>&1)"
-  printf '%s\n' "$out" | grep -q "$notice" || { printf '%s\n' "$out" >&2; echo "✗ $dir/apply.sql did not verify" >&2; return 1; }
+  grep -q "$notice" <<<"$out" || { printf '%s\n' "$out" >&2; echo "✗ $dir/apply.sql did not verify" >&2; return 1; }
   # Same command the operator runs from the repository root (there with --linked).
   supabase migration repair --status applied $version --db-url "$DB_URL" >/dev/null 2>&1 \
     || { echo "✗ registry repair failed for $version" >&2; return 1; }
@@ -114,6 +121,37 @@ rehearse() {
     echo "✗ $dir/apply.sql ran twice" >&2; return 1
   fi
   echo "  ✓ $version: preflight ok, apply verified, registry recorded, verify ok, content unchanged, re-apply refused"
+}
+
+# Failing rows of a newsletter preflight/verify: rows are check | value | expect | ok, as in the #155/#156 files.
+newsletter_mismatches() {
+  awk -F'|' 'NF == 4 && $4 != "t"'   # check | value | expect | ok, like the #155/#156 files
+}
+
+# The newsletter rollout (docs/newsletter/ROLLOUT.md R1-R2) on the state the security rollouts left:
+# preflight, verified apply, registry repair, verify, unchanged subscriber fingerprint, refused re-apply.
+rehearse_newsletter() {
+  local dir=docs/newsletter/production version=20261026120000 out before after bad
+  psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "INSERT INTO subscribers (id, email) VALUES
+    ('rehearsal-subscriber-1', 'reader.one@example.com'), ('rehearsal-subscriber-2', 'reader.two@example.com')" >/dev/null
+  out="$(psql "$DB_URL" -X -A -t -F '|' -v ON_ERROR_STOP=1 -f "$dir/preflight.sql")"
+  bad="$(printf '%s\n' "$out" | newsletter_mismatches)"
+  [ -z "$bad" ] || { printf '%s\n' "$bad" >&2; echo "✗ $dir/preflight.sql has failing rows (above)" >&2; return 1; }
+  before="$(printf '%s\n' "$out" | grep '^subscribers fingerprint|' | cut -d'|' -f2)"
+  out="$(PGOPTIONS='-c client_min_messages=notice' psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$dir/apply.sql" 2>&1)"
+  grep -q 'newsletter migration verified (first): 2 subscriber(s) LEGACY' <<<"$out" \
+    || { printf '%s\n' "$out" >&2; echo "✗ $dir/apply.sql did not verify" >&2; return 1; }
+  supabase migration repair --status applied $version --db-url "$DB_URL" >/dev/null 2>&1 \
+    || { echo "✗ registry repair failed for $version" >&2; return 1; }
+  out="$(psql "$DB_URL" -X -A -t -F '|' -v ON_ERROR_STOP=1 -f "$dir/verify.sql")"
+  bad="$(printf '%s\n' "$out" | newsletter_mismatches)"
+  [ -z "$bad" ] || { printf '%s\n' "$bad" >&2; echo "✗ $dir/verify.sql has failing rows (above)" >&2; return 1; }
+  after="$(printf '%s\n' "$out" | grep '^subscribers fingerprint|' | cut -d'|' -f2)"
+  [ -n "$before" ] && [ "$before" = "$after" ] || { echo "✗ subscriber fingerprint changed ($before → $after)" >&2; return 1; }
+  if psql "$DB_URL" -X -v ON_ERROR_STOP=1 -q -f "$dir/apply.sql" >/dev/null 2>&1; then
+    echo "✗ $dir/apply.sql ran twice" >&2; return 1
+  fi
+  echo "  ✓ $version: preflight ok, apply verified (2 LEGACY), registry recorded, verify ok, fingerprint unchanged, re-apply refused"
 }
 
 STATUS=0
@@ -147,6 +185,10 @@ out="$(psql "$DB_URL" -X -A -t -v ON_ERROR_STOP=1 -c "
      AND (SELECT count(*) FROM pg_trigger WHERE tgname IN ('articles_slug_guard','article_slug_redirects_guard')) = 2" 2>&1)" || slug_ok=0
 [ "$slug_ok" = 1 ] && [ "$out" = t ] && echo "  ✓ 20261024120000: applies twice, RLS on, no API grants, trigger functions not callable" \
   || { echo "✗ 20261024120000 rehearsal failed: $out" >&2; STATUS=1; }
+
+# Production order: #155, #156, #177's slug migration (above), #178's publisher repoint (no table change), then the
+# newsletter migration last: its preflight requires #155/#156 and no newer recorded version.
+rehearse_newsletter || STATUS=1
 
 if [ "${DATA_API_STOP:-0}" = 1 ]; then
   supabase stop --workdir "$WORKDIR" --no-backup >/dev/null || true

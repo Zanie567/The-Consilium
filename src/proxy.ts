@@ -28,6 +28,11 @@ const PUBLIC_API_PREFIXES = [
   '/api/publish-scheduled',
   '/api/search',
   '/api/subscribe',
+  // Newsletter confirm/preferences/unsubscribe/manage-link: authorised by the hashed email-link token
+  // in the request body (or rate-limited and enumeration-safe for manage-link), never by a session.
+  '/api/newsletter',
+  // Resend webhooks: verified by their Svix signature inside the route.
+  '/api/webhooks/resend',
   '/api/team',
   '/api/ticker',
 ]

@@ -88,8 +88,8 @@ async function handleOverview(
       .then((r) => r._sum.viewCount ?? 0)
       .catch(() => 0),
     prisma.article.count({ where: { status: 'PUBLISHED', deletedAt: null } }).catch(() => 0),
-    prisma.subscriber.count().catch(() => 0),
-    prisma.subscriber.count({ where: { subscribedAt: { gte: since } } }).catch(() => 0),
+    prisma.subscriber.count({ where: { status: 'ACTIVE' } }).catch(() => 0),
+    prisma.subscriber.count({ where: { status: 'ACTIVE', confirmedAt: { gte: since } } }).catch(() => 0),
     prisma.subscriber
       .count({ where: { subscribedAt: { gte: prevSince, lt: since } } })
       .catch(() => 0),
@@ -412,7 +412,7 @@ async function handleAudience(now: Date, since: Date, prevSince: Date) {
   })
 
   // ── Subscriber to reader ratio ──
-  const totalSubscribers = await prisma.subscriber.count().catch(() => 0)
+  const totalSubscribers = await prisma.subscriber.count({ where: { status: 'ACTIVE' } }).catch(() => 0)
   const uniqueReaderGroups = totalSessions
   const subscriberRatio =
     uniqueReaderGroups > 0 ? Math.round((totalSubscribers / uniqueReaderGroups) * 100) / 100 : null

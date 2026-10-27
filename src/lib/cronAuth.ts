@@ -91,3 +91,31 @@ export function verifyPublishCronAuth(req: Request, label: string): NextResponse
   if (!authorized) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   return null
 }
+
+/**
+ * Authorises POST /api/cron/newsletter, and ONLY that route. Accepts NEWSLETTER_CRON_SECRET (a dedicated
+ * credential, e.g. for a Supabase Cron job, that can run the newsletter tick and nothing else) or the shared
+ * CRON_SECRET. Deliberately separate from verifyPublishCronAuth so the publisher's credential rules are
+ * untouched; the same constant-time, no-early-exit comparison is used.
+ */
+export function verifyNewsletterCronAuth(req: Request, label: string): NextResponse | null {
+  const shared = process.env.CRON_SECRET
+  let dedicated = process.env.NEWSLETTER_CRON_SECRET
+  if (dedicated !== undefined && dedicated !== '' && dedicated.length < MIN_PUBLISH_SECRET_LENGTH) {
+    console.error(`[${label}] NEWSLETTER_CRON_SECRET is shorter than ${MIN_PUBLISH_SECRET_LENGTH} characters and is being ignored`)
+    dedicated = undefined
+  }
+  const accepted = [dedicated, shared].filter((s): s is string => Boolean(s))
+  if (accepted.length === 0) {
+    console.error(`[${label}] neither NEWSLETTER_CRON_SECRET nor CRON_SECRET is set`)
+    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
+  }
+  let authorized = false
+  for (const provided of presentedSecrets(req)) {
+    for (const secret of accepted) {
+      if (secretsMatch(provided, secret)) authorized = true
+    }
+  }
+  if (!authorized) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  return null
+}

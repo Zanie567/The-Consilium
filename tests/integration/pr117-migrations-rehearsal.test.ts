@@ -73,6 +73,24 @@ const LATER_MIGRATIONS: { file: string; adds: string[] }[] = [
   { file: '20261010000000_debate_lifecycle', adds: ['debates.unpublishedAt', 'debates.deletedAt', 'debates.deletedById'] },
   { file: '20261010000100_team_member_updated_at', adds: ['team_members.updatedAt'] },
   { file: '20261012100000_article_hidden_by_debate_marker', adds: ['articles.hiddenByDebateAt'] },
+  {
+    file: '20261017120000_article_corrections',
+    adds: Prisma.dmmf.datamodel.models
+      .filter((m) => m.dbName === 'article_corrections')
+      .flatMap((m) => m.fields.filter((f) => f.kind !== 'object').map((f) => `${m.dbName}.${f.dbName ?? f.name}`)),
+  },
+  {
+    file: '20261026120000_newsletter_subscriptions',
+    adds: [
+      ...['status', 'weeklyDigest', 'specialAlerts', 'confirmedAt', 'consentSource', 'consentVersion', 'consentIpHash', 'preferencesUpdatedAt',
+        'unsubscribedAt', 'unsubscribeSource', 'suppressedAt', 'suppressionReason', 'resendContactId', 'resendSyncState', 'resendSyncedAt',
+        'resendSyncAttempts', 'resendSyncError', 'resendUpdatedAt', 'resendVerifiedAt'].map((c) => `subscribers.${c}`),
+      // Whole new tables: every column of their models.
+      ...Prisma.dmmf.datamodel.models
+        .filter((m) => ['subscriber_tokens', 'subscriber_consent_events', 'newsletter_suppressions', 'newsletter_campaigns', 'newsletter_webhook_events'].includes(m.dbName ?? ''))
+        .flatMap((m) => m.fields.filter((f) => f.kind !== 'object').map((f) => `${m.dbName}.${f.dbName ?? f.name}`)),
+    ],
+  },
 ]
 const LATER_COLUMNS = LATER_MIGRATIONS.flatMap((m) => m.adds).sort()
 const API_ROLES = ['anon', 'authenticated', 'service_role']
@@ -296,13 +314,16 @@ suite('PR #117 migrations on a production-shaped database', () => {
   it('AFTER: the real code paths work (newsletter sign-up and tagged article saves)', async () => {
     await withDatabase(async ({ client, url }) => {
       await applyAll(client)
+      // Today's sign-up code also needs the newsletter consent schema (a later, separately applied migration).
+      await client.query(migration('20261026120000_newsletter_subscriptions'))
       const { db, subscribe, resolveArticleTag } = await loadApp(url)
       try {
-        // sign-up: new -> 201; an existing address in another case/spacing -> already subscribed
-        expect((await subscribe(subscribeRequest('new.reader@example.test'))).status).toBe(201)
+        // sign-up: a double opt-in request (202); the same address in another case/spacing gets the same answer
+        const first = await subscribe(subscribeRequest('new.reader@example.test'))
+        expect(first.status).toBe(202)
         const again = await subscribe(subscribeRequest('  New.Reader@Example.Test '))
-        expect(again.status).toBe(200)
-        expect((await again.json()).message).toBe('Already subscribed')
+        expect(again.status).toBe(202)
+        expect(await again.json()).toEqual(await first.json())
         expect((await client.query('select count(*)::int as n from subscribers')).rows[0].n).toBe(4)
         // the database itself now refuses a case/whitespace twin that bypasses the route
         await expect(client.query(`insert into subscribers (id, email) values ('twin', ' Reader.One@Example.Test ')`)).rejects.toThrow(/subscribers_normalized_email_key/)

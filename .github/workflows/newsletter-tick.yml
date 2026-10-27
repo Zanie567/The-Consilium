@@ -1,0 +1,44 @@
+# newsletter-tick.yml
+#
+# MANUAL FALLBACK for the newsletter scheduler. It has NO `schedule:` trigger and merging it schedules
+# nothing. The intended automatic trigger is an hourly Supabase Cron job (supabase/manual/
+# newsletter_cron_enable.sql), activated only with the owner's approval (docs/newsletter/ROLLOUT.md).
+# Running this workflow runs one idempotent pass of POST /api/cron/newsletter: it can build this week's
+# DRAFT edition and send campaigns that an administrator has already APPROVED, and only while the
+# newsletter is unpaused in the editorial dashboard. It can never approve or send anything by itself.
+#
+# REQUIRED GitHub Actions secrets: CRON_SECRET and SITE_URL (the same ones publish-scheduled.yml uses).
+
+name: Newsletter Tick
+
+on:
+  workflow_dispatch:
+
+jobs:
+  tick:
+    name: Trigger newsletter tick
+    if: github.repository == 'Zanie567/The-Consilium' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+
+    steps:
+      - name: Call /api/cron/newsletter
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ secrets.SITE_URL }}
+        run: |
+          # This repository is public, so this log is public. The response body is never printed
+          # (counts only exist there, but an error body could quote provider messages).
+          BODY_FILE=$(mktemp)
+          HTTP_STATUS=$(curl --silent --output "$BODY_FILE" --write-out "%{http_code}" \
+            --max-time 300 \
+            --request POST \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            --header "Content-Type: application/json" \
+            "$SITE_URL/api/cron/newsletter")
+          echo "HTTP status: $HTTP_STATUS"
+          rm -f "$BODY_FILE"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::error::Newsletter tick failed with HTTP $HTTP_STATUS (details in the Vercel runtime logs)"
+            exit 1
+          fi
