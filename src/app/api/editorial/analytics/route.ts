@@ -76,7 +76,8 @@ async function handleOverview(
   // The old dashboard summed article counters but excluded soft-deleted articles.
   // Both lifetime and period figures must count the same canonical view records.
   // Pre-launch site_views consist of historical test requests, not reader visits.
-  const publicPageTrackingStart = new Date('2026-10-23T12:00:00Z')
+  const publicPageTrackingStart = new Date('2026-10-27T14:30:00Z')
+  const publicLaunch = new Date('2026-10-23T12:00:00Z')
   const publicPageSince = since > publicPageTrackingStart ? since : publicPageTrackingStart
   const [
     articleViewsAllTime,
@@ -90,6 +91,7 @@ async function handleOverview(
     publishedInPeriod,
     otherPageViewsAllTime,
     otherPageViewsInPeriod,
+    viewsSinceLaunch,
   ] = await Promise.all([
     prisma.articleView.count().catch(() => 0),
     prisma.article.count({ where: { status: 'PUBLISHED', deletedAt: null } }).catch(() => 0),
@@ -111,6 +113,7 @@ async function handleOverview(
       .catch(() => [] as { publishedAt: Date | null }[]),
     prisma.siteView.count({ where: { viewedAt: { gte: publicPageTrackingStart } } }).catch(() => 0),
     prisma.siteView.count({ where: { viewedAt: { gte: publicPageSince } } }).catch(() => 0),
+    prisma.articleView.count({ where: { viewedAt: { gte: publicLaunch } } }).catch(() => 0),
   ])
 
   const viewsChange =
@@ -158,6 +161,8 @@ async function handleOverview(
       viewsInPeriod,
       viewsChange,
       totalViews: articleViewsAllTime,
+      viewsSinceLaunch,
+      viewsBeforeLaunch: articleViewsAllTime - viewsSinceLaunch,
       siteViewsInPeriod: viewsInPeriod + otherPageViewsInPeriod,
       siteViewsAllTime: articleViewsAllTime + otherPageViewsAllTime,
       totalPublished,
@@ -671,7 +676,7 @@ async function handleLeaderboard() {
 }
 
 async function handleDistribution(since: Date) {
-  const sitePageSince = new Date(Math.max(since.getTime(), Date.parse('2026-10-23T12:00:00Z')))
+  const sitePageSince = new Date(Math.max(since.getTime(), Date.parse('2026-10-27T14:30:00Z')))
   const [sourceGroups, pageGroups, recentActivity] = await Promise.all([
     // Aggregate in Postgres rather than loading an unbounded number of view
     // rows. source is unset on historical records, so group by referrer too.
