@@ -2,7 +2,7 @@
 import { useEffect } from 'react'
 import { ActiveReadingClock } from '@/lib/activeReading'
 import { analyticsIdentity } from '@/lib/analyticsIdentity'
-import { landingAttribution, noteUntrackedInitialRoute } from '@/lib/analyticsAttribution'
+import { landingAttribution } from '@/lib/analyticsAttribution'
 export function ViewCounter({ articleId }: { articleId: string }) {
   useEffect(() => {
     const visitId = crypto.randomUUID()
