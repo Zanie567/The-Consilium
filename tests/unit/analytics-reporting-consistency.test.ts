@@ -8,7 +8,7 @@ const { prismaMock, verifiedUser, consentedAudience } = vi.hoisted(() => ({
     articleView: { count: vi.fn(), findMany: vi.fn(), groupBy: vi.fn() },
     article: { count: vi.fn(), findMany: vi.fn() },
     subscriber: { count: vi.fn(), findMany: vi.fn() },
-    siteView: { count: vi.fn() },
+    siteView: { count: vi.fn(), groupBy: vi.fn() },
     bookmark: { groupBy: vi.fn() },
   },
 }))
@@ -35,6 +35,7 @@ beforeEach(() => {
   prismaMock.subscriber.count.mockResolvedValue(0)
   prismaMock.subscriber.findMany.mockResolvedValue([])
   prismaMock.siteView.count.mockResolvedValue(0)
+  prismaMock.siteView.groupBy.mockResolvedValue([])
   prismaMock.bookmark.groupBy.mockResolvedValue([])
 })
 
@@ -71,19 +72,33 @@ describe('analytics reporting uses consistent periods and consent states', () =>
       { source: null, referrer: 'https://www.google.com/', _count: { _all: 5 } },
       { source: null, referrer: 'https://l.instagram.com', _count: { _all: 3 } },
       { source: null, referrer: null, _count: { _all: 2 } },
+      { source: null, referrer: 'https://theconsilium.co.uk/', _count: { _all: 1 } },
+    ])
+    prismaMock.siteView.groupBy.mockResolvedValueOnce([
+      { referrer: 'https://www.linkedin.com/', _count: { _all: 2 } },
+      { referrer: null, _count: { _all: 1 } },
     ])
     const response = await get('distribution', '7d')
     expect(response.status).toBe(200)
     const data = await response.json()
     expect(data.trafficSources).toEqual([
-      { source: 'Direct / unknown', views: 2, pct: 20 },
-      { source: 'Search', views: 5, pct: 50 },
-      { source: 'Social', views: 3, pct: 30 },
+      { source: 'Direct / unknown', views: 3, pct: 21 },
+      { source: 'Internal', views: 1, pct: 7 },
+      { source: 'Search', views: 5, pct: 36 },
+      { source: 'Social', views: 5, pct: 36 },
+    ])
+    expect(data.topReferrers).toEqual([
+      { source: 'Google', views: 5 },
+      { source: 'Instagram', views: 3 },
+      { source: 'LinkedIn', views: 2 },
     ])
     const query = prismaMock.articleView.groupBy.mock.calls[0][0]
     expect(query.where.viewedAt.gte).toBeInstanceOf(Date)
     expect(query.by).toEqual(['source', 'referrer'])
     expect(query._count).toEqual({ _all: true })
+    const pagesQuery = prismaMock.siteView.groupBy.mock.calls[0][0]
+    expect(pagesQuery.by).toEqual(['referrer'])
+    expect(pagesQuery.where.viewedAt.gte).toBeInstanceOf(Date)
     expect(prismaMock.articleView.findMany).not.toHaveBeenCalled()
   })
 
@@ -92,5 +107,6 @@ describe('analytics reporting uses consistent periods and consent states', () =>
     const response = await get('distribution')
     expect(response.status).toBe(401)
     expect(prismaMock.articleView.groupBy).not.toHaveBeenCalled()
+    expect(prismaMock.siteView.groupBy).not.toHaveBeenCalled()
   })
 })
