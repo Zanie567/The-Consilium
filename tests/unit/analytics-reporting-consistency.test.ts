@@ -94,10 +94,10 @@ describe('analytics reporting uses consistent periods and consent states', () =>
     ])
     const query = prismaMock.articleView.groupBy.mock.calls[0][0]
     expect(query.where.viewedAt.gte).toBeInstanceOf(Date)
-    expect(query.by).toEqual(['source', 'referrer'])
+    expect(query.by).toEqual(['source', 'referrer', 'entryKind', 'campaignSource', 'campaignMedium'])
     expect(query._count).toEqual({ _all: true })
     const pagesQuery = prismaMock.siteView.groupBy.mock.calls[0][0]
-    expect(pagesQuery.by).toEqual(['referrer'])
+    expect(pagesQuery.by).toEqual(['referrer', 'entryKind', 'campaignSource', 'campaignMedium'])
     expect(pagesQuery.where.viewedAt.gte).toBeInstanceOf(Date)
     expect(prismaMock.articleView.findMany).not.toHaveBeenCalled()
   })
