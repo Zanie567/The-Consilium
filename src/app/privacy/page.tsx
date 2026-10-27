@@ -131,6 +131,11 @@ export default function PrivacyPage() {
               or inactive. Page views are not counts of distinct people. Without consent, analytics
               uses a temporary identifier held only in page memory; it does not recognise you
               across visits.
+              When a link includes campaign labels (such as utm_source and utm_campaign), we
+              record only short, validated campaign identifiers on the initial page view to
+              understand which public promotions are effective. These identifiers are not
+              used to recognise visitors across visits or to build advertising profiles.
+              Later navigation within the site is not counted as another campaign arrival.
             </p>
             <p>
               If you accept non-essential storage, a random reader identifier is stored in your
