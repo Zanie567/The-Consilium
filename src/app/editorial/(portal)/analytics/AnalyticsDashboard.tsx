@@ -204,7 +204,7 @@ export function AnalyticsDashboard({ userRole: _userRole }: { userRole: string }
           <LeaderboardTab data={selectedCache.leaderboard ?? null} loading={isLoading('leaderboard')} period={period} />
         )}
         {activeTab === 'distribution' && (
-          <DistributionTab data={selectedCache.distribution ?? null} loading={isLoading('distribution')} />
+          <DistributionTab data={selectedCache.distribution ?? null} loading={isLoading('distribution')} period={period} />
         )}
       </div>}
     </div>
