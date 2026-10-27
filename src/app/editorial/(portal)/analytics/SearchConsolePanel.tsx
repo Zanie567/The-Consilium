@@ -105,7 +105,7 @@ function Results({ result }: { result: SearchConsoleData }) {
       </div>}
     </div>
     <p className="text-xs text-[var(--fg-faint)] leading-relaxed">
-      Search Console clicks and impressions are Google Search metrics, not The Consilium's first-party page views.
+      Search Console clicks and impressions are Google Search metrics, not The Consilium&apos;s first-party page views.
       Query/page tables may omit anonymised or lower-volume rows and need not sum to the property total.
       Search data typically lags several days. No individual visitor data is imported.
     </p>
