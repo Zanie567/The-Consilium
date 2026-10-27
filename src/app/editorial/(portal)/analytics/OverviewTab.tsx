@@ -135,7 +135,7 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
 
   const { summary } = data
   const hasViewData = data.trafficData.some((d) => d.views > 0)
-  const hasAnyData = summary.totalViews > 0 || summary.subscriberCount > 0
+  const hasAnyData = summary.siteViewsAllTime > 0 || summary.subscriberCount > 0
 
   return (
     <motion.div key="overview" variants={container} initial="hidden" animate="show" className="space-y-6">
@@ -185,7 +185,7 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
         className="grid grid-cols-2 gap-4"
       >
         {[
-          { label: 'Views this period', curr: summary.viewsInPeriod, change: summary.viewsChange },
+          { label: 'Article views this period', curr: summary.viewsInPeriod, change: summary.viewsChange },
           { label: 'New subscribers', curr: summary.subscribersInPeriod, change: summary.subscriberChange },
         ].map(({ label, curr, change }) => (
           <div key={label} className="bg-[var(--bg-elevated)] border border-[var(--border)] px-5 py-3 flex items-center justify-between">
@@ -221,7 +221,7 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
             <Line data={lineData} options={lineOptions} />
           ) : (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <p className="text-[var(--fg)] text-sm font-semibold mb-1">No views in {PERIOD_LABELS[period]}</p>
+              <p className="text-[var(--fg)] text-sm font-semibold mb-1">No article views in {PERIOD_LABELS[period]}</p>
               <p className="text-[var(--fg-faint)] text-sm max-w-xs">
                 The traffic chart fills in as readers view articles. Try a longer period or check back soon.
               </p>
