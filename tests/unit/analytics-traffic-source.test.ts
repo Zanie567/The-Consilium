@@ -32,3 +32,10 @@ it('labels referral origins without exposing URL paths', () => {
   expect(referrerLabel('https://www.theconsilium.co.uk/articles/a')).toBeNull()
   expect(referrerLabel(null)).toBeNull()
 })
+
+it('does not confuse Google account login or Gmail with organic search', () => {
+  expect(classifyTrafficSource(null, 'https://accounts.google.com/')).toBe('Other')
+  expect(classifyTrafficSource(null, 'https://mail.google.com/')).toBe('Email')
+  expect(referrerLabel('https://accounts.google.com/')).toBe('Google sign-in')
+  expect(referrerLabel('https://mail.google.com/')).toBe('Gmail')
+})
