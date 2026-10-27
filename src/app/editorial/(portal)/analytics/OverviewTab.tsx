@@ -171,11 +171,11 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
         <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">Site traffic</h2>
         <div className="grid grid-cols-2 gap-4">
           <StatCard label={`Site page views: ${PERIOD_LABELS[period]}`} value={summary.siteViewsInPeriod} />
-          <StatCard label="Total site page views all time" value={summary.siteViewsAllTime} />
+          <StatCard label="Recorded site page views to date" value={summary.siteViewsAllTime} />
         </div>
         <p className="text-xs text-[var(--fg-faint)]">
           Includes article views and other public page views. These are page loads, not unique visitors.
-          Tracking of non-article pages starts with the site-wide tracker, so earlier visits may be missing.
+          Non-article page tracking began on 27 October 2026. Earlier public-page visits cannot be reconstructed.
         </p>
       </motion.div>
 
