@@ -27,9 +27,20 @@ function referrerHostname(referrer: string | null): string | null {
 
 export type TrafficSource = 'Direct / unknown' | 'Internal' | 'Search' | 'Social' | 'Email' | 'Other'
 
-export function classifyTrafficSource(source: string | null, referrer: string | null): TrafficSource {
+export function classifyTrafficSource(
+  source: string | null, referrer: string | null,
+  entryKind?: string | null, campaignSource?: string | null, campaignMedium?: string | null
+): TrafficSource {
   // A real referrer is preferable to a generic Direct/source value; old view
   // rows have NULL source, and internal navigation is not a new acquisition.
+  if (entryKind === 'internal') return 'Internal'
+  // A tagged first arrival overrides absent referrer information (common for
+  // mobile apps). Unknown campaign mediums are not automatically called social.
+  if (entryKind === 'entry' && campaignSource && campaignMedium) {
+    if (['social', 'organic_social', 'paid_social'].includes(campaignMedium)) return 'Social'
+    if (['email', 'newsletter'].includes(campaignMedium)) return 'Email'
+    if (['organic', 'search', 'cpc', 'paid_search'].includes(campaignMedium)) return 'Search'
+  }
   const host = referrerHostname(referrer)
   if (host && OWN_HOSTS.some(d => isHost(host, d))) return 'Internal'
   if (source === 'Search' || source === 'Social' || source === 'Email' || source === 'Other')
