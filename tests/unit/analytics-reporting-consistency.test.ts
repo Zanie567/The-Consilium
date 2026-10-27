@@ -102,6 +102,41 @@ describe('analytics reporting uses consistent periods and consent states', () =>
     expect(prismaMock.articleView.findMany).not.toHaveBeenCalled()
   })
 
+  it('reports tagged landing views from articles and public pages without counting internal navigation', async () => {
+    prismaMock.articleView.groupBy
+      .mockResolvedValueOnce([]) // source distribution
+      .mockResolvedValueOnce([{
+        campaignName:'launch',campaignSource:'instagram',campaignMedium:'social',
+        campaignContent:'story_1',_count:{_all:3},
+      }])
+      .mockResolvedValueOnce([
+        {articleId:'article-1',source:null,referrer:null,entryKind:'entry',
+         campaignSource:'instagram',campaignMedium:'social',_count:{_all:3}},
+        {articleId:'article-1',source:null,referrer:null,entryKind:'internal',
+         campaignSource:null,campaignMedium:null,_count:{_all:2}},
+      ])
+    prismaMock.siteView.groupBy
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{
+        campaignName:'launch',campaignSource:'instagram',campaignMedium:'social',
+        campaignContent:'story_1',_count:{_all:1},
+      }])
+    prismaMock.article.findMany.mockResolvedValueOnce([{
+      id:'article-1',title:'Test article',slug:'test-article',
+      publishedAt:new Date(),viewCount:5,author:{name:'Editor'},category:null,
+    }])
+    const response = await get('distribution')
+    expect(response.status).toBe(200)
+    const data = await response.json()
+    expect(data.taggedLandings).toBe(4)
+    expect(data.campaigns).toEqual([{
+      campaign:'launch',source:'instagram',medium:'social',content:'story_1',landings:4,
+    }])
+    expect(data.articleSourcePerformance[0]).toMatchObject({
+      id:'article-1',views:5,knownLandings:3,social:3,internal:2,
+    })
+  })
+
   it('keeps distribution analytics restricted to authorised users', async () => {
     verifiedUser.mockResolvedValueOnce(null)
     const response = await get('distribution')
