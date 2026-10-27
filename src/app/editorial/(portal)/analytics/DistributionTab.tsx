@@ -39,7 +39,7 @@ export function DistributionTab({ data, loading }: { data: DistributionData | nu
     )
   }
 
-  const hasRealSources = data.trafficSources.some(s => s.views > 0 && s.source !== 'Direct')
+  const hasRealSources = data.trafficSources.some(s => s.views > 0 && s.source !== 'Direct / unknown' && s.source !== 'Internal')
 
   return (
     <motion.div key="distribution" variants={container} initial="hidden" animate="show" className="space-y-6">
