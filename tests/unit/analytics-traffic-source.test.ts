@@ -39,3 +39,11 @@ it('does not confuse Google account login or Gmail with organic search', () => {
   expect(referrerLabel('https://accounts.google.com/')).toBe('Google sign-in')
   expect(referrerLabel('https://mail.google.com/')).toBe('Gmail')
 })
+
+it('uses tagged arrival source and distinguishes later internal navigation even without referrer', () => {
+  expect(classifyTrafficSource(null, null, 'entry', 'instagram', 'social')).toBe('Social')
+  expect(classifyTrafficSource(null, null, 'entry', 'newsletter', 'email')).toBe('Email')
+  expect(classifyTrafficSource(null, null, 'entry', 'google', 'search')).toBe('Search')
+  expect(classifyTrafficSource(null, null, 'internal')).toBe('Internal')
+  expect(classifyTrafficSource(null, null, null)).toBe('Direct / unknown')
+})
