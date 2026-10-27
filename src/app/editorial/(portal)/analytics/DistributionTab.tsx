@@ -70,17 +70,18 @@ export function DistributionTab({ data, loading }: { data: DistributionData | nu
                 </p>
               )
             }
-            {!hasRealSources && (
+            {!hasRealSources && data.trafficSources.some(s => s.views > 0) && (
               <div className="mt-4 pt-4 border-t border-[var(--border)]">
                 <p className="text-xs text-[var(--fg-faint)] leading-relaxed">
-                  As your publication grows, this tab will show referral sources, search visibility, and social traffic breakdowns.
-                  Currently all traffic is direct. Readers are coming straight to your content.
+                  Referral information is missing for these views; they may be direct visits or come from apps and browsers that hide referral details.
                 </p>
               </div>
             )}
           </div>
         </TabCard>
       </motion.div>
+
+      <p className="text-xs text-[var(--fg-faint)]">Traffic sources cover the selected period and are inferred from available referrers. Direct / unknown includes visits without a usable referrer, such as some email or private-app links.</p>
 
       {/* Recent publishes */}
       <motion.div variants={fadeUp}>
