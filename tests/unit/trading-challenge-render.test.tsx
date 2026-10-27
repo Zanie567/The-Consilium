@@ -14,7 +14,7 @@ const hero = (phase: 'upcoming' | 'live' | 'closed', resultsPublished = false) =
 
 describe('competition status wording', () => {
   it('before the start: registration open, trading opens on the start date', () => {
-    expect(statusLine('upcoming', false)).toEqual({ tone: 'open', label: 'Registration open', detail: 'Trading opens Wednesday 28 October' })
+    expect(statusLine('upcoming', false)).toEqual({ tone: 'open', label: 'Registration open', detail: 'Trading opens Tuesday 10 November' })
     const html = hero('upcoming')
     expect(html).toContain('Enter the Challenge')
     expect(html).toContain('href="#register"')
@@ -69,7 +69,7 @@ describe('illustrative chart', () => {
     for (const svg of svgs) expect(svg).toContain('aria-hidden="true"')
     // The graphic's only text is the real calendar and the marker: no prices or percentages.
     const labels = [...html.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1])
-    expect(labels).toEqual(['NOV', 'DEC', 'JAN', 'FEB', 'MAR', 'OPENING BELL'])
+    expect(labels).toEqual(['DEC', 'JAN', 'FEB', 'MAR', 'OPENING BELL'])
   })
 
   it('ships the complete chart in the HTML; the reveal is CSS only', () => {
@@ -89,7 +89,7 @@ describe('rules and settings', () => {
   const html = renderToStaticMarkup(<ChallengeRules />)
 
   it('shows the competition at a glance with the prizes, and no detailed game settings', () => {
-    for (const text of ['Competition at a glance', 'Organiser', 'Platform', 'Competition dates', 'Starting balance', 'Markets', 'Prizes', 'Nasdaq, NYSE, NYSE American and OTC', '£100', '£50', '£25', '28 October 2026', '25 March 2027']) {
+    for (const text of ['Competition at a glance', 'Organiser', 'Platform', 'Competition dates', 'Starting balance', 'Markets', 'Prizes', 'Nasdaq, NYSE, NYSE American and OTC', '£100', '£50', '£25', '10 November 2026', '25 March 2027']) {
       expect(html).toContain(text)
     }
     for (const text of ['Commission', 'Order types', 'Fractional', 'Minimum share price', 'Interest', 'Short selling', 'Margin']) {
