@@ -2,9 +2,11 @@
 import { useEffect } from 'react'
 import { ActiveReadingClock } from '@/lib/activeReading'
 import { analyticsIdentity } from '@/lib/analyticsIdentity'
+import { landingAttribution } from '@/lib/analyticsAttribution'
 export function ViewCounter({ articleId }: { articleId: string }) {
   useEffect(() => {
     const visitId = crypto.randomUUID()
+    const acquisition = landingAttribution(document.referrer, window.location.search)
     const clock = new ActiveReadingClock(
       performance.now(),
       document.visibilityState === 'visible',
@@ -27,7 +29,7 @@ export function ViewCounter({ articleId }: { articleId: string }) {
         visitId,
         activeSeconds: seconds,
         ...analyticsIdentity(),
-        referrer: document.referrer,
+        ...acquisition,
       })
       if (
         beacon &&

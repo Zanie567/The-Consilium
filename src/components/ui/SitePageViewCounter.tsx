@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { analyticsIdentity } from '@/lib/analyticsIdentity'
+import { landingAttribution, noteUntrackedInitialRoute } from '@/lib/analyticsAttribution'
 
 // The article page already has ViewCounter and must not also create a SiteView.
 // Private/editorial/account routes are not readership traffic. Keep the
@@ -26,13 +27,17 @@ export function SitePageViewCounter() {
   const pathname = usePathname()
 
   useEffect(() => {
-    if (!shouldTrackPublicPage(pathname)) return
+    if (!shouldTrackPublicPage(pathname)) {
+      if (pathname && !pathname.startsWith('/articles/')) noteUntrackedInitialRoute()
+      return
+    }
+    const acquisition = landingAttribution(document.referrer, window.location.search)
     // Navigation in the App Router does not reload the root layout, so we
     // track route changes here. The collector deduplicates same-page events.
     const body = JSON.stringify({
       pagePath: pathname,
       ...analyticsIdentity(),
-      referrer: document.referrer,
+      ...acquisition,
     })
     void fetch('/api/analytics/track', {
       method: 'POST',
