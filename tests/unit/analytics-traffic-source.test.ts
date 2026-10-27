@@ -44,6 +44,7 @@ it('uses tagged arrival source and distinguishes later internal navigation even 
   expect(classifyTrafficSource(null, null, 'entry', 'instagram', 'social')).toBe('Social')
   expect(classifyTrafficSource(null, null, 'entry', 'newsletter', 'email')).toBe('Email')
   expect(classifyTrafficSource(null, null, 'entry', 'google', 'search')).toBe('Search')
+  expect(classifyTrafficSource(null, null, 'entry', 'edinburgh_econsoc', 'referral')).toBe('Other')
   expect(classifyTrafficSource(null, null, 'internal')).toBe('Internal')
   expect(classifyTrafficSource(null, null, null)).toBe('Direct / unknown')
 })
