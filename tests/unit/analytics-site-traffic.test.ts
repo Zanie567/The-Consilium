@@ -26,6 +26,7 @@ beforeEach(() => {
     .mockResolvedValueOnce(282)  // all historical article view records
     .mockResolvedValueOnce(244)  // selected period
     .mockResolvedValueOnce(5)    // previous period
+    .mockResolvedValueOnce(182)  // since public launch
   prismaMock.articleView.findMany.mockResolvedValue([])
   prismaMock.article.count.mockResolvedValue(4)
   prismaMock.article.findMany.mockResolvedValue([])
@@ -43,6 +44,8 @@ describe('editorial analytics overview consistency', () => {
     expect(body.summary).toMatchObject({
       viewsInPeriod: 244,
       totalViews: 282,
+      viewsSinceLaunch: 182,
+      viewsBeforeLaunch: 100,
       siteViewsInPeriod: 246,
       siteViewsAllTime: 285,
       totalPublished: 4,
@@ -52,7 +55,7 @@ describe('editorial analytics overview consistency', () => {
     expect(prismaMock.siteView.count).toHaveBeenCalledTimes(2)
     // Historical pre-launch test records are not real site traffic.
     expect(prismaMock.siteView.count.mock.calls[0][0].where.viewedAt.gte)
-      .toEqual(new Date('2026-10-23T12:00:00Z'))
+      .toEqual(new Date('2026-10-27T14:30:00Z'))
   })
 
   it('refuses unauthorised requests before reading traffic data', async () => {
