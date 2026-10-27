@@ -40,6 +40,37 @@ const TOKEN_TIMEOUT_MS = 8000
 const cache = new Map<string, { until: number; result: SearchConsoleData }>()
 const DAYS: Record<'7d' | '30d' | '90d', number> = { '7d': 7, '30d': 30, '90d': 90 }
 
+// Safe, actionable diagnostics. Never return Google response bodies, private
+// keys, OAuth assertions, bearer tokens or service-account credentials.
+type ConnectionFailure = 'key' | 'token' | 'api_disabled' | 'property_access' | 'quota' | 'google'
+class SearchConsoleConnectionError extends Error {
+  constructor(readonly reason: ConnectionFailure) {
+    super(reason)
+  }
+}
+const CONNECTION_MESSAGES: Record<ConnectionFailure, string> = {
+  key: 'The service-account private key is not valid. Recheck GSC_SERVICE_ACCOUNT_PRIVATE_KEY in Vercel (without surrounding quotation marks).',
+  token: 'Google rejected the service-account authentication. Check that its private key belongs to the account configured in GSC_SERVICE_ACCOUNT_EMAIL.',
+  api_disabled: 'The Search Console API is disabled for the service account\'s Google Cloud project. Enable Search Console API in The Consilium Analytics project.',
+  property_access: 'The service account cannot access this Search Console property. In the theconsilium.co.uk Domain property, open Settings → Users and permissions and add the service account as a Restricted user.',
+  quota: 'Google Search Console is temporarily limiting requests. Retry later.',
+  google: 'Google Search Console could not be reached. Check that the API is enabled and the service account has property access, then retry.',
+}
+function disabledReason(body: unknown): boolean {
+  if (!body || typeof body !== 'object' || !('error' in body)) return false
+  const error = body.error
+  if (!error || typeof error !== 'object') return false
+  const message = 'message' in error && typeof error.message === 'string' ? error.message : ''
+  const status = 'status' in error && typeof error.status === 'string' ? error.status : ''
+  const errors = 'errors' in error && Array.isArray(error.errors) ? error.errors : []
+  const hasDisabledReason = errors.some((entry: unknown) =>
+    typeof entry === 'object' && entry !== null && 'reason' in entry &&
+    ['accessNotConfigured', 'serviceDisabled'].includes(String(entry.reason))
+  )
+  return hasDisabledReason || status === 'SERVICE_DISABLED' ||
+    /api.*(not been used|disabled|not enabled)/i.test(message)
+}
+
 function isoDate(date: Date): string { return date.toISOString().slice(0, 10) }
 function addUtcDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * 86400000)
@@ -95,7 +126,12 @@ function serviceJwt(email: string, key: string): string {
     iss: email, scope: SCOPES, aud: GOOGLE_TOKEN, iat: now, exp: now + 3000,
   })).toString('base64url')
   const unsigned = header + '.' + payload
-  const signature = createSign('RSA-SHA256').update(unsigned).sign(key).toString('base64url')
+  let signature: string
+  try {
+    signature = createSign('RSA-SHA256').update(unsigned).sign(key).toString('base64url')
+  } catch {
+    throw new SearchConsoleConnectionError('key')
+  }
   return unsigned + '.' + signature
 }
 
@@ -110,7 +146,12 @@ async function accessToken(email: string, key: string) {
     cache: 'no-store',
     signal: AbortSignal.timeout(TOKEN_TIMEOUT_MS),
   })
-  if (!response.ok) throw new Error('Google authentication failed')
+  if (!response.ok) {
+    if (response.status === 429) throw new SearchConsoleConnectionError('quota')
+    if (response.status === 400 || response.status === 401 || response.status === 403)
+      throw new SearchConsoleConnectionError('token')
+    throw new SearchConsoleConnectionError('google')
+  }
   const body: unknown = await response.json()
   if (typeof body !== 'object' || body === null || !('access_token' in body) ||
     typeof body.access_token !== 'string') throw new Error('Google returned an invalid access token')
@@ -131,7 +172,20 @@ async function querySearch(
     signal: AbortSignal.timeout(10000),
   })
   // Never pass token, response body or account details into client errors/logs.
-  if (!response.ok) throw new Error('Search Console query failed (access, quota or upstream error)')
+  if (!response.ok) {
+    if (response.status === 429) throw new SearchConsoleConnectionError('quota')
+    if (response.status === 401 || response.status === 403 || response.status === 404) {
+      // Only check the response for a known error CATEGORY, not its details.
+      // Google error messages themselves are never returned to the browser.
+      if (response.status === 403) {
+        let body: unknown = null
+        try { body = await response.json() } catch {}
+        if (disabledReason(body)) throw new SearchConsoleConnectionError('api_disabled')
+      }
+      throw new SearchConsoleConnectionError('property_access')
+    }
+    throw new SearchConsoleConnectionError('google')
+  }
   const json: unknown = await response.json()
   if (json === null || typeof json !== 'object') throw new Error('Invalid Search Console response')
   return json as SearchResponse
@@ -198,10 +252,11 @@ export async function getSearchConsoleReport(
     if (cache.size >= 12) cache.clear()
     cache.set(key, { result, until: Date.now() + 2 * 60 * 60 * 1000 })
     return result
-  } catch {
+  } catch (error) {
     return {
       status: 'unavailable',
-      message: 'Search Console is configured but data could not be retrieved. Check property permission and Google API access.',
+      message: error instanceof SearchConsoleConnectionError
+        ? CONNECTION_MESSAGES[error.reason] : CONNECTION_MESSAGES.google,
     }
   }
 }

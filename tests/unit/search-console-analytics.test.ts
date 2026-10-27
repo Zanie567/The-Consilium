@@ -65,6 +65,66 @@ describe('Search Console read-only reporting', () => {
     expect(fetcher).toHaveBeenCalledTimes(7) // cached report
   })
 
+  it('identifies invalid private key input without making a Google request', async () => {
+    vi.stubEnv('GSC_SERVICE_ACCOUNT_EMAIL','reader@example.iam.gserviceaccount.com')
+    vi.stubEnv('GSC_SERVICE_ACCOUNT_PRIVATE_KEY','invalid-key')
+    vi.stubEnv('GSC_PROPERTY','sc-domain:theconsilium.co.uk')
+    const fetcher=vi.fn()
+    vi.stubGlobal('fetch',fetcher)
+    // Use a separate period from the earlier successful 7-day mock report
+    // because the application intentionally caches successful results by period.
+    const result=await getSearchConsoleReport('90d')
+    expect(result.status).toBe('unavailable')
+    if(result.status!=='unavailable') throw new Error('Expected unavailable')
+    expect(result.message).toContain('private key is not valid')
+    expect(result.message).not.toContain('invalid-key')
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('distinguishes a rejected Google access token from missing property permission', async () => {
+    const { privateKey } = generateKeyPairSync('rsa',{modulusLength:2048})
+    vi.stubEnv('GSC_SERVICE_ACCOUNT_EMAIL','reader@example.iam.gserviceaccount.com')
+    vi.stubEnv('GSC_SERVICE_ACCOUNT_PRIVATE_KEY',privateKey.export({type:'pkcs8',format:'pem'}).toString())
+    vi.stubEnv('GSC_PROPERTY','sc-domain:theconsilium.co.uk')
+    vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:false,status:400}))
+    const result=await getSearchConsoleReport('30d')
+    expect(result.status).toBe('unavailable')
+    if(result.status!=='unavailable') throw new Error('Expected unavailable')
+    expect(result.message).toContain('rejected the service-account authentication')
+  })
+
+  it('guides permission repair for an authenticated but forbidden Search Console property', async () => {
+    const { privateKey } = generateKeyPairSync('rsa',{modulusLength:2048})
+    vi.stubEnv('GSC_SERVICE_ACCOUNT_EMAIL','reader@example.iam.gserviceaccount.com')
+    vi.stubEnv('GSC_SERVICE_ACCOUNT_PRIVATE_KEY',privateKey.export({type:'pkcs8',format:'pem'}).toString())
+    vi.stubEnv('GSC_PROPERTY','sc-domain:theconsilium.co.uk')
+    vi.stubGlobal('fetch',vi.fn().mockImplementation(async(url:string)=>
+      url==='https://oauth2.googleapis.com/token' ? {ok:true,json:async()=>({access_token:'not-real'})}
+      : {ok:false,status:403,json:async()=>({error:{message:'sensitive upstream text',errors:[{reason:'forbidden'}]}})}
+    ))
+    const result=await getSearchConsoleReport('30d')
+    expect(result.status).toBe('unavailable')
+    if(result.status!=='unavailable') throw new Error('Expected unavailable')
+    expect(result.message).toContain('Restricted user')
+    expect(result.message).not.toContain('sensitive upstream text')
+  })
+
+  it('identifies Google Search Console API disabled without reflecting Google error details', async () => {
+    const { privateKey } = generateKeyPairSync('rsa',{modulusLength:2048})
+    vi.stubEnv('GSC_SERVICE_ACCOUNT_EMAIL','reader@example.iam.gserviceaccount.com')
+    vi.stubEnv('GSC_SERVICE_ACCOUNT_PRIVATE_KEY',privateKey.export({type:'pkcs8',format:'pem'}).toString())
+    vi.stubEnv('GSC_PROPERTY','sc-domain:theconsilium.co.uk')
+    vi.stubGlobal('fetch',vi.fn().mockImplementation(async(url:string)=>
+      url==='https://oauth2.googleapis.com/token' ? {ok:true,json:async()=>({access_token:'not-real'})}
+      : {ok:false,status:403,json:async()=>({error:{status:'SERVICE_DISABLED',message:'sensitive upstream text'}})}
+    ))
+    const result=await getSearchConsoleReport('30d')
+    expect(result.status).toBe('unavailable')
+    if(result.status!=='unavailable') throw new Error('Expected unavailable')
+    expect(result.message).toContain('Enable Search Console API')
+    expect(result.message).not.toContain('sensitive upstream text')
+  })
+
   it('does not manufacture growth or guarantee a result from small samples', () => {
     expect(comparePct(10,0)).toBeNull()
     expect(comparePct(20,10)).toBe(100)
