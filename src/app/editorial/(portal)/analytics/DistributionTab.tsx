@@ -3,13 +3,21 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
-import { Signal, Clock } from 'lucide-react'
+import { Signal, Clock, Link2, BarChart3 } from 'lucide-react'
+import { CampaignLinkBuilder } from './CampaignLinkBuilder'
 
 export interface DistributionData {
   trafficSources: { source: string; views: number; pct: number }[]
   topReferrers: { source: string; views: number }[]
+  taggedLandings: number
+  campaigns: { campaign: string; source: string; medium: string; content: string; landings: number }[]
+  articleSourcePerformance: {
+    id: string; title: string; slug: string; articleId: string;
+    views: number; knownLandings: number; search: number; social: number;
+    email: number; internal: number; unknown: number; other: number;
+  }[]
   recentActivity: {
-    id: string; title: string; publishedAt: string | null; viewCount: number
+    id: string; title: string; slug: string; publishedAt: string | null; viewCount: number
     author: { name: string | null }; category: { name: string } | null
   }[]
 }
@@ -100,6 +108,91 @@ export function DistributionTab({ data, loading }: { data: DistributionData | nu
       </motion.div>
 
       <p className="text-xs text-[var(--fg-faint)]">Traffic sources cover the selected period and are inferred from available referrers. Direct / unknown includes visits without a usable referrer, such as some email or private-app links. Internal traffic represents views referred from The Consilium itself; it is not new acquisition. Referrer counts are page views, not individual people.</p>
+
+      {/* Clearly labelled acquisition reports, not a unique-visitor estimate */}
+      <motion.div variants={fadeUp}>
+        <TabCard title="Campaign landing views" icon={<BarChart3 size={13} />}>
+          <div className="p-6 space-y-4">
+            <p className="text-xs text-[var(--fg-faint)]">
+              Tagged first-page arrivals during the selected period: {data.taggedLandings.toLocaleString()}.
+              Only links using complete UTM source, medium and campaign labels appear.
+              Repeat navigation is excluded; historical untagged traffic cannot be assigned retroactively.
+            </p>
+            {data.campaigns.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="border-b border-[var(--border)] text-[var(--fg-faint)] text-xs uppercase tracking-wide">
+                    <th className="text-left py-3 pr-3">Campaign</th>
+                    <th className="text-left py-3 pr-3">Source / medium</th>
+                    <th className="text-left py-3 pr-3">Creative</th>
+                    <th className="text-right py-3">Landings</th>
+                  </tr></thead>
+                  <tbody className="divide-y divide-[var(--border)]">
+                    {data.campaigns.map((item, index) => (
+                      <tr key={`${item.campaign}-${item.source}-${item.medium}-${item.content}-${index}`}>
+                        <td className="py-3 pr-3 font-semibold text-[var(--fg)] break-all">{item.campaign}</td>
+                        <td className="py-3 pr-3 text-[var(--fg-muted)]">{item.source} / {item.medium}</td>
+                        <td className="py-3 pr-3 text-[var(--fg-muted)]">{item.content || '—'}</td>
+                        <td className="py-3 text-right font-semibold text-[var(--fg)] tabular-nums">{item.landings.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--fg-faint)]">No tagged campaign landings yet. Use the builder below for the next published promotion.</p>
+            )}
+          </div>
+        </TabCard>
+      </motion.div>
+
+      <motion.div variants={fadeUp}>
+        <TabCard title="Build a campaign link" icon={<Link2 size={13} />}>
+          <CampaignLinkBuilder articles={data.recentActivity.map(article => ({
+            id: article.id, title: article.title, slug: article.slug,
+          }))} />
+        </TabCard>
+      </motion.div>
+
+      <motion.div variants={fadeUp}>
+        <TabCard title="Article performance by traffic source" icon={<BarChart3 size={13} />}>
+          <div className="p-6 space-y-3">
+            <p className="text-xs text-[var(--fg-faint)]">
+              Recorded article page views by source during the selected period.
+              Historical referrers are approximate. Known landings count only events explicitly
+              marked as a new arrival after the Phase 1 tracking upgrade.
+            </p>
+            {data.articleSourcePerformance.length === 0 ? (
+              <p className="text-sm text-[var(--fg-faint)]">No article views for this period.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="border-b border-[var(--border)] text-xs uppercase tracking-wide text-[var(--fg-faint)]">
+                    <th className="text-left py-3 pr-3">Article</th>
+                    <th className="text-right px-2 py-3">Views</th>
+                    <th className="text-right px-2 py-3">Known landings</th>
+                    <th className="text-right px-2 py-3">Search</th>
+                    <th className="text-right px-2 py-3">Social</th>
+                    <th className="text-right py-3">Unknown</th>
+                  </tr></thead>
+                  <tbody className="divide-y divide-[var(--border)]">
+                    {data.articleSourcePerformance.map(article => (
+                      <tr key={article.id}>
+                        <td className="py-3 pr-3 font-medium text-[var(--fg)] max-w-[260px]">{article.title}</td>
+                        <td className="text-right px-2 py-3 tabular-nums">{article.views}</td>
+                        <td className="text-right px-2 py-3 tabular-nums">{article.knownLandings}</td>
+                        <td className="text-right px-2 py-3 tabular-nums">{article.search}</td>
+                        <td className="text-right px-2 py-3 tabular-nums">{article.social}</td>
+                        <td className="text-right py-3 tabular-nums">{article.unknown}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </TabCard>
+      </motion.div>
 
       {/* Recent publishes */}
       <motion.div variants={fadeUp}>

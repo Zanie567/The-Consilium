@@ -677,7 +677,7 @@ async function handleLeaderboard() {
 
 async function handleDistribution(since: Date) {
   const sitePageSince = new Date(Math.max(since.getTime(), Date.parse('2026-10-27T14:30:00Z')))
-  const [sourceGroups, pageGroups, recentActivity] = await Promise.all([
+  const [sourceGroups, pageGroups, campaignArticleGroups, campaignPageGroups, articleSources, recentActivity] = await Promise.all([
     // Aggregate in Postgres rather than loading an unbounded number of view
     // rows. source is unset on historical records, so group by referrer too.
     prisma.articleView.groupBy({
@@ -692,6 +692,23 @@ async function handleDistribution(since: Date) {
       where: { viewedAt: { gte: sitePageSince } },
       _count: { _all: true },
     }).catch(() => [] as { referrer: string | null; entryKind: string | null; campaignSource: string | null; campaignMedium: string | null; _count: { _all: number } }[]),
+    // Only actual tagged entry events count as campaign arrivals. A second
+    // article opened within the site should not inflate acquisition.
+    prisma.articleView.groupBy({
+      by: ['campaignName', 'campaignSource', 'campaignMedium', 'campaignContent'],
+      where: { viewedAt: { gte: since }, entryKind: 'entry', campaignName: { not: null } },
+      _count: { _all: true },
+    }).catch(() => [] as { campaignName: string | null; campaignSource: string | null; campaignMedium: string | null; campaignContent: string | null; _count: { _all: number } }[]),
+    prisma.siteView.groupBy({
+      by: ['campaignName', 'campaignSource', 'campaignMedium', 'campaignContent'],
+      where: { viewedAt: { gte: sitePageSince }, entryKind: 'entry', campaignName: { not: null } },
+      _count: { _all: true },
+    }).catch(() => [] as { campaignName: string | null; campaignSource: string | null; campaignMedium: string | null; campaignContent: string | null; _count: { _all: number } }[]),
+    prisma.articleView.groupBy({
+      by: ['articleId', 'source', 'referrer', 'entryKind', 'campaignSource', 'campaignMedium'],
+      where: { viewedAt: { gte: since } },
+      _count: { _all: true },
+    }).catch(() => [] as { articleId: string; source: string | null; referrer: string | null; entryKind: string | null; campaignSource: string | null; campaignMedium: string | null; _count: { _all: number } }[]),
     prisma.article
       .findMany({
         where: { status: 'PUBLISHED', deletedAt: null },
@@ -700,6 +717,7 @@ async function handleDistribution(since: Date) {
         select: {
           id: true,
           title: true,
+          slug: true,
           publishedAt: true,
           viewCount: true,
           author: { select: { name: true } },
@@ -740,5 +758,62 @@ async function handleDistribution(since: Date) {
     .sort((a, b) => b.views - a.views || a.source.localeCompare(b.source))
     .slice(0, 10)
 
-  return NextResponse.json({ trafficSources, topReferrers, recentActivity })
+  const campaignMap = new Map<string, {
+    campaign: string; source: string; medium: string; content: string; landings: number
+  }>()
+  for (const group of [...campaignArticleGroups, ...campaignPageGroups]) {
+    if (!group.campaignName || !group.campaignSource || !group.campaignMedium) continue
+    const key = [group.campaignName, group.campaignSource, group.campaignMedium, group.campaignContent ?? ''].join('|')
+    const previous = campaignMap.get(key)
+    if (previous) previous.landings += group._count._all
+    else campaignMap.set(key, {
+      campaign: group.campaignName,
+      source: group.campaignSource,
+      medium: group.campaignMedium,
+      content: group.campaignContent ?? '',
+      landings: group._count._all,
+    })
+  }
+  const campaigns = [...campaignMap.values()]
+    .sort((a, b) => b.landings - a.landings || a.campaign.localeCompare(b.campaign))
+    .slice(0, 30)
+
+  const performance = new Map<string, {
+    articleId: string; views: number; knownLandings: number;
+    search: number; social: number; email: number; internal: number; unknown: number; other: number
+  }>()
+  for (const group of articleSources) {
+    const item = performance.get(group.articleId) ?? {
+      articleId: group.articleId, views: 0, knownLandings: 0,
+      search: 0, social: 0, email: 0, internal: 0, unknown: 0, other: 0,
+    }
+    const amount = group._count._all
+    item.views += amount
+    if (group.entryKind === 'entry') item.knownLandings += amount
+    const category = classifyTrafficSource(
+      group.source, group.referrer, group.entryKind, group.campaignSource, group.campaignMedium
+    )
+    if (category === 'Search') item.search += amount
+    else if (category === 'Social') item.social += amount
+    else if (category === 'Email') item.email += amount
+    else if (category === 'Internal') item.internal += amount
+    else if (category === 'Direct / unknown') item.unknown += amount
+    else item.other += amount
+    performance.set(group.articleId, item)
+  }
+  const articleSourcePerformance = recentActivity
+    .map(article => {
+      const item = performance.get(article.id)
+      if (!item) return null
+      return {
+        id: article.id, title: article.title, slug: article.slug,
+        ...item,
+      }
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+    .sort((a, b) => b.views - a.views)
+    .slice(0, 10)
+
+  const taggedLandings = campaigns.reduce((sum, c) => sum + c.landings, 0)
+  return NextResponse.json({ trafficSources, topReferrers, recentActivity, campaigns, taggedLandings, articleSourcePerformance })
 }
