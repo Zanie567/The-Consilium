@@ -36,13 +36,14 @@ export function CampaignLinkBuilder({ articles }: {
 }) {
   const [path, setPath] = useState('/')
   const [source, setSource] = useState('instagram')
+  const [customSource, setCustomSource] = useState('')
   const [medium, setMedium] = useState('social')
   const [campaign, setCampaign] = useState('')
   const [content, setContent] = useState('')
   const [copied, setCopied] = useState(false)
 
   const slug = (raw: string) => raw.toLowerCase().trim().replace(/\s+/g, '_')
-  const url = createCampaignUrl(path, source, medium, slug(campaign), slug(content))
+  const url = createCampaignUrl(path, source === 'other' ? slug(customSource) : source, medium, slug(campaign), slug(content))
   const fieldClass = 'w-full bg-[var(--bg-elevated)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--fg)] focus:outline-none focus:border-gold'
   const onSource = (next: string) => {
     const option = SOURCE_OPTIONS.find(item => item.value === next)
@@ -84,6 +85,14 @@ export function CampaignLinkBuilder({ articles }: {
             {SOURCE_OPTIONS.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
         </label>
+        {source === 'other' && (
+          <label className="space-y-1 text-xs text-[var(--fg-muted)]">
+            <span className="font-semibold uppercase tracking-wide">Partner / custom source</span>
+            <input className={fieldClass} value={customSource} maxLength={64}
+              onChange={e => {setCustomSource(e.target.value);setCopied(false)}}
+              placeholder="edinburgh_econsoc" />
+          </label>
+        )}
         <label className="space-y-1 text-xs text-[var(--fg-muted)]">
           <span className="font-semibold uppercase tracking-wide">Campaign name</span>
           <input className={fieldClass} value={campaign} maxLength={64}
