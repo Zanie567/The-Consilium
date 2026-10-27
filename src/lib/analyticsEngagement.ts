@@ -4,6 +4,8 @@ export async function readingEngagement(since: Date) {
     prisma.$queryRaw<
       {
         visits: bigint
+        thirty: bigint
+        ninety: bigint
         engaged: bigint
         five: bigint
         seconds: bigint
@@ -11,7 +13,10 @@ export async function readingEngagement(since: Date) {
         returning: bigint
       }[]
     >`
- SELECT count(*) AS visits, count(*) FILTER (WHERE e."activeSeconds" >= 300) AS engaged,
+ SELECT count(*) AS visits,
+ count(*) FILTER (WHERE e."activeSeconds" >= 30) AS thirty,
+ count(*) FILTER (WHERE e."activeSeconds" >= 90) AS ninety,
+ count(*) FILTER (WHERE e."activeSeconds" >= 300) AS engaged,
  count(*) FILTER (WHERE e."activeSeconds" >= 300) AS five, COALESCE(sum(e."activeSeconds"),0) AS seconds,
  count(DISTINCT e."readerHash") AS readers, count(DISTINCT e."readerHash") FILTER (WHERE e."returning") AS "returning"
  FROM article_engagement_sessions e JOIN articles a ON a.id=e."articleId"
@@ -43,6 +48,8 @@ export async function readingEngagement(since: Date) {
     readers = Number(s?.readers ?? 0)
   return {
     visits,
+    thirtySecondReads: Number(s?.thirty ?? 0),
+    ninetySecondReads: Number(s?.ninety ?? 0),
     engagedReads: Number(s?.engaged ?? 0),
     fiveMinuteReaders: Number(qualifiedReaders[0]?.count ?? 0),
     fiveMinuteReads: Number(s?.five ?? 0),
