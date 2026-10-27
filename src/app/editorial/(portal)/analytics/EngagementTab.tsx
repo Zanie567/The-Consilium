@@ -6,6 +6,8 @@ import { MessageCircle, Bookmark, TrendingUp, TrendingDown, Minus } from 'lucide
 export interface EngagementData {
   reading?: {
     visits: number
+    thirtySecondReads: number
+    ninetySecondReads: number
     engagedReads: number
     fiveMinuteReads: number
     fiveMinuteReaders: number
@@ -100,10 +102,12 @@ export function EngagementTab({
       <TabCard title="Active reading">
         {data.reading ? (
           <div className="p-6 space-y-5">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               {[
-                ['Tracked visits', data.reading.visits],
-                ['Engaged reads (5min+)', data.reading.engagedReads],
+                ['Tracked reading sessions', data.reading.visits],
+                ['30s+ active reads', data.reading.thirtySecondReads],
+                ['90s+ active reads', data.reading.ninetySecondReads],
+                ['5min+ active reads', data.reading.engagedReads],
                 ['Readers with 5 active minutes', data.reading.fiveMinuteReaders],
                 ['Average active seconds', data.reading.averageActiveSeconds],
               ].map(([label, value]) => (
