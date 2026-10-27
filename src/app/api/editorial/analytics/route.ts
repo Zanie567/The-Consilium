@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
 import { subHours, subDays, subWeeks, format, startOfWeek } from 'date-fns'
 import { estimateReadingMinutes } from '@/lib/reading-minutes'
+import { classifyTrafficSource, referrerLabel, type TrafficSource } from '@/lib/analyticsTrafficSource'
 
 type Period = '24h' | '7d' | '30d' | '90d'
 type Tab = 'overview' | 'content' | 'audience' | 'engagement' | 'leaderboard' | 'distribution'
@@ -57,7 +58,7 @@ export async function GET(req: NextRequest) {
     case 'leaderboard':
       return handleLeaderboard()
     case 'distribution':
-      return handleDistribution()
+      return handleDistribution(since)
     default:
       return NextResponse.json({ error: 'Unknown tab' }, { status: 400 })
   }
@@ -95,7 +96,7 @@ async function handleOverview(
     prisma.subscriber.count({ where: { status: 'ACTIVE' } }).catch(() => 0),
     prisma.subscriber.count({ where: { status: 'ACTIVE', confirmedAt: { gte: since } } }).catch(() => 0),
     prisma.subscriber
-      .count({ where: { subscribedAt: { gte: prevSince, lt: since } } })
+      .count({ where: { status: 'ACTIVE', confirmedAt: { gte: prevSince, lt: since } } })
       .catch(() => 0),
     prisma.articleView.count({ where: { viewedAt: { gte: since } } }).catch(() => 0),
     prisma.articleView.count({ where: { viewedAt: { gte: prevSince, lt: since } } }).catch(() => 0),
@@ -402,15 +403,17 @@ async function handleAudience(now: Date, since: Date, prevSince: Date) {
   const twelveWeeksAgo = subWeeks(now, 12)
   const recentSubs = await prisma.subscriber
     .findMany({
-      where: { subscribedAt: { gte: twelveWeeksAgo } },
-      select: { subscribedAt: true },
-      orderBy: { subscribedAt: 'asc' },
+      // A legacy/pending/unsubscribed record is not an active subscriber.
+      where: { status: 'ACTIVE', confirmedAt: { gte: twelveWeeksAgo } },
+      select: { confirmedAt: true },
+      orderBy: { confirmedAt: 'asc' },
     })
     .catch(() => [])
 
   const weeklyMap = new Map<string, number>()
   for (const s of recentSubs) {
-    const weekKey = format(startOfWeek(new Date(s.subscribedAt), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+    if (!s.confirmedAt) continue
+    const weekKey = format(startOfWeek(new Date(s.confirmedAt), { weekStartsOn: 1 }), 'yyyy-MM-dd')
     weeklyMap.set(weekKey, (weeklyMap.get(weekKey) ?? 0) + 1)
   }
   const subscriberGrowth = Array.from({ length: 12 }, (_, i) => {
@@ -667,11 +670,23 @@ async function handleLeaderboard() {
   return NextResponse.json({ writers: leaderboard })
 }
 
-async function handleDistribution() {
-  const [allViewSources, recentActivity] = await Promise.all([
-    prisma.articleView
-      .findMany({ select: { source: true } })
-      .catch(() => [] as { source: string | null }[]),
+async function handleDistribution(since: Date) {
+  const sitePageSince = new Date(Math.max(since.getTime(), Date.parse('2026-10-23T12:00:00Z')))
+  const [sourceGroups, pageGroups, recentActivity] = await Promise.all([
+    // Aggregate in Postgres rather than loading an unbounded number of view
+    // rows. source is unset on historical records, so group by referrer too.
+    prisma.articleView.groupBy({
+      by: ['source', 'referrer'],
+      where: { viewedAt: { gte: since } },
+      _count: { _all: true },
+    }).catch(() => [] as { source: string | null; referrer: string | null; _count: { _all: number } }[]),
+    // Add public non-article pages without reintroducing September's prelaunch
+    // test events. Article pages have their own collector and are not duplicated.
+    prisma.siteView.groupBy({
+      by: ['referrer'],
+      where: { viewedAt: { gte: sitePageSince } },
+      _count: { _all: true },
+    }).catch(() => [] as { referrer: string | null; _count: { _all: number } }[]),
     prisma.article
       .findMany({
         where: { status: 'PUBLISHED', deletedAt: null },
@@ -689,20 +704,33 @@ async function handleDistribution() {
       .catch(() => []),
   ])
 
-  const SOURCE_ORDER = ['Direct', 'Search', 'Social', 'Email', 'Other'] as const
-  const sourceMap = new Map<string, number>()
-  for (const v of allViewSources) {
-    const s = v.source ?? 'Direct'
-    sourceMap.set(s, (sourceMap.get(s) ?? 0) + 1)
+  const SOURCE_ORDER: TrafficSource[] = [
+    'Direct / unknown', 'Internal', 'Search', 'Social', 'Email', 'Other',
+  ]
+  const sourceMap = new Map<TrafficSource, number>()
+  const domainMap = new Map<string, number>()
+  const addViews = (source: string | null, referrer: string | null, count: number) => {
+    const category = classifyTrafficSource(source, referrer)
+    sourceMap.set(category, (sourceMap.get(category) ?? 0) + count)
+    const origin = referrerLabel(referrer)
+    if (origin) domainMap.set(origin, (domainMap.get(origin) ?? 0) + count)
   }
-  const total = allViewSources.length || 1
-  const trafficSources = SOURCE_ORDER.filter((s) => sourceMap.has(s) || s === 'Direct').map(
-    (s) => ({
-      source: s,
-      views: sourceMap.get(s) ?? 0,
-      pct: Math.round(((sourceMap.get(s) ?? 0) / total) * 100),
-    })
-  )
+  for (const group of sourceGroups)
+    addViews(group.source, group.referrer, group._count._all)
+  for (const group of pageGroups)
+    addViews(null, group.referrer, group._count._all)
 
-  return NextResponse.json({ trafficSources, recentActivity })
+  const total = Array.from(sourceMap.values()).reduce((sum, count) => sum + count, 0)
+  const trafficSources = SOURCE_ORDER.filter(source => (sourceMap.get(source) ?? 0) > 0)
+    .map(source => ({
+      source,
+      views: sourceMap.get(source) ?? 0,
+      pct: total > 0 ? Math.round(((sourceMap.get(source) ?? 0) / total) * 100) : 0,
+    }))
+  const topReferrers = Array.from(domainMap.entries())
+    .map(([source, views]) => ({ source, views }))
+    .sort((a, b) => b.views - a.views || a.source.localeCompare(b.source))
+    .slice(0, 10)
+
+  return NextResponse.json({ trafficSources, topReferrers, recentActivity })
 }

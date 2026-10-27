@@ -7,6 +7,7 @@ import { Signal, Clock } from 'lucide-react'
 
 export interface DistributionData {
   trafficSources: { source: string; views: number; pct: number }[]
+  topReferrers: { source: string; views: number }[]
   recentActivity: {
     id: string; title: string; publishedAt: string | null; viewCount: number
     author: { name: string | null }; category: { name: string } | null
@@ -38,7 +39,7 @@ export function DistributionTab({ data, loading }: { data: DistributionData | nu
     )
   }
 
-  const hasRealSources = data.trafficSources.some(s => s.views > 0 && s.source !== 'Direct')
+  const hasRealSources = data.trafficSources.some(s => s.views > 0 && s.source !== 'Direct / unknown' && s.source !== 'Internal')
 
   return (
     <motion.div key="distribution" variants={container} initial="hidden" animate="show" className="space-y-6">
@@ -70,17 +71,35 @@ export function DistributionTab({ data, loading }: { data: DistributionData | nu
                 </p>
               )
             }
-            {!hasRealSources && (
+            {!hasRealSources && data.trafficSources.some(s => s.views > 0) && (
               <div className="mt-4 pt-4 border-t border-[var(--border)]">
                 <p className="text-xs text-[var(--fg-faint)] leading-relaxed">
-                  As your publication grows, this tab will show referral sources, search visibility, and social traffic breakdowns.
-                  Currently all traffic is direct. Readers are coming straight to your content.
+                  Referral information is missing for these views; they may be direct visits or come from apps and browsers that hide referral details.
                 </p>
+              </div>
+            )}
+            {data.topReferrers.length > 0 && (
+              <div className="pt-4 border-t border-[var(--border)] space-y-3">
+                <h3 className="text-xs uppercase tracking-widest font-bold text-[var(--fg)]">
+                  Top referring websites
+                </h3>
+                <div className="space-y-2">
+                  {data.topReferrers.map(referrer => (
+                    <div key={referrer.source} className="flex justify-between gap-4 text-sm">
+                      <span className="text-[var(--fg-muted)] break-all">{referrer.source}</span>
+                      <span className="tabular-nums font-semibold text-[var(--fg)]">
+                        {referrer.views.toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
         </TabCard>
       </motion.div>
+
+      <p className="text-xs text-[var(--fg-faint)]">Traffic sources cover the selected period and are inferred from available referrers. Direct / unknown includes visits without a usable referrer, such as some email or private-app links. Internal traffic represents views referred from The Consilium itself; it is not new acquisition. Referrer counts are page views, not individual people.</p>
 
       {/* Recent publishes */}
       <motion.div variants={fadeUp}>

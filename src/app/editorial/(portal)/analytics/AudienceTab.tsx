@@ -79,7 +79,7 @@ export function AudienceTab({ data, loading }: { data: AudienceData | null; load
     labels: data.subscriberGrowth.map((w) => w.week),
     datasets: [
       {
-        label: 'New subscribers',
+        label: 'New confirmed subscribers',
         data: data.subscriberGrowth.map((w) => w.count),
         backgroundColor: 'rgba(201,168,76,0.6)',
         borderColor: COLORS.GOLD_ALT,
@@ -100,7 +100,7 @@ export function AudienceTab({ data, loading }: { data: AudienceData | null; load
         bodyColor: COLORS.CREAM,
         padding: 10,
         cornerRadius: 0,
-        callbacks: { label: (item) => ` ${item.raw as number} new subscribers` },
+        callbacks: { label: (item) => ` ${item.raw as number} confirmed active subscribers` },
       },
     },
     scales: {
@@ -240,13 +240,13 @@ export function AudienceTab({ data, loading }: { data: AudienceData | null; load
 
       {/* Subscriber growth chart */}
       <motion.div variants={fadeUp}>
-        <TabCard title="Subscriber growth: last 12 weeks">
+        <TabCard title="New confirmed subscribers: last 12 weeks">
           <div className="p-6">
             {data.subscriberGrowth.some((w) => w.count > 0) ? (
               <Bar data={barData} options={barOptions} />
             ) : (
               <p className="text-center text-[var(--fg-faint)] text-sm py-8">
-                No new subscribers in the last 12 weeks.
+                No newly confirmed active subscribers in the last 12 weeks.
               </p>
             )}
           </div>
