@@ -72,8 +72,13 @@ async function handleOverview(
   bucketCount: number,
   period: Period
 ) {
+  // The old dashboard summed article counters but excluded soft-deleted articles.
+  // Both lifetime and period figures must count the same canonical view records.
+  // Pre-launch site_views consist of historical test requests, not reader visits.
+  const publicPageTrackingStart = new Date('2026-10-23T12:00:00Z')
+  const publicPageSince = since > publicPageTrackingStart ? since : publicPageTrackingStart
   const [
-    totalViewsResult,
+    articleViewsAllTime,
     totalPublished,
     subscriberCount,
     subscribersInPeriod,
@@ -82,11 +87,10 @@ async function handleOverview(
     viewsInPrevPeriod,
     rawViews,
     publishedInPeriod,
+    otherPageViewsAllTime,
+    otherPageViewsInPeriod,
   ] = await Promise.all([
-    prisma.article
-      .aggregate({ where: { deletedAt: null }, _sum: { viewCount: true } })
-      .then((r) => r._sum.viewCount ?? 0)
-      .catch(() => 0),
+    prisma.articleView.count().catch(() => 0),
     prisma.article.count({ where: { status: 'PUBLISHED', deletedAt: null } }).catch(() => 0),
     prisma.subscriber.count({ where: { status: 'ACTIVE' } }).catch(() => 0),
     prisma.subscriber.count({ where: { status: 'ACTIVE', confirmedAt: { gte: since } } }).catch(() => 0),
@@ -104,6 +108,8 @@ async function handleOverview(
         select: { publishedAt: true },
       })
       .catch(() => [] as { publishedAt: Date | null }[]),
+    prisma.siteView.count({ where: { viewedAt: { gte: publicPageTrackingStart } } }).catch(() => 0),
+    prisma.siteView.count({ where: { viewedAt: { gte: publicPageSince } } }).catch(() => 0),
   ])
 
   const viewsChange =
@@ -150,7 +156,9 @@ async function handleOverview(
     summary: {
       viewsInPeriod,
       viewsChange,
-      totalViews: totalViewsResult,
+      totalViews: articleViewsAllTime,
+      siteViewsInPeriod: viewsInPeriod + otherPageViewsInPeriod,
+      siteViewsAllTime: articleViewsAllTime + otherPageViewsAllTime,
       totalPublished,
       subscriberCount,
       subscribersInPeriod,

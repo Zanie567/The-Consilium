@@ -9,6 +9,7 @@ import { Footer } from '@/components/layout/Footer'
 import { AuthProvider } from '@/components/layout/AuthProvider'
 import { ThemeProvider } from '@/providers/ThemeProvider'
 import { ScrollIndicator } from '@/components/ui/ScrollIndicator'
+import { SitePageViewCounter } from '@/components/ui/SitePageViewCounter'
 import { SiteChrome } from '@/components/layout/SiteChrome'
 import { SignupPrompt } from '@/components/ui/SignupPrompt'
 import { CookieConsentBanner } from '@/components/ui/CookieConsent'
@@ -118,6 +119,7 @@ export default async function RootLayout({
             <SiteChrome>
               <ScrollIndicator />
             </SiteChrome>
+            <SitePageViewCounter />
             <Navbar />
             <main id="main-content" className="flex-1">{children}</main>
             <SiteChrome>

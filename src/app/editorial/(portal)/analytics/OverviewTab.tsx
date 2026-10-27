@@ -18,6 +18,8 @@ export interface OverviewData {
     viewsInPeriod: number
     viewsChange: number | null
     totalViews: number
+    siteViewsInPeriod: number
+    siteViewsAllTime: number
     totalPublished: number
     subscriberCount: number
     subscribersInPeriod: number
@@ -71,7 +73,7 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
   const lineData = {
     labels: data?.trafficData.map(d => d.label) ?? [],
     datasets: [{
-      label: 'Views',
+      label: 'Article views',
       data: data?.trafficData.map(d => d.views) ?? [],
       borderColor: '#c9a227',
       backgroundColor: 'rgba(201,162,39,0.08)',
@@ -133,7 +135,7 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
 
   const { summary } = data
   const hasViewData = data.trafficData.some((d) => d.views > 0)
-  const hasAnyData = summary.totalViews > 0 || summary.subscriberCount > 0
+  const hasAnyData = summary.siteViewsAllTime > 0 || summary.subscriberCount > 0
 
   return (
     <motion.div key="overview" variants={container} initial="hidden" animate="show" className="space-y-6">
@@ -150,10 +152,10 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <motion.div variants={fadeUp}>
-          <StatCard label={`Views: ${PERIOD_LABELS[period]}`} value={summary.viewsInPeriod} trend={summary.viewsChange} />
+          <StatCard label={`Article views: ${PERIOD_LABELS[period]}`} value={summary.viewsInPeriod} trend={summary.viewsChange} />
         </motion.div>
         <motion.div variants={fadeUp}>
-          <StatCard label="Total views all time" value={summary.totalViews} />
+          <StatCard label="Total article views all time" value={summary.totalViews} />
         </motion.div>
         <motion.div variants={fadeUp}>
           <StatCard label="Published articles" value={summary.totalPublished} />
@@ -163,13 +165,27 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
         </motion.div>
       </div>
 
+      {/* Site-wide visits are page views, not unique people. Keep the existing
+          editorial cards and chart intact, and add this separate subsection. */}
+      <motion.div variants={fadeUp} className="space-y-3">
+        <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">Site traffic</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <StatCard label={`Site page views: ${PERIOD_LABELS[period]}`} value={summary.siteViewsInPeriod} />
+          <StatCard label="Total site page views all time" value={summary.siteViewsAllTime} />
+        </div>
+        <p className="text-xs text-[var(--fg-faint)]">
+          Includes article views and other public page views. These are page loads, not unique visitors.
+          Tracking of non-article pages starts with the site-wide tracker, so earlier visits may be missing.
+        </p>
+      </motion.div>
+
       {/* Comparison row */}
       <motion.div
         variants={fadeUp}
         className="grid grid-cols-2 gap-4"
       >
         {[
-          { label: 'Views this period', curr: summary.viewsInPeriod, change: summary.viewsChange },
+          { label: 'Article views this period', curr: summary.viewsInPeriod, change: summary.viewsChange },
           { label: 'New subscribers', curr: summary.subscribersInPeriod, change: summary.subscriberChange },
         ].map(({ label, curr, change }) => (
           <div key={label} className="bg-[var(--bg-elevated)] border border-[var(--border)] px-5 py-3 flex items-center justify-between">
@@ -197,7 +213,7 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
         className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)]"
       >
         <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
-          <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">Views over time</h2>
+          <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">Article views over time</h2>
           <span className="text-xs text-[var(--fg-faint)]">{PERIOD_LABELS[period]}</span>
         </div>
         <div className="p-6">
@@ -205,7 +221,7 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
             <Line data={lineData} options={lineOptions} />
           ) : (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <p className="text-[var(--fg)] text-sm font-semibold mb-1">No views in {PERIOD_LABELS[period]}</p>
+              <p className="text-[var(--fg)] text-sm font-semibold mb-1">No article views in {PERIOD_LABELS[period]}</p>
               <p className="text-[var(--fg-faint)] text-sm max-w-xs">
                 The traffic chart fills in as readers view articles. Try a longer period or check back soon.
               </p>
