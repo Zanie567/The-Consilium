@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Search, TrendingUp, ExternalLink } from 'lucide-react'
+import { Search, ExternalLink } from 'lucide-react'
 import type { Period } from './AnalyticsDashboard'
 import type { SearchConsoleData, SearchResult } from '@/lib/searchConsoleAnalytics'
 
