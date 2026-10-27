@@ -57,13 +57,19 @@ test('the page states the confirmed competition facts and never a password or pr
   }
   // The essentials only, prizes included; detailed MarketWatch settings are not restated.
   const glance = page.locator('dl.trading-glance')
-  await expect(glance.locator('div').filter({ hasText: /^Competition dates/ })).toContainText(/Starts28 October 2026\s*Ends25 March 2027/)
+  await expect(glance.locator('div').filter({ hasText: /^Competition dates/ })).toContainText(/Starts9 November 2026\s*Ends24 March 2027/)
   await expect(glance.locator('div').filter({ hasText: /^Markets/ })).toContainText('Nasdaq, NYSE, NYSE American and OTC')
   await expect(glance.locator('div').filter({ hasText: /^Prizes/ })).toContainText(/First£100.*Second£50.*Third£25/)
   for (const gone of ['Commission', 'Short selling', 'Margin trading', 'Fractional shares', 'Minimum share price']) {
     await expect(main.getByText(gone)).toHaveCount(0)
   }
   expect(html).not.toMatch(/docs\.google\.com\/spreadsheets|script\.google\.com|game password\s*[:=]/i)
+  // The replacement game only; the withdrawn game's address must not appear anywhere in the page.
+  expect(html).not.toContain('the-econsoc-trading-challenge-2026-27')
+  expect(html).toContain('https://www.marketwatch.com/games/the-econsoc-trading-challenge-26-27/rankings')
+  expect(html).not.toMatch(/28 Oct(ober)?\b/)
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /Trading runs 9 November 2026 to 24 March 2027/)
+  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute('content', /9 November 2026 to 24 March 2027/)
   expect(html).toContain('Illustrative chart. Not market data or competition results.')
 })
 

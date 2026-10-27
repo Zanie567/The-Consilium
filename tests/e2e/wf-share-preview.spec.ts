@@ -14,7 +14,7 @@ import { BRAND_MARK, LEGACY_LOGO_PATH, SHARE_IMAGE } from '../../src/lib/brand'
 test.skip(({ browserName }) => browserName !== 'chromium', 'HTTP-only checks; one engine is enough')
 test.afterAll(async () => { await removeMyArticles(); await closeDb() })
 
-const TRADING_IMAGE = '/og/trading-challenge.png'
+const TRADING_IMAGE = '/og/trading-challenge-v2.png'
 // An allowed cover host (next.config.ts remotePatterns). The HTML names it; nothing fetches it here.
 const COVER = 'https://images.unsplash.com/photo-share-preview-cover?w=1600'
 

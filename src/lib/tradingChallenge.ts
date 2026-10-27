@@ -43,9 +43,12 @@ export const TRADING_CHALLENGE = {
   organiser: 'University of Edinburgh Economics Society',
   platform: 'MarketWatch Virtual Stock Exchange',
 
-  /** Calendar dates in Europe/London. The game itself defines no published start/end time. */
-  startDate: '2026-10-28',
-  endDate: '2027-03-25',
+  /**
+   * Calendar dates in Europe/London, matching the dates shown on the MarketWatch game's
+   * overview (Nov 9, 2026 – Mar 24, 2027). The game defines no published start/end time.
+   */
+  startDate: '2026-11-09',
+  endDate: '2027-03-24',
 
   startingCapitalUsd: 100_000,
   prizes: [
@@ -56,8 +59,8 @@ export const TRADING_CHALLENGE = {
 
   links: {
     /** The private game. Joining it requires the password sent to verified members. */
-    game: 'https://www.marketwatch.com/games/the-econsoc-trading-challenge-2026-27',
-    rankings: 'https://www.marketwatch.com/games/the-econsoc-trading-challenge-2026-27/rankings',
+    game: 'https://www.marketwatch.com/games/the-econsoc-trading-challenge-26-27',
+    rankings: 'https://www.marketwatch.com/games/the-econsoc-trading-challenge-26-27/rankings',
     /** MarketWatch's Virtual Stock Exchange, where a free account is created. */
     marketwatch: 'https://www.marketwatch.com/games',
     /** EconSoc's official EUSA page, where paid membership is bought. */
@@ -160,7 +163,7 @@ export function windowProgress(now: Date, start: string = TRADING_CHALLENGE.star
   return Math.min(1, Math.max(0, (today - s) / (e - s)))
 }
 
-/** "28 October 2026" — formatted from the date string itself, independent of the server's zone. */
+/** "9 November 2026" — formatted from the date string itself, independent of the server's zone. */
 export function formatChallengeDate(date: string, opts: { withYear?: boolean; weekday?: boolean } = {}): string {
   const { withYear = true, weekday = false } = opts
   return new Intl.DateTimeFormat('en-GB', {
