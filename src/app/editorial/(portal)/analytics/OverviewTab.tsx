@@ -10,6 +10,7 @@ import {
 } from 'chart.js'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import type { Period } from './AnalyticsDashboard'
+import { WeeklyGrowthReview } from './WeeklyGrowthReview'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip)
 
@@ -190,6 +191,8 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
           </div>
         </div>
       </motion.div>
+
+      <WeeklyGrowthReview />
 
       {/* Comparison row */}
       <motion.div
