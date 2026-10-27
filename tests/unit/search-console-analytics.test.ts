@@ -71,7 +71,9 @@ describe('Search Console read-only reporting', () => {
     vi.stubEnv('GSC_PROPERTY','sc-domain:theconsilium.co.uk')
     const fetcher=vi.fn()
     vi.stubGlobal('fetch',fetcher)
-    const result=await getSearchConsoleReport('7d')
+    // Use a separate period from the earlier successful 7-day mock report
+    // because the application intentionally caches successful results by period.
+    const result=await getSearchConsoleReport('90d')
     expect(result.status).toBe('unavailable')
     if(result.status!=='unavailable') throw new Error('Expected unavailable')
     expect(result.message).toContain('private key is not valid')
