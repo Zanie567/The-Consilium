@@ -41,12 +41,29 @@ export async function collectAnalytics(body: Record<string, unknown>, now = new 
   const viewer = readerHash ? `reader:${readerHash}` : sessionId
   const bucket = Math.floor(now.getTime() / 1800000)
   const hash = createHash('sha256').update(`${viewer}:${key}:${bucket}`).digest('hex')
-  const referrer = referrerOrigin(body.referrer)
+
+  const entryKind = body.entryKind === 'entry' || body.entryKind === 'internal'
+    ? body.entryKind : null
+  const label = (value: unknown) =>
+    typeof value === 'string' && value.length <= 64 && /^[a-z0-9][a-z0-9_-]{0,63}$/.test(value)
+      ? value : null
+  const source = entryKind === 'entry' ? label(body.campaignSource) : null
+  const medium = entryKind === 'entry' ? label(body.campaignMedium) : null
+  const campaign = entryKind === 'entry' ? label(body.campaignName) : null
+  const campaignFields = source && medium && campaign ? {
+    campaignSource: source,
+    campaignMedium: medium,
+    campaignName: campaign,
+    campaignContent: label(body.campaignContent),
+  } : {}
+  // A navigated page does not get another external landing referrer.
+  // Legacy clients without entryKind preserve their old attribution behaviour.
+  const referrer = entryKind === 'internal' ? null : referrerOrigin(body.referrer)
   await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`view:${hash}`}))`
     if (typeof articleId !== 'string') {
       if (!(await tx.siteView.findFirst({ where: { sessionHash: hash }, select: { id: true } })))
-        await tx.siteView.create({ data: { sessionHash: hash, referrer, pagePath: key } })
+        await tx.siteView.create({ data: { sessionHash: hash, referrer, pagePath: key, entryKind, ...campaignFields } })
       return
     }
     if (
@@ -67,7 +84,7 @@ export async function collectAnalytics(body: Record<string, unknown>, now = new 
       !continuingVisit &&
       !(await tx.articleView.findFirst({ where: { sessionHash: hash }, select: { id: true } }))
     if (newView) {
-      await tx.articleView.create({ data: { articleId, sessionHash: hash, referrer } })
+      await tx.articleView.create({ data: { articleId, sessionHash: hash, referrer, entryKind, ...campaignFields } })
     }
     const incrementViewCount = async () => {
       if (!newView) return
