@@ -134,7 +134,7 @@ export function AudienceTab({ data, loading }: { data: AudienceData | null; load
       {/* Return visitor + new vs returning */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <motion.div variants={fadeUp}>
-          <TabCard title="Consented returning readership" icon={<Users size={13} />}>
+          <TabCard title="Returning readership (consented readers only)" icon={<Users size={13} />}>
             <div className="p-6">
               <div className="flex items-end gap-3 mb-3">
                 <span
