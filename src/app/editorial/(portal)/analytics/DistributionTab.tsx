@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { Signal, Clock, Link2, BarChart3 } from 'lucide-react'
 import { CampaignLinkBuilder } from './CampaignLinkBuilder'
+import { SearchConsolePanel } from './SearchConsolePanel'
+import type { Period } from './AnalyticsDashboard'
 
 export interface DistributionData {
   trafficSources: { source: string; views: number; pct: number }[]
@@ -37,7 +39,7 @@ function TabCard({ title, icon, children }: { title: string; icon?: React.ReactN
   )
 }
 
-export function DistributionTab({ data, loading }: { data: DistributionData | null; loading: boolean }) {
+export function DistributionTab({ data, loading, period }: { data: DistributionData | null; loading: boolean; period: Period }) {
   if (loading || !data) {
     return (
       <div className="space-y-6">
@@ -193,6 +195,8 @@ export function DistributionTab({ data, loading }: { data: DistributionData | nu
           </div>
         </TabCard>
       </motion.div>
+
+      <motion.div variants={fadeUp}><SearchConsolePanel period={period} /></motion.div>
 
       {/* Recent publishes */}
       <motion.div variants={fadeUp}>
