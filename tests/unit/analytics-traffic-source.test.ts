@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyTrafficSource } from '@/lib/analyticsTrafficSource'
+import { classifyTrafficSource, referrerLabel } from '@/lib/analyticsTrafficSource'
 
 describe('traffic-source attribution from recorded referrers', () => {
   it('recognises historical referrals when the source column is empty', () => {
@@ -9,8 +9,8 @@ describe('traffic-source attribution from recorded referrers', () => {
     expect(classifyTrafficSource(null, 'https://www.linkedin.com')).toBe('Social')
   })
   it('does not confuse our own domain with an external referral', () => {
-    expect(classifyTrafficSource(null, 'https://www.theconsilium.co.uk/')).toBe('Direct / unknown')
-    expect(classifyTrafficSource(null, 'https://the-consilium.vercel.app/login')).toBe('Direct / unknown')
+    expect(classifyTrafficSource(null, 'https://www.theconsilium.co.uk/')).toBe('Internal')
+    expect(classifyTrafficSource(null, 'https://the-consilium.vercel.app/login')).toBe('Internal')
   })
   it('does not claim that a missing referrer proves direct traffic', () => {
     expect(classifyTrafficSource(null, null)).toBe('Direct / unknown')
@@ -23,4 +23,12 @@ describe('traffic-source attribution from recorded referrers', () => {
     expect(classifyTrafficSource(null, 'https://google.com.evil.example/')).toBe('Other')
     expect(classifyTrafficSource(null, 'https://instagram.com.evil.example/')).toBe('Other')
   })
+})
+
+it('labels referral origins without exposing URL paths', () => {
+  expect(referrerLabel('https://l.instagram.com/some/private/path?code=secret')).toBe('Instagram')
+  expect(referrerLabel('https://www.google.com/search?q=test')).toBe('Google')
+  expect(referrerLabel('https://www.linkedin.com/')).toBe('LinkedIn')
+  expect(referrerLabel('https://www.theconsilium.co.uk/articles/a')).toBeNull()
+  expect(referrerLabel(null)).toBeNull()
 })
