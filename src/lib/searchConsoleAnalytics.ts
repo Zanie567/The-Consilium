@@ -1,4 +1,3 @@
-import 'server-only'
 import { createSign } from 'node:crypto'
 
 /**
@@ -153,7 +152,7 @@ export async function getSearchConsoleReport(
   const end = addUtcDays(new Date(Date.UTC(
     new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate(),
   )), -3)
-  const period: '7d' | '30d' | '90d' = selected === '7d' || selected === '90d' ? selected : '30d'
+  const period: '7d' | '30d' | '90d' = selected === '24h' ? '7d' : selected === '7d' || selected === '90d' ? selected : '30d'
   const start = addUtcDays(end, 1 - DAYS[period])
   const priorEnd = addUtcDays(start, -1)
   const priorStart = addUtcDays(priorEnd, 1 - DAYS[period])
