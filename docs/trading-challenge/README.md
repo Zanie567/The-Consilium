@@ -32,22 +32,19 @@ The phase is computed on the server from the **Europe/London calendar date**:
 
 | London date | Phase | What visitors see |
 |---|---|---|
-| before 10 Nov 2026 | `upcoming` | "Registration open · Trading opens Tuesday 10 November", countdown to the opening bell |
-| 10 Nov 2026 – 25 Mar 2027 | `live` | "In progress · Late entries welcome until 25 March", late-entry note in registration |
-| from 26 Mar 2027 | `closed` | Registration closed; "Results are being verified" until winners are published |
+| before 9 Nov 2026 | `upcoming` | "Registration open · Trading opens Monday 9 November", countdown to the opening bell |
+| 9 Nov 2026 – 24 Mar 2027 | `live` | "In progress · Late entries welcome until 24 March", late-entry note in registration |
+| from 25 Mar 2027 | `closed` | Registration closed; "Results are being verified" until winners are published |
 
 The page is static and re-rendered at most hourly (`revalidate = 3600`), so a phase
 change shows within an hour of London midnight. MarketWatch publishes no start or end
 time for the game, so the page only uses dates.
 
-**Known discrepancy (October 2026).** The competition was postponed and moved to a
-replacement game, `https://www.marketwatch.com/games/the-econsoc-trading-challenge-26-27`
-(the withdrawn game was `…/the-econsoc-trading-challenge-2026-27`; never link it).
-The game was created with 10 November 2026 – 25 March 2027, which is what this page
-states, but MarketWatch's overview shows **Nov 9, 2026 – Mar 24, 2027**. The cause (a
-time-zone display shift or the real trading window) has not been confirmed. Check the
-game on 9 and 10 November and again on 24 and 25 March, and change `startDate` /
-`endDate` only if MarketWatch's actual window turns out to differ.
+**The game (October 2026).** The competition was postponed and moved to a replacement
+game, `https://www.marketwatch.com/games/the-econsoc-trading-challenge-26-27` (the withdrawn
+game was `…/the-econsoc-trading-challenge-2026-27`; never link it). The game was created
+with 10 November – 25 March selected, but MarketWatch shows **9 November 2026 – 24 March
+2027**; the organisers chose to state MarketWatch's dates, so the page matches the game.
 
 The share card (`public/og/trading-challenge-v2.png`) has the trading dates drawn into
 it. If the dates change again, regenerate it under a new versioned path with

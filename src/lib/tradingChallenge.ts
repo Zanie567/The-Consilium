@@ -44,12 +44,11 @@ export const TRADING_CHALLENGE = {
   platform: 'MarketWatch Virtual Stock Exchange',
 
   /**
-   * Calendar dates in Europe/London, as chosen when the game was created. The game itself
-   * defines no published start/end time. MarketWatch's overview shows one day earlier
-   * for both (Nov 9, 2026 – Mar 24, 2027); the cause is unconfirmed.
+   * Calendar dates in Europe/London, matching the dates shown on the MarketWatch game's
+   * overview (Nov 9, 2026 – Mar 24, 2027). The game defines no published start/end time.
    */
-  startDate: '2026-11-10',
-  endDate: '2027-03-25',
+  startDate: '2026-11-09',
+  endDate: '2027-03-24',
 
   startingCapitalUsd: 100_000,
   prizes: [
@@ -164,7 +163,7 @@ export function windowProgress(now: Date, start: string = TRADING_CHALLENGE.star
   return Math.min(1, Math.max(0, (today - s) / (e - s)))
 }
 
-/** "10 November 2026" — formatted from the date string itself, independent of the server's zone. */
+/** "9 November 2026" — formatted from the date string itself, independent of the server's zone. */
 export function formatChallengeDate(date: string, opts: { withYear?: boolean; weekday?: boolean } = {}): string {
   const { withYear = true, weekday = false } = opts
   return new Intl.DateTimeFormat('en-GB', {

@@ -14,7 +14,7 @@ const hero = (phase: 'upcoming' | 'live' | 'closed', resultsPublished = false) =
 
 describe('competition status wording', () => {
   it('before the start: registration open, trading opens on the start date', () => {
-    expect(statusLine('upcoming', false)).toEqual({ tone: 'open', label: 'Registration open', detail: 'Trading opens Tuesday 10 November' })
+    expect(statusLine('upcoming', false)).toEqual({ tone: 'open', label: 'Registration open', detail: 'Trading opens Monday 9 November' })
     const html = hero('upcoming')
     expect(html).toContain('Enter the Challenge')
     expect(html).toContain('href="#register"')
@@ -22,7 +22,7 @@ describe('competition status wording', () => {
   })
 
   it('during the competition: in progress, late entries welcome', () => {
-    expect(statusLine('live', false)).toMatchObject({ label: 'In progress', detail: 'Late entries welcome until 25 March' })
+    expect(statusLine('live', false)).toMatchObject({ label: 'In progress', detail: 'Late entries welcome until 24 March' })
     const html = hero('live')
     expect(html).toContain('Enter the Challenge')
     expect(html).toContain(TRADING_CHALLENGE.links.game)
@@ -89,7 +89,7 @@ describe('rules and settings', () => {
   const html = renderToStaticMarkup(<ChallengeRules />)
 
   it('shows the competition at a glance with the prizes, and no detailed game settings', () => {
-    for (const text of ['Competition at a glance', 'Organiser', 'Platform', 'Competition dates', 'Starting balance', 'Markets', 'Prizes', 'Nasdaq, NYSE, NYSE American and OTC', '£100', '£50', '£25', '10 November 2026', '25 March 2027']) {
+    for (const text of ['Competition at a glance', 'Organiser', 'Platform', 'Competition dates', 'Starting balance', 'Markets', 'Prizes', 'Nasdaq, NYSE, NYSE American and OTC', '£100', '£50', '£25', '9 November 2026', '24 March 2027']) {
       expect(html).toContain(text)
     }
     for (const text of ['Commission', 'Order types', 'Fractional', 'Minimum share price', 'Interest', 'Short selling', 'Margin']) {
