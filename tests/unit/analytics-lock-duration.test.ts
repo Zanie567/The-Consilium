@@ -37,3 +37,28 @@ it('still counts legacy view-only clients and retries do not increment twice',as
   await collectAnalytics({articleId:'article',sessionId:'s'},now)
   expect(mock.trace).toEqual([])
 })
+
+it('writes campaign labels on the arrival and refuses to repeat them on internal article navigation',async()=>{
+  await collectAnalytics({
+    articleId:'article',sessionId:'entry-a',entryKind:'entry',
+    referrer:'https://l.instagram.com/private/path?token=secret',
+    campaignSource:'instagram',campaignMedium:'social',campaignName:'weekly_01',
+    campaignContent:'story',
+  },now)
+  expect(mock.tx.articleView.create).toHaveBeenLastCalledWith({
+    data: expect.objectContaining({
+      entryKind:'entry',referrer:'https://l.instagram.com',
+      campaignSource:'instagram',campaignMedium:'social',
+      campaignName:'weekly_01',campaignContent:'story',
+    }),
+  })
+  await collectAnalytics({
+    articleId:'article',sessionId:'entry-b',entryKind:'internal',
+    referrer:'https://l.instagram.com',campaignSource:'instagram',
+    campaignMedium:'social',campaignName:'weekly_01',
+  },now)
+  expect(mock.tx.articleView.create).toHaveBeenLastCalledWith({
+    data: expect.objectContaining({entryKind:'internal',referrer:null}),
+  })
+  expect(mock.tx.articleView.create.mock.calls.at(-1)?.[0].data.campaignName).toBeUndefined()
+})
