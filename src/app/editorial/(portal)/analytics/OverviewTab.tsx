@@ -18,6 +18,8 @@ export interface OverviewData {
     viewsInPeriod: number
     viewsChange: number | null
     totalViews: number
+    viewsSinceLaunch: number
+    viewsBeforeLaunch: number
     siteViewsInPeriod: number
     siteViewsAllTime: number
     totalPublished: number
@@ -177,6 +179,16 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
           Includes article views and other public page views. These are page loads, not unique visitors.
           Non-article page tracking began on 27 October 2026. Earlier public-page visits cannot be reconstructed.
         </p>
+        <div className="border-t border-[var(--border)] pt-4 grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-[var(--fg-faint)] mb-1">Article views since public launch · 23 October</p>
+            <p className="text-xl font-semibold text-[var(--fg)] tabular-nums">{summary.viewsSinceLaunch.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-widest text-[var(--fg-faint)] mb-1">Earlier recorded article views</p>
+            <p className="text-xl font-semibold text-[var(--fg)] tabular-nums">{summary.viewsBeforeLaunch.toLocaleString()}</p>
+          </div>
+        </div>
       </motion.div>
 
       {/* Comparison row */}
