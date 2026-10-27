@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
 import { subHours, subDays, subWeeks, format, startOfWeek } from 'date-fns'
 import { estimateReadingMinutes } from '@/lib/reading-minutes'
-import { classifyTrafficSource, type TrafficSource } from '@/lib/analyticsTrafficSource'
+import { classifyTrafficSource, referrerLabel, type TrafficSource } from '@/lib/analyticsTrafficSource'
 
 type Period = '24h' | '7d' | '30d' | '90d'
 type Tab = 'overview' | 'content' | 'audience' | 'engagement' | 'leaderboard' | 'distribution'
@@ -671,7 +671,8 @@ async function handleLeaderboard() {
 }
 
 async function handleDistribution(since: Date) {
-  const [sourceGroups, recentActivity] = await Promise.all([
+  const sitePageSince = new Date(Math.max(since.getTime(), Date.parse('2026-10-23T12:00:00Z')))
+  const [sourceGroups, pageGroups, recentActivity] = await Promise.all([
     // Aggregate in Postgres rather than loading an unbounded number of view
     // rows. source is unset on historical records, so group by referrer too.
     prisma.articleView.groupBy({
@@ -679,6 +680,13 @@ async function handleDistribution(since: Date) {
       where: { viewedAt: { gte: since } },
       _count: { _all: true },
     }).catch(() => [] as { source: string | null; referrer: string | null; _count: { _all: number } }[]),
+    // Add public non-article pages without reintroducing September's prelaunch
+    // test events. Article pages have their own collector and are not duplicated.
+    prisma.siteView.groupBy({
+      by: ['referrer'],
+      where: { viewedAt: { gte: sitePageSince } },
+      _count: { _all: true },
+    }).catch(() => [] as { referrer: string | null; _count: { _all: number } }[]),
     prisma.article
       .findMany({
         where: { status: 'PUBLISHED', deletedAt: null },
@@ -696,12 +704,22 @@ async function handleDistribution(since: Date) {
       .catch(() => []),
   ])
 
-  const SOURCE_ORDER: TrafficSource[] = ['Direct / unknown', 'Search', 'Social', 'Email', 'Other']
+  const SOURCE_ORDER: TrafficSource[] = [
+    'Direct / unknown', 'Internal', 'Search', 'Social', 'Email', 'Other',
+  ]
   const sourceMap = new Map<TrafficSource, number>()
-  for (const group of sourceGroups) {
-    const source = classifyTrafficSource(group.source, group.referrer)
-    sourceMap.set(source, (sourceMap.get(source) ?? 0) + group._count._all)
+  const domainMap = new Map<string, number>()
+  const addViews = (source: string | null, referrer: string | null, count: number) => {
+    const category = classifyTrafficSource(source, referrer)
+    sourceMap.set(category, (sourceMap.get(category) ?? 0) + count)
+    const origin = referrerLabel(referrer)
+    if (origin) domainMap.set(origin, (domainMap.get(origin) ?? 0) + count)
   }
+  for (const group of sourceGroups)
+    addViews(group.source, group.referrer, group._count._all)
+  for (const group of pageGroups)
+    addViews(null, group.referrer, group._count._all)
+
   const total = Array.from(sourceMap.values()).reduce((sum, count) => sum + count, 0)
   const trafficSources = SOURCE_ORDER.filter(source => (sourceMap.get(source) ?? 0) > 0)
     .map(source => ({
@@ -709,6 +727,10 @@ async function handleDistribution(since: Date) {
       views: sourceMap.get(source) ?? 0,
       pct: total > 0 ? Math.round(((sourceMap.get(source) ?? 0) / total) * 100) : 0,
     }))
+  const topReferrers = Array.from(domainMap.entries())
+    .map(([source, views]) => ({ source, views }))
+    .sort((a, b) => b.views - a.views || a.source.localeCompare(b.source))
+    .slice(0, 10)
 
-  return NextResponse.json({ trafficSources, recentActivity })
+  return NextResponse.json({ trafficSources, topReferrers, recentActivity })
 }
