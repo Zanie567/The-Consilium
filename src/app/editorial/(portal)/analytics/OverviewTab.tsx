@@ -18,6 +18,8 @@ export interface OverviewData {
     viewsInPeriod: number
     viewsChange: number | null
     totalViews: number
+    siteViewsInPeriod: number
+    siteViewsAllTime: number
     totalPublished: number
     subscriberCount: number
     subscribersInPeriod: number
@@ -71,7 +73,7 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
   const lineData = {
     labels: data?.trafficData.map(d => d.label) ?? [],
     datasets: [{
-      label: 'Views',
+      label: 'Article views',
       data: data?.trafficData.map(d => d.views) ?? [],
       borderColor: '#c9a227',
       backgroundColor: 'rgba(201,162,39,0.08)',
@@ -150,10 +152,10 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <motion.div variants={fadeUp}>
-          <StatCard label={`Views: ${PERIOD_LABELS[period]}`} value={summary.viewsInPeriod} trend={summary.viewsChange} />
+          <StatCard label={`Article views: ${PERIOD_LABELS[period]}`} value={summary.viewsInPeriod} trend={summary.viewsChange} />
         </motion.div>
         <motion.div variants={fadeUp}>
-          <StatCard label="Total views all time" value={summary.totalViews} />
+          <StatCard label="Total article views all time" value={summary.totalViews} />
         </motion.div>
         <motion.div variants={fadeUp}>
           <StatCard label="Published articles" value={summary.totalPublished} />
@@ -162,6 +164,20 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
           <StatCard label="Subscribers" value={summary.subscriberCount} trend={summary.subscriberChange} />
         </motion.div>
       </div>
+
+      {/* Site-wide visits are page views, not unique people. Keep the existing
+          editorial cards and chart intact, and add this separate subsection. */}
+      <motion.div variants={fadeUp} className="space-y-3">
+        <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">Site traffic</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <StatCard label={`Site page views: ${PERIOD_LABELS[period]}`} value={summary.siteViewsInPeriod} />
+          <StatCard label="Total site page views all time" value={summary.siteViewsAllTime} />
+        </div>
+        <p className="text-xs text-[var(--fg-faint)]">
+          Includes article views and other public page views. These are page loads, not unique visitors.
+          Tracking of non-article pages starts with the site-wide tracker, so earlier visits may be missing.
+        </p>
+      </motion.div>
 
       {/* Comparison row */}
       <motion.div
@@ -197,7 +213,7 @@ export function OverviewTab({ data, loading, period }: { data: OverviewData | nu
         className="bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-card)]"
       >
         <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
-          <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">Views over time</h2>
+          <h2 className="text-xs font-bold text-[var(--fg)] uppercase tracking-widest">Article views over time</h2>
           <span className="text-xs text-[var(--fg-faint)]">{PERIOD_LABELS[period]}</span>
         </div>
         <div className="p-6">
