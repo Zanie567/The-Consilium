@@ -40,6 +40,7 @@ export function classifyTrafficSource(
     if (['social', 'organic_social', 'paid_social'].includes(campaignMedium)) return 'Social'
     if (['email', 'newsletter'].includes(campaignMedium)) return 'Email'
     if (['organic', 'search', 'cpc', 'paid_search'].includes(campaignMedium)) return 'Search'
+    if (['referral', 'partner'].includes(campaignMedium)) return 'Other'
   }
   const host = referrerHostname(referrer)
   if (host && OWN_HOSTS.some(d => isHost(host, d))) return 'Internal'
