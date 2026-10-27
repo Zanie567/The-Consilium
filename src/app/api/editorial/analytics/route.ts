@@ -681,17 +681,17 @@ async function handleDistribution(since: Date) {
     // Aggregate in Postgres rather than loading an unbounded number of view
     // rows. source is unset on historical records, so group by referrer too.
     prisma.articleView.groupBy({
-      by: ['source', 'referrer'],
+      by: ['source', 'referrer', 'entryKind', 'campaignSource', 'campaignMedium'],
       where: { viewedAt: { gte: since } },
       _count: { _all: true },
-    }).catch(() => [] as { source: string | null; referrer: string | null; _count: { _all: number } }[]),
+    }).catch(() => [] as { source: string | null; referrer: string | null; entryKind: string | null; campaignSource: string | null; campaignMedium: string | null; _count: { _all: number } }[]),
     // Add public non-article pages without reintroducing September's prelaunch
     // test events. Article pages have their own collector and are not duplicated.
     prisma.siteView.groupBy({
-      by: ['referrer'],
+      by: ['referrer', 'entryKind', 'campaignSource', 'campaignMedium'],
       where: { viewedAt: { gte: sitePageSince } },
       _count: { _all: true },
-    }).catch(() => [] as { referrer: string | null; _count: { _all: number } }[]),
+    }).catch(() => [] as { referrer: string | null; entryKind: string | null; campaignSource: string | null; campaignMedium: string | null; _count: { _all: number } }[]),
     prisma.article
       .findMany({
         where: { status: 'PUBLISHED', deletedAt: null },
@@ -714,16 +714,19 @@ async function handleDistribution(since: Date) {
   ]
   const sourceMap = new Map<TrafficSource, number>()
   const domainMap = new Map<string, number>()
-  const addViews = (source: string | null, referrer: string | null, count: number) => {
-    const category = classifyTrafficSource(source, referrer)
+  const addViews = (
+    source: string | null, referrer: string | null, count: number,
+    entryKind?: string | null, campaignSource?: string | null, campaignMedium?: string | null
+  ) => {
+    const category = classifyTrafficSource(source, referrer, entryKind, campaignSource, campaignMedium)
     sourceMap.set(category, (sourceMap.get(category) ?? 0) + count)
     const origin = referrerLabel(referrer)
     if (origin) domainMap.set(origin, (domainMap.get(origin) ?? 0) + count)
   }
   for (const group of sourceGroups)
-    addViews(group.source, group.referrer, group._count._all)
+    addViews(group.source, group.referrer, group._count._all, group.entryKind, group.campaignSource, group.campaignMedium)
   for (const group of pageGroups)
-    addViews(null, group.referrer, group._count._all)
+    addViews(null, group.referrer, group._count._all, group.entryKind, group.campaignSource, group.campaignMedium)
 
   const total = Array.from(sourceMap.values()).reduce((sum, count) => sum + count, 0)
   const trafficSources = SOURCE_ORDER.filter(source => (sourceMap.get(source) ?? 0) > 0)
