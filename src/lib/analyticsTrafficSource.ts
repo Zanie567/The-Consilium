@@ -35,7 +35,11 @@ export function classifyTrafficSource(source: string | null, referrer: string | 
   if (source === 'Search' || source === 'Social' || source === 'Email' || source === 'Other')
     return source
   if (!host) return 'Direct / unknown'
-  if (SEARCH_HOSTS.some(d => isHost(host, d))) return 'Search'
+  // Google sign-in (OAuth) isn't evidence of a Google Search referral;
+  // similarly a Gmail referral is email rather than organic search.
+  if (host === 'mail.google.com') return 'Email'
+  if (host === 'accounts.google.com') return 'Other'
+  if (SEARCH_HOSTS.some(d => d.startsWith('google.') ? host === d : isHost(host, d))) return 'Search'
   if (SOCIAL_HOSTS.some(d => isHost(host, d))) return 'Social'
   return 'Other'
 }
@@ -45,7 +49,9 @@ export function classifyTrafficSource(source: string | null, referrer: string | 
 export function referrerLabel(referrer: string | null): string | null {
   const host = referrerHostname(referrer)
   if (!host || OWN_HOSTS.some(d => isHost(host, d))) return null
-  if (isHost(host, 'google.com') || isHost(host, 'google.co.uk')) return 'Google'
+  if (host === 'accounts.google.com') return 'Google sign-in'
+  if (host === 'mail.google.com') return 'Gmail'
+  if (host === 'google.com' || host === 'google.co.uk') return 'Google'
   if (isHost(host, 'bing.com')) return 'Bing'
   if (isHost(host, 'ecosia.org')) return 'Ecosia'
   if (isHost(host, 'duckduckgo.com')) return 'DuckDuckGo'
