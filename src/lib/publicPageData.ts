@@ -20,3 +20,20 @@ export const getPublicArticle = cache((slug: string) => prisma.article.findFirst
 export const getPublicCategory = cache((slug: string) =>
   prisma.category.findUnique({ where: { slug } }),
 )
+
+/** A tag and its 20 newest public articles (shared by metadata and the page within one render). */
+export const getPublicTag = cache((slug: string) => prisma.tag.findUnique({
+  where: { slug },
+  include: {
+    articles: {
+      where: { article: publishedArticleWhere() },
+      take: 20,
+      orderBy: { article: { publishedAt: { sort: 'desc', nulls: 'last' } } },
+      include: {
+        article: {
+          select: { id: true, title: true, slug: true, excerpt: true, coverImage: true, publishedAt: true, author: { select: { id: true, name: true, slug: true } }, category: { select: { name: true, slug: true } } },
+        },
+      },
+    },
+  },
+}))

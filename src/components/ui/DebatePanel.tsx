@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 
@@ -37,14 +37,34 @@ export interface DebateData {
 
 interface Props {
   initialData: DebateData
+  /**
+   * The initial data is the anonymous view (the homepage is cached at the CDN and identical for
+   * everyone). Ask /api/debates/active for this viewer's vote and the current counts after load;
+   * voting is held until that answer arrives, so a previous voter is never offered a second vote.
+   */
+  personalise?: boolean
   /** When true, removes the top margin so the panel can be placed without extra gap */
   compact?: boolean
 }
 
-export function DebatePanel({ initialData, compact = false }: Props) {
+export function DebatePanel({ initialData, compact = false, personalise = false }: Props) {
   const [data, setData] = useState<DebateData>(initialData)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [checkingVote, setCheckingVote] = useState(personalise && !initialData.isClosed)
+
+  useEffect(() => {
+    if (!personalise || initialData.isClosed) return
+    let cancelled = false
+    apiRequest<(DebateData & { userSide: string | null }) | null>('/api/debates/active', { credentials: 'include' })
+      .then((current) => {
+        if (cancelled || !current || current.id !== initialData.id) return
+        setData((prev) => ({ ...prev, ...current, userSide: current.userSide === 'FOR' || current.userSide === 'AGAINST' ? current.userSide : null }))
+      })
+      .catch(() => {}) // offline or a transient error: the vote route still refuses a second vote
+      .finally(() => { if (!cancelled) setCheckingVote(false) })
+    return () => { cancelled = true }
+  }, [personalise, initialData.id, initialData.isClosed])
 
   async function vote(side: 'FOR' | 'AGAINST') {
     setError(null)
@@ -186,7 +206,7 @@ export function DebatePanel({ initialData, compact = false }: Props) {
           <div className="flex gap-3 justify-center">
             <button
               onClick={() => vote('FOR')}
-              disabled={isPending}
+              disabled={isPending || checkingVote}
               aria-label="Vote for the For side of this debate"
               className="flex-1 max-w-[220px] bg-navy text-cream text-xs font-bold uppercase tracking-widest py-3 px-6 hover:bg-navy/90 disabled:opacity-50 transition-colors"
             >
@@ -194,7 +214,7 @@ export function DebatePanel({ initialData, compact = false }: Props) {
             </button>
             <button
               onClick={() => vote('AGAINST')}
-              disabled={isPending}
+              disabled={isPending || checkingVote}
               aria-label="Vote for the Against side of this debate"
               className="flex-1 max-w-[220px] bg-gold text-navy text-xs font-bold uppercase tracking-widest py-3 px-6 hover:bg-gold/90 disabled:opacity-50 transition-colors"
             >

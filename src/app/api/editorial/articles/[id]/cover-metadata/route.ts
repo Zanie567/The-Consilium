@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
+import { settleCacheInvalidations } from '@/lib/cacheInvalidation'
 import { prisma } from '@/lib/prisma'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
@@ -14,7 +16,7 @@ async function authorisedCover(id: string, mode: 'read' | 'write') {
   if (!auth.ok) return { ok: false as const, response: auth.response }
   const article = await prisma.article.findUnique({
     where: { id },
-    select: { id: true, coverImage: true, categoryId: true, deletedAt: true, authorId: true, status: true },
+    select: { id: true, slug: true, coverImage: true, categoryId: true, deletedAt: true, authorId: true, status: true },
   })
   if (!article || article.deletedAt) {
     return { ok: false as const, response: NextResponse.json({ error: 'Article not found.' }, { status: 404 }) } as const
@@ -76,7 +78,17 @@ async function PATCHHandler(req: Request, { params }: Context) {
       create: { key, value, updatedBy: auth.user.id },
       update: { value, updatedBy: auth.user.id },
     })
-    return NextResponse.json({ ok: true, metadata })
+    // The article page is cached at the CDN: refresh it so the new credit shows on the next visit.
+    // As with cover framing, an invalidation failure never turns the committed save into an error.
+    let cacheRefreshed = true
+    try {
+      revalidatePath(`/articles/${auth.article.slug}`)
+      await settleCacheInvalidations()
+    } catch (error) {
+      cacheRefreshed = false
+      console.error('[cover-metadata] saved but public cache invalidation failed:', error)
+    }
+    return NextResponse.json({ ok: true, metadata, cacheRefreshed })
   } catch {
     return NextResponse.json({ error: 'Unable to save attribution.' }, { status: 503 })
   }

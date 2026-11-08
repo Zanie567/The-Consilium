@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { formatDistanceToNow, format, isAfter, subDays } from 'date-fns'
 import { ThumbsUp, Reply, Trash2, Flag, ChevronDown } from 'lucide-react'
+import { useSession } from 'next-auth/react'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -329,10 +330,18 @@ function SingleComment({
 
 interface Props {
   articleId: string
-  currentUser: SessionUser | null
 }
 
-export function CommentSection({ articleId, currentUser }: Props) {
+/**
+ * The signed-in reader comes from the client session (AuthProvider's SessionProvider), not from the
+ * article page: that page is cached at the CDN and identical for every visitor, so it must never
+ * carry anyone's identity. Every comment action is authorised again by its API route.
+ */
+export function CommentSection({ articleId }: Props) {
+  const { data: session, status: sessionStatus } = useSession()
+  const currentUser: SessionUser | null = session?.user?.id
+    ? { id: session.user.id, name: session.user.name, role: session.user.role }
+    : null
   const [comments, setComments] = useState<CommentItem[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -392,8 +401,11 @@ export function CommentSection({ articleId, currentUser }: Props) {
         )}
       </h2>
 
-      {/* Composer - logged-in only */}
-      {currentUser ? (
+      {/* Composer - logged-in only. Nothing while the session loads, so a signed-in reader never
+          sees the sign-in prompt flash first. */}
+      {sessionStatus === 'loading' ? (
+        <div className="mb-8 h-[3.25rem]" aria-hidden />
+      ) : currentUser ? (
         <div className="mb-8">
           <Composer articleId={articleId} onSuccess={handleNewComment} />
         </div>

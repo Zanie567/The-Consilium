@@ -11,7 +11,7 @@ vi.mock('next/cache', () => ({unstable_cache:(fn:(...args:string[])=>Promise<unk
   mocks.queries[keys[0]]=fn
   return fn
 }}))
-import '@/app/(home)/page'
+import '@/components/home/HomeView'
 beforeEach(() => vi.clearAllMocks())
 it.each([
   ['home-carousel-settings',()=>mocks.siteSetting.findUnique],

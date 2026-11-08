@@ -17,6 +17,19 @@ export const ARTICLES_CACHE_TAG = 'articles'
 export const ARTICLES_REVALIDATE_SECONDS = 30
 
 /**
+ * Lifetime of a public page cached at the CDN (ISR: article, category and tag pages), and of the
+ * data caches inside those pages (a page revalidates as often as its shortest cache). Every editorial
+ * change that affects what is public expires these pages at once through revalidateArticleLists(),
+ * so this timer is only the fallback for data without an invalidation hook (for example a profile
+ * photo shown in a byline). Each page's `export const revalidate` must be this literal number
+ * (Next reads segment config statically); tests/unit/public-page-caching.test.ts checks it.
+ *
+ * Why not shorter: with a few visits an hour, nearly every request after a short window would start
+ * a background re-render, which is exactly the per-request function cost the CDN cache removes.
+ */
+export const PUBLIC_PAGE_REVALIDATE_SECONDS = 3600
+
+/**
  * Single source of truth for "this article is publicly visible".
  *
  * An article is public when it is PUBLISHED and not soft-deleted. Nothing else.

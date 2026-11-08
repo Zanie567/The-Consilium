@@ -1,13 +1,10 @@
 import { readTimeLabel as estimateReadTime } from '@/lib/readTime'
 import Link from 'next/link'
-import { cookies } from 'next/headers'
 import { unstable_cache } from 'next/cache'
-import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { publicDebateWhere } from '@/lib/debateVisibility'
 import { findTrendingTagRows } from '@/lib/publicArticleReads'
-import { publishedArticleWhere, ARTICLES_CACHE_TAG, ARTICLES_REVALIDATE_SECONDS } from '@/lib/articleQueries'
-import { authOptions } from '@/lib/auth'
+import { publishedArticleWhere, ARTICLES_CACHE_TAG, PUBLIC_PAGE_REVALIDATE_SECONDS } from '@/lib/articleQueries'
 import { ClientDate } from '@/components/ui/ClientDate'
 import { NewsletterSignup } from '@/components/ui/NewsletterSignup'
 import { CategoryTabs } from '@/components/ui/CategoryTabs'
@@ -27,22 +24,27 @@ import type { Metadata } from 'next'
 import { SITE_NAME, SITE_URL } from '@/lib/constants'
 import { canonicalAlternates, pageOpenGraph, pageTwitter } from '@/lib/seo'
 import { BRAND_MARK } from '@/lib/brand'
-import { normaliseSearchText, type SearchParamValue } from '@/lib/searchText'
 
-export const dynamic = 'force-dynamic'
-// There is deliberately no loading.tsx beside this page. The category tabs navigate between
-// ?category= variants of this dynamic page, and with a loading boundary Next completes each navigation
-// at once with the loading shell and commits the real one (and the URL) only when React retries after
-// the server data arrives. Under CPU load that retry sometimes never happens: the RSC request returns
-// 200 and the click is silently lost. Without the boundary the router waits for the data and commits.
-// See tests/unit/home-no-loading-boundary.test.ts.
+// The homepage view, rendered by src/app/(home)/home-section/[category]/page.tsx: next.config.ts
+// rewrites / there as the "All" view and /?category=<slug> as that tab, so the URL is unchanged.
+// Every view is cached at the CDN (ISR) and identical for every visitor, so nothing here may read
+// the session, cookies, headers or searchParams: the debate panel asks for the viewer's own vote
+// after load. Every editorial change expires every view at once through revalidateArticleLists().
+//
+// There is deliberately no loading.tsx beside that route. With a loading boundary Next completes
+// each tab navigation at once with the loading shell and commits the real one (and the URL) only
+// when React retries after the server data arrives. Under CPU load that retry sometimes never
+// happens: the RSC request returns 200 and the click is silently lost. Without the boundary the
+// router waits for the data and commits. See tests/unit/home-no-loading-boundary.test.ts.
+//
+// Every list below is wrapped in the Next data cache, and every read lets a database failure
+// propagate: a cached page must never be a degraded one. A failed first render shows the retryable
+// error page; a failed background refresh keeps serving the last good copy.
 
-// The page stays dynamic (it reads the session/cookies for the personalised
-// debate panel), but every NON-personalised list below is wrapped in the Next
-// data cache. A burst of RSC navigations therefore renders from cache instead
-// of repeating the list reads. Prisma's includes can issue several SQL queries;
-// the historic prefetch 503 cause is not established for today's adapter/pool.
-const PUBLIC_LIST_CACHE = { revalidate: ARTICLES_REVALIDATE_SECONDS, tags: [ARTICLES_CACHE_TAG] }
+/** The segment next.config.ts rewrites / (no category) to: the "All" view. Never a category slug. */
+export const ALL_VIEW_SEGMENT = '_'
+
+const PUBLIC_LIST_CACHE = { revalidate: PUBLIC_PAGE_REVALIDATE_SECONDS, tags: [ARTICLES_CACHE_TAG] }
 
 const getHomeCarouselSetting = unstable_cache(async () => {
   return prisma.siteSetting.findUnique({
@@ -102,70 +104,62 @@ const getCategories = unstable_cache(async () => {
 }, ['home-categories'], PUBLIC_LIST_CACHE)
 
 
-async function getActiveDebate(userId?: string, anonymousId?: string): Promise<DebateData | null> {
-  try {
-    const debate = await prisma.debate.findFirst({
-      where: publicDebateWhere({ isActive: true }),
-      include: {
-        forArticle: { select: { id: true, title: true, slug: true, excerpt: true, content: true, author: { select: { name: true } } } },
-        againstArticle: { select: { id: true, title: true, slug: true, excerpt: true, content: true, author: { select: { name: true } } } },
-        _count: { select: { votes: true } },
-      },
+// The anonymous view of the live debate: vote counts only once the debate has closed (the results
+// are hidden until a reader votes). DebatePanel then fetches this viewer's vote from
+// /api/debates/active. Read directly (not data-cached) so the page's own cache bounds its age.
+async function getActiveDebate(): Promise<DebateData | null> {
+  const debate = await prisma.debate.findFirst({
+    where: publicDebateWhere({ isActive: true }),
+    include: {
+      forArticle: { select: { id: true, title: true, slug: true, excerpt: true, content: true, author: { select: { name: true } } } },
+      againstArticle: { select: { id: true, title: true, slug: true, excerpt: true, content: true, author: { select: { name: true } } } },
+      _count: { select: { votes: true } },
+    },
+  })
+  if (!debate) return null
+
+  const isClosed = debate.closesAt ? new Date() > debate.closesAt : false
+
+  const hasVoted = isClosed
+  let forPct = 0, againstPct = 0, forCount = 0, againstCount = 0
+
+  if (hasVoted) {
+    const counts = await prisma.debateVote.groupBy({
+      by: ['side'], where: { debateId: debate.id }, _count: { side: true },
     })
-    if (!debate) return null
+    forCount = counts.find((c) => c.side === 'FOR')?._count.side ?? 0
+    againstCount = counts.find((c) => c.side === 'AGAINST')?._count.side ?? 0
+    const total = forCount + againstCount
+    forPct = total > 0 ? Math.round((forCount / total) * 100) : 0
+    againstPct = total > 0 ? 100 - forPct : 0
+  }
 
-    const isClosed = debate.closesAt ? new Date() > debate.closesAt : false
-
-    let existingVote: { side: string } | null = null
-    if (userId) {
-      existingVote = await prisma.debateVote.findFirst({ where: { debateId: debate.id, userId }, select: { side: true } })
-    } else if (anonymousId) {
-      existingVote = await prisma.debateVote.findFirst({ where: { debateId: debate.id, anonymousId }, select: { side: true } })
-    }
-
-    const hasVoted = existingVote !== null || isClosed
-    let forPct = 0, againstPct = 0, forCount = 0, againstCount = 0
-
-    if (hasVoted) {
-      const counts = await prisma.debateVote.groupBy({
-        by: ['side'], where: { debateId: debate.id }, _count: { side: true },
-      })
-      forCount = counts.find((c) => c.side === 'FOR')?._count.side ?? 0
-      againstCount = counts.find((c) => c.side === 'AGAINST')?._count.side ?? 0
-      const total = forCount + againstCount
-      forPct = total > 0 ? Math.round((forCount / total) * 100) : 0
-      againstPct = total > 0 ? 100 - forPct : 0
-    }
-
-    return {
-      id: debate.id,
-      title: debate.title,
-      description: debate.description,
-      isClosed,
-      closesAt: debate.closesAt?.toISOString() ?? null,
-      forArticle: {
-        id: debate.forArticle.id,
-        title: debate.forArticle.title,
-        slug: debate.forArticle.slug,
-        excerpt: debate.forArticle.excerpt,
-        author: debate.forArticle.author.name,
-        readTime: estimateReadTime(debate.forArticle.content),
-      },
-      againstArticle: {
-        id: debate.againstArticle.id,
-        title: debate.againstArticle.title,
-        slug: debate.againstArticle.slug,
-        excerpt: debate.againstArticle.excerpt,
-        author: debate.againstArticle.author.name,
-        readTime: estimateReadTime(debate.againstArticle.content),
-      },
-      hasVoted,
-      userSide: (existingVote?.side as 'FOR' | 'AGAINST') ?? null,
-      totalVotes: debate._count.votes,
-      ...(hasVoted && { forCount, againstCount, forPct, againstPct }),
-    }
-  } catch {
-    return null
+  return {
+    id: debate.id,
+    title: debate.title,
+    description: debate.description,
+    isClosed,
+    closesAt: debate.closesAt?.toISOString() ?? null,
+    forArticle: {
+      id: debate.forArticle.id,
+      title: debate.forArticle.title,
+      slug: debate.forArticle.slug,
+      excerpt: debate.forArticle.excerpt,
+      author: debate.forArticle.author.name,
+      readTime: estimateReadTime(debate.forArticle.content),
+    },
+    againstArticle: {
+      id: debate.againstArticle.id,
+      title: debate.againstArticle.title,
+      slug: debate.againstArticle.slug,
+      excerpt: debate.againstArticle.excerpt,
+      author: debate.againstArticle.author.name,
+      readTime: estimateReadTime(debate.againstArticle.content),
+    },
+    hasVoted,
+    userSide: null,
+    totalVotes: debate._count.votes,
+    ...(hasVoted && { forCount, againstCount, forPct, againstPct }),
   }
 }
 
@@ -191,9 +185,10 @@ const getTrendingTags = unstable_cache(async () => {
     .slice(0, 8)
 }, ['home-trending-tags'], PUBLIC_LIST_CACHE)
 
-// Title is inherited from layout's default value.
-// Do not set a title here so the template does not double-wrap it.
-export const metadata: Metadata = {
+// Shared by both homepage routes. Title is inherited from layout's default value.
+// Do not set a title here so the template does not double-wrap it. Every ?category= view
+// declares / as its canonical, as before.
+export const homeMetadata: Metadata = {
   description: 'Economics analysis, opinion, and research from the University of Edinburgh.',
   alternates: canonicalAlternates('/'),
   // Built rather than written out: the previous partial object replaced the
@@ -203,31 +198,14 @@ export const metadata: Metadata = {
   twitter: pageTwitter({ title: 'The Consilium', description: 'Ratione et Consilio' }),
 }
 
-export default async function HomePage({
-  searchParams,
-}: {
-  // A repeated `?category=a&category=b` arrives as an array; unnormalised it
-  // reached Prisma (throwing, so the grid emptied) AND read as truthy, which
-  // suppressed the hero — a blank homepage from a crafted link.
-  searchParams: Promise<{ category?: SearchParamValue }>
-}) {
-  const params = await searchParams
-  const categorySlug = normaliseSearchText(params.category, 200)
-
-  // Fetch debate server-side so it's in the HTML for SEO
-  const session = await getServerSession(authOptions)
-  const cookieStore = await cookies()
-  const anonymousId = cookieStore.get('consilium_anon_id')?.value
-
+export async function HomeView({ categorySlug }: { categorySlug?: string }) {
   const [articles, categories, mostRead, trendingTags, activeDebate, carouselSetting] = await Promise.all([
-    // Optional panels degrade outside their shared cache; a failed article feed
-    // remains an error so the existing recovery UI can retry it.
     getArticles(categorySlug),
-    getCategories().catch(() => []),
-    getMostReadArticles().catch(() => []),
-    getTrendingTags().catch(() => []),
-    getActiveDebate(session?.user?.id, anonymousId),
-    getHomeCarouselSetting().catch(() => null),
+    getCategories(),
+    getMostReadArticles(),
+    getTrendingTags(),
+    getActiveDebate(),
+    getHomeCarouselSetting(),
   ])
 
   // The featured hero is only shown on the unfiltered "All" view. On a
@@ -385,7 +363,7 @@ export default async function HomePage({
         {activeDebate && !categorySlug && (
           <AnimateIn variant="fade-up" delay={0.1} className="mt-14">
             <hr className="section-divider mb-14" />
-            <DebatePanel initialData={activeDebate} />
+            <DebatePanel initialData={activeDebate} personalise />
           </AnimateIn>
         )}
 

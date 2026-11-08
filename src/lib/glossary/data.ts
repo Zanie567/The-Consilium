@@ -16,8 +16,10 @@ import {
  *   1. The terms + on/off switch live in one unstable_cache entry tagged
  *      'glossary'. Every admin mutation calls revalidateTag('glossary'), so
  *      toggling the switch or editing a term takes effect on the next request
- *      without redeploying; the 5 minute revalidate is a safety net for any
- *      writer that forgets the tag.
+ *      without redeploying; the 1 hour revalidate is a safety net for any
+ *      writer that forgets the tag. (It caps how long a CDN-cached article page
+ *      stays cached, so it must not be shorter than the article page's own
+ *      revalidate. A failed read is not cached: see loadGlossarySnapshotSafely.)
  *   2. The matcher (sorted surface forms + compiled regex) is rebuilt only
  *      when the term set changes, detected via a fingerprint of ids and
  *      updatedAt timestamps.
@@ -43,51 +45,51 @@ export const GLOSSARY_CACHE_TAG = 'glossary'
 
 const loadGlossarySnapshot = unstable_cache(
   async (): Promise<GlossarySnapshot> => {
-    try {
-      const [setting, rows] = await Promise.all([
-        prisma.siteSetting.findUnique({
-          where: { key: GLOSSARY_ENABLED_KEY },
-          select: { value: true },
-        }),
-        prisma.glossaryTerm.findMany({
-          where: { isActive: true },
-          orderBy: { term: 'asc' },
-          select: {
-            id: true,
-            term: true,
-            aliases: true,
-            definition: true,
-            learnMoreUrl: true,
-            updatedAt: true,
-          },
-        }),
-      ])
-      const enabled = setting?.value === 'true'
-      const terms: GlossaryTermInput[] = rows.map((r) => ({
-        id: r.id,
-        term: r.term,
-        aliases: r.aliases,
-        definition: r.definition,
-        learnMoreUrl: r.learnMoreUrl,
-      }))
-      const fingerprint =
-        rows.length === 0
-          ? 'empty'
-          : rows.map((r) => `${r.id}:${r.updatedAt.getTime()}`).join('|')
-      return { enabled, terms, fingerprint }
-    } catch (err) {
-      // Most likely the glossary_terms table has not been created yet. Degrade
-      // to "feature off" so article pages always render.
-      console.error(
-        '[glossary] failed to load terms:',
-        err instanceof Error ? err.message : String(err)
-      )
-      return EMPTY_SNAPSHOT
-    }
+    const [setting, rows] = await Promise.all([
+      prisma.siteSetting.findUnique({
+        where: { key: GLOSSARY_ENABLED_KEY },
+        select: { value: true },
+      }),
+      prisma.glossaryTerm.findMany({
+        where: { isActive: true },
+        orderBy: { term: 'asc' },
+        select: {
+          id: true,
+          term: true,
+          aliases: true,
+          definition: true,
+          learnMoreUrl: true,
+          updatedAt: true,
+        },
+      }),
+    ])
+    const enabled = setting?.value === 'true'
+    const terms: GlossaryTermInput[] = rows.map((r) => ({
+      id: r.id,
+      term: r.term,
+      aliases: r.aliases,
+      definition: r.definition,
+      learnMoreUrl: r.learnMoreUrl,
+    }))
+    const fingerprint =
+      rows.length === 0
+        ? 'empty'
+        : rows.map((r) => `${r.id}:${r.updatedAt.getTime()}`).join('|')
+    return { enabled, terms, fingerprint }
   },
   ['glossary-snapshot'],
-  { tags: [GLOSSARY_CACHE_TAG], revalidate: 300 }
+  { tags: [GLOSSARY_CACHE_TAG], revalidate: 3600 }
 )
+
+// Most likely failure: the glossary_terms table has not been created yet. Degrade to "feature off"
+// so article pages always render, but outside the cache, so the failure is retried on the next read
+// instead of being stored for an hour.
+function loadGlossarySnapshotSafely(): Promise<GlossarySnapshot> {
+  return loadGlossarySnapshot().catch((err) => {
+    console.error('[glossary] failed to load terms:', err instanceof Error ? err.message : String(err))
+    return EMPTY_SNAPSHOT
+  })
+}
 
 // Matcher memo: one entry, rebuilt when the fingerprint changes.
 let matcherFingerprint: string | null = null
@@ -139,7 +141,7 @@ export async function applyGlossaryLinks(
   articleUpdatedAt: Date,
   sanitizedHtml: string
 ): Promise<GlossaryResult> {
-  const snapshot = await loadGlossarySnapshot()
+  const snapshot = await loadGlossarySnapshotSafely()
   if (!snapshot.enabled || snapshot.terms.length === 0) {
     return { html: sanitizedHtml, hasLinks: false }
   }

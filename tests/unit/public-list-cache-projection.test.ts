@@ -20,7 +20,7 @@ vi.mock('next/cache', () => ({
     return fn
   },
 }))
-import '@/app/(home)/page'
+import '@/components/home/HomeView'
 import '@/app/category/[slug]/page'
 
 const body = JSON.stringify({

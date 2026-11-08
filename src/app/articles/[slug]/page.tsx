@@ -5,9 +5,7 @@ import { getPublicArticle as getArticle } from '@/lib/publicPageData'
 import { notFound, permanentRedirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/lib/auth'
 import { renderContent } from '@/lib/articleRender'
 import { safeJsonLd } from '@/lib/jsonLd'
 import { format } from 'date-fns'
@@ -40,6 +38,20 @@ import { bannerHeightClass, coverFramingImageStyle, coverFramingKey, parseCoverF
 
 interface Props {
   params: Promise<{ slug: string }>
+}
+
+// Served from the CDN (ISR): rendered on the first request for a slug, then cached for
+// PUBLIC_PAGE_REVALIDATE_SECONDS (literal below) and expired at once by revalidateArticleLists()
+// on every publish, withdrawal, trash, restore, correction or byline change (and per article by the
+// cover-framing route). The page is identical for every visitor: the signed-in reader's controls
+// (comments, bookmark, reading progress) read the client session and their own API routes. Nothing
+// here may read the session, cookies, headers or searchParams. A failed article read throws, so it
+// is never cached (retryable error page; a failed background refresh keeps the last good copy).
+// A slug's 404 (unpublished, trashed, unknown) is cached and expired the same way, and a retired
+// address's redirect is cached like a page. Pinned by tests/unit/public-page-caching.test.ts.
+export const revalidate = 3600
+export function generateStaticParams() {
+  return []
 }
 
 function getArticleUrl(slug: string): string {
@@ -188,10 +200,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ArticlePage({ params }: Props) {
   const { slug } = await params
-  const [article, session] = await Promise.all([
-    getArticle(slug),
-    getServerSession(authOptions),
-  ])
+  const article = await getArticle(slug)
 
   if (!article) {
     // A retired address (approved slug migration). The proxy normally answers it with a 301 first;
@@ -202,10 +211,6 @@ export default async function ArticlePage({ params }: Props) {
     if (target) permanentRedirect(`/articles/${target}`)
     notFound()
   }
-
-  const currentUser = session?.user
-    ? { id: session.user.id, name: session.user.name, role: session.user.role }
-    : null
 
   // Read separately from the article so a corrections-table problem can never 404 the article.
   // One optional settings lookup serves both photo credit and framing.
@@ -507,7 +512,7 @@ export default async function ArticlePage({ params }: Props) {
 
         {/* ── Comment Section ─────────────────────────────────────────────── */}
         <div className="no-print">
-          <CommentSection articleId={article.id} currentUser={currentUser} />
+          <CommentSection articleId={article.id} />
         </div>
 
         {/* Back link */}

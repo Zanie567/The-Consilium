@@ -5,7 +5,8 @@ import { publishedArticleWhere, ARTICLES_CACHE_TAG } from '@/lib/articleQueries'
 import { revalidateArticleLists } from '@/lib/revalidateArticles'
 
 const revalidateTag = vi.hoisted(() => vi.fn())
-vi.mock('next/cache', () => ({ revalidateTag }))
+const revalidatePath = vi.hoisted(() => vi.fn())
+vi.mock('next/cache', () => ({ revalidateTag, revalidatePath }))
 
 /**
  * The homepage hero rotates through a small set of articles. These guard the
@@ -156,6 +157,12 @@ describe('publishing refreshes the hero', () => {
     expect(revalidateTag).toHaveBeenCalledWith(ARTICLES_CACHE_TAG, { expire: 0 })
   })
 
+  it('also expires every CDN-cached (ISR) page, which reads articles without the tag', async () => {
+    revalidatePath.mockClear()
+    await revalidateArticleLists()
+    expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
+  })
+
   it('never turns a revalidation hiccup into a failed publish', async () => {
     const error = new Error('cache unavailable')
     revalidateTag.mockImplementationOnce(() => {
@@ -164,7 +171,7 @@ describe('publishing refreshes the hero', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     expect(await revalidateArticleLists()).toBe(false) // never throws; the failure is reported
     expect(await revalidateArticleLists()).toBe(true) // the next call works again, and reports success
-    expect(consoleError).toHaveBeenCalledWith('[cache] expiring "articles" FAILED; cached data may be stale until its TTL:', error)
+    expect(consoleError).toHaveBeenCalledWith('[cache] expiring public article caches FAILED; cached pages may be stale until their TTL:', error)
     consoleError.mockRestore()
   })
 })

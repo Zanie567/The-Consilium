@@ -63,7 +63,7 @@ import { POST as postVote } from '@/app/api/debates/[debateId]/vote/route'
 import { GET as getHistory } from '@/app/api/profile/debate-votes/route'
 import { GET as getStats } from '@/app/api/profile/stats/route'
 import OpinionDebatePage from '@/app/opinion-debate/page'
-import HomePage from '@/app/(home)/page'
+import { HomeView } from '@/components/home/HomeView'
 import { withPublicDebate } from '@/lib/debateVoting'
 import { PUBLIC_DEBATE_WHERE, publicDebateWhere } from '@/lib/debateVisibility'
 import { transitionDebate } from '@/lib/debateLifecycle'
@@ -174,7 +174,7 @@ async function serve(): Promise<Served> {
   // Server-render exactly what a visitor's browser receives; the client components need a session provider to render.
   const html = (node: ReactNode) => renderToStaticMarkup(createElement(SessionProvider, { session: null } as ComponentProps<typeof SessionProvider>, node))
   const page = html(await OpinionDebatePage())
-  const home = html(await HomePage({ searchParams: Promise.resolve({}) }))
+  const home = html(await HomeView({}))
   const history = (await (await getHistory()).json()) as Served['history']
   const stats = (await (await getStats()).json()) as Served['stats']
   return { active, page, home, history, stats }

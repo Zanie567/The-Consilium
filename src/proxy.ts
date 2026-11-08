@@ -172,19 +172,50 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
+  /*
+   * Where the proxy runs. Every invocation is billed Vercel Active CPU (10 ms at the least, far more
+   * on a cold start) and runs BEFORE the CDN cache, so even a cached page paid for one. In November
+   * 2026 the proxy was 31% of the project's Active CPU, almost all of it anonymous page views and
+   * link prefetches, for which it does nothing. See docs/operations/vercel-cpu-optimisation-2026-11.md.
+   *
+   * 1. Private areas and every API route: always, whatever the request carries. Sign-in redirects,
+   *    401s, the same-origin (CSRF) check, stripping a browser-supplied identity attestation and the
+   *    testing gate live here. `startsWith` semantics, so `/editorial%2Fx` and `/api/x.png` match.
+   * 2. The retired article addresses, so they keep their server-side 301. Every retired address
+   *    (article_slug_redirects, written only by the approved slug migration) is an old
+   *    `draft-<digits>` slug. Any other retired address still redirects from the article page (308).
+   * 3. Every other page, only when the request carries a NextAuth session cookie (plain or
+   *    `__Secure-`, or the first chunk of a chunked cookie). A signed-in reader still gets the ban
+   *    redirect exactly as before. An anonymous request had nothing for the proxy to do: getToken
+   *    returns null without a cookie and no public page needs a session.
+   *    Public asset files are skipped even then: ONE file name with an image/text extension at the
+   *    site root or directly inside public/brand, public/og or public/team, the name limited to
+   *    [A-Za-z0-9._-] so an encoded "/" (%2F) never counts as an asset.
+   *
+   * There are no Server Actions in this app. If one is ever added to a public page, an anonymous call
+   * skips the proxy, so it must authorise itself (as Next's docs require anyway). In testing mode the
+   * root layout runs requireTestingWorkspace() for the pages the proxy no longer sees.
+   * Next requires literal values here (statically analysed at build time).
+   * Pinned by tests/unit/proxy-security-contract.test.ts.
+   */
   matcher: [
-    /*
-     * Every path except Next.js internals and public asset files. The proxy does nothing for an
-     * asset (it needs no session, and banned readers were never redirected away from one), but
-     * each invocation still costs Vercel CPU.
-     *
-     * An "asset" is ONE file name with an image/text extension at the site root (logo.png,
-     * robots.txt, sitemap.xml, feed.xml, the icons) or directly inside public/brand, public/og or
-     * public/team. Nothing under /api, /editorial, /admin or any other path is ever skipped, even
-     * with an extension, and the name allows only [A-Za-z0-9._-], so an encoded "/" (%2F) still
-     * goes through the proxy. Server Actions post to page paths, which always match.
-     * Pinned by tests/unit/proxy-security-contract.test.ts.
-     */
-    '/((?!_next/static|_next/image|favicon.ico|(?:brand/|og/|team/)?[A-Za-z0-9._-]+\\.(?:png|jpe?g|gif|svg|ico|webp|avif|txt|xml|webmanifest)$).*)',
+    '/(api|admin|editorial|dashboard)(.*)',
+    '/articles/draft-:id(\\d+)',
+    {
+      source: '/((?!_next/static|_next/image|favicon.ico|(?:brand/|og/|team/)?[A-Za-z0-9._-]+\\.(?:png|jpe?g|gif|svg|ico|webp|avif|txt|xml|webmanifest)$).*)',
+      has: [{ type: 'cookie', key: '__Secure-next-auth.session-token' }],
+    },
+    {
+      source: '/((?!_next/static|_next/image|favicon.ico|(?:brand/|og/|team/)?[A-Za-z0-9._-]+\\.(?:png|jpe?g|gif|svg|ico|webp|avif|txt|xml|webmanifest)$).*)',
+      has: [{ type: 'cookie', key: 'next-auth.session-token' }],
+    },
+    {
+      source: '/((?!_next/static|_next/image|favicon.ico|(?:brand/|og/|team/)?[A-Za-z0-9._-]+\\.(?:png|jpe?g|gif|svg|ico|webp|avif|txt|xml|webmanifest)$).*)',
+      has: [{ type: 'cookie', key: '__Secure-next-auth.session-token.0' }],
+    },
+    {
+      source: '/((?!_next/static|_next/image|favicon.ico|(?:brand/|og/|team/)?[A-Za-z0-9._-]+\\.(?:png|jpe?g|gif|svg|ico|webp|avif|txt|xml|webmanifest)$).*)',
+      has: [{ type: 'cookie', key: 'next-auth.session-token.0' }],
+    },
   ],
 }

@@ -93,6 +93,10 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   const testWorkspace = process.env.TESTING_MODE_ENABLED === '1'
+  // The proxy no longer runs for anonymous page views (src/proxy.ts matcher), so the testing
+  // workspace gate it applied to every request is repeated here for every page. Fails closed: an
+  // unattested workspace renders the error page instead of content. Loaded only in testing mode.
+  if (testWorkspace) await (await import('@/lib/testingMode')).requireTestingWorkspace()
   const session = testWorkspace ? await getServerSession(authOptions) : undefined
   return (
     <html
