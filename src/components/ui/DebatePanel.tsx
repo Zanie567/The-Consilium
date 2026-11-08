@@ -41,6 +41,8 @@ interface Props {
    * The initial data is the anonymous view (the homepage is cached at the CDN and identical for
    * everyone). Ask /api/debates/active for this viewer's vote and the current counts after load;
    * voting is held until that answer arrives, so a previous voter is never offered a second vote.
+   * The answer is also the live visibility check, so a cached copy fails closed: no public debate
+   * hides the panel, and a different active debate replaces it.
    */
   personalise?: boolean
   /** When true, removes the top margin so the panel can be placed without extra gap */
@@ -52,19 +54,25 @@ export function DebatePanel({ initialData, compact = false, personalise = false 
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [checkingVote, setCheckingVote] = useState(personalise && !initialData.isClosed)
+  const [withdrawn, setWithdrawn] = useState(false)
 
   useEffect(() => {
     if (!personalise || initialData.isClosed) return
     let cancelled = false
     apiRequest<(DebateData & { userSide: string | null }) | null>('/api/debates/active', { credentials: 'include' })
       .then((current) => {
-        if (cancelled || !current || current.id !== initialData.id) return
-        setData((prev) => ({ ...prev, ...current, userSide: current.userSide === 'FOR' || current.userSide === 'AGAINST' ? current.userSide : null }))
+        if (cancelled) return
+        if (!current) { setWithdrawn(true); return }
+        const userSide = current.userSide === 'FOR' || current.userSide === 'AGAINST' ? current.userSide : null
+        // A different active debate replaces the cached one outright; the same one is refreshed.
+        setData((prev) => (current.id === prev.id ? { ...prev, ...current, userSide } : { ...current, userSide }))
       })
       .catch(() => {}) // offline or a transient error: the vote route still refuses a second vote
       .finally(() => { if (!cancelled) setCheckingVote(false) })
     return () => { cancelled = true }
   }, [personalise, initialData.id, initialData.isClosed])
+
+  if (withdrawn) return null
 
   async function vote(side: 'FOR' | 'AGAINST') {
     setError(null)

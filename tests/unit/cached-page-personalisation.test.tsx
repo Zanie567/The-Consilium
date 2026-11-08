@@ -69,12 +69,18 @@ it('enables voting for a viewer who has not voted', async () => {
   await waitFor(() => { for (const button of voteButtons()) expect((button as HTMLButtonElement).disabled).toBe(false) })
 })
 
-it('ignores an answer about a different debate, and still enables voting after a failed check', async () => {
-  fetchMock.mockResolvedValueOnce(json({ ...debate, id: 'other', hasVoted: true, userSide: 'AGAINST', forPct: 10, againstPct: 90 }))
-  render(<DebatePanel initialData={debate} personalise />)
-  await waitFor(() => { for (const button of voteButtons()) expect((button as HTMLButtonElement).disabled).toBe(false) })
-  expect(screen.queryByText(/90%/)).toBeNull()
+it('fails closed: hides a cached debate that is no longer public, and shows the active one instead of a stale one', async () => {
+  fetchMock.mockResolvedValueOnce(json(null))
+  const { container } = render(<DebatePanel initialData={debate} personalise />)
+  await waitFor(() => expect(container.textContent).toBe(''))
   cleanup()
+  fetchMock.mockResolvedValueOnce(json({ ...debate, id: 'other', title: 'A newer debate', hasVoted: false }))
+  render(<DebatePanel initialData={debate} personalise />)
+  await waitFor(() => expect(screen.getByText('A newer debate')).not.toBeNull())
+  expect(screen.queryByText('Should rates fall?')).toBeNull()
+})
+
+it('still enables voting after a failed check (the vote route refuses a second vote anyway)', async () => {
   fetchMock.mockRejectedValueOnce(new Error('offline'))
   render(<DebatePanel initialData={debate} personalise />)
   await waitFor(() => { for (const button of voteButtons()) expect((button as HTMLButtonElement).disabled).toBe(false) })
