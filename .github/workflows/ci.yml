@@ -101,7 +101,7 @@ jobs:
   # >= 400 (including ?_rsc= prefetch requests) fails this job and blocks merge.
   e2e:
     name: E2E (Playwright), data-layer & network checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
 
     services:
@@ -181,7 +181,7 @@ jobs:
   # enabled in the two browser jobs. Each runner owns its DB, storage and mail.
   role-workflows:
     name: Critical roles, profiles and testing mode
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # The serialized Chromium/WebKit census itself completes in about 46m on
     # GitHub. Dependency install, the isolated production build and upload of
     # the requested passing simulator traces pushed the measured job just past
@@ -265,7 +265,7 @@ jobs:
   # serial run never lengthens the roles job and never overlaps the public count checks.
   upgrade-journeys:
     name: Platform upgrade journeys
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
 
     services:
