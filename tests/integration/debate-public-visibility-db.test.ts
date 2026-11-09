@@ -63,7 +63,7 @@ import { POST as postVote } from '@/app/api/debates/[debateId]/vote/route'
 import { GET as getHistory } from '@/app/api/profile/debate-votes/route'
 import { GET as getStats } from '@/app/api/profile/stats/route'
 import OpinionDebatePage from '@/app/opinion-debate/page'
-import HomePage from '@/app/(home)/page'
+import { HomeView } from '@/components/home/HomeView'
 import { withPublicDebate } from '@/lib/debateVoting'
 import { PUBLIC_DEBATE_WHERE, publicDebateWhere } from '@/lib/debateVisibility'
 import { transitionDebate } from '@/lib/debateLifecycle'
@@ -174,7 +174,7 @@ async function serve(): Promise<Served> {
   // Server-render exactly what a visitor's browser receives; the client components need a session provider to render.
   const html = (node: ReactNode) => renderToStaticMarkup(createElement(SessionProvider, { session: null } as ComponentProps<typeof SessionProvider>, node))
   const page = html(await OpinionDebatePage())
-  const home = html(await HomePage({ searchParams: Promise.resolve({}) }))
+  const home = html(await HomeView({}))
   const history = (await (await getHistory()).json()) as Served['history']
   const stats = (await (await getStats()).json()) as Served['stats']
   return { active, page, home, history, stats }
@@ -455,7 +455,7 @@ suite('public debate visibility fails closed (real database, real handlers and p
     })
 
     it('every public surface builds its filter from debateVisibility, and no other file re-spells the debate\'s own conditions', () => {
-      for (const file of ['app/opinion-debate/page.tsx', 'app/(home)/page.tsx', 'app/api/debates/active/route.ts', 'app/api/debates/[debateId]/vote/route.ts', 'lib/debateVoting.ts', 'app/api/profile/debate-votes/route.ts', 'app/api/profile/stats/route.ts']) {
+      for (const file of ['app/opinion-debate/page.tsx', 'components/home/HomeView.tsx', 'app/api/debates/active/route.ts', 'app/api/debates/[debateId]/vote/route.ts', 'lib/debateVoting.ts', 'app/api/profile/debate-votes/route.ts', 'app/api/profile/stats/route.ts']) {
         expect(src(file), file).toMatch(/publicDebateWhere|PUBLIC_DEBATE_WHERE/)
       }
       const root = join(process.cwd(), 'src')
@@ -468,11 +468,18 @@ suite('public debate visibility fails closed (real database, real handlers and p
       expect(src('app/opinion-debate/page.tsx')).toMatch(/export const dynamic = 'force-dynamic'/)
       expect(src('app/api/debates/active/route.ts')).toMatch(/export const dynamic = 'force-dynamic'/)
       expect(src('app/api/debates/[debateId]/vote/route.ts')).toMatch(/export const dynamic = 'force-dynamic'/)
-      expect(src('app/(home)/page.tsx')).toMatch(/export const dynamic = 'force-dynamic'/)
+      // The homepage is CDN-cached (ISR) since the November 2026 CPU work. It stays fail-closed
+      // through two independent paths: every debate lifecycle change expires every cached page
+      // (revalidateDebateSurfaces -> revalidateArticleLists -> revalidatePath('/', 'layout')), and
+      // its panel re-reads the live, per-request /api/debates/active after load, hiding a debate
+      // that is no longer public (tests/unit/cached-page-personalisation.test.tsx).
+      expect(src('lib/revalidateArticles.ts')).toMatch(/revalidatePath\('\/', 'layout'\)/)
+      expect(src('lib/debateLifecycle.ts')).toMatch(/revalidateArticleLists\(\)/)
+      expect(src('components/home/HomeView.tsx')).toMatch(/<DebatePanel initialData=\{activeDebate\} personalise \/>/)
       for (const file of ['app/opinion-debate/page.tsx', 'app/api/debates/active/route.ts', 'app/api/profile/debate-votes/route.ts', 'app/api/profile/stats/route.ts']) {
         expect(src(file), file).not.toMatch(/unstable_cache|export const revalidate\b|'use cache'|revalidate:\s*\d/)
       }
-      const home = src('app/(home)/page.tsx')
+      const home = src('components/home/HomeView.tsx')
       expect(home).toMatch(/async function getActiveDebate\(/) // a plain function...
       expect(home).not.toMatch(/getActiveDebate\s*=\s*unstable_cache/) // ...never a cached one
     })

@@ -107,6 +107,31 @@ const nextConfig: NextConfig = {
     // this workspace's dev server; ordinary development keeps Next's default.
     ...(process.env.E2E_ISOLATED === '1' ? { turbopackFileSystemCacheForDev: false } : {}),
   },
+  async rewrites() {
+    // Testing-mode builds render the CDN-cached routes per request through their twins in
+    // src/app/testing-dynamic (the root layout reads the session there, which a cached route cannot).
+    const prefix = process.env.TESTING_MODE_ENABLED === '1' ? '/testing-dynamic' : ''
+    return {
+      // The homepage is rendered by src/app/(home)/home-section/[category]: the "All" view at / as the
+      // reserved segment `_`, and each category tab (/?category=<slug>) as its slug. One route with a
+      // path parameter, so every view is cached at the CDN (ISR) and rendered on its first request,
+      // never at build time (preview builds have no database). A page that reads searchParams would
+      // be rendered for every request instead. A rewrite is applied by Vercel's routing before any
+      // function runs, and the visitor's URL is unchanged. An empty ?category= keeps the "All" view,
+      // as before. Pinned by tests/unit/public-page-caching.test.ts.
+      beforeFiles: [
+        {
+          source: '/',
+          has: [{ type: 'query' as const, key: 'category', value: '(?<category>.+)' }],
+          destination: `${prefix}/home-section/:category`,
+        },
+        { source: '/', destination: `${prefix}/home-section/_` },
+        ...(prefix
+          ? ['/articles/:slug', '/category/:slug', '/tag/:slug'].map((source) => ({ source, destination: `${prefix}${source}` }))
+          : []),
+      ],
+    }
+  },
   async redirects() {
     return [
       { source: '/news',       destination: '/category/news',      permanent: true },

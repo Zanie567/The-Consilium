@@ -178,39 +178,69 @@ describe('testing workspace gate', () => {
 })
 
 describe('matcher', () => {
-  const matches = (path: string, method = 'GET', headers: Record<string, string> = {}) =>
-    unstable_doesMiddlewareMatch({ config, url: path, headers: { ...headers, 'x-method': method } })
+  const SESSION = { '__Secure-next-auth.session-token': 'jwe' }
+  const matches = (path: string, method = 'GET', headers: Record<string, string> = {}, cookies?: Record<string, string>) =>
+    unstable_doesMiddlewareMatch({ config, url: path, headers: { ...headers, 'x-method': method }, cookies })
 
+  // Private areas and every API route: the proxy runs for everyone, cookie or not, so sign-in
+  // redirects, 401s, CSRF and attestation stripping never depend on what the browser sends.
   it.each([
-    '/', '/articles/some-article', '/category/news', '/editorial', '/editorial/articles/abc/edit',
-    '/admin', '/dashboard', '/login', '/banned', '/api/admin/stats', '/api/upload', '/api/auth/session',
-    // Paths with file extensions under private prefixes must never skip the proxy.
+    '/editorial', '/editorial/articles/abc/edit', '/editorial/login', '/admin', '/admin/team', '/dashboard',
+    '/api/admin/stats', '/api/upload', '/api/auth/session', '/api/analytics/track', '/api/comments',
+    '/api/publish-scheduled', '/api/cron/scheduler-health', '/api/ticker/markets', '/api',
+    // Paths with file extensions or encoded slashes under private prefixes must never skip the proxy.
     '/api/admin/stats.png', '/api/x.json', '/editorial/a.png', '/admin/export.csv', '/api/teams/x.svg',
-  ])('runs the proxy for %s', (path) => {
+    '/api%2Fadmin%2Fstats.png', '/editorial%2Fx', '/adminx', '/editorial/',
+  ])('runs the proxy for %s without a session cookie', (path) => {
     expect(matches(path)).toBe(true)
+    expect(matches(path, 'POST')).toBe(true)
   })
 
-  it('runs the proxy for Server Action posts to pages', () => {
-    expect(matches('/articles/some-article', 'POST', { 'next-action': 'abc123' })).toBe(true)
-    expect(matches('/editorial/articles/abc/edit', 'POST', { 'next-action': 'abc123' })).toBe(true)
+  it('runs the proxy for the retired article addresses, so they keep their 301', () => {
+    expect(matches('/articles/draft-1791210392433')).toBe(true)
+    expect(matches('/articles/draft-1785172614450', 'HEAD')).toBe(true)
+  })
+
+  // Anonymous page views and prefetches: nothing for the proxy to do (no ban to enforce, no session).
+  it.each([
+    '/', '/articles/some-article', '/articles/draft-notes', '/category/news', '/tag/ai', '/author/abc', '/archive',
+    '/privacy', '/login', '/banned', '/profile', '/team', '/trading-challenge', '/x.php',
+  ])('skips the proxy for an anonymous request to the page %s', (path) => {
+    expect(matches(path)).toBe(false)
+    expect(matches(path, 'GET', { rsc: '1', 'next-router-prefetch': '1' })).toBe(false)
+  })
+
+  it.each([
+    '/', '/articles/some-article', '/category/news', '/tag/ai', '/author/abc', '/archive', '/privacy',
+    '/login', '/banned', '/profile', '/team', '/teams/x.png', '/brand/sub/x.png', '/og/x.png/edit',
+    '/logo.png/extra', '/.well-known/security.txt', '/x.php', '/xmlrpc.php',
+  ])('runs the proxy for a signed-in request to %s (ban redirect)', (path) => {
+    expect(matches(path, 'GET', {}, SESSION)).toBe(true)
+    expect(matches(path, 'GET', { rsc: '1', 'next-router-prefetch': '1' }, SESSION)).toBe(true)
+  })
+
+  it.each([
+    'next-auth.session-token', '__Secure-next-auth.session-token',
+    'next-auth.session-token.0', '__Secure-next-auth.session-token.0',
+  ])('recognises the session cookie %s', (name) => {
+    expect(matches('/articles/some-article', 'GET', {}, { [name]: 'jwe' })).toBe(true)
+  })
+
+  it('does not treat other cookies as a session', () => {
+    expect(matches('/articles/some-article', 'GET', {}, { consilium_anon_id: 'a', 'next-auth.csrf-token': 'b', 'next-auth.callback-url': 'c' })).toBe(false)
   })
 
   it.each(['/_next/static/chunks/main.js', '/_next/image', '/favicon.ico'])('skips Next internals: %s', (path) => {
     expect(matches(path)).toBe(false)
+    expect(matches(path, 'GET', {}, SESSION)).toBe(false)
   })
 
   it.each([
     '/logo.png', '/favicon-navy-32.png', '/apple-touch-icon.png', '/apple-icon.png', '/icon.png',
     '/robots.txt', '/sitemap.xml', '/feed.xml', '/next.svg', '/brand/consilium-mark-v2.png',
     '/og/consilium-share-v2.png', '/team/yaoqing-wang.jpeg',
-  ])('skips the public asset file %s', (path) => {
+  ])('skips the public asset file %s, even for a signed-in request', (path) => {
     expect(matches(path)).toBe(false)
-  })
-
-  it.each([
-    '/team', '/team/', '/teams/x.png', '/brand/sub/x.png', '/og/x.png/edit',
-    '/api%2Fadmin%2Fstats.png', '/logo.png/extra', '/.well-known/security.txt', '/x.php', '/xmlrpc.php',
-  ])('still runs the proxy for the near-miss %s', (path) => {
-    expect(matches(path)).toBe(true)
+    expect(matches(path, 'GET', {}, SESSION)).toBe(false)
   })
 })

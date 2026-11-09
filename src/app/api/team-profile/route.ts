@@ -1,4 +1,5 @@
 import { withTestingAudit } from '@/lib/testingAudit'
+import { revalidateArticleLists } from '@/lib/revalidateArticles'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -196,6 +197,8 @@ async function PUTHandler(request: NextRequest) {
     // Only after both rows point at the new photo is the old one safe to delete, and only
     // when no account or card anywhere still uses it.
     await releaseUnusedPhotos(saved.shared.previousPhotos, user.id)
+    // Bylines on CDN-cached article, category and tag pages show this name and photo. Never throws.
+    await revalidateArticleLists()
 
     const profile = saved.card
     return NextResponse.json(

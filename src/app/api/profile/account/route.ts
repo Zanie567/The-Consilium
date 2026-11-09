@@ -1,4 +1,5 @@
 import { withTestingAudit } from '@/lib/testingAudit'
+import { revalidateArticleLists } from '@/lib/revalidateArticles'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireVerifiedSessionUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -124,6 +125,8 @@ async function PATCHHandler(request: NextRequest) {
     // Only after both rows point at the new photo is the old one safe to delete, and only
     // if no account or card anywhere still uses it. Never throws.
     await releaseUnusedPhotos(saved.shared.previousPhotos, user.id)
+    // Bylines on CDN-cached article, category and tag pages show this name and photo. Never throws.
+    await revalidateArticleLists()
 
     const { shared } = saved
     return NextResponse.json({
@@ -169,6 +172,8 @@ async function DELETEHandler(request: NextRequest) {
     }
 
     await prisma.user.delete({ where: { id: user.id } })
+    // A deleted account's articles and bylines leave the CDN-cached pages too. Never throws.
+    await revalidateArticleLists()
 
     return NextResponse.json({ ok: true })
   } catch (error) {

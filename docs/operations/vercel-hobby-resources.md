@@ -180,6 +180,10 @@ is the starting point.
 
 ## 9. Follow-ups not in this branch
 
+Update (November 2026): the first two items below were done in
+`perf/vercel-cpu-optimisation-2026-11`, with production per-route CPU now available; see
+[vercel-cpu-optimisation-2026-11.md](vercel-cpu-optimisation-2026-11.md).
+
 - Cache public category and tag pages (ISR): about a quarter of page renders in the sample hour,
   and they use no request-time APIs. Not done here because the root layout reads the session in
   testing mode, which an ISR route cannot do. It needs a testing-mode-safe design and the E2E

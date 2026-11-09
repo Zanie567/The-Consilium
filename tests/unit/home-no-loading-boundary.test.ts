@@ -6,7 +6,7 @@ import { expect, it } from 'vitest'
 // loading-shell path, where the router's commit (and the URL update) can be lost under CPU load: the
 // RSC request returns 200 and nothing happens. Measured on the production build with the instrumented
 // router: 3-6 lost clicks per 150 rounds with the boundary, 0 in 300 without it. See the comment in
-// src/app/(home)/page.tsx before adding one back.
+// src/components/home/HomeView.tsx before adding one back.
 it('keeps the home page free of a loading boundary', () => {
-  expect(existsSync(join(process.cwd(), 'src/app/(home)/loading.tsx'))).toBe(false)
+  expect(existsSync(join(process.cwd(), 'src/app/(home)/home-section/[category]/loading.tsx'))).toBe(false)
 })

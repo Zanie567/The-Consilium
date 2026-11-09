@@ -1,8 +1,7 @@
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { publishedArticleWhere } from '@/lib/articleQueries'
-import { prisma } from '@/lib/prisma'
+import { getPublicTag } from '@/lib/publicPageData'
 import { format } from 'date-fns'
 import { StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { ArticleEmptyState } from '@/components/ui/ArticleEmptyState'
@@ -14,9 +13,21 @@ interface Props {
   params: Promise<{ slug: string }>
 }
 
+// Served from the CDN (ISR): rendered on the first request for a slug, then cached for
+// PUBLIC_PAGE_REVALIDATE_SECONDS (literal below) and expired at once by revalidateArticleLists()
+// whenever anything public changes. Nothing on this page may read the session, cookies, headers or
+// searchParams, which would make it per-request again. A failed database read throws, so it is never
+// cached: the first render shows the retryable error page, and a failed background refresh keeps
+// serving the last good copy. An unknown slug's 404 is cached too, and is expired the same way when
+// the slug is published. Pinned by tests/unit/public-page-caching.test.ts.
+export const revalidate = 3600
+export function generateStaticParams() {
+  return []
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const tag = await prisma.tag.findUnique({ where: { slug } }).catch(() => null)
+  const tag = await getPublicTag(slug)
   if (!tag) return {}
   return {
     title: tag.name,
@@ -28,21 +39,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function TagPage({ params }: Props) {
   const { slug } = await params
 
-  const tag = await prisma.tag.findUnique({
-    where: { slug },
-    include: {
-      articles: {
-        where: { article: publishedArticleWhere() },
-        take: 20,
-        orderBy: { article: { publishedAt: { sort: 'desc', nulls: 'last' } } },
-        include: {
-          article: {
-            select: { id: true, title: true, slug: true, excerpt: true, coverImage: true, publishedAt: true, author: { select: { id: true, name: true, slug: true } }, category: { select: { name: true, slug: true } } },
-          },
-        },
-      },
-    },
-  }).catch(() => null)
+  // A failed read throws (retryable error page); only a successful null is a 404.
+  const tag = await getPublicTag(slug)
 
   if (!tag) notFound()
 

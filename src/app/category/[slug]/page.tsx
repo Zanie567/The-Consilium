@@ -3,7 +3,7 @@ import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { getPublicCategory } from '@/lib/publicPageData'
 import { ARTICLE_CARD_SELECT, toArticleCard } from '@/lib/publicArticleCards'
-import { publishedArticleWhere, ARTICLES_CACHE_TAG, ARTICLES_REVALIDATE_SECONDS } from '@/lib/articleQueries'
+import { publishedArticleWhere, ARTICLES_CACHE_TAG, PUBLIC_PAGE_REVALIDATE_SECONDS } from '@/lib/articleQueries'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { ArticleCard } from '@/components/ui/ArticleCard'
 import { ArticleEmptyState } from '@/components/ui/ArticleEmptyState'
@@ -13,6 +13,18 @@ import { canonicalAlternates } from '@/lib/seo'
 
 interface Props {
   params: Promise<{ slug: string }>
+}
+
+// Served from the CDN (ISR): rendered on the first request for a slug, then cached for
+// PUBLIC_PAGE_REVALIDATE_SECONDS (literal below) and expired at once by revalidateArticleLists()
+// whenever anything public changes. Nothing on this page may read the session, cookies, headers or
+// searchParams, which would make it per-request again. A failed database read throws, so it is never
+// cached: the first render shows the retryable error page, and a failed background refresh keeps
+// serving the last good copy. An unknown slug's 404 is cached too, and is expired the same way when
+// the slug is published. Pinned by tests/unit/public-page-caching.test.ts.
+export const revalidate = 3600
+export function generateStaticParams() {
+  return []
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -43,7 +55,7 @@ const getCachedCategoryArticles = unstable_cache(
     return rows.map(toArticleCard)
   },
   ['category-articles'],
-  { revalidate: ARTICLES_REVALIDATE_SECONDS, tags: [ARTICLES_CACHE_TAG] },
+  { revalidate: PUBLIC_PAGE_REVALIDATE_SECONDS, tags: [ARTICLES_CACHE_TAG] },
 )
 
 export default async function CategoryPage({ params }: Props) {
