@@ -7,6 +7,7 @@ import { apiRequest, asApiError } from '@/lib/apiClient'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DEBATE_VISIBILITY_LABEL } from '@/lib/debateVisibility'
 import {
+  debatePurgeMessage,
   filterDebateRows,
   sortDebateRows,
   type DebateAdminRow,
@@ -21,41 +22,41 @@ const STATUS_FILTERS: { value: DebateStatusFilter; label: string }[] = [
   { value: 'deleted', label: 'Deleted' },
 ]
 
-const ACTION_COPY: Record<DebateAction, { title: string; confirm: string; tone: 'default' | 'danger'; done: string; message: (t: string) => string }> = {
+const ACTION_COPY: Record<DebateAction, { title: string; confirm: string; tone: 'default' | 'danger'; done: string; message: (row: DebateAdminRow) => string }> = {
   unpublish: {
     title: 'Unpublish this debate?',
     confirm: 'Unpublish',
     tone: 'danger',
     done: 'Unpublished. It and both of its articles are no longer public.',
-    message: (t) => `"${t}" and both of its articles disappear from the website, search, feeds and the vote API straight away. Nothing is deleted and you can publish it again.`,
+    message: ({ title: t }) => `"${t}" and both of its articles disappear from the website, search, feeds and the vote API straight away. Nothing is deleted and you can publish it again.`,
   },
   publish: {
     title: 'Publish this debate?',
     confirm: 'Publish',
     tone: 'default',
     done: 'Published. The debate and both articles are public again.',
-    message: (t) => `"${t}" and both of its articles become public again. It does not become the featured debate automatically.`,
+    message: ({ title: t }) => `"${t}" and both of its articles become public again. It does not become the featured debate automatically.`,
   },
   delete: {
     title: 'Delete this debate?',
     confirm: 'Delete',
     tone: 'danger',
     done: 'Deleted. It is hidden from the public and can be restored.',
-    message: (t) => `"${t}" and both of its articles are hidden from the public. Votes are kept and you can restore it later.`,
+    message: ({ title: t }) => `"${t}" and both of its articles are hidden from the public. Votes are kept and you can restore it later.`,
   },
   restore: {
     title: 'Restore this debate?',
     confirm: 'Restore',
     tone: 'default',
     done: 'Restored as unpublished. Publish it when you are ready.',
-    message: (t) => `"${t}" comes back as unpublished. It stays hidden from the public until you publish it.`,
+    message: ({ title: t }) => `"${t}" comes back as unpublished. It stays hidden from the public until you publish it.`,
   },
   purge: {
     title: 'Permanently delete this debate?',
     confirm: 'Delete permanently',
     tone: 'danger',
-    done: 'Permanently deleted. Its two articles are in the article Trash.',
-    message: () => 'This removes the debate and every vote on it for good. It cannot be undone. Its two articles are moved to the article Trash, where the normal retention rules apply.',
+    done: 'Permanently deleted, with its votes. Its two articles are in the article Trash with their original Trash dates: restore any you want to keep.',
+    message: (row) => debatePurgeMessage(row),
   },
 }
 
@@ -224,7 +225,7 @@ export function DebateAdminList({ initialRows, canManage }: { initialRows: Debat
       <ConfirmDialog
         open={pending !== null}
         title={pending ? ACTION_COPY[pending.action].title : ''}
-        message={pending ? ACTION_COPY[pending.action].message(pending.row.title) : ''}
+        message={pending ? ACTION_COPY[pending.action].message(pending.row) : ''}
         confirmLabel={pending ? ACTION_COPY[pending.action].confirm : ''}
         tone={pending ? ACTION_COPY[pending.action].tone : 'default'}
         requirePhrase={pending?.action === 'purge' ? pending.row.title : undefined}

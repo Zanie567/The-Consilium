@@ -33,6 +33,8 @@ const result = (over: Record<string, unknown> = {}) => ({
   articleIds: [],
   articles: [],
   wouldPurge: [],
+  retained: [],
+  retainedCount: 0,
   errors: [],
   ...over,
 })
@@ -187,6 +189,59 @@ describe('purge-trash route: failures are visible to the scheduler', () => {
     expect(text).not.toContain('password')
     expect(text).toContain('purge-trash')
     expect(console.error).toHaveBeenCalled()
+  })
+})
+
+describe('purge-trash route: debate-referenced articles are retained by policy', () => {
+  const retained = [
+    { id: 'art-for', deletedAt: '2026-10-09T22:24:00.000Z', reason: 'referenced-by-debate', debates: [{ debateId: 'deb-1', position: 'for' }] },
+    { id: 'art-against', deletedAt: '2026-10-09T22:24:00.000Z', reason: 'referenced-by-debate', debates: [{ debateId: 'deb-1', position: 'against' }] },
+  ]
+
+  it('returns 200 when the only expired articles are retained, and lists them with ids and reason', async () => {
+    purgeMock.mockResolvedValue(result({ retained, retainedCount: 2 }))
+    const res = await route.POST(req())
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.retained).toEqual({ count: 2, articles: retained })
+    expect(body.errors).toEqual([])
+    expect(body.purged.count).toBe(0)
+    expect(revalidateMock).not.toHaveBeenCalled()
+    // logged, so a retained article is visible in the server log as well as the response
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('art-for (deb-1:for)'))
+  })
+
+  it('returns 200 when other articles were purged and the debate ones retained', async () => {
+    purgeMock.mockResolvedValue(
+      result({ count: 1, articleIds: ['plain'], articles: [{ id: 'plain', title: 'T', slug: 's', deletedAt: '2026-09-01T00:00:00.000Z' }], retained, retainedCount: 2 }),
+    )
+    const res = await route.POST(req())
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.purged.articleIds).toEqual(['plain'])
+    expect(body.retained.count).toBe(2)
+  })
+
+  it('still returns 500 when a genuine deletion failure happens alongside retained articles', async () => {
+    purgeMock.mockResolvedValue(
+      result({ retained, retainedCount: 2, errors: [{ articleId: 'other', message: 'connection reset' }] }),
+    )
+    const res = await route.POST(req())
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.retained.count).toBe(2)
+    expect(body.errors.map((e: { articleId: string }) => e.articleId)).toEqual(['other'])
+  })
+
+  it('a dry run reports retained articles apart from what it would purge', async () => {
+    purgeMock.mockResolvedValue(
+      result({ dryRun: true, wouldPurge: [{ id: 'plain', title: 'T', slug: 's', deletedAt: '2026-09-01T00:00:00.000Z' }], retained, retainedCount: 2 }),
+    )
+    const res = await route.POST(req({ query: '?dryRun=1' }))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.wouldPurge).toEqual([{ id: 'plain', deletedAt: '2026-09-01T00:00:00.000Z' }])
+    expect(body.retained.articles.map((a: { id: string }) => a.id)).toEqual(['art-for', 'art-against'])
   })
 })
 

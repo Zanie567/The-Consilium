@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
+import { format } from 'date-fns'
 import { debateVisibility, publicDebateWhere, PUBLIC_DEBATE_WHERE, DEBATE_OWN_STATE_PUBLISHED_WHERE } from '@/lib/debateVisibility'
 import { publishedArticleWhere } from '@/lib/articleQueries'
-import { buildDebateRow, filterDebateRows, sortDebateRows, type DebateRecord } from '@/lib/debateAdmin'
+import { buildDebateRow, debatePurgeMessage, filterDebateRows, sortDebateRows, type DebateRecord } from '@/lib/debateAdmin'
 import { isDebateAction, DEBATE_ACTIONS } from '@/lib/debateLifecycle'
 
 const d = (iso: string) => new Date(iso)
@@ -105,5 +106,76 @@ describe('filtering and sorting', () => {
   })
   it('puts deleted debates last, then newest first', () => {
     expect(sortDebateRows(rows).map((r) => r.id)).toEqual(['live', 'hid', 'del'])
+  })
+})
+
+describe('permanent-delete confirmation (approved policy 2026-11-09)', () => {
+  const NOW = d('2026-11-09T12:00:00Z')
+  const DAY = 24 * 60 * 60 * 1000
+  const row = (forDeletedAt: Date | null, againstDeletedAt: Date | null, votes = { for: 5, against: 3 }) =>
+    buildDebateRow(
+      debate({
+        forArticle: article({ deletedAt: forDeletedAt }),
+        againstArticle: article({ id: 'a2', title: 'Tariffs hurt', slug: 'tariffs-hurt', deletedAt: againstDeletedAt }),
+      }),
+      votes,
+      NOW,
+    )
+  const longAgo = d('2026-10-09T12:00:00Z') // 31 days before NOW
+  const recently = d('2026-10-11T12:00:00Z') // 29 days before NOW
+
+  it('exposes when each article went to the Trash', () => {
+    const r = row(longAgo, null)
+    expect(r.articles.map((a) => a.trashedAt)).toEqual(['2026-10-09T12:00:00.000Z', null])
+  })
+
+  it('names the debate and says every vote is lost for good, with the counts', () => {
+    const text = debatePurgeMessage(row(null, null), NOW)
+    expect(text).toContain('"Should tariffs rise?"')
+    expect(text).toContain('all 8 votes on it (5 for, 3 against)')
+    expect(text).toContain('cannot be recovered')
+  })
+
+  it('a debate with no votes says so rather than claiming votes are lost', () => {
+    expect(debatePurgeMessage(row(null, null, { for: 0, against: 0 }), NOW)).toContain('no votes have been cast')
+  })
+
+  it('says the articles are not deleted now, keep their Trash dates, and are only deletable once no debate refers to them', () => {
+    const text = debatePurgeMessage(row(longAgo, null), NOW)
+    expect(text).toContain('Its articles are not deleted now and their Trash dates are not reset.')
+    // Another debate may reference the same article: removing this one alone guarantees nothing.
+    expect(text).toContain('Once no debate refers to an article')
+    expect(text).toContain('after its Trash retention period, which is at least 30 days from the date it was trashed')
+  })
+
+  it('an article past the 30-day minimum gets a warning, not a deletion date or an "immediately"', () => {
+    const text = debatePurgeMessage(row(longAgo, null), NOW)
+    expect(text).toContain('"Tariffs help" has been in the Trash since 9 Oct 2026, longer than the 30-day minimum, so it is no longer guaranteed to be restorable: restore it first if you want to keep it.')
+  })
+
+  it('an article inside the minimum gets its guaranteed restore window, counted from its ORIGINAL trash date', () => {
+    const text = debatePurgeMessage(row(null, recently), NOW)
+    const until = format(new Date(recently.getTime() + 30 * DAY), 'd MMM yyyy, HH:mm')
+    expect(text).toContain(`"Tariffs hurt" has been in the Trash since 11 Oct 2026 and can be restored until at least ${until}.`)
+  })
+
+  it('an article not in the Trash yet can be restored for at least 30 days', () => {
+    expect(debatePurgeMessage(row(null, null), NOW)).toContain('"Tariffs help" moves to the article Trash now and can be restored for at least 30 days.')
+  })
+
+  // TRASH_RETENTION_DAYS can only lengthen retention (clampRetentionDays, tested in trash-purge.test.ts), and the
+  // dialog cannot know the configured value. Every statement must stay true for any retention of 30 days or more.
+  it.each([30, 45, 90, 365])('makes no claim that is false with %i-day retention', (retentionDays) => {
+    for (const r of [row(longAgo, recently), row(null, null), row(d('2026-01-01T00:00:00Z'), d('2026-11-09T11:00:00Z'))]) {
+      const text = debatePurgeMessage(r, NOW)
+      // Never a definite deletion: no "will be deleted", no "next clean-up", no "after N days" deadline.
+      expect(text).not.toMatch(/will be (permanently )?deleted|next (daily )?clean-up|deleted after \d+ days|immediately/i)
+      // Any restore-until date it states is no later than the real earliest deletion under this retention.
+      for (const a of r.articles.filter((x) => x.trashedAt)) {
+        const earliestDeletion = new Date(new Date(a.trashedAt!).getTime() + retentionDays * DAY)
+        const stated = new Date(new Date(a.trashedAt!).getTime() + 30 * DAY)
+        if (text.includes(format(stated, 'd MMM yyyy, HH:mm'))) expect(stated.getTime()).toBeLessThanOrEqual(earliestDeletion.getTime())
+      }
+    }
   })
 })
