@@ -211,6 +211,9 @@ export async function transitionDebate(
       votesRemoved = await tx.debateVote.count({ where: { debateId: debate.id } })
       // Votes go with the debate (FK cascade). Both articles are kept, in the normal
       // Trash, so the retention purge can later remove them: nothing references them now.
+      // An article that is already in the Trash keeps its ORIGINAL deletedAt (approved policy,
+      // 2026-11-09): the clock is not restarted, so one trashed 30+ days ago is removed by the
+      // next daily purge. The confirmation dialog says so (debatePurgeMessage).
       const removed = await tx.debate.deleteMany({ where: guard })
       if (removed.count !== 1) throw refuse()
       articlesChanged = (await tx.article.updateMany({

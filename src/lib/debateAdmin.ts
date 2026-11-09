@@ -3,6 +3,7 @@
  * "are the two articles consistent with the debate?" check, and the search/filter used
  * by the screen. Pure, so the rules are unit-tested without a database or a browser.
  */
+import { format } from 'date-fns'
 import { debateVisibility, type DebateVisibility } from '@/lib/debateVisibility'
 
 export interface DebateArticleFacts {
@@ -43,7 +44,17 @@ export interface DebateAdminRow {
   closesAt: string | null
   unpublishedAt: string | null
   deletedAt: string | null
-  articles: { side: 'FOR' | 'AGAINST'; id: string; title: string; slug: string; status: string; trashed: boolean; author: string | null }[]
+  articles: {
+    side: 'FOR' | 'AGAINST'
+    id: string
+    title: string
+    slug: string
+    status: string
+    trashed: boolean
+    /** When the article was moved to the Trash, or null while it is not there. */
+    trashedAt: string | null
+    author: string | null
+  }[]
   votes: { for: number; against: number; total: number }
   /** A hidden debate with a still-public article, or a public debate with a missing side. */
   outOfSync: string | null
@@ -93,6 +104,7 @@ export function buildDebateRow(
       slug: articles[i].slug,
       status: articles[i].status,
       trashed: articles[i].deletedAt !== null,
+      trashedAt: iso(articles[i].deletedAt),
       author: articles[i].authorName,
     })),
     votes: { for: votes.for, against: votes.against, total: votes.for + votes.against },
@@ -125,4 +137,36 @@ export function sortDebateRows(rows: DebateAdminRow[]): DebateAdminRow[] {
   return [...rows].sort(
     (a, b) => rank[a.visibility] - rank[b.visibility] || b.createdAt.localeCompare(a.createdAt),
   )
+}
+
+/** The retention the article Trash promises editors (TRASH_RETENTION_DAYS in src/lib/trashPurge.ts). */
+const TRASH_DAYS = 30
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * The confirmation shown before a debate is permanently deleted. It must say what is lost (the debate and
+ * every vote) and what happens to the two articles: while the debate exists the daily Trash clean-up keeps
+ * them, and once it is gone they follow the ordinary rule from their ORIGINAL trash date, which is not reset.
+ * So an article already in the Trash for 30 days or more is permanently deleted at the next clean-up.
+ */
+export function debatePurgeMessage(row: Pick<DebateAdminRow, 'title' | 'votes' | 'articles'>, now: Date = new Date()): string {
+  const { total, for: forVotes, against } = row.votes
+  const votes = total === 0
+    ? 'its vote record (no votes have been cast)'
+    : `all ${total.toLocaleString('en-GB')} vote${total === 1 ? '' : 's'} on it (${forVotes.toLocaleString('en-GB')} for, ${against.toLocaleString('en-GB')} against)`
+  const articles = row.articles.map((a) => {
+    if (!a.trashedAt) {
+      return `"${a.title}" moves to the article Trash now and is permanently deleted after ${TRASH_DAYS} days unless it is restored.`
+    }
+    const since = new Date(a.trashedAt)
+    const date = format(since, 'd MMM yyyy')
+    return now.getTime() - since.getTime() >= TRASH_DAYS * DAY_MS
+      ? `"${a.title}" has been in the Trash since ${date}, ${TRASH_DAYS} days or more, so it will be permanently deleted at the next daily clean-up and can only be restored before then.`
+      : `"${a.title}" has been in the Trash since ${date} and is permanently deleted ${TRASH_DAYS} days after that date unless it is restored.`
+  })
+  return [
+    `This permanently deletes "${row.title}" and ${votes}. The votes cannot be recovered.`,
+    `Its articles are then no longer protected by the debate, and their Trash dates are not reset:`,
+    ...articles,
+  ].join(' ')
 }

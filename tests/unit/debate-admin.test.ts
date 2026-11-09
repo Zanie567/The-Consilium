@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { debateVisibility, publicDebateWhere, PUBLIC_DEBATE_WHERE, DEBATE_OWN_STATE_PUBLISHED_WHERE } from '@/lib/debateVisibility'
 import { publishedArticleWhere } from '@/lib/articleQueries'
-import { buildDebateRow, filterDebateRows, sortDebateRows, type DebateRecord } from '@/lib/debateAdmin'
+import { buildDebateRow, debatePurgeMessage, filterDebateRows, sortDebateRows, type DebateRecord } from '@/lib/debateAdmin'
 import { isDebateAction, DEBATE_ACTIONS } from '@/lib/debateLifecycle'
 
 const d = (iso: string) => new Date(iso)
@@ -105,5 +105,47 @@ describe('filtering and sorting', () => {
   })
   it('puts deleted debates last, then newest first', () => {
     expect(sortDebateRows(rows).map((r) => r.id)).toEqual(['live', 'hid', 'del'])
+  })
+})
+
+describe('permanent-delete confirmation (approved policy 2026-11-09)', () => {
+  const NOW = d('2026-11-09T12:00:00Z')
+  const row = (forDeletedAt: Date | null, againstDeletedAt: Date | null, votes = { for: 5, against: 3 }) =>
+    buildDebateRow(
+      debate({
+        forArticle: article({ deletedAt: forDeletedAt }),
+        againstArticle: article({ id: 'a2', title: 'Tariffs hurt', slug: 'tariffs-hurt', deletedAt: againstDeletedAt }),
+      }),
+      votes,
+      NOW,
+    )
+
+  it('exposes when each article went to the Trash', () => {
+    const r = row(d('2026-10-09T12:00:00Z'), null)
+    expect(r.articles.map((a) => a.trashedAt)).toEqual(['2026-10-09T12:00:00.000Z', null])
+  })
+
+  it('names the debate and says every vote is lost for good, with the counts', () => {
+    const text = debatePurgeMessage(row(null, null), NOW)
+    expect(text).toContain('"Should tariffs rise?"')
+    expect(text).toContain('all 8 votes on it (5 for, 3 against)')
+    expect(text).toContain('cannot be recovered')
+  })
+
+  it('a debate with no votes says so rather than claiming votes are lost', () => {
+    expect(debatePurgeMessage(row(null, null, { for: 0, against: 0 }), NOW)).toContain('no votes have been cast')
+  })
+
+  it('an article in the Trash for 30 days or more is deleted at the next clean-up: its date is not reset', () => {
+    const text = debatePurgeMessage(row(d('2026-10-09T12:00:00Z'), d('2026-10-11T12:00:00Z')), NOW)
+    expect(text).toContain('Trash dates are not reset')
+    expect(text).toContain('"Tariffs help" has been in the Trash since 9 Oct 2026, 30 days or more, so it will be permanently deleted at the next daily clean-up')
+    // 30 days minus 1 day: still inside its window, counted from its original date
+    expect(text).toContain('"Tariffs hurt" has been in the Trash since 11 Oct 2026 and is permanently deleted 30 days after that date unless it is restored')
+  })
+
+  it('an article not in the Trash yet starts its 30 days now', () => {
+    const text = debatePurgeMessage(row(null, null), NOW)
+    expect(text).toContain('"Tariffs help" moves to the article Trash now and is permanently deleted after 30 days unless it is restored')
   })
 })
