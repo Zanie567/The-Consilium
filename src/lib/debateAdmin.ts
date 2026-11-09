@@ -139,15 +139,20 @@ export function sortDebateRows(rows: DebateAdminRow[]): DebateAdminRow[] {
   )
 }
 
-/** The retention the article Trash promises editors (TRASH_RETENTION_DAYS in src/lib/trashPurge.ts). */
-const TRASH_DAYS = 30
+/**
+ * The minimum the article Trash promises editors. TRASH_RETENTION_DAYS (src/lib/trashPurge.ts) can only LENGTHEN
+ * it, and the browser does not know the configured value, so the wording below states only what holds for any
+ * retention of 30 days or more.
+ */
+const MIN_TRASH_DAYS = 30
 const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
- * The confirmation shown before a debate is permanently deleted. It must say what is lost (the debate and
- * every vote) and what happens to the two articles: while the debate exists the daily Trash clean-up keeps
- * them, and once it is gone they follow the ordinary rule from their ORIGINAL trash date, which is not reset.
- * So an article already in the Trash for 30 days or more is permanently deleted at the next clean-up.
+ * The confirmation shown before a debate is permanently deleted. It must say what is lost (the debate and every
+ * vote) and what happens to the two articles: they are not deleted now and keep their ORIGINAL trash date. It never
+ * names a deletion date or says an article "will" be deleted at a given clean-up, because the configured retention
+ * may be longer than 30 days and another debate may still reference the same article (the purge keeps any article
+ * a debate references). It gives the guaranteed restore window instead, and a plain warning once that has passed.
  */
 export function debatePurgeMessage(row: Pick<DebateAdminRow, 'title' | 'votes' | 'articles'>, now: Date = new Date()): string {
   const { total, for: forVotes, against } = row.votes
@@ -156,17 +161,17 @@ export function debatePurgeMessage(row: Pick<DebateAdminRow, 'title' | 'votes' |
     : `all ${total.toLocaleString('en-GB')} vote${total === 1 ? '' : 's'} on it (${forVotes.toLocaleString('en-GB')} for, ${against.toLocaleString('en-GB')} against)`
   const articles = row.articles.map((a) => {
     if (!a.trashedAt) {
-      return `"${a.title}" moves to the article Trash now and is permanently deleted after ${TRASH_DAYS} days unless it is restored.`
+      return `"${a.title}" moves to the article Trash now and can be restored for at least ${MIN_TRASH_DAYS} days.`
     }
     const since = new Date(a.trashedAt)
-    const date = format(since, 'd MMM yyyy')
-    return now.getTime() - since.getTime() >= TRASH_DAYS * DAY_MS
-      ? `"${a.title}" has been in the Trash since ${date}, ${TRASH_DAYS} days or more, so it will be permanently deleted at the next daily clean-up and can only be restored before then.`
-      : `"${a.title}" has been in the Trash since ${date} and is permanently deleted ${TRASH_DAYS} days after that date unless it is restored.`
+    const guaranteedUntil = new Date(since.getTime() + MIN_TRASH_DAYS * DAY_MS)
+    return now.getTime() >= guaranteedUntil.getTime()
+      ? `"${a.title}" has been in the Trash since ${format(since, 'd MMM yyyy')}, longer than the ${MIN_TRASH_DAYS}-day minimum, so it is no longer guaranteed to be restorable: restore it first if you want to keep it.`
+      : `"${a.title}" has been in the Trash since ${format(since, 'd MMM yyyy')} and can be restored until at least ${format(guaranteedUntil, 'd MMM yyyy, HH:mm')}.`
   })
   return [
     `This permanently deletes "${row.title}" and ${votes}. The votes cannot be recovered.`,
-    `Its articles are then no longer protected by the debate, and their Trash dates are not reset:`,
+    `Its articles are not deleted now and their Trash dates are not reset. Once no debate refers to an article, a daily clean-up permanently deletes it after its Trash retention period, which is at least ${MIN_TRASH_DAYS} days from the date it was trashed.`,
     ...articles,
   ].join(' ')
 }

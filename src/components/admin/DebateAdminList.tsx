@@ -55,7 +55,7 @@ const ACTION_COPY: Record<DebateAction, { title: string; confirm: string; tone: 
     title: 'Permanently delete this debate?',
     confirm: 'Delete permanently',
     tone: 'danger',
-    done: 'Permanently deleted, with its votes. Its two articles are in the article Trash: any there for 30 days or more are permanently deleted at the next daily clean-up.',
+    done: 'Permanently deleted, with its votes. Its two articles are in the article Trash with their original Trash dates: restore any you want to keep.',
     message: (row) => debatePurgeMessage(row),
   },
 }
