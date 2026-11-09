@@ -290,7 +290,7 @@ test('Admin and Growth analytics expose failed requests, retry exact 200, and re
     expect(recovery.status()).toBe(200)
     const recoveredData = await recovery.json()
     const value = (label: string) => page.getByText(label, { exact: true }).locator('..').locator('p').nth(1)
-    await expect(value('Views: last 30 days')).toHaveText(recoveredData.summary.viewsInPeriod.toLocaleString())
+    await expect(value('Article views: last 30 days')).toHaveText(recoveredData.summary.viewsInPeriod.toLocaleString())
     await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toHaveCount(0)
     let release = () => {}
     let entered = () => {}
@@ -320,11 +320,11 @@ test('Admin and Growth analytics expose failed requests, retry exact 200, and re
       const response = await current
       expect(response.status()).toBe(200)
       const data = await response.json()
-      await expect(value('Views: last 7 days')).toHaveText(data.summary.viewsInPeriod.toLocaleString())
+      await expect(value('Article views: last 7 days')).toHaveText(data.summary.viewsInPeriod.toLocaleString())
       release()
       await completed
       await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())))
-      await expect(value('Views: last 7 days')).toHaveText(data.summary.viewsInPeriod.toLocaleString())
+      await expect(value('Article views: last 7 days')).toHaveText(data.summary.viewsInPeriod.toLocaleString())
       await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toHaveCount(0)
     } finally { release(); await ctx.close() }
   }
