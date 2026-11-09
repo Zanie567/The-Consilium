@@ -27,9 +27,9 @@ import { CommentSection } from '@/components/ui/CommentSection'
 import { readTimeLabel } from '@/lib/readTime'
 import { getInitials, displayAuthorName } from '@/lib/authorUtils'
 import type { Metadata } from 'next'
-import { articleShareImages, canonicalAlternates, pageTwitter } from '@/lib/seo'
+import { articleDescription, articleShareImages, canonicalAlternates, pageTwitter } from '@/lib/seo'
 import { BRAND_MARK } from '@/lib/brand'
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/constants'
+import { SITE_NAME, SITE_URL } from '@/lib/constants'
 import { loadPublicCorrections, correctionsStructuredData } from '@/lib/corrections/public'
 import { CorrectionNotice, CorrectionsSection } from '@/components/article/ArticleCorrections'
 import { ArticleOpeningPosition } from '@/components/article/ArticleOpeningPosition'
@@ -165,17 +165,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!article) return {}
   const articleUrl = getArticleUrl(article.slug)
   const shareImages = articleShareImages(article.coverImage, article.title)
+  const description = articleDescription(article.excerpt)
 
   return {
     title: {
       absolute: `${article.title} | ${SITE_NAME}`,
     },
-    description: article.excerpt ?? SITE_DESCRIPTION,
+    description,
     authors: article.author.name ? [{ name: article.author.name }] : undefined,
     alternates: canonicalAlternates(`/articles/${article.slug}`),
     openGraph: {
       title: article.title,
-      description: article.excerpt ?? undefined,
+      description,
       type: 'article',
       url: articleUrl,
       // siteName/locale are spelled out because this object replaces the root
@@ -190,7 +191,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: pageTwitter({
       title: article.title,
-      description: article.excerpt ?? SITE_DESCRIPTION,
+      description,
       images: shareImages,
     }),
   }
@@ -246,7 +247,7 @@ export default async function ArticlePage({ params }: Props) {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline: article.title,
-    description: article.excerpt ?? '',
+    description: articleDescription(article.excerpt),
     image: article.coverImage ?? undefined,
     author: {
       '@type': 'Person',

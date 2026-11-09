@@ -100,6 +100,7 @@ suite('feed.xml and sitemap.xml follow every visibility change (real database, w
     await db.debate.deleteMany({ where: { title: { startsWith: tag } } })
     await db.article.deleteMany({ where: { slug: { startsWith: tag } } })
     await db.tag.deleteMany({ where: { slug: { startsWith: tag } } })
+    await db.category.deleteMany({ where: { slug: { startsWith: tag } } })
     await db.user.deleteMany({ where: { email: { startsWith: tag } } })
     await db.$disconnect()
   })
@@ -213,6 +214,35 @@ suite('feed.xml and sitemap.xml follow every visibility change (real database, w
     const urls = await sitemapUrls()
     expect(urls.some((u) => u.endsWith(`/tag/${topicSecret.slug}`))).toBe(false)
     expect(urls.some((u) => u.endsWith(`/tag/${topicOpen.slug}`))).toBe(true)
+  })
+
+  it('sections and author pages are listed only while they have a public article, authors at their canonical address', async () => {
+    const empty = await db.category.create({ data: { name: `${tag} empty section`, slug: `${tag}-empty-section` } })
+    const draftsOnly = await db.category.create({ data: { name: `${tag} drafts section`, slug: `${tag}-drafts-section` } })
+    const live = await db.category.create({ data: { name: `${tag} live section`, slug: `${tag}-live-section` } })
+    const noSlug = await db.user.create({ data: { email: `${tag}-noslug@ed.ac.uk`, name: 'No Slug', role: 'WRITER', emailVerified: new Date() } })
+    const unpublished = await db.user.create({ data: { email: `${tag}-unpublished@ed.ac.uk`, name: 'Unpublished', role: 'EDITOR', emailVerified: new Date(), slug: `${tag}-unpublished` } })
+    const drafted = await article('in-drafts-section', 'DRAFT', unpublished.id)
+    const trashed = await article('trashed-by-unpublished', 'PUBLISHED', unpublished.id)
+    await db.article.update({ where: { id: trashed.id }, data: { deletedAt: new Date() } })
+    const pub = await article('in-live-section', 'PUBLISHED', noSlug.id)
+    await db.article.update({ where: { id: drafted.id }, data: { categoryId: draftsOnly.id } })
+    await db.article.update({ where: { id: pub.id }, data: { categoryId: live.id } })
+
+    const has = (urls: string[], path: string) => urls.some((u) => u.endsWith(path))
+    const urls = await sitemapUrls()
+    expect(has(urls, `/category/${empty.slug}`)).toBe(false)
+    expect(has(urls, `/category/${draftsOnly.slug}`)).toBe(false)
+    expect(has(urls, `/category/${live.slug}`)).toBe(true)
+    expect(has(urls, `/author/${noSlug.id}`)).toBe(true) // no slug yet: the id address its page declares as canonical
+    expect(has(urls, `/author/${unpublished.slug}`)).toBe(false) // only a draft and a trashed article
+
+    // Withdrawing the only public article takes the section and the author out of the next sitemap.
+    as(ids.editor)
+    expect((await trashArticle(json(`/api/articles/${pub.id}`, 'DELETE'), ctx(pub.id))).status).toBe(200)
+    const after = await sitemapUrls()
+    expect(has(after, `/category/${live.slug}`)).toBe(false)
+    expect(has(after, `/author/${noSlug.id}`)).toBe(false)
   })
 
   it('a database failure is neither cached nor reported as an empty listing for the feed', async () => {
