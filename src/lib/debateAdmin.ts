@@ -3,6 +3,7 @@
  * "are the two articles consistent with the debate?" check, and the search/filter used
  * by the screen. Pure, so the rules are unit-tested without a database or a browser.
  */
+import { format } from 'date-fns'
 import { debateVisibility, type DebateVisibility } from '@/lib/debateVisibility'
 
 export interface DebateArticleFacts {
@@ -43,7 +44,17 @@ export interface DebateAdminRow {
   closesAt: string | null
   unpublishedAt: string | null
   deletedAt: string | null
-  articles: { side: 'FOR' | 'AGAINST'; id: string; title: string; slug: string; status: string; trashed: boolean; author: string | null }[]
+  articles: {
+    side: 'FOR' | 'AGAINST'
+    id: string
+    title: string
+    slug: string
+    status: string
+    trashed: boolean
+    /** When the article was moved to the Trash, or null while it is not there. */
+    trashedAt: string | null
+    author: string | null
+  }[]
   votes: { for: number; against: number; total: number }
   /** A hidden debate with a still-public article, or a public debate with a missing side. */
   outOfSync: string | null
@@ -93,6 +104,7 @@ export function buildDebateRow(
       slug: articles[i].slug,
       status: articles[i].status,
       trashed: articles[i].deletedAt !== null,
+      trashedAt: iso(articles[i].deletedAt),
       author: articles[i].authorName,
     })),
     votes: { for: votes.for, against: votes.against, total: votes.for + votes.against },
@@ -125,4 +137,41 @@ export function sortDebateRows(rows: DebateAdminRow[]): DebateAdminRow[] {
   return [...rows].sort(
     (a, b) => rank[a.visibility] - rank[b.visibility] || b.createdAt.localeCompare(a.createdAt),
   )
+}
+
+/**
+ * The minimum the article Trash promises editors. TRASH_RETENTION_DAYS (src/lib/trashPurge.ts) can only LENGTHEN
+ * it, and the browser does not know the configured value, so the wording below states only what holds for any
+ * retention of 30 days or more.
+ */
+const MIN_TRASH_DAYS = 30
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * The confirmation shown before a debate is permanently deleted. It must say what is lost (the debate and every
+ * vote) and what happens to the two articles: they are not deleted now and keep their ORIGINAL trash date. It never
+ * names a deletion date or says an article "will" be deleted at a given clean-up, because the configured retention
+ * may be longer than 30 days and another debate may still reference the same article (the purge keeps any article
+ * a debate references). It gives the guaranteed restore window instead, and a plain warning once that has passed.
+ */
+export function debatePurgeMessage(row: Pick<DebateAdminRow, 'title' | 'votes' | 'articles'>, now: Date = new Date()): string {
+  const { total, for: forVotes, against } = row.votes
+  const votes = total === 0
+    ? 'its vote record (no votes have been cast)'
+    : `all ${total.toLocaleString('en-GB')} vote${total === 1 ? '' : 's'} on it (${forVotes.toLocaleString('en-GB')} for, ${against.toLocaleString('en-GB')} against)`
+  const articles = row.articles.map((a) => {
+    if (!a.trashedAt) {
+      return `"${a.title}" moves to the article Trash now and can be restored for at least ${MIN_TRASH_DAYS} days.`
+    }
+    const since = new Date(a.trashedAt)
+    const guaranteedUntil = new Date(since.getTime() + MIN_TRASH_DAYS * DAY_MS)
+    return now.getTime() >= guaranteedUntil.getTime()
+      ? `"${a.title}" has been in the Trash since ${format(since, 'd MMM yyyy')}, longer than the ${MIN_TRASH_DAYS}-day minimum, so it is no longer guaranteed to be restorable: restore it first if you want to keep it.`
+      : `"${a.title}" has been in the Trash since ${format(since, 'd MMM yyyy')} and can be restored until at least ${format(guaranteedUntil, 'd MMM yyyy, HH:mm')}.`
+  })
+  return [
+    `This permanently deletes "${row.title}" and ${votes}. The votes cannot be recovered.`,
+    `Its articles are not deleted now and their Trash dates are not reset. Once no debate refers to an article, a daily clean-up permanently deletes it after its Trash retention period, which is at least ${MIN_TRASH_DAYS} days from the date it was trashed.`,
+    ...articles,
+  ].join(' ')
 }

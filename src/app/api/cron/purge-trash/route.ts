@@ -9,6 +9,10 @@
  * nothing was purged, and every deletion has an audit_logs row. Any per-article failure
  * returns HTTP 500 so the GitHub Actions run goes red instead of looking successful.
  *
+ * Articles past retention that a debate still references are kept by policy and listed under
+ * `retained: { count, articles }` (article id, trash date, reason, debate ids). Keeping them is the
+ * expected outcome, so on its own it returns 200; only an unexpected deletion failure is a 500.
+ *
  * POST only, on purpose: a GET (prefetch, link preview, crawler) must never delete data.
  * `?dryRun=1` lists what a real run would remove and changes nothing.
  *
@@ -66,6 +70,12 @@ export async function POST(req: Request) {
       )
       await revalidateArticleLists()
     }
+    if (result.retainedCount > 0) {
+      console.warn(
+        `[purge-trash] Retained ${result.retainedCount} article(s) past retention because a debate references them: ` +
+          result.retained.map((a) => `${a.id} (${a.debates.map((d) => `${d.debateId}:${d.position}`).join(', ')})`).join('; '),
+      )
+    }
     const errors = result.errors.map((failure) => {
       const reference = randomUUID().slice(0, 8)
       console.error(`[purge-trash] Failed to purge ${failure.articleId} (ref ${reference}): ${failure.message}`)
@@ -80,6 +90,8 @@ export async function POST(req: Request) {
         cutoff: result.cutoff,
         purged: { count: result.count, articleIds: result.articleIds, articles: result.articles.map(idOnly) },
         wouldPurge: result.wouldPurge.map(idOnly),
+        // Ids, dates and a fixed reason only, like everything else in this public log.
+        retained: { count: result.retainedCount, articles: result.retained },
         errors,
       },
       { status: errors.length > 0 ? 500 : 200 },

@@ -11,6 +11,16 @@ import { lockArticleImageReferences, queueDeletedArticleImages } from '@/lib/art
  *   - every deleted article is reported (id, title, slug, deletedAt);
  *   - every deletion has an audit_logs row written in the SAME transaction;
  *   - a failure is returned to the caller, never swallowed.
+ *
+ * Debate-linked articles are RETAINED, not purged. A debate row (live, unpublished or soft-deleted) points
+ * at its two articles with ON DELETE RESTRICT foreign keys, and the debate's votes hang off the debate. So
+ * while any debate references an article, the article stays, however long it has been in the Trash. It
+ * becomes eligible only after an administrator permanently deletes the debate (src/lib/debateLifecycle.ts,
+ * which keeps the article's original trash date), and then by the ordinary 30-day rule. Retained articles
+ * are listed in `retained`, never as errors: on 2026-11-09 six of them made every daily run fail (HTTP 500)
+ * although nothing was wrong. The foreign keys stay as the last line of defence: a debate that starts
+ * referencing an article while this job runs makes that delete fail and roll back, and it is reported as
+ * an error.
  */
 
 export const TRASH_RETENTION_DAYS = 30
@@ -41,6 +51,23 @@ export interface PurgedArticle {
   deletedAt: string
 }
 
+/** A debate that references a retained article, and which side the article argues. */
+export interface RetainingDebate {
+  debateId: string
+  position: 'for' | 'against'
+}
+
+export const DEBATE_RETENTION_REASON = 'referenced-by-debate'
+
+/** An article past retention that is kept because a debate still references it. */
+export interface RetainedArticle {
+  id: string
+  deletedAt: string
+  reason: typeof DEBATE_RETENTION_REASON
+  /** Every debate referencing the article, sorted by debate id, then position. Never empty. */
+  debates: RetainingDebate[]
+}
+
 export interface TrashPurgeResult {
   ranAt: string
   retentionDays: number
@@ -53,6 +80,13 @@ export interface TrashPurgeResult {
   articles: PurgedArticle[]
   /** Dry run only: what a real run would remove right now. */
   wouldPurge: PurgedArticle[]
+  /**
+   * Articles past retention that are kept because a debate references them (real runs and dry runs alike).
+   * One entry per article, oldest trash date first, then by id; at most PURGE_BATCH_SIZE entries.
+   */
+  retained: RetainedArticle[]
+  /** How many articles past retention are retained in total (`retained` may list fewer). */
+  retainedCount: number
   errors: { articleId: string; message: string }[]
 }
 
@@ -69,12 +103,16 @@ export async function purgeExpiredTrash(options: TrashPurgeOptions = {}): Promis
   )
   const dryRun = options.dryRun ?? false
   const cutoff = new Date(now.getTime() - retentionDays * DAY_MS)
-  const eligibleWhere = { deletedAt: { not: null, lte: cutoff } }
+  const pastRetention = { deletedAt: { not: null, lte: cutoff } }
+  // Eligible = past retention AND no debate references the article. The delete below re-states the whole
+  // condition, so a reference that appears after the listing is honoured too.
+  const eligibleWhere = { ...pastRetention, forDebates: { none: {} }, againstDebates: { none: {} } }
+  const retainedWhere = { ...pastRetention, OR: [{ forDebates: { some: {} } }, { againstDebates: { some: {} } }] }
 
   // A failure to even list candidates is a real failure: let it propagate. Each run works through
   // a bounded, oldest-first batch; anything left is picked up by the next daily run. `content` and
   // `coverImage` are read so the article's managed images can be queued for cleanup with the delete.
-  const candidates = await prisma.article.findMany({
+  const listed = await prisma.article.findMany({
     where: eligibleWhere,
     select: {
       id: true, title: true, slug: true, authorId: true, deletedAt: true,
@@ -83,6 +121,36 @@ export async function purgeExpiredTrash(options: TrashPurgeOptions = {}): Promis
     orderBy: [{ deletedAt: 'asc' }, { id: 'asc' }],
     take: PURGE_BATCH_SIZE,
   })
+
+  // Reported separately, by the same oldest-first order, so a run's output is deterministic.
+  const [retainedRows, retainedCount] = await Promise.all([
+    prisma.article.findMany({
+      where: retainedWhere,
+      select: {
+        id: true,
+        deletedAt: true,
+        forDebates: { select: { id: true } },
+        againstDebates: { select: { id: true } },
+      },
+      orderBy: [{ deletedAt: 'asc' }, { id: 'asc' }],
+      take: PURGE_BATCH_SIZE,
+    }),
+    prisma.article.count({ where: retainedWhere }),
+  ])
+  const retained: RetainedArticle[] = retainedRows.map((a) => ({
+    id: a.id,
+    deletedAt: (a.deletedAt as Date).toISOString(),
+    reason: DEBATE_RETENTION_REASON,
+    debates: [
+      ...a.forDebates.map((d) => ({ debateId: d.id, position: 'for' as const })),
+      ...a.againstDebates.map((d) => ({ debateId: d.id, position: 'against' as const })),
+    ].sort((x, y) => (x.debateId === y.debateId ? x.position.localeCompare(y.position) : x.debateId < y.debateId ? -1 : 1)),
+  }))
+
+  // The two reads are not one snapshot: if a debate starts referencing an article between them, the article
+  // is listed as retained and not attempted, so it never appears in both lists.
+  const retainedIds = new Set(retained.map((a) => a.id))
+  const candidates = listed.filter((a) => !retainedIds.has(a.id))
 
   const summarise = (a: (typeof candidates)[number]): PurgedArticle => ({
     id: a.id,
@@ -100,6 +168,8 @@ export async function purgeExpiredTrash(options: TrashPurgeOptions = {}): Promis
     articleIds: [],
     articles: [],
     wouldPurge: dryRun ? candidates.map(summarise) : [],
+    retained,
+    retainedCount,
     errors: [],
   }
   if (dryRun) return result
@@ -108,9 +178,9 @@ export async function purgeExpiredTrash(options: TrashPurgeOptions = {}): Promis
     const summary = summarise(article)
     try {
       // One transaction per article: the image locks, the delete, the image-cleanup queueing and the
-      // audit row commit together or not at all. The delete re-states the retention condition and is
-      // guarded on the row exactly as listed, so a row restored, re-trashed OR EDITED after the SELECT
-      // above is left alone (the edit wins), and a second run is a no-op.
+      // audit row commit together or not at all. The delete re-states the eligibility condition (retention
+      // and no debate reference) and is guarded on the row exactly as listed, so a row restored, re-trashed,
+      // EDITED or newly referenced by a debate after the SELECT above is left alone, and a second run is a no-op.
       const removed = await prisma.$transaction(async (tx) => {
         // Same reference locks article saves take, so a concurrent save cannot re-attach an image
         // that is about to be queued for removal.
