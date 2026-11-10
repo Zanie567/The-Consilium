@@ -65,19 +65,22 @@ export async function loadSitemapData(db: Db = prisma): Promise<SitemapData> {
       select: { slug: true, updatedAt: true },
       orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
     }),
-    db.category.findMany({ select: { slug: true } }),
-    // Only topics that still have a public article: a topic used solely by hidden articles must not be advertised.
+    // Categories, topics and authors are listed only while they have a public article, by the same rule as the
+    // articles above. An empty section ("coming soon") or a profile with nothing published is a thin page that
+    // search engines may report as a soft 404, and a topic used solely by hidden articles must not be advertised.
+    db.category.findMany({ where: { articles: { some: publishedArticleWhere() } }, select: { slug: true } }),
     db.tag.findMany({ where: { articles: { some: { article: publishedArticleWhere() } } }, select: { slug: true } }),
     db.user.findMany({
-      where: { role: { in: ['ADMIN', 'EDITOR', 'WRITER'] }, slug: { not: null }, NOT: { email: { startsWith: 'test-' } } },
-      select: { slug: true },
+      where: { articles: { some: publishedArticleWhere() }, NOT: { email: { startsWith: 'test-' } } },
+      select: { id: true, slug: true },
     }),
   ])
   return {
     articles: articles.map((a) => ({ slug: a.slug, updatedAt: a.updatedAt.toISOString() })),
     categories,
     tags,
-    authors: authors.flatMap((u) => (u.slug ? [{ slug: u.slug }] : [])),
+    // The author page's own canonical address: its slug, or its id while it has none (src/app/author/[slug]/page.tsx).
+    authors: authors.map((u) => ({ slug: u.slug ?? u.id })),
   }
 }
 

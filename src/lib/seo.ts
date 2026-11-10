@@ -45,6 +45,16 @@ export function articleShareImages(coverImage: string | null | undefined, title:
 }
 
 /**
+ * The description an article gives search engines and share cards (meta, Open Graph, Twitter and its
+ * structured data): its excerpt, or the site's description when the excerpt is missing, empty or only
+ * whitespace. An empty excerpt is stored as '' rather than null, which `??` does not catch, so such an
+ * article used to ship no meta description at all.
+ */
+export function articleDescription(excerpt: string | null | undefined): string {
+  return excerpt?.trim() || SITE_DESCRIPTION
+}
+
+/**
  * Build a page's `alternates`: a self-referencing canonical plus the site-wide
  * RSS link.
  *
