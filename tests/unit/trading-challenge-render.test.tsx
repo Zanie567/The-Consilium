@@ -103,6 +103,7 @@ describe('rules and settings', () => {
     }
     expect(html).toContain('register by emailing the committee')
     expect(html).toContain('The final standings are the rankings when the game ends.')
+    expect(html).toContain('Trading runs from 23 November 2026 to 24 March 2027. Members may join after the start')
   })
 
   it('has no tie-break rule or unconfirmed placeholder, and numbers the rules 01–08 without gaps', () => {

@@ -53,8 +53,7 @@ export function ChallengeRules() {
       title: 'Dates and late entry',
       body: (
         <>
-          Trading runs from {formatChallengeDate(TC.startDate)} to {formatChallengeDate(TC.endDate)}, as set in the
-          MarketWatch game. Members may join after the start while the game is running; late entrants receive the same
+          Trading runs from {formatChallengeDate(TC.startDate)} to {formatChallengeDate(TC.endDate)}. Members may join after the start while the game is running; late entrants receive the same
           starting balance and have less time to trade.
         </>
       ),
