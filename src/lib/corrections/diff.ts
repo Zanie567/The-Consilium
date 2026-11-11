@@ -24,6 +24,10 @@ function textOf(node: Node): string {
   if (typeof node.text === 'string') return node.text
   if (node.type === 'hardBreak') return ' '
   if (node.type === 'footnoteRef' && typeof node.attrs?.content === 'string') return ` [note: ${node.attrs.content}]`
+  // Equations have no text of their own; show their LaTeX so a changed formula appears in the diff.
+  if ((node.type === 'inlineMath' || node.type === 'blockMath') && typeof node.attrs?.latex === 'string') {
+    return node.attrs.latex.trim() ? `[equation: ${node.attrs.latex.trim()}]` : ''
+  }
   if (node.type === 'image' || node.type === 'figure') {
     const alt = typeof node.attrs?.alt === 'string' ? node.attrs.alt : ''
     const caption = (node.content ?? []).map(textOf).join('')

@@ -19,6 +19,7 @@ import { useArticleComments } from '@/components/editorial/useArticleComments'
 import { CommendationEditor } from '@/components/editorial/CommendationEditor'
 import { apiRequest, asApiError } from '@/lib/apiClient'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { findInvalidEquations, invalidEquationsMessage } from '@/lib/math/contentEquations'
 
 interface Note {
   id: string
@@ -76,6 +77,14 @@ export function ReviewPanel({ article }: Props) {
   const [pendingAct, setPendingAct] = useState<'approve' | 'schedule' | 'unpublish' | null>(null)
 
   const act = async (action: string, extra?: Record<string, unknown>) => {
+    // An equation that cannot be typeset must be fixed before the article reaches readers.
+    if (action === 'approve' || action === 'schedule') {
+      const invalid = findInvalidEquations(article.content)
+      if (invalid.length > 0) {
+        setError(invalidEquationsMessage(invalid, 'reviewer'))
+        return
+      }
+    }
     setLoading(action)
     setError('')
     try {

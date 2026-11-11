@@ -4,6 +4,8 @@ import { useEditor, useEditorState, EditorContent, type Editor } from '@tiptap/r
 import { DOMParser as ProseMirrorDOMParser, type Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { Node, mergeAttributes, type SingleCommands, type RawCommands } from '@tiptap/core'
 import type { EditorView } from '@tiptap/pm/view'
+import { NodeSelection, TextSelection, type Transaction } from '@tiptap/pm/state'
+import { closeHistory } from '@tiptap/pm/history'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Image from '@tiptap/extension-image'
@@ -47,6 +49,7 @@ import {
   Indent,
   Outdent,
   Superscript,
+  Sigma,
 } from 'lucide-react'
 import React, {
   useCallback,
@@ -70,6 +73,11 @@ import { cleanPastedHTML } from '@/lib/editor/cleanPastedHTML'
 import { dataUrlToFile } from '@/lib/editor/dataUrl'
 import { ApiError, asApiError } from '@/lib/apiClient'
 import { CommentHighlight } from './commentHighlight'
+import { ArticleBlockMath, ArticleInlineMath, type MathEditTarget } from './extensions/ArticleMath'
+import { MathEquationDialog, type MathMode } from './MathEquationDialog'
+import { unsupportedContentTypes } from '@/lib/editor/unsupportedContent'
+// KaTeX's stylesheet and fonts for equations in the editor, review and preview.
+import 'katex/dist/katex.min.css'
 
 function editFootnote(view: EditorView, _pos: number, node: ProseMirrorNode, nodePos: number) {
   if (node.type.name !== 'footnoteRef' || !view.editable) return false
@@ -399,6 +407,11 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
   const [fontSizeInput, setFontSizeInput] = useState('16')
   const [activeColor, setActiveColor] = useState<string | null>(null)
   const [activeHighlight, setActiveHighlight] = useState<string | null>(null)
+  // Equation dialog: null when closed. pos is the edited equation's position, or null for a new one.
+  const [mathDialog, setMathDialog] = useState<{ latex: string; mode: MathMode; pos: number | null } | null>(null)
+  // Set when the stored document contains node types this editor cannot open (see unsupportedContent.ts).
+  const [unsupportedContent, setUnsupportedContent] = useState<string[] | null>(null)
+  const unsupportedContentRef = useRef(false)
 
   // Stable ref so handlePaste can call the upload function without
   // a circular dependency on the editor instance.
@@ -443,9 +456,19 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
   // options are captured once at editor creation.
   const onCommentClickRef = useRef(onCommentClick)
   onCommentClickRef.current = onCommentClick
+  const onMathEditRef = useRef<(target: MathEditTarget) => void>(() => {})
 
   const editor = useEditor({
-    editable,
+    // Never editable while unsupported content is open: what is shown is not the article.
+    editable: editable && !unsupportedContent,
+    // Report unparsable stored content instead of silently opening an empty document.
+    enableContentCheck: true,
+    onContentError: ({ editor: ed }) => {
+      const unknown = unsupportedContentTypes(content ? tryParseContent(content) : null, ed.schema)
+      if (unknown.length === 0) return
+      unsupportedContentRef.current = true
+      setUnsupportedContent(unknown)
+    },
     extensions: [
       // Bug 1: StarterKit v3 bundles Link and Underline — disable them here
       // so the manually configured versions below are the sole registrations.
@@ -474,12 +497,15 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
       PullQuote,
       FootnoteRef,
       FigureNode,
+      ArticleInlineMath.configure({ onEdit: (target) => onMathEditRef.current(target) }),
+      ArticleBlockMath.configure({ onEdit: (target) => onMathEditRef.current(target) }),
       CommentHighlight.configure({
         onCommentClick: (id) => onCommentClickRef.current?.(id),
       }),
     ],
     content: content ? tryParseContent(content) : '',
     onUpdate: ({ editor: ed }) => {
+      if (unsupportedContentRef.current) return
       onChange(JSON.stringify(ed.getJSON()))
     },
     onSelectionUpdate: ({ editor: ed }) => {
@@ -601,6 +627,12 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
 
   useEditorState({ editor, selector: (context) => context.editor?.state })
 
+  // useEditor keeps an editor's current editable state when options change, so the
+  // unsupported-content lock is applied directly.
+  useEffect(() => {
+    if (editor && unsupportedContent) editor.setEditable(false, false)
+  }, [editor, unsupportedContent])
+
   // Notify parent when editor is ready
   useEffect(() => {
     if (editor && onEditorReady) onEditorReady(editor)
@@ -698,6 +730,91 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
     setLinkBarOpen(false)
     setLinkUrl('')
   }, [editor, linkUrl])
+
+  // ── Equations ──────────────────────────────────────────────────────────────
+  // Clicking an equation (or Enter on a selected one) opens the dialog to edit it.
+  onMathEditRef.current = (target) => setMathDialog({ latex: target.latex, mode: target.kind, pos: target.pos })
+
+  // Toolbar Σ: edits the selected equation, otherwise starts a new one. Selected text
+  // becomes the starting LaTeX; an empty paragraph suggests a display equation.
+  const openMathDialog = useCallback(() => {
+    if (!editor) return
+    const { selection } = editor.state
+    if (selection instanceof NodeSelection && isMathNodeName(selection.node.type.name)) {
+      setMathDialog({
+        latex: String(selection.node.attrs.latex ?? ''),
+        mode: selection.node.type.name === 'blockMath' ? 'display' : 'inline',
+        pos: selection.from,
+      })
+      return
+    }
+    const { from, to, $from } = selection
+    const selected = from !== to && $from.sameParent(selection.$to) ? editor.state.doc.textBetween(from, to, ' ') : ''
+    const emptyParagraph = $from.parent.isTextblock && $from.parent.content.size === 0
+    setMathDialog({ latex: selected.trim(), mode: emptyParagraph ? 'display' : 'inline', pos: null })
+  }, [editor])
+
+  const closeMathDialog = useCallback(() => {
+    setMathDialog(null)
+    editor?.view.focus()
+  }, [editor])
+
+  const applyMath = useCallback(
+    (latex: string, mode: MathMode) => {
+      if (!editor || !mathDialog) return
+      const type = mode === 'display' ? 'blockMath' : 'inlineMath'
+      const pos = mathDialog.pos
+      const existing = pos === null ? null : editor.state.doc.nodeAt(pos)
+      if (pos !== null && existing && isMathNodeName(existing.type.name)) {
+        if (existing.type.name === type) {
+          // Same kind: change the LaTeX in place, then put the cursor just after it
+          // (leaving the equation selected would let the next keystroke replace it).
+          editor
+            .chain()
+            .focus()
+            .command(({ tr }) => {
+              startUndoStep(tr)
+              tr.setNodeMarkup(pos, undefined, { ...existing.attrs, latex })
+              tr.setSelection(NodeSelection.create(tr.doc, pos))
+              return true
+            })
+            .command(({ tr }) => placeCursorAfterMath(tr))
+            .run()
+        } else {
+          editor
+            .chain()
+            .focus()
+            .command(({ tr }) => startUndoStep(tr))
+            .insertContentAt({ from: pos, to: pos + existing.nodeSize }, { type, attrs: { latex } })
+            .command(({ tr }) => placeCursorAfterMath(tr))
+            .run()
+        }
+      } else {
+        // New equation at the cursor, replacing any selected text.
+        editor
+          .chain()
+          .focus()
+          .command(({ tr }) => startUndoStep(tr))
+          .insertContent({ type, attrs: { latex } })
+          .command(({ tr }) => placeCursorAfterMath(tr))
+          .run()
+      }
+      // Tiptap's focus() waits a frame; focus now so the next keystroke reaches the article.
+      editor.view.focus()
+      setMathDialog(null)
+    },
+    [editor, mathDialog]
+  )
+
+  const deleteMath = useCallback(() => {
+    if (!editor || mathDialog?.pos == null) return
+    const pos = mathDialog.pos
+    const node = editor.state.doc.nodeAt(pos)
+    if (node && isMathNodeName(node.type.name)) {
+      editor.chain().focus().command(({ tr }) => startUndoStep(tr)).deleteRange({ from: pos, to: pos + node.nodeSize }).run()
+    }
+    setMathDialog(null)
+  }, [editor, mathDialog])
 
   const applyFontSize = useCallback(
     (size: string) => {
@@ -837,8 +954,16 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
         </div>
       )}
 
+      {unsupportedContent && (
+        <div role="alert" className="border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+          <strong>This article cannot be edited in this browser tab.</strong> It contains content this version of the
+          editor does not recognise ({unsupportedContent.join(', ')}), so editing is paused and nothing will be saved
+          from here. Your article is unchanged. Reload the page to load the latest editor.
+        </div>
+      )}
+
       {/* ── Toolbar ────────────────────────────────────────────────────────── */}
-      {editable &&
+      {editable && !unsupportedContent &&
         (() => {
           const toolbarContent = (
             <div className="editor-toolbar-bg border-b border-black/10 dark:border-white/10 px-4 py-1.5 flex flex-wrap gap-1 items-center w-full h-full">
@@ -1335,6 +1460,13 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
               >
                 <Superscript size={15} />
               </ToolbarBtn>
+              <ToolbarBtn
+                onClick={openMathDialog}
+                active={editor.isActive('inlineMath') || editor.isActive('blockMath')}
+                title="Insert or edit equation"
+              >
+                <Sigma size={15} />
+              </ToolbarBtn>
 
               {/* Save status indicator */}
               {saveStatus && saveStatus !== 'idle' && (
@@ -1395,6 +1527,18 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
         </div>
       )}
 
+      {mathDialog && editable && !unsupportedContent && (
+        <MathEquationDialog
+          initialLatex={mathDialog.latex}
+          initialMode={mathDialog.mode}
+          editing={mathDialog.pos !== null}
+          darkMode={darkMode}
+          onSubmit={applyMath}
+          onDelete={deleteMath}
+          onCancel={closeMathDialog}
+        />
+      )}
+
       {/* ── Status bar ──────────────────────────────────────────────────── */}
       {editable && (
         <div className="editor-outer border-t border-black/8 dark:border-white/8 px-4 py-1.5 flex items-center justify-between">
@@ -1410,6 +1554,43 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(fu
     </div>
   )
 })
+
+function isMathNodeName(name: string): boolean {
+  return name === 'inlineMath' || name === 'blockMath'
+}
+
+/** An equation change from the dialog is its own undo step, never merged with typing just before it. */
+function startUndoStep(tr: Transaction): boolean {
+  closeHistory(tr)
+  return true
+}
+
+/**
+ * After an equation is inserted or edited, leave a text cursor just after it, so
+ * the author keeps writing. Left selected (as ProseMirror does for an atom with no
+ * text after it, e.g. a display equation at the end of the article), the next
+ * keystroke would replace the equation. A paragraph is added after a display
+ * equation when none follows. Runs in the same transaction: one undo step.
+ */
+function placeCursorAfterMath(tr: Transaction): boolean {
+  const selection = tr.selection
+  const target =
+    selection instanceof NodeSelection && isMathNodeName(selection.node.type.name)
+      ? { node: selection.node, end: selection.to }
+      : (() => {
+          const before = selection.$from.nodeBefore
+          return selection.empty && before && isMathNodeName(before.type.name) ? { node: before, end: selection.from } : null
+        })()
+  if (!target) return true
+  if (target.node.isInline) {
+    tr.setSelection(TextSelection.create(tr.doc, target.end))
+    return true
+  }
+  const next = tr.doc.resolve(target.end).nodeAfter
+  if (!next || !next.isTextblock) tr.insert(target.end, tr.doc.type.schema.nodes.paragraph.create())
+  tr.setSelection(TextSelection.create(tr.doc, target.end + 1))
+  return true
+}
 
 function tryParseContent(content: string) {
   try {

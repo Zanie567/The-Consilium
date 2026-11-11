@@ -34,6 +34,9 @@ import { loadPublicCorrections, correctionsStructuredData } from '@/lib/correcti
 import { CorrectionNotice, CorrectionsSection } from '@/components/article/ArticleCorrections'
 import { ArticleOpeningPosition } from '@/components/article/ArticleOpeningPosition'
 import { coverMetadataKey, parseCoverMetadata } from '@/lib/coverImageMetadata'
+// Stylesheet and fonts for server-typeset equations. CSS only: no KaTeX JavaScript
+// reaches the browser, and the fonts download only when a page uses them.
+import 'katex/dist/katex.min.css'
 import { bannerHeightClass, coverFramingImageStyle, coverFramingKey, parseCoverFraming } from '@/lib/coverFraming'
 
 interface Props {

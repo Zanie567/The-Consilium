@@ -19,6 +19,8 @@ import { TextChanges } from './TextChanges'
 import type { TextVersion } from '@/lib/corrections/diff'
 import { ARTICLE_IMAGE_TOO_LARGE_MESSAGE, MAX_ARTICLE_IMAGE_BYTES } from '@/lib/constants'
 import type { CorrectionRow, ManagerArticle, MutationResult } from './CorrectionsManager'
+// The public-render preview below can contain server-typeset equations.
+import 'katex/dist/katex.min.css'
 
 const TiptapEditor = dynamic(
   () => import('@/components/editor/TiptapEditor').then((m) => m.TiptapEditor),
