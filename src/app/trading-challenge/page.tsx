@@ -21,7 +21,7 @@ import {
 
 const TITLE = 'EconSoc Trading Challenge 2026–27'
 /** The campaign's own share card; it replaces the site default on this page only. */
-const SHARE_IMAGE = { url: '/og/trading-challenge-v2.png', width: 1200, height: 630, type: 'image/png', alt: 'The EconSoc Trading Challenge 2026–27: think you can beat the market?' }
+const SHARE_IMAGE = { url: '/og/trading-challenge-v3.png', width: 1200, height: 630, type: 'image/png', alt: 'The EconSoc Trading Challenge 2026–27: think you can beat the market?' }
 // Built from the constants, so the search and share text cannot drift from the page.
 const DESCRIPTION = `Build a virtual portfolio with $${TC.startingCapitalUsd.toLocaleString('en-GB')} of simulated capital and compete with fellow EconSoc members for £${TOTAL_PRIZE_POOL_GBP} in prizes. Trading runs ${formatChallengeDate(TC.startDate)} to ${formatChallengeDate(TC.endDate)} on MarketWatch.`
 
@@ -291,7 +291,7 @@ export default function TradingChallengePage() {
                 {phase === 'live' ? 'There’s still time to take your seat at the table.' : 'Take your seat at the opening bell.'}
               </h2>
               <p className="mt-4 leading-relaxed text-cream/75">
-                {usd(TC.startingCapitalUsd)} of virtual capital, four and a half months of trading and{' '}
+                {usd(TC.startingCapitalUsd)} of virtual capital, four months of trading and{' '}
                 <span className="whitespace-nowrap font-semibold text-gold">£{TC.prizes[0].amountGbp} · £{TC.prizes[1].amountGbp} · £{TC.prizes[2].amountGbp}</span>{' '}
                 for the top three. {phase === 'live' ? `Late entries are open until ${formatChallengeDate(TC.endDate)}.` : `Trading opens ${formatChallengeDate(TC.startDate, { withYear: false })}.`}
               </p>
