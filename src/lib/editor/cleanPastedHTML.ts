@@ -36,9 +36,44 @@ const ALLOWED = new Set([
 const DROP =
   'script,style,meta,link,iframe,object,embed,svg,math,form,input,button,textarea,select,template,noscript'
 
+const MATH_TYPES: Record<string, string> = { span: 'inline-math', div: 'block-math' }
+
+function mathElement(doc: Document, latex: string, display: boolean): HTMLElement {
+  const el = doc.createElement(display ? 'div' : 'span')
+  el.setAttribute('data-type', display ? 'block-math' : 'inline-math')
+  el.setAttribute('data-latex', latex)
+  return el
+}
+
+/**
+ * Typeset equations copied from a web page (KaTeX or MathJax output, including
+ * The Consilium's own articles, and Wikipedia) carry their LaTeX source in a
+ * MathML annotation. Each becomes an editable equation node instead of being
+ * dropped with the rest of the <math> markup. MathML without a LaTeX source
+ * cannot be converted faithfully and is dropped as before.
+ */
+function convertTypesetMath(doc: Document) {
+  doc.body.querySelectorAll('math').forEach((math) => {
+    if (!math.isConnected) return
+    const latex = math.querySelector('annotation[encoding="application/x-tex"]')?.textContent?.trim()
+    if (!latex) return
+    const display =
+      math.getAttribute('display') === 'block' || Boolean(math.closest('.katex-display, .math-display, mjx-container[display="true"]'))
+    const host =
+      math.closest('.math-display, .math-inline') ??
+      math.closest('.mwe-math-element') ??
+      math.closest('.katex-display') ??
+      math.closest('.katex') ??
+      math.closest('mjx-container') ??
+      math
+    host.replaceWith(mathElement(doc, latex, display))
+  })
+}
+
 /** Clipboard conversion, not a substitute for the public/server sanitiser. */
 export function cleanPastedHTML(html: string): string {
   const doc = new window.DOMParser().parseFromString(html.slice(0, 2_000_000), 'text/html')
+  convertTypesetMath(doc)
   doc.body.querySelectorAll(DROP).forEach((el) => el.remove())
   doc.body.querySelectorAll('[id*="cmnt"], [id*="ftnt"]').forEach((el) => el.remove())
   // Google Docs wraps its whole clipboard in a bold element styled normal.
@@ -50,8 +85,23 @@ export function cleanPastedHTML(html: string): string {
       el.replaceWith(...el.childNodes)
   })
   const clean = (el: Element) => {
-    Array.from(el.children).forEach(clean)
     const tag = el.tagName.toLowerCase()
+    // Equation nodes (the editor's own clipboard, or converted above) keep only
+    // their type and LaTeX source; the editor renders them afresh.
+    const mathType = el.getAttribute('data-type')
+    if (mathType && MATH_TYPES[tag] === mathType) {
+      const latex = el.getAttribute('data-latex') ?? ''
+      if (!latex.trim()) {
+        el.remove()
+        return
+      }
+      Array.from(el.attributes).forEach((attr) => el.removeAttribute(attr.name))
+      el.replaceChildren()
+      el.setAttribute('data-type', mathType)
+      el.setAttribute('data-latex', latex)
+      return
+    }
+    Array.from(el.children).forEach(clean)
     const style = (el as HTMLElement).style
     const wrappers: string[] = []
     if (

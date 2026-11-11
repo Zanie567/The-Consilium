@@ -21,8 +21,9 @@ import { escapeHtml } from '@/lib/escapeHtml'
  *     everything outside a wrapped term is byte-identical to the input, and an
  *     article with no matches returns the input string unchanged.
  *   * Text inside <a>, headings, <code>/<pre>, <blockquote>, <aside>
- *     (pull quotes), <figure>/<figcaption> (image captions and credits) and
- *     <sup> (footnote refs) is never matched.
+ *     (pull quotes), <figure>/<figcaption> (image captions and credits),
+ *     <sup> (footnote refs) and equations (<math>, and any element with a
+ *     math-inline, math-display or katex class) is never matched.
  *   * Matching is case-insensitive on word boundaries, longest surface form
  *     first. Beyond exact terms and aliases, two conservative inflections are
  *     matched: regular plurals generated with standard rules (+s, +es after
@@ -72,6 +73,9 @@ const SKIP_TAGS = new Set([
   'sup',
   'script', 'style', 'textarea',
 ])
+
+/** Typeset equations (src/lib/math/articleMath.ts): their text is maths, not prose. */
+const SKIP_CLASS = /(?:^|\s)(?:math-inline|math-display|katex)(?:\s|$)/
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -183,6 +187,11 @@ function wrapMatch(matchedText: string, term: GlossaryTermInput): string {
 function collectLinkableTextRanges(html: string): TextRange[] {
   const ranges: TextRange[] = []
   let skipDepth = 0
+  // One entry per open element: whether it started a skipped subtree. A stack
+  // (rather than counting tag names) is needed for class-based skips, since a
+  // closing </span> does not say which span it closes. htmlparser2 reports a
+  // close for every open, including void and implicitly closed elements.
+  const skipStack: boolean[] = []
   let open: TextRange | null = null
 
   const flush = () => {
@@ -194,13 +203,15 @@ function collectLinkableTextRanges(html: string): TextRange[] {
 
   const parser = new Parser(
     {
-      onopentag(name) {
+      onopentag(name, attribs) {
         flush()
-        if (SKIP_TAGS.has(name)) skipDepth++
+        const skip = SKIP_TAGS.has(name) || name === 'math' || SKIP_CLASS.test(attribs.class ?? '')
+        skipStack.push(skip)
+        if (skip) skipDepth++
       },
-      onclosetag(name) {
+      onclosetag() {
         flush()
-        if (SKIP_TAGS.has(name) && skipDepth > 0) skipDepth--
+        if (skipStack.pop() && skipDepth > 0) skipDepth--
       },
       ontext() {
         if (skipDepth > 0) return

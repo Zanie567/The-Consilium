@@ -1834,3 +1834,277 @@ mark {
   .btn-press:active { transform: none; }
   .trading-status-dot::after, .trading-spinner { animation: none !important; }
 }
+
+/* ─── Equations (KaTeX) ───────────────────────────────────────────────────────
+   Public markup (src/lib/math/articleMath.ts):
+     <span class="math-inline"><span class="katex">…</span></span>
+     <div class="math-display"><span class="katex-display">…</span></div>
+   KaTeX's own stylesheet (katex/dist/katex.min.css) supplies the metrics; these
+   rules only size equations to the EB Garamond body text and handle layout.
+   Colour is inherited (currentColor), so light, dark and print themes need no
+   equation-specific colours. */
+.prose-consilium .katex { font-size: 1.1em; }
+/* A wide display equation scrolls inside its own box rather than widening the page.
+   The vertical padding keeps tall delimiters and limits from being clipped. */
+.prose-consilium .math-display {
+  margin: 1.6em 0;
+  padding: 0.35em 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.prose-consilium .math-display .katex-display { margin: 0; }
+.prose-consilium .math-display .katex { font-size: 1.15em; }
+.prose-consilium li .math-display,
+.prose-consilium td .math-display,
+.prose-consilium th .math-display { margin: 0.75em 0; }
+/* An equation that could not be typeset shows its LaTeX source, quietly. */
+.prose-consilium .math-error code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  padding: 0.05em 0.3em;
+  border-radius: 2px;
+  background: var(--bg-subtle);
+  color: var(--fg-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.prose-consilium .math-display.math-error { text-align: center; }
+
+/* Editor, review and preview (src/components/editor/extensions/ArticleMath.ts) */
+.tiptap-editor .ProseMirror .tiptap-math { border-radius: 3px; }
+/* One solid hit area: KaTeX's glyph boxes leave gaps that would otherwise click through to the paragraph. */
+.tiptap-editor .ProseMirror .tiptap-math--inline { display: inline-block; max-width: 100%; }
+.tiptap-editor .ProseMirror .tiptap-math .katex { font-size: 1.1em; }
+.tiptap-editor .ProseMirror .tiptap-math--display {
+  display: block;
+  margin: 1.25em 0;
+  padding: 0.5em 0.75em;
+  text-align: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.tiptap-editor .ProseMirror .tiptap-math--display .katex-display { margin: 0; }
+.tiptap-editor .ProseMirror .tiptap-math--editable { cursor: pointer; transition: background-color 120ms ease; }
+.tiptap-editor .ProseMirror .tiptap-math--editable:hover { background: rgba(201, 162, 39, 0.12); }
+.tiptap-editor .ProseMirror .tiptap-math.ProseMirror-selectednode {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+  background: rgba(201, 162, 39, 0.1);
+}
+.tiptap-editor .ProseMirror .tiptap-math--error {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  padding: 0.05em 0.35em;
+  color: #b42318;
+  background: rgba(220, 38, 38, 0.07);
+  border: 1px dashed rgba(220, 38, 38, 0.6);
+  white-space: pre-wrap;
+}
+.dark .tiptap-editor .ProseMirror .tiptap-math--error,
+.editor-dark-mode .ProseMirror .tiptap-math--error { color: #fca5a5; border-color: rgba(252, 165, 165, 0.6); }
+
+/* Equation dialog (src/components/editor/MathEquationDialog.tsx) */
+.math-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(13, 21, 38, 0.55);
+}
+.math-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 46rem;
+  max-height: calc(100dvh - 2rem);
+  color: var(--fg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+  font-family: var(--font-sans);
+}
+.math-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.math-dialog-header h2 { font-family: var(--font-serif); font-size: 1.15rem; font-weight: 700; }
+.math-dialog-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  color: var(--fg-muted);
+  border-radius: 2px;
+}
+.math-dialog-icon-button:hover { color: var(--fg); background: rgba(127, 127, 127, 0.12); }
+.math-dialog-body {
+  display: grid;
+  gap: 1.1rem;
+  padding: 1rem 1.25rem 1.25rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.math-dialog-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.math-dialog-mode legend,
+.math-dialog-field-head label,
+.math-dialog-preview-label {
+  margin-bottom: 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.math-dialog-mode label {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.55rem 0.75rem;
+  cursor: pointer;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+}
+.math-dialog-mode label.is-selected { border-color: var(--color-gold); background: rgba(201, 162, 39, 0.1); box-shadow: inset 0 0 0 1px var(--color-gold); }
+.math-dialog-mode label:focus-within { outline: 2px solid var(--color-gold); outline-offset: 2px; }
+.math-dialog-mode input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.math-dialog-mode-label { font-size: 0.875rem; font-weight: 600; }
+.math-dialog-mode-hint { font-size: 0.75rem; color: var(--fg-muted); }
+.math-dialog-tabs { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; border-bottom: 1px solid var(--border); }
+.math-dialog-tabs [role='tab'] {
+  margin-bottom: -1px;
+  padding: 0.4rem 0 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--fg-muted);
+  border-bottom: 2px solid transparent;
+}
+.math-dialog-tabs [role='tab'][aria-selected='true'] { color: var(--fg); border-bottom-color: var(--color-gold); }
+.math-dialog-tabs [role='tab']:hover { color: var(--fg); }
+.math-dialog-palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.75rem, 1fr));
+  gap: 0.375rem;
+  max-height: 6.4rem;
+  margin-top: 0.6rem;
+  padding: 2px;
+  overflow-y: auto;
+}
+.math-dialog-palette--greek,
+.math-dialog-palette--relations { grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr)); }
+.math-dialog-palette--economics { grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); }
+.math-dialog-palette button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.4rem;
+  overflow: hidden;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.math-dialog-palette button:hover { border-color: var(--color-gold); background: rgba(201, 162, 39, 0.08); }
+.math-dialog-palette--economics button { justify-content: flex-start; }
+.math-dialog-glyph { pointer-events: none; max-width: 100%; }
+.math-dialog-glyph .katex { font-size: 0.95em; }
+.math-dialog-palette--economics .math-dialog-glyph .katex { font-size: 0.8em; }
+.math-dialog-field-head { display: flex; align-items: baseline; justify-content: space-between; font-size: 0.7rem; color: var(--fg-faint); }
+.math-dialog-field-head .is-near-limit { color: #b45309; font-weight: 600; }
+.math-dialog-field textarea {
+  display: block;
+  width: 100%;
+  min-height: 4.75rem;
+  padding: 0.6rem 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  resize: vertical;
+}
+.math-dialog-field textarea:focus { outline: none; border-color: var(--color-gold); box-shadow: 0 0 0 1px var(--color-gold); }
+.math-dialog-field textarea[aria-invalid='true'] { border-color: rgba(220, 38, 38, 0.6); }
+.math-dialog-help { margin-top: 0.35rem; font-size: 0.72rem; color: var(--fg-faint); }
+.math-dialog-preview-wrap { display: grid; }
+.math-dialog-preview {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 4.5rem;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  font-family: var(--font-eb-garamond), 'EB Garamond', Georgia, serif;
+  font-size: 1.125rem;
+  background: var(--bg);
+  border: 1px dashed var(--border-strong);
+}
+.math-dialog-preview.is-display { justify-content: center; }
+.math-dialog-preview.is-display .katex-display { margin: 0; }
+.math-dialog-preview .katex { font-size: 1.1em; }
+.math-dialog-preview.has-error { border-color: rgba(220, 38, 38, 0.55); }
+.math-dialog-preview-render:empty { display: none; }
+.math-dialog-preview-empty { font-size: 0.85rem; font-style: italic; color: var(--fg-faint); font-family: var(--font-sans); }
+.math-dialog-status { display: flex; align-items: flex-start; gap: 0.4rem; min-height: 1.25rem; margin-top: 0.45rem; font-size: 0.78rem; line-height: 1.4; }
+.math-dialog-status svg { flex-shrink: 0; margin-top: 0.1rem; }
+.math-dialog-status.is-error { color: #b42318; }
+.math-dialog-status.is-ok { color: #047857; }
+.dark .math-dialog-status.is-error { color: #fca5a5; }
+.dark .math-dialog-status.is-ok { color: #6ee7b7; }
+.math-dialog-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 0.85rem 1.25rem;
+  border-top: 1px solid var(--border);
+}
+.math-dialog-footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.math-dialog-secondary { color: var(--fg-muted); border: 1px solid var(--border-strong); }
+.math-dialog-secondary:hover { color: var(--color-gold); border-color: var(--color-gold); }
+.math-dialog-primary { color: var(--color-gold); background: var(--color-navy); border: 1px solid var(--color-navy); }
+.math-dialog-primary:hover:not(:disabled) { background: var(--color-navy-dark); }
+.math-dialog-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.dark .math-dialog-primary { border-color: var(--color-gold); }
+.math-dialog-delete { margin-right: auto; color: #b42318; }
+.math-dialog-delete:hover { text-decoration: underline; text-underline-offset: 3px; }
+.dark .math-dialog-delete { color: #fca5a5; }
+.math-dialog button:focus-visible,
+.math-dialog [role='tab']:focus-visible { outline: 2px solid var(--color-gold); outline-offset: 2px; }
+@media (max-width: 639px) {
+  .math-dialog-backdrop { align-items: flex-end; padding: 0; }
+  .math-dialog { max-height: 94dvh; border-left: 0; border-right: 0; border-bottom: 0; }
+  .math-dialog-header, .math-dialog-body, .math-dialog-footer { padding-left: 1rem; padding-right: 1rem; }
+  .math-dialog-footer button { flex: 1 1 auto; justify-content: center; }
+  .math-dialog-delete { flex-basis: 100%; }
+}
+
+@media print {
+  /* Paper cannot scroll: let a wide equation run to the margin rather than clip it. */
+  .prose-consilium .math-display { overflow: visible !important; break-inside: avoid; page-break-inside: avoid; }
+  .prose-consilium .katex { color: #1a1a1a !important; }
+}

@@ -2,6 +2,7 @@ import { escapeHtml as escHtml } from '@/lib/escapeHtml'
 import { sanitizeArticleHtml } from '@/lib/articleSanitize'
 import { renderArticleTable } from '@/lib/tableRender'
 import { renderArticleFigure } from '@/lib/figureRender'
+import { renderArticleMath } from '@/lib/math/articleMath'
 import type { TiptapNode } from '@/lib/richContent'
 export type { TiptapNode } from '@/lib/richContent'
 
@@ -21,6 +22,20 @@ export type { TiptapNode } from '@/lib/richContent'
  * so the page can wire marker clicks to the list and back-links to the marker.
  * The footnote text travels in data-footnote, URI-encoded; the popover decodes
  * it and renders it via textContent only, never as HTML.
+ *
+ * Equations (inlineMath / blockMath nodes, LaTeX in attrs.latex) are typeset on
+ * the server by KaTeX. KaTeX output needs inline styles and MathML, which the
+ * article sanitiser rightly refuses, so equations do not pass through it:
+ *
+ *   1. nodeToHtml emits a placeholder token for each equation. The token holds a
+ *      random per-render nonce, so no stored text can forge one, and it is plain
+ *      alphanumeric text, which the sanitiser leaves alone.
+ *   2. The assembled article HTML is sanitised exactly as before.
+ *   3. Each token is replaced with that equation's KaTeX HTML, itself checked
+ *      against a KaTeX-only allowlist (src/lib/math/katexSanitize.ts).
+ *
+ * So author-controlled markup is sanitised by the unchanged article rules, and
+ * the only markup added afterwards is library output for one escaped LaTeX string.
  */
 
 function safeHref(href: string): string {
@@ -43,6 +58,16 @@ export interface ArticleFootnote {
 
 interface RenderState {
   footnotes: ArticleFootnote[]
+  /** Final HTML of each equation, indexed by its placeholder number. */
+  math: string[]
+  /** Placeholder prefix for this render: 'mathslot' + a random nonce. */
+  mathToken: string
+}
+
+function mathPlaceholder(state: RenderState, html: string): string {
+  if (!html) return ''
+  const index = state.math.push(html) - 1
+  return `${state.mathToken}n${index}x`
 }
 
 // PUBLIC HOUSE STYLE (confirmed): the editor lets authors choose text colour, size, line
@@ -122,6 +147,10 @@ function nodeToHtml(node: TiptapNode, state: RenderState): string {
         `<a href="#fn-${n}" aria-label="Footnote ${n}">[${n}]</a></sup>`
       )
     }
+    case 'inlineMath':
+      return mathPlaceholder(state, renderArticleMath(node.attrs?.latex, false))
+    case 'blockMath':
+      return mathPlaceholder(state, renderArticleMath(node.attrs?.latex, true))
     // chartNode: silently drop - data callout has been removed
     case 'chartNode':
       return ''
@@ -130,18 +159,30 @@ function nodeToHtml(node: TiptapNode, state: RenderState): string {
   }
 }
 
+/** Step 3 above: swap each placeholder for its equation, after the article is sanitised. */
+function insertMath(html: string, state: RenderState): string {
+  if (state.math.length === 0) return html
+  const placeholder = new RegExp(`${state.mathToken}n(\\d+)x`, 'g')
+  return html.replace(placeholder, (_, index: string) => state.math[Number(index)] ?? '')
+}
+
 export function renderContent(content: string): { html: string; footnotes: ArticleFootnote[] } {
   try {
     const parsed = JSON.parse(content)
     if (parsed?.type === 'doc') {
-      const state: RenderState = { footnotes: [] }
+      const state: RenderState = {
+        footnotes: [],
+        math: [],
+        mathToken: `mathslot${crypto.randomUUID().replace(/-/g, '')}`,
+      }
       const html = ((parsed.content ?? []) as TiptapNode[])
         .map((n) => nodeToHtml(n, state))
         .join('')
       // Defense-in-depth: even though nodeToHtml escapes text and validates hrefs,
       // run the assembled HTML through the sanitiser so any future renderer gap (a
       // new node type, an unescaped attribute) cannot become stored XSS.
-      return { html: sanitizeArticleHtml(html), footnotes: state.footnotes }
+      const sanitized = sanitizeArticleHtml(html)
+      return { html: insertMath(sanitized, state), footnotes: state.footnotes }
     }
   } catch {}
   // Fallback: treat as plain text — escape to prevent XSS from raw stored strings

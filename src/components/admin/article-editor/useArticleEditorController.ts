@@ -19,6 +19,7 @@ import type {
   UserOption,
 } from './types'
 import { readDrafts, storeDraft, deleteDraft, type LocalDraft } from '@/lib/draftRecovery'
+import { findInvalidEquations, invalidEquationsMessage } from '@/lib/math/contentEquations'
 import { STATUS_LABELS } from './constants'
 
 interface SavedArticleResponse {
@@ -593,12 +594,26 @@ export function useArticleEditorController({
     setContent(nextContent)
   }, [scheduleAutosave])
 
+  // Broken maths must be fixed before an article goes to review or to readers. Drafts
+  // still save, so an author never loses work while correcting an equation.
+  const blockInvalidEquations = (): boolean => {
+    const invalid = findInvalidEquations(contentRef.current)
+    if (invalid.length === 0) return false
+    setError(localEditorError(invalidEquationsMessage(invalid)))
+    setSaveStatus('error')
+    return true
+  }
+
   const handleSave = async (explicitStatus?: string, options: { copyEdit?: boolean } = {}) => {
     if (explicitStatus && explicitStatus !== 'DRAFT' && !titleRef.current.trim()) {
       setError(localEditorError('A title is required before publishing or submitting.'))
       setSaveStatus('error')
       return
     }
+    const reachesReviewOrReaders =
+      (explicitStatus !== undefined && explicitStatus !== 'DRAFT') ||
+      (explicitStatus === undefined && currentStatusRef.current === 'PUBLISHED' && liveTextChanged())
+    if (reachesReviewOrReaders && blockInvalidEquations()) return
     clearTimeout(autoSaveTimer.current)
     setError(null)
     if (recovery) return
@@ -629,6 +644,7 @@ export function useArticleEditorController({
       setSaveStatus('error')
       return
     }
+    if (target !== 'DRAFT' && blockInvalidEquations()) return
     const current = currentStatusRef.current
     const touchesPublic = ['PUBLISHED', 'SCHEDULED'].includes(target) || ['PUBLISHED', 'SCHEDULED'].includes(current)
     if (touchesPublic) setPendingStatus(target)
