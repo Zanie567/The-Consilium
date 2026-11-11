@@ -44,10 +44,11 @@ export const TRADING_CHALLENGE = {
   platform: 'MarketWatch Virtual Stock Exchange',
 
   /**
-   * Calendar dates in Europe/London, matching the dates shown on the MarketWatch game's
-   * overview (Nov 9, 2026 – Mar 24, 2027). The game defines no published start/end time.
+   * Calendar dates in Europe/London, as confirmed by the organisers (November 2026: the
+   * start moved from 9 to 23 November; the end date is provisionally unchanged). No start
+   * or end time has been announced, so the page uses whole days only.
    */
-  startDate: '2026-11-09',
+  startDate: '2026-11-23',
   endDate: '2027-03-24',
 
   startingCapitalUsd: 100_000,
@@ -59,8 +60,8 @@ export const TRADING_CHALLENGE = {
 
   links: {
     /** The private game. Joining it requires the password sent to verified members. */
-    game: 'https://www.marketwatch.com/games/the-econsoc-trading-challenge-26-27',
-    rankings: 'https://www.marketwatch.com/games/the-econsoc-trading-challenge-26-27/rankings',
+    game: 'https://www.marketwatch.com/games/the-econsoc-trading-challenge',
+    rankings: 'https://www.marketwatch.com/games/the-econsoc-trading-challenge/rankings',
     /** MarketWatch's Virtual Stock Exchange, where a free account is created. */
     marketwatch: 'https://www.marketwatch.com/games',
     /** EconSoc's official EUSA page, where paid membership is bought. */
@@ -104,11 +105,6 @@ export const TRADING_CHALLENGE = {
   // Other MarketWatch game settings (commission, order types, short selling, margin and
   // so on) are deliberately not published here: the game itself is the authority on
   // them. Leaving them off this page does not change anything on MarketWatch.
-
-  /** Decisions the organisers still owe before the page can state them as rules. */
-  pendingDecisions: {
-    tieBreak: true,
-  },
 
   results: {
     /** Flip to true only once winners are verified and officially announced. */
@@ -163,7 +159,7 @@ export function windowProgress(now: Date, start: string = TRADING_CHALLENGE.star
   return Math.min(1, Math.max(0, (today - s) / (e - s)))
 }
 
-/** "9 November 2026" — formatted from the date string itself, independent of the server's zone. */
+/** "23 November 2026" — formatted from the date string itself, independent of the server's zone. */
 export function formatChallengeDate(date: string, opts: { withYear?: boolean; weekday?: boolean } = {}): string {
   const { withYear = true, weekday = false } = opts
   return new Intl.DateTimeFormat('en-GB', {

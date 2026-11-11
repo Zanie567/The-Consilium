@@ -14,17 +14,29 @@ import {
 
 describe('competition facts', () => {
   it('match the confirmed competition details', () => {
-    expect(TRADING_CHALLENGE.startDate).toBe('2026-11-09')
+    expect(TRADING_CHALLENGE.startDate).toBe('2026-11-23')
     expect(TRADING_CHALLENGE.endDate).toBe('2027-03-24')
     expect(TRADING_CHALLENGE.startingCapitalUsd).toBe(100_000)
     expect(TRADING_CHALLENGE.prizes.map((p) => [p.place, p.amountGbp])).toEqual([[1, 100], [2, 50], [3, 25]])
     expect(TOTAL_PRIZE_POOL_GBP).toBe(175)
   })
 
-  it('links the replacement MarketWatch game, never the withdrawn one', () => {
-    expect(TRADING_CHALLENGE.links.game).toBe('https://www.marketwatch.com/games/the-econsoc-trading-challenge-26-27')
+  it('starts on a Monday and runs for about four months, as the closing copy says', () => {
+    expect(formatChallengeDate(TRADING_CHALLENGE.startDate, { withYear: false, weekday: true })).toBe('Monday 23 November')
+    const days = daysUntil(new Date(`${TRADING_CHALLENGE.startDate}T12:00:00Z`), TRADING_CHALLENGE.endDate)
+    expect(days).toBeGreaterThanOrEqual(120) // four months
+    expect(days).toBeLessThan(135) // short of four and a half
+  })
+
+  it('links the current MarketWatch game, never an earlier one', () => {
+    expect(TRADING_CHALLENGE.links.game).toBe('https://www.marketwatch.com/games/the-econsoc-trading-challenge')
     expect(TRADING_CHALLENGE.links.rankings).toBe(`${TRADING_CHALLENGE.links.game}/rankings`)
-    expect(JSON.stringify(TRADING_CHALLENGE)).not.toContain('the-econsoc-trading-challenge-2026-27')
+    // The current slug is a prefix of both earlier ones, so match the earlier slugs exactly.
+    expect(JSON.stringify(TRADING_CHALLENGE)).not.toMatch(/the-econsoc-trading-challenge-(2026-27|26-27)/)
+  })
+
+  it('has no pending, unannounced decisions (the tie-break placeholder was withdrawn)', () => {
+    expect(TRADING_CHALLENGE).not.toHaveProperty('pendingDecisions')
   })
 
   it('registers non-student members by email to the committee, with no form and no automation', () => {
@@ -64,12 +76,14 @@ describe('competition facts', () => {
 describe('competition phase (Europe/London calendar days)', () => {
   it('is upcoming before the start date, including late on the eve in London', () => {
     expect(challengePhase(new Date('2026-10-28T12:00:00Z'))).toBe('upcoming')
-    // 23:59 UTC on 8 Nov is 23:59 GMT in London (clocks went back on 25 Oct 2026): still the 8th.
-    expect(challengePhase(new Date('2026-11-08T23:59:00Z'))).toBe('upcoming')
+    // The previously advertised start date is now before the start.
+    expect(challengePhase(new Date('2026-11-09T12:00:00Z'))).toBe('upcoming')
+    // 23:59 UTC on 22 Nov is 23:59 GMT in London (clocks went back on 25 Oct 2026): still the 22nd.
+    expect(challengePhase(new Date('2026-11-22T23:59:00Z'))).toBe('upcoming')
   })
 
   it('is live from the first London minute of the start date through the end date', () => {
-    expect(challengePhase(new Date('2026-11-09T00:00:00Z'))).toBe('live')
+    expect(challengePhase(new Date('2026-11-23T00:00:00Z'))).toBe('live')
     expect(challengePhase(new Date('2027-01-15T09:00:00Z'))).toBe('live')
     expect(challengePhase(new Date('2027-03-24T23:59:00Z'))).toBe('live')
   })
@@ -90,21 +104,22 @@ describe('competition phase (Europe/London calendar days)', () => {
 
 describe('date helpers', () => {
   it('counts whole London days to a date', () => {
-    expect(daysUntil(new Date('2026-10-27T08:00:00Z'), '2026-11-09')).toBe(13)
-    expect(daysUntil(new Date('2026-11-09T08:00:00Z'), '2026-11-09')).toBe(0)
+    expect(daysUntil(new Date('2026-11-11T08:00:00Z'), '2026-11-23')).toBe(12)
+    expect(daysUntil(new Date('2026-11-22T23:30:00Z'), '2026-11-23')).toBe(1)
+    expect(daysUntil(new Date('2026-11-23T08:00:00Z'), '2026-11-23')).toBe(0)
   })
 
   it('reports progress through the trading window, clamped to 0–1', () => {
     expect(windowProgress(new Date('2026-10-01T12:00:00Z'))).toBe(0)
     expect(windowProgress(new Date('2027-05-01T12:00:00Z'))).toBe(1)
-    const mid = windowProgress(new Date('2027-01-10T12:00:00Z'))
+    const mid = windowProgress(new Date('2027-01-23T12:00:00Z'))
     expect(mid).toBeGreaterThan(0.4)
     expect(mid).toBeLessThan(0.6)
   })
 
   it('formats dates without depending on the server time zone', () => {
-    expect(formatChallengeDate('2026-11-09')).toBe('9 November 2026')
-    expect(formatChallengeDate('2026-11-09', { withYear: false, weekday: true })).toBe('Monday 9 November')
+    expect(formatChallengeDate('2026-11-23')).toBe('23 November 2026')
+    expect(formatChallengeDate('2026-11-23', { withYear: false, weekday: true })).toBe('Monday 23 November')
     expect(formatChallengeDate('2027-03-24', { withYear: false })).toBe('24 March')
   })
 })

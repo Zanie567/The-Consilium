@@ -4,21 +4,13 @@ import { TRADING_CHALLENGE as TC, TOTAL_PRIZE_POOL_GBP, formatChallengeDate } fr
 /**
  * The competition at a glance (the essentials only: who, where, when, how much)
  * and the official rules. Detailed MarketWatch game settings are deliberately not
- * restated here; the game itself is the authority on them. Anything the
- * organisers have not yet decided is marked "to be confirmed", never stated.
+ * restated here; the game itself is the authority on them. Only rules the
+ * organisers have decided are listed.
  */
-
-function Tbc() {
-  return (
-    <span className="ml-2 inline-block border border-gold/50 px-1.5 py-0.5 align-middle text-[0.6rem] font-bold uppercase tracking-[0.16em] text-[#8a6d14] dark:text-gold">
-      To be confirmed
-    </span>
-  )
-}
 
 export function ChallengeRules() {
   const prizes = TC.prizes.map((p) => `£${p.amountGbp}`).join(', ')
-  const rules: { title: string; body: React.ReactNode; tbc?: boolean }[] = [
+  const rules: { title: string; body: React.ReactNode }[] = [
     {
       title: 'Simulated trading only',
       body: (
@@ -61,8 +53,7 @@ export function ChallengeRules() {
       title: 'Dates and late entry',
       body: (
         <>
-          Trading runs from {formatChallengeDate(TC.startDate)} to {formatChallengeDate(TC.endDate)}, as set in the
-          MarketWatch game. Members may join after the start while the game is running; late entrants receive the same
+          Trading runs from {formatChallengeDate(TC.startDate)} to {formatChallengeDate(TC.endDate)}. Members may join after the start while the game is running; late entrants receive the same
           starting balance and have less time to trade.
         </>
       ),
@@ -93,11 +84,6 @@ export function ChallengeRules() {
           removed from the game.
         </>
       ),
-    },
-    {
-      title: 'Ties',
-      body: <>How a tie for a prize position is resolved will be confirmed by the organisers.</>,
-      tbc: TC.pendingDecisions.tieBreak,
     },
   ]
 
@@ -165,10 +151,7 @@ export function ChallengeRules() {
               {String(i + 1).padStart(2, '0')}
             </span>
             <div>
-              <h4 className="font-semibold text-[var(--fg)]">
-                {r.title}
-                {r.tbc && <Tbc />}
-              </h4>
+              <h4 className="font-semibold text-[var(--fg)]">{r.title}</h4>
               <p className="mt-1 text-[0.95rem] leading-relaxed text-[var(--fg-muted)]">{r.body}</p>
             </div>
           </li>

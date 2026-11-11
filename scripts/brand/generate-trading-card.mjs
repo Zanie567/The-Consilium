@@ -3,7 +3,7 @@
  * Redraws the trading dates on the Trading Challenge share card.
  *
  *   in:  public/og/trading-challenge.png     the approved campaign card (dates 28 Oct – 25 Mar)
- *   out: public/og/trading-challenge-v2.png  the same card with the dates from src/lib/tradingChallenge.ts
+ *   out: public/og/trading-challenge-v3.png  the same card with the dates from src/lib/tradingChallenge.ts
  *
  * Only the "TRADING" value and the gold rule above it change; every other pixel is copied
  * from the approved card. The value is set in Playfair Display 700 with lining figures at
@@ -12,11 +12,11 @@
  * is as wide as the value, as on the original card. Needs network once, for Google Fonts.
  *
  * Usage:
- *   node scripts/brand/generate-trading-card.mjs           write the v2 card
+ *   node scripts/brand/generate-trading-card.mjs           write the current card
  *   node scripts/brand/generate-trading-card.mjs --check   redraw the ORIGINAL dates and compare
  *                                                          with the approved card (no file written)
  *
- * If the dates change again, bump OUT to a new path (…-v3.png) and update SHARE_IMAGE in
+ * If the dates change again, bump OUT to a new path (…-v4.png) and update SHARE_IMAGE in
  * src/app/trading-challenge/page.tsx: platforms cache share images by URL.
  */
 import { chromium } from '@playwright/test'
@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const SOURCE = path.join(ROOT, 'public/og/trading-challenge.png')
-const OUT = path.join(ROOT, 'public/og/trading-challenge-v2.png')
+const OUT = path.join(ROOT, 'public/og/trading-challenge-v3.png')
 const CONFIG = path.join(ROOT, 'src/lib/tradingChallenge.ts')
 
 const WIDTH = 1200
