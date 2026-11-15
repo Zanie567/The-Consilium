@@ -28,13 +28,14 @@ test('Projects in the desktop navigation leads to the Pot Noodle Index', async (
 })
 
 test('the page says it is collecting, with no form link, no embed and no figures until they are supplied', async ({ page }) => {
-  const response = await open(page)
-  const html = await response.text()
+  await open(page)
+  // The page's own content (the site footer carries the general feedback form link).
+  const html = await page.locator('.pni-page').innerHTML()
   await expect(page.getByText('Collecting prices now')).toBeVisible()
   await expect(page.getByText('The form opens here soon')).toBeAttached()
   expect(html).not.toMatch(/docs\.google\.com\/forms|forms\.gle/)
   await expect(page.locator('iframe')).toHaveCount(0)
-  expect(await page.locator('main, body').first().innerText()).not.toMatch(/£\s?\d/)
+  expect(await page.locator('.pni-page').innerText()).not.toMatch(/£\s?\d/)
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /\/pot-noodle-index$/)
   // Hero links reach their sections.
   await page.getByRole('link', { name: 'Add a price' }).click()
