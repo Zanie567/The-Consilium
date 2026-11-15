@@ -71,6 +71,7 @@ const NAV: Record<'writer' | 'editor' | 'admin' | 'growth', NavLink[]> = {
     { label: 'Article Series', href: '/editorial/series' },
     { label: 'Scheduled', href: '/editorial/scheduled' },
     { label: 'Calendar', href: '/editorial/calendar' },
+    { label: 'Tags', href: '/editorial/tags' },
     { label: 'Trash', href: '/editorial/trash' },
     { label: 'Review Queue', href: '/editorial/review' },
     { label: 'Comments', href: '/editorial/comments' },
