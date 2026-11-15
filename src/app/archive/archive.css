@@ -1,0 +1,151 @@
+/*
+ * The public archive (/archive). Layout is in Tailwind classes on the components; this file holds
+ * what utilities express badly: the stretched headline link, hover and focus states that involve
+ * a parent and a child, and the topic filter. Colours come from the site tokens in globals.css.
+ */
+
+/* ─── Article rows ─────────────────────────────────────────────────────────── */
+
+/*
+ * The headline link covers the whole row, so the picture and the white space around the text
+ * open the article too, while the row keeps exactly one link to the article (screen readers and
+ * crawlers meet it once, as the heading). Format, author and topic links sit above it.
+ */
+.archive-title::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.archive-title {
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.18em;
+  transition: text-decoration-color 0.25s ease;
+}
+.archive-item:hover .archive-title,
+.archive-title:focus-visible {
+  text-decoration-color: #c9a227;
+}
+/* The focus ring is drawn round the row the link covers, not round a wrapped line of headline. */
+.archive-title:focus-visible { outline: none; }
+.archive-item:has(.archive-title:focus-visible) {
+  outline: 2px solid #c9a227;
+  outline-offset: 6px;
+}
+
+.archive-cover { isolation: isolate; }
+.archive-cover img {
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.archive-item:hover .archive-cover img { transform: scale(1.035); }
+
+/*
+ * No cover: a quiet parchment panel with the monogram, so real photographs stay the loudest
+ * thing in the list and a run of articles without covers does not read as a wall of navy.
+ */
+.archive-placeholder {
+  background: var(--bg-subtle);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: rgba(26, 39, 68, 0.14);
+}
+.dark .archive-placeholder { color: rgba(201, 162, 39, 0.2); }
+
+.archive-sublink {
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.2em;
+  transition: text-decoration-color 0.2s ease;
+}
+.archive-sublink:hover { text-decoration-color: #c9a227; }
+
+.archive-topic {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid var(--border-strong);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--fg-muted);
+  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+}
+.archive-topic:hover {
+  border-color: #c9a227;
+  color: var(--fg);
+  background: rgba(201, 162, 39, 0.1);
+}
+
+/* ─── Filters ──────────────────────────────────────────────────────────────── */
+
+.archive-filters input[type='search']::-webkit-search-cancel-button { cursor: pointer; }
+
+.archive-topics > summary::-webkit-details-marker { display: none; }
+.archive-topics-chevron { transition: transform 0.2s ease; }
+.archive-topics[open] .archive-topics-chevron { transform: rotate(180deg); }
+.archive-topics > summary:hover { background: var(--bg-subtle); }
+
+.archive-topic-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--border-strong);
+  font-size: 0.875rem;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.archive-topic-option input { accent-color: #1a2744; width: 1rem; height: 1rem; cursor: pointer; }
+.dark .archive-topic-option input { accent-color: #c9a227; }
+.archive-topic-option:hover { border-color: #c9a227; color: var(--fg); }
+.archive-topic-option:has(input:checked) {
+  border-color: #c9a227;
+  background: rgba(201, 162, 39, 0.12);
+  color: var(--fg);
+  font-weight: 600;
+}
+.archive-topic-option:has(input:focus-visible) { outline: 2px solid #c9a227; outline-offset: 2px; }
+.archive-topic-option input:focus-visible { outline: none; }
+
+.archive-active-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  padding: 0.2rem 0.6rem 0.2rem 0.75rem;
+  background: #1a2744;
+  color: #faf8f3;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: background-color 0.15s ease;
+}
+.archive-active-filter:hover { background: #243460; }
+.archive-active-filter svg { color: #c9a227; }
+.dark .archive-active-filter { background: rgba(201, 162, 39, 0.16); border: 1px solid rgba(201, 162, 39, 0.4); }
+.dark .archive-active-filter:hover { background: rgba(201, 162, 39, 0.26); }
+
+/* ─── Pagination ───────────────────────────────────────────────────────────── */
+
+.archive-page-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 1.1rem;
+  border: 1px solid var(--border-strong);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg);
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+a.archive-page-link:hover { border-color: #c9a227; background: #1a2744; color: #c9a227; }
+.archive-page-link[aria-disabled='true'] { color: var(--fg-faint); border-color: var(--border); }
+
+@media (prefers-reduced-motion: reduce) {
+  .archive-cover img,
+  .archive-title,
+  .archive-topics-chevron { transition: none; }
+  .archive-item:hover .archive-cover img { transform: none; }
+}

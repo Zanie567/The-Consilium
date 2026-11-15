@@ -7,6 +7,13 @@ import { loadEditorCategoryScope } from '@/lib/articleCategoryAccess'
 import { articleWhereForEditorScope, type EditorCategoryScope } from '@/lib/articleCategoryScope'
 import type { Metadata } from 'next'
 
+/**
+ * Most articles the list loads. Search, sorting and filtering run in the browser over this set,
+ * so it has to be large enough to hold everything an editor is likely to look for, and bounded
+ * so the page stays a single quick query. When there are more, the list says so.
+ */
+const ARTICLE_LIST_LIMIT = 300
+
 export const metadata: Metadata = {
   title: 'Articles | Editorial',
   robots: { index: false, follow: false },
@@ -35,7 +42,7 @@ export default async function EditorialArticlesPage({
 
   // Surface DB errors rather than silently rendering an empty list
   let fetchError = false
-  const articles = await prisma.article.findMany({
+  const loaded = await prisma.article.findMany({
     where: {
       deletedAt: null,
       ...(myDraftsMode
@@ -46,7 +53,9 @@ export default async function EditorialArticlesPage({
           }),
     },
     orderBy: { updatedAt: 'desc' },
-    take: 100,
+    // One more than the list shows, which is how the page knows older articles were left out
+    // without running a second (count) query.
+    take: ARTICLE_LIST_LIMIT + 1,
     select: {
       id: true,
       title: true,
@@ -57,8 +66,11 @@ export default async function EditorialArticlesPage({
       publishedAt: true,
       scheduledAt: true,
       slug: true,
+      // The cover's address only: the list draws it as a small thumbnail.
+      coverImage: true,
       author: { select: { id: true, name: true } },
       category: { select: { name: true, slug: true } },
+      tags: { select: { tag: { select: { name: true, slug: true } } }, orderBy: { tag: { name: 'asc' } } },
     },
   }).catch((err: unknown) => {
     console.error('[editorial/articles] DB error:', err)
@@ -66,6 +78,8 @@ export default async function EditorialArticlesPage({
     fetchError = true
     return []
   })
+  const truncated = loaded.length > ARTICLE_LIST_LIMIT
+  const articles = truncated ? loaded.slice(0, ARTICLE_LIST_LIMIT) : loaded
 
   const pageTitle = myDraftsMode
     ? 'My Drafts'
@@ -91,7 +105,7 @@ export default async function EditorialArticlesPage({
             {pageTitle}
           </h1>
           <p className="text-[var(--fg-muted)] text-sm">
-            {articles.length} article{articles.length !== 1 ? 's' : ''}
+            {truncated ? `${articles.length} most recently updated articles` : `${articles.length} article${articles.length !== 1 ? 's' : ''}`}
           </p>
         </div>
         <a
@@ -107,6 +121,7 @@ export default async function EditorialArticlesPage({
           articles={articles.map(article => ({ ...article, updatedAt: article.updatedAt.toISOString(), publishedAt: article.publishedAt?.toISOString() ?? null, scheduledAt: article.scheduledAt?.toISOString() ?? null }))}
           isEditor={isEditor && !myDraftsMode}
           isWriter={role === 'WRITER'}
+          truncated={truncated}
           emptyMessage={
             myDraftsMode ? (
               <span>

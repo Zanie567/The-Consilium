@@ -76,7 +76,7 @@ test('an editor prepares, an administrator approves, readers see the dated corre
   await ep.goto('/editorial/articles', { waitUntil: 'networkidle' })
   await new ArticleEditorPage(ep).dismissCookieBanner()
   const row = ep.locator('tr', { hasText: article.title })
-  await row.getByRole('link', { name: 'Corrections' }).click()
+  await row.getByRole('link', { name: 'Corrections', exact: true }).click()
   await expect(ep).toHaveURL(new RegExp(`${managePath}$`))
   await expect(ep.getByRole('heading', { level: 1 })).toHaveText(article.title)
   await ep.getByRole('button', { name: 'New correction, clarification or update' }).click()

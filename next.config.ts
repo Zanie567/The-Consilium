@@ -77,6 +77,8 @@ const nextConfig: NextConfig = {
     //   lh3.googleusercontent.com — Google OAuth profile avatars
     // If an editor needs a new external host, add it here (a specific hostname,
     // never '**', which would re-open the optimizer SSRF/DoS surface).
+    // (The same hosts are listed in src/lib/coverImageSource.ts, which decides in the browser
+    // whether a cover may go through the optimiser; a unit test keeps the two lists equal.)
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
       { protocol: 'https', hostname: 'images.unsplash.com' },
