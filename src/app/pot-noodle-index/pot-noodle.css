@@ -1,0 +1,187 @@
+/*
+ * /pot-noodle-index. The page's one bold element is the shelf-edge price label in the hero; everything
+ * else stays quiet and editorial. Site tokens come from globals.css; the label yellow is this page's own.
+ * In the components layer so Tailwind utilities on the same elements win.
+ */
+@layer components {
+  .pni-page { --pni-label: #f7d94c; --pni-label-ink: #1a2744; }
+
+  /* Hero: a faint woven texture, like a noodle block seen very close, kept below 5% contrast. */
+  .pni-hero-texture {
+    background-image:
+      repeating-radial-gradient(circle at 18% 120%, rgba(201, 162, 39, 0.07) 0 1px, transparent 1px 22px),
+      repeating-radial-gradient(circle at 82% -20%, rgba(250, 248, 243, 0.035) 0 1px, transparent 1px 18px);
+  }
+
+  .pni-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #c9a227;
+  }
+  .pni-status-dot { position: relative; width: 0.5rem; height: 0.5rem; border-radius: 9999px; background: #c9a227; }
+  .pni-status-dot::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 9999px;
+    border: 1px solid rgba(201, 162, 39, 0.6);
+    animation: pni-pulse 2.4s ease-out infinite;
+  }
+  @keyframes pni-pulse { from { transform: scale(0.6); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+
+  /* ── The shelf-edge label ──────────────────────────────────────────── */
+  .pni-label-wrap { position: relative; margin: 0; width: min(100%, 22rem); padding-top: 1.25rem; }
+  .pni-shelf {
+    position: absolute;
+    top: 0;
+    left: -12%;
+    right: -12%;
+    height: 0.6rem;
+    background: linear-gradient(#d9d4c7, #a9a293);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+  }
+  .pni-label {
+    position: relative;
+    background: var(--pni-label);
+    color: var(--pni-label-ink);
+    padding: 1rem 1.15rem 0.9rem;
+    border-top: 5px solid #e4c42f;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35), inset 0 -1px 0 rgba(26, 39, 68, 0.12);
+    transform-origin: 50% 0;
+    animation: pni-swing 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+  }
+  @keyframes pni-swing {
+    0% { transform: rotate(-9deg); opacity: 0; }
+    35% { transform: rotate(4deg); opacity: 1; }
+    65% { transform: rotate(-1.6deg); }
+    100% { transform: rotate(-0.6deg); }
+  }
+  .pni-label-top, .pni-label-bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; }
+  .pni-label-top { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; }
+  .pni-label-top span:last-child { font-weight: 500; opacity: 0.75; }
+  .pni-price {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.25rem;
+    margin: 0.4rem 0 0.6rem;
+    font-family: var(--font-sans);
+    font-size: clamp(4rem, 15vw, 5.6rem);
+    font-weight: 800;
+    line-height: 0.95;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+  }
+  .pni-price-currency { font-size: 0.45em; margin-top: 0.18em; }
+  .pni-price-empty { display: inline-flex; align-items: flex-end; gap: 0.08em; }
+  .pni-slot {
+    display: inline-block;
+    width: 0.52em;
+    height: 0.78em;
+    border: 3px dashed rgba(26, 39, 68, 0.35);
+    border-radius: 4px;
+  }
+  .pni-slot-dot { width: 0.18em; line-height: 0.8; opacity: 0.45; }
+  .pni-label-note { font-size: 0.72rem; font-weight: 600; text-align: right; }
+  /* A barcode made of stripes: decoration only. */
+  .pni-barcode {
+    flex: none;
+    width: 5.5rem;
+    height: 1.9rem;
+    background: repeating-linear-gradient(90deg, var(--pni-label-ink) 0 2px, transparent 2px 3px, var(--pni-label-ink) 3px 4px, transparent 4px 7px, var(--pni-label-ink) 7px 10px, transparent 10px 11px);
+  }
+
+  /* ── Sections ──────────────────────────────────────────────────────── */
+  .pni-questions { border-top: 2px solid #c9a227; }
+  .pni-questions li { padding: 1.25rem 0; border-bottom: 1px solid var(--border-strong); }
+
+  .pni-step-number {
+    display: inline-flex;
+    width: 2.5rem;
+    height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #c9a227;
+    background: var(--bg);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #8a6d14;
+  }
+  .dark .pni-step-number { color: #c9a227; }
+
+  .pni-form-pending {
+    border: 1px dashed var(--border-strong);
+    background: var(--bg-elevated);
+    padding: 2.5rem 1.75rem;
+  }
+
+  /* Results before publication: a till receipt with nothing printed yet. */
+  .pni-receipt {
+    position: relative;
+    max-width: 26rem;
+    margin: 0.5rem auto;
+    padding: 1.6rem 1.5rem 1.4rem;
+    background: var(--bg-elevated);
+    color: var(--fg);
+    box-shadow: var(--shadow-card);
+    font-variant-numeric: tabular-nums;
+  }
+  /* Torn paper: scalloped top and bottom edges in the receipt's own colour. */
+  .pni-receipt::before, .pni-receipt::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 8px;
+    background-size: 14px 8px;
+    background-repeat: repeat-x;
+  }
+  .pni-receipt::before { top: -8px; background-image: radial-gradient(circle at 7px 0, transparent 5px, var(--bg-elevated) 5.5px); }
+  .pni-receipt::after { bottom: -8px; background-image: radial-gradient(circle at 7px 8px, transparent 5px, var(--bg-elevated) 5.5px); }
+  .pni-receipt-head { text-align: center; font-family: var(--font-serif); font-size: 1.15rem; font-weight: 700; }
+  .pni-receipt-sub { text-align: center; font-size: 0.8rem; color: var(--fg-muted); margin-top: 0.15rem; }
+  .pni-receipt-rows { margin-top: 1.1rem; padding-top: 0.9rem; border-top: 1px dashed var(--border-strong); }
+  .pni-receipt-rows > div {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.45rem 0;
+    border-bottom: 1px dotted var(--border-strong);
+    font-size: 0.875rem;
+  }
+  .pni-receipt-rows dt { color: var(--fg); }
+  .pni-receipt-rows dd { margin-left: auto; text-align: right; color: var(--fg-muted); }
+  .pni-receipt-foot {
+    margin-top: 1rem;
+    padding-top: 0.8rem;
+    border-top: 1px dashed var(--border-strong);
+    text-align: center;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+  }
+
+  .pni-ticks li { position: relative; padding-left: 1.25rem; }
+  .pni-ticks li::before { content: ''; position: absolute; left: 0; top: 0.65em; width: 0.5rem; height: 2px; background: #c9a227; }
+
+  /* Shared by GoogleFormEmbed. */
+  .form-embed-spinner {
+    width: 1.75rem; height: 1.75rem; border-radius: 9999px;
+    border: 2px solid var(--border-strong); border-top-color: #c9a227;
+    animation: pni-spin 0.8s linear infinite;
+  }
+  @keyframes pni-spin { to { transform: rotate(360deg); } }
+  .form-embed-ghost { display: grid; gap: 0.75rem; }
+  .form-embed-ghost span { display: block; height: 2.6rem; border: 1px solid var(--border); background: var(--bg-subtle); }
+  .form-embed-ghost span:first-child { width: 70%; height: 1rem; border: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pni-label { animation: none; transform: rotate(-0.6deg); }
+    .pni-status-dot::after, .form-embed-spinner { animation: none; }
+  }
+}

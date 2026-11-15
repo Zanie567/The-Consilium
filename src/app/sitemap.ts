@@ -25,6 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/archive`, changeFrequency: 'weekly', priority: 0.7 },
     { url: `${BASE}/opinion-debate`, changeFrequency: 'weekly', priority: 0.6 },
     { url: `${BASE}/trading-challenge`, changeFrequency: 'weekly', priority: 0.6 },
+    { url: `${BASE}/pot-noodle-index`, changeFrequency: 'weekly', priority: 0.6 },
     { url: `${BASE}/privacy`, changeFrequency: 'yearly', priority: 0.2 },
     { url: `${BASE}/terms`, changeFrequency: 'yearly', priority: 0.2 },
     // /search is deliberately absent: it is a client-rendered shell with no

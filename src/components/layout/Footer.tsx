@@ -48,6 +48,7 @@ const sectionLinks = [
   { href: '/category/interviews', label: 'Interviews' },
   { href: '/opinion-debate', label: 'Debate' },
   { href: '/trading-challenge', label: 'Trading Challenge' },
+  { href: '/pot-noodle-index', label: 'Pot Noodle Index' },
   { href: '/archive', label: 'Archive' },
 ]
 

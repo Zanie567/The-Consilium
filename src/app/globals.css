@@ -1471,7 +1471,8 @@ mark {
   transform: scaleX(0);
   transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
-[aria-current="page"] > .nav-underline-bar { transform: scaleX(1); }
+[aria-current="page"] > .nav-underline-bar,
+[data-active] > .nav-underline-bar { transform: scaleX(1); }
 
 /* Menu button: crossfade/rotate between the open and close icons. */
 .menu-icon { position: absolute; display: flex; transition: opacity 0.15s ease, transform 0.15s ease; }

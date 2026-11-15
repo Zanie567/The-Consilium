@@ -171,24 +171,8 @@ export function formatChallengeDate(date: string, opts: { withYear?: boolean; we
   }).format(new Date(`${date}T00:00:00Z`))
 }
 
-/**
- * Embed URL for a Google Forms responder link. Only docs.google.com form links are
- * accepted, so a mis-pasted URL can never put an arbitrary site in the page's iframe
- * (the CSP would block it anyway; this keeps the UI honest about it too).
- */
-export function googleFormEmbedUrl(responderUrl: string | null): string | null {
-  if (!responderUrl) return null
-  let url: URL
-  try {
-    url = new URL(responderUrl)
-  } catch {
-    return null
-  }
-  if (url.protocol !== 'https:' || url.hostname !== 'docs.google.com' || !/^\/forms\/d\/e\/[\w-]+\/viewform$/.test(url.pathname)) {
-    return null
-  }
-  return `https://docs.google.com${url.pathname}?embedded=true`
-}
+// Kept importable from here for the Trading Challenge page and its tests.
+export { googleFormEmbedUrl } from '@/lib/googleForms'
 
 /** Publishable winners: nothing is shown until the results are explicitly published. */
 export function publishedWinners(results: { published: boolean; winners: readonly Winner[] } = TRADING_CHALLENGE.results): Winner[] {
