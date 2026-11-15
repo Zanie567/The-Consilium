@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
-import { Menu, X, Search, LayoutDashboard, PlusCircle, UserCog } from 'lucide-react'
+import { Menu, X, Search, LayoutDashboard, PlusCircle, UserCog, ChevronDown } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
 import { usePathname, useRouter } from 'next/navigation'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
@@ -10,16 +10,25 @@ import { useScrolled } from '@/hooks/useScrolled'
 import { usePresence } from '@/hooks/usePresence'
 import { isAllowedRole, ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 
-const navLinks = [
+const sectionLinks = [
   { href: '/', label: 'Home' },
   { href: '/category/news', label: 'News' },
   { href: '/category/opinion', label: 'Opinion' },
   { href: '/category/analysis', label: 'Analysis' },
   { href: '/category/interviews', label: 'Interviews' },
   { href: '/opinion-debate', label: 'Debate' },
-  { href: '/trading-challenge', label: 'Trading' },
-  { href: '/about', label: 'About' },
 ]
+
+/**
+ * Standing Consilium projects, grouped under one "Projects" entry so the bar does not grow with each
+ * one (it is already full at 1260px; see the breakpoint note below). Add a project here and nothing else.
+ */
+export const projectLinks = [
+  { href: '/trading-challenge', label: 'Trading Challenge', description: 'EconSoc’s virtual stock-market competition' },
+  { href: '/pot-noodle-index', label: 'Pot Noodle Index', description: 'A student price index built from your prices' },
+]
+
+const trailingLinks = [{ href: '/about', label: 'About' }]
 
 function NavLink({
   href,
@@ -47,6 +56,66 @@ function NavLink({
   )
 }
 
+/** Desktop "Projects" disclosure: a button that opens a short list of project links. */
+function ProjectsMenu({ isActive }: { isActive: (href: string) => boolean }) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const pathname = usePathname()
+  const active = projectLinks.some((p) => isActive(p.href))
+
+  useEffect(() => { setOpen(false) }, [pathname])
+  useEffect(() => {
+    if (!open) return
+    const onPointer = (e: PointerEvent) => { if (!wrapRef.current?.contains(e.target as Node)) setOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); buttonRef.current?.focus() } }
+    document.addEventListener('pointerdown', onPointer)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('pointerdown', onPointer); document.removeEventListener('keydown', onKey) }
+  }, [open])
+
+  return (
+    <div
+      ref={wrapRef}
+      className="relative"
+      onBlur={(e) => { if (!wrapRef.current?.contains(e.relatedTarget as Node | null)) setOpen(false) }}
+    >
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-expanded={open}
+        aria-controls="nav-projects"
+        onClick={() => setOpen((o) => !o)}
+        className={`relative flex items-center gap-1 text-xs font-semibold tracking-widest uppercase py-1 whitespace-nowrap transition-colors duration-100 ${
+          active ? 'text-gold' : 'text-cream/70 hover:text-cream'
+        }`}
+        {...(active ? { 'data-active': '' } : {})}
+      >
+        Projects
+        <ChevronDown size={12} aria-hidden className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        <span aria-hidden className="nav-underline-bar absolute -bottom-0.5 left-0 right-0 h-0.5 bg-gold" />
+      </button>
+      {open && (
+        <ul id="nav-projects" className="nav-projects-panel absolute left-1/2 top-full z-50 mt-4 w-72 -translate-x-1/2 border border-gold/25 bg-navy py-2 shadow-[0_16px_32px_rgba(0,0,0,0.4)]">
+          {projectLinks.map((p) => (
+            <li key={p.href}>
+              <Link
+                href={p.href}
+                onClick={() => setOpen(false)}
+                aria-current={isActive(p.href) ? 'page' : undefined}
+                className="block px-4 py-2.5 transition-colors hover:bg-white/5 focus-visible:bg-white/5"
+              >
+                <span className={`block text-xs font-semibold uppercase tracking-widest ${isActive(p.href) ? 'text-gold' : 'text-cream'}`}>{p.label}</span>
+                <span className="mt-0.5 block text-xs normal-case tracking-normal text-cream/60">{p.description}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -59,6 +128,13 @@ export function Navbar() {
   const drawer = usePresence(mobileOpen, 420)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // The drawer lists everything flat, with the projects under their own small heading.
+  const mobileLinks = [
+    ...sectionLinks,
+    ...projectLinks.map((p, i) => ({ href: p.href, label: p.label, project: true, groupStart: i === 0 })),
+    ...trailingLinks,
+  ] as { href: string; label: string; project?: boolean; groupStart?: boolean }[]
 
   // Close mobile menu on route change
   useEffect(() => { setMobileOpen(false); setSearchOpen(false) }, [pathname])
@@ -129,13 +205,17 @@ export function Navbar() {
               1280 so a 1280px-wide window still gets the inline bar after the browser
               reserves its scrollbar (WebKit/Safari reports 1274px; Windows Chrome 1263px). */}
           <nav className="hidden min-[78.75rem]:flex items-center gap-5 2xl:gap-8" aria-label="Main navigation">
-            {navLinks.map((link) => (
+            {sectionLinks.map((link) => (
               <NavLink
                 key={link.href}
                 href={link.href}
                 label={link.label}
                 active={isActive(link.href)}
               />
+            ))}
+            <ProjectsMenu isActive={isActive} />
+            {trailingLinks.map((link) => (
+              <NavLink key={link.href} href={link.href} label={link.label} active={isActive(link.href)} />
             ))}
           </nav>
 
@@ -306,15 +386,18 @@ export function Navbar() {
 
               {/* Nav links */}
               <nav className="flex-1 px-5 py-4 flex flex-col gap-0.5" aria-label="Mobile navigation">
-                {navLinks.map((link, i) => (
+                {mobileLinks.map((link, i) => (
                   <div key={link.href} className="presence-stagger" style={{ '--i': i } as React.CSSProperties}>
+                    {link.groupStart && (
+                      <p className="pt-4 pb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-cream/45">Projects</p>
+                    )}
                     <Link
                       href={link.href}
                       onClick={() => setMobileOpen(false)}
                       aria-current={isActive(link.href) ? 'page' : undefined}
                       className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${
-                        isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold'
-                      }`}
+                        link.project ? 'pl-3' : ''
+                      } ${isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold'}`}
                     >
                       {link.label}
                     </Link>
