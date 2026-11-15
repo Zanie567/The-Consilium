@@ -65,14 +65,6 @@ const nextConfig: NextConfig = {
   ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
   images: {
     dangerouslyAllowLocalIP: localStorage !== null,
-    // How long an optimised image is kept before it is resized again (seconds). Next's default is
-    // four hours, so each size of each cover was re-encoded several times a day; every one of
-    // those counts against the plan's image transformations. 31 days is safe here because the
-    // addresses never change their content: an upload is stored under a new random name
-    // (src/app/api/upload/route.ts) and replacing a cover therefore changes the URL. The one
-    // exception is a file under /public replaced under the SAME name (legacy /team/*.png):
-    // give the replacement a new file name.
-    minimumCacheTTL: 60 * 60 * 24 * 31,
     // Restrict server-side image fetches to Supabase Storage (where uploads live)
     // instead of any https host, closing the /_next/image SSRF + optimizer-DoS
     // surface. If cover images are ever served from another host, add it here.
