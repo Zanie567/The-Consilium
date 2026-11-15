@@ -60,6 +60,8 @@ test('a writer picks an approved tag by searching and suggests a new one for rev
   await ed.openNew()
   await ed.title().fill(uniqueTitle('tags editor'))
   await ed.typeBody('Tag selector body.')
+  // Saved first, so the suggestion below can be linked to this article (an unsaved article has no id).
+  articleId = (await ed.saveNow()).id
   const box = page.locator('aside').getByRole('combobox', { name: 'Article topics' })
   await box.fill(`${KEY} labour markets`)
   await box.press('Enter')
@@ -74,7 +76,7 @@ test('a writer picks an approved tag by searching and suggests a new one for rev
   await expect(page.locator('aside').getByRole('status').filter({ hasText: 'Suggested' })).toContainText('not on the article yet')
   await expect(chosen.getByText(SUGGESTED)).toHaveCount(0)
 
-  articleId = (await ed.saveNow()).id
+  await ed.saveNow()
   const saved = await db().article.findUniqueOrThrow({ where: { id: articleId }, include: { tags: { include: { tag: true } } } })
   expect(saved.tags.map((t) => t.tag.name)).toEqual([TARGET])
   const suggestion = await db().tagSuggestion.findFirstOrThrow({ where: { name: SUGGESTED } })
