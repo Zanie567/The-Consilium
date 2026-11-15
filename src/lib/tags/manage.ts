@@ -446,7 +446,7 @@ export async function reviewSuggestion(db: PrismaClient, id: string, decision: S
       status = 'REJECTED'
     }
 
-    const decided = await tx.tagSuggestion.findMany({ where: { identity: suggestion.identity, status: 'PENDING' }, select: { id: true, suggestedById: true } })
+    const decided = await tx.tagSuggestion.findMany({ where: { identity: suggestion.identity, status: 'PENDING' }, select: { id: true, suggestedById: true, articleId: true } })
     await tx.tagSuggestion.updateMany({
       where: { id: { in: decided.map((d) => d.id) } },
       data: { status, resolvedTagId: tag?.id ?? null, reviewedById: reviewerId, reviewedAt: new Date() },
@@ -458,15 +458,18 @@ export async function reviewSuggestion(db: PrismaClient, id: string, decision: S
         : status === 'APPROVED'
           ? `“${tag!.name}” is now an approved tag. You can choose it in the article editor.`
           : `“${suggestion.name}” now finds the existing tag “${tag!.name}”. Choose that tag in the article editor.`
-    const people = [...new Set(decided.map((d) => d.suggestedById))].filter((userId) => userId !== reviewerId)
-    if (people.length) {
+    // One notification per person, linking only the article THEY suggested it for: another writer's
+    // suggestion of the same wording may point at a draft this person cannot see.
+    const byPerson = new Map<string, string | null>()
+    for (const d of decided) if (d.suggestedById !== reviewerId && !byPerson.has(d.suggestedById)) byPerson.set(d.suggestedById, d.articleId)
+    if (byPerson.size) {
       await tx.notification.createMany({
-        data: people.map((userId) => ({
+        data: [...byPerson].map(([userId, articleId]) => ({
           userId,
           type: 'tag_suggestion',
           title: status === 'REJECTED' ? 'Tag suggestion declined' : 'Tag suggestion approved',
           message,
-          articleId: suggestion.articleId,
+          articleId,
         })),
       })
     }

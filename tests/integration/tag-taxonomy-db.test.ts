@@ -284,7 +284,8 @@ suite('tag taxonomy against PostgreSQL', () => {
     })
 
     it('approving creates the tag (under a corrected name), decides every matching request and notifies each person', async () => {
-      const mine = await suggestTag(app(), { name: N('Platform Work') }, writer())
+      const myDraft = await article([], { status: 'DRAFT', publishedAt: null })
+      const mine = await suggestTag(app(), { name: N('Platform Work'), articleId: myDraft.id }, writer())
       await suggestTag(app(), { name: N('platform work') }, { id: ids.other, role: 'WRITER' })
       const id = 'suggestion' in mine ? mine.suggestion.id : ''
       const result = await reviewSuggestion(app(), id, { action: 'approve', name: N('Platform Economy') }, ids.admin)
@@ -293,6 +294,9 @@ suite('tag taxonomy against PostgreSQL', () => {
       expect((await save([N('platform work')])).map((t) => t.name)).toEqual([N('Platform Economy')])
       const notes = await db.notification.findMany({ where: { type: 'tag_suggestion', userId: { in: [ids.writer, ids.other] } } })
       expect(notes).toHaveLength(2)
+      // Each person's notice links only their own article: the other writer never sees this draft's id.
+      expect(notes.find((n) => n.userId === ids.writer)?.articleId).toBe(myDraft.id)
+      expect(notes.find((n) => n.userId === ids.other)?.articleId).toBeNull()
       await expect(reviewSuggestion(app(), id, { action: 'reject' }, ids.admin)).rejects.toMatchObject({ code: 'ALREADY_REVIEWED' })
     })
 
