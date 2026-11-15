@@ -12,7 +12,7 @@
  */
 export default function ArticlesLoading() {
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl animate-pulse">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl animate-pulse" role="status" aria-label="Loading articles">
       {/* Page header skeleton */}
       <div className="mb-6 flex items-center justify-between pl-10 md:pl-0">
         <div>
@@ -22,51 +22,48 @@ export default function ArticlesLoading() {
         <div className="h-10 w-20 bg-[var(--bg-subtle)] rounded" />
       </div>
 
+      {/* Search, format and sort skeleton */}
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+        <div className="h-10 flex-1 bg-[var(--bg-subtle)]" />
+        <div className="flex gap-2">
+          <div className="h-10 flex-1 bg-[var(--bg-subtle)] sm:w-44 sm:flex-none" />
+          <div className="h-10 flex-1 bg-[var(--bg-subtle)] sm:w-52 sm:flex-none" />
+        </div>
+      </div>
+
       {/* Status filter tabs skeleton */}
       <div className="flex gap-1 mb-4 flex-wrap">
         {['All', 'Draft', 'Published', 'Scheduled'].map((label) => (
           <div
             key={label}
-            className="h-8 w-20 bg-[var(--bg-subtle)] rounded"
+            className="h-9 w-20 bg-[var(--bg-subtle)] rounded"
           />
         ))}
       </div>
 
-      {/* Table skeleton */}
+      {/* List skeleton: a thumbnail, two lines of text, a status and the actions per row */}
       <div className="bg-[var(--bg-elevated)] border border-[var(--border)] overflow-hidden">
-        {/* Table header */}
-        <div className="border-b border-[var(--border)] bg-[var(--bg-subtle)] px-5 py-3 flex gap-4">
-          <div className="h-3 w-32 bg-[var(--border)] rounded flex-1" />
-          <div className="h-3 w-20 bg-[var(--border)] rounded hidden md:block" />
-          <div className="h-3 w-20 bg-[var(--border)] rounded hidden sm:block" />
-          <div className="h-3 w-20 bg-[var(--border)] rounded hidden lg:block" />
+        <div className="hidden border-b border-[var(--border)] bg-[var(--bg-subtle)] px-4 py-3 md:flex md:gap-4">
+          <div className="h-3 w-20 bg-[var(--border)] rounded flex-1" />
           <div className="h-3 w-16 bg-[var(--border)] rounded" />
           <div className="h-3 w-20 bg-[var(--border)] rounded" />
         </div>
 
-        {/* Table rows — 8 placeholder rows */}
         {Array.from({ length: 8 }).map((_, i) => (
           <div
             key={i}
-            className="border-b border-[var(--border)] last:border-0 px-5 py-3 flex items-center gap-4"
+            className="border-b border-[var(--border)] last:border-0 px-3 py-3 md:px-4 flex flex-wrap items-center gap-3 md:flex-nowrap md:gap-4"
           >
-            {/* Title column */}
-            <div className="flex-1 min-w-0 space-y-1.5">
+            <div className="aspect-[3/2] w-[5.25rem] shrink-0 bg-[var(--bg-subtle)] md:w-24" />
+            <div className="flex-1 min-w-0 space-y-2">
               <div
                 className="h-4 bg-[var(--bg-subtle)] rounded"
                 style={{ width: `${55 + (i % 4) * 10}%` }}
               />
+              <div className="h-3 w-40 bg-[var(--bg-subtle)] rounded" />
             </div>
-            {/* Author */}
-            <div className="h-3 w-24 bg-[var(--bg-subtle)] rounded hidden md:block" />
-            {/* Category */}
-            <div className="h-3 w-20 bg-[var(--bg-subtle)] rounded hidden sm:block" />
-            {/* Updated */}
-            <div className="h-3 w-20 bg-[var(--bg-subtle)] rounded hidden lg:block" />
-            {/* Status badge */}
-            <div className="h-5 w-16 bg-[var(--bg-subtle)] rounded" />
-            {/* Actions */}
-            <div className="flex items-center gap-1.5">
+            <div className="h-5 w-20 bg-[var(--bg-subtle)] rounded" />
+            <div className="hidden items-center gap-1.5 md:flex">
               <div className="h-5 w-8 bg-[var(--bg-subtle)] rounded" />
               <div className="h-5 w-14 bg-[var(--bg-subtle)] rounded" />
             </div>

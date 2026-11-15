@@ -4,12 +4,9 @@ import { ARTICLES_CACHE_TAG, ARTICLES_REVALIDATE_SECONDS } from '@/lib/articleQu
 import { findPublicTopics } from '@/lib/publicArticleReads'
 import { unstable_cache } from 'next/cache'
 import { discoveryWhere, DISCOVERY_ARTICLE_SELECT } from '@/lib/discoveryQueries'
-import { format } from 'date-fns'
 import type { Metadata } from 'next'
-import { AnimateIn } from '@/components/ui/AnimateIn'
 import { ArticleEmptyState } from '@/components/ui/ArticleEmptyState'
 import { getSectionEmptyState, noResultsEmptyState, siteEmptyState } from '@/lib/sectionEmptyStates'
-import { displayAuthorName } from '@/lib/authorUtils'
 import {
   ARCHIVE_PAGE_SIZE,
   buildArchiveHref,
@@ -23,6 +20,14 @@ import {
   type SearchParamValue,
 } from '@/lib/archivePagination'
 import { canonicalAlternates } from '@/lib/seo'
+import { groupByMonth } from '@/lib/archiveGroups'
+import { hasDisplayableCover } from '@/lib/coverImageSource'
+import { ArchiveFilters } from '@/components/archive/ArchiveFilters'
+import { ArchiveLead, ArchiveRow } from '@/components/archive/ArchiveArticle'
+import './archive.css'
+
+/** Below this many results the first page is too short to give one article a feature slot. */
+const LEAD_MIN_ARTICLES = 4
 
 interface Props {
   // Each value is `string | string[] | undefined`, because Next resolves a
@@ -130,131 +135,88 @@ export default async function ArchivePage({ searchParams }: Props) {
       ? getSectionEmptyState(categorySlug, filteredCategory?.name ?? 'This Section')
       : siteEmptyState
 
+  // The newest article leads the first page of the unfiltered archive, when it has a picture to
+  // lead with. A filtered or later page is a list to scan, so every result there gets the same
+  // weight.
+  const newest = !loadFailed && !isFiltered && page === 1 && articles.length >= LEAD_MIN_ARTICLES ? articles[0] : null
+  const lead = newest && hasDisplayableCover(newest.coverImage) ? newest : null
+  const months = loadFailed ? [] : groupByMonth(lead ? articles.slice(1) : articles)
+  const firstShown = (page - 1) * ARCHIVE_PAGE_SIZE + 1
+  const lastShown = firstShown + (articles?.length ?? 0) - 1
+
   return (
     <div className="min-h-screen bg-[var(--bg)]">
-      {/* Header */}
-      <section className="bg-navy py-14 px-4 border-b-2 border-gold text-center">
-        <AnimateIn variant="fade-in" duration={0.4}>
-          <p className="text-gold/60 text-xs tracking-[0.3em] uppercase mb-3">Browse</p>
-        </AnimateIn>
-        <AnimateIn variant="fade-up" delay={0.08} duration={0.6}>
-          <h1
-            className="text-4xl sm:text-5xl font-bold text-gold"
-            style={{ fontFamily: 'var(--font-serif)' }}
-          >
+      <header className="border-b-2 border-gold bg-navy">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+          {/* No entrance animation: loading.tsx shows this same header first, and animating it
+              again when the list arrives would make it blink. */}
+          <h1 className="text-5xl font-bold text-gold sm:text-6xl" style={{ fontFamily: 'var(--font-serif)' }}>
             Archive
           </h1>
-        </AnimateIn>
-      </section>
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-cream/75 sm:text-lg">
+            Every article The Consilium has published, newest first. Search by headline, author or topic, or narrow
+            the list by format.
+          </p>
+        </div>
+      </header>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* Search + Filter.
-
-            A GET form with no `action` submits to the current path with a query
-            string built only from its own fields, so `page` is dropped and a new
-            search correctly starts at page 1. Do not add a hidden page input —
-            that is what would strand the reader on a stale page number. */}
-        <AnimateIn variant="fade-up" duration={0.45}>
-          <form method="GET" className="flex flex-wrap gap-3 mb-10">
-            <input
-              type="text"
-              name="q"
-              aria-label="Search articles"
-              defaultValue={q}
-              placeholder="Search articles..."
-              className="flex-1 border border-[var(--border)] px-4 py-2.5 text-[var(--fg)] text-sm focus:outline-none focus:border-gold bg-[var(--bg-elevated)]"
-            />
-            <select
-              name="category"
-              aria-label="Article format"
-              defaultValue={categorySlug ?? ''}
-              className="border border-[var(--border)] px-4 py-2.5 text-[var(--fg)] text-sm focus:outline-none focus:border-gold bg-[var(--bg-elevated)]"
-            >
-              <option value="">All formats</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.slug}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-            <button
-              type="submit"
-              className="bg-navy text-gold px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-navy-dark transition-colors"
-            >
-              Apply filters
-            </button>
-            <fieldset className="w-full border border-[var(--border)] p-4">
-              <legend className="px-2 text-sm">Topics</legend>
-              <p className="text-xs text-[var(--fg-muted)] mb-3">Match any selected topic.</p>
-              <div className="flex flex-wrap gap-3">
-                {[...topics, ...tags.filter(slug => !topics.some(t => t.slug === slug)).map(slug => ({ id: slug, slug, name: slug }))].map(topic => (
-                  <label key={topic.id} className="flex items-center gap-2 text-sm cursor-pointer border border-[var(--border)] px-3 py-2 has-[:checked]:border-gold has-[:checked]:bg-gold/10">
-                    <input type="checkbox" name="tag" value={topic.slug} defaultChecked={tags.includes(topic.slug)} />
-                    {topic.name}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            {isFiltered && <Link href="/archive" className="text-sm underline">Clear all filters</Link>}
-          </form>
-        </AnimateIn>
+      <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 sm:pt-10 lg:px-8">
+        {/* Keyed on the filters in the URL: following "Clear all filters" or removing one filter
+            is a client-side navigation, and the form's fields are uncontrolled, so without a
+            fresh mount they would keep showing the search and ticks that were just cleared. */}
+        <ArchiveFilters
+          key={buildArchiveHref(1, q, categorySlug, tags)}
+          q={q}
+          categorySlug={categorySlug}
+          tags={tags}
+          categories={categories}
+          topics={topics}
+        />
 
         {loadFailed ? (
           /* Surface the failure instead of silently rendering "0 articles" */
-          <div className="bg-red-500/10 border border-red-500/20 px-5 py-4 text-red-600 dark:text-red-400 text-sm">
+          <div role="alert" className="mt-8 border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm text-red-600 dark:text-red-400">
             We couldn&apos;t load the archive. Please refresh the page to try again.
           </div>
         ) : (
           <>
-            {/* Results count */}
-            <AnimateIn variant="fade-in" delay={0.1}>
-              <p className="text-[var(--fg-faint)] text-xs uppercase tracking-widest mb-6">
-                {total} article{total !== 1 ? 's' : ''} {q ? `matching "${q}"` : 'published'}
-              </p>
-            </AnimateIn>
+            <p className="mt-8 border-b border-[var(--border-strong)] pb-3 text-sm text-[var(--fg-muted)]" aria-live="polite">
+              <span className="font-semibold text-[var(--fg)]">
+                {total} article{total !== 1 ? 's' : ''}
+              </span>{' '}
+              {q ? `matching "${q}"` : 'published'}
+              {totalPages > 1 && articles.length > 0 && (
+                <span className="text-[var(--fg-faint)]">
+                  {' '}
+                  · showing {firstShown}&ndash;{lastShown}
+                </span>
+              )}
+            </p>
 
-            {/* Articles list - each item animates individually as it enters the viewport */}
             {articles.length > 0 ? (
-              <div className="divide-y divide-gold/15">
-                {articles.map((article, i) => (
-                  <AnimateIn
-                    key={article.id}
-                    variant="fade-up"
-                    delay={Math.min(i * 0.04, 0.3)}
-                    duration={0.45}
+              <div className="pt-8">
+                {lead && <ArchiveLead article={lead} />}
+                {months.map((group, index) => (
+                  <section
+                    key={`${group.key}-${index}`}
+                    aria-labelledby={`archive-${group.key}-${index}`}
+                    className={`lg:grid lg:grid-cols-[8.5rem_minmax(0,1fr)] lg:gap-10 ${index > 0 || lead ? 'mt-10 lg:mt-12' : ''}`}
                   >
-                    <Link
-                      href={`/articles/${article.slug}`}
-                      className="py-6 flex flex-col sm:flex-row sm:items-start gap-4 group hover:bg-[var(--bg-subtle)] -mx-2 px-2 transition-colors"
+                    <h2
+                      id={`archive-${group.key}-${index}`}
+                      className="archive-month flex items-baseline gap-2 border-b border-[var(--border-strong)] pb-2 text-[var(--fg)] lg:sticky lg:top-24 lg:block lg:self-start lg:border-b-0 lg:border-t-2 lg:border-gold lg:pb-0 lg:pt-3"
+                      style={{ fontFamily: 'var(--font-serif)' }}
                     >
-                      <div className="sm:w-32 shrink-0 text-xs text-[var(--fg-faint)] pt-1">
-                        {article.publishedAt
-                          ? format(new Date(article.publishedAt), 'd MMM yyyy')
-                          : ''}
-                      </div>
-                      <div className="flex-1">
-                        {article.category && (
-                          <span className="category-badge mb-2 inline-block">
-                            {article.category.name}
-                          </span>
-                        )}
-                        <h3
-                          className="text-lg font-bold text-[var(--fg)] group-hover:text-gold transition-colors leading-snug mb-1"
-                          style={{ fontFamily: 'var(--font-serif)' }}
-                        >
-                          {article.title}
-                        </h3>
-                        {article.excerpt && (
-                          <p className="text-[var(--fg-muted)] text-sm leading-relaxed mb-2 line-clamp-2">
-                            {article.excerpt}
-                          </p>
-                        )}
-                        <p className="text-[var(--fg-faint)] text-xs">
-                          By {displayAuthorName(article.author.name)}
-                        </p>
-                      </div>
-                    </Link>
-                  </AnimateIn>
+                      <span className="text-xl font-bold lg:block lg:text-2xl">{group.month}</span>
+                      {group.year && <span className="text-base text-[var(--fg-muted)] lg:mt-0.5 lg:block">{group.year}</span>}
+                    </h2>
+                    <div className="divide-y divide-[var(--border)] lg:[&>article:first-child]:pt-0">
+                      {group.articles.map((article, row) => (
+                        // Without a lead article the first row's picture is the first one in view.
+                        <ArchiveRow key={article.id} article={article} eager={!lead && index === 0 && row === 0} />
+                      ))}
+                    </div>
+                  </section>
                 ))}
               </div>
             ) : (
@@ -268,26 +230,23 @@ export default async function ArchivePage({ searchParams }: Props) {
             {totalPages > 1 && articles.length > 0 && (
               <nav
                 aria-label="Archive pagination"
-                className="flex items-center justify-between mt-10 pt-6 border-t border-[var(--border)]"
+                className="mt-12 flex items-center justify-between gap-4 border-t border-[var(--border-strong)] pt-6"
               >
                 {page > 1 ? (
                   <Link
                     href={buildArchiveHref(page - 1, q, categorySlug, tags)}
                     rel="prev"
                     aria-label="Previous page"
-                    className="text-xs font-bold uppercase tracking-widest text-[var(--fg-muted)] hover:text-gold transition-colors"
+                    className="archive-page-link"
                   >
                     ← Previous
                   </Link>
                 ) : (
-                  <span
-                    aria-disabled="true"
-                    className="text-xs font-bold uppercase tracking-widest text-[var(--fg-faint)] opacity-60"
-                  >
+                  <span aria-disabled="true" className="archive-page-link">
                     ← Previous
                   </span>
                 )}
-                <span className="text-[var(--fg-faint)] text-xs uppercase tracking-widest">
+                <span className="text-xs uppercase tracking-widest text-[var(--fg-muted)]">
                   Page {page} of {totalPages}
                 </span>
                 {page < totalPages ? (
@@ -295,15 +254,12 @@ export default async function ArchivePage({ searchParams }: Props) {
                     href={buildArchiveHref(page + 1, q, categorySlug, tags)}
                     rel="next"
                     aria-label="Next page"
-                    className="text-xs font-bold uppercase tracking-widest text-[var(--fg-muted)] hover:text-gold transition-colors"
+                    className="archive-page-link"
                   >
                     Next →
                   </Link>
                 ) : (
-                  <span
-                    aria-disabled="true"
-                    className="text-xs font-bold uppercase tracking-widest text-[var(--fg-faint)] opacity-60"
-                  >
+                  <span aria-disabled="true" className="archive-page-link">
                     Next →
                   </span>
                 )}

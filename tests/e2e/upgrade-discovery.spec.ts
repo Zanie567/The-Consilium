@@ -64,6 +64,11 @@ test.afterAll(async () => {
   await db.user.delete({ where: { id: authorId } })
   await db.$disconnect()
 })
+/** The archive folds a long topic list away (it is open when short, or when a topic is ticked). */
+async function openTopics(page: import('@playwright/test').Page) {
+  const topics = page.locator('details.archive-topics')
+  if ((await topics.count()) && !(await topics.evaluate((el) => (el as HTMLDetailsElement).open))) await topics.locator('summary').click()
+}
 for (const width of [375, 768, 1440]) {
   test(`topic OR, pagination, unselect, clear and refresh at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
@@ -74,6 +79,7 @@ for (const width of [375, 768, 1440]) {
       if (r.url().includes('/api/') && r.status() >= 400) failed.push(`${r.status()} ${r.url()}`)
     })
     await page.goto('/archive')
+    await openTopics(page)
     await page.getByRole('checkbox', { name: 'Discovery Politics', exact: true }).check()
     await page.getByRole('button', { name: 'Apply filters' }).click()
     await expect(page).toHaveURL(/tag=discovery-politics/)
@@ -166,6 +172,7 @@ test('published topic assignments invalidate warm topic lists and follow unpubli
     expect(created.status(), await created.text()).toBe(201)
     id = (await created.json()).id
     await page.reload()
+    await openTopics(page)
     await expect(page.getByRole('checkbox', { name: first, exact: true })).toBeVisible()
     await page.goto(`/tag/${firstSlug}`)
     await expect(page.getByRole('heading', { name: marker, exact: true })).toBeVisible()
@@ -181,6 +188,7 @@ test('published topic assignments invalidate warm topic lists and follow unpubli
     await expect(page.getByRole('heading', { name: marker, exact: true })).toHaveCount(0)
     await page.goto('/archive')
     await expect(page.getByRole('checkbox', { name: first, exact: true })).toHaveCount(0)
+    await openTopics(page)
     await expect(page.getByRole('checkbox', { name: second, exact: true })).toBeVisible()
     await page.goto(`/tag/${secondSlug}`)
     await expect(page.getByRole('heading', { name: marker, exact: true })).toBeVisible()
