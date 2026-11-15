@@ -27,20 +27,38 @@ test('Projects in the desktop navigation leads to the Pot Noodle Index', async (
   expect(errors, errors.join('\n')).toEqual([])
 })
 
-test('the page says it is collecting, with no form link, no embed and no figures until they are supplied', async ({ page }) => {
+const RESPONDER = 'https://docs.google.com/forms/d/e/1FAIpQLSeS11HO0EzhS-MkarU7FJHeRxfiC6_2gLDahBYkUBM9wHmSAA/viewform'
+
+test('the page links the form, loads it only when asked, and shows no figures yet', async ({ page }) => {
+  // Google is never contacted from the test: the embed is answered locally.
+  await page.context().route('https://docs.google.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Stub form</title><p>Stub form</p>' }))
+  const googleRequests: string[] = []
+  page.on('request', (r) => { if (r.url().includes('docs.google.com')) googleRequests.push(r.url()) })
   await open(page)
-  // The page's own content (the site footer carries the general feedback form link).
-  const html = await page.locator('.pni-page').innerHTML()
   await expect(page.getByText('Collecting prices now')).toBeVisible()
-  await expect(page.getByText('The form opens here soon')).toBeAttached()
-  expect(html).not.toMatch(/docs\.google\.com\/forms|forms\.gle/)
-  await expect(page.locator('iframe')).toHaveCount(0)
   expect(await page.locator('.pni-page').innerText()).not.toMatch(/£\s?\d/)
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /\/pot-noodle-index$/)
-  // Hero links reach their sections.
-  await page.getByRole('link', { name: 'Add a price' }).click()
+  const direct = page.locator('.pni-page').getByRole('link', { name: /Open in Google Forms/ })
+  await expect(direct).toHaveAttribute('href', RESPONDER)
+  await expect(direct).toHaveAttribute('target', '_blank')
+  // Declined cookies: nothing from Google until the reader asks for the form.
+  await page.locator('#take-part').scrollIntoViewIfNeeded()
+  await expect(page.locator('iframe')).toHaveCount(0)
+  expect(googleRequests).toEqual([])
+  await page.getByRole('button', { name: 'Load the form here' }).click()
+  const frame = page.locator('iframe[title="The Pot Noodle Index submission form (Google Forms)"]')
+  await expect(frame).toHaveAttribute('src', `${RESPONDER}?embedded=true`)
+  await expect(frame).toHaveAttribute('sandbox', /allow-forms/)
+  await expect(page.frameLocator('iframe').getByText('Stub form')).toBeVisible()
+})
+
+test('"Add your prices" goes to the form and loads it', async ({ page }) => {
+  await page.context().route('https://docs.google.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<p>Stub form</p>' }))
+  await open(page)
+  await page.getByRole('link', { name: 'Add your prices' }).click()
   await expect(page).toHaveURL(/#take-part$/)
-  await expect(page.getByRole('heading', { level: 2, name: 'Add a price' })).toBeInViewport()
+  await expect(page.getByRole('heading', { level: 2, name: 'Add your prices' })).toBeInViewport()
+  await expect(page.locator('iframe')).toHaveCount(1)
 })
 
 test('the sitemap lists the page', async ({ request }) => {
@@ -55,7 +73,7 @@ for (const theme of ['light', 'dark'] as const) {
       const page = await ctx.newPage()
       await page.addInitScript((t) => localStorage.setItem('theme', t), theme)
       await open(page)
-      for (const name of ['A price index in a pot', 'Add a price', 'The index', 'Method and updates']) {
+      for (const name of ['A cost-of-living index for students', 'Add your prices', 'The index', 'Method and updates']) {
         await expect(page.getByRole('heading', { level: 2, name })).toBeAttached()
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)

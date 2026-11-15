@@ -20,16 +20,17 @@ async function render(config: Record<string, unknown> = {}) {
 afterEach(() => { vi.doUnmock('@/lib/potNoodleIndex') })
 
 describe('pot noodle index page', () => {
-  it('as launched: collecting, the requested wording, no numbers, no form link', async () => {
-    const { html, text, metadata } = await render()
+  it('before a form is configured: collecting, the requested wording, no numbers, no form link', async () => {
+    const { html, text, metadata } = await render({ form: { responderUrl: null } })
     expect(text).toContain('Collecting prices now')
     expect(text).toContain('The Pot Noodle Index is collecting data now and will be updated once we have enough responses. Please fill in the form and share it with others.')
+    expect(text).toContain('from the weekly shop to a pint at the student bar')
     expect(text).toContain('The form opens here soon')
     expect(html).not.toContain('docs.google.com')
     expect(html).not.toContain('forms.gle')
     expect(html).not.toContain('<iframe')
-    // No price anywhere: the label shows empty slots and the receipt says "Awaiting data".
-    expect(text).not.toMatch(/£\s?\d/)
+    // No figure anywhere: the label shows empty slots and the receipt says "Awaiting data".
+    expect(text).not.toMatch(/£\s?\d|\d+\.\d+ index/)
     expect(text).toContain('Awaiting data')
     expect(metadata.alternates?.canonical).toBe('/pot-noodle-index')
     expect(metadata.title).toBe('The Pot Noodle Index')
@@ -45,6 +46,14 @@ describe('pot noodle index page', () => {
     expect(text).not.toContain('The form opens here soon')
   })
 
+  it('as shipped: the editors’ form, behind the consent-aware embed', async () => {
+    const { html, text } = await render()
+    expect(html).toContain('href="https://docs.google.com/forms/d/e/1FAIpQLSeS11HO0EzhS-MkarU7FJHeRxfiC6_2gLDahBYkUBM9wHmSAA/viewform"')
+    expect(text).toContain('Load the form here')
+    expect(text).toContain('The form asks for your name and email address')
+    expect(html).not.toContain('<iframe')
+  })
+
   it('ignores a configured link that is not a Google Form', async () => {
     const { html, text } = await render({ form: { responderUrl: 'https://example.org/survey' } })
     expect(html).not.toContain('example.org')
@@ -53,17 +62,19 @@ describe('pot noodle index page', () => {
 
   it('shows verified results only when they pass validation', async () => {
     const results = {
-      published: true, updatedAt: '2027-02-01', collectedFrom: '2026-11-20', collectedTo: '2027-01-31', responses: 240,
-      minimumRegionResponses: 20, series: [{ date: '2026-12-31', pence: 120 }, { date: '2027-01-31', pence: 126 }],
-      regions: [{ name: 'Edinburgh', pence: 125, responses: 80 }], methodology: ['Prices are for a single standard pot.'],
+      published: true, unit: 'index points', decimals: 1, updatedAt: '2027-02-01', collectedFrom: '2026-11-20', collectedTo: '2027-01-31',
+      responses: 240, minimumPlaceResponses: 20, series: [{ date: '2026-12-31', value: 100 }, { date: '2027-01-31', value: 105 }],
+      places: [{ name: 'Edinburgh', value: 104.2, responses: 80 }], methodology: ['Prices are converted to pounds at the month’s average rate.'],
     }
     const shown = await render({ results })
     expect(shown.text).toContain('Results published')
-    expect(shown.text).toContain('£1.26')
+    expect(shown.text).toContain('105.0')
+    expect(shown.text).toContain('index points')
     expect(shown.text).toContain('Up 5% since the previous update')
-    expect(shown.text).toContain('Prices are for a single standard pot.')
+    expect(shown.text).toContain('Edinburgh')
+    expect(shown.text).toContain('Prices are converted to pounds at the month’s average rate.')
     const withheld = await render({ results: { ...results, methodology: [] } })
-    expect(withheld.text).not.toMatch(/£\s?\d/)
+    expect(withheld.text).not.toContain('105.0')
     expect(withheld.text).toContain('Collecting prices now')
   })
 })

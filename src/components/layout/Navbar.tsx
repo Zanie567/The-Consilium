@@ -25,7 +25,7 @@ const sectionLinks = [
  */
 export const projectLinks = [
   { href: '/trading-challenge', label: 'Trading Challenge', description: 'EconSoc’s virtual stock-market competition' },
-  { href: '/pot-noodle-index', label: 'Pot Noodle Index', description: 'A student price index built from your prices' },
+  { href: '/pot-noodle-index', label: 'Pot Noodle Index', description: 'Student costs compared across cities and universities' },
 ]
 
 const trailingLinks = [{ href: '/about', label: 'About' }]

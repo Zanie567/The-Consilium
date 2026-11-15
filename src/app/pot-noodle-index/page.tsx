@@ -15,7 +15,7 @@ import './pot-noodle.css'
 const PATH = '/pot-noodle-index'
 const TITLE = 'The Pot Noodle Index'
 const DESCRIPTION =
-  'How much does a student staple cost, and what does that say about the cost of living? The Consilium is building a price index from prices readers send in. Add a price and share the form.'
+  'How far does a student budget actually stretch? The Pot Noodle Index compares everyday student costs across cities and universities, from the weekly shop to a pint at the student bar. Add your prices and share the form.'
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -32,15 +32,15 @@ const sectionTitle = 'text-balance text-3xl font-bold leading-tight tracking-[-0
 const serif = { fontFamily: 'var(--font-serif)' }
 
 const QUESTIONS = [
-  { q: 'Does the same pot cost the same everywhere?', a: 'How the price differs from one shop, town or region to the next.' },
-  { q: 'How quickly is it going up?', a: 'How the price moves over time, and how that compares with inflation more widely.' },
-  { q: 'What does it say about student budgets?', a: 'What one cheap, familiar staple can tell us about the cost of living for students.' },
+  { q: 'Where does a student budget stretch furthest?', a: 'How everyday costs compare between cities, universities and countries.' },
+  { q: 'Which costs differ most?', a: 'From the weekly shop to a pint at the student bar: which everyday costs vary most from place to place.' },
+  { q: 'How is it changing?', a: 'How those costs move over time, as responses keep coming in.' },
 ]
 
 const STEPS = [
-  { title: 'Spot one', body: 'Next time you see a Pot Noodle on a shelf, note what it costs and where you are.' },
-  { title: 'Tell us', body: 'Fill in the form below. It asks for the details we need to compare prices fairly.' },
-  { title: 'Pass it on', body: 'Share the form with friends, flatmates and family. Every response makes the index more reliable.' },
+  { title: 'Think about what you spend', body: 'Your weekly shop, a pint at the student bar, the everyday costs of student life. Rough averages are fine.' },
+  { title: 'Fill in the form', body: 'It takes about five minutes. Give prices in your local currency and tell us which one.' },
+  { title: 'Pass it on', body: 'Share the form with friends and coursemates, wherever they study. Every response makes the index more reliable.' },
 ]
 
 export default function PotNoodleIndexPage() {
@@ -65,14 +65,14 @@ export default function PotNoodleIndexPage() {
                 The Pot Noodle Index
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-cream/80">
-                How much does a student staple cost, and what does that say about the cost of living? We’re building an index from
-                prices you send us.
+                How far does a student budget actually stretch? We’re comparing everyday student costs across cities and
+                universities, from the weekly shop to a pint at the student bar, using prices you send us.
               </p>
             </AnimateIn>
             <AnimateIn variant="fade-up" delay={0.1} duration={0.6}>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <a href="#take-part" className="btn-lift group inline-flex min-h-12 items-center gap-2 bg-gold px-6 text-sm font-bold uppercase tracking-[0.16em] text-navy hover:bg-gold-light">
-                  Add a price
+                  Add your prices
                   <ArrowRight size={16} aria-hidden className="transition-transform duration-200 group-hover:translate-x-1" />
                 </a>
                 <a href="#about" className="btn-press inline-flex min-h-12 items-center border border-gold/60 px-6 text-sm font-bold uppercase tracking-[0.16em] text-gold transition-colors hover:border-gold hover:bg-gold/10">
@@ -91,11 +91,11 @@ export default function PotNoodleIndexPage() {
       <section id="about" aria-labelledby="about-title" className="scroll-mt-20 mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
         <div className="grid gap-12 lg:grid-cols-12">
           <AnimateIn className="lg:col-span-5">
-            <h2 id="about-title" className={sectionTitle} style={serif}>A price index in a pot</h2>
+            <h2 id="about-title" className={sectionTitle} style={serif}>A cost-of-living index for students</h2>
             <p className="mt-5 max-w-md leading-relaxed text-[var(--fg-muted)]">
-              Economists have long tracked a single everyday product to compare prices across places and over time.{' '}
-              <em>The Economist</em>’s Big Mac Index, started in 1986, is the best known. The Pot Noodle Index applies the same
-              idea to something closer to student life.
+              Economists have long used everyday purchases to compare prices across places and over time.{' '}
+              <em>The Economist</em>’s Big Mac Index, started in 1986, is the best known. The Pot Noodle Index, named for the most
+              basic of student staples, applies the idea to what students actually spend.
             </p>
           </AnimateIn>
           <div className="lg:col-span-7">
@@ -119,7 +119,7 @@ export default function PotNoodleIndexPage() {
       <section id="take-part" aria-labelledby="take-part-title" className="scroll-mt-20 border-y border-[var(--border)] bg-[var(--bg-subtle)]">
         <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
           <AnimateIn>
-            <h2 id="take-part-title" className={sectionTitle} style={serif}>Add a price</h2>
+            <h2 id="take-part-title" className={sectionTitle} style={serif}>Add your prices</h2>
             <p className="mt-4 max-w-2xl leading-relaxed text-[var(--fg-muted)]">
               The Pot Noodle Index is collecting data now and will be updated once we have enough responses. Please fill in the
               form and share it with others.
@@ -145,7 +145,7 @@ export default function PotNoodleIndexPage() {
                   responderUrl={formUrl}
                   embedUrl={embedUrl}
                   title="The Pot Noodle Index submission form (Google Forms)"
-                  label="Submit a price · Google Forms"
+                  label="The Pot Noodle Index · Google Forms"
                   intentHash="take-part"
                 />
               ) : (
@@ -164,15 +164,15 @@ export default function PotNoodleIndexPage() {
             <aside className="lg:col-span-4" aria-label="Sharing and privacy">
               <h3 className="text-lg font-bold text-[var(--fg)]" style={serif}>Share the form</h3>
               <p className="mt-2 text-sm leading-relaxed text-[var(--fg-muted)]">
-                The more places prices come from, the more the index can say.
+                The more cities and universities responses come from, the more the index can compare.
               </p>
               <div className="mt-4">
-                <ShareIndex url={pageUrl} title={TITLE} text="Help build The Consilium’s Pot Noodle Index: add what you paid." />
+                <ShareIndex url={pageUrl} title={TITLE} text="How far does a student budget stretch? Add your prices to The Consilium’s Pot Noodle Index." />
               </div>
               <div className="mt-8 border-t border-[var(--border-strong)] pt-5 text-sm leading-relaxed text-[var(--fg-muted)]">
                 <p>
-                  Responses are collected by Google Forms, which confirms each submission inside the form. Please don’t include
-                  personal details the form doesn’t ask for.
+                  Responses are collected by Google Forms, which confirms each submission inside the form. The form asks for your
+                  name and email address; please don’t include anything else personal it doesn’t ask for.
                 </p>
                 <p className="mt-3">
                   How we handle data: <Link href="/privacy" className="font-semibold text-[var(--fg)] underline decoration-gold/60 underline-offset-4 hover:decoration-gold">Privacy Policy</Link>.
@@ -191,7 +191,7 @@ export default function PotNoodleIndexPage() {
             <p className="mt-5 max-w-md leading-relaxed text-[var(--fg-muted)]">
               {results
                 ? 'The latest verified figures, with the dates they cover and the method behind them.'
-                : 'No figures yet. The index will be published here once there are enough responses for the numbers to mean something.'}
+                : 'No figures yet. The index will be published here, and in The Consilium’s newsletter, once there are enough responses for the numbers to mean something.'}
             </p>
           </AnimateIn>
           <div className="lg:col-span-7">{results ? <PublishedIndex results={results} /> : <AwaitingResults />}</div>
@@ -218,8 +218,8 @@ export default function PotNoodleIndexPage() {
                   </p>
                   <ul className="pni-ticks mt-3 space-y-2 text-[0.95rem] text-[var(--fg-muted)]">
                     <li>how responses are checked before they count</li>
-                    <li>how many responses a figure needs before it is shown</li>
-                    <li>how locations are grouped for comparison</li>
+                    <li>how prices given in different currencies are made comparable</li>
+                    <li>how many responses a city or university needs before it is shown</li>
                     <li>how the index value is calculated</li>
                   </ul>
                 </>

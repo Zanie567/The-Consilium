@@ -1,4 +1,4 @@
-import { formatPence, type PublishedResults } from '@/lib/potNoodleIndex'
+import { formatValue, type PublishedResults } from '@/lib/potNoodleIndex'
 
 /**
  * The hero's shelf-edge price label: the index's one bold graphic. Until results are published it
@@ -8,23 +8,23 @@ import { formatPence, type PublishedResults } from '@/lib/potNoodleIndex'
 export function ShelfLabel({ results }: { results: PublishedResults | null }) {
   const latest = results?.series.at(-1)
   return (
-    <figure className="pni-label-wrap" aria-label={latest ? `Latest index value: ${formatPence(latest.pence)} per pot` : 'Index value: awaiting enough responses'}>
+    <figure className="pni-label-wrap" aria-label={latest ? `Latest index value: ${formatValue(latest.value, results!)} ${results!.unit}` : 'Index value: awaiting enough responses'}>
       <div className="pni-shelf" aria-hidden />
       <div className="pni-label" aria-hidden>
         <div className="pni-label-top">
           <span>Pot Noodle Index</span>
-          <span>Price per pot</span>
+          <span>Student cost of living</span>
         </div>
         <p className="pni-price">
-          <span className="pni-price-currency">£</span>
           {latest ? (
-            <span>{(latest.pence / 100).toFixed(2)}</span>
+            <span>{formatValue(latest.value, results!)}</span>
           ) : (
             // Unprinted digit slots: clearly no price, never a made-up one.
             <span className="pni-price-empty">
               <span className="pni-slot" />
-              <span className="pni-slot-dot">.</span>
               <span className="pni-slot" />
+              <span className="pni-slot" />
+              <span className="pni-slot-dot">.</span>
               <span className="pni-slot" />
             </span>
           )}
