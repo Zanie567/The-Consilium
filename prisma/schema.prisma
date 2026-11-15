@@ -88,6 +88,7 @@ model User {
   articleComments    ArticleComment[]
   teamProfile        TeamMember?
   membership         TeamMembership?
+  tagSuggestions     TagSuggestion[] @relation("TagSuggestionAuthor")
   testPersonaKey     String? @unique
   testingRevision    Int @default(0)
 
@@ -232,6 +233,7 @@ model Article {
   notifications   Notification[]
   readingProgress ReadingProgress[]
   tags            ArticleTag[]
+  tagSuggestions  TagSuggestion[]
   comments        Comment[]
   forDebates      Debate[]      @relation("ForArticle")
   againstDebates  Debate[]      @relation("AgainstArticle")
@@ -276,13 +278,68 @@ model ArticleComment {
 }
 
 model Tag {
-  id        String       @id @default(cuid())
-  name      String       @unique
-  slug      String       @unique
-  articles  ArticleTag[]
-  createdAt DateTime     @default(now())
+  id          String       @id @default(cuid())
+  name        String       @unique
+  slug        String       @unique
+  articles    ArticleTag[]
+  createdAt   DateTime     @default(now())
+  // Tag taxonomy (migration 20261115120000_tag_taxonomy.sql). A retired tag is no longer offered to
+  // editors; its page keeps working. A merged tag is retired and points at the tag its articles moved
+  // to; its page redirects there. The slug never changes, so a tag's address is permanent.
+  description String?
+  retiredAt   DateTime?    @db.Timestamptz(3)
+  mergedIntoId String?
+  mergedInto  Tag?         @relation("TagMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedFrom  Tag[]        @relation("TagMerge")
+  aliases     TagAlias[]
+  suggestionsResolved TagSuggestion[] @relation("TagSuggestionResolved")
 
+  @@index([mergedIntoId])
   @@map("tags")
+}
+
+/** Another name that finds a tag ("CPI" for "Inflation"). Its identity is unique across tags and aliases. */
+model TagAlias {
+  id        String   @id @default(cuid())
+  tagId     String
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  name      String
+  /** consilium_tag_identity(name), kept by the database. */
+  identity  String   @unique
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  createdById String?
+
+  @@index([tagId])
+  @@map("tag_aliases")
+}
+
+enum TagSuggestionStatus {
+  PENDING
+  APPROVED
+  MERGED
+  REJECTED
+}
+
+/** A new tag proposed by someone who cannot create tags, waiting for a tag manager's decision. */
+model TagSuggestion {
+  id            String              @id @default(cuid())
+  name          String
+  identity      String
+  note          String?
+  status        TagSuggestionStatus @default(PENDING)
+  articleId     String?
+  article       Article?            @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  suggestedById String
+  suggestedBy   User                @relation("TagSuggestionAuthor", fields: [suggestedById], references: [id], onDelete: Cascade)
+  resolvedTagId String?
+  resolvedTag   Tag?                @relation("TagSuggestionResolved", fields: [resolvedTagId], references: [id], onDelete: SetNull)
+  reviewedById  String?
+  reviewedAt    DateTime?           @db.Timestamptz(3)
+  createdAt     DateTime            @default(now()) @db.Timestamptz(3)
+
+  @@index([status, createdAt])
+  @@index([identity])
+  @@map("tag_suggestions")
 }
 
 model ArticleTag {

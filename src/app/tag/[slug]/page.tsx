@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { getPublicTag } from '@/lib/publicPageData'
@@ -28,7 +28,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const tag = await getPublicTag(slug)
-  if (!tag) return {}
+  if (!tag || tag.mergedInto) return {}
   return {
     title: tag.name,
     description: `All articles tagged with "${tag.name}" in The Consilium.`,
@@ -43,6 +43,9 @@ export default async function TagPage({ params }: Props) {
   const tag = await getPublicTag(slug)
 
   if (!tag) notFound()
+  // Merged into another tag: the old address keeps working by sending readers (and search
+  // engines, with a permanent redirect) to the tag that now holds its articles.
+  if (tag.mergedInto) permanentRedirect(`/tag/${tag.mergedInto.slug}`)
 
   const articles = tag.articles.map((at) => at.article)
 

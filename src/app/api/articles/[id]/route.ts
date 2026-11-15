@@ -2,7 +2,7 @@ import { articleRevisionError } from '@/lib/articleRevision'
 import { isHiddenDebateViolation, hiddenDebateResponse } from '@/lib/hiddenDebateGuard'
 import { figureAltError } from '@/lib/figureValidation'
 import { ArticleImageUnavailableError, lockArticleImages, cleanupRemovedArticleImages } from '@/lib/articleImageStorage'
-import { resolveArticleTag } from '@/lib/resolveArticleTag'
+import { TagSaveError, resolveArticleTags } from '@/lib/tags/resolve'
 import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse, NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
@@ -10,7 +10,7 @@ import { authOptions, requireActiveSession, requireVerifiedSessionUser } from '@
 import { prisma } from '@/lib/prisma'
 import { sendEmail, articleSubmittedEmail } from '@/lib/email'
 import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
-import { ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
+import { ARTICLE_MUTATION_ROLES, TAG_MANAGE_ROLES, isAllowedRole } from '@/lib/rbac'
 import { revalidateArticleLists } from '@/lib/revalidateArticles'
 import { PUBLIC_AUTHOR_SELECT } from '@/lib/publicUser'
 import { toPublicArticle } from '@/lib/publicArticle'
@@ -441,12 +441,12 @@ async function PUTHandler(
       // `tags` absent means "leave them alone"; an empty array means "clear them".
       let savedTagNames = existing.tags.map(t => t.tag.name)
       if (Array.isArray(tags)) {
+        // Resolved before the old links are removed, so a refused save changes nothing.
+        const tagRecords = await resolveArticleTags(tx, normalizedTags, {
+          canCreate: isAllowedRole(user.role, TAG_MANAGE_ROLES),
+          currentTagIds: existing.tags.map((t) => t.tagId),
+        })
         await tx.articleTag.deleteMany({ where: { articleId: id } })
-        const tagRecords: Array<{ id: string; name: string }> = []
-        for (const { name, slug: tagSlug } of [...normalizedTags].sort((a, b) => a.slug.localeCompare(b.slug))) {
-          const tag = await resolveArticleTag(tx, { name, slug: tagSlug })
-          tagRecords.push(tag)
-        }
         savedTagNames = tagRecords.map(tag => tag.name)
         if (tagRecords.length > 0) {
           await tx.articleTag.createMany({
@@ -535,6 +535,7 @@ async function PUTHandler(
       { headers: { 'x-request-id': requestId } }
     )
   } catch (error) {
+    if (error instanceof TagSaveError) return apiError(error.message, 400, error.code, requestId)
     if (error instanceof ArticleImageUnavailableError) return NextResponse.json({ error: error.message }, { status: 400 })
     if (isHiddenDebateViolation(error)) return hiddenDebateResponse()
     return articleMutationErrorResponse(error, 'update', requestId)
@@ -598,6 +599,7 @@ async function DELETEHandler(
       { headers: { 'x-request-id': requestId } }
     )
   } catch (error) {
+    if (error instanceof TagSaveError) return apiError(error.message, 400, error.code, requestId)
     if (error instanceof ArticleImageUnavailableError) return NextResponse.json({ error: error.message }, { status: 400 })
     return articleMutationErrorResponse(error, 'delete', requestId)
   }

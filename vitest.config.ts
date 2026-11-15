@@ -47,6 +47,7 @@ const DB_BACKED_SUITES = [
   'tests/integration/newsletter-resend-db.test.ts',
   'tests/integration/public-article-api-db.test.ts',
   'tests/integration/article-slug-db.test.ts',
+  'tests/integration/tag-taxonomy-db.test.ts',
 ]
 const isolatedLauncherRun = process.env.E2E_ISOLATED === '1' && Boolean(process.env.BASE_URL)
 

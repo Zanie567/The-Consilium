@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_ARTICLE_TAGS, normalizeArticleTags } from '@/lib/articleTags'
+import { MAX_TAGS_PER_REQUEST, normalizeArticleTags } from '@/lib/articleTags'
 
 describe('normalizeArticleTags', () => {
   it('keeps valid tags, with their display name and slug', () => {
@@ -22,9 +22,9 @@ describe('normalizeArticleTags', () => {
   })
 
   it('caps the list, so the save transaction cannot be prolonged indefinitely', () => {
-    const many = Array.from({ length: MAX_ARTICLE_TAGS + 40 }, (_, i) => `tag-${i}`)
+    const many = Array.from({ length: MAX_TAGS_PER_REQUEST + 40 }, (_, i) => `tag-${i}`)
     const result = normalizeArticleTags(many)
-    expect(result).toHaveLength(MAX_ARTICLE_TAGS)
+    expect(result).toHaveLength(MAX_TAGS_PER_REQUEST)
     // The cap keeps the earliest tags rather than an arbitrary slice.
     expect(result[0]).toEqual({ name: 'tag-0', slug: 'tag-0' })
   })

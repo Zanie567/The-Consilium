@@ -55,12 +55,14 @@ test('build the article using every control', async ({ browser }) => {
   // The document-settings panel is the <aside> that holds the tag box (the sidebar is one too).
   const aside = page.locator('aside', { has: page.getByPlaceholder('Add a tag, press Enter...') })
   const tagInput = aside.getByPlaceholder('Add a tag, press Enter...')
+  // Approved tags, typed in any case: Enter and comma both choose the exact match.
   await tagInput.fill('economics')
   await tagInput.press('Enter')
   await tagInput.fill('monetary policy')
   await tagInput.press(',')
-  await expect(aside.getByText('economics')).toBeVisible()
-  await expect(aside.getByText('monetary policy')).toBeVisible()
+  const chosen = aside.getByRole('list', { name: 'Chosen tags' })
+  await expect(chosen.getByText('Economics', { exact: true })).toBeVisible()
+  await expect(chosen.getByText('Monetary Policy', { exact: true })).toBeVisible()
 
   const category = aside.locator('select').first()
   await category.selectOption({ index: 1 })
@@ -304,7 +306,7 @@ test('build the article using every control', async ({ browser }) => {
   // Autosave never fixes the address: a draft holds a placeholder until it is submitted (src/lib/articleSlug.ts).
   expect(slug).toMatch(/^draft-\d+$/)
   expect(row!.excerpt).toBe(EXCERPT)
-  expect(row!.tags.map((t) => t.tag.name).sort()).toEqual(['economics', 'monetary policy'])
+  expect(row!.tags.map((t) => t.tag.name).sort()).toEqual(['Economics', 'Monetary Policy'])
   expect(row!.categoryId).not.toBeNull()
   const { nodes, marks } = docTypes(JSON.parse(row!.content))
   for (const n of ['heading', 'paragraph', 'bulletList', 'orderedList', 'listItem', 'blockquote', 'codeBlock',
@@ -366,7 +368,7 @@ test('reopening the saved draft shows every formatting feature intact', async ({
   await ed.openExisting(articleId)
   await expectEditorShowsEverything(page)
   await test.info().attach('representative-article-reopened-editor', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' })
-  await expect(page.locator('aside', { has: page.getByPlaceholder('Add a tag, press Enter...') }).getByText('economics')).toBeVisible()
+  await expect(page.locator('aside', { has: page.getByPlaceholder('Add a tag, press Enter...') }).getByText('Economics', { exact: true })).toBeVisible()
   await ctx.close()
 })
 

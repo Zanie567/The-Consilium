@@ -8,7 +8,7 @@
  *
  * Groups, in order:
  *   (Overview)            Dashboard, Team Profile (own profile, for roles that have one)
- *   Content               articles, drafts, series, scheduling, trash, debates
+ *   Content               articles, drafts, series, scheduling, tags (tag managers), trash, debates
  *   Review                review queue, comments                             editors and admins
  *   People & Audience     Team Members, Users, Subscribers, Newsletter       admins (subscribers, newsletter: editors too)
  *   Insights              analytics, readers, predictions, glossary, leaderboard
@@ -19,6 +19,7 @@ import {
   CALENDAR_ACCESS_ROLES,
   GLOSSARY_MANAGE_ROLES,
   PREDICTIONS_MANAGE_ROLES,
+  TAG_MANAGE_ROLES,
   isAllowedRole,
 } from '@/lib/rbac'
 import { TEAM_PROFILE_ROLES } from '@/lib/teamProfiles'
@@ -26,7 +27,7 @@ import { TEAM_PROFILE_ROLES } from '@/lib/teamProfiles'
 export type NavIcon =
   | 'dashboard' | 'profile' | 'file' | 'pencil' | 'plus' | 'series' | 'clock' | 'calendar' | 'trash'
   | 'debates' | 'review' | 'comments' | 'members' | 'users' | 'mail' | 'analytics' | 'readers'
-  | 'target' | 'glossary' | 'trophy' | 'engagement' | 'subscribers' | 'shield' | 'database' | 'flask'
+  | 'target' | 'glossary' | 'trophy' | 'engagement' | 'subscribers' | 'shield' | 'database' | 'flask' | 'tags'
 
 export interface NavItemSpec {
   href: string
@@ -95,6 +96,7 @@ export function buildNav({ role, trashCount = 0 }: NavInput): NavGroupSpec[] {
             ]
           : []),
         ...(isAllowedRole(role, CALENDAR_ACCESS_ROLES) ? [{ href: '/editorial/calendar', icon: 'calendar' as const, label: 'Calendar' }] : []),
+        ...(isAllowedRole(role, TAG_MANAGE_ROLES) ? [{ href: '/editorial/tags', icon: 'tags' as const, label: 'Tags' }] : []),
         ...(isEditor
           ? [{ href: '/editorial/trash', icon: 'trash' as const, label: 'Trash', exact: true, ...(trashCount > 0 ? { badge: trashCount } : {}) }]
           : []),

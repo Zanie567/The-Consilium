@@ -1,0 +1,181 @@
+/* /editorial/tags (TagManager.tsx). Colours are the site tokens from globals.css. */
+/* In the components layer so Tailwind utility classes on the same element (h-auto, pl-10…) win. */
+@layer components {
+  .tag-panel {
+    margin-bottom: 1rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+  }
+  .tag-panel-title {
+    margin-bottom: 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+  }
+  .tag-overlaps > summary::-webkit-details-marker { display: none; }
+  .tag-chevron { transition: transform 0.2s ease; }
+  .tag-overlaps[open] .tag-chevron { transform: rotate(180deg); }
+
+  .tag-field {
+    height: 2.5rem;
+    padding: 0 0.75rem;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-elevated);
+    color: var(--fg);
+    font-size: 16px;
+  }
+  @media (min-width: 640px) { .tag-field { font-size: 0.875rem; } }
+  .tag-field::placeholder { color: var(--fg-faint); }
+
+  .tag-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 2rem;
+    padding: 0 0.7rem;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-elevated);
+    color: var(--fg);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+  }
+  .tag-btn:hover:not(:disabled) { border-color: #c9a227; }
+  .tag-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  /* Row actions: quiet until pointed at, so a long list reads as tags, not buttons. */
+  .tag-btn-ghost { border-color: transparent; background: transparent; color: var(--fg-muted); padding: 0 0.5rem; }
+  .tag-btn-ghost:hover:not(:disabled) { border-color: var(--border-strong); color: var(--fg); background: var(--bg-elevated); }
+  .tag-btn-primary { background: #1a2744; border-color: #1a2744; color: #c9a227; }
+  .tag-btn-primary:hover:not(:disabled) { background: #243460; }
+  .dark .tag-btn-primary { background: #c9a227; border-color: #c9a227; color: #1a2744; }
+  .dark .tag-btn-primary:hover:not(:disabled) { background: #d4b04a; }
+  .tag-btn-danger { background: #9b1c1c; border-color: #9b1c1c; color: #fff; }
+  .tag-btn-danger:hover:not(:disabled) { background: #7f1616; border-color: #7f1616; }
+
+  .tag-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    min-height: 1.75rem;
+    padding: 0 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #a8841e;
+  }
+  .dark .tag-link { color: #c9a227; }
+  .tag-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  .tag-tab {
+    min-height: 2.25rem;
+    padding: 0.35rem 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+  }
+  .tag-tab-on { background: #1a2744; border-color: #1a2744; color: #c9a227; }
+
+  .tag-pill {
+    display: inline-block;
+    padding: 0.05rem 0.4rem;
+    border: 1px solid var(--border-strong);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+    vertical-align: middle;
+  }
+  .tag-pill-likely { border-color: rgba(217, 119, 6, 0.5); background: rgba(217, 119, 6, 0.1); color: #b45309; }
+  .dark .tag-pill-likely { color: #fbbf24; }
+
+  .tag-alias {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.05rem 0.15rem 0.05rem 0.45rem;
+    background: var(--bg-subtle);
+    font-size: 0.72rem;
+    color: var(--fg-muted);
+  }
+  .tag-alias button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--fg-faint);
+  }
+  .tag-alias button:hover { color: #b42318; }
+
+  .tag-list {
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+  }
+  .tag-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem 1rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--border);
+  }
+  .tag-row:hover { background: var(--bg-subtle); }
+  .tag-row:first-child { border-top: 0; }
+  .tag-row-retired, .tag-row-merged { background: var(--bg-subtle); }
+  .tag-count { text-align: right; font-size: 0.8rem; white-space: nowrap; }
+  .tag-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  @media (min-width: 900px) {
+    .tag-row { grid-template-columns: minmax(0, 1fr) 7rem auto; align-items: center; }
+    .tag-actions { grid-column: auto; justify-content: flex-end; }
+  }
+
+  .tag-status {
+    margin-bottom: 1rem;
+    padding: 0.6rem 0.9rem;
+    border-left: 3px solid #c9a227;
+    background: rgba(201, 162, 39, 0.1);
+    font-size: 0.85rem;
+    color: var(--fg);
+  }
+  .tag-status-error { border-left-color: #b42318; background: rgba(180, 35, 24, 0.08); }
+
+  .tag-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(17, 27, 51, 0.55);
+  }
+  .tag-dialog {
+    width: 100%;
+    max-width: 30rem;
+    max-height: 92dvh;
+    overflow-y: auto;
+    padding: 1.4rem;
+    border: 1px solid var(--border-strong);
+    border-top: 3px solid #c9a227;
+    background: var(--bg-elevated);
+    box-shadow: var(--shadow-card-hover);
+  }
+  .tag-dialog-label { display: block; margin-bottom: 0.35rem; font-size: 0.8rem; font-weight: 600; color: var(--fg); }
+  .tag-dialog-note { margin-top: 0.6rem; font-size: 0.8rem; line-height: 1.5; color: var(--fg-muted); }
+  @media (max-width: 639px) {
+    .tag-dialog-backdrop { align-items: flex-end; padding: 0; }
+    .tag-dialog { max-width: none; }
+  }
+}

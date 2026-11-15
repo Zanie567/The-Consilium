@@ -3,20 +3,18 @@ export { canonicalTagSlug } from '@/lib/tagIdentity'
 import { stripHtml } from '@/lib/content-filter'
 
 /**
- * Upper bound on tags per article.
+ * Upper bound on tags read from one request, whatever the article limit.
  *
- * Tag rows are upserted one at a time inside the article-save transaction, so
- * the length of this array sets how long that transaction holds open. Without a
- * cap, a request carrying hundreds of tags would run past the transaction
- * timeout and fail the whole save (Prisma P2028). Anything beyond this is
- * dropped rather than rejected: the editor UI offers no way to reach it, so a
- * request that does is malformed rather than a user with a lot to say.
+ * Tag rows are resolved one at a time inside the article-save transaction, so the length of this
+ * array sets how long that transaction holds open. Anything beyond it is dropped before the
+ * transaction starts. The editorial limit is MAX_ARTICLE_TAGS (src/lib/tagIdentity.ts), checked by
+ * the save routes after the names are resolved.
  */
-export const MAX_ARTICLE_TAGS = 25
+export const MAX_TAGS_PER_REQUEST = 25
 
 /**
  * Transaction budget for an article save. Comfortably above the work involved
- * (one article write plus at most MAX_ARTICLE_TAGS upserts) and well under the
+ * (one article write plus at most MAX_TAGS_PER_REQUEST tag lookups) and well under the
  * platform's function timeout, so a slow database surfaces as a real error
  * rather than a truncated transaction.
  */
@@ -37,7 +35,7 @@ export function normalizeArticleTags(tags: unknown): NormalizedTag[] {
 
   const bySlug = new Map<string, NormalizedTag>()
   for (const value of tags) {
-    if (bySlug.size >= MAX_ARTICLE_TAGS) break
+    if (bySlug.size >= MAX_TAGS_PER_REQUEST) break
     if (typeof value !== 'string') continue
     const name = stripHtml(value).normalize('NFKC').replace(/\s+/g, ' ').trim().slice(0, 80)
     const slug = canonicalTagSlug(name)

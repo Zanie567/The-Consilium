@@ -38,7 +38,7 @@ SKIP_MIGRATIONS=" 20261007120100_scheduler_cron_enable_publish.sql "
 # `prisma db push` builds the CURRENT schema, which can include objects production only gets from a migration
 # that is applied after the documented rollouts below. "production" must not have them yet (prisma creates them
 # without the migration's RLS and triggers). Each one is removed again here and rehearsed after the rollouts.
-PRODUCTION_PENDING_SCHEMA='DROP TABLE IF EXISTS article_slug_redirects; ALTER TABLE articles DROP COLUMN IF EXISTS "slugLockedAt";'
+PRODUCTION_PENDING_SCHEMA='DROP TABLE IF EXISTS article_slug_redirects; ALTER TABLE articles DROP COLUMN IF EXISTS "slugLockedAt"; DROP TABLE IF EXISTS tag_suggestions; DROP TYPE IF EXISTS "TagSuggestionStatus"; DROP TABLE IF EXISTS tag_aliases; ALTER TABLE tags DROP COLUMN IF EXISTS "mergedIntoId", DROP COLUMN IF EXISTS "retiredAt", DROP COLUMN IF EXISTS description;'
 # Same for pending migrations whose documented rollback removes exactly what they add (the newsletter's).
 # Drop an entry once its migration is applied on production (and raise FIRST_UNAPPLIED past it).
 AHEAD_OF_PRODUCTION_ROLLBACKS="supabase/manual/20261026120000_newsletter_subscriptions_rollback.sql"
@@ -189,6 +189,24 @@ out="$(psql "$DB_URL" -X -A -t -v ON_ERROR_STOP=1 -c "
 # Production order: #155, #156, #177's slug migration (above), #178's publisher repoint (no table change), then the
 # newsletter migration last: its preflight requires #155/#156 and no newer recorded version.
 rehearse_newsletter || STATUS=1
+
+# Then the tag taxonomy (docs/tags/tag-taxonomy.md): repeatable, RLS on, nothing reachable through the Data API.
+echo "→ rehearsing 20261115120000 (tag taxonomy) after the rollouts above"
+tags_ok=1
+for attempt in 1 2; do
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -q -1 -f supabase/migrations/20261115120000_tag_taxonomy.sql >/dev/null 2>&1 || tags_ok=0
+done
+out="$(psql "$DB_URL" -X -A -t -v ON_ERROR_STOP=1 -c "
+  SELECT (SELECT bool_and(relrowsecurity) FROM pg_class WHERE oid IN ('public.tag_aliases'::regclass, 'public.tag_suggestions'::regclass))
+     AND NOT EXISTS (SELECT 1 FROM pg_class c, aclexplode(c.relacl) a WHERE c.oid IN ('public.tag_aliases'::regclass, 'public.tag_suggestions'::regclass)
+                     AND a.grantee IN ('anon'::regrole, 'authenticated'::regrole, 0::oid))
+     AND NOT has_function_privilege('anon', 'public.guard_tag_alias()', 'EXECUTE')
+     AND NOT has_function_privilege('anon', 'public.guard_tag_name_against_aliases()', 'EXECUTE')
+     AND NOT has_function_privilege('authenticated', 'public.guard_tag_alias()', 'EXECUTE')
+     AND (SELECT count(*) FROM pg_class WHERE relnamespace = 'public'::regnamespace AND relkind IN ('r','p') AND NOT relrowsecurity) = 0
+     AND (SELECT count(*) FROM pg_trigger WHERE tgname IN ('tag_aliases_guard','tags_alias_guard')) = 2" 2>&1)" || tags_ok=0
+[ "$tags_ok" = 1 ] && [ "$out" = t ] && echo "  ✓ 20261115120000: applies twice, RLS on, no API grants, trigger functions not callable" \
+  || { echo "✗ 20261115120000 rehearsal failed: $out" >&2; STATUS=1; }
 
 if [ "${DATA_API_STOP:-0}" = 1 ]; then
   supabase stop --workdir "$WORKDIR" --no-backup >/dev/null || true

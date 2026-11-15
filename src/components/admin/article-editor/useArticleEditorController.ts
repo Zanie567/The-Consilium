@@ -1,8 +1,8 @@
 'use client'
 
-import { topicDisplayName, canonicalTagSlug } from '@/lib/tagIdentity'
+import { MAX_ARTICLE_TAGS, topicDisplayName, canonicalTagSlug } from '@/lib/tagIdentity'
 
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { isProvisionalSlug, slugFromTitle } from '@/lib/articleSlug'
@@ -168,7 +168,6 @@ export function useArticleEditorController({
   const [currentStatus, setCurrentStatus] = useState(initialData?.status ?? 'DRAFT')
   const [scheduledAt, setScheduledAtState] = useState(initialData?.scheduledAt ?? '')
   const [tags, setTags] = useState<string[]>(initialData?.tags ?? [])
-  const [tagInput, setTagInput] = useState('')
   const [selectedAuthorId, setSelectedAuthorIdState] = useState(initialData?.authorId ?? authorId)
   const [users, setUsers] = useState<UserOption[]>([])
 
@@ -727,36 +726,22 @@ export function useArticleEditorController({
     router.push(returnUrl ?? '/editorial')
   }
 
+  // The tag selector (TagSelector.tsx) only offers approved tags; the server re-checks every name.
   const addTag = (raw: string) => {
     const name = topicDisplayName(raw)
-    if (name && !tags.some(tag => canonicalTagSlug(tag) === canonicalTagSlug(name)) && tags.length < 10) {
-      const next = [...tags, name]
-      setTags(next)
-      tagsRef.current = next
-    }
-    setTagInput('')
-    scheduleAutosave()
-  }
-
-  const removeTag = (tag: string) => {
-    const next = tags.filter((item) => item !== tag)
-    setTags(next)
-    tagsRef.current = next
-    scheduleAutosave()
-  }
-
-  const handleTagKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter' || event.key === ',') {
-      event.preventDefault()
-      addTag(tagInput)
-      return
-    }
-    if (event.key === 'Backspace' && !tagInput && tags.length > 0) {
-      const next = tags.slice(0, -1)
+    if (name && !tagsRef.current.some(tag => canonicalTagSlug(tag) === canonicalTagSlug(name)) && tagsRef.current.length < MAX_ARTICLE_TAGS) {
+      const next = [...tagsRef.current, name]
       setTags(next)
       tagsRef.current = next
       scheduleAutosave()
     }
+  }
+
+  const removeTag = (tag: string) => {
+    const next = tagsRef.current.filter((item) => item !== tag)
+    setTags(next)
+    tagsRef.current = next
+    scheduleAutosave()
   }
 
   const uploadCoverFile = async (file: File) => {
@@ -889,7 +874,6 @@ export function useArticleEditorController({
     slugLocked,
     suggestedSlug: slugFromTitle(title),
     status,
-    tagInput,
     tags,
     themeMounted,
     title,
@@ -910,7 +894,6 @@ export function useArticleEditorController({
       handleSave,
       keepMyVersion,
       reloadLatest,
-      handleTagKeyDown,
       openCoverPicker,
       removeCoverImage,
       removeTag,
@@ -922,7 +905,6 @@ export function useArticleEditorController({
       setSettingsOpen,
       setSlug,
       setStatus,
-      setTagInput,
       setTheme,
       setTutorialOpen,
       updateTitle,

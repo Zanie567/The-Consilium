@@ -4,7 +4,7 @@ import { buildAttentionItems, type AdminOverview } from '@/lib/adminOverview'
 
 const ADMIN_ONLY_HREFS = [
   '/editorial/members', '/editorial/users', '/editorial/analytics', '/editorial/predictions', '/editorial/glossary',
-  '/editorial/calendar', '/admin/login-attempts', '/admin/data', '/admin/testing',
+  '/editorial/calendar', '/editorial/tags', '/admin/login-attempts', '/admin/data', '/admin/testing',
 ]
 const EDITOR_HREFS = [
   '/editorial/debates', '/editorial/series', '/editorial/scheduled', '/editorial/trash', '/editorial/review',

@@ -33,6 +33,7 @@ import {
   Shield,
   Database,
   FlaskConical,
+  Tags,
 } from 'lucide-react'
 
 const ICONS: Record<NavIcon, React.ElementType> = {
@@ -61,6 +62,7 @@ const ICONS: Record<NavIcon, React.ElementType> = {
   shield: Shield,
   database: Database,
   flask: FlaskConical,
+  tags: Tags,
 }
 
 interface User {

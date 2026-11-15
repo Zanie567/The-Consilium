@@ -1,5 +1,4 @@
 import type React from 'react'
-import type { KeyboardEvent } from 'react'
 import type { TiptapEditorHandle } from '@/components/editor/TiptapEditor'
 import type { ApiErrorKind } from '@/lib/apiClient'
 
@@ -115,7 +114,6 @@ export interface ArticleEditorController {
   /** The address the headline would produce, shown while none has been chosen. */
   suggestedSlug: string
   status: string
-  tagInput: string
   tags: string[]
   themeMounted: boolean
   title: string
@@ -141,7 +139,6 @@ export interface ArticleEditorController {
     keepMyVersion: () => void
     /** After a conflict: discard this tab's unsaved changes and load the newer version. */
     reloadLatest: () => void
-    handleTagKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void
     openCoverPicker: () => void
     removeCoverImage: () => void
     removeTag: (tag: string) => void
@@ -153,7 +150,6 @@ export interface ArticleEditorController {
     setSettingsOpen: (value: boolean | ((current: boolean) => boolean)) => void
     setSlug: (value: string) => void
     setStatus: (value: string) => void
-    setTagInput: (value: string) => void
     setTheme: (value: string) => void
     setTutorialOpen: (value: boolean) => void
     updateTitle: (value: string) => void

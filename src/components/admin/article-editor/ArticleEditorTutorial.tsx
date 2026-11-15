@@ -103,7 +103,7 @@ export function ArticleEditorTutorial({ editor }: ArticleEditorTutorialProps) {
                 <TutorialItem label="Author">Editors and admins can reassign the article.</TutorialItem>
                 <TutorialItem label="Category">Assign to News, Opinion, Analysis etc.</TutorialItem>
                 <TutorialItem label="Cover image">Paste a URL or upload a file</TutorialItem>
-                <TutorialItem label="Tags">Up to 10 tags. Press Enter or comma after each.</TutorialItem>
+                <TutorialItem label="Tags">Choose 1–3 approved tags: type to search, then press Enter. A tag that does not exist yet can be suggested for review.</TutorialItem>
                 <TutorialItem label="URL slug">Set from the headline when the article is submitted, scheduled or published; editors can change it until it goes live</TutorialItem>
               </TutorialList>
             </TutorialSection>
