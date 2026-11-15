@@ -112,7 +112,7 @@ test('merging redirects the old tag page, keeps archive links working, and can b
   await page.getByRole('searchbox', { name: 'Search tags and aliases' }).fill(KEY)
   await page.getByRole('button', { name: `Merge ${SOURCE} into another tag` }).click()
   const dialog = page.getByRole('dialog')
-  await dialog.getByLabel('Search tags').fill(TARGET)
+  await dialog.getByLabel('Merge into', { exact: true }).fill(TARGET)
   await dialog.getByRole('listbox', { name: 'Tag to merge into' }).selectOption({ label: `${TARGET} (1)` })
   await expect(dialog).toContainText('1 article moves')
   await dialog.getByRole('button', { name: 'Merge', exact: true }).click()
