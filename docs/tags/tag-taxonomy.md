@@ -30,12 +30,14 @@ unknown name from a non-manager is refused with `TAG_NOT_APPROVED`) and the `/ed
 
 ## Applying the migration (owner)
 
-1. Backup (`docs/backup-runbook` procedure).
-2. Run `supabase/migrations/20261115120000_tag_taxonomy.sql` in one transaction, **before** deploying
-   the code. It is additive and idempotent and writes no rows.
-3. Verify: `select to_regclass('tag_aliases'), to_regclass('tag_suggestions');` and
-   `select count(*) from information_schema.columns where table_name = 'tags';` → 7.
-4. Deploy. Add the version to the migration registry.
+1. Backup: `scripts/backup/take-supabase-backup.sh --out /Volumes/ConsiliumBackup` (mount the encrypted
+   volume first).
+2. `bash scripts/ops/apply-tag-taxonomy.sh` from the repository root, **before** deploying the code. It
+   reads the connection string without echoing it, refuses any database but production, runs a
+   read-only preflight, applies the migration in one transaction, verifies every object and that no
+   existing tag or article link changed, and records the version in the migration registry. It is safe
+   to run twice.
+3. Merge (which deploys).
 
 Rollback: deploy the previous code, then `supabase/manual/20261115120000_tag_taxonomy_rollback.sql`.
 Undo any merges first if their articles should go back (see the file header).
