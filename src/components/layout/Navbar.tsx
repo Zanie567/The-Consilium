@@ -23,6 +23,9 @@ const navLinks = [
   { href: '/about', label: 'About' },
 ]
 
+const INLINE_SIGNED_OUT = { show: 'min-[78.75rem]:flex', hide: 'min-[78.75rem]:hidden' }
+const INLINE_SIGNED_IN = { show: 'min-[85rem]:flex', hide: 'min-[85rem]:hidden' }
+
 function NavLink({
   href,
   label,
@@ -97,6 +100,9 @@ export function Navbar() {
   // Editorial portal has its own navigation - don't render the public navbar there
   if (pathname.startsWith('/editorial') || pathname.startsWith('/admin')) return null
 
+  // Inline-bar breakpoint: wider when signed in (see the note on the desktop nav below).
+  const bp = session ? INLINE_SIGNED_IN : INLINE_SIGNED_OUT
+
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/'
     return pathname.startsWith(href)
@@ -125,13 +131,16 @@ export function Navbar() {
           </Link>
 
           {/* Desktop nav */}
-          {/* Inline from 1360px (85rem). Nine sections (the Trading Challenge and the Pot Noodle
-              Index each have their own) plus a signed-in editor's account controls need about
-              1,330px at this type size, so narrower windows use the menu drawer, which carries
-              every link and account action. This still gives the inline bar to 1366px and 1440px
-              laptops. The staff shortcuts show their text labels only from 1720px, where they fit;
-              below that they are icons with the same accessible names. */}
-          <nav className="hidden min-[85rem]:flex items-center gap-4 2xl:gap-7" aria-label="Main navigation">
+          {/* When the bar is inline. Nine sections (the Trading Challenge and the Pot Noodle Index
+              each have their own entry) fit a signed-out bar from 1260px (78.75rem): 1260 rather
+              than 1280 so a 1280px window still gets it after the browser reserves its scrollbar
+              (WebKit reports 1274px; Windows Chrome 1263px). A signed-in account adds profile and
+              sign-out controls, and staff add two shortcuts: about 1,330px in all, so for them the
+              bar goes inline from 1360px (85rem), which still covers 1366px and 1440px laptops.
+              Narrower windows use the menu drawer, which carries every link and account action.
+              The staff shortcuts show text labels only from 1720px, where they fit. Both class sets
+              are written out in full so Tailwind generates them. */}
+          <nav className={`hidden ${bp.show} items-center gap-4 2xl:gap-7`} aria-label="Main navigation">
             {navLinks.map((link) => (
               <NavLink
                 key={link.href}
@@ -143,7 +152,7 @@ export function Navbar() {
           </nav>
 
           {/* Desktop right actions */}
-          <div className="hidden min-[85rem]:flex items-center gap-3 shrink-0">
+          <div className={`hidden ${bp.show} items-center gap-3 shrink-0`}>
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search"
@@ -214,7 +223,7 @@ export function Navbar() {
           </div>
 
           {/* Mobile/tablet: search + theme + hamburger */}
-          <div className="min-[85rem]:hidden flex items-center gap-1">
+          <div className={`${bp.hide} flex items-center gap-1`}>
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search"
@@ -278,7 +287,7 @@ export function Navbar() {
             {/* Backdrop */}
             <div
               data-shown={drawer.shown ? '' : undefined}
-              className="presence-fade min-[85rem]:hidden fixed inset-0 z-[94] bg-navy/60 backdrop-blur-sm"
+              className={`presence-fade ${bp.hide} fixed inset-0 z-[94] bg-navy/60 backdrop-blur-sm`}
               aria-hidden
               onClick={() => setMobileOpen(false)}
             />
@@ -287,7 +296,7 @@ export function Navbar() {
             <div
               ref={mobileMenuRef}
               data-shown={drawer.shown ? '' : undefined}
-              className="presence-drawer min-[85rem]:hidden fixed top-0 right-0 bottom-0 w-72 z-[95] bg-navy border-l border-gold/25 shadow-[-16px_0_40px_rgba(0,0,0,0.45)] overflow-y-auto flex flex-col"
+              className={`presence-drawer ${bp.hide} fixed top-0 right-0 bottom-0 w-72 z-[95] bg-navy border-l border-gold/25 shadow-[-16px_0_40px_rgba(0,0,0,0.45)] overflow-y-auto flex flex-col`}
               style={{ top: 'var(--testing-banner-height, 0px)' }}
             >
               {/* Drawer header */}

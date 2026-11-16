@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { collectConsoleErrors } from './helpers/console'
+import { signedIn } from './helpers/workflow'
 
 /**
  * The Pot Noodle Index page (/pot-noodle-index): reachable from the navigation on desktop and phone,
@@ -27,8 +28,8 @@ test('the Pot Noodle Index has its own entry in the desktop navigation', async (
   expect(errors, errors.join('\n')).toEqual([])
 })
 
-test('a signed-out visitor sees every section inline from 1360px, without crowding', async ({ page }) => {
-  for (const width of [1360, 1440, 1920]) {
+test('a signed-out visitor sees every section inline from 1260px, without crowding', async ({ page }) => {
+  for (const width of [1262, 1280, 1440, 1920]) {
     await page.setViewportSize({ width, height: 800 })
     await open(page, '/')
     const nav = page.getByRole('navigation', { name: 'Main navigation', exact: true })
@@ -97,3 +98,17 @@ for (const theme of ['light', 'dark'] as const) {
     })
   }
 }
+
+test('signed in, the bar goes inline only where the account controls fit (1360px)', async ({ browser }) => {
+  const ctx = await signedIn(browser, 'editor')
+  const page = await ctx.newPage()
+  await page.addInitScript(() => { try { localStorage.setItem('consilium_cookie_consent', 'declined') } catch {} })
+  for (const [width, inline] of [[1300, false], [1366, true], [1440, true], [1720, true]] as const) {
+    await page.setViewportSize({ width, height: 800 })
+    await page.goto('/pot-noodle-index', { waitUntil: 'networkidle' })
+    await expect(page.getByRole('navigation', { name: 'Main navigation', exact: true }), `${width}px`).toBeVisible({ visible: inline })
+    await expect(page.getByRole('button', { name: 'Open menu', exact: true }), `${width}px`).toBeVisible({ visible: !inline })
+    expect(await page.locator('header > div').evaluate((el) => el.scrollWidth <= el.clientWidth), `${width}px`).toBe(true)
+  }
+  await ctx.close()
+})

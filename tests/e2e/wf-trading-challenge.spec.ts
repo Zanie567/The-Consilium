@@ -298,8 +298,8 @@ for (const theme of ['light', 'dark'] as const) {
   })
 }
 
-test('below 1360px the bar uses the menu drawer, so the nine sections never overflow', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: { width: 1300, height: 800 } })
+test('below 1260px the bar uses the menu drawer, so the nine sections never overflow', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 } })
   const page = await ctx.newPage()
   await open(page)
   await expect(page.getByRole('navigation', { name: 'Main navigation', exact: true })).toBeHidden()
