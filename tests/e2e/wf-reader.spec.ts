@@ -52,6 +52,8 @@ test('sign up through the form lands signed in', async ({ browser }) => {
   const user = await db().user.findUnique({ where: { email: EMAIL } })
   expect(user?.role).toBe('READER')
   expect(user?.name).toBe(NAME)
+  // Signed in, the header's account links are inline from 1360px (narrower windows use the menu).
+  await page.setViewportSize({ width: 1440, height: 900 })
   await expect(page.getByRole('link', { name: 'PROFILE' }).first()).toBeVisible()
   expect(errors, errors.join('\n')).toEqual([])
   await page.context().storageState({ path: authFile })

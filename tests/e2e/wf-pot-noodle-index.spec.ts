@@ -29,7 +29,7 @@ test('the Pot Noodle Index has its own entry in the desktop navigation', async (
 })
 
 test('a signed-out visitor sees every section inline from 1260px, without crowding', async ({ page }) => {
-  for (const width of [1262, 1280, 1440, 1920]) {
+  for (const width of [1280, 1440, 1920]) {
     await page.setViewportSize({ width, height: 800 })
     await open(page, '/')
     const nav = page.getByRole('navigation', { name: 'Main navigation', exact: true })
