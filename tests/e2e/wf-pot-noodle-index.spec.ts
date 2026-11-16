@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { collectConsoleErrors } from './helpers/console'
+import { signedIn } from './helpers/workflow'
 
 /**
  * The Pot Noodle Index page (/pot-noodle-index): reachable from the navigation on desktop and phone,
@@ -14,17 +15,27 @@ async function open(page: Page, path = '/pot-noodle-index') {
   return response!
 }
 
-test('Projects in the desktop navigation leads to the Pot Noodle Index', async ({ page }) => {
+test('the Pot Noodle Index has its own entry in the desktop navigation', async ({ page }) => {
   const errors = collectConsoleErrors(page)
   await page.setViewportSize({ width: 1440, height: 900 })
   await open(page, '/')
   const nav = page.getByRole('navigation', { name: 'Main navigation', exact: true })
-  await nav.getByRole('button', { name: 'Projects', exact: true }).click()
-  await nav.getByRole('link', { name: /^Pot Noodle Index/ }).click()
+  await expect(nav.getByRole('button', { name: 'Projects' })).toHaveCount(0)
+  await nav.getByRole('link', { name: 'Pot Noodle Index', exact: true }).click()
   await page.waitForURL('**/pot-noodle-index')
   await expect(page.getByRole('heading', { level: 1, name: 'The Pot Noodle Index' })).toBeVisible()
-  await expect(nav.getByRole('button', { name: 'Projects', exact: true })).toHaveAttribute('data-active', '')
+  await expect(nav.getByRole('link', { name: 'Pot Noodle Index', exact: true })).toHaveAttribute('aria-current', 'page')
   expect(errors, errors.join('\n')).toEqual([])
+})
+
+test('a signed-out visitor sees every section inline from 1260px, without crowding', async ({ page }) => {
+  for (const width of [1280, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 800 })
+    await open(page, '/')
+    const nav = page.getByRole('navigation', { name: 'Main navigation', exact: true })
+    await expect(nav).toBeVisible()
+    expect(await page.locator('header > div').evaluate((el) => el.scrollWidth <= el.clientWidth), `${width}px`).toBe(true)
+  }
 })
 
 const RESPONDER = 'https://docs.google.com/forms/d/e/1FAIpQLSeS11HO0EzhS-MkarU7FJHeRxfiC6_2gLDahBYkUBM9wHmSAA/viewform'
@@ -81,9 +92,23 @@ for (const theme of ['light', 'dark'] as const) {
         await page.getByRole('button', { name: 'Open menu', exact: true }).click()
         const menu = page.getByRole('navigation', { name: 'Mobile navigation' })
         await expect(menu.getByRole('link', { name: 'Pot Noodle Index', exact: true })).toHaveAttribute('aria-current', 'page')
-        await expect(menu.getByRole('link', { name: 'Trading Challenge', exact: true })).toBeVisible()
+        await expect(menu.getByRole('link', { name: 'Trading', exact: true })).toBeVisible()
       }
       await ctx.close()
     })
   }
 }
+
+test('signed in, the bar goes inline only where the account controls fit (1360px)', async ({ browser }) => {
+  const ctx = await signedIn(browser, 'editor')
+  const page = await ctx.newPage()
+  await page.addInitScript(() => { try { localStorage.setItem('consilium_cookie_consent', 'declined') } catch {} })
+  for (const [width, inline] of [[1300, false], [1366, true], [1440, true], [1720, true]] as const) {
+    await page.setViewportSize({ width, height: 800 })
+    await page.goto('/pot-noodle-index', { waitUntil: 'networkidle' })
+    await expect(page.getByRole('navigation', { name: 'Main navigation', exact: true }), `${width}px`).toBeVisible({ visible: inline })
+    await expect(page.getByRole('button', { name: 'Open menu', exact: true }), `${width}px`).toBeVisible({ visible: !inline })
+    expect(await page.locator('header > div').evaluate((el) => el.scrollWidth <= el.clientWidth), `${width}px`).toBe(true)
+  }
+  await ctx.close()
+})

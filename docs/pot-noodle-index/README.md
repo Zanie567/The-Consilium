@@ -29,5 +29,5 @@ There is no automated pipeline: figures are entered here after review, and deplo
 
 ## Navigation
 
-The page sits under **Projects** in the header (with the Trading Challenge) and in the footer. To add
-another project, add it to `projectLinks` in `src/components/layout/Navbar.tsx`.
+"Pot Noodle Index" has its own entry in the header (`navLinks` in `src/components/layout/Navbar.tsx`),
+separate from the Trading Challenge, and in the footer.

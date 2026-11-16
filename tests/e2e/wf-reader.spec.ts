@@ -52,6 +52,8 @@ test('sign up through the form lands signed in', async ({ browser }) => {
   const user = await db().user.findUnique({ where: { email: EMAIL } })
   expect(user?.role).toBe('READER')
   expect(user?.name).toBe(NAME)
+  // Signed in, the header's account links are inline from 1360px (narrower windows use the menu).
+  await page.setViewportSize({ width: 1440, height: 900 })
   await expect(page.getByRole('link', { name: 'PROFILE' }).first()).toBeVisible()
   expect(errors, errors.join('\n')).toEqual([])
   await page.context().storageState({ path: authFile })
@@ -132,6 +134,8 @@ test('every profile tab opens without errors, and the display name can be change
 
 test('the reader signs out, then signs back in with the same password', async ({ browser }) => {
   const { ctx, page } = await readerPage(browser)
+  // The header's Sign out is inline from 1360px when signed in (narrower windows use the menu).
+  await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/profile', { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: 'Sign out' }).click()
   await expect(page.getByRole('link', { name: 'PROFILE' })).toHaveCount(0, { timeout: 15_000 })

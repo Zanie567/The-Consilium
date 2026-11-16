@@ -32,23 +32,17 @@ async function open(page: Page, consent: 'accepted' | 'declined' = 'declined', p
 
 const studentFrame = (page: Page) => page.locator('iframe[title="EconSoc Trading Challenge student registration form (Google Forms)"]')
 
-test('the Trading Challenge is under Projects in the desktop navigation, between Debate and About', async ({ page }) => {
+test('Trading has its own entry in the desktop navigation, between Debate and the Pot Noodle Index', async ({ page }) => {
   const errors = collectConsoleErrors(page)
   await stubGoogleForms(page.context())
+  await page.setViewportSize({ width: 1440, height: 900 })
   await open(page, 'declined', '/')
   const nav = page.getByRole('navigation', { name: 'Main navigation', exact: true })
-  await expect(nav.getByRole('link')).toHaveText(['Home', 'News', 'Opinion', 'Analysis', 'Interviews', 'Debate', 'About'])
-  const projects = nav.getByRole('button', { name: 'Projects', exact: true })
-  await expect(projects).toHaveAttribute('aria-expanded', 'false')
-  await projects.click()
-  await expect(projects).toHaveAttribute('aria-expanded', 'true')
-  await nav.getByRole('link', { name: /^Trading Challenge/ }).click()
+  await expect(nav.getByRole('link')).toHaveText(['Home', 'News', 'Opinion', 'Analysis', 'Interviews', 'Debate', 'Trading', 'Pot Noodle Index', 'About'])
+  await nav.getByRole('link', { name: 'Trading', exact: true }).click()
   await page.waitForURL('**/trading-challenge')
   await expect(page.getByRole('heading', { level: 1, name: 'Think you can beat the market?' })).toBeVisible()
-  // The group is marked as the current section, and the open menu marks the page itself.
-  await expect(projects).toHaveAttribute('data-active', '')
-  await projects.click()
-  await expect(nav.getByRole('link', { name: /^Trading Challenge/ })).toHaveAttribute('aria-current', 'page')
+  await expect(nav.getByRole('link', { name: 'Trading', exact: true })).toHaveAttribute('aria-current', 'page')
   expect(errors, errors.join('\n')).toEqual([])
 })
 
@@ -279,7 +273,7 @@ test('reduced motion shows content immediately and the page has one h1 and landm
 })
 
 for (const theme of ['light', 'dark'] as const) {
-  test(`phone layout (${theme}): no horizontal overflow, Trading Challenge in the menu, form link reachable`, async ({ browser }) => {
+  test(`phone layout (${theme}): no horizontal overflow, Trading in the menu, form link reachable`, async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, hasTouch: true, colorScheme: theme })
     await stubGoogleForms(ctx)
     const page = await ctx.newPage()
@@ -287,7 +281,7 @@ for (const theme of ['light', 'dark'] as const) {
     await open(page, 'declined', '/')
     await page.getByRole('button', { name: 'Open menu', exact: true }).click()
     const menu = page.getByRole('navigation', { name: 'Mobile navigation' })
-    await menu.getByRole('link', { name: 'Trading Challenge', exact: true }).click()
+    await menu.getByRole('link', { name: 'Trading', exact: true }).click()
     await page.waitForURL('**/trading-challenge')
     await expect(page.locator('html')).toHaveClass(new RegExp(theme === 'dark' ? '\\bdark\\b' : '^(?!.*\\bdark\\b)'))
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)
@@ -304,7 +298,7 @@ for (const theme of ['light', 'dark'] as const) {
   })
 }
 
-test('below 1260px the bar uses the menu drawer, so the eight sections never overflow', async ({ browser }) => {
+test('below 1260px the bar uses the menu drawer, so the nine sections never overflow', async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 } })
   const page = await ctx.newPage()
   await open(page)

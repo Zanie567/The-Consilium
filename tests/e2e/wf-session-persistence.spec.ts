@@ -46,6 +46,8 @@ test('the session cookie is persistent, protected, lasts about 60 days and survi
   const reopened = await restartBrowser(browser, context)
   expect((await sessionUser(reopened))?.id).toBe(account.id)
   const page = await reopened.newPage()
+  // Signed in, the header's account controls are inline from 1360px (narrower windows use the menu).
+  await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/')
   await expect(page.getByRole('button', { name: 'Sign out' }).first()).toBeAttached()
   await reopened.close()
@@ -97,6 +99,7 @@ test('declining or accepting optional cookies never touches the sign-in', async 
 test('signing out ends the session, including after a restart', async ({ browser }) => {
   const { context } = await readerSignedIn(browser, 'signout')
   const page = await context.newPage()
+  await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/')
   const signOut = page.getByRole('button', { name: 'Sign out' }).first()
   // A click before React attaches the handler does nothing (CI Chromium, run 38783090572).
