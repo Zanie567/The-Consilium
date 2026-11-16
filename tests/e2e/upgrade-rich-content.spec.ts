@@ -63,6 +63,12 @@ test('writer paste/table/figure → repeated save/reload → editor review/edit/
   const writerContext = await pinnedContext(browser, { storageState: WRITER_STORAGE })
   const editorContext = await pinnedContext(browser, { storageState: EDITOR_GLOBAL_STORAGE })
   const adminContext = await pinnedContext(browser, { storageState: ADMIN_STORAGE })
+  // Only tag managers create tags; writers and editors choose approved ones. Created through the API
+  // as an administrator would (201), or already there from an earlier run (409).
+  for (const name of ['Writer Lifecycle Finance', 'Writer Lifecycle Inflation', 'Writer Lifecycle Policy']) {
+    const created = await adminContext.request.post('/api/editorial/tags', { data: { name } })
+    expect([201, 409], await created.text()).toContain(created.status())
+  }
   const writer = await writerContext.newPage()
   const editor = await editorContext.newPage()
   const reader = await browser.newPage()
@@ -160,8 +166,8 @@ test('writer paste/table/figure → repeated save/reload → editor review/edit/
     await writer.getByLabel('Note', { exact: true }).fill('Forecast begins in 2027')
     await writer.getByRole('combobox', { name: 'Article format', exact: true }).selectOption({ label: 'Analysis' })
     for (const topic of ['Writer Lifecycle Finance', 'Writer Lifecycle Inflation']) {
-      await writer.getByRole('textbox', { name: 'Article topics', exact: true }).fill(topic)
-      await writer.getByRole('textbox', { name: 'Article topics', exact: true }).press('Enter')
+      await writer.getByRole('combobox', { name: 'Article topics', exact: true }).fill(topic)
+      await writer.getByRole('combobox', { name: 'Article topics', exact: true }).press('Enter')
     }
     const first = await save(writer)
     id = first.id
@@ -193,8 +199,8 @@ test('writer paste/table/figure → repeated save/reload → editor review/edit/
     await expect(editor.getByRole('combobox', { name: 'Article format', exact: true })).toHaveCount(1)
     await expect(editor.getByRole('combobox', { name: 'Article format', exact: true })).toHaveValue(first.categoryId)
     await editor.getByRole('button', { name: 'Remove Writer Lifecycle Inflation', exact: true }).click()
-    await editor.getByRole('textbox', { name: 'Article topics', exact: true }).fill('Writer Lifecycle Policy')
-    await editor.getByRole('textbox', { name: 'Article topics', exact: true }).press('Enter')
+    await editor.getByRole('combobox', { name: 'Article topics', exact: true }).fill('Writer Lifecycle Policy')
+    await editor.getByRole('combobox', { name: 'Article topics', exact: true }).press('Enter')
     await editor.locator('.ProseMirror td').first().click()
     await editor.keyboard.press('End')
     await editor.keyboard.type(' editorial')

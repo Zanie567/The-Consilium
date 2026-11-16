@@ -36,7 +36,8 @@ describe('canonical topics and discovery', () => {
       // Articles of an unpublished or deleted debate are never discoverable.
       ...HIDDEN_DEBATE_EXCLUSION,
       category: { slug: 'analysis' },
-      tags: { some: { tag: { slug: { in: ['history', 'politics'] } } } },
+      // A merged tag's old slug matches through the tag it was merged into.
+      tags: { some: { tag: { OR: [{ slug: { in: ['history', 'politics'] } }, { mergedFrom: { some: { slug: { in: ['history', 'politics'] } } } }] } } },
     })
   })
   it('searches author/topic without selecting article bodies or private author fields', () => {

@@ -13,7 +13,9 @@ export function discoveryWhere(q?: string, categorySlug?: string, tags: string[]
   const term = q ? escapeLikePattern(q) : undefined
   return publishedArticleWhere({
     ...(categorySlug ? { category: { slug: categorySlug } } : {}),
-    ...(tags.length ? { tags: { some: { tag: { slug: { in: tags } } } } } : {}),
+    // A merged tag's articles now carry the tag it was merged into, so an old ?tag=<slug> link
+    // (or a bookmarked filter) matches through that tag rather than returning nothing.
+    ...(tags.length ? { tags: { some: { tag: { OR: [{ slug: { in: tags } }, { mergedFrom: { some: { slug: { in: tags } } } }] } } } } : {}),
     ...(term ? { OR: [
       { title: { contains: term, mode: 'insensitive' } },
       { excerpt: { contains: term, mode: 'insensitive' } },

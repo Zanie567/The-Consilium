@@ -24,6 +24,11 @@ export const PREDICTIONS_MANAGE_ROLES = ['ADMIN'] as const satisfies readonly Ro
 // Who can manage the economics glossary (the /editorial/glossary page, the
 // glossary API, and the site-wide linking switch all read this). To let
 // editors curate terms later, add 'EDITOR' here and nothing else.
+// Who manages the tag taxonomy (/editorial/tags and /api/editorial/tags*): create, rename, alias,
+// merge, retire, and approve or reject suggestions. Everyone in ARTICLE_MUTATION_ROLES can pick
+// approved tags and suggest new ones; only these roles can create a tag, including by saving an
+// article with an unknown name. To let editors curate tags, add 'EDITOR' here and nothing else.
+export const TAG_MANAGE_ROLES = ['ADMIN'] as const satisfies readonly Role[]
 export const GLOSSARY_MANAGE_ROLES = ['ADMIN'] as const satisfies readonly Role[]
 // Who can open the read-through page (/editorial/readers and its API).
 // Everyone here sees their own articles only; ADMIN may view any author's.

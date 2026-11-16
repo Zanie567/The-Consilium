@@ -1,7 +1,7 @@
 import { wordCountFromContent } from '@/lib/readTime'
 import { figureAltError } from '@/lib/figureValidation'
 import { ArticleImageUnavailableError, lockArticleImages } from '@/lib/articleImageStorage'
-import { resolveArticleTag } from '@/lib/resolveArticleTag'
+import { TagSaveError, resolveArticleTags } from '@/lib/tags/resolve'
 import { withTestingAudit } from '@/lib/testingAudit'
 import { NextResponse, NextRequest } from 'next/server'
 import { articleVersion } from '@/lib/articleVersion'
@@ -11,7 +11,7 @@ import { prisma } from '@/lib/prisma'
 import { finalSlugForTransition, isSlugAvailable, slugLockFor, uniqueProvisionalSlug, validateCustomSlug } from '@/lib/articleSlug'
 import { ARTICLE_SAVE_TIMEOUT_MS, normalizeArticleTags } from '@/lib/articleTags'
 import { parseEditorialScheduleInput } from '@/lib/editorialSchedule'
-import { ARTICLE_MUTATION_ROLES, EDITORIAL_MANAGEMENT_ROLES, isAllowedRole } from '@/lib/rbac'
+import { ARTICLE_MUTATION_ROLES, EDITORIAL_MANAGEMENT_ROLES, TAG_MANAGE_ROLES, isAllowedRole } from '@/lib/rbac'
 import { PUBLIC_AUTHOR_SELECT } from '@/lib/publicUser'
 import { PUBLIC_ARTICLE_SELECT } from '@/lib/publicArticle'
 import { publishedArticleWhere } from '@/lib/articleQueries'
@@ -242,12 +242,11 @@ async function POSTHandler(request: NextRequest) {
         },
       })
 
-      const tagRecords: Array<{ id: string; name: string }> = []
-      if (normalizedTags.length > 0) {
-        for (const { name, slug: tagSlug } of [...normalizedTags].sort((a, b) => a.slug.localeCompare(b.slug))) {
-          const tag = await resolveArticleTag(tx, { name, slug: tagSlug })
-          tagRecords.push(tag)
-        }
+      const tagRecords = await resolveArticleTags(tx, normalizedTags, {
+        canCreate: isAllowedRole(user.role, TAG_MANAGE_ROLES),
+        currentTagIds: [],
+      })
+      if (tagRecords.length > 0) {
         await tx.articleTag.createMany({
           data: tagRecords.map((tag) => ({ articleId: created.id, tagId: tag.id })),
           skipDuplicates: true,
@@ -264,6 +263,7 @@ async function POSTHandler(request: NextRequest) {
       headers: { 'x-request-id': requestId },
     })
   } catch (error) {
+    if (error instanceof TagSaveError) return apiError(error.message, 400, error.code, requestId)
     if (error instanceof ArticleImageUnavailableError) return NextResponse.json({ error: error.message }, { status: 400 })
     return articleMutationErrorResponse(error, 'create', requestId)
   }

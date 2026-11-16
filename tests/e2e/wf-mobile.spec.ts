@@ -50,9 +50,11 @@ test('a writer writes, sets the document options in the settings sheet, and subm
   const sheet = page.locator('div.fixed', { hasText: 'Document settings' }).filter({ has: page.getByRole('button', { name: 'Close settings' }) })
   await expect(sheet).toBeVisible()
   await sheet.locator('select').first().selectOption({ index: 1 })
+  // Writers choose approved tags: typing part of one and pressing Enter picks the match.
   await sheet.getByPlaceholder('Add a tag, press Enter...').fill('mobile')
+  await expect(sheet.getByRole('option', { name: /Mobile Reporting/ })).toBeVisible()
   await sheet.getByPlaceholder('Add a tag, press Enter...').press('Enter')
-  await expect(sheet.getByText('mobile', { exact: true })).toBeVisible()
+  await expect(sheet.getByText('Mobile Reporting', { exact: true })).toBeVisible()
   await sheet.getByRole('button', { name: 'Close settings' }).click()
 
   const saved = await ed.saving(async () => {}, { timeout: 15_000 })
@@ -62,7 +64,7 @@ test('a writer writes, sets the document options in the settings sheet, and subm
   // Autosave never fixes the address: a draft holds a placeholder until it is submitted (src/lib/articleSlug.ts).
   expect(slug).toMatch(/^draft-\d+$/)
   expect(row!.categoryId).not.toBeNull()
-  expect(row!.tags.map((t) => t.tag.name)).toEqual(['mobile'])
+  expect(row!.tags.map((t) => t.tag.name)).toEqual(['Mobile Reporting'])
 
   const submit = await ed.saving(() => page.getByRole('button', { name: 'Submit' }).click())
   expect(submit.status(), await submit.text()).toBe(200)

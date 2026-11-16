@@ -1,0 +1,54 @@
+/* The article editor's tag selector (TagSelector.tsx). Colours are the site tokens from globals.css. */
+/* In the components layer so Tailwind utility classes on the same element (h-auto, pl-10…) win. */
+@layer components {
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0.25rem 0.15rem 0.5rem;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-elevated);
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--fg);
+  }
+  .tag-chip-retired { border-style: dashed; color: var(--fg-muted); }
+  .tag-chip-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    color: var(--fg-faint);
+    transition: color 0.15s ease, background-color 0.15s ease;
+  }
+  .tag-chip-remove:hover { color: #b42318; background: rgba(180, 35, 24, 0.08); }
+  .dark .tag-chip-remove:hover { color: #fca5a5; }
+
+  .tag-selector-list {
+    position: absolute;
+    z-index: 30;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    max-height: 16rem;
+    overflow-y: auto;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-elevated);
+    box-shadow: var(--shadow-card-hover);
+    padding: 0.25rem 0;
+    font-size: 12px;
+  }
+  .tag-selector-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.65rem;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+  }
+  .tag-selector-option[aria-selected='true'] {
+    background: rgba(201, 162, 39, 0.12);
+    border-left-color: #c9a227;
+  }
+}

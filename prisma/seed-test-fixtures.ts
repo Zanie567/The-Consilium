@@ -42,6 +42,9 @@ const READERS: Record<string, number> = {
   'reader.carol@consilium.test': 2,
 }
 
+/** Approved tags in every test database (tests/e2e reads the same list). */
+const APPROVED_TEST_TAGS = ['Economics', 'Monetary Policy', 'Inflation', 'Trade', 'Labour Markets', 'Housing', 'Fiscal Policy', 'Mobile Reporting']
+
 async function main() {
   const password = await bcrypt.hash('reader1234', 10)
   const editorPassword = await bcrypt.hash('editor1234', 10)
@@ -159,6 +162,13 @@ async function main() {
         publishedAt: new Date('2024-01-01'),
       },
     })
+  }
+
+  // Approved tags. Only tag managers can create tags (TAG_MANAGE_ROLES), so the writer journeys in
+  // the browser suites choose from these. Upserted by slug: re-running changes nothing.
+  for (const name of APPROVED_TEST_TAGS) {
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    await prisma.tag.upsert({ where: { slug }, update: {}, create: { name, slug } })
   }
 
   const [totalUsers, totalComments] = await Promise.all([

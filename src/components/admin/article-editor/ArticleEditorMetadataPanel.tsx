@@ -3,13 +3,14 @@
 import type React from 'react'
 import { useId } from 'react'
 import Image from 'next/image'
-import { ChevronDown, Clock, ImagePlus, Tag, X } from 'lucide-react'
+import { ChevronDown, Clock, ImagePlus, X } from 'lucide-react'
 import { EDITORIAL_TIME_ZONE_LABEL, getEditorialScheduleMinInput } from '@/lib/editorialSchedule'
 import { readTimeLabel, wordCountFromContent } from '@/lib/readTime'
 import { STATUS_COLOURS, STATUS_LABELS } from './constants'
 import { CoverAttributionEditor } from './CoverAttributionEditor'
 import { CoverFramingEditor } from './CoverFramingEditor'
 import { HomeCarouselManager } from './HomeCarouselManager'
+import { TagSelector } from './TagSelector'
 import type { ArticleEditorController, ArticleEditorRefs } from './types'
 
 interface ArticleEditorMetadataPanelProps {
@@ -166,45 +167,13 @@ export function ArticleEditorMetadataPanel({ editor, coverFileRef }: ArticleEdit
         <HomeCarouselManager articleId={editor.articleId} />
       )}
 
-      <div>
-        <FieldLabel>
-          <Tag size={9} />
-          Tags
-        </FieldLabel>
-        {editor.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-1.5 mt-1">
-            {editor.tags.map((tag) => (
-              <span key={tag} className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 bg-[var(--bg-subtle)] rounded text-[var(--fg-muted)]">
-                {tag}
-                {editor.canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => actions.removeTag(tag)}
-                    aria-label={`Remove ${tag}`}
-                    className="hover:text-red-500 transition-colors ml-0.5"
-                  >
-                    <X size={7} />
-                  </button>
-                )}
-              </span>
-            ))}
-          </div>
-        )}
-        {editor.canEdit && (
-          <input
-            aria-label="Article topics"
-            type="text"
-            value={editor.tagInput}
-            onChange={(event) => actions.setTagInput(event.target.value)}
-            onKeyDown={actions.handleTagKeyDown}
-            onBlur={() => editor.tagInput && actions.addTag(editor.tagInput)}
-            placeholder={editor.tags.length < 10 ? 'Add a tag, press Enter...' : 'Max 10 tags'}
-            disabled={editor.tags.length >= 10}
-            className="w-full h-8 text-[16px] sm:text-[12px] border border-[var(--border)] rounded px-2 bg-[var(--bg-elevated)] focus:outline-none focus:border-gold placeholder:text-[var(--fg-faint)] disabled:opacity-50"
-          />
-        )}
-        <p className="text-[10px] text-[var(--fg-faint)] mt-1">Choose 1–3 relevant topics. Separate with Enter or comma.</p>
-      </div>
+      <TagSelector
+        tags={editor.tags}
+        onAdd={actions.addTag}
+        onRemove={actions.removeTag}
+        disabled={!editor.canEdit}
+        articleId={editor.articleId}
+      />
 
       {!editor.isWriter && (
         <div>

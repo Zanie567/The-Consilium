@@ -90,7 +90,8 @@ for migration in \
   supabase/migrations/20261012100000_article_hidden_by_debate_marker.sql \
   supabase/migrations/20261017120000_article_corrections.sql \
   supabase/migrations/20261024120000_article_slug_redirects.sql \
-  supabase/migrations/20261026120000_newsletter_subscriptions.sql; do
+  supabase/migrations/20261026120000_newsletter_subscriptions.sql \
+  supabase/migrations/20261115120000_tag_taxonomy.sql; do
   psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$migration"
 done
 npx ts-node -P tsconfig.seed.json scripts/seed-testing-workspace.ts

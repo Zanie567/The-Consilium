@@ -25,6 +25,8 @@ export const getPublicCategory = cache((slug: string) =>
 export const getPublicTag = cache((slug: string) => prisma.tag.findUnique({
   where: { slug },
   include: {
+    // A merged tag's page redirects to the tag its articles moved to.
+    mergedInto: { select: { slug: true } },
     articles: {
       where: { article: publishedArticleWhere() },
       take: 20,

@@ -19,15 +19,15 @@ export const SERIES_ARTICLES_ARGS = {
 /** Tag rows on articles published in the last 30 days, with each article's view count, for the trending list. */
 export function findTrendingTagRows(db: Pick<typeof prisma, 'articleTag'>, since: Date) {
   return db.articleTag.findMany({
-    where: { article: publishedArticleWhere({ publishedAt: { gte: since } }) },
+    where: { article: publishedArticleWhere({ publishedAt: { gte: since } }), tag: { retiredAt: null } },
     include: { tag: true, article: { select: { viewCount: true } } },
   })
 }
 
-/** Topics with at least one public article (the archive's topic filter). */
+/** Topics with at least one public article (the archive's topic filter). Retired topics are not offered. */
 export function findPublicTopics(db: Pick<typeof prisma, 'tag'>) {
   return db.tag.findMany({
-    where: { articles: { some: { article: publishedArticleWhere() } } },
+    where: { retiredAt: null, articles: { some: { article: publishedArticleWhere() } } },
     orderBy: [{ name: 'asc' }, { id: 'asc' }],
     take: 1000,
   })
