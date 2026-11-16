@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
-import { Menu, X, Search, LayoutDashboard, PlusCircle, UserCog, ChevronDown } from 'lucide-react'
+import { Menu, X, Search, LayoutDashboard, PlusCircle, UserCog } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
 import { usePathname, useRouter } from 'next/navigation'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
@@ -10,25 +10,18 @@ import { useScrolled } from '@/hooks/useScrolled'
 import { usePresence } from '@/hooks/usePresence'
 import { isAllowedRole, ARTICLE_MUTATION_ROLES } from '@/lib/rbac'
 
-const sectionLinks = [
+// The Trading Challenge and the Pot Noodle Index are separate projects, each with its own entry.
+const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/category/news', label: 'News' },
   { href: '/category/opinion', label: 'Opinion' },
   { href: '/category/analysis', label: 'Analysis' },
   { href: '/category/interviews', label: 'Interviews' },
   { href: '/opinion-debate', label: 'Debate' },
+  { href: '/trading-challenge', label: 'Trading' },
+  { href: '/pot-noodle-index', label: 'Pot Noodle Index' },
+  { href: '/about', label: 'About' },
 ]
-
-/**
- * Standing Consilium projects, grouped under one "Projects" entry so the bar does not grow with each
- * one (it is already full at 1260px; see the breakpoint note below). Add a project here and nothing else.
- */
-export const projectLinks = [
-  { href: '/trading-challenge', label: 'Trading Challenge', description: 'EconSoc’s virtual stock-market competition' },
-  { href: '/pot-noodle-index', label: 'Pot Noodle Index', description: 'Student costs compared across cities and universities' },
-]
-
-const trailingLinks = [{ href: '/about', label: 'About' }]
 
 function NavLink({
   href,
@@ -56,66 +49,6 @@ function NavLink({
   )
 }
 
-/** Desktop "Projects" disclosure: a button that opens a short list of project links. */
-function ProjectsMenu({ isActive }: { isActive: (href: string) => boolean }) {
-  const [open, setOpen] = useState(false)
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const buttonRef = useRef<HTMLButtonElement>(null)
-  const pathname = usePathname()
-  const active = projectLinks.some((p) => isActive(p.href))
-
-  useEffect(() => { setOpen(false) }, [pathname])
-  useEffect(() => {
-    if (!open) return
-    const onPointer = (e: PointerEvent) => { if (!wrapRef.current?.contains(e.target as Node)) setOpen(false) }
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); buttonRef.current?.focus() } }
-    document.addEventListener('pointerdown', onPointer)
-    document.addEventListener('keydown', onKey)
-    return () => { document.removeEventListener('pointerdown', onPointer); document.removeEventListener('keydown', onKey) }
-  }, [open])
-
-  return (
-    <div
-      ref={wrapRef}
-      className="relative"
-      onBlur={(e) => { if (!wrapRef.current?.contains(e.relatedTarget as Node | null)) setOpen(false) }}
-    >
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-expanded={open}
-        aria-controls="nav-projects"
-        onClick={() => setOpen((o) => !o)}
-        className={`relative flex items-center gap-1 text-xs font-semibold tracking-widest uppercase py-1 whitespace-nowrap transition-colors duration-100 ${
-          active ? 'text-gold' : 'text-cream/70 hover:text-cream'
-        }`}
-        {...(active ? { 'data-active': '' } : {})}
-      >
-        Projects
-        <ChevronDown size={12} aria-hidden className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
-        <span aria-hidden className="nav-underline-bar absolute -bottom-0.5 left-0 right-0 h-0.5 bg-gold" />
-      </button>
-      {open && (
-        <ul id="nav-projects" className="nav-projects-panel absolute left-1/2 top-full z-50 mt-4 w-72 -translate-x-1/2 border border-gold/25 bg-navy py-2 shadow-[0_16px_32px_rgba(0,0,0,0.4)]">
-          {projectLinks.map((p) => (
-            <li key={p.href}>
-              <Link
-                href={p.href}
-                onClick={() => setOpen(false)}
-                aria-current={isActive(p.href) ? 'page' : undefined}
-                className="block px-4 py-2.5 transition-colors hover:bg-white/5 focus-visible:bg-white/5"
-              >
-                <span className={`block text-xs font-semibold uppercase tracking-widest ${isActive(p.href) ? 'text-gold' : 'text-cream'}`}>{p.label}</span>
-                <span className="mt-0.5 block text-xs normal-case tracking-normal text-cream/60">{p.description}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
-
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -128,13 +61,6 @@ export function Navbar() {
   const drawer = usePresence(mobileOpen, 420)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
-
-  // The drawer lists everything flat, with the projects under their own small heading.
-  const mobileLinks = [
-    ...sectionLinks,
-    ...projectLinks.map((p, i) => ({ href: p.href, label: p.label, project: true, groupStart: i === 0 })),
-    ...trailingLinks,
-  ] as { href: string; label: string; project?: boolean; groupStart?: boolean }[]
 
   // Close mobile menu on route change
   useEffect(() => { setMobileOpen(false); setSearchOpen(false) }, [pathname])
@@ -199,13 +125,14 @@ export function Navbar() {
           </Link>
 
           {/* Desktop nav */}
-          {/* Inline from 1260px (78.75rem). Eight sections plus the account controls do
-              not fit a narrower bar without shrinking the type, so narrower windows use the
-              menu drawer, which carries every link and account action. 1260 rather than
-              1280 so a 1280px-wide window still gets the inline bar after the browser
-              reserves its scrollbar (WebKit/Safari reports 1274px; Windows Chrome 1263px). */}
-          <nav className="hidden min-[78.75rem]:flex items-center gap-5 2xl:gap-8" aria-label="Main navigation">
-            {sectionLinks.map((link) => (
+          {/* Inline from 1360px (85rem). Nine sections (the Trading Challenge and the Pot Noodle
+              Index each have their own) plus a signed-in editor's account controls need about
+              1,330px at this type size, so narrower windows use the menu drawer, which carries
+              every link and account action. This still gives the inline bar to 1366px and 1440px
+              laptops. The staff shortcuts show their text labels only from 1720px, where they fit;
+              below that they are icons with the same accessible names. */}
+          <nav className="hidden min-[85rem]:flex items-center gap-4 2xl:gap-7" aria-label="Main navigation">
+            {navLinks.map((link) => (
               <NavLink
                 key={link.href}
                 href={link.href}
@@ -213,14 +140,10 @@ export function Navbar() {
                 active={isActive(link.href)}
               />
             ))}
-            <ProjectsMenu isActive={isActive} />
-            {trailingLinks.map((link) => (
-              <NavLink key={link.href} href={link.href} label={link.label} active={isActive(link.href)} />
-            ))}
           </nav>
 
           {/* Desktop right actions */}
-          <div className="hidden min-[78.75rem]:flex items-center gap-3 shrink-0">
+          <div className="hidden min-[85rem]:flex items-center gap-3 shrink-0">
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search"
@@ -235,7 +158,7 @@ export function Navbar() {
                   !pathname.startsWith('/editorial') &&
                   !pathname.startsWith('/admin') && (
                   <>
-                    {/* Icon-only below 1536px so the bar fits; the accessible names stay
+                    {/* Icon-only below 1720px so the bar fits; the accessible names stay
                         "Dashboard" and "New Article" at every width. */}
                     <Link
                       href="/editorial"
@@ -244,7 +167,7 @@ export function Navbar() {
                       title="Editorial dashboard"
                     >
                       <LayoutDashboard size={12} aria-hidden />
-                      <span className="hidden 2xl:inline">Dashboard</span>
+                      <span className="hidden min-[107.5rem]:inline">Dashboard</span>
                     </Link>
                     <Link
                       href="/editorial/articles/new"
@@ -253,7 +176,7 @@ export function Navbar() {
                       title="Write a new article"
                     >
                       <PlusCircle size={12} aria-hidden />
-                      <span className="hidden 2xl:inline">New Article</span>
+                      <span className="hidden min-[107.5rem]:inline">New Article</span>
                     </Link>
                   </>
                 )}
@@ -269,9 +192,9 @@ export function Navbar() {
                   title="Edit profile"
                   className="flex min-h-6 min-w-6 items-center justify-center text-cream/50 text-xs hover:text-cream/80 transition-colors"
                 >
-                  {/* Icon-only below 1536px, like the staff shortcuts. */}
-                  <UserCog size={14} aria-hidden className="2xl:hidden" />
-                  <span className="hidden 2xl:inline">Edit profile</span>
+                  {/* Icon-only below 1720px, like the staff shortcuts. */}
+                  <UserCog size={14} aria-hidden className="min-[107.5rem]:hidden" />
+                  <span className="hidden min-[107.5rem]:inline">Edit profile</span>
                 </Link>
                 <button
                   onClick={() => signOut()}
@@ -291,7 +214,7 @@ export function Navbar() {
           </div>
 
           {/* Mobile/tablet: search + theme + hamburger */}
-          <div className="min-[78.75rem]:hidden flex items-center gap-1">
+          <div className="min-[85rem]:hidden flex items-center gap-1">
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search"
@@ -355,7 +278,7 @@ export function Navbar() {
             {/* Backdrop */}
             <div
               data-shown={drawer.shown ? '' : undefined}
-              className="presence-fade min-[78.75rem]:hidden fixed inset-0 z-[94] bg-navy/60 backdrop-blur-sm"
+              className="presence-fade min-[85rem]:hidden fixed inset-0 z-[94] bg-navy/60 backdrop-blur-sm"
               aria-hidden
               onClick={() => setMobileOpen(false)}
             />
@@ -364,7 +287,7 @@ export function Navbar() {
             <div
               ref={mobileMenuRef}
               data-shown={drawer.shown ? '' : undefined}
-              className="presence-drawer min-[78.75rem]:hidden fixed top-0 right-0 bottom-0 w-72 z-[95] bg-navy border-l border-gold/25 shadow-[-16px_0_40px_rgba(0,0,0,0.45)] overflow-y-auto flex flex-col"
+              className="presence-drawer min-[85rem]:hidden fixed top-0 right-0 bottom-0 w-72 z-[95] bg-navy border-l border-gold/25 shadow-[-16px_0_40px_rgba(0,0,0,0.45)] overflow-y-auto flex flex-col"
               style={{ top: 'var(--testing-banner-height, 0px)' }}
             >
               {/* Drawer header */}
@@ -386,18 +309,15 @@ export function Navbar() {
 
               {/* Nav links */}
               <nav className="flex-1 px-5 py-4 flex flex-col gap-0.5" aria-label="Mobile navigation">
-                {mobileLinks.map((link, i) => (
+                {navLinks.map((link, i) => (
                   <div key={link.href} className="presence-stagger" style={{ '--i': i } as React.CSSProperties}>
-                    {link.groupStart && (
-                      <p className="pt-4 pb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-cream/45">Projects</p>
-                    )}
                     <Link
                       href={link.href}
                       onClick={() => setMobileOpen(false)}
                       aria-current={isActive(link.href) ? 'page' : undefined}
                       className={`block py-3.5 text-sm font-semibold tracking-widest uppercase border-b border-white/8 transition-[color,transform] duration-100 active:scale-[0.97] active:opacity-80 ${
-                        link.project ? 'pl-3' : ''
-                      } ${isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold'}`}
+                        isActive(link.href) ? 'text-gold' : 'text-cream/70 hover:text-gold'
+                      }`}
                     >
                       {link.label}
                     </Link>
