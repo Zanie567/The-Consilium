@@ -167,6 +167,7 @@ export function RegistrationPanel({
   supportEmail,
   membershipUrl,
   lateEntry,
+  postponed = false,
 }: {
   student: FormRoute
   /** mailto: link with the non-student subject and prefilled template. */
@@ -175,6 +176,8 @@ export function RegistrationPanel({
   membershipUrl: string
   /** True once trading has started: late entry is allowed. */
   lateEntry: boolean
+  /** Registration stays open while confirmed trading dates are pending. */
+  postponed?: boolean
 }) {
   const [route, setRoute] = useState<RouteKey>('student')
   const [intent, setIntent] = useState<Record<RouteKey, number>>({ student: 0, member: 0 })
@@ -215,6 +218,12 @@ export function RegistrationPanel({
           ))}
         </div>
       </fieldset>
+
+      {postponed && (
+        <p className="mt-5 border-l-2 border-gold bg-[var(--bg-subtle)] px-4 py-3 text-sm leading-relaxed text-[var(--fg-muted)]">
+          <span className="font-semibold text-[var(--fg)]">Coming in Semester 2.</span> The same registration form remains open. Dates and updated game details will be announced before trading begins.
+        </p>
+      )}
 
       {lateEntry && (
         <p className="mt-5 text-sm text-[var(--fg-muted)]">
@@ -263,8 +272,10 @@ export function RegistrationPanel({
                 membership list.
               </li>
               <li>
-                <span className="font-semibold text-[var(--fg)]">If you’re on it,</span> the private game link and password
-                are emailed to your university address, usually shortly after you register.
+                <span className="font-semibold text-[var(--fg)]">If you’re on it,</span>{' '}
+                {postponed
+                  ? 'the existing automation may email current game details. The new Semester 2 launch is not yet confirmed, so please wait for the committee’s updated dates and joining instructions.'
+                  : 'the private game link and password are emailed to your university address, usually shortly after you register.'}
               </li>
               <li>
                 <span className="font-semibold text-[var(--fg)]">If you’re not on it yet,</span> you’ll get an email saying
@@ -285,8 +296,9 @@ export function RegistrationPanel({
                 with your name and MarketWatch username. Never send your password.
               </p>
               <p className="mt-3">
-                Submitting the form registers you with EconSoc. It is not the same as joining the game on MarketWatch: you
-                join with the password we send you.
+                {postponed
+                  ? 'Submitting the form records your registration with EconSoc. The Semester 2 competition has not started, even if you receive automated game details before the new dates are announced.'
+                  : 'Submitting the form registers you with EconSoc. It is not the same as joining the game on MarketWatch: you join with the password we send you.'}
               </p>
             </div>
           </div>

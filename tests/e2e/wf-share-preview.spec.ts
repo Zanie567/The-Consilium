@@ -14,7 +14,6 @@ import { BRAND_MARK, LEGACY_LOGO_PATH, SHARE_IMAGE } from '../../src/lib/brand'
 test.skip(({ browserName }) => browserName !== 'chromium', 'HTTP-only checks; one engine is enough')
 test.afterAll(async () => { await removeMyArticles(); await closeDb() })
 
-const TRADING_IMAGE = '/og/trading-challenge-v3.png'
 // An allowed cover host (next.config.ts remotePatterns). The HTML names it; nothing fetches it here.
 const COVER = 'https://images.unsplash.com/photo-share-preview-cover?w=1600'
 
@@ -68,12 +67,13 @@ test('static public pages declare the approved share card for Open Graph and X',
   }
 })
 
-test('the trading challenge keeps its own campaign card on both platforms', async ({ request }) => {
+test('postponed trading challenge uses the undated branded share card', async ({ request }) => {
   const p = await previewOf(request, '/trading-challenge')
-  expectImageUrl(p.ogImages[0], TRADING_IMAGE, 'trading og:image')
-  expect([p.og.width, p.og.height]).toEqual(['1200', '630'])
+  expectImageUrl(p.ogImages[0], SHARE_IMAGE.url, 'trading og:image')
+  expect(p.og).toEqual({ width: String(SHARE_IMAGE.width), height: String(SHARE_IMAGE.height), type: SHARE_IMAGE.type, alt: SHARE_IMAGE.alt })
   expect(p.twitterCard).toBe('summary_large_image')
-  expectImageUrl(p.twitterImages[0], TRADING_IMAGE, 'trading twitter:image')
+  expectImageUrl(p.twitterImages[0], SHARE_IMAGE.url, 'trading twitter:image')
+  expect(p.twitterAlt).toBe(SHARE_IMAGE.alt)
 })
 
 test('articles share their cover image, or the approved card when they have none; author pages use the card', async ({ request }) => {
@@ -109,7 +109,8 @@ test('brand images are served as PNGs of the declared size, and none is the obso
   for (const [path, width, height] of [
     [SHARE_IMAGE.url, SHARE_IMAGE.width, SHARE_IMAGE.height],
     [BRAND_MARK.url, BRAND_MARK.width, BRAND_MARK.height],
-    [TRADING_IMAGE, 1200, 630],
+    // Retired campaign card must stay accessible for previously shared links.
+    ['/og/trading-challenge-v3.png', 1200, 630],
     // Old links and external caches still request this; it must now be the current mark.
     [LEGACY_LOGO_PATH, BRAND_MARK.width, BRAND_MARK.height],
     ['/apple-touch-icon.png', 180, 180],

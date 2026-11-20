@@ -50,13 +50,14 @@ export function ChallengeRules() {
       ),
     },
     {
-      title: 'Dates and late entry',
-      body: (
-        <>
-          Trading runs from {formatChallengeDate(TC.startDate)} to {formatChallengeDate(TC.endDate)}. Members may join after the start while the game is running; late entrants receive the same
-          starting balance and have less time to trade.
-        </>
-      ),
+      title: TC.schedule.postponed ? 'Dates and registration' : 'Dates and late entry',
+      body: TC.schedule.postponed
+        ? 'The competition has been postponed to Semester 2 (2026–27). Exact start and end dates will be announced. Registration remains open in the meantime; any late-entry arrangements will be confirmed before trading starts.'
+        : (
+          <>
+            Trading runs from {formatChallengeDate(TC.startDate)} to {formatChallengeDate(TC.endDate)}. Members may join after the start while the game is running; late entrants receive the same starting balance and have less time to trade.
+          </>
+        ),
     },
     {
       title: 'Rankings',
@@ -92,7 +93,7 @@ export function ChallengeRules() {
     { term: 'Platform', detail: TC.platform },
     {
       term: 'Competition dates',
-      detail: (
+      detail: TC.schedule.postponed ? `${TC.schedule.semester} · dates to be confirmed` : (
         <span className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
           <span className="trading-glance-sub">Starts</span>
           <span>{formatChallengeDate(TC.startDate)}</span>

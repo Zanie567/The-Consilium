@@ -93,12 +93,12 @@ const MONTHS = (() => {
 
 const shortDate = (date: string) =>
   new Date(`${date}T00:00:00Z`).toLocaleString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
-const WINDOW_LABEL = `${shortDate(TC.startDate)} → ${shortDate(TC.endDate)}`
+const WINDOW_LABEL = TC.schedule.postponed ? `${TC.schedule.semester} · Dates TBC` : `${shortDate(TC.startDate)} → ${shortDate(TC.endDate)}`
 
 export function MarketChart({ phase, progress, daysToStart }: { phase: ChallengePhase; progress: number; daysToStart: number }) {
   const markerX = PAD.left + plotW * progress
   const markerLabel =
-    phase === 'upcoming' ? 'Opening bell' : phase === 'live' ? 'Today' : 'Closing bell'
+    phase === 'postponed' ? 'Coming soon' : phase === 'upcoming' ? 'Opening bell' : phase === 'live' ? 'Today' : 'Closing bell'
 
   return (
     <figure className="trading-terminal relative m-0 border border-gold/30 bg-navy-dark shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
@@ -117,7 +117,7 @@ export function MarketChart({ phase, progress, daysToStart }: { phase: Challenge
           {[0.2, 0.4, 0.6, 0.8].map((f) => (
             <line key={f} x1={PAD.left} x2={W - PAD.right} y1={PAD.top + plotH * f} y2={PAD.top + plotH * f} className="stroke-cream/[0.07]" strokeWidth="1" />
           ))}
-          {MONTHS.map((m) => {
+          {phase !== 'postponed' && MONTHS.map((m) => {
             const mx = PAD.left + plotW * m.at
             return (
               <g key={m.label}>

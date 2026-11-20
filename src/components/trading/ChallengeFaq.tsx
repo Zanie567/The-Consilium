@@ -45,7 +45,9 @@ export function ChallengeFaq() {
         },
         {
           q: 'Can I join after the competition starts?',
-          a: `Yes. Late entry is open while the game runs, until ${formatChallengeDate(TC.endDate)}. You start with the same $100,000 as everyone else; you just have less time to trade.`,
+          a: TC.schedule.postponed
+            ? 'The competition is coming in Semester 2 (2026–27). Registration remains open now. Exact trading dates and whether late entries will be available will be confirmed before the game begins.'
+            : `Yes. Late entry is open while the game runs, until ${formatChallengeDate(TC.endDate)}. You start with the same $100,000 as everyone else; you just have less time to trade.`,
         },
       ],
     },
@@ -76,7 +78,9 @@ export function ChallengeFaq() {
         },
         {
           q: 'When will I receive the game password?',
-          a: 'If you are a student already on EconSoc’s membership list, usually shortly after you register, by email to your university address. Otherwise, including for non-student members, it is sent once your membership has been verified.',
+          a: TC.schedule.postponed
+            ? 'The existing registration automation may still email the current private game details after membership verification. The competition itself is postponed, so please wait for EconSoc to confirm the new Semester 2 dates and joining instructions before trading.'
+            : 'If you are a student already on EconSoc’s membership list, usually shortly after you register, by email to your university address. Otherwise, including for non-student members, it is sent once your membership has been verified.',
         },
         {
           q: 'I bought my membership recently. What happens?',

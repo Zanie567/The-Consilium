@@ -6,7 +6,7 @@ import { PrizePodium } from '@/components/trading/PrizePodium'
 import { RegistrationPanel } from '@/components/trading/RegistrationPanel'
 import { ChallengeRules } from '@/components/trading/ChallengeRules'
 import { ChallengeFaq } from '@/components/trading/ChallengeFaq'
-import { canonicalAlternates, pageOpenGraph, pageTwitter } from '@/lib/seo'
+import { DEFAULT_SHARE_IMAGE, canonicalAlternates, pageOpenGraph, pageTwitter } from '@/lib/seo'
 import {
   TRADING_CHALLENGE as TC,
   TOTAL_PRIZE_POOL_GBP,
@@ -19,11 +19,15 @@ import {
   windowProgress,
 } from '@/lib/tradingChallenge'
 
-const TITLE = 'EconSoc Trading Challenge 2026–27'
+const TITLE = TC.schedule.postponed ? 'EconSoc Trading Challenge | Coming in Semester 2' : 'EconSoc Trading Challenge 2026–27'
 /** The campaign's own share card; it replaces the site default on this page only. */
-const SHARE_IMAGE = { url: '/og/trading-challenge-v3.png', width: 1200, height: 630, type: 'image/png', alt: 'The EconSoc Trading Challenge 2026–27: think you can beat the market?' }
+const SHARE_IMAGE = TC.schedule.postponed
+  ? DEFAULT_SHARE_IMAGE // The old competition-specific card contains withdrawn November–March dates.
+  : { url: '/og/trading-challenge-v3.png', width: 1200, height: 630, type: 'image/png', alt: 'The EconSoc Trading Challenge 2026–27: think you can beat the market?' }
 // Built from the constants, so the search and share text cannot drift from the page.
-const DESCRIPTION = `Build a virtual portfolio with $${TC.startingCapitalUsd.toLocaleString('en-GB')} of simulated capital and compete with fellow EconSoc members for £${TOTAL_PRIZE_POOL_GBP} in prizes. Trading runs ${formatChallengeDate(TC.startDate)} to ${formatChallengeDate(TC.endDate)} on MarketWatch.`
+const DESCRIPTION = TC.schedule.postponed
+  ? `The EconSoc Trading Challenge is coming in Semester 2 (2026–27). Registration remains open for EconSoc members. Compete with ${TC.startingCapitalUsd.toLocaleString('en-GB')} in virtual capital for £${TOTAL_PRIZE_POOL_GBP} in prizes. Exact trading dates will be announced.`
+  : `Build a virtual portfolio with ${TC.startingCapitalUsd.toLocaleString('en-GB')} of simulated capital and compete with fellow EconSoc members for £${TOTAL_PRIZE_POOL_GBP} in prizes. Trading runs ${formatChallengeDate(TC.startDate)} to ${formatChallengeDate(TC.endDate)} on MarketWatch.`
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -50,6 +54,7 @@ const sectionTitle = 'text-balance text-3xl font-bold leading-tight tracking-[-0
 export default function TradingChallengePage() {
   const now = new Date()
   const phase = challengePhase(now)
+  const postponed = phase === 'postponed'
   const winners = publishedWinners()
   const resultsPublished = winners.length > 0
   const open = phase !== 'closed'
@@ -74,14 +79,16 @@ export default function TradingChallengePage() {
     },
     {
       title: 'Get your login and start trading',
-      body: `Once you’re verified, we email you the private game link and password. Join the game on MarketWatch and trade from ${formatChallengeDate(TC.startDate, { withYear: false })}.`,
+      body: postponed
+        ? 'The competition is coming in Semester 2. We’ll announce the confirmed dates and updated joining details before trading begins. The existing registration process may still email game credentials; please wait for the new launch announcement.'
+        : `Once you’re verified, we email you the private game link and password. Join the game on MarketWatch and trade from ${formatChallengeDate(TC.startDate, { withYear: false })}.`,
       action: null,
     },
   ]
 
   return (
     <div className="trading-page bg-[var(--bg)]">
-      <ChallengeHero phase={phase} progress={windowProgress(now)} daysToStart={daysUntil(now, TC.startDate)} resultsPublished={resultsPublished} />
+      <ChallengeHero phase={phase} progress={postponed ? 0 : windowProgress(now)} daysToStart={postponed ? 0 : daysUntil(now, TC.startDate)} resultsPublished={resultsPublished} />
 
       {/* ── Prizes ─────────────────────────────────────────────────────── */}
       <section aria-labelledby="prizes-title" className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
@@ -91,8 +98,9 @@ export default function TradingChallengePage() {
               £{TOTAL_PRIZE_POOL_GBP} for the top three portfolios
             </h2>
             <p className="mt-4 max-w-md leading-relaxed text-[var(--fg-muted)]">
-              Prizes go to the three highest-ranked eligible entries when trading closes on{' '}
-              {formatChallengeDate(TC.endDate)}, after the committee has verified each winner’s membership and registration.
+              {postponed
+                ? 'Prizes will go to the three highest-ranked eligible entries when the Semester 2 competition ends, after the committee verifies their membership and registration.'
+                : <>Prizes go to the three highest-ranked eligible entries when trading closes on{' '}{formatChallengeDate(TC.endDate)}, after the committee has verified each winner’s membership and registration.</>}
             </p>
           </AnimateIn>
           {/* The podium choreographs its own entrance (PrizePodium). */}
@@ -160,7 +168,9 @@ export default function TradingChallengePage() {
             {open ? 'Register for the Challenge' : 'Registration has closed'}
           </h2>
           <p className="mt-4 max-w-2xl leading-relaxed text-[var(--fg-muted)]">
-            {open
+            {postponed
+              ? 'The Trading Challenge is coming in Semester 2 (2026–27). Registration remains open, so you can complete the form now. Exact trading dates and updated joining details will be announced later. The form’s own confirmation acknowledges receipt.'
+              : open
               ? 'Registration is how EconSoc verifies your membership. The Google Form below is the official record of your entry: its own confirmation message tells you it has been received.'
               : `Trading ended on ${formatChallengeDate(TC.endDate)}, so the Challenge is no longer accepting entries. Thank you to everyone who took part.`}
           </p>
@@ -174,6 +184,7 @@ export default function TradingChallengePage() {
               supportEmail={TC.supportEmail}
               membershipUrl={TC.links.membership}
               lateEntry={phase === 'live'}
+              postponed={postponed}
             />
           </AnimateIn>
         ) : (
@@ -195,10 +206,11 @@ export default function TradingChallengePage() {
               {resultsPublished ? 'The winners' : 'Standings'}
             </h2>
             <p className="mt-4 leading-relaxed text-cream/75">
-              Live rankings are kept by MarketWatch and are visible to players inside the game. The Consilium does not
-              mirror the leaderboard: a prize position counts only once the committee has verified it.
+              {postponed
+                ? 'The competition has not started. Rankings will become available once the new Semester 2 game begins. The committee will confirm the game details before trading opens.'
+                : 'Live rankings are kept by MarketWatch and are visible to players inside the game. The Consilium does not mirror the leaderboard: a prize position counts only once the committee has verified it.'}
             </p>
-            <a
+            {!postponed && <a
               href={TC.links.rankings}
               target="_blank"
               rel="noopener noreferrer"
@@ -208,7 +220,8 @@ export default function TradingChallengePage() {
               <ArrowUpRight size={15} aria-hidden />
               <span className="sr-only">(opens in a new tab; sign-in required)</span>
             </a>
-            <p className="mt-3 text-xs text-cream/60">Sign in to MarketWatch and join the game to see them.</p>
+            }
+            {!postponed && <p className="mt-3 text-xs text-cream/60">Sign in to MarketWatch and join the game to see them.</p>}
           </AnimateIn>
 
           <AnimateIn className="lg:col-span-7" delay={0.08}>
@@ -219,10 +232,12 @@ export default function TradingChallengePage() {
             ) : (
               <div className="trading-awaiting border border-dashed border-gold/35 px-6 py-10 sm:px-10">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">
-                  {phase === 'closed' ? 'Results being verified' : 'Winners announced after the close'}
+                  {postponed ? 'Coming in Semester 2' : phase === 'closed' ? 'Results being verified' : 'Winners announced after the close'}
                 </p>
                 <p className="mt-3 text-2xl font-bold leading-snug text-cream" style={{ fontFamily: 'var(--font-serif)' }}>
-                  {phase === 'closed'
+                  {postponed
+                    ? 'Trading dates will be confirmed before the Semester 2 launch. Verified winners will be announced here after the competition ends.'
+                    : phase === 'closed'
                     ? 'Trading has ended. The committee is checking the leading entries before announcing the winners here.'
                     : `The verified top three will be announced here after trading closes on ${formatChallengeDate(TC.endDate)}.`}
                 </p>
@@ -288,12 +303,12 @@ export default function TradingChallengePage() {
           <AnimateIn className="relative mx-auto flex max-w-6xl flex-col gap-8 px-4 py-16 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:py-20">
             <div className="max-w-2xl">
               <h2 id="closing-title" className="text-balance text-3xl font-bold leading-tight text-cream sm:text-4xl" style={{ fontFamily: 'var(--font-serif)' }}>
-                {phase === 'live' ? 'There’s still time to take your seat at the table.' : 'Take your seat at the opening bell.'}
+                {postponed ? 'The competition is coming in Semester 2.' : phase === 'live' ? 'There’s still time to take your seat at the table.' : 'Take your seat at the opening bell.'}
               </h2>
               <p className="mt-4 leading-relaxed text-cream/75">
-                {usd(TC.startingCapitalUsd)} of virtual capital, four months of trading and{' '}
+                {usd(TC.startingCapitalUsd)} of virtual capital and{' '}
                 <span className="whitespace-nowrap font-semibold text-gold">£{TC.prizes[0].amountGbp} · £{TC.prizes[1].amountGbp} · £{TC.prizes[2].amountGbp}</span>{' '}
-                for the top three. {phase === 'live' ? `Late entries are open until ${formatChallengeDate(TC.endDate)}.` : `Trading opens ${formatChallengeDate(TC.startDate, { withYear: false })}.`}
+                for the top three. {postponed ? 'The form remains open; exact trading dates will be announced.' : phase === 'live' ? `Late entries are open until ${formatChallengeDate(TC.endDate)}.` : `Trading opens ${formatChallengeDate(TC.startDate, { withYear: false })}.`}
               </p>
             </div>
             <a

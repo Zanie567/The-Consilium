@@ -7,12 +7,12 @@
 | `/og/consilium-share-v2.png` | 1200×630 PNG | Default `og:image` / `twitter:image` for every page without its own |
 | `/brand/consilium-mark-v2.png` | 512×512 PNG | Square logo: structured-data `publisher.logo`, anywhere a mark is needed |
 | `/logo.png` | 512×512 PNG | **Legacy address only.** Same bytes as the mark, kept for old links and caches. Never reference it. |
-| `/og/trading-challenge-v3.png` | 1200×630 PNG | Campaign card, `/trading-challenge` only (trading dates 23 Nov – 24 Mar; redrawn by `scripts/brand/generate-trading-card.mjs`) |
+| `/og/trading-challenge-v3.png` | 1200×630 PNG | **Withdrawn campaign card** (former 23 Nov – 24 Mar dates). Retained only for past shares; do not reference while postponed. |
 | `/og/trading-challenge-v2.png` | 1200×630 PNG | **Superseded** campaign card (old dates 9 Nov – 24 Mar). Kept only for caches of earlier shares. Never reference it. |
 | `/og/trading-challenge.png` | 1200×630 PNG | **Superseded** campaign card (old dates 28 Oct – 25 Mar). Kept only for caches of earlier shares and as the generator's source. Never reference it. |
 | `src/app/favicon.ico`, `src/app/icon1.png`, `src/app/icon2.png`, `src/app/apple-icon.png`, `public/apple-touch-icon.png`, `public/brand/app-icon-*-v1.png` | 16–512 px PNG/ICO | Favicons, iOS home-screen icon and manifest icons: opaque navy squares (`#14213e`) with the emblem centred, no transparency |
 
-`src/lib/brand.ts` is the only place that names these paths. Metadata comes from the helpers in
+While the competition is postponed until Semester 2 (2026–27), `/trading-challenge` uses the undated `/og/consilium-share-v2.png` as its Open Graph and Twitter image. A new date-specific versioned card must be generated only once the committee confirms the new schedule. The existing dated images are intentionally retained for caches of past shares.\n\n`src/lib/brand.ts` is the single source for the default card, mark and icon paths. Metadata comes from the helpers in
 `src/lib/seo.ts` (`pageOpenGraph`, `pageTwitter`, `articleShareImages`), never from hand-written objects:
 Next merges metadata shallowly, so a partial `openGraph` or `twitter` object silently drops the image.
 

@@ -9,10 +9,18 @@ import { RegistrationPanel } from '@/components/trading/RegistrationPanel'
 import { AnimateIn, StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { TRADING_CHALLENGE, nonStudentMailto } from '@/lib/tradingChallenge'
 
-const hero = (phase: 'upcoming' | 'live' | 'closed', resultsPublished = false) =>
+const hero = (phase: 'postponed' | 'upcoming' | 'live' | 'closed', resultsPublished = false) =>
   renderToStaticMarkup(<ChallengeHero phase={phase} progress={phase === 'upcoming' ? 0 : phase === 'live' ? 0.5 : 1} daysToStart={8} resultsPublished={resultsPublished} />)
 
 describe('competition status wording', () => {
+  it('announces Semester 2 without publishing an invalid date or old game link', () => {
+    expect(statusLine('postponed', false)).toMatchObject({ label: 'Registration open', detail: 'Coming in Semester 2 (2026–27) · Dates to be confirmed' })
+    const html = hero('postponed')
+    expect(html).toContain('Enter the Challenge')
+    expect(html).toContain('href="#register"')
+    expect(html).not.toContain(TRADING_CHALLENGE.links.game)
+    expect(html).not.toMatch(/23 November|24 March/)
+  })
   it('before the start: registration open, trading opens on the start date', () => {
     expect(statusLine('upcoming', false)).toEqual({ tone: 'open', label: 'Registration open', detail: 'Trading opens Monday 23 November' })
     const html = hero('upcoming')
@@ -89,7 +97,7 @@ describe('rules and settings', () => {
   const html = renderToStaticMarkup(<ChallengeRules />)
 
   it('shows the competition at a glance with the prizes, and no detailed game settings', () => {
-    for (const text of ['Competition at a glance', 'Organiser', 'Platform', 'Competition dates', 'Starting balance', 'Markets', 'Prizes', 'Nasdaq, NYSE, NYSE American and OTC', '£100', '£50', '£25', '23 November 2026', '24 March 2027']) {
+    for (const text of ['Competition at a glance', 'Organiser', 'Platform', 'Competition dates', 'Starting balance', 'Markets', 'Prizes', 'Nasdaq, NYSE, NYSE American and OTC', '£100', '£50', '£25', 'Semester 2 (2026–27)']) {
       expect(html).toContain(text)
     }
     for (const text of ['Commission', 'Order types', 'Fractional', 'Minimum share price', 'Interest', 'Short selling', 'Margin']) {
@@ -103,11 +111,11 @@ describe('rules and settings', () => {
     }
     expect(html).toContain('register by emailing the committee')
     expect(html).toContain('The final standings are the rankings when the game ends.')
-    expect(html).toContain('Trading runs from 23 November 2026 to 24 March 2027. Members may join after the start')
+    expect(html).toContain('The competition has been postponed to Semester 2 (2026–27)')
   })
 
   it('has no tie-break rule or unconfirmed placeholder, and numbers the rules 01–08 without gaps', () => {
-    expect(html).not.toMatch(/\bTies?\b|tie-break|To be confirmed/i)
+    expect(html).not.toMatch(/\bTies?\b|tie-break/i)
     const rules = html.slice(html.indexOf('trading-rules'))
     const numbers = [...rules.matchAll(/aria-hidden="true">(\d{2})<\/span>/g)].map((m) => m[1])
     expect(numbers).toEqual(['01', '02', '03', '04', '05', '06', '07', '08'])

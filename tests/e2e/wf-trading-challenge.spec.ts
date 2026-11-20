@@ -46,40 +46,33 @@ test('Trading has its own entry in the desktop navigation, between Debate and th
   expect(errors, errors.join('\n')).toEqual([])
 })
 
-test('the page states the confirmed competition facts and never a password or private sheet', async ({ page }) => {
+test('announces Semester 2 without withdrawn dates, preserving prizes and registration', async ({ page }) => {
   const response = await open(page)
   const html = await response.text()
   const main = page.locator('main')
   await expect(main.getByText('$100,000').first()).toBeVisible()
   await expect(main.getByText('£175').first()).toBeVisible()
+  await expect(main.getByText('Registration open').first()).toBeVisible()
+  await expect(main.getByText(/Coming in Semester 2/).first()).toBeVisible()
   for (const [place, amount] of [['First place', '£100'], ['Second place', '£50'], ['Third place', '£25']]) {
     const item = page.getByRole('list', { name: 'Prizes' }).getByRole('listitem').filter({ hasText: place })
     await expect(item).toContainText(amount)
   }
-  // The essentials only, prizes included; detailed MarketWatch settings are not restated.
   const glance = page.locator('dl.trading-glance')
-  await expect(glance.locator('div').filter({ hasText: /^Competition dates/ })).toContainText(/Starts23 November 2026\s*Ends24 March 2027/)
+  await expect(glance.locator('div').filter({ hasText: /^Competition dates/ })).toContainText(/Semester 2.*dates to be confirmed/i)
   await expect(glance.locator('div').filter({ hasText: /^Markets/ })).toContainText('Nasdaq, NYSE, NYSE American and OTC')
   await expect(glance.locator('div').filter({ hasText: /^Prizes/ })).toContainText(/First£100.*Second£50.*Third£25/)
-  for (const gone of ['Commission', 'Short selling', 'Margin trading', 'Fractional shares', 'Minimum share price']) {
-    await expect(main.getByText(gone)).toHaveCount(0)
+  for (const gone of ['Commission', 'Margin trading', 'Fractional shares', 'Minimum share price']) {
+    await expect(main.getByText(gone, { exact: true })).toHaveCount(0)
   }
   expect(html).not.toMatch(/docs\.google\.com\/spreadsheets|script\.google\.com|game password\s*[:=]/i)
-  // The current game only. Its slug is a prefix of the earlier games' slugs, so every game
-  // link is matched exactly and the earlier slugs must not appear anywhere in the page.
-  const GAME = 'https://www.marketwatch.com/games/the-econsoc-trading-challenge'
   expect(html).not.toMatch(/the-econsoc-trading-challenge-(2026-27|26-27)/)
-  const gameLinks = await main.locator('a[href*="marketwatch.com/games/"]').evaluateAll((as) => as.map((a) => a.getAttribute('href')))
-  expect(gameLinks).toContain(`${GAME}/rankings`)
-  for (const href of gameLinks) expect([GAME, `${GAME}/rankings`]).toContain(href)
-  expect(html).not.toMatch(/28 Oct(ober)?\b|\b9 Nov(ember)?\b|four and a half months/)
-  // Phase-dependent wording is pinned by fixed-clock tests (trading-challenge-page.test.tsx),
-  // so this spec does not start failing when the competition's dates arrive.
-  // The withdrawn tie-break placeholder is gone; the eight remaining rules are numbered in order.
-  await expect(page.locator('#rules')).not.toContainText(/\bTies\b|To be confirmed/)
+  const GAME = 'https://www.marketwatch.com/games/the-econsoc-trading-challenge'
+  expect(await main.locator(`a[href="${GAME}"],a[href="${GAME}/rankings"]`).count()).toBe(0)
+  expect(html).not.toMatch(/23 Nov(ember)?|24 Mar(ch)?|four months of trading|Trading opens tomorrow|In progress|Trading closed/)
   await expect(page.locator('ol.trading-rules > li > span')).toHaveText(['01', '02', '03', '04', '05', '06', '07', '08'])
-  await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /Trading runs 23 November 2026 to 24 March 2027/)
-  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute('content', /23 November 2026 to 24 March 2027/)
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /coming in Semester 2 \(2026–27\).*Registration remains open/)
+  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute('content', /coming in Semester 2 \(2026–27\)/)
   expect(html).toContain('Illustrative chart. Not market data or competition results.')
 })
 
