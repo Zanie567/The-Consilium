@@ -19,7 +19,7 @@ import {
   windowProgress,
 } from '@/lib/tradingChallenge'
 
-const TITLE = 'EconSoc Trading Challenge 2026–27'
+const TITLE = TC.schedule.postponed ? 'EconSoc Trading Challenge | Coming in Semester 2' : 'EconSoc Trading Challenge 2026–27'
 /** The campaign's own share card; it replaces the site default on this page only. */
 const SHARE_IMAGE = TC.schedule.postponed
   ? DEFAULT_SHARE_IMAGE // The old competition-specific card contains withdrawn November–March dates.
