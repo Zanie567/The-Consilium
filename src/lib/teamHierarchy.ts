@@ -99,7 +99,7 @@ const SECTION_ORDER: readonly TeamSectionId[] = [
 ]
 
 const SECTION_META: Record<TeamSectionId, { label: string; labelVisible: boolean }> = {
-  // The two masthead rows read as a hierarchy on their own; a visible label
+  // The masthead tiers read as a hierarchy on their own; a visible label
   // would only restate what the cards already say.
   masthead: { label: 'Masthead', labelVisible: false },
   editorial: { label: 'Editorial Team', labelVisible: true },
@@ -241,12 +241,6 @@ export function buildTeamMasthead<T extends TeamMemberLike>(members: T[]): TeamS
   })
 
   for (const bucket of buckets.values()) bucket.sort(compareMembers)
-  // Preserve additional appointments without crowding the two deputy cards.
-  const deputies = buckets.get(key('masthead', 'deputy'))
-  if (deputies && deputies.length > 2) {
-    for (const member of deputies.splice(2)) add('editorial', 'leadership', member)
-    buckets.get(key('editorial', 'leadership'))?.sort(compareMembers)
-  }
 
   return SECTION_ORDER.flatMap<TeamSection<T>>((sectionId) => {
     const rows = TEAM_TIER_ORDER.map((tier) => ({
