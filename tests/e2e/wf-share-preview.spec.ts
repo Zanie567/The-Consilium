@@ -109,7 +109,8 @@ test('brand images are served as PNGs of the declared size, and none is the obso
   for (const [path, width, height] of [
     [SHARE_IMAGE.url, SHARE_IMAGE.width, SHARE_IMAGE.height],
     [BRAND_MARK.url, BRAND_MARK.width, BRAND_MARK.height],
-    [TRADING_IMAGE, 1200, 630],
+    // Retired campaign card must stay accessible for previously shared links.
+    ['/og/trading-challenge-v3.png', 1200, 630],
     // Old links and external caches still request this; it must now be the current mark.
     [LEGACY_LOGO_PATH, BRAND_MARK.width, BRAND_MARK.height],
     ['/apple-touch-icon.png', 180, 180],
