@@ -11,6 +11,9 @@ import {
 const usd = (n: number) => `$${n.toLocaleString('en-GB')}`
 
 export function statusLine(phase: ChallengePhase, resultsPublished: boolean) {
+  if (phase === 'postponed') {
+    return { tone: 'open', label: 'Registration open', detail: `Coming in ${TC.schedule.semester} · Dates to be confirmed` }
+  }
   if (phase === 'upcoming') {
     return { tone: 'open', label: 'Registration open', detail: `Trading opens ${formatChallengeDate(TC.startDate, { withYear: false, weekday: true })}` }
   }
@@ -39,7 +42,7 @@ export function ChallengeHero({
   const facts = [
     { term: 'Starting capital', value: usd(TC.startingCapitalUsd), note: 'virtual' },
     { term: 'Prize pool', value: `£${TOTAL_PRIZE_POOL_GBP}`, note: TC.prizes.map((p) => `£${p.amountGbp}`).join(' · ') },
-    { term: 'Trading window', value: `${formatChallengeDate(TC.startDate, { withYear: false })} – ${formatChallengeDate(TC.endDate)}`, note: null },
+    { term: 'Trading window', value: phase === 'postponed' ? TC.schedule.semester : `${formatChallengeDate(TC.startDate, { withYear: false })} – ${formatChallengeDate(TC.endDate)}`, note: phase === 'postponed' ? 'dates to be confirmed' : null },
     { term: 'Who can enter', value: 'Paid EconSoc members', note: null },
     { term: 'Real money at stake', value: 'None', note: 'simulated trading' },
   ]
@@ -110,7 +113,7 @@ export function ChallengeHero({
               </a>
             </div>
 
-            {open && (
+            {open && phase !== 'postponed' && (
               <p className="mt-5 text-sm text-cream/65">
                 Already verified?{' '}
                 <a href={TC.links.game} target="_blank" rel="noopener noreferrer" className="link-underline inline-flex items-center gap-1 font-semibold text-cream hover:text-gold">

@@ -17,7 +17,7 @@
 
 export const TRADING_CHALLENGE_TIME_ZONE = 'Europe/London'
 
-export type ChallengePhase = 'upcoming' | 'live' | 'closed'
+export type ChallengePhase = 'postponed' | 'upcoming' | 'live' | 'closed'
 
 /** A prize place. Amounts are whole pounds. */
 export interface Prize {
@@ -43,10 +43,14 @@ export const TRADING_CHALLENGE = {
   organiser: 'University of Edinburgh Economics Society',
   platform: 'MarketWatch Virtual Stock Exchange',
 
+  /** Semester 2 postponement: registration stays open; no exact trading dates are confirmed. */
+  schedule: { postponed: true, semester: 'Semester 2 (2026–27)' },
+
   /**
-   * Calendar dates in Europe/London, as confirmed by the organisers (November 2026: the
-   * start moved from 9 to 23 November; the end date is provisionally unchanged). No start
-   * or end time has been announced, so the page uses whole days only.
+   * WITHDRAWN November–March dates, retained only for the existing scheduled-mode
+   * helper and previous game configuration. Never advertise these while the
+   * Semester 2 postponement flag above is on. Replace both dates with confirmed
+   * dates and clear the flag together before announcing a new trading window.
    */
   startDate: '2026-11-23',
   endDate: '2027-03-24',
@@ -138,7 +142,8 @@ export function londonDate(now: Date): string {
  * Computed on the server only and passed down, so the client never re-derives it and
  * cannot disagree with the server render near midnight.
  */
-export function challengePhase(now: Date, start: string = TRADING_CHALLENGE.startDate, end: string = TRADING_CHALLENGE.endDate): ChallengePhase {
+export function challengePhase(now: Date, start: string = TRADING_CHALLENGE.startDate, end: string = TRADING_CHALLENGE.endDate, ignorePostponement = false): ChallengePhase {
+  if (TRADING_CHALLENGE.schedule.postponed && !ignorePostponement) return 'postponed'
   const today = londonDate(now)
   if (today < start) return 'upcoming'
   if (today <= end) return 'live'

@@ -13,7 +13,9 @@ import {
 } from '@/lib/tradingChallenge'
 
 describe('competition facts', () => {
-  it('match the confirmed competition details', () => {
+  it('preserves the competition facts while postponing trading to Semester 2', () => {
+    expect(TRADING_CHALLENGE.schedule).toEqual({ postponed: true, semester: 'Semester 2 (2026–27)' })
+    // These dates are withdrawn, and must not appear on the public page.
     expect(TRADING_CHALLENGE.startDate).toBe('2026-11-23')
     expect(TRADING_CHALLENGE.endDate).toBe('2027-03-24')
     expect(TRADING_CHALLENGE.startingCapitalUsd).toBe(100_000)
@@ -21,7 +23,7 @@ describe('competition facts', () => {
     expect(TOTAL_PRIZE_POOL_GBP).toBe(175)
   })
 
-  it('starts on a Monday and runs for about four months, as the closing copy says', () => {
+  it('retains the withdrawn dates only for scheduled-mode helper compatibility', () => {
     expect(formatChallengeDate(TRADING_CHALLENGE.startDate, { withYear: false, weekday: true })).toBe('Monday 23 November')
     const days = daysUntil(new Date(`${TRADING_CHALLENGE.startDate}T12:00:00Z`), TRADING_CHALLENGE.endDate)
     expect(days).toBeGreaterThanOrEqual(120) // four months
@@ -74,31 +76,24 @@ describe('competition facts', () => {
 })
 
 describe('competition phase (Europe/London calendar days)', () => {
-  it('is upcoming before the start date, including late on the eve in London', () => {
-    expect(challengePhase(new Date('2026-10-28T12:00:00Z'))).toBe('upcoming')
-    // The previously advertised start date is now before the start.
-    expect(challengePhase(new Date('2026-11-09T12:00:00Z'))).toBe('upcoming')
-    // 23:59 UTC on 22 Nov is 23:59 GMT in London (clocks went back on 25 Oct 2026): still the 22nd.
-    expect(challengePhase(new Date('2026-11-22T23:59:00Z'))).toBe('upcoming')
+  it('remains postponed before, during and after the withdrawn trading dates', () => {
+    for (const day of [
+      '2026-11-20T12:00:00Z', '2026-11-23T00:00:00Z',
+      '2027-01-15T09:00:00Z', '2027-03-24T23:59:00Z', '2027-04-02T12:00:00Z',
+    ]) expect(challengePhase(new Date(day))).toBe('postponed')
   })
 
-  it('is live from the first London minute of the start date through the end date', () => {
-    expect(challengePhase(new Date('2026-11-23T00:00:00Z'))).toBe('live')
-    expect(challengePhase(new Date('2027-01-15T09:00:00Z'))).toBe('live')
-    expect(challengePhase(new Date('2027-03-24T23:59:00Z'))).toBe('live')
+  it('preserves date-based phases for future confirmed schedules', () => {
+    expect(challengePhase(new Date('2026-11-22T23:59:00Z'), undefined, undefined, true)).toBe('upcoming')
+    expect(challengePhase(new Date('2026-11-23T00:00:00Z'), undefined, undefined, true)).toBe('live')
+    expect(challengePhase(new Date('2027-03-24T23:59:00Z'), undefined, undefined, true)).toBe('live')
+    expect(challengePhase(new Date('2027-03-25T00:00:00Z'), undefined, undefined, true)).toBe('closed')
+    expect(challengePhase(new Date('2026-06-10T23:30:00Z'), '2026-06-11', '2026-06-30', true)).toBe('live')
   })
 
-  it('is closed from the day after the end date', () => {
-    expect(challengePhase(new Date('2027-03-25T00:00:00Z'))).toBe('closed')
-    expect(challengePhase(new Date('2027-06-01T00:00:00Z'))).toBe('closed')
-  })
-
-  it('uses London, not UTC or the server zone, across a BST boundary', () => {
-    // 23:30 UTC on 27 Oct 2026 is still 27 Oct in London (GMT after 25 Oct).
+  it('uses the London calendar across the GMT/BST boundary', () => {
     expect(londonDate(new Date('2026-10-27T23:30:00Z'))).toBe('2026-10-27')
-    // During BST, 23:30 UTC is already the next day in London.
     expect(londonDate(new Date('2026-06-10T23:30:00Z'))).toBe('2026-06-11')
-    expect(challengePhase(new Date('2026-06-10T23:30:00Z'), '2026-06-11', '2026-06-30')).toBe('live')
   })
 })
 

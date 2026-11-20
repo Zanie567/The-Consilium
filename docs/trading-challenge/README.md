@@ -26,7 +26,15 @@ Registration itself is **not** handled by this website:
 `tests/unit/trading-challenge.test.ts` fails if the config gains a password,
 spreadsheet, Apps Script, token or secret value.
 
-## How the page decides its state
+## Semester 2 postponement (20 November 2026)
+
+The committee has postponed the Trading Challenge to **Semester 2 of academic year 2026–27**. Exact trading dates have not been announced. Set `TRADING_CHALLENGE.schedule.postponed = true` and use its semester label in every public status, FAQ, prize, rule, chart, registration, search and sharing component. The November–March dates stored below are **withdrawn historical values**, not live scheduling data. The page must never show a countdown, live trading, outdated MarketWatch game links or results while postponed. Registration stays available through the **same Google Form and non-student email route**.
+
+The Google Form → Sheet → Apps Script membership automation and the MarketWatch game are independent of the website: changing website copy **does not stop automated emails or move the MarketWatch game**. Committee must separately review the form's confirmation, automated replies/game credentials and actual MarketWatch configuration. A reader should never be told trading has begun just because an old automated email arrived.
+
+When exact dates are approved, update `startDate`, `endDate`, `schedule.postponed`, rules, FAQs, related tests and a **new versioned share card** together. Do not resurrect the old dates inadvertently. The existing date-based phase logic remains available once postponement is disabled.
+
+## Historical scheduled-mode behaviour (withdrawn dates)
 
 The phase is computed on the server from the **Europe/London calendar date**:
 
