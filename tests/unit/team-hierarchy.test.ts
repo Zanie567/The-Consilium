@@ -170,6 +170,22 @@ describe('buildTeamMasthead', () => {
     expect(sections[0].rows[1].members.map((m) => m.name)).toEqual(['Second Chief'])
   })
 
+  it('keeps five deputies in the deputy masthead row regardless of insertion order', () => {
+    const deputies = [5, 2, 4, 1, 3].map((order) => ({
+      ...member(`Deputy ${order}`, 'Deputy Editor-in-Chief', order),
+      publicTier: 'deputy',
+    }))
+    const sections = buildTeamMasthead([
+      member('Editor', 'Editor', 0),
+      ...deputies,
+      member('Chief', 'Editor-in-Chief', 0),
+    ])
+    expect(sections[0].rows.map((row) => row.tier)).toEqual(['editor_in_chief', 'deputy'])
+    expect(sections[0].rows[1].members.map((m) => m.order)).toEqual([1, 2, 3, 4, 5])
+    expect(sections[1].rows.map((row) => row.tier)).toEqual(['editor'])
+    expect(sections[1].rows[0].members.map((m) => m.name)).toEqual(['Editor'])
+  })
+
   it('sorts each tier by display order, then name', () => {
     const writers = buildTeamMasthead([
       member('Bea', 'Writer', 5),
@@ -191,7 +207,7 @@ describe('buildTeamMasthead', () => {
 })
 
 describe('upgrade pyramid', () => {
-  it('is stable for shuffled insertion, keeps chiefs first, caps deputy row, omits empty sections', () => {
+  it('is stable for shuffled insertion, keeps chiefs first, retains every deputy, omits empty sections', () => {
     const members = [
       {
         id: 'chief',
@@ -225,7 +241,8 @@ describe('upgrade pyramid', () => {
       ).toEqual(expected)
     expect(expected.map((s) => s.id)).toEqual(['masthead', 'editorial', 'writers', 'growth'])
     expect(expected[0].rows[0].members[0].id).toBe('chief')
-    expect(expected[0].rows[1].members.map((m) => m.id)).toEqual(['deputy1', 'deputy2'])
+    expect(expected[0].rows[1].members.map((m) => m.id)).toEqual(['deputy1', 'deputy2', 'deputy3'])
+    expect(expected[1].rows.map((row) => row.tier)).toEqual(['editor'])
     expect(expected[1].label).toBe('Editorial Team')
     expect(expected[3].label).toBe('Growth & Comms')
     expect(buildTeamMasthead([members[0]])).toHaveLength(4)
