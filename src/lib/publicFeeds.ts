@@ -69,7 +69,20 @@ export async function loadSitemapData(db: Db = prisma): Promise<SitemapData> {
     // articles above. An empty section ("coming soon") or a profile with nothing published is a thin page that
     // search engines may report as a soft 404, and a topic used solely by hidden articles must not be advertised.
     db.category.findMany({ where: { articles: { some: publishedArticleWhere() } }, select: { slug: true } }),
-    db.tag.findMany({ where: { articles: { some: { article: publishedArticleWhere() } } }, select: { slug: true } }),
+    // A one-article topic is a useful browsing link but not yet a substantial search landing page.
+    // Wait until at least two PUBLIC articles exist before advertising it for indexing.
+    // Fetch at most two join rows, not every article for every tag.
+    db.tag.findMany({
+      where: { articles: { some: { article: publishedArticleWhere() } } },
+      select: {
+        slug: true,
+        articles: {
+          where: { article: publishedArticleWhere() },
+          take: 2,
+          select: { articleId: true },
+        },
+      },
+    }),
     db.user.findMany({
       where: { articles: { some: publishedArticleWhere() }, NOT: { email: { startsWith: 'test-' } } },
       select: { id: true, slug: true },
@@ -78,7 +91,7 @@ export async function loadSitemapData(db: Db = prisma): Promise<SitemapData> {
   return {
     articles: articles.map((a) => ({ slug: a.slug, updatedAt: a.updatedAt.toISOString() })),
     categories,
-    tags,
+    tags: tags.filter((t) => t.articles.length >= 2).map((t) => ({ slug: t.slug })),
     // The author page's own canonical address: its slug, or its id while it has none (src/app/author/[slug]/page.tsx).
     authors: authors.map((u) => ({ slug: u.slug ?? u.id })),
   }
