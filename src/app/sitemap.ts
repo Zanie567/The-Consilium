@@ -17,7 +17,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { articles, categories, tags, authors } = data
 
   const staticPages: MetadataRoute.Sitemap = [
-    { url: BASE, lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
+    // Do not emit a made-up <lastmod> for the homepage on every sitemap request.
+    // Google only trusts lastmod when it reflects a real, significant page change.
+    { url: BASE, changeFrequency: 'daily', priority: 1 },
     { url: `${BASE}/about`, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${BASE}/team`, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${BASE}/contact`, changeFrequency: 'yearly', priority: 0.4 },
