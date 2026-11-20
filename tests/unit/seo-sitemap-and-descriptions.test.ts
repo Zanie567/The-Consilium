@@ -42,11 +42,11 @@ beforeEach(() => vi.clearAllMocks())
 
 // ── 1. Sitemap ───────────────────────────────────────────────────────────────
 
-function fakeDb(over: { categories?: unknown[]; users?: unknown[] } = {}) {
+function fakeDb(over: { categories?: unknown[]; users?: unknown[]; tags?: unknown[] } = {}) {
   return {
     article: { findMany: vi.fn().mockResolvedValue([]) },
     category: { findMany: vi.fn().mockResolvedValue(over.categories ?? []) },
-    tag: { findMany: vi.fn().mockResolvedValue([]) },
+    tag: { findMany: vi.fn().mockResolvedValue(over.tags ?? []) },
     user: { findMany: vi.fn().mockResolvedValue(over.users ?? []) },
   }
 }
@@ -73,6 +73,21 @@ describe('loadSitemapData: who and what is listed', () => {
     expect(where.slug).toBeUndefined()
     expect(where.role).toBeUndefined()
     expect(select).toEqual({ id: true, slug: true })
+  })
+
+  it('only advertises topics with at least two public articles, using a bounded query', async () => {
+    const db = fakeDb({
+      tags: [
+        { slug: 'one-article', articles: [{ articleId: 'a' }] },
+        { slug: 'two-articles', articles: [{ articleId: 'b' }, { articleId: 'c' }] },
+      ],
+    })
+    const data = await loadSitemapData(db as never)
+    expect(data.tags).toEqual([{ slug: 'two-articles' }])
+    const { where, select } = db.tag.findMany.mock.calls[0][0]
+    expect(where).toEqual({ articles: { some: { article: publishedArticleWhere() } } })
+    expect(select.articles.where).toEqual({ article: publishedArticleWhere() })
+    expect(select.articles.take).toBe(2)
   })
 
   it("uses the author's slug, or their id while they have none (the author page's own canonical)", async () => {
@@ -109,6 +124,12 @@ describe('sitemap.xml: only intended, public, canonical URLs', () => {
       `${SITE_URL}/author/ada-writer`,
       `${SITE_URL}/author/cmnoslug0000000000000000`,
     ]))
+  })
+
+  it('does not claim the homepage was modified on every sitemap request', async () => {
+    sitemapData.mockResolvedValue(data)
+    const home = (await sitemap()).find((entry) => entry.url === SITE_URL)
+    expect(home?.lastModified).toBeUndefined()
   })
 
   it('an author URL is exactly the canonical their page declares, with or without a slug', async () => {
