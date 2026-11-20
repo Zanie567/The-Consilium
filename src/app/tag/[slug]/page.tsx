@@ -7,7 +7,7 @@ import { StaggerContainer, StaggerItem } from '@/components/ui/AnimateIn'
 import { ArticleEmptyState } from '@/components/ui/ArticleEmptyState'
 import { getTagEmptyState } from '@/lib/sectionEmptyStates'
 import type { Metadata } from 'next'
-import { canonicalAlternates } from '@/lib/seo'
+import { canonicalAlternates, NOINDEX_ROBOTS } from '@/lib/seo'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -33,6 +33,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: tag.name,
     description: `All articles tagged with "${tag.name}" in The Consilium.`,
     alternates: canonicalAlternates(`/tag/${tag.slug}`),
+    // A one-article topic remains browseable and its links followable, but is not
+    // advertised as a separate search landing page until it has more coverage.
+    robots: tag.articles.length < 2 ? NOINDEX_ROBOTS : undefined,
   }
 }
 
